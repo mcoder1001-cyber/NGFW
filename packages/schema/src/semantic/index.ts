@@ -43,6 +43,7 @@ import { managementValidators } from './management.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
+import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchored)
 
 export * from './registry.js';
 
@@ -94,6 +95,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  ...hostStackValidators, // F-host-stack (unanchored)
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

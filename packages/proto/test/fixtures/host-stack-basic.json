@@ -1,6 +1,6 @@
 {
   "vrfs": { "hs": { "id": 1300 } },
-  "interfaces": { "loop13": { "ipv4": ["10.13.1.1/24"] } },
+  "interfaces": { "loop13": { "vrf": "hs", "ipv4": ["10.13.1.1/24"] } },
   "services": {
     "hostStack": {
       "enabled": true,

@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { canonicalIp, canonicalPrefix, ipFamily } from '../../ip.js';
 import { ipAddress, objectName, vppInterfaceName } from '../../primitives.js';
 import { withUi } from '../../ui.js';
-import { ipv4OrIpv6Cidr, secretRefOf, transportPort, u32Int, vrfRef } from '../_shared/primitives.js';
+import {
+  ipv4OrIpv6Cidr,
+  secretRefOf,
+  transportPort,
+  u32Int,
+  vrfRef,
+} from '../_shared/primitives.js';
 
 /**
  * `services.hostStack` — the API-configurable part of VPP's host stack (F-host-stack, WBS D7.10, scoped down by
@@ -46,7 +52,10 @@ export const HostStackNamespaceSchema = z.strictObject({
     title: 'Secret',
     help: 'key/<name>; not applied until the API→agent secret channel exists',
   }),
-  interface: withUi(vppInterfaceName.optional(), { title: 'Interface', widget: 'interface-picker' }),
+  interface: withUi(vppInterfaceName.optional(), {
+    title: 'Interface',
+    widget: 'interface-picker',
+  }),
   vrf: vrfRef,
 });
 
@@ -69,7 +78,10 @@ export const HostStackSessionRuleSchema = z
       title: 'Redirect to app index',
       help: 'required with action redirect',
     }),
-    appNamespace: withUi(hostStackId.optional(), { title: 'App namespace', help: 'unset = default' }),
+    appNamespace: withUi(hostStackId.optional(), {
+      title: 'App namespace',
+      help: 'unset = default',
+    }),
   })
   .superRefine((r, ctx) => {
     if (ipFamily(r.local.split('/')[0] ?? '') !== ipFamily(r.remote.split('/')[0] ?? ''))
@@ -101,7 +113,10 @@ export const HostStackHttpStaticSchema = z.strictObject({
       .string()
       .min(1)
       .max(255)
-      .regex(/^(tcp|tls):\/\/[0-9A-Fa-f.:]+\/[0-9]{1,5}$/, 'tcp://<address>/<port> or tls://<address>/<port>'),
+      .regex(
+        /^(tcp|tls):\/\/[0-9A-Fa-f.:]+\/[0-9]{1,5}$/,
+        'tcp://<address>/<port> or tls://<address>/<port>',
+      ),
     { title: 'URI', help: 'e.g. tcp://0.0.0.0/80' },
   ),
   cacheSizeMb: withUi(z.int().min(1).max(4095).default(10), { title: 'Cache size (MiB)' }),
@@ -118,7 +133,9 @@ export const HostStackSchema = withUi(
         title: 'App namespaces',
         widget: 'record',
       }),
-      sessionRules: withUi(z.array(HostStackSessionRuleSchema).default([]), { title: 'Session rules' }),
+      sessionRules: withUi(z.array(HostStackSessionRuleSchema).default([]), {
+        title: 'Session rules',
+      }),
       tcpSourceAddresses: HostStackTcpSourceSchema.optional(),
       httpStatic: HostStackHttpStaticSchema.optional(),
     })
@@ -126,15 +143,21 @@ export const HostStackSchema = withUi(
       const seen = new Map<string, number>();
       h.sessionRules.forEach((r, i) => {
         const prev = seen.get(r.tag);
-        if (prev !== undefined) add(ctx, ['sessionRules', i, 'tag'], `tag '${r.tag}' is already used by rule ${prev}`);
+        if (prev !== undefined)
+          add(ctx, ['sessionRules', i, 'tag'], `tag '${r.tag}' is already used by rule ${prev}`);
         else seen.set(r.tag, i);
       });
       if ((h.sessionRules.length > 0 || Object.keys(h.namespaces).length > 0) && !h.enabled)
-        add(ctx, ['enabled'], 'namespaces and session rules need the session layer (enabled: true)');
+        add(
+          ctx,
+          ['enabled'],
+          'namespaces and session rules need the session layer (enabled: true)',
+        );
     }),
   {
     title: 'Host stack',
-    description: 'VPP host stack (advanced, T3): session layer, app namespaces, session rules, TCP source addresses',
+    description:
+      'VPP host stack (advanced, T3): session layer, app namespaces, session rules, TCP source addresses',
   },
 );
 

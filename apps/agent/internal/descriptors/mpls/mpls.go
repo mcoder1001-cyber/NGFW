@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -196,34 +197,103 @@ func sortKVs(kvs []scheduler.KV) {
 
 // ownedTables returns the ids of this owner's MPLS tables (name = owner tag).
 func ownedTables(ctx context.Context, c vpp.Client, owner string) (map[uint32]bool, error) {
+	owned, _, err := tablesView(ctx, c, owner)
+	return owned, err
+}
+
+// tablesView is one mpls_table_dump: the ids of this owner's tables (name = owner tag) and whether
+// the shared table 0 exists at all, whoever named it (F-mpls-srmpls: VPP-global, D-071).
+func tablesView(ctx context.Context, c vpp.Client, owner string) (owned map[uint32]bool, zero bool, err error) {
 	stream, err := mpls.NewServiceClient(c).MplsTableDump(ctx, &mpls.MplsTableDump{})
 	if err != nil {
-		return nil, fmt.Errorf("mpls_table_dump: %w", err)
+		return nil, false, fmt.Errorf("mpls_table_dump: %w", err)
 	}
 	dets, err := df7.Collect(stream.Recv)
 	if err != nil {
-		return nil, fmt.Errorf("mpls_table_dump: %w", err)
+		return nil, false, fmt.Errorf("mpls_table_dump: %w", err)
 	}
-	out := map[uint32]bool{}
+	owned = map[uint32]bool{}
 	for _, d := range dets {
+		if d.MtTable.MtTableID == SharedTable {
+			zero = true
+		}
 		if id, ok := vpp.ParseOwnerTag(d.MtTable.MtName, owner); ok && id == u32(d.MtTable.MtTableID) {
-			out[d.MtTable.MtTableID] = true
+			owned[d.MtTable.MtTableID] = true
 		}
 	}
-	return out, nil
+	return owned, zero, nil
+}
+
+// readableTables are the tables whose label routes this owner reads and deletes: its own and, when
+// it exists, the shared table 0 whoever created it (the globals owner, D-071) — in table 0 only the
+// labels this owner recorded are ever reported or deleted (review H2). F-mpls-srmpls gap: before,
+// table 0 counted only when it carried this owner's name, so an agent that is not the globals owner
+// never reported its own table-0 label routes and its Delete forgot them without removing them.
+func readableTables(ctx context.Context, c vpp.Client, owner string) (map[uint32]bool, error) {
+	owned, zero, err := tablesView(ctx, c, owner)
+	if err != nil {
+		return nil, err
+	}
+	if zero {
+		owned[SharedTable] = true
+	}
+	return owned, nil
 }
 
 // ---- mpls-table -------------------------------------------------------------------------------
 
 // TableDescriptor manages mpls-table objects.
-type TableDescriptor struct{ df7.Base }
+type TableDescriptor struct {
+	df7.Base
+	// zero is set when this agent is not the globals owner (D-071): MPLS table 0 is then only
+	// required, never created or deleted (see NewTableFor).
+	zero *zeroRequirement
+}
 
 var _ scheduler.Descriptor = (*TableDescriptor)(nil)
 
-// NewTable returns the mpls-table descriptor.
+// NewTable returns the mpls-table descriptor of the globals owner (D-071): it creates and deletes
+// every table it is given, MPLS table 0 included.
 func NewTable(c vpp.Client, owner string, opts ...df7.Option) *TableDescriptor {
-	return &TableDescriptor{df7.NewBase(NameTable, c, owner, opts)}
+	return &TableDescriptor{Base: df7.NewBase(NameTable, c, owner, opts)}
 }
+
+// NewTableFor returns the mpls-table descriptor for an agent in the given D-071 role
+// (F-mpls-srmpls). The globals owner manages table 0 like any other table (NewTable). Any other
+// agent only REQUIRES table 0: Create of mpls-table/0 succeeds while VPP has table 0 (whoever
+// created it) and fails with dfkit.ErrNotGlobalsOwner otherwise, sending nothing; Delete never
+// touches it; Retrieve reports mpls-table/0 exactly while it is required and exists — so plan,
+// verification and resync converge, and a lost table 0 shows up as a failed requirement instead of
+// being re-created by an agent that does not own it. Tables other than 0 are unaffected.
+func NewTableFor(c vpp.Client, owner string, globalsOwner bool, opts ...df7.Option) *TableDescriptor {
+	d := NewTable(c, owner, opts...)
+	if !globalsOwner {
+		d.zero = &zeroRequirement{}
+	}
+	return d
+}
+
+// zeroRequirement remembers whether mpls-table/0 is required (per process: an agent restart
+// re-establishes it with the first Create, which only checks).
+type zeroRequirement struct {
+	mu       sync.Mutex
+	required bool
+}
+
+func (z *zeroRequirement) set(v bool) {
+	z.mu.Lock()
+	z.required = v
+	z.mu.Unlock()
+}
+
+func (z *zeroRequirement) get() bool {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+	return z.required
+}
+
+// requiresZero reports whether id is table 0 of an agent that is not the globals owner.
+func (d *TableDescriptor) requiresZero(id uint32) bool { return d.zero != nil && id == SharedTable }
 
 // KeyOf implements scheduler.Descriptor.
 func (d *TableDescriptor) KeyOf(obj proto.Message) scheduler.Key {
@@ -249,6 +319,17 @@ func (d *TableDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	t, err := df7.DecodeValid[Table](obj)
 	if err != nil {
 		return nil, err
+	}
+	if d.requiresZero(t.ID) {
+		_, zero, err := tablesView(ctx, d.Client, d.Owner)
+		if err != nil {
+			return nil, d.Wrap("retrieve", err)
+		}
+		if !zero {
+			return nil, fmt.Errorf("%s: %w: MPLS table 0 does not exist in VPP; it is VPP-global and only the globals owner creates it (D-071)", NameTable, dfkit.ErrNotGlobalsOwner)
+		}
+		d.zero.set(true)
+		return nil, nil
 	}
 	if err := d.Opts.CheckID("mpls table", t.ID); err != nil {
 		return nil, err
@@ -292,6 +373,10 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 	if err != nil {
 		return err
 	}
+	if d.requiresZero(t.ID) {
+		d.zero.set(false) // a requirement only: never deleted by an agent that does not own it
+		return nil
+	}
 	owned, err := ownedTables(ctx, d.Client, d.Owner)
 	if err != nil {
 		return d.Wrap("retrieve", err)
@@ -302,11 +387,18 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 	return d.addDel(ctx, t.ID, false)
 }
 
-// Retrieve implements scheduler.Descriptor: mpls_table_dump, tables named with this owner's tag.
+// Retrieve implements scheduler.Descriptor: mpls_table_dump, tables named with this owner's tag;
+// for an agent that is not the globals owner, table 0 exactly while it is required and exists.
 func (d *TableDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	owned, err := ownedTables(ctx, d.Client, d.Owner)
+	owned, zero, err := tablesView(ctx, d.Client, d.Owner)
 	if err != nil {
 		return nil, d.Wrap("retrieve", err)
+	}
+	if d.zero != nil {
+		delete(owned, SharedTable)
+		if zero && d.zero.get() {
+			owned[SharedTable] = true
+		}
 	}
 	out := make([]scheduler.KV, 0, len(owned))
 	for id := range owned {
@@ -372,19 +464,25 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	// the enable is a u8 counter: never a second reference for the same object (D-076); an
-	// already enabled interface is ours only when tagged or claimed by us (review M1)
-	on, err := d.enabled(ctx, tg.Index)
+	// claim-first (TD-11b, review 3.3; F-mpls-srmpls gap): a claim recorded after the enable left
+	// an enabled, unclaimed interface whenever the claim failed — never reported, never disabled.
+	c, err := tg.ClaimFirst(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// the enable is a u8 counter: never a second reference for the same object (D-076); an
+	// already enabled interface is ours only when tagged or claimed by us before (review M1)
+	on, err := d.enabled(ctx, tg.Index)
+	if err != nil {
+		return nil, c.Undo(err)
+	}
 	if on {
-		return Meta{SwIfIndex: tg.Index}, tg.Adopt()
+		return Meta{SwIfIndex: tg.Index}, c.Adopt()
 	}
 	if err := d.set(ctx, tg.Index, true); err != nil {
-		return nil, err
+		return nil, c.Undo(err)
 	}
-	return Meta{SwIfIndex: tg.Index}, tg.Claim() // claim only after VPP accepted (review M1)
+	return Meta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: the interface is the key.
@@ -469,6 +567,23 @@ func (d *RouteDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency
 	for _, n := range df7.PathInterfaces(r.Paths) {
 		deps = append(deps, scheduler.Dependency{Key: d.Opts.InterfaceKey(n), Optional: true})
 	}
+	return append(deps, lookupTableDeps(r.Paths)...)
+}
+
+// lookupTableDeps are the IP tables (P05 core "vrf/<id>") the paths resolve their next hop in or
+// look the payload up in (a pop-and-lookup path): VPP refuses a path into a missing table, so the
+// table must exist first and outlive the path (F-mpls-srmpls gap: DF-7 had no dependency on them).
+// Table 0 always exists.
+func lookupTableDeps(paths []df7.Path) []scheduler.Dependency {
+	var deps []scheduler.Dependency
+	seen := map[uint32]bool{}
+	for _, p := range paths {
+		if p.TableID == 0 || seen[p.TableID] || (p.Proto != df7.ProtoIP4 && p.Proto != df7.ProtoIP6) {
+			continue
+		}
+		seen[p.TableID] = true
+		deps = append(deps, scheduler.Dependency{Key: df7.VRFKey(p.TableID)})
+	}
 	return deps
 }
 
@@ -527,6 +642,7 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		return nil, err
 	}
 	key := string(KeyRoute(r.Table, r.Label, r.EOS))
+	recorded := false // this Create wrote the record (and so drops it again on failure)
 	if d.shared(r) {
 		ours, err := d.Recorded(ctx, key)
 		if err != nil {
@@ -539,12 +655,23 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 		if taken && !ours {
 			return nil, fmt.Errorf("%s: %w: label %d/%s in MPLS table 0 belongs to another feature", NameRoute, dfkit.ErrNotOurs, r.Label, eosID(r.EOS))
 		}
+		// record-first (TD-11b, review 3.3; F-mpls-srmpls gap): a record written after the add
+		// left an unrecorded label in table 0 whenever the write failed — never reported, never
+		// deleted
+		if !ours {
+			if err := d.RecordNow(ctx, key, "route"); err != nil {
+				return nil, err
+			}
+			recorded = true
+		}
 	}
 	if err := d.addDel(ctx, r, true); err != nil {
+		if recorded {
+			if ferr := d.ForgetApplied(key); ferr != nil {
+				return nil, fmt.Errorf("%w (and dropping the record: %v)", err, ferr)
+			}
+		}
 		return nil, err
-	}
-	if d.shared(r) {
-		return nil, d.RecordNow(ctx, key, "route")
 	}
 	return nil, nil
 }
@@ -583,11 +710,11 @@ func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 		return err
 	}
 	key := string(KeyRoute(r.Table, r.Label, r.EOS))
-	owned, err := ownedTables(ctx, d.Client, d.Owner)
+	readable, err := readableTables(ctx, d.Client, d.Owner)
 	if err != nil {
 		return d.Wrap("retrieve", err)
 	}
-	if !owned[r.Table] {
+	if !readable[r.Table] {
 		return d.ForgetApplied(key) // the table (and every route in it) is gone
 	}
 	if d.shared(r) {
@@ -606,7 +733,7 @@ func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 // unreserved labels only (VPP's special entries use 0–15); in the shared table 0 only the labels
 // this owner recorded on this VPP instance.
 func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	owned, err := ownedTables(ctx, d.Client, d.Owner)
+	owned, err := readableTables(ctx, d.Client, d.Owner)
 	if err != nil {
 		return nil, d.Wrap("retrieve", err)
 	}
@@ -681,10 +808,16 @@ func (d *IPBindDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return KeyIPBind(b)
 }
 
-// Dependencies implements scheduler.Descriptor: the MPLS table and the VRF.
+// Dependencies implements scheduler.Descriptor: the MPLS table and the VRF — a non-default one:
+// the default IP table 0 always exists and no object provides "vrf/0" (F-mpls-srmpls gap: a
+// binding in the default VRF could never be planned).
 func (d *IPBindDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	b, _ := df7.Decode[IPBind](obj)
-	return []scheduler.Dependency{{Key: KeyTable(b.MPLSTable)}, {Key: df7.VRFKey(b.VRF)}}
+	deps := []scheduler.Dependency{{Key: KeyTable(b.MPLSTable)}}
+	if b.VRF != 0 {
+		deps = append(deps, scheduler.Dependency{Key: df7.VRFKey(b.VRF)})
+	}
+	return deps
 }
 
 func (d *IPBindDescriptor) bind(ctx context.Context, b IPBind, bind bool) error {
@@ -730,9 +863,15 @@ func (d *IPBindDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 }
 
 // Register constructs every mpls descriptor (tables before interfaces, routes, bindings and
-// tunnels).
+// tunnels) for the globals owner.
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
-	r.Register(NewTable(c, owner, opts...))
+	RegisterFor(r, c, owner, true, opts...)
+}
+
+// RegisterFor is Register for an agent in the given D-071 role: only the globals owner creates
+// and deletes MPLS table 0; any other agent only requires it (NewTableFor, F-mpls-srmpls).
+func RegisterFor(r scheduler.Registry, c vpp.Client, owner string, globalsOwner bool, opts ...df7.Option) {
+	r.Register(NewTableFor(c, owner, globalsOwner, opts...))
 	r.Register(NewInterface(c, owner, opts...))
 	r.Register(NewRoute(c, owner, opts...))
 	r.Register(NewIPBind(c, owner, opts...))

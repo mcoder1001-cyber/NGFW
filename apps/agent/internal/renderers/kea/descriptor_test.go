@@ -229,7 +229,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	}
 	// a commented (packaged) configuration file is foreign too, whether running or on disk
 	m.running[4] = false
-	if err := os.WriteFile(p.Dhcp4Conf(), []byte("// stock\n{\"Dhcp4\": {}}\n"), 0o640); err != nil {
+	if err := os.WriteFile(p.Dhcp4Conf(), []byte("// stock\n{\"Dhcp4\": {}}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if kvs, err := d4.Retrieve(ctx); err != nil || len(kvs) != 0 {

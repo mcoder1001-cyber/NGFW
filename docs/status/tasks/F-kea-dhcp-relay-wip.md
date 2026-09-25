@@ -1,18 +1,18 @@
 # F-kea-dhcp-relay — WIP (slot 2, prefix w2)
 
-Updated 2026-09-25 00:00.
+Updated 2026-09-25 04:15.
 
 ## Done (committed)
-- contract(schema,proto): DhcpLeases rpc + Dhcp* messages; semantic rules (reservation outside pools, one Kea VRF per
-  family, one relay source per client VRF/family, DHCP client excludes static IPv4)
-- agent: services domain (kea.dhcp4/kea.dhcp6 singletons over RF-3's renderer, dhcp.proxy/proxy-vss, dhcp.relay
-  records), projection/assembly, DhcpLeases RPC, unit tests
-- fix: dhcp.client claim-first (TD-11b Q3) + regression test
-- api: /state/dhcp/leases, /state/dhcp/relays, /state/interfaces/{name}/dhcp-client, fake, e2e; api-client + CLI regen
+- contract(schema,proto): DhcpLeases rpc + Dhcp* messages; four semantic rules
+- agent: services domain (kea.dhcp4/6 singletons, dhcp.proxy/proxy-vss, dhcp.relay records), projection/assembly,
+  DhcpLeases RPC, ownership declarations (TD-11b guard), dhcp.client claim-first (TD-11b Q3, now TD-11b's ClaimFirst)
+- api: /state/dhcp/leases, /state/dhcp/relays, /state/interfaces/{name}/dhcp-client, fake, e2e
+- web: Services → DHCP (fork), types from the api-client and @ngfw/schema
+- topology test PASS on the merged tree (with screenshots), docs, status, questions
+- merged main (TD-8, TD-11b, TD-20, TD-7); relay scope on Wiring.IDRange
 
 ## In progress
-- UI (Services → DHCP tab with sub-tabs), topology test on the host VPP (Kea in ns-w2-wan, relay in table 2001,
-  dhclient in ns-w2-lan, VPP DHCP client), docs, status file, CI
+- `TMPDIR=/tmp/g-w2 tools/ci.sh --base main`
 
 ## Left
-- screenshot against the real endpoint, restart-safety evidence, CI run
+- CI result into F-kea-dhcp-relay.md, final cleanup (dist, bin, /run/vrx-test/w2/kea*)

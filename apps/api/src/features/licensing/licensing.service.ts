@@ -93,7 +93,7 @@ export class LicensingService implements OnModuleInit, OnModuleDestroy {
 
   private trustedKeys(): KeyObject[] {
     if (!this.keys) {
-      const pems = [...PRODUCT_PUBLIC_KEYS];
+      const pems = [...(this.opts.publicKeys ?? PRODUCT_PUBLIC_KEYS)];
       if (this.opts.extraPublicKeyFile) {
         const extra = readOptional(this.opts.extraPublicKeyFile);
         if (extra) pems.push(extra);

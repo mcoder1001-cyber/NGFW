@@ -19,7 +19,7 @@ import {
   machineIdHash,
   parseAndVerify,
 } from './format.js';
-import type { LicensingOptions } from './licensing.config.js';
+import { licensingOptionsFromEnv, type LicensingOptions } from './licensing.config.js';
 import { LicensingController } from './licensing.controller.js';
 import { LicensingService } from './licensing.service.js';
 import { days, sampleLicense, signFile, testKeys } from './testkit.js';
@@ -282,12 +282,41 @@ describe('LicensingService + commit validation stage', () => {
     expect((await svc.state()).status).toBe('expired');
   });
 
-  it('default community set is permissive: every gated feature, no limits (PENDING-licensing-matrix)', () => {
-    expect(COMMUNITY.limits).toEqual({});
-    for (const f of ['ipsec', 'wireguard', 'bgp', 'ospf', 'isis', 'ha'])
-      expect(COMMUNITY.features).toContain(f);
-    expect(entitlementIssues(parsed('ha-vrrp.json'), {}, COMMUNITY)).toEqual([]);
-    expect(entitlementIssues(parsed('vpn-site-to-site.json'), {}, COMMUNITY)).toEqual([]);
+  it('default community set: no gated feature, zero limits; running config grandfathered (DEC-licensing-matrix)', () => {
+    expect(COMMUNITY.features).toEqual([]);
+    expect(COMMUNITY.limits).toEqual({ ipsecTunnels: 0, wireguardInterfaces: 0 });
+    const ha = parsed('ha-vrrp.json');
+    const vpn = parsed('vpn-site-to-site.json');
+    expect(entitlementIssues(ha, {}, COMMUNITY)).not.toEqual([]);
+    expect(entitlementIssues(vpn, {}, COMMUNITY).map((i) => i.rule)).toContain(
+      'license.feature.ipsec',
+    );
+    expect(entitlementIssues(ha, ha, COMMUNITY)).toEqual([]);
+    expect(entitlementIssues(vpn, vpn, COMMUNITY)).toEqual([]);
+    expect(entitlementIssues(parsed('minimal.json'), {}, COMMUNITY)).toEqual([]);
+  });
+
+  it('VRX_LICENSE_PUBLIC_KEYS replaces the embedded key list', async () => {
+    const other = testKeys();
+    const env = {
+      VRX_LICENSE_PUBLIC_KEYS: `${other.publicPem.trim().replace(/\n/g, '\\n')},${k.publicPem}`,
+    } as NodeJS.ProcessEnv;
+    const keys = licensingOptionsFromEnv(env).publicKeys;
+    expect(keys).toHaveLength(2);
+    expect(licensingOptionsFromEnv({}).publicKeys).toBeUndefined();
+    const envSvc = new LicensingService(
+      { ...opts, extraPublicKeyFile: undefined, publicKeys: keys },
+      repo,
+      events as unknown as SystemEventsService,
+    );
+    const st = await envSvc.install(signFile(sampleLicense(NOW), other.privateKey));
+    expect(st).toMatchObject({ status: 'valid' });
+    const noEnv = new LicensingService(
+      { ...opts, extraPublicKeyFile: undefined },
+      repo,
+      events as unknown as SystemEventsService,
+    );
+    await reject(noEnv.install(signFile(sampleLicense(NOW), other.privateKey)));
   });
 
   it('unreadable stored licence → invalid with a reason and a warning log (no licence content)', async () => {

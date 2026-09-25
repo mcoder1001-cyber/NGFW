@@ -3,8 +3,8 @@ import type { ProblemIssue } from '../../common/problem.js';
 /**
  * Entitlements are predicates over the configuration document (JSON-pointer patterns, `*` = every key / index).
  *
- * SAMPLE TABLE — the split between "community" and paid features is a product-owner decision (open question in
- * docs/status/tasks/F-licensing-questions.md). Everything not listed here is never gated.
+ * Every feature listed here requires a licence (docs/decisions/DEC-licensing-matrix.md). Everything not listed here
+ * is never gated.
  */
 export interface FeatureDef {
   feature: string;
@@ -53,12 +53,12 @@ export interface Entitlements {
 }
 
 /**
- * Community set in force when there is no licence (or it is invalid / expired past grace): PERMISSIVE — every gated
- * feature, no limits — until the product owner decides the matrix (docs/decisions/PENDING-licensing-matrix.md).
+ * Community set in force when there is no licence (or it is invalid / expired past grace): NO gated feature and a
+ * zero limit for every limit (product owner, DEC-licensing-matrix). Running configuration stays grandfathered.
  */
 export const COMMUNITY: Entitlements = {
-  features: FEATURES.map((f) => f.feature),
-  limits: {},
+  features: [],
+  limits: Object.fromEntries(LIMITS.map((l) => [l.limit, 0])),
 };
 
 /**

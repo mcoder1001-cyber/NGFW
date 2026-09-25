@@ -216,10 +216,6 @@ func TestVIP(t *testing.T) {
 			t.Errorf("case %d: %v", i, err)
 		}
 	}
-	f.Reply("lb_flush_vip", &lb.LbFlushVipReply{})
-	if err := FlushVIP(ctx, f, tcpVIP); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // Review M2: a VPP whose lb API converts the enums (V20 fixed) is detected at runtime and the

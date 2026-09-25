@@ -536,16 +536,6 @@ func DumpVIPs(ctx context.Context, c vpp.Client) ([]VIPState, error) {
 	return out, nil
 }
 
-// FlushVIP is the lb_flush_vip action helper: flush the VIP's flow table. Call it only for a
-// VIP that exists (VPP 26.06 flushes an uninitialised index when the lookup fails).
-func FlushVIP(ctx context.Context, c vpp.Client, v VIP) error {
-	if _, err := v.validate(); err != nil {
-		return err
-	}
-	_, err := lb.NewServiceClient(c).LbFlushVip(ctx, &lb.LbFlushVip{Pfx: vipPrefix(v), Protocol: protocols[v.Protocol], Port: v.Port})
-	return err
-}
-
 // ---- lb.as ------------------------------------------------------------------------------------
 
 // ASDescriptor manages lb.as objects (lb_add_del_as). Write-only (D-063, see the package doc).
@@ -698,14 +688,15 @@ func (d *IntfNatDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, err
 	}
-	skipped, err := d.ApplyOnce(ctx, key, df7.IfaceValue(tg.Index, n.Interface), func() error { return d.set(ctx, tg.Index, n.Family, true) })
+	// TD-11b claim first (F-lb gap, TestIntfNatClaimsFirst): the claim on an untagged interface is recorded before
+	// the enable, so a claim that cannot be recorded leaves no unclaimed feature in VPP; a failed enable releases a
+	// claim this Create made.
+	c, err := tg.ClaimFirst(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !skipped {
-		if err := tg.Claim(); err != nil {
-			return nil, err
-		}
+	if _, err := d.ApplyOnce(ctx, key, df7.IfaceValue(tg.Index, n.Interface), func() error { return d.set(ctx, tg.Index, n.Family, true) }); err != nil {
+		return nil, c.Undo(err)
 	}
 	return NatMeta{SwIfIndex: tg.Index}, nil
 }

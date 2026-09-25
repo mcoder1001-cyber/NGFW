@@ -38,6 +38,7 @@ Rules for an entry:
 | `/usr/libexec/vrx/checks` | keepalived — directory of the **shipped** `vrrp_script` executables (keepalived runs them; a script is chosen by name from the renderer's allow-list, never user text or paths; empty until F-vrrp ships checks) | track scripts | `vrrp_script <name> { script "/usr/libexec/vrx/checks/<check>" }` | RF-4 |
 | `/usr/lib/x86_64-linux-gnu/rsyslog` | rsyslog — module directory, **nothing executed**: `stat` of `lmnsd_ossl.so` before accepting a TLS export | TLS driver presence check | — | RF-4 |
 | `/usr/bin/ip` | keepalived integration test only (`_test.go`, never a renderer allowlist) | slot netns + veth pair, keepalived child inside it | `ip netns add\|delete ns-<prefix>-a`, `ip -n ns-<prefix>-a link\|addr …`, `ip netns exec ns-<prefix>-a keepalived -n -l -P -G -f <cfg> -p … -r … -c …` | RF-4 |
+| (VPP `cli_inband` binary-API message — not an exec'd binary, no process) | lb (`descriptors/lb.GarbageCollect`, called only by the globals owner, `subsystems/lb.go`) | run VPP's lb garbage collection after lb deletes: removed VIPs/ASes are freed only there (D-090 (2), V20) | the constant `lb vip 0.0.0.0/32 del` (`lb.GCCommand`): parses, runs `lb_garbage_collection()`, then fails its lookup of the never-configured sentinel VIP (0.0.0.0/8 is refused as a VIP by schema and projection); no user input | F-lb |
 
 `vppstartup` (F-startup-gen) runs no process: `Validate` is structural and `Apply` refuses (VPP restart = manager step,
 manual procedure in `docs/agent/renderers/vppstartup.md`, tooling in task F-startup-apply); the `vrx-startupgen` CLI only reads files. `/usr/lib/x86_64-linux-gnu/vpp_plugins` in its
@@ -51,7 +52,6 @@ source is the plugin **directory** it lists (host facts), not a binary.
 | `/usr/sbin/keepalived` | keepalived | config check | `keepalived -t -f <file>` | RF |
 | `/usr/sbin/snmpd` | snmpd | integration test child process only | `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<slot port>` | RF |
 | `/usr/sbin/swanctl` | strongswan | load / list SAs when VICI is unavailable | `swanctl --load-all --noprompt`, `swanctl --list-sas --raw` | P11 |
-| (VPP `cli_inband` binary-API call, not an exec'd binary) | lb | trigger VPP's LB VIP cleanup after a removal (D-090) | fixed-string command, no user input | F-lb |
 | `/usr/libexec/vrx/vrx-upgrade` | backup-restore | stage/activate/confirm/rollback an update bundle (packaged by P10) | `vrx-upgrade status [--json]\|stage <bundle>\|activate\|confirm\|rollback` | F-backup-restore |
 | `/usr/libexec/vrx/vrx-support-collect` | backup-restore | assemble a support bundle (config, logs, audit rows) | `vrx-support-collect --out <path> [--since <sec>] [--audit-rows]` | F-backup-restore |
 

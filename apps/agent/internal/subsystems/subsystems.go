@@ -36,6 +36,7 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -61,6 +62,7 @@ const (
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	Services = "services"
 )
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
@@ -108,6 +110,12 @@ var Domains = map[string][]string{
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-lb
+	Services: {
+		lb.NameConf,
+		lb.NameVIP,
+		lb.NameAS,
+		lb.NameIntfNat,
+	},
 	// wave-BC: F-qos-flat
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
@@ -257,6 +265,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	w.registerLb(r)
 	return w, nil
 }
 

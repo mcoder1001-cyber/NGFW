@@ -320,6 +320,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	if in["services"] {
+		desired.Lb(p, ds.GetServices(), subsystems.LbEnv()) // F-lb: services.lb (write-only, V20)
+	}
 	return p
 }
 

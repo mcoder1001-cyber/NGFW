@@ -1,0 +1,57 @@
+{
+  "interfaces": {
+    "TenGigabitEthernet0/0/0": { "description": "upstream (IPv4 + IPv6)", "vrf": "default" },
+    "TenGigabitEthernet0/0/1": { "description": "office LAN (NAT44-EI inside)", "vrf": "default" },
+    "TenGigabitEthernet0/0/2": { "description": "IPv6-only access (NAT64 inside)", "vrf": "default" },
+    "TenGigabitEthernet0/0/3": { "description": "IPv6 servers (NAT66 inside)", "vrf": "default" },
+    "TenGigabitEthernet0/0/4": { "description": "IPv6 uplink B (NAT66 outside, NPTv6)", "vrf": "default" }
+  },
+  "nat": {
+    "mode": "ei",
+    "inside": ["TenGigabitEthernet0/0/1"],
+    "outside": ["TenGigabitEthernet0/0/0"],
+    "connectionTracking": true,
+    "pools": [{ "name": "pat", "range": "203.0.113.16-203.0.113.19" }],
+    "staticMappings": [
+      {
+        "name": "sip",
+        "description": "EI port forward: the external address is a pool address",
+        "protocol": "udp",
+        "local": { "ip": "192.168.10.5", "port": 5060 },
+        "external": { "pool": "pat", "port": 5060 }
+      },
+      { "name": "mail", "local": { "ip": "192.168.10.25" }, "external": { "ip": "203.0.113.25" } }
+    ],
+    "identityMappings": [{ "ip": "203.0.113.17", "protocol": "udp", "port": 500 }],
+    "nat64": {
+      "enabled": true,
+      "inside": ["TenGigabitEthernet0/0/2"],
+      "outside": ["TenGigabitEthernet0/0/0"],
+      "prefixes": [{ "prefix": "64:ff9b::/96" }],
+      "pools": [{ "range": "198.51.100.1-198.51.100.14" }],
+      "staticBibs": [
+        {
+          "protocol": "tcp",
+          "inside": { "ip": "2001:db8:1::10", "port": 443 },
+          "outside": { "ip": "198.51.100.1", "port": 443 }
+        }
+      ]
+    },
+    "nat66": {
+      "enabled": true,
+      "inside": ["TenGigabitEthernet0/0/3"],
+      "outside": ["TenGigabitEthernet0/0/4"],
+      "staticMappings": [{ "local": "fd00:3::66", "external": "2001:db8:66::66" }]
+    },
+    "nptv6": {
+      "bindings": [
+        {
+          "description": "site prefix on uplink B",
+          "interface": "TenGigabitEthernet0/0/4",
+          "internal": "fd00:4:10::/48",
+          "external": "2001:db8:20::/48"
+        }
+      ]
+    }
+  }
+}

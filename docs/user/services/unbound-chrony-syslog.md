@@ -54,9 +54,22 @@ Rules the commit checks (each answers `400` problem+json with the pointer of the
 
 **VPP DNS cache.** `services.dns.vppCache` enables VPP's own caching resolver. It is a VPP-wide setting: only the product
 agent of the box (the *globals owner*) programs it; VPP has no read-back, so the panel shows it *as committed*.
+
+- **At least one IPv4 upstream.** While `enabled` is set, `upstreams` must contain an IPv4 address; a list of IPv6
+  addresses only is refused at commit (`400`, pointer `/services/dns/vppCache/upstreams`: "VPP DNS cache needs at least
+  one IPv4 upstream"). VPP 26.06 sends every query to an IPv4 server first and crashes when it never had one; IPv6
+  upstreams are accepted next to an IPv4 one but VPP 26.06 never actually queries them.
+- **It answers on every VPP address.** Once enabled, VPP answers DNS queries (UDP 53) on **every** address VPP owns, in
+  every VRF — WAN interfaces included. VPP 26.06 has no per-interface switch and no client list for this resolver, so
+  an enabled cache is an open resolver on untrusted interfaces (and can be abused for amplification). Block UDP 53 to
+  the box on every untrusted interface with an ACL; the commit shows a warning
+  (`/services/dns/vppCache/enabled`) that lists the addresses it answers on.
+
 **Look up** asks VPP's cache for a name (`POST /api/v1/actions/dns-lookup {"name":"gw.lab.example"}` →
-`{"ok":true,"addresses":[{"type":"A","address":"…"}]}`). The agent refuses the lookup (`409`) unless it enabled the cache
-itself with at least one upstream: VPP 26.06 crashes on a lookup while its resolver has no name server.
+`{"ok":true,"addresses":[{"type":"A","address":"…"}]}`). The agent refuses the lookup (`409`) unless the cache is live on
+the running VPP: the agent is the globals owner, it is not DEGRADED, and since VPP last started it added an IPv4 upstream
+and enabled the cache itself. Right after a VPP restart the lookup is refused until the agent has re-applied the
+configuration; VPP 26.06 crashes on a lookup while its resolver has no IPv4 name server.
 
 ## NTP: client and LAN server
 
@@ -97,10 +110,13 @@ commit
 TLS targets (`protocol: tls` with `tls.caRef` …) pass the schema (a TLS target needs a CA reference) but are refused
 at commit time in this release, for the same reason as the NTP keys.
 
-**Log explorer** reads the box's local journal: newest first, filtered by minimum severity, facility, time window
+**Log explorer** (administrators only) reads the box's local journal: newest first, filtered by minimum severity, facility, time window
 (1 h … 7 days) and a plain text search (not a pattern), 25–100 rows per page. One query scans at most the 5000 newest
 entries of the window (the page says when it stopped there: narrow the window). It is read-only; nothing is executed
-with your input (`GET /api/v1/state/logs?severity=warning&facility=daemon&q=unbound&page=1&pageSize=50`).
+with your input (`GET /api/v1/state/logs?severity=warning&facility=daemon&q=unbound&page=1&pageSize=50`). The journal
+holds every service of the box, including `auth`/`authpriv` (logins, sudo, SSH), so the explorer and its route need the
+**admin** role; operators and read-only users see the remote targets but not the explorer (`403`). One scan runs at a
+time per box; a second request made while one is running waits up to 3 s and is then answered `503` (try again).
 
 In Persian the screens are right-to-left:
 

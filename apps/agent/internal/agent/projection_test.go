@@ -41,6 +41,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 		pj := project(ds, implementedDomains(), nil, nil)
 		for _, is := range pj.issues {
 			// F-unbound-chrony-syslog: secret references are refused until PENDING-secret-channel lands (envelope).
+			// TODO(PENDING-secret-channel): remove this exemption when the API→agent secret channel lands (review L9).
 			if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR && is.rule != "agent.secret-channel-pending" {
 				t.Errorf("%s: %s %s: %s", base, is.pointer, is.rule, is.message)
 			}

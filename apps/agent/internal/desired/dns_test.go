@@ -75,7 +75,7 @@ func TestHostServicesProjection(t *testing.T) {
 		t.Fatalf("pointers %v", s.ptrs)
 	}
 	wantIssues := []string{
-		"W /services/dns/vppCache agent.unsupported-field", // write-only: never compared by /state/drift
+		"W /services/dns/vppCache agent.unsupported-field",                 // write-only: never compared by /state/drift
 		"W /services/dns/vppCache/enabled services.dns-vpp-cache-exposure", // M5: answers on every VPP address
 		"W /services/snmp agent.unsupported-field",
 		"W /management/users agent.unsupported-field",

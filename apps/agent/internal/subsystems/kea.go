@@ -11,7 +11,8 @@ package subsystems
 //	                  NewRunner, no interface mapper until linux-cp (P12) provides one — a server interface is refused
 //	                  (RF-3 review L7). "test": kea.TestPaths(<owner>) under /run/vrx-test/<owner>/kea, the checkers run
 //	                  in VRX_KEA_NETNS through `ip netns exec` (test runner only), interfaces mapped by VRX_KEA_IFMAP,
-//	                  no "<if>/<addr>" bindings (the mapped netdev does not carry the VPP address). "off": no Kea
+//	                  no "<if>/<addr>" bindings (the mapped netdev does not carry the VPP address); refused for the
+//	                  product agent (owner "vrx" or VRX_VPP_ID_RANGE=all, review Q7). "off": no Kea
 //	                  descriptors (the relay families stay).
 //	VRX_KEA_NETNS     test mode: the network namespace the Kea daemons run in (default ns-<owner>-a).
 //	VRX_KEA_IFMAP     test mode: "<vpp-if>=<linux-if>[,…]" — the only interfaces a server may name (the lab stand-in for
@@ -32,6 +33,9 @@ import (
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
+
+// ProductOwner is the product agent's owner (VRX_OWNER default): VRX_KEA_MODE=test is refused for it (review Q7).
+const ProductOwner = "vrx"
 
 // Environment of the DHCP families.
 const (
@@ -83,6 +87,12 @@ func (w *Wiring) registerKea(r scheduler.Registry) error {
 	mode := strings.TrimSpace(os.Getenv(EnvKeaMode))
 	switch mode {
 	case "", "product", "test":
+		if mode == "test" && (owner == ProductOwner || w.env.IDs.All) {
+			// Q7 (review): the lab trampoline (`ip netns exec <ns> kea-dhcp<N> -t`) and the /run/vrx-test paths never
+			// run in the product agent — owner "vrx" or VRX_VPP_ID_RANGE=all refuses to start rather than silently
+			// serving DHCP from a test directory.
+			return fmt.Errorf("%s=test is refused for the product agent (owner %q, id range %s): test mode is for lab slots only", EnvKeaMode, owner, w.env.IDs)
+		}
 		kr, desc, err := keaRenderer(owner, mode == "test")
 		if err != nil {
 			return err

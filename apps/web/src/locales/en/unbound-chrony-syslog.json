@@ -1,5 +1,9 @@
 {
-  "tab": { "dns": "DNS", "ntp": "NTP", "logging": "Logging" },
+  "tab": {
+    "dns": "DNS",
+    "ntp": "NTP",
+    "logging": "Logging"
+  },
   "refresh": "Refresh",
   "add": "Add",
   "edit": "Edit {{name}}",
@@ -18,7 +22,10 @@
   "pending": {
     "title": "Daemon action pending",
     "line": "{{daemon}} needs a {{action}} (unit {{unit}})",
-    "action": { "start": "start", "restart": "restart" }
+    "action": {
+      "start": "start",
+      "restart": "restart"
+    }
   },
   "col": {
     "name": "Name",
@@ -108,7 +115,8 @@
     "scanned_one": "{{count}} entry searched",
     "scanned_other": "{{count}} entries searched",
     "scannedTruncated_one": "{{count}} entry searched (the search stops at 5000 entries: narrow the window)",
-    "scannedTruncated_other": "{{count}} newest entries searched (the search stops at 5000 entries: narrow the window)"
+    "scannedTruncated_other": "{{count}} newest entries searched (the search stops at 5000 entries: narrow the window)",
+    "adminOnly": "The log explorer shows the whole local journal of the box (including authentication logs) and is available to administrators only."
   },
   "severity": {
     "emergency": "emergency",
@@ -138,7 +146,10 @@
       "hideVersion": "Hide version",
       "logQueries": "Log queries"
     },
-    "vppCache": { "enabled": "VPP DNS cache", "upstreams": "Upstream name servers" },
+    "vppCache": {
+      "enabled": "VPP DNS cache",
+      "upstreams": "Upstream name servers"
+    },
     "ntp": {
       "enabled": "Enabled",
       "vrf": "VRF",

@@ -9,6 +9,7 @@ import type {
 import { SYSLOG_FACILITIES, SyslogSeverity } from '@ngfw/schema';
 import type { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
+import { MinRole } from '../../auth/decorators.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import {
@@ -66,10 +67,12 @@ export class UnboundChronySyslogController {
   }
 
   @Get('state/logs')
+  // review M2: the whole host journal (auth/authpriv, every unit) — administrators only
+  @MinRole('admin')
   @Protected(400, 501, 502, 503)
   @ApiOperation({
     summary:
-      'Log explorer: one page of the local journal, newest first (bounded scan; filters by severity, facility, text)',
+      'Log explorer (admin only): one page of the local journal, newest first (bounded scan; filters by severity, facility, text)',
   })
   @ApiQuery({ name: 'since', required: false, schema: { type: 'string', format: 'date-time' } })
   @ApiQuery({

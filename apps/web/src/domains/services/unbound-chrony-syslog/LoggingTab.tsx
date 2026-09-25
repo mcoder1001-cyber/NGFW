@@ -201,7 +201,7 @@ export default function LoggingTab() {
         </Table>
       </TableContainer>
 
-      <LogExplorer />
+      {perms.manageUsers ? <LogExplorer /> : <Alert severity="info">{t('logs.adminOnly')}</Alert>}
 
       <Dialog open={editing !== null} onClose={() => setEditing(null)} fullWidth maxWidth="md">
         <DialogTitle>{editing?.value ? t('syslog.editTitle') : t('syslog.addTitle')}</DialogTitle>

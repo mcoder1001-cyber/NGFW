@@ -119,8 +119,11 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
     expect(sys.body.inputs).toEqual({ imuxsock: 9 });
   });
 
-  it('log explorer: severity/facility/text filters, paging, bounded query validation', async () => {
-    const all = await h.call(ro, 'GET', '/api/v1/state/logs');
+  it('log explorer: admin only; severity/facility/text filters, paging, bounded query validation', async () => {
+    // review M2: the host journal (auth/authpriv, every unit) is for administrators
+    expect((await h.call(ro, 'GET', '/api/v1/state/logs')).status).toBe(403);
+    expect((await h.call(op, 'GET', '/api/v1/state/logs')).status).toBe(403);
+    const all = await h.call(admin, 'GET', '/api/v1/state/logs');
     expect(all.status).toBe(200);
     expect(all.body).toMatchObject({
       total: 5,
@@ -129,16 +132,16 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
       source: 'journald',
       truncated: false,
     });
-    const warn = await h.call(ro, 'GET', '/api/v1/state/logs?severity=warning');
+    const warn = await h.call(admin, 'GET', '/api/v1/state/logs?severity=warning');
     expect(warn.body.items.map((e: { identifier: string }) => e.identifier)).toEqual([
       'chronyd',
       'vrx-test',
     ]);
-    const fac = await h.call(ro, 'GET', '/api/v1/state/logs?facility=local7&q=FORWARDED');
+    const fac = await h.call(admin, 'GET', '/api/v1/state/logs?facility=local7&q=FORWARDED');
     expect(fac.body.items).toEqual([
       expect.objectContaining({ message: 'forwarded test line', severity: 'error' }),
     ]);
-    const page2 = await h.call(ro, 'GET', '/api/v1/state/logs?page=2&pageSize=2');
+    const page2 = await h.call(admin, 'GET', '/api/v1/state/logs?page=2&pageSize=2');
     expect(page2.body).toMatchObject({ total: 5, page: 2, pageSize: 2 });
     expect(page2.body.items).toHaveLength(2);
     for (const [q, pointer] of [
@@ -148,7 +151,7 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
       ['q=a%0Ab', '/q'],
       ['since=yesterday', '/since'],
     ] as const) {
-      const bad = await h.call(ro, 'GET', `/api/v1/state/logs?${q}`);
+      const bad = await h.call(admin, 'GET', `/api/v1/state/logs?${q}`);
       expect(bad.status, q).toBe(400);
       expect(bad.body.errors[0].pointer, q).toBe(pointer);
     }

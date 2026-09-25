@@ -34,6 +34,7 @@ const ADMIN_ONLY = new Set([
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
   // wave-BC: F-backup-restore
+  'GET /api/v1/state/logs', // F-unbound-chrony-syslog (review M2: the host journal; no SY1 anchor seeded)
 ]);
 
 function concrete(url: string): string {

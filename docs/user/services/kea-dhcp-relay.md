@@ -9,6 +9,8 @@ and `/api/v1/state/interfaces/<name>/dhcp-client`. **CLI:** `vrx set|merge|delet
 use the REST route; its operation ids `KeaDhcpRelay_leases`, `KeaDhcpRelay_relays`, `KeaDhcpRelay_client` are in the
 CLI's generated operation table).
 
+![DHCP servers with the Kea daemon status](img/kea-dhcp-servers-en.png)
+
 Three independent pieces:
 
 | piece | where it runs | configuration |
@@ -118,6 +120,9 @@ The state (DISCOVER / REQUEST / BOUND, leased address, router, DNS servers) is o
 prefix delegation) has no configuration leaf in this release.
 
 ## Leases and pool usage
+
+![Lease browser (server-side paging)](img/kea-dhcp-leases-en.png)
+![Subnets and pool usage, Persian (right-to-left)](img/kea-dhcp-subnets-fa-rtl.png)
 
 The *Leases* tab pages through the leases of all servers (or one server) with a text filter (address, MAC, client id /
 DUID, hostname); the agent reads them from Kea page by page (`lease4-get-page`, never the whole lease file) and returns

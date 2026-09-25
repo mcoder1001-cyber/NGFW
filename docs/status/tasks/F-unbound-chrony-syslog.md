@@ -2,15 +2,66 @@
 
 Branch `task/F-unbound-chrony-syslog` (worktree `/root/ngfw-wt/F-unbound-chrony-syslog`), slot 10 (`w10`). Base was main@4e2b21d;
 main@4f472cc7 was merged in at e117766f (TD-11b ownership guard, TD-8 seams, TD-7, TD-4). `tools/ci.sh --base main`:
-**CI GATE PASSED** (cf6a2635, below). Questions: `F-unbound-chrony-syslog-questions.md` (Q2 is an incident; read it first).
+**CI GATE PASSED** (cf6a2635, below; fix round 1: 53840d3f). Questions: `F-unbound-chrony-syslog-questions.md` (Q2 is an incident; read it first).
 Contract: `F-unbound-chrony-syslog-contract.md`.
+
+## Fix round 1 (review b665904f: APPROVE WITH CHANGES)
+Every code fix has a test that fails on the old code. I checked that by putting the pre-review file (b665904f) back
+under the new test, one file at a time (below), and then restoring it.
+
+| finding | fix | test (result on the old code) |
+|---|---|---|
+| H1 IPv6-only upstreams crash VPP | Zod refinement on `services.dns.vppCache` → 400 at `/services/dns/vppCache/upstreams` "VPP DNS cache needs at least one IPv4 upstream (VPP 26.06 defect, D-137)" (`contract(schema)` 48a00bfc); projection error `services.dns-vpp-cache-upstream`, same pointer and text (`desired/dns.go`); `dns.enable` refuses enable=1 with `ErrNoIPv4Upstream` and sends nothing unless an IPv4 server was added on the running VPP; the lookup needs that fact too (H2) | schema `services.dns.vppCache (D-137)` (old services.ts: **1 failed**); `TestVPPCacheNeedsAnIPv4Upstream` (old desired/dns.go: **FAIL**); `TestIPv6OnlyUpstreamsAreNeverEnabled` — the model now keeps v4 and v6 vectors apart (crash = request while no IPv4 server was ever added), and the test also drives the old shape (server add + raw enable) and sees the crash window |
+| H2 readiness from the stored document | `dns.Readiness` (`descriptors/dns/readiness.go`): recorded only when VPP accepted an IPv4 server add and `dns_enable_disable(1)`, bound to the VPP boot identity (boot_id, VPP PID, start time); cleared on disable, delete, identity change or unreadable identity. `dnsLookup` = `GlobalsOwner && !DEGRADED && Readiness.Ready`; `DnsVppCacheState.appliedByThisAgent` from the same fact | `TestReadinessDoesNotSurviveAVPPRestart` (simulated VPP restart: not ready, lookup sends nothing, ready again after the resync); `TestDNSLookupReadinessIsLiveNotStored` (stored document enabled + fresh fake VPP → FAILED_PRECONDITION, zero dns_* messages; old rpc_dns.go: **FAIL**, it sent `dns_resolve_name`) — also covers L6 |
+| M1 V-item wrong/incomplete | rewritten from the review's source analysis: trigger "no IPv4 name server added since VPP started" (`is_enabled` plays no part), `dns_resolve_ip`, UDP-53 packets, IPv6-only servers and `show dns servers` crash; add/del and enable/disable are safe; the non-crashing defects; upstream fix list; fallback list. Still titled V-new (the merger numbers it, L8). The manager corrects D-137 in the LOG | docs (`docs/vpp-code-track.md`, `docs/agent/descriptors/dns.md`) |
+| M2 readonly reads the whole journal | `@MinRole('admin')` on `GET /api/v1/state/logs`; the Logging tab shows a notice instead of the explorer for non-admins and never queries it; user page says so | `route-guard.test.ts` ADMIN_ONLY row (old controller: **FAIL**, readonly got through to 501); e2e logs test (readonly 403, operator 403, admin 200); `LoggingTab.test.tsx` (old tab: **2 failed**, readonly/operator) |
+| M3 state RPCs not serialised | one walk in flight per kind (`rpc_dns_walk.go`: dns, ntp, syslog state, journal); a second request waits up to 3 s, then `UNAVAILABLE` → API 503 (D-132) | `TestStateWalksAreSerialised` (old rpc_dns.go: **FAIL**, second walk ran) |
+| M5 open resolver on every VPP address | VPP 26.06 has no per-interface switch or client ACL for the dns plugin (ports registered globally, `dns.c:84-97`), so: DryRun warning `services.dns-vpp-cache-exposure` at `/services/dns/vppCache/enabled` naming the addresses it answers on, and a user-page warning (block UDP 53 on untrusted interfaces with an ACL) | `TestHostServicesProjection` expects the warning (old desired/dns.go: **FAIL**) |
+| M4 nothing acts on unbound/chrony restart requests on a real box | not a code change (product gap). **Hand-off:** on a real box, unbound's and chrony's start/restart requests stay pending: nothing runs `systemctl start|restart` for them (unbound.service ships disabled). This belongs to PENDING-agent-privileges / P10; the review recommends (a) the globals owner runs allow-listed `systemctl start|restart unbound|chrony` with RF-3's convergence check | — |
+| L1 | `Enable` doc comment no longer claims a dependency | — |
+| L4 | topology harness refuses a slot outside 1..12 (`w0`/`w00` would take the product stack's ports) | `go vet` (the harness is the test) |
+| L7 | source-scan guard: `DNSResolveName`/`DNSResolveIP` only in `descriptors/dns/dns.go`, no `show dns servers` CLI string anywhere in the agent | `TestResolveMessagesOnlyThroughTheGuardedHelpers`, `TestResolveGuardFindsDirectCalls` (planted violations found) |
+| L9 | `TODO(PENDING-secret-channel)` on the projection-test exemption | — |
+
+Not done in this round: L2 (Validator on non-owners) and TD-13 `Stage`/`Validate` at the TD-13 rebase; L3 (syslog `vrf`
+≠ default: note or error) waits for the manager's decision; L5 (pin `since`/`--until` across explorer pages) is open;
+L8/L11 are the manager's. At the rebase after F-kea: the fold per review Q5 (keep my list-safe `unsupported()` helper);
+after TD-23: `registerActionHandler('dnsLookup', …)` once at module load (Q6).
+
+**Host run:** none in this round (TD-25 has not landed; no VPP DNS-plugin call was made). After TD-25 I re-run
+`TestUnboundChronySyslog` on the fix-round SHA (L10); it sends no VPP DNS call.
+
+Commits: 9119000a (agent H1/H2/M3/M5/L1), 48a00bfc (contract(schema) H1), 907d266a (API/web M2), 6226fc97 (L4),
+3c20004a (M1/M5 docs, L7, L9), b5181423 (web M2 test), the regenerated api-client (`contract(api-client)`) and
+CLI operation table (53840d3f), and this status update.
+
+`TMPDIR=/tmp/g-w10 tools/ci.sh --base main` at 53840d3f (the first two runs failed on generated output: the explorer's
+OpenAPI summary changed, so the api-client and the CLI operation table were regenerated and committed):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m01s
+  generate + generated-output gate                   1m37s
+  forbidden patterns (+ gitleaks)                    0m05s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   1m37s
+  apps/agent: make lint test build                   0m34s
+  apps/cli: make lint test build                     0m20s
+  test/ Go modules, unit mode (… test/topology/unbound-chrony-syslog)   0m08s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m12s
+  mode quick · wall time 4m39s · logs /root/ngfw-wt/logs/ci/F-unbound-chrony-syslog-20260925-103020-852438
+CI GATE PASSED
+```
+Also run: `go test -race -count=1` of descriptors/dns, subsystems, agent, desired, actions/unbound-chrony-syslog and the
+three renderers (all ok); API e2e on the slot's PostgreSQL + fake agent, `unbound-chrony-syslog.e2e.test.ts`: 4 passed
+(readonly and operator get 403 from `/state/logs`).
 
 ## ⚠ Incident (Q2): my run crashed the shared VPP at 2026-09-25 04:27:21 (NRestarts 1 → 2)
 The topology run sent one `dns_resolve_name` (through `POST /actions/dns-lookup`) to the shared VPP, where the dns plugin
 had never been enabled. VPP 26.06 dereferenced a NULL name server (`vnet_dns_resolve_name` → `vnet_send_dns4_request` →
 `ip4_sas`, dns.c:234). I stopped at once. Fixes on this branch, all with unit tests on a fake VPP that models the defect:
 - `dns_lookup` is refused with FAILED_PRECONDITION (API 409) unless the agent is the globals owner and its applied
-  configuration enables the VPP cache with an upstream (`TestLookupRefusedWithoutAReadyCache`).
+  configuration enables the VPP cache with an upstream (`TestLookupRefusedWithoutAReadyCache`). Fix round 1 replaced
+  "applied configuration" with the live `dns.Readiness` fact and requires an IPv4 upstream (above).
 - DF-8 `dns.ResolveName` / `ResolveIP` take a `dns.Ready` precondition. Without it they send nothing (D-137,
   `TestResolveHelpersRefuseWithoutReady`).
 - The DF-8 descriptors never leave the resolver enabled without a server. A server delete disables the switch first, and
@@ -165,7 +216,7 @@ CI GATE PASSED
 | never restart a system unit from a test slot | slot agents: RF-3 returns requests only; rsyslog `DeferredController` (`TestDescriptorDeferred`: no `systemctl` call); host units unchanged before/after (pasted) |
 | D-086 stand-ins → contract; TLS built but untested until the driver is packaged | contract commits; renderer reads typed fields; TLS refused at DryRun (secret channel) and by Validate without `lmnsd_ossl.so` |
 | D-050 NTP only in `services.ntp` | projection reads only `services.ntp` |
-| D-063/D-076/D-071 dns globals write-only, registered by the owner, non-owners require | `registerDNSCache` (owner `RegisterGlobals`, else require-mode descriptors); DryRun note on `vppCache`; D-137 guards |
+| D-063/D-076/D-071 dns globals write-only, registered by the owner, non-owners require | `registerDNSCache` (owner `RegisterGlobalsReady`, else require-mode descriptors); DryRun note on `vppCache`; D-137 guards |
 | D-082 opt-in VPP dns host test holds `flock -x` globals lock | DF-8 test unchanged (globals lock) + now also `VRX_DNS_VPP_HOST=1`; it was **not** run |
 | RF-4 M2 (no restart for an unchanged rendering) / M3 (host impstats) | unchanged in the renderer; the deferred path keeps M2 (`applyDeferred` returns nothing / the still-pending request for unchanged files) |
 | TD-11b ownership declaration | `RecordsNoOwnership()` on `unbound.config`, `chrony.config`, `rsyslog.config`, `dns.name-server`, `dns.enable`; agent tests green after merging main with the guard |
@@ -184,7 +235,7 @@ CI GATE PASSED
 | UCS-7 | secret refs (`ntp.servers[].keyRef`, `syslog[].tls`) refused at DryRun (`agent.secret-channel-pending`) | (a) refuse (b) render without | envelope / PENDING-secret-channel |
 | UCS-8 | slot rsyslog = `DeferredController` (restart request + pidfile) | (a) deferred (b) agent spawns daemons (c) ProcessController | the agent never starts processes outside the runner |
 | UCS-9 | slot chrony sources use port 3<N>23 | (a) slot port (b) 123 | a slot never queries the host's chronyd |
-| UCS-10 | `dns_lookup` only where the agent enabled the cache; DF-8 `Ready` precondition; disable before a server delete (D-137) | — | the 04:27 crash |
+| UCS-10 | `dns_lookup` only where the agent enabled the cache on the running VPP (live `dns.Readiness`, fix round 1); DF-8 `Ready` precondition; IPv4 upstream required; disable before a server delete (D-137) | — | the 04:27 crash; review H1/H2 |
 | UCS-11 | dns.* registered in require mode on non-owners | (a) require mode (b) not registered + warning | a slot document enabling vppCache fails loudly instead of being ignored |
 
 ## Shared hunks (outside the owned files)
@@ -206,6 +257,8 @@ Kea/DHCP, SNMP, alarms/dashboards, support bundle, PTP, NTS server certificates,
 CLI `show dns|ntp|logs` commands (apps/cli is P13's); running the opt-in VPP dns host test.
 
 ## Left for the manager / after F-kea
+- **Product gap (review M4, for PENDING-agent-privileges / P10):** on a real box nothing acts on unbound's or chrony's
+  start/restart requests; they stay pending (unbound.service ships disabled). rsyslog's product path restarts itself.
 - Fold with F-kea-dhcp-relay when it lands (Q5): I merge main then and keep one `ServicesImplemented`/`ServicesUnsupported`, one
   `Services` const + Domains entry, one nav item.
 - Fake-agent `action` chaining with F-vrf-static-ecmp (Q6).

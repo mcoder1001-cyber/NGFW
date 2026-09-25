@@ -38,6 +38,7 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/lcpmap"
@@ -161,7 +162,9 @@ func newFRRAt(env Env, runner renderers.Runner, paths frr.Paths, ok bool, opts .
 // registerP12 registers DF-8's lcp.itf-pair (for `interfaces.<n>.lcp`) and the FRR stage descriptor.
 func registerP12(r scheduler.Registry, w *Wiring) {
 	r.Register(&tapGatedPairs{ItfPairDescriptor: lcp.NewItfPair(w.env.Client, w.env.Owner, lcp.WithInterfaceKey(dfkit.DefaultInterfaceKey)), client: w.env.Client, owner: w.env.Owner})
-	rt := newFRR(w.env, frr.NewSystemRunner())
+	env := w.env
+	env.Publish = w.Publish // TD-8 event seam (A5): the agent's bus, nil-safe
+	rt := newFRR(env, frr.NewSystemRunner())
 	frrRuntimes.Store(w.env.Owner, rt)
 	if rt.enabled {
 		frrEnabled.Store(true)
@@ -296,6 +299,16 @@ type tapGatedPairs struct {
 	owner  string
 }
 
+// CheckPersistent declares that the pairs record ownership (TD-11b): a pair on an untagged interface (a DPDK NIC) is
+// ours through DF-1's claim store (dfkit Target.Claim), which the product wiring persists (iface.SetClaimStore with
+// IfaceClaims). The store must say it survives an agent restart.
+func (d *tapGatedPairs) CheckPersistent() error {
+	if p, ok := iface.Claims(d.owner).(interface{ Persistent() bool }); ok && p.Persistent() {
+		return nil
+	}
+	return fmt.Errorf("%s: claims on untagged interfaces of owner %s are not persisted (install a persisted store with iface.SetClaimStore)", lcpItfPairName, d.owner)
+}
+
 func (d *tapGatedPairs) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	ifs, err := dfkit.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
@@ -314,6 +327,10 @@ func (d *tapGatedPairs) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 type frrConfigDescriptor struct{ rt *FRR }
 
 var _ scheduler.Descriptor = (*frrConfigDescriptor)(nil)
+
+// RecordsNoOwnership declares (TD-11b) that the FRR stage keeps no claim or boot record: it owns exactly one object,
+// FRR's configuration of this agent's instance, found by its fixed key.
+func (*frrConfigDescriptor) RecordsNoOwnership() {}
 
 func (*frrConfigDescriptor) Name() string                      { return frrConfigName }
 func (*frrConfigDescriptor) KeyOf(proto.Message) scheduler.Key { return desired.FRRConfigKey }

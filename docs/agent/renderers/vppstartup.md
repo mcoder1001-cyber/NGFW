@@ -149,6 +149,41 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
    run; only a foreign holder makes it roll back without them (FORCED, holder from `lslocks` logged).
 8. Record the result in `docs/decisions/LOG.md` (what changed, backup name) and update `docs/lab/host-<vm>.md`.
 
+### Hardening before the first real apply (TD-6, D-103)
+
+- **One unfinished apply at a time; a dead-man only reverts its own file (V1).** `--apply` (and the dry run, which then
+  exits 3) refuses while an earlier work dir installed a file and has no result yet — finish it with its dead-man or
+  `--stage rollback --work <dir>`. A rollback first checks ownership of the live file: if a newer apply installed after
+  this one (`newer:`) or the live sum is neither this run's new file nor its backup (`foreign:`), the rollback is skipped,
+  logged to syslog, the timer is disarmed and the locks are released — a stale dead-man never overwrites a newer commit.
+- **The restore file exists before VPP is stopped (V2).** startup.conf is never written in place: the new file and the
+  rollback copy are both staged next to it (`.startup.conf.{new,rollback}-<stamp>`, same directory) before the install,
+  so install and restore are atomic renames. If the rollback copy cannot be staged, VPP is **not** stopped (`ROLLBACK
+  IMPOSSIBLE`, console-needed); if the rename fails while VPP is stopped, VPP is started again anyway (`ROLLBACK
+  INCOMPLETE`). In every case the timer is cancelled, the locks are released and `console-needed` is written.
+- **Unit tuple right after the restart (V3, V4).** `systemctl show` is read up to 3 times; persistent failure is a failed
+  apply → immediate rollback (not a dead run left to the dead-man). The tuple must name a MainPID and say `NRestarts=0`
+  (systemd resets the counter on an explicit restart), so a crash + `Restart=always` before the first read is rejected.
+- **The run's own rollback after the holder died takes the locks (V5)** exclusively and bounded, like the dead-man;
+  FORCED (without locks) only when a foreign holder keeps them.
+- **`VRX_TEST_ROOT` guard resolves paths (V6)** (`realpath`: `/.`, `..`, symlinks out of the test root are refused).
+- **The holder follows the run's real deadline (V7):** after the snapshot the run writes `<work>/hold-until` (its dead-man
+  deadline + lock wait + one rollback); the holder's default-count `HOLD_MAX` applies only until then.
+- **`neigh` probe (V8):** a link-local gateway (`fe80::/10`) is nudged with its `%<if>` scope; each nudge and `ip neigh`
+  read is bounded by time, not by poll count.
+- **Dry-run exit code (V9):** 3 when `--apply` would be refused by the gate (sums are still printed), 0 when it would run.
+
+Tests: `deploy/vpp/test-apply-startup.sh` (fake host; scenarios 32–41 cover V1–V9, each failed on the pre-TD-6 script
+via `VRX_TEST_APPLY_SCRIPT`). `tools/ci.sh quick` runs `shellcheck -x` on `deploy/vpp/*.sh` and the harness in 4
+parallel shards (`VRX_CI_APPLY_SHARDS`); a green run is cached by the sha256 of `deploy/vpp/*` + the built generator, so
+an unchanged tree skips it. Failed scenarios get one serial rerun: green → a WARN naming them, failing again → the gate
+fails. `VRX_TEST_ONLY`/`VRX_TEST_SHARD` never leak in from the caller; `VRX_TEST_APPLY_SCRIPT` is honoured but never
+cached. The harness is meant to be green next to other workers' CI (load average up to ~50 on 32 CPUs): the fake host
+runs with `--cmd-timeout 3 --svc-timeout 6`, waits for files with long ceilings (they return as soon as the file
+exists), and the "bounded" checks (hangs cost the configured timeouts, not the fake's `sleep 300–1000`) scale their
+idle-host limit by a load factor 1 + 3·min(load/CPUs, 1.6) (measured: 3.6× the idle time at load 32 on 32 CPUs), always
+below the unbounded case. A failing check prints the host load and the script's last verdict lines.
+
 Exit codes: 0 committed / nothing to do · 1 failed (rolled back or console needed) · 2 usage · 3 refused before any change.
 Needs `jq`, `flock`, `timeout`, `systemd-run`, `ss` (session signal), `git` (approval check) on the target host. Not restored automatically: multipath
 routes, policy-routing tables, address lifetimes. Plugins the old file enabled and the new document no longer mentions

@@ -29,7 +29,7 @@ import (
 // ---- VPP id range (fail closed) ---------------------------------------------------------------
 
 // EnvTableBase is the environment variable of a test slot's first VRF/table id
-// (docs/lab/shared-host-rules.md §1: slot N owns N000–N999; §11: reserved ranges).
+// (docs/lab/shared-host-rules.md §1: slot N owns N000–N999; §12: reserved ranges).
 const EnvTableBase = "VRX_VPP_TABLE_BASE"
 
 // EnvIDRange is the explicit opt-in to own every id: VRX_VPP_ID_RANGE=all (the product agent on a box
@@ -44,7 +44,7 @@ const SlotIDRangeSize = 1000
 
 // ErrNoIDRange means that neither VRX_VPP_TABLE_BASE nor VRX_VPP_ID_RANGE=all is set: the agent owns
 // no numeric id (fail closed), never "every id" by default.
-var ErrNoIDRange = errors.New("no VPP id range: set " + EnvTableBase + " (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §11) or " + EnvIDRange + "=" + IDRangeAll + " (the product agent on a box of its own)")
+var ErrNoIDRange = errors.New("no VPP id range: set " + EnvTableBase + " (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or " + EnvIDRange + "=" + IDRangeAll + " (the product agent on a box of its own)")
 
 // IDRange is a closed range of numeric ids (FIB tables, SPD/SA ids, policy ids, map ids). Convert it
 // to the family's own range type with DF2, DF7 or VPN when registering. Lo > Hi is the empty range

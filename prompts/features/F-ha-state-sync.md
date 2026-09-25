@@ -20,16 +20,19 @@ Reference: TNSR "VPF state sync"; WBS D5.6, D9.3, D9.4 in `plan/wbs.csv`.
   globals owner only), D-080 boot identity, D-082 globals lock, D-012 (no VPP restarts before handover)
 
 ## Contract changes
-If needed (e.g. `ha.cluster.stateSync.natListener{address, port}`, `failoverPeer{address, port, refreshSec}`), additive on
-`contract/F-ha-state-sync` + `-contract.md`; manager told via questions file; continue.
+If needed (e.g. `ha.cluster.stateSync.natListener{address, port}`, `failoverPeer{address, port, refreshSec}`), additive as separate
+`contract(schema|proto): …` commits on your task branch (no `contract/` branch; numbers from `docs/status/wave-BC-numbers.md`) +
+`docs/status/tasks/F-ha-state-sync-contract.md`; manager told via questions file; continue.
 
 ## Scope — build exactly this
-Files you own: `apps/agent/internal/descriptors/hasync/**`, `docs/agent/descriptors/hasync.md`, `apps/agent/internal/agent/project_ha_state_sync*.go`,
+Files you own (the envelope's list wins): `apps/agent/internal/descriptors/hasync/**`, `docs/agent/descriptors/hasync.md`,
+`apps/agent/internal/{desired,subsystems}/hasync*.go`, `apps/agent/internal/agent/rpc_ha_sync*.go`, `apps/agent/internal/actions/ha-state-sync/**`,
 `apps/api/src/features/ha-state-sync/**`, `apps/web/src/domains/system/ha-state-sync/**`, `apps/web/src/locales/*/ha-state-sync.json`,
-`docs/user/system/ha-state-sync.md`, `test/topology/ha-state-sync/**`. Shared: one-line appends only (the cluster page of
-F-vrrp-config-sync gets a "State sync" panel through its extension hook or a sibling route).
+`docs/user/system/ha-state-sync.md`, `test/topology/ha-state-sync/**`. Shared: one-line appends only (the HA page of
+F-vrrp-config-sync gets a "State sync" panel through the panel registry it creates).
 1. **Agent** `descriptors/hasync`: `nat44-ei-ha.listener/global` and `nat44-ei-ha.failover/global` (Retrieve via the `_get_*` messages;
    globals owner only, slots require), resync as an action (`nat44_ei_ha_resync`, wait for the completed event), flush as an action.
+   On the shared host, setting them is an opt-in test in a manager window that restores the previous values (shared-host-rules §7).
    `stateSync.nat` with `nat.mode: ed` → DryRun warning "not supported by VPP (V2)", never an error; `stateSync.acl` → same warning (V2);
    `stateSync.ipsec` → warning "re-key on failover" (no API; new V-item proposed in the questions file).
 2. **Failover automation** `test/topology/ha-state-sync/`: the NAT44-EI HA listener/failover are VPP-wide globals, so one host VPP cannot

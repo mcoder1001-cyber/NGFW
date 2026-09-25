@@ -1,6 +1,8 @@
 # Task: F-mpls-ldp — LDP via FRR ldpd + agent-side FRR→VPP label sync (V5 fallback)   (prepend 00-CONTEXT.md)
 
-> Generated 2026-09-24 from `prompts/FEATURE-TEMPLATE.md` (MANAGER-PROMPT §6). This is the LDP part of F-mpls-srmpls, split out by
+> Generated 2026-09-24 from `prompts/FEATURE-TEMPLATE.md` (MANAGER-PROMPT §6); refreshed the same day on `task/prep-rest` (contract on
+> the task branch, allocated numbers, seam S1, VPP 26.06 linux-cp source facts). Your TASK ENVELOPE (`docs/status/tasks/F-mpls-ldp.envelope.md`)
+> wins for branch, files, numbers, anchors and process. This is the LDP part of F-mpls-srmpls, split out by
 > D-085. When you start, static MPLS, SR-MPLS, the `routing.mpls` model, the MPLS descriptors, the FRR framework and linux-cp are all
 > merged. **This task adds only three things:**
 > 1. the FRR `mpls ldp` section;
@@ -20,11 +22,13 @@ WBS D2.8 in `plan/wbs.csv` (T2, "MPLS: label operations, LSP, …"); `docs/08-ma
 ## Dependencies (must be merged before you start; board: F-mpls-srmpls, RF-1, P12 — plus P08, DF-7, TD-2, TD-3)
 - **F-mpls-srmpls** — read its `docs/status/tasks/F-mpls-srmpls.md` first. It provides:
   - the `routing.mpls` model in `packages/schema/src/domains/routing.ts` + proto;
-  - the MPLS projection (`apps/agent/internal/desired/mpls*.go` or `agent/project_mpls_srmpls*.go` — whichever it used);
+  - the MPLS projection (`apps/agent/internal/desired/mpls_srmpls*.go`, wired from `subsystems/mpls_srmpls*.go`);
   - `mpls-table` / `mpls-interface` / `mpls-route` wired into the `routing` domain;
   - the page `apps/web/src/domains/routing/mpls-srmpls/`;
   - the API module `apps/api/src/features/mpls-srmpls/` with `GET /state/routing/mpls/{fib,tunnels}`;
-  - its answer on who declares MPLS table 0 (the globals owner).
+  - its answer on who declares MPLS table 0 (the globals owner);
+  - the anchors it seeded for you: `// wave-BC: F-mpls-ldp` in `MplsSchema` (`packages/schema/src/domains/ext/mpls-srmpls.ts`),
+    `MplsConfig` field 10 reserved for `ldp` (its proto section), the LDP tab anchor in `apps/web/src/domains/routing/mpls-srmpls/tabs.ts`.
 - **DF-7** (`docs/agent/descriptors/mpls.md`). The facts you need from it:
   - `mpls-route/<table>/<label>/<eos|neos>`: `mpls_route_add_del` (not multipath: the path set is replaced) and `mpls_route_dump`.
   - Paths are `df7.Path`: next hop + interface, out-label stack, weight.
@@ -49,14 +53,21 @@ WBS D2.8 in `plan/wbs.csv` (T2, "MPLS: label operations, LSP, …"); `docs/08-ma
   - the product `frr.New(... WithInterfaceMapper(<linux-cp mapper>))` wired into commit apply;
   - the netns FRR peer pattern on the veth rig;
   - the way FRR state reaches the API (BGP neighbours);
-  - where FRR section packages are blank-imported.
+  - the linux-cp mapper `apps/agent/internal/lcpmap` (VPP → Linux name, injected with `frr.WithInterfaceMapper`).
+
+  Blank-import your section package from your own `apps/agent/internal/subsystems/mpls_ldp.go` (no shared import file).
 
   You need the **reverse** mapping (Linux name → VPP logical name) from the same LCP pair source. If P12 does not export it,
   add a small adapter in your package over P12's exported data. Do not dump LCP pairs a second way. If you cannot, use the
   questions file.
 - **P08:** `subsystems.Register` / `Domains`, and the `Service` transaction lock (`agent/service.go`, `txn`): Apply, resync and
   revert are serialised there. D-063/D-076 reconciler rules; D-080 boot identity.
-- If a dependency is not merged, read it with `git show task/<id>:<path>` and do not start coding.
+- **Seam S1 — dynamic desired source** (`docs/status/wave-BC-numbers.md`): the generic "plan and apply a scoped KV set under the
+  transaction lock" hook F-igmp-mfib needs too. `agent.go`/`service.go` are agent core (A5): features do not edit them. Use the seam if
+  the manager seeded it; if it is not on main, keep your loop behind a small interface in `frrsync/ldp` with a fake apply in the unit
+  tests, write the question, and leave the wiring to the manager.
+- If a dependency is not merged, read it with `git show task/<id>:<path>` and do not start coding — unless your envelope names that
+  branch as a speculative base (D-114).
 
 ## Host facts (probed read-only 2026-09-24, re-check)
 - FRR 10.7.1 is installed and `/usr/lib/frr/ldpd` exists. Never use the system FRR unit or `/etc/frr`; use only `frrtest`
@@ -65,18 +76,26 @@ WBS D2.8 in `plan/wbs.csv` (T2, "MPLS: label operations, LSP, …"); `docs/08-ma
   therefore runs with MPLS disabled and **may not build its LFIB** (`show mpls table json` may stay empty). ldpd's own LIB
   (`show mpls ldp binding json`) does not depend on the kernel. **Never load kernel modules or set `net.mpls.*` sysctls on this
   host** (host change → questions file).
+- VPP 26.06 source (read-only, `/root/vpp/src/plugins/linux-cp/`): `lcp_router.c` handles **AF_MPLS** netlink routes, so on an image
+  with kernel MPLS linux-nl could sync zebra's LFIB itself — not possible here (no kernel MPLS), which is why the V5 agent sync is the
+  path on this host; record it under open question 2. `lcp_mpls_sync.c`: MPLS enabled on an LCP-paired interface is mirrored to the host
+  tap by writing `net.mpls.conf.<tap>.input` — expect a failure/log line here; record it, do not work around it. `lcp_router.c` installs a
+  (*,224.0.0.0/24) accept mfib entry on LCP pairs and `lcp_interface.c` punts unknown UDP/TCP — LDP hellos (224.0.0.2, UDP 646) and the
+  session (TCP 646) should reach the tap: confirm (open question 5).
 - ldpd runs as a parent process plus child processes. Check that `frrtest`'s Stop leaves none behind. If it does, stop the
   leftovers in your test cleanup, only by PIDs whose parent is your harness's ldpd **and** whose cmdline names your socket dir,
   and report it in the questions file. `frrtest` is RF-1's code (read-only). Also check that ldpd's control socket lands under
   the harness dirs.
 
 ## Contract changes
-Make one additive change on `contract/F-mpls-ldp` (`contract(schema): mpls ldp` + proto, `docs/status/tasks/F-mpls-ldp-contract.md`),
-then tell the manager in `F-mpls-ldp-questions.md` and continue without waiting. The change adds `ldp` inside the existing
+Make one additive change, committed **first on your task branch** as separate `contract(schema): mpls ldp` and `contract(proto): …`
+commits (never a `contract/` branch — workers create no branches) + `docs/status/tasks/F-mpls-ldp-contract.md`, then tell the manager in
+`F-mpls-ldp-questions.md` and continue without waiting. The change adds `ldp` inside the existing
 `routing.mpls`:
 `ldp{routerId, transportAddress, interfaces[<ifName>], neighbors?{<lsrId>: {passwordRef?: "password/<name>"}}, labelRange?{min, max}}`.
 
-- The proto field takes the next free number, with explicit presence for scalars (D-039).
+- The proto field is `MplsConfig` **10** (allocated in `docs/status/wave-BC-numbers.md`; never "next free"); the LDP neighbour
+  event is `EventKind` **23**; explicit presence for scalars (D-039).
 - Keyed collections are records (D-045/D-053).
 - Secrets are D-051 references and are never inline.
 - Keep `labelRange` only if FRR 10.7 accepts `mpls label dynamic-block <min> <max>` (probe with `vtysh -C`). Otherwise drop it,
@@ -147,7 +166,7 @@ then tell the manager in `F-mpls-ldp-questions.md` and continue without waiting.
    - bindings are paged server-side;
    - `sync` returns the last sync time, installed routes, conflicts, last error and the source in use;
    - the data comes from the agent over the FRR-state path P12 built. If that path is BGP-specific, add one read-only RPC
-     `MplsLdpState` on `contract/F-mpls-ldp`.
+     `MplsLdpState` in your contract commits.
 
    The API never runs vtysh. Neighbour events go on the WS topic. Update the OpenAPI spec and regenerate `packages/api-client`.
 5. **UI**: add an **LDP** tab to the MPLS page (one tab entry in F-mpls-srmpls's page) with:
@@ -166,7 +185,8 @@ then tell the manager in `F-mpls-ldp-questions.md` and continue without waiting.
 - `apps/agent/internal/renderers/frr/ldp/**`
 - `apps/agent/internal/frrsync/ldp/**`
 - `docs/agent/renderers/frr-ldp.md`
-- `apps/agent/internal/subsystems/mpls_ldp*.go` (new file: registration of the LDP-scoped route instance + the sync wiring)
+- `apps/agent/internal/subsystems/mpls_ldp*.go` (new file: registration of the LDP-scoped route instance + the sync wiring + the blank import)
+- `apps/agent/internal/desired/mpls_ldp*.go`, `apps/agent/internal/agent/rpc_mpls_ldp*.go` (only if needed), `packages/schema/src/domains/ext/mpls-ldp*.ts`
 - `packages/schema/src/semantic/mpls-ldp*.ts`
 - `apps/api/src/features/mpls-ldp/**`
 - `apps/api/test/e2e/mpls-ldp-*`
@@ -186,17 +206,15 @@ route constructor / record scope) and `docs/agent/descriptors/mpls.md`.
 - `apps/agent/internal/frrsync/pim/**` (F-igmp-mfib)
 - F-mpls-srmpls's projection and page files, except the one tab entry
 
-**Shared hotspots (append-only, conflicts resolved by the manager at merge):**
-- `packages/schema/src/domains/routing.ts` + `packages/proto/vrx/v1/dataplane.proto` (the `ldp` field, on the contract branch)
-- `packages/schema/src/semantic/index.ts`
+**Shared hotspots (append-only, one line under your `// wave-BC: F-mpls-ldp` anchor, conflicts resolved by the manager at merge):**
+- F-mpls-srmpls' `packages/schema/src/domains/ext/mpls-srmpls.ts` (`MplsSchema.ldp` key line) + its `MplsConfig` in
+  `packages/proto/vrx/v1/dataplane.proto` (field 10); your messages go in `// ----- F-mpls-ldp -----`
+- `packages/schema/src/semantic/index.ts`, `packages/schema/src/index.ts`
 - `apps/agent/internal/subsystems/subsystems.go` (one call into your `mpls_ldp.go`)
-- `apps/agent/internal/agent/{service,agent}.go` — a **generic** "dynamic desired source" hook (plan/apply a scoped KV set under
-  the txn lock; start/stop the loop). F-igmp-mfib needs the same hook: if it is on main, reuse it; if not, add it generic, not
-  LDP-specific.
-- the FRR section blank-import file P12 uses
-- `apps/api/src/app.module.ts`
-- F-mpls-srmpls's MPLS page tab list, the web router/nav, `apps/web/src/i18n.ts`
-- `packages/api-client` (regenerated)
+- seam S1 (above) — **not** an edit of `apps/agent/internal/agent/{service,agent}.go`
+- `apps/api/src/app.module.ts`, `agent.client.ts` / `fake-agent.ts` (with the RPC), `infra/bus.ts` (`mpls-ldp.events`)
+- F-mpls-srmpls's MPLS page tab list (`tabs.ts`), `apps/web/src/i18n.ts`
+- generated files (`packages/api-client`, proto stubs) — regenerated, never hand-merged
 
 Do **not** create a shared `apps/agent/internal/frrsync/` root package. Keep your loop inside `frrsync/ldp/`.
 
@@ -253,4 +271,5 @@ Do **not** create a shared `apps/agent/internal/frrsync/` root package. Keep you
 3. **MPLS table 0 in production.** The globals owner declares `mpls-table/0` when `routing.mpls` or LDP is non-empty (carry
    over F-mpls-srmpls's answer).
 4. **Label range split.** Pick the default between static labels and LDP's dynamic block.
-5. **linux-cp and LDP hellos.** Does linux-cp punt 224.0.0.2 LDP hellos to the tap? Compare with F-ospf's 224.0.0.5 finding.
+5. **linux-cp and LDP hellos.** Does linux-cp deliver 224.0.0.2 LDP hellos to the tap (the source says the accept entry and the
+   unknown-UDP punt exist)? Confirm on the host and compare with F-ospf's 224.0.0.5 finding.

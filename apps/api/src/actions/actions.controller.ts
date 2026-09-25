@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
-import { openapi } from '../common/zod.js';
+import { openapi, SafeParamPipe } from '../common/zod.js';
 
 export const ACTIONS = [
   'ping',
@@ -105,7 +105,7 @@ export class ActionsController {
       'Run an action in the data plane (ping; traceroute and the others answer 501) and return its output',
   })
   @ApiOkResponse({ schema: openapi(ActionOut, 'output') })
-  async run(@Param('action') action: string, @Body() body: unknown) {
+  async run(@Param('action', new SafeParamPipe('action', 64)) action: string, @Body() body: unknown) {
     if (!(ACTIONS as readonly string[]).includes(action))
       throw problems.notFound(`unknown action '${action}'`);
     let req: ActionRequest;

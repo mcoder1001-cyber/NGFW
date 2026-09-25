@@ -3,6 +3,7 @@ import { jwtVerify, SignJWT } from 'jose';
 import { createHash, randomBytes } from 'node:crypto';
 import { ENV, type Env } from '../config.js';
 import { ROLES, type Role } from '../db/schema.js';
+import { Bus } from '../infra/bus.js';
 import { VALKEY, type Valkey } from '../infra/valkey.js';
 
 const ISSUER = 'vrx-api';
@@ -15,11 +16,15 @@ export interface AccessClaims {
   /** refresh-token family (login session) */
   sid?: string;
   exp?: number;
+  /** credential generation (D-097) */
+  gen?: number;
 }
 
 export interface IssuedRefresh {
   token: string;
   family: string;
+  /** credential generation the chain belongs to (D-097) */
+  gen: number;
 }
 
 function sha256(s: string): string {
@@ -39,10 +44,22 @@ function b64url(bytes: number): string {
 export class TokensService {
   private readonly log = new Logger('Tokens');
   private readonly key: Uint8Array;
+  /**
+   * D-097/D-102 (TD-2 review H2/L3, verify V1/V3): every user has a credential GENERATION, `app_user.credential_gen`
+   * in PostgreSQL — the authority, bumped in the same transaction as the password write. Refresh chains (`rtfam` =
+   * `<uid>:<gen>`) and access tokens (`gen` claim) carry the generation they were issued under. A refresh continues a
+   * chain only when its generation equals the column (read after the token is consumed), and API-key creation
+   * compares the caller's generation with the column under `FOR SHARE`. So a reset is effective the moment its
+   * transaction commits, even if Valkey is unreachable afterwards (V3). Access tokens below the revoked generation are
+   * refused (except the caller's own session `keep`): recorded here first, then in Valkey (`atrev:<uid>`, TTL = access
+   * lifetime, reloaded at boot).
+   */
+  private readonly revoked = new Map<number, { gen: number; keep?: string; until: number }>();
 
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(VALKEY) private readonly kv: Valkey,
+    private readonly bus: Bus,
   ) {
     if (env.VRX_JWT_SECRET === undefined) {
       this.log.warn(
@@ -66,6 +83,8 @@ export class TokensService {
       username: c.username,
       role: c.role,
       typ: 'access',
+      /** credential generation the session was issued under (D-097) */
+      gen: c.gen ?? 0,
       ...(c.sid ? { sid: c.sid } : {}),
     })
       .setProtectedHeader({ alg: 'HS256' })
@@ -98,30 +117,50 @@ export class TokensService {
         return null;
       }
       const sid = typeof payload['sid'] === 'string' ? payload['sid'] : undefined;
+      const gen = typeof payload['gen'] === 'number' ? payload['gen'] : -1;
+      const rev = this.revoked.get(id);
+      if (rev !== undefined) {
+        if (rev.until < Date.now()) this.revoked.delete(id);
+        else if (gen < rev.gen && !(rev.keep !== undefined && sid === rev.keep)) return null;
+      }
       return {
         id,
         username,
         role: role as Role,
         ...(sid ? { sid } : {}),
         ...(payload.exp ? { exp: payload.exp } : {}),
+        gen,
       };
     } catch {
       return null;
     }
   }
 
-  /** New refresh token; `family` continues a rotation chain (omit to start one at login). */
-  async issueRefresh(userId: number, family = b64url(12)): Promise<IssuedRefresh> {
-    const token = `${family}.${b64url(32)}`;
-    const ttl = this.refreshTtl;
-    await this.kv
-      .multi()
-      .set(`rt:${sha256(token)}`, JSON.stringify({ uid: userId, fam: family }), 'EX', ttl)
-      .set(`rtfam:${family}`, String(userId), 'EX', ttl)
-      .sadd(`rtuser:${userId}`, family)
-      .expire(`rtuser:${userId}`, ttl)
-      .exec();
-    return { token, family };
+  /**
+   * New refresh token under credential generation `gen` (read from app_user by the caller), atomically (one Lua
+   * script, review H2):
+   * - `family` given: continues that chain only while `rtfam:<family>` still says `<uid>:<gen>` — a chain of an older
+   *   generation, or one deleted by a reset/logout/reuse, is refused and never re-created;
+   * - no `family`: starts a new chain (login).
+   * Returns null when the chain was revoked.
+   */
+  async issueRefresh(userId: number, gen: number, family?: string): Promise<IssuedRefresh | null> {
+    const fam = family ?? b64url(12);
+    const token = `${fam}.${b64url(32)}`;
+    const r = (await this.kv.eval(
+      ISSUE_SCRIPT,
+      3,
+      `rtfam:${fam}`,
+      `rt:${sha256(token)}`,
+      `rtuser:${userId}`,
+      String(userId),
+      family === undefined ? 'new' : 'continue',
+      String(gen),
+      String(this.refreshTtl),
+      JSON.stringify({ uid: userId, fam }),
+      fam,
+    )) as number;
+    return r < 0 ? null : { token, family: fam, gen };
   }
 
   /**
@@ -155,12 +194,79 @@ export class TokensService {
     await this.kv.del(`rt:${sha256(token)}`, `rtfam:${family}`);
   }
 
-  /** Password change / account disable: every login session of the user ends (review L3). */
-  async revokeUser(userId: number): Promise<string[]> {
-    const fams = await this.kv.smembers(`rtuser:${userId}`);
-    if (fams.length > 0) await this.kv.del(...fams.map((f) => `rtfam:${f}`));
-    await this.kv.del(`rtuser:${userId}`);
-    return fams;
+  /**
+   * Sessions of `userId` end after a password set committed generation `gen` (D-097/D-102) — except `keep`, the
+   * session (refresh family) of a user who changed their own password. Order (verify V3): the in-process revocation
+   * and the WebSocket close come first and cannot fail; Valkey follows (kept family moved to `gen`, the other families
+   * deleted, `atrev` persisted for other processes/restarts). A Valkey failure is logged and reported
+   * (`persisted: false`) but does not undo anything: refresh and key creation check the generation in PostgreSQL.
+   */
+  async revokeUser(
+    userId: number,
+    gen: number,
+    keep?: string,
+  ): Promise<{ persisted: boolean; families: number }> {
+    const ttl = this.accessTtl + 5;
+    const entry = { gen, until: Date.now() + ttl * 1000, ...(keep !== undefined ? { keep } : {}) };
+    const cur = this.revoked.get(userId);
+    if (cur === undefined || cur.gen <= gen) this.revoked.set(userId, entry);
+    this.bus.sessions({ userId, ...(keep !== undefined ? { exceptSid: keep } : {}) });
+    try {
+      await this.kv.eval(
+        REVOKE_SCRIPT,
+        2,
+        `rtfam:${keep ?? '-'}`,
+        `atrev:${userId}`,
+        String(userId),
+        keep === undefined ? '0' : '1',
+        String(gen),
+        JSON.stringify(entry),
+        String(ttl),
+      );
+      const fams = (await this.kv.smembers(`rtuser:${userId}`)).filter((f) => f !== keep);
+      if (fams.length > 0) {
+        await this.kv.del(...fams.map((f) => `rtfam:${f}`));
+        await this.kv.srem(`rtuser:${userId}`, ...fams);
+      }
+      return { persisted: true, families: fams.length };
+    } catch (e) {
+      this.log.error(
+        `user ${userId}: sessions revoked in this process and by the database generation ${gen}, but Valkey could not be updated (${(e as Error).message}); old access tokens would be accepted again after an API restart within ${ttl}s`,
+      );
+      return { persisted: false, families: 0 };
+    }
+  }
+
+  /**
+   * TD-2 verify V1: may this JWT session still mint credentials, given the user's generation in PostgreSQL? Yes when
+   * it was issued under that generation, or when it is the session a self-service change kept.
+   */
+  sessionCurrent(p: { id: number; gen?: number; sid?: string }, dbGen: number): boolean {
+    if ((p.gen ?? -1) >= dbGen) return true;
+    const rev = this.revoked.get(p.id);
+    return rev !== undefined && rev.gen === dbGen && rev.keep !== undefined && rev.keep === p.sid;
+  }
+
+  /** Boot: reload the access-token revocations that are still within one token lifetime (review L3). */
+  async loadRevocations(): Promise<number> {
+    const prefix = this.env.VRX_VALKEY_PREFIX;
+    let cursor = '0';
+    let n = 0;
+    do {
+      // SCAN patterns and results are not prefixed by the client: add/strip the prefix here
+      const [next, keys] = await this.kv.scan(cursor, 'MATCH', `${prefix}atrev:*`, 'COUNT', 500);
+      cursor = next;
+      for (const full of keys) {
+        const raw = await this.kv.get(full.slice(prefix.length));
+        const uid = Number(full.slice(prefix.length + 'atrev:'.length));
+        if (raw === null || !Number.isInteger(uid)) continue;
+        const e = JSON.parse(raw) as { gen: number; keep?: string; until: number };
+        const cur = this.revoked.get(uid);
+        if (cur === undefined || cur.gen < e.gen) this.revoked.set(uid, e);
+        n += 1;
+      }
+    } while (cursor !== '0');
+    return n;
   }
 
   /** Family of a refresh token (without consuming it). */
@@ -180,6 +286,41 @@ export class TokensService {
     return Number(n);
   }
 }
+
+/**
+ * KEYS: rtfam, rt, rtuser · ARGV: uid, mode (new|continue), gen, ttl, record, family.
+ * Returns the generation, or -1 when the chain is revoked (continue: family gone or of another generation).
+ */
+const ISSUE_SCRIPT = `
+local cur = ARGV[1] .. ':' .. ARGV[3]
+if ARGV[2] == 'continue' and redis.call('GET', KEYS[1]) ~= cur then return -1 end
+local ttl = tonumber(ARGV[4])
+redis.call('SET', KEYS[2], ARGV[5], 'EX', ttl)
+redis.call('SET', KEYS[1], cur, 'EX', ttl)
+redis.call('SADD', KEYS[3], ARGV[6])
+redis.call('EXPIRE', KEYS[3], ttl)
+return tonumber(ARGV[3])
+`;
+
+/**
+ * KEYS: rtfam of the kept family, atrev · ARGV: uid, keep (0|1), gen, revocation entry, ttl.
+ * Moves the kept family to the new generation; persists the access-token revocation unless a newer one is stored.
+ */
+const REVOKE_SCRIPT = `
+if ARGV[2] == '1' then
+  local f = redis.call('GET', KEYS[1])
+  if f and string.sub(f, 1, string.len(ARGV[1]) + 1) == (ARGV[1] .. ':') then
+    redis.call('SET', KEYS[1], ARGV[1] .. ':' .. ARGV[3], 'KEEPTTL')
+  end
+end
+local prev = redis.call('GET', KEYS[2])
+if prev then
+  local g = tonumber(string.match(prev, '"gen":(%d+)'))
+  if g and g > tonumber(ARGV[3]) then return 0 end
+end
+redis.call('SET', KEYS[2], ARGV[4], 'EX', tonumber(ARGV[5]))
+return 1
+`;
 
 export function apiKeyHash(token: string): string {
   return sha256(token);

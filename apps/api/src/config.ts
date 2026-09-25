@@ -52,6 +52,8 @@ const Env = z.object({
   VRX_LOGIN_RATE_PER_MIN: z.coerce.number().int().min(1).default(20),
   VRX_LOGIN_MAX_FAILURES: z.coerce.number().int().min(1).default(10),
   VRX_LOGIN_LOCKOUT_SEC: z.coerce.number().int().min(1).default(900),
+  /** Password set/change attempts per caller and minute (TD-2 #1; wrong current passwords count too). */
+  VRX_PASSWORD_RATE_PER_MIN: z.coerce.number().int().min(1).default(5),
   /** Telemetry relay heartbeat interval. */
   VRX_WS_HEARTBEAT_MS: z.coerce.number().int().min(50).default(15_000),
 });

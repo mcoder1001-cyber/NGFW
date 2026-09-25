@@ -25,6 +25,8 @@ import { SecretsController } from './secrets/secrets.controller.js';
 import { SecretsService } from './secrets/secrets.service.js';
 import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
+import { UsersController } from './users/users.controller.js';
+import { UsersService } from './users/users.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
 // wave-BC: F-det44-map-dslite-cnat
 // wave-BC: F-tunnels
@@ -108,6 +110,7 @@ export class AppModule {
         ActionsController,
         SecretsController,
         AuditController,
+        UsersController,
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-BC: F-det44-map-dslite-cnat
         // wave-BC: F-tunnels
@@ -176,6 +179,7 @@ export class AppModule {
         CommitService,
         SecretsService,
         RelayService,
+        UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-BC: F-det44-map-dslite-cnat
         // wave-BC: F-tunnels

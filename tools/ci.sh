@@ -19,6 +19,7 @@
 # Order of quick: [contract guard] → tools → install → gen + dirty gate → forbidden patterns (+gitleaks)
 #                 → lint/typecheck/unit tests/build (turbo, VRX_INTEGRATION unset) → apps/agent make lint test build
 #                 → every Go module under test/ (gofmt, go vet, go test -count=1; integration tests skip without VRX_INTEGRATION)
+#                 → deploy/vpp: shellcheck + apply-startup fake-host harness (sharded; skipped when unchanged since a green run)
 set -euo pipefail
 
 usage() {
@@ -322,12 +323,16 @@ do_contract_guard() {
   local mb; mb=$(git merge-base "$BASE" "$TIP") || fail "no merge base between $BASE and $TIP"
   MERGE_BASE=$mb
   local n; n=$(git rev-list --count "$mb..$TIP")
-  local changed; changed=$(git diff --name-only "$mb" "$TIP" -- "${CONTRACT_PATHS[@]}")
+  # test files under the contract paths are not contract (D-128b: F-vlan-qinq's semantic *.test.ts tripped the guard)
+  local changed; changed=$(git diff --name-only "$mb" "$TIP" -- "${CONTRACT_PATHS[@]}" | grep -vE '(\.test\.ts|_test\.go)$' || true)
   if [[ -z $changed ]]; then
     say "no contract files changed in the $n commit(s) of $TIP since $BASE ($(git rev-parse --short "$mb"))"
   else
     say "contract files changed in $TIP since $BASE:"; sed 's/^/  /' <<<"$changed"
-    if git log --format=%s "$mb..$TIP" | grep -qiE '^contract(\(|:|!)'; then
+    # capture first: `git log | grep -q` under pipefail lost to SIGPIPE in ~55% of runs (git exit 141 when grep -q exits
+    # early) and failed the gate on branches that do carry a contract commit (F-vlan-qinq Q6, TD-4 Q10, D-127)
+    local subjects; subjects=$(git log --format=%s "$mb..$TIP")
+    if grep -qiE '^contract(\(|:|!)' <<<"$subjects"; then
       say "ok — contract commit(s) on the branch:"; git log --format='  %h %s' "$mb..$TIP" | grep -iE '^  [0-9a-f]+ contract(\(|:|!)'
     else
       fail "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT. [${CONTRACT_PATHS[*]}] are the contract between packages;
@@ -384,6 +389,35 @@ do_forbidden() {
   else
     warn "gitleaks not installed — built-in secret grep only"
   fi
+}
+
+# D-128 (TD-20): packet trace is banned on the shared VPP. The VPP crash of 2026-09-24 18:41 (very likely 07:27 too) was a
+# packet-trace dump: format_vlib_trace (vlib/trace.c:159-162) calls a NULL formatter for a record whose node is the tx/output
+# node of a deleted and recycled interface, so any slot's dump can take VPP down for everyone (docs/lab/shared-host-rules.md
+# §11, docs/vpp-code-track.md V25, TD-20). Fails on code that adds, dumps or clears a packet trace: vppctl/cli_inband
+# command strings, argv lists (Go `vppctl(t, "show", "trace")`, TS/Python arrays) and the tracedump binary API (trace_dump
+# formats the same records). Prose is exempt (docs/, prompts/, wbs/, plan/, *.md, comment-only lines), as are the generated
+# bindings (apps/agent/binapi). No escape hatch: the ban holds until VPP carries the fix.
+do_trace_ban() {
+  step "packet-trace ban on the shared VPP (D-128)"
+  CUR_LOG=""  # a static grep, no step log: a failure must not print the previous step's log
+  local q="[\"']" s='[[:space:]]' hits
+  local cmd="(show$s+trace|trace$s+add|clear$s+trace)\b"
+  local pats=(
+    "${q}trace${q}$s*,$s*${q}add${q}|${q}show${q}$s*,$s*${q}trace${q}|${q}clear${q}$s*,$s*${q}trace${q}"   # argv list
+    "${q}(vppctl$s+(-s$s+[^[:space:]]+$s+)?)?$cmd"                                                     # command string
+    "(^|[^[:alnum:]_.-])vppctl($s+-s$s+[^[:space:]]+)?$s+$cmd"                                          # shell
+    "\bTrace(CapturePackets|Dump|V2Dump|ClearCapture)\b|\btrace_(capture_packets|dump|v2_dump|clear_capture)\b|binapi/trace${q}"  # tracedump API
+  )
+  local args=() p; for p in "${pats[@]}"; do args+=(-e "$p"); done
+  hits=$(git grep -nIE --untracked "${args[@]}" -- . ':(exclude)docs' ':(exclude)prompts' ':(exclude)wbs' ':(exclude)plan' \
+           ':(exclude)*.md' ':(exclude)apps/agent/binapi' 2>/dev/null \
+         | grep -vE '^[^:]+:[0-9]+:[[:space:]]*(#|//|/\*|\*)' || true)
+  [[ -z $hits ]] || fail "PACKET TRACE ON THE SHARED VPP (D-128): trace add / show trace / clear trace (or the tracedump API)
+  crashed VPP for every slot — a stale trace record of a deleted and recycled interface node has no formatter.
+  Prove the path with interface rx/tx counters, the FIB entry and its ip4-lookup counter (test/topology/interfaces) or tcpdump
+  in the rig's netns instead (docs/lab/shared-host-rules.md §11):\n$(sed 's/\\/\\\\/g; s/^/    /' <<<"$hits")"  # fail prints with %b
+  say "ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings"
 }
 
 do_turbo() {
@@ -561,6 +595,77 @@ do_integration() {
   INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with VRX_INTEGRATION=1 → rig down"
 }
 
+# deploy/vpp host scripts (TD-6 L1, D-103): shellcheck of deploy/vpp/*.sh + the apply-startup.sh fake-host harness
+# (deploy/vpp/test-apply-startup.sh — fake systemctl/ip/sysfs/locks under a temp dir; never touches VPP, /etc or the real
+# locks). The harness runs in VRX_CI_APPLY_SHARDS parallel shards (default 4; ~8 min serial). A green run is remembered
+# under $VRX_CI_CACHE_DIR keyed by the sha256 of deploy/vpp/* and of the vrx-startupgen binary built from this tree, so
+# an unchanged tree skips the rerun. Self-contained: nothing else in this file depends on it.
+do_deploy_vpp() {
+  step "deploy/vpp: shellcheck + apply-startup fake-host harness"
+  command -v shellcheck >/dev/null 2>&1 || fail "shellcheck not installed (apt install shellcheck) — needed for deploy/vpp/*.sh"
+  local f pids=() rc=0 cache key gen shards="${VRX_CI_APPLY_SHARDS:-4}" i pfx nocache="" note=""
+  [[ $shards =~ ^[1-9][0-9]*$ ]] || fail "VRX_CI_APPLY_SHARDS must be a positive integer"
+  pfx="$LOG_DIR/$(printf '%02d' "$STEP_N")"
+  # one shellcheck process per file, in parallel (up to ~1 min each on the big scripts)
+  for f in deploy/vpp/*.sh; do
+    run "shellcheck-$(basename "$f")" shellcheck -x -P SCRIPTDIR "$f" & pids+=($!)
+  done
+  for i in "${pids[@]}"; do wait "$i" || rc=1; done
+  if ((rc)); then
+    CUR_LOG="$pfx-shellcheck.all.log"; cat "$pfx"-shellcheck-*.log > "$CUR_LOG"
+    fail "shellcheck found issues in deploy/vpp/*.sh"
+  fi
+  say "shellcheck ok: $(cd deploy/vpp && echo ./*.sh)"
+  cache="${VRX_CI_CACHE_DIR:-$HOME/.cache/vrx-ci}/apply-startup"; mkdir -p "$cache"
+  gen="$LOG_DIR/vrx-startupgen"
+  run build-startupgen go -C apps/agent build -o "$gen" ./cmd/vrx-startupgen || fail "go build ./cmd/vrx-startupgen failed"
+  key=$( { find deploy/vpp -type f -print0 | sort -z | xargs -0 sha256sum; sha256sum "$gen" | cut -d' ' -f1; } | sha256sum | cut -d' ' -f1)
+  # the harness's own selectors never leak in from the caller (an inherited VRX_TEST_ONLY would cache a partial run as
+  # green); VRX_TEST_APPLY_SCRIPT (exercise another copy of apply-startup.sh, e.g. to see this step fail) is honoured but
+  # never cached
+  if [[ -n ${VRX_TEST_APPLY_SCRIPT:-} ]]; then
+    nocache=1; warn "apply-startup harness: VRX_TEST_APPLY_SCRIPT=$VRX_TEST_APPLY_SCRIPT is exercised instead of deploy/vpp/apply-startup.sh — result not cached"
+  elif [[ -e $cache/$key ]]; then
+    say "apply-startup harness: unchanged since a green run ($(cat "$cache/$key")) — skipped (key ${key:0:12}; rm $cache/$key to force)"
+    return 0
+  fi
+  pids=(); rc=0
+  for ((i = 1; i <= shards; i++)); do
+    run "apply-startup-shard$i" env -u VRX_TEST_ONLY -u KEEP VRX_TEST_SHARD="$i/$shards" deploy/vpp/test-apply-startup.sh "$gen" & pids+=($!)
+  done
+  # a shard that failed a check exits 1 too — only a missing result line (or a non-zero exit with 0 failures) means it died
+  local -a codes=(); local c
+  for i in "${pids[@]}"; do c=0; wait "$i" || c=$?; codes+=("$c"); done
+  local pass=0 failn=0 p q log
+  for ((i = 1; i <= shards; i++)); do
+    log="$pfx-apply-startup-shard$i.log"; p=""; q=""
+    read -r p q < <(sed -nE 's/^apply-startup tests: ([0-9]+) passed, ([0-9]+) failed$/\1 \2/p' "$log" | tail -n 1) || true
+    if [[ -z $p ]] || ((codes[i - 1] && !q)); then rc=1; CUR_LOG=$log; say "apply-startup shard $i died (exit ${codes[i - 1]}, result: ${p:-none})"; continue; fi
+    pass=$((pass + p)); failn=$((failn + q)); ((q == 0)) || CUR_LOG=$log
+  done
+  if ((rc == 0 && failn)); then
+    # the scenarios use second-scale timeouts; on a busy shared host a parallel run can miss one. Failed scenarios get ONE
+    # serial rerun: green → a warning naming them, still failing → the gate fails.
+    local again
+    again=$(awk '/^== [0-9]+\./ { n = $2; sub(/\.$/, "", n) } /^  FAIL / { print n }' "$pfx"-apply-startup-shard*.log | sort -nu | tr '\n' ' ')
+    grep -h '^  FAIL ' "$pfx"-apply-startup-shard*.log || true
+    say "apply-startup harness: $failn check(s) failed in scenario(s) ${again}— one serial rerun"
+    if [[ -n ${again// /} ]] && run apply-startup-rerun env -u VRX_TEST_SHARD -u KEEP VRX_TEST_ONLY="$again" deploy/vpp/test-apply-startup.sh "$gen"; then
+      warn "apply-startup harness: scenario(s) ${again}failed in the parallel run and passed on a serial rerun (host load?) — logs $pfx-apply-startup-*.log"
+      say "rerun: $(grep -E '^apply-startup tests:' "$CUR_LOG" | tail -n 1)"
+      failn=0 note="; scenario(s) ${again}green only on the serial rerun"
+    else
+      CUR_LOG="$pfx-apply-startup-rerun.log"; rc=1
+    fi
+  fi
+  if ((rc || failn)); then
+    grep -h '^  FAIL ' "$pfx"-apply-startup-*.log >&2 || true
+    fail "apply-startup fake-host harness failed ($pass passed; a shard without a result line died, or a scenario failed again on the serial rerun) — logs $pfx-apply-startup-*.log"
+  fi
+  [[ -n $nocache ]] || echo "$(date -Is) harness green ($shards shards$note)" > "$cache/$key"
+  say "apply-startup harness: green ($shards shards; $pass checks passed in the parallel run$note)"
+}
+
 passed() {
   end_step
   printf '\n%s== summary (%s) ==%s\n' "$B" "$MODE" "$N"
@@ -581,7 +686,7 @@ case $MODE in
   gen-check)
     init_logs; do_gen_check; end_step; say "gen-check PASSED ($(fmt_dur "$SECONDS"))" ;;
   check)
-    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
+    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
   quick|full)
     init_logs
     preflight
@@ -590,10 +695,12 @@ case $MODE in
     do_install
     do_gen_check
     do_forbidden
+    do_trace_ban
     do_turbo
     do_agent
     do_cli
     do_test_modules
+    do_deploy_vpp
     [[ $MODE != full ]] || do_integration
     passed ;;
 esac

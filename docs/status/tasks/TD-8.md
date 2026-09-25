@@ -51,7 +51,7 @@ nothing until a feature uses it.
    - Both variables set, a malformed base, or another `VRX_VPP_ID_RANGE` value: `Config.Validate` refuses to start.
    - `SlotIDRange()` is kept and now returns `ErrNoIDRange` when unset, instead of nil. Why "unset" does not refuse
      start-up yet: Q3.
-   - The §11 text for `docs/lab/shared-host-rules.md` is below.
+   - The §12 text for `docs/lab/shared-host-rules.md` is below.
 5. **ARCH-1 coverage table** in `docs/agent/README.md` (new file). It covers:
    - the 13 domains: agent status, wired descriptors, UI screen, and which features wire the rest;
    - every descriptor package: E2E, registered, or package;
@@ -68,7 +68,7 @@ Files: `internal/agent/{agent,service,events,metrics}.go` (seam hunks), the new 
 `internal/subsystems/{seams,seams_test}.go`, `internal/subsystems/subsystems.go` (+5 lines, Q1), `docs/agent/README.md`, and
 `docs/status/tasks/TD-8*`.
 
-### §11 for `docs/lab/shared-host-rules.md` (for the manager to copy)
+### §12 for `docs/lab/shared-host-rules.md` (for the manager to copy)
 
 ```markdown
 ## 11. VPP numeric id ranges: explicit, fail closed (TD-8)
@@ -311,7 +311,7 @@ $ make lint                                                                     
   3. P10's systemd unit: `VRX_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test.
   4. Then `ConfigFromEnv` stops clearing `ErrNoIDRange` (`agent.go`, the `idsErr = nil` line) and start-up refuses.
 
-  The §11 text above still applies.
+  The §12 text above still applies.
 - **Q5 (a), with the amendments.** Text for LOG.md:
 
   > S1 dynamic desired sources are merged into every transaction (option a) while in sync. Amendments: a readiness

@@ -18,7 +18,7 @@ agent refuses to start. A malformed value, both variables set, or `VRX_VPP_ID_RA
 (`Config.Validate`).
 I did not refuse start-up on "unset" yet. Two launchers that I do not own start `vrx-agent` without either variable, and
 refusing now would break them the moment TD-8 merges:
-- `tools/app` (`start_svc agent env … VRX_OWNER=vrx …`): add `VRX_VPP_TABLE_BASE=13000` (§11 below).
+- `tools/app` (`start_svc agent env … VRX_OWNER=vrx …`): add `VRX_VPP_TABLE_BASE=13000` (§12 below).
 - `test/topology/interfaces/interfaces_test.go` (`st.agentEnv` is a clean environment, run by `tools/ci.sh full`): pass
   `"VRX_VPP_TABLE_BASE="+os.Getenv("VRX_VPP_TABLE_BASE")` through. `live.sh` and `apps/api/test/integration/agent.int.test.ts`
   inherit the slot environment already.

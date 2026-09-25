@@ -105,18 +105,33 @@ DOC="" APPLY=0 EXPECT="" EXPECT_NEW="" WINDOW=60 INTERVAL=5 SETTLE=10 LOCK_TIMEO
 CMD_TIMEOUT=10 SVC_TIMEOUT=120 FOREGROUND=0 CONSOLE=0 STAGE="" WORK="" VM="vrx-a" APPROVAL="" GATE="" GATE_REPO=""
 GEN_ARGS=()
 STARTUPGEN_BIN="$VRX_STARTUPGEN" VPPCHECK_BIN="$VRX_VPPCHECK"
-OWN_LOCKS=0   # 1 while this process itself holds fds 8/9 (dead-man without a live holder)
+OWN_LOCKS=0      # 1 while this process itself has fds 8/9 open (the holder is gone: dead-man or the run's rollback)
+LOCKS_SECURED=0  # secure_locks ran (taken, the holder's, or FORCED)
+RUN_LOCKED=0 RUN_INSTALLED=0 RB_MINE=0   # the run's EXIT trap: what this process has done so far
 
 die() { echo "apply-startup: $*" >&2; exit 2; }
 say() { echo "apply-startup: $(date '+%F %T') $*"; }
 
 canon_root() {  # the manager's main checkout; a test root only when every mutating path is inside it
   if [[ -z $VRX_TEST_ROOT ]]; then echo /root/ngfw; return; fi
-  local p
-  for p in "$VRX_STARTUP_CONF" "$VRX_SYSFS" "$VRX_SYSTEMCTL" "$VRX_SYSTEMD_RUN"; do
-    [[ $p == "$VRX_TEST_ROOT"/* ]] || die "VRX_TEST_ROOT is only honoured when startup.conf, sysfs, systemctl and systemd-run are inside it ($p is not)"
+  # TD-6 V6: compared after resolving `.`, `..` and symlinks — a lexical prefix test let /./etc/vpp/startup.conf through
+  local root v p r b
+  root="$(realpath -m -- "$VRX_TEST_ROOT")"
+  [[ -n $root && $root != / ]] || die "VRX_TEST_ROOT resolves to '/' — refused"
+  for v in VRX_STARTUP_CONF VRX_SYSFS VRX_SYSTEMCTL VRX_SYSTEMD_RUN VRX_IP VRX_APPLY_STATE VRX_VPP_LOCK VRX_LAB_LOCK; do
+    p="${!v}"; r="$(realpath -m -- "$p")"
+    [[ $p == /* && $r == "$root"/* ]] ||
+      die "VRX_TEST_ROOT is only honoured when startup.conf, sysfs, systemctl, systemd-run, ip, the state dir and the locks are inside it ($v=$p resolves to $r, outside $root)"
   done
-  echo "$VRX_TEST_ROOT/canon"
+  [[ $(realpath -m -- "$VRX_STARTUP_CONF") != /etc/vpp/startup.conf && $(realpath -m -- "$VRX_SYSFS") != /sys ]] ||
+    die "VRX_TEST_ROOT with the real startup.conf or sysfs — refused"
+  for b in systemctl systemd-run; do
+    p="$(command -v "$b" 2>/dev/null)" || continue
+    r="$(realpath -m -- "$p")"
+    [[ $(realpath -m -- "$VRX_SYSTEMCTL") != "$r" && $(realpath -m -- "$VRX_SYSTEMD_RUN") != "$r" ]] ||
+      die "VRX_TEST_ROOT with the real $b ($r) — refused"
+  done
+  echo "$root/canon"
 }
 
 parse_args() {
@@ -194,6 +209,22 @@ conf_plugins() {  # <file> <enable|disable>
 unit_ident() {  # vpp.service main process, when it became active, and its automatic restarts
   tmo "$VRX_SYSTEMCTL" show vpp -p MainPID -p ActiveEnterTimestampMonotonic -p NRestarts 2>/dev/null | sort | tr '\n' ' '
 }
+read_unit_restart() {  # → $WORK/unit.restart right after the restart job, or fail (prints why): the baseline of every later check
+  # TD-6 V3: a failing `systemctl show` (D-Bus timeout) is retried, then it is a failed apply, never a dead run.
+  # TD-6 V4: the tuple must be complete, name a main process and say NRestarts=0 — systemd resets the counter on an
+  # explicit restart (vrx-a journal: counter 4 → manual restart → next automatic restart "counter is at 1"), so 1+ means
+  # the new instance already crashed and Restart=always brought up another one before this read.
+  local i u=""
+  for ((i = 0; i < 3; i++)); do
+    u="$(unit_ident || true)"
+    [[ $u =~ ^ActiveEnterTimestampMonotonic=[0-9]+\ MainPID=[0-9]+\ NRestarts=[0-9]+\ $ ]] && break
+    u=""; sleep 0.5
+  done
+  printf '%s' "$u" > "$WORK/unit.restart" 2>/dev/null || true
+  [[ -n $u ]] || { echo "cannot read vpp.service's state right after the restart (systemctl show failed 3 times)"; return 1; }
+  [[ $u == *" NRestarts=0 "* ]] || { echo "vpp.service was restarted automatically right after the restart ($u): the new instance died at once"; return 1; }
+  [[ $u != *" MainPID=0 "* ]] || { echo "vpp.service has no main process right after the restart ($u)"; return 1; }
+}
 
 mgmt_ifs() {  # → every interface to protect: default routes (v4+v6), the manager's path(s), --mgmt-if
   local peer d
@@ -253,10 +284,19 @@ snapshot_mgmt() {  # <if> [dir] → <dir>/<if>.* ; fails when the snapshot canno
 }
 
 # ---------------------------------------------------------------- management reachability (review H2, re-review N1)
-tcp_connect() {  # <host> <port>
-  if [[ -n $VRX_TCPCONNECT ]]; then tmo "$VRX_TCPCONNECT" "$1" "$2"; return; fi
+tcp_connect() {  # <host> <port> [seconds]
+  local t="${3:-$CMD_TIMEOUT}"
+  if [[ -n $VRX_TCPCONNECT ]]; then timeout -k 1 "$t" "$VRX_TCPCONNECT" "$1" "$2" 8>&- 9>&-; return; fi
   # shellcheck disable=SC2016  # $0/$1 expand in the child bash
-  timeout -k 1 "$CMD_TIMEOUT" bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" 8>&- 9>&-
+  timeout -k 1 "$t" bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" 8>&- 9>&-
+}
+nudge() {  # <dev> <gw> — any packet to the next hop makes the kernel resolve it (ARP/ND); the SYN itself may be dropped
+  # TD-6 V8: a link-local gateway (fe80::/10, the usual RA default) needs its scope, or connect() fails and nothing is
+  # sent; the nudge is bounded by 3 s (resolution takes ≤ 3 probes of 1 s) — vrx-a's gateway drops the SYN, so waiting
+  # for the connect is time lost in every health round
+  local host="$2" t=$((CMD_TIMEOUT < 3 ? CMD_TIMEOUT : 3))
+  if [[ ${2,,} =~ ^fe[89ab][0-9a-f]: ]]; then host="$2%$1"; fi
+  tcp_connect "$host" 9 "$t" >/dev/null 2>&1 || true
 }
 snap_gateways() {  # → "<dev> <gw>" for every default gateway of a protected interface (from the snapshot)
   local dev gw
@@ -264,16 +304,16 @@ snap_gateways() {  # → "<dev> <gw>" for every default gateway of a protected i
 }
 neigh_state() { tmo "$VRX_IP" -j neigh show "$2" dev "$1" 2>/dev/null | jq -r '.[0].state[0]? // "NONE"' 2>/dev/null || echo NONE; }  # <dev> <gw>
 probe_ok() {  # <probe> → 0 when the management path answers (prints why not)
-  local p="$1" dev gw hp host port n=0 i st rdev
+  local p="$1" dev gw hp host port n=0 st end rdev
   case "$p" in
     neigh)  # the next hop answers ARP/ND: nudge (any packet), then REACHABLE within the command timeout
       while read -r dev gw; do
         n=$((n + 1))
-        tcp_connect "$gw" 9 >/dev/null 2>&1 || true
-        st=NONE
-        for ((i = 0; i < CMD_TIMEOUT * 2; i++)); do
+        nudge "$dev" "$gw"
+        st=NONE end=$((SECONDS + CMD_TIMEOUT))   # TD-6 V8: bounded by time, not by a count of possibly hanging `ip` calls
+        while :; do
           st="$(neigh_state "$dev" "$gw")"
-          [[ $st == REACHABLE ]] && break
+          [[ $st != REACHABLE && $SECONDS -lt $end ]] || break
           sleep 0.5
         done
         [[ $st == REACHABLE ]] || { echo "next hop $gw on $dev is not REACHABLE (neighbour state $st)"; return 1; }
@@ -328,7 +368,7 @@ handover_sources() {  # → "<source> <pending|done>" lines: the canonical copy 
     if [[ -r $f ]]; then echo "$f $(handover_flag < "$f")"; else echo "$f(absent) pending"; fi
   done
 }
-canon_git() { local c; c="$(canon_root)"; git -c safe.directory="$c" -C "$c" "$@"; }
+canon_git() { local c; c="$(canon_root)" && [[ -n $c ]] || return 1; git -c safe.directory="$c" -C "$c" "$@"; }
 approval_ref() {  # APPROVAL → "PENDING file @blob + D-nnn for rendering <sha>" from main of the canonical repo, or fail (prints why)
   # re-review N4: the approval binds to THIS change — a D-row on main whose decision column has the PENDING id as its
   # subject (not a mention) and names the sha256 of the rendering (--expect-new-sha256); an approval already executed by
@@ -354,6 +394,7 @@ approval_ref() {  # APPROVAL → "PENDING file @blob + D-nnn for rendering <sha>
 gate() {  # → the gate record (deterministic: the run recomputes and compares it); returns 3 when --apply is not allowed
   local st="done" src s summary="" ref
   while read -r src s; do summary+="${summary:+ · }$src=$s"; [[ $s == "done" ]] || st=pending; done < <(handover_sources)
+  [[ -n $summary ]] || { st=pending; summary="no handover source could be read"; }   # never "done" by default
   if [[ $st == "done" ]]; then echo "gate: handover done ($summary)"; return 0; fi
   if [[ -n $APPROVAL ]]; then
     if ref="$(approval_ref)"; then echo "gate: handover pending ($summary) — PRODUCT-OWNER APPROVAL $APPROVAL ($ref)"; return 0; fi
@@ -399,8 +440,10 @@ dry_run() {
   vppcheck bootid 2>&1 | sed 's/^/  boot identity: /' || true
   echo "== handover gate (--apply only; an approval must name the rendering's sha256 below)"
   [[ -n $EXPECT_NEW ]] || EXPECT_NEW="$(sha "$tmp/new.conf")"
-  gate | sed 's/^/  /' || true
+  if ! gate | sed 's/^/  /'; then rc=3; fi   # TD-6 V9: exit 3 = --apply would refuse, the gate included
   command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "  systemd-run not found — --apply will refuse"; rc=3; }
+  p="$(unfinished_applies)"
+  [[ -z $p ]] || { echo "  an earlier apply has not finished — --apply will refuse: $(tr '\n' ' ' <<<"$p")"; rc=3; }
   echo "== sha256 of $VRX_STARTUP_CONF (--expect-sha256)"
   sha "$VRX_STARTUP_CONF"
   echo "== sha256 of the rendering (--expect-new-sha256)"
@@ -433,7 +476,7 @@ start_holder() {  # → 0 when the holder unit owns both locks, 3 otherwise (no 
 release_locks() {
   local i p
   if ((OWN_LOCKS)); then exec 8>&- 9>&-; OWN_LOCKS=0; fi
-  touch "$WORK/release"
+  touch "$WORK/release" 2>/dev/null || true   # if even that fails (full disk), the holder is killed below
   p="$(cat "$WORK/locks-held" 2>/dev/null || true)"
   for ((i = 0; i < 50; i++)); do holder_alive || break; sleep 0.1; done
   if holder_alive; then kill -KILL "$p" 2>/dev/null || true; fi
@@ -447,9 +490,31 @@ stage_hold() {
   if ! flock -x -w "$LOCK_TIMEOUT" 9; then echo "$VRX_LAB_LOCK held by: $(lock_holders)" > "$WORK/locks-refused"; exit 3; fi
   [[ ! -e $WORK/release ]] || exit 0
   echo "$$" > "$WORK/locks-held"
-  local end=$((SECONDS + HOLD_MAX))
-  while ((SECONDS < end)) && [[ ! -e $WORK/release ]]; do sleep 1 8>&- 9>&- || true; done   # a killed sleep never ends the hold
-  if [[ ! -e $WORK/release ]]; then echo "apply-startup: lock holder: maximum lifetime ${HOLD_MAX}s reached, releasing" >> "$WORK/log"; fi
+  # TD-6 V7: HOLD_MAX here comes from the default counts (the run has not snapshotted the host yet). Once the run has, it
+  # writes hold-until (epoch seconds: its own dead-man deadline + lock wait + one rollback + margin); from then on that is the end.
+  local end=$((EPOCHSECONDS + HOLD_MAX)) h why="maximum lifetime ${HOLD_MAX}s reached"
+  while [[ ! -e $WORK/release ]]; do
+    h="$(cat "$WORK/hold-until" 2>/dev/null || true)"
+    if [[ $h =~ ^[0-9]{1,12}$ ]]; then end=$h why="hold-until reached"; fi
+    ((EPOCHSECONDS < end)) || break
+    sleep 1 8>&- 9>&- || true   # a killed sleep never ends the hold
+  done
+  if [[ ! -e $WORK/release ]]; then echo "apply-startup: lock holder: $why, releasing" >> "$WORK/log"; fi
+}
+secure_locks() {  # <who> — before VPP is touched: the holder's locks, or both locks taken here (exclusive, bounded); once
+  # TD-6 V5: the run's own rollback after the holder died used to restart VPP without any lock (a queued `flock -s`
+  # integration run got the lab lock first). Same rule as the dead-man: FORCED only when a foreign holder keeps them.
+  ((LOCKS_SECURED)) && return 0
+  LOCKS_SECURED=1
+  if holder_alive; then say "$1: lock holder $(cat "$WORK/locks-held") still owns the locks"; return 0; fi
+  exec 8>"$VRX_VPP_LOCK" 9>"$VRX_LAB_LOCK"
+  OWN_LOCKS=1
+  if flock -x -w "$DEADMAN_LOCK_TIMEOUT" 8 && flock -x -w "$DEADMAN_LOCK_TIMEOUT" 9; then
+    say "$1: lock holder gone — took the locks exclusively before touching VPP"
+  else
+    say "$1: FORCED — locks held by someone else for ${DEADMAN_LOCK_TIMEOUT}s (${VRX_LSLOCKS}: $(lock_holders)); rolling back without them (a lost management path outranks the lock)"
+    syslog "$1 FORCED rollback without locks $WORK: $(lock_holders)"
+  fi
 }
 
 # ---------------------------------------------------------------- health
@@ -568,34 +633,135 @@ cancel_deadman() {
   local u; u="$(cat "$WORK/deadman-unit" 2>/dev/null || true)"
   if [[ -n $u ]]; then tmo "$VRX_SYSTEMCTL" stop "$u.timer" >/dev/null 2>&1 || true; fi
 }
+# ---------------------------------------------------------------- files and ownership (TD-6 V1, V2)
+# startup.conf is never written in place: a copy is staged next to it (same directory, so the rename is atomic and
+# needs no space) and renamed over it. The rollback copy is staged BEFORE the new file goes in, so a disk that fills
+# up during the window cannot stop the restore.
+staged_path() { echo "$(dirname "$VRX_STARTUP_CONF")/.$(basename "$VRX_STARTUP_CONF").$1-$(basename "$WORK")"; }   # <new|rollback>
+stage_file() {  # <src> <new|rollback> — a verified copy next to the live file; prints why not
+  local dst err; dst="$(staged_path "$2")"
+  if err="$(install -m 0644 "$1" "$dst" 2>&1)" && cmp -s "$1" "$dst"; then return 0; fi
+  rm -f "$dst" 2>/dev/null || true
+  echo "cannot write $dst: ${err:-incomplete copy}"; return 1
+}
+place_file() {  # <new|rollback> — rename the staged copy over the live file; prints why not
+  local err; err="$(mv -f "$(staged_path "$1")" "$VRX_STARTUP_CONF" 2>&1)" && return 0
+  echo "cannot rename $(staged_path "$1") over $VRX_STARTUP_CONF: ${err:-failed}"; return 1
+}
+mark() {  # <marker> <text> — a result marker; on a full disk at least the empty file (needs no data block)
+  { printf '%s\n' "$2" > "$WORK/$1"; } 2>/dev/null || touch "$WORK/$1" 2>/dev/null || true
+}
+finished() { [[ -e $WORK/committed || -e $WORK/rolled-back || -e $WORK/console-needed || -e $WORK/superseded ]]; }
+unfinished_applies() {  # → "<dir> (dead-man <unit>.timer)" for every OTHER work dir that installed a file and has no result
+  local w
+  for w in "$VRX_APPLY_STATE"/*/; do
+    w="${w%/}"
+    [[ $w != "$WORK" && -e $w/installed ]] || continue
+    [[ -e $w/committed || -e $w/rolled-back || -e $w/console-needed || -e $w/superseded ]] && continue
+    echo "$w (dead-man $(cat "$w/deadman-unit" 2>/dev/null || echo none).timer)"
+  done
+}
+claim_current() {  # under the locks, just before the new file goes in: this apply owns startup.conf now (V1)
+  local w u
+  printf '%s\n' "$WORK" > "$VRX_APPLY_STATE/.current.tmp" && mv -f "$VRX_APPLY_STATE/.current.tmp" "$VRX_APPLY_STATE/current" || return 1
+  # disarm on supersede: an older apply that never installed (it cannot have: unfinished installs are refused) must not
+  # keep an armed dead-man around
+  for w in "$VRX_APPLY_STATE"/*/; do
+    w="${w%/}"
+    [[ $w != "$WORK" && -s $w/deadman-unit ]] || continue
+    [[ -e $w/committed || -e $w/rolled-back || -e $w/console-needed || -e $w/superseded ]] && continue
+    u="$(cat "$w/deadman-unit")"
+    tmo "$VRX_SYSTEMCTL" stop "$u.timer" >/dev/null 2>&1 || true
+    { printf 'superseded by %s before it installed anything\n' "$WORK" > "$w/superseded"; } 2>/dev/null || true
+    say "disarmed the dead-man of the older apply $w ($u)"
+  done
+}
+not_ours() {  # → 0 + why when startup.conf no longer belongs to this apply (V1): never roll back over someone else's change
+  local cur live
+  cur="$(cat "$VRX_APPLY_STATE/current" 2>/dev/null || true)"
+  if [[ -n $cur && $cur != "$WORK" ]]; then echo "newer:a newer apply ($cur) installed $VRX_STARTUP_CONF after this one"; return 0; fi
+  [[ -e $VRX_STARTUP_CONF ]] || return 1   # a missing file is ours to restore
+  live="$(sha "$VRX_STARTUP_CONF")"
+  if [[ -s $WORK/new.conf && $live != "$(sha "$WORK/new.conf")" && $live != "$(sha "$WORK/backup.conf")" ]]; then
+    echo "foreign:$VRX_STARTUP_CONF (sha256 $live) is neither this apply's file nor its backup — changed by someone else"; return 0
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------- rollback
 rollback() {  # the ONE rollback of this apply: restore, restart VPP once, verify like the snapshot; then always finish
-  touch "$WORK/rollback-started"
+  RB_MINE=1
+  touch "$WORK/rollback-started" 2>/dev/null || true
   say "ROLLBACK: $1"
   syslog "ROLLBACK $WORK: $1"
+  secure_locks rollback
+  local why
+  if why="$(not_ours)"; then
+    if [[ $why == newer:* ]]; then
+      mark superseded "${why#newer:}"
+      say "SUPERSEDED: ${why#newer:} — nothing restored, VPP not touched"
+    else
+      mark console-needed "${why#foreign:}; not restored, VPP not touched"
+      say "CONSOLE NEEDED: ${why#foreign:}; not restored, VPP not touched"
+    fi
+    syslog "rollback of $WORK skipped: ${why#*:}"
+  else
+    rollback_steps || true   # errexit is off in there: every step runs, whatever failed before it (V2)
+  fi
+  rm -f "$(staged_path new)" "$(staged_path rollback)" 2>/dev/null || true
+  finished || mark console-needed "the rollback ended without a result (see $WORK/log)"
+  cancel_deadman
+  release_locks
+}
+rollback_steps() {
+  local why="" err="" staged=0
+  # V2: the old file must be next to the live one BEFORE VPP is stopped. Usually the run staged it before installing;
+  # otherwise stage it now. If that is impossible VPP is not stopped: restarting it would only bring back the new file.
+  if cmp -s "$WORK/backup.conf" "$(staged_path rollback)" || err="$(stage_file "$WORK/backup.conf" rollback)"; then staged=1; fi
+  if ((!staged)); then
+    if tmo "$VRX_SYSTEMCTL" is-active --quiet vpp; then why="VPP left running on the new file (not stopped)"
+    else
+      svc reset-failed vpp >/dev/null 2>&1; svc start vpp || true
+      why="VPP was not running; started on the new file"
+    fi
+    mark console-needed "cannot restore $VRX_STARTUP_CONF: $err — $why; the old file is $WORK/backup.conf"
+    say "ROLLBACK IMPOSSIBLE — CONSOLE NEEDED: $(cat "$WORK/console-needed" 2>/dev/null)"
+    syslog "ROLLBACK IMPOSSIBLE $WORK: $err — console needed"
+    return 0
+  fi
   if ! svc stop vpp; then
     say "systemctl stop vpp failed or hung for ${SVC_TIMEOUT}s — SIGKILL"
     svc kill --signal=KILL vpp || true
   fi
-  install -m 0644 "$WORK/backup.conf" "$VRX_STARTUP_CONF"
-  rebind_drivers
-  restore_mgmt
+  if err="$(place_file rollback)"; then err=""
+  elif install -m 0644 "$WORK/backup.conf" "$VRX_STARTUP_CONF" 2>/dev/null && cmp -s "$WORK/backup.conf" "$VRX_STARTUP_CONF"; then
+    say "($err — copied in place instead)"; err=""
+  fi
+  if [[ -z $err ]]; then
+    say "restored $VRX_STARTUP_CONF from $WORK/backup.conf"
+    rebind_drivers
+    restore_mgmt
+  fi
   svc reset-failed vpp >/dev/null 2>&1 || true   # re-review N11: never stuck in start-limit-hit
   svc start vpp || say "systemctl start vpp failed"
-  local why=""
+  if [[ -n $err ]]; then   # VPP was started again anyway: on the new file, but not left stopped
+    mark console-needed "$VRX_STARTUP_CONF NOT restored ($err); VPP was started again on the new file; the old file is $WORK/backup.conf"
+    say "ROLLBACK INCOMPLETE — CONSOLE NEEDED: $(cat "$WORK/console-needed" 2>/dev/null)"
+    syslog "ROLLBACK INCOMPLETE $WORK: startup.conf not restored — console needed"
+    return 0
+  fi
   if ! wait_api; then why="VPP API did not come up"
   elif ! tmo "$VRX_SYSTEMCTL" is-active --quiet vpp; then why="vpp.service not active"
   else why="$(check_mgmt)" || true; fi
   if [[ -z $why ]]; then
-    touch "$WORK/rolled-back"
+    mark rolled-back "rolled back to $WORK/backup.conf"
     say "rolled back to $WORK/backup.conf; VPP and the management path are healthy ($(session_signal))"
     syslog "rolled back $WORK"
   else
-    echo "$why" > "$WORK/console-needed"
+    mark console-needed "$why"
     say "ROLLBACK INCOMPLETE ($why) — CONSOLE NEEDED: the file is restored, VPP is not restarted again; see $WORK/console-needed"
     syslog "ROLLBACK INCOMPLETE $WORK: $why — console needed"
   fi
-  cancel_deadman
-  release_locks
 }
 
 # ---------------------------------------------------------------- budgets (M3, re-review N6: worst cases)
@@ -609,10 +775,12 @@ budgets() {
   ITER=$(((6 + 4 * nif) * c + ngw * (3 * c) + INTERVAL))
   # stop (+kill) + reset-failed + start, driver rebind (3 writes + driverctl), per interface netdev wait + link + checks +
   # the plan twice + a manager re-apply, then API wait + one health round
-  RB_BUDGET=$((4 * s + ndrv * 4 * c + nif * (10 + 8 * c) + 2 * nplan * c + API_WAIT + ITER + 30))
-  RUN_BUDGET=$((s + 3 * c + API_WAIT + SETTLE + WINDOW + ITER))
+  # (+ both locks when the holder is gone: TD-6 V5)
+  RB_BUDGET=$((2 * DEADMAN_LOCK_TIMEOUT + 4 * s + ndrv * 4 * c + nif * (10 + 8 * c) + 2 * nplan * c + API_WAIT + ITER + 30))
+  # restart, the unit tuple (3 tries, TD-6 V3), API wait, settle, window
+  RUN_BUDGET=$((s + 6 * c + 2 + API_WAIT + SETTLE + WINDOW + ITER))
   DEADMAN_AFTER=$((RUN_BUDGET + ITER + RB_BUDGET + 60))
-  HOLD_MAX=$((DEADMAN_AFTER + DEADMAN_LOCK_TIMEOUT + RB_BUDGET + 600))
+  HOLD_MAX=$((DEADMAN_AFTER + 2 * DEADMAN_LOCK_TIMEOUT + RB_BUDGET + 600))
 }
 
 # ---------------------------------------------------------------- stages
@@ -667,7 +835,20 @@ detach() {  # the planner: pin and seal everything into the work dir, then start
 }
 
 log_to_work() { exec > >(tee -a "$WORK/log") 2>&1; }
-refuse() { say "REFUSED: $*"; release_locks; }
+refuse() { say "REFUSED: $*"; rm -f "$(staged_path new)" "$(staged_path rollback)" 2>/dev/null || true; RUN_LOCKED=0; release_locks; }
+run_exit() {  # EXIT trap of the run (set -e, SIGTERM from `systemctl stop <run unit>`): never leave the host half-way (TD-6 V3)
+  local rc=$?
+  trap - EXIT
+  ((RUN_LOCKED)) || return "$rc"
+  if finished || ((RB_MINE)) || [[ -e $WORK/deadman-fired ]]; then return "$rc"; fi   # done, or the dead-man's job now
+  if ((RUN_INSTALLED)); then rollback "the run stopped unexpectedly (exit $rc) after installing" || true
+  else
+    say "the run stopped unexpectedly (exit $rc) before installing — nothing changed"
+    rm -f "$(staged_path new)" "$(staged_path rollback)" 2>/dev/null || true
+    cancel_deadman; release_locks
+  fi
+  return "$rc"
+}
 
 stage_run() {
   [[ -d $WORK ]] || die "--work $WORK missing"
@@ -680,8 +861,12 @@ stage_run() {
   [[ ! -e $WORK/installed && ! -e $WORK/rollback-started ]] || { say "REFUSED: this work dir was already used (installed before) — plan again"; return 3; }
   say "$g"
   syslog "apply $WORK started; $g"
+  trap run_exit EXIT
   start_holder || { refuse "locks not held"; return 3; }
+  RUN_LOCKED=1
   say "locks held by holder pid $(cat "$WORK/locks-held"): $VRX_VPP_LOCK, $VRX_LAB_LOCK"
+  local busy; busy="$(unfinished_applies)"   # TD-6 V1, checked again under the locks
+  [[ -z $busy ]] || { refuse "an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— its dead-man may still roll back; wait for it or finish it now (apply-startup.sh --stage rollback --work <dir>)"; return 3; }
   local now; now="$(sha "$VRX_STARTUP_CONF")"
   [[ $now == "$EXPECT" ]] || { refuse "$VRX_STARTUP_CONF changed since the review (sha256 $now, expected $EXPECT) — dry-run again"; return 3; }
   render "$WORK/new.conf" || { refuse "rendering failed"; return 3; }
@@ -689,7 +874,7 @@ stage_run() {
   [[ $now == "$EXPECT_NEW" ]] || { refuse "the rendering differs from the reviewed one (sha256 $now, expected $EXPECT_NEW) — document, generator or host facts changed; dry-run again"; return 3; }
   local pre; pre="$(vppcheck ifaces local0 2>&1)" || { refuse "VPP preflight failed (vrx-vppcheck ifaces local0): $pre"; return 3; }
   say "preflight: $pre"
-  if cmp -s "$VRX_STARTUP_CONF" "$WORK/new.conf"; then say "nothing to do: the rendering equals $VRX_STARTUP_CONF"; touch "$WORK/committed"; release_locks; return 0; fi
+  if cmp -s "$VRX_STARTUP_CONF" "$WORK/new.conf"; then say "nothing to do: the rendering equals $VRX_STARTUP_CONF"; mark committed "nothing to do"; release_locks; return 0; fi
 
   mgmt_ifs > "$WORK/mgmt.ifs" || true
   [[ -s $WORK/mgmt.ifs ]] || { refuse "no management interface found (no default route, no --mgmt-if/--mgmt-peer)"; return 3; }
@@ -702,9 +887,17 @@ stage_run() {
   vppcheck plugins > "$WORK/plugins.before" || { refuse "VPP did not list its plugins"; return 3; }
   vppcheck bootid > "$WORK/ident.before" || { refuse "VPP boot identity unreadable or incomplete"; return 3; }
   budgets
-  cp -p "$VRX_STARTUP_CONF" "$WORK/backup.conf"
-  cp -p "$VRX_STARTUP_CONF" "$VRX_STARTUP_CONF.bak-$(basename "$WORK")"
-  say "backup: $WORK/backup.conf and $VRX_STARTUP_CONF.bak-$(basename "$WORK")"
+  # TD-6 V7: the holder started with the default counts; from now on it holds until this host's worst case
+  echo $((EPOCHSECONDS + HOLD_MAX)) > "$WORK/hold-until" || { refuse "cannot write $WORK/hold-until"; return 3; }
+  local err
+  if ! err="$(cp -p "$VRX_STARTUP_CONF" "$WORK/backup.conf" 2>&1)" || ! cmp -s "$VRX_STARTUP_CONF" "$WORK/backup.conf"; then
+    refuse "cannot write the backup $WORK/backup.conf: ${err:-incomplete copy}"; return 3
+  fi
+  cp -p "$VRX_STARTUP_CONF" "$VRX_STARTUP_CONF.bak-$(basename "$WORK")" 2>/dev/null || say "WARNING: no second backup next to $VRX_STARTUP_CONF (the work dir copy is kept)"
+  # TD-6 V2: both files are staged next to the live one before anything changes — the install and the restore are renames
+  err="$(stage_file "$WORK/new.conf" new)" || { refuse "$err (nothing was changed)"; return 3; }
+  err="$(stage_file "$WORK/backup.conf" rollback)" || { refuse "$err (nothing was changed)"; return 3; }
+  say "backup: $WORK/backup.conf and $VRX_STARTUP_CONF.bak-$(basename "$WORK"); staged $(staged_path new) and $(staged_path rollback)"
   say "unified diff:"; "$STARTUPGEN_BIN" --current "$VRX_STARTUP_CONF" --diff "$VRX_STARTUP_CONF" "${GEN_ARGS[@]}" "$DOC" 2>/dev/null || true
   say "semantic diff:"; "$STARTUPGEN_BIN" --current "$VRX_STARTUP_CONF" --diff "$VRX_STARTUP_CONF" --semantic "${GEN_ARGS[@]}" "$DOC" 2>/dev/null || true
   say "recorded drivers: $(tr '\n' ';' < "$WORK/drivers") VPP identity: $(cat "$WORK/ident.before") reachability check: $probe; $(session_signal)"
@@ -723,13 +916,22 @@ stage_run() {
   say "dead-man armed: rollback in ${DEADMAN_AFTER}s unless committed (run budget ${RUN_BUDGET}s, rollback budget ${RB_BUDGET}s)"
 
   holder_alive || { cancel_deadman; refuse "the lock holder is gone"; return 3; }
-  touch "$WORK/installed"
-  install -m 0644 "$WORK/new.conf" "$VRX_STARTUP_CONF"
+  touch "$WORK/installed" || { cancel_deadman; refuse "cannot write $WORK/installed"; return 3; }
+  RUN_INSTALLED=1
+  claim_current || { rollback "cannot record this apply as the current one in $VRX_APPLY_STATE/current"; return 1; }
+  if ! err="$(place_file new)"; then
+    if cmp -s "$VRX_STARTUP_CONF" "$WORK/backup.conf"; then   # a failed rename changed nothing: no restart needed
+      mark rolled-back "nothing installed: $err"; say "REFUSED: $err — nothing was installed, VPP not restarted"
+      rm -f "$(staged_path new)" "$(staged_path rollback)" 2>/dev/null || true
+      cancel_deadman; release_locks; return 1
+    fi
+    rollback "cannot install the new file: $err"; return 1
+  fi
   say "installed $VRX_STARTUP_CONF; restarting VPP"
   local why=""
   if ! svc restart vpp; then why="systemctl restart vpp failed or hung for ${SVC_TIMEOUT}s"
-  else
-    unit_ident > "$WORK/unit.restart"   # right after the restart job: NRestarts 0, the new MainPID
+  elif why="$(read_unit_restart)"; then   # right after the restart job: complete, NRestarts 0, the new MainPID (V3, V4)
+    why=""
     if ! wait_api; then why="VPP API did not come up within ${API_WAIT}s (hung or crashed)"
     else
       sleep "$SETTLE"
@@ -750,8 +952,9 @@ stage_run() {
   if [[ -n $why ]]; then rollback "$why"; return 1; fi
   [[ ! -e $WORK/deadman-fired ]] || { say "dead-man already fired — not committing"; return 1; }
   holder_alive || { rollback "the lock holder is gone before the commit"; return 1; }
-  touch "$WORK/committed"
+  mark committed "healthy for ${WINDOW}s"
   cancel_deadman
+  rm -f "$(staged_path rollback)" 2>/dev/null || true
   release_locks
   say "COMMITTED: healthy for ${WINDOW}s ($(wc -l < "$WORK/ident.reads") identity reads; $(session_signal)); dead-man cancelled. Record it in docs/decisions/LOG.md (backup $WORK/backup.conf)"
   syslog "COMMITTED $WORK"
@@ -775,7 +978,6 @@ kill_run() {  # the run is stuck or dead: kill it and everything it started (the
   done
 }
 
-finished() { [[ -e $WORK/committed || -e $WORK/rolled-back || -e $WORK/console-needed ]]; }
 stage_rollback() {  # the dead-man: at most one rollback, then always finish
   [[ -d $WORK ]] || die "--work $WORK missing"
   log_to_work
@@ -783,19 +985,15 @@ stage_rollback() {  # the dead-man: at most one rollback, then always finish
   if finished; then say "dead-man: nothing to do (the apply already finished)"; return 0; fi
   touch "$WORK/deadman-fired"
   say "dead-man fired: the run did not finish in time"
-  # review M1: the locks must never go free between the run and the rollback
-  if holder_alive; then say "dead-man: lock holder $(cat "$WORK/locks-held") still owns the locks"
-  else
-    exec 8>"$VRX_VPP_LOCK" 9>"$VRX_LAB_LOCK"
-    if flock -x -w "$DEADMAN_LOCK_TIMEOUT" 8 && flock -x -w "$DEADMAN_LOCK_TIMEOUT" 9; then OWN_LOCKS=1; say "dead-man: lock holder gone — took the locks exclusively before touching the run"
-    else
-      say "dead-man: FORCED — locks held by someone else for ${DEADMAN_LOCK_TIMEOUT}s (${VRX_LSLOCKS}: $(lock_holders)); rolling back without them (a lost management path outranks the lock)"
-      syslog "dead-man FORCED rollback without locks $WORK: $(lock_holders)"
-    fi
-  fi
+  # review M1: the locks must never go free between the run and the rollback (taken before the run is touched)
+  secure_locks dead-man
   kill_run
   if finished; then say "dead-man: the run finished while being stopped — nothing to do"; release_locks; return 0; fi
-  if [[ ! -e $WORK/installed ]]; then say "dead-man: nothing was installed — nothing to roll back"; touch "$WORK/rolled-back"; release_locks; return 0; fi
+  if [[ ! -e $WORK/installed ]]; then
+    say "dead-man: nothing was installed — nothing to roll back"; mark rolled-back "nothing installed"
+    rm -f "$(staged_path new)" "$(staged_path rollback)" 2>/dev/null || true
+    release_locks; return 0
+  fi
   rollback "dead-man: the apply did not finish within ${DEADMAN_AFTER}s"
   return 1
 }
@@ -824,6 +1022,13 @@ main() {
         [[ -f $VRX_STARTUP_CONF ]] || die "$VRX_STARTUP_CONF not found"
         command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "apply-startup: REFUSED: systemd-run not found (there is no fallback)" >&2; exit 3; }
         if ! GATE="$(gate)"; then echo "apply-startup: $GATE" >&2; exit 3; fi
+        # TD-6 V1: an apply that installed a file and has no result yet still has an armed dead-man that would roll back
+        # over this one — finish it first (its dead-man, or the same one rollback by hand)
+        local busy; busy="$(unfinished_applies)"
+        if [[ -n $busy ]]; then
+          echo "apply-startup: REFUSED: an earlier apply has not finished: $(tr '\n' ' ' <<<"$busy")— wait for its dead-man, or finish it now with the same single rollback: $0 --stage rollback --work <dir>" >&2
+          exit 3
+        fi
         say "$GATE"
         syslog "$GATE (operator ${SUDO_USER:-${USER:-uid $(id -u)}})"
         detach

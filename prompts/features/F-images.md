@@ -10,7 +10,15 @@ validate the artefacts offline**; booting them needs KVM or cloud accounts, whic
 - `prompts/P10-packaging-deb.md` — `vrx-meta` and the local APT repo; `prompts/features/F-vpp-debs.md` — our VPP debs + `manifest.json`
 - `docs/09-os-packages.md` §4 (kernel cmdline, hugepages) and §7 (partition layout incl. rootA/rootB for F-ab-upgrade)
 - `docs/decisions/LOG.md` D-001 (Ubuntu 26.04, our VPP debs), D-002 (no Docker, no libvirt/nested KVM), D-059
-- `prompts/features/F-startup-gen.md` — VPP must boot with `dpdk { no-pci }` / hardware wizard later, as in P14
+- `docs/agent/renderers/vppstartup.md` (F-startup-gen, merged) — P10's firstboot renders startup.conf with `vrx-startupgen`; with no devices
+  VPP boots `dpdk { no-pci }` until the hardware wizard binds NICs, as in P14 (there is no `dpdk { disable }` stanza)
+- P14's merged `deploy/image/common/` (package list, first-boot banner, bootstrap password) and P10's published repo under
+  `/srv/vrx-artifacts/apt/` — reuse, do not fork
+- Host facts (verified 2026-09-24; no host package installs): present — debootstrap (`resolute`), qemu-img (qcow2/vmdk/vhdx), sfdisk,
+  losetup, mkfs.ext4, grub-install (**x86_64-efi only**), zstd, gpg; absent — mmdebstrap, virt-inspector/guestfish, mkfs.vfat/mtools,
+  GRUB i386-pc (BIOS), cloud-init, ovftool → run them inside a build chroot under `.scratch/` (installed there from the mirror
+  `repo.amnafzar.ir`) or `apt-get download` + `dpkg -x` under `.scratch/`; the `.ova` is a tar of `.ovf` + `.vmdk` + `.mf`. Every GRUB
+  call takes explicit `--boot-directory`/`--efi-directory` paths into the image and `--no-nvram` (a bare call acts on THIS host's `/boot`)
 
 ## Scope — build exactly this
 1. **Builder** `deploy/image/vm/build.sh`: debootstrap (or `mmdebstrap`) Ubuntu 26.04 into a raw sparse image with the §7 layout (GPT, EFI, rootA,
@@ -29,12 +37,14 @@ validate the artefacts offline**; booting them needs KVM or cloud accounts, whic
    minimum sizing (16 GB RAM per §7), and the deferred boot test plan.
 
 Files you own: `deploy/image/vm/**`, `deploy/image/cloud/**`, `docs/install/images.md`, `test/topology/images/**`. Shared files: none — P14's
-`deploy/image/iso/**` is read-only for you (propose a shared `deploy/image/common/` in the questions file if duplication is large).
+`deploy/image/iso/**`, `deploy/image/common/**` and `deploy/image/build-iso.sh` are read-only for you (a needed change to common → questions
+file). Image builds as root only behind `VRX_INTEGRATION=1`; ci.sh runs `test/**` Go modules in unit mode, where they must skip.
 
 ## Acceptance (paste the evidence)
 - [ ] One full build producing qcow2 + ova + vhdx with SHA256SUMS and manifest (pasted `ls -l`, `qemu-img info`)
 - [ ] Offline inspection output: partition table, fstab, `vrx-meta` + VPP 26.06 versions, cloud-init datasources, no `/etc/ssh/ssh_host_*`, empty machine-id
-- [ ] This host unchanged: `losetup -a` empty after the build, no mounts left (`findmnt | grep F-images` empty)
+- [ ] This host unchanged: none of your loop devices left (`losetup -a` filtered to your `.scratch/` backing files — P14/F-ab-upgrade may
+      hold their own at the same time), no mounts left (`findmnt | grep F-images` empty), `/boot` untouched (sha256 of `grubenv` before/after)
 - [ ] Boot on KVM/VMware/Hyper-V and cloud import **deferred** with an exact test plan in `docs/status/tasks/F-images.md`
 - [ ] `tools/ci.sh --base main` green in your worktree
 
@@ -44,4 +54,4 @@ The installer ISO (P14); A/B upgrade logic (F-ab-upgrade — only leave rootB in
 VPP package build (F-vpp-debs); SR-IOV configuration automation.
 
 ## Open questions to surface, not to decide silently
-Which formats are release-blocking (proposal: qcow2 + ova T1, cloud T2). Whether cloud images ship with DPDK enabled for ENA/netvsc by default (P14 ships `dpdk { disable }`).
+Which formats are release-blocking (proposal: qcow2 + ova T1, cloud T2). Whether cloud images ship with DPDK enabled for ENA/netvsc by default (P14/P10 ship `dpdk { no-pci }` until the wizard binds NICs).

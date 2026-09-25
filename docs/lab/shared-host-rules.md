@@ -60,3 +60,21 @@ When several slots' tests share one daemon instance (e.g. a charon), renderers o
 `flock -s /run/lock/vrx-lab.lock` is held only for the duration of an actual integration/E2E run — never by a long-lived dev stack
 (API/agent/vite left running between runs). Workers stop every process they started (by PID) before they finish or pause; a stack left
 running blocks the manager's `tools/ci.sh full` barrier.
+
+## 11. Packet trace is banned on the shared VPP (D-128)
+`trace add`, `show trace` and `clear trace` (vppctl, `cli_inband`, the tracedump API) are **banned** on the shared VPP — for tests,
+scripts and humans alike. Why: the 2026-09-24 18:41 crash (SIGSEGV PC 0x0, very likely 07:27 too) was a `show trace`. Trace records
+keep the node index of per-interface output/tx nodes; when an interface is deleted its nodes are renamed `interface-N-*-deleted` and
+recycled by the next interface, which may have no trace formatter (Loopback). `format_vlib_trace` (`vlib/trace.c:159-162`) then calls a
+NULL formatter for the old record → VPP down for every slot. Records of any slot's interface churn trigger it, so no per-test care
+(unique packet size, own `clear trace`) makes a dump safe. Evidence: `/root/ngfw-wt/logs/crash-20260924-1841/` (core, journal, run
+logs), F-vlan-qinq review H1; upstream fix: `docs/vpp-code-track.md` (V-item of TD-20).
+Prove a forwarding path instead with (all read-only, all scoped to your own objects):
+- interface counters of your prefixed interfaces: `vppctl show interface <yours>` or the stats segment — rx on the ingress, tx on the
+  egress side rise by exactly the packets you sent (size them so they stand out from ARP; `test/topology/interfaces` `echoFrames`);
+- the FIB: `ip_route_lookup` (exact) / `show ip fib table <T> <prefix>` — the entry, its path/interface, and its load-balance
+  `to:[packets:bytes]` counter, which ip4-lookup bumps for every packet it forwards through that entry;
+- the packet itself: `tcpdump` inside your rig's netns (`ip netns exec ns-<prefix>-wan tcpdump …`), never on a shared interface.
+`pcap trace` / `pcap dispatch trace` are VPP-global captures and are no substitute on the shared host. `tools/ci.sh` (check, quick,
+full) fails on any trace command or tracedump API call outside docs and the generated bindings; there is no escape hatch. The ban holds
+until VPP carries the NULL guard, and even then the trace buffer stays VPP-global (a single-tenant tool for a per-slot VPP).

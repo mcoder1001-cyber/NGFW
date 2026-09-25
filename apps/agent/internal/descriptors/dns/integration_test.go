@@ -64,7 +64,7 @@ func TestDNSOnHost(t *testing.T) {
 	// dns_resolve_name answers only when the upstream answers or VPP gives up (the upstreams here
 	// are unreachable test addresses): bound the wait, the outcome is only logged.
 	rctx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	ip4, ip6, err := ResolveName(rctx, c, h.Owner+"-nonexistent.invalid")
+	ip4, ip6, err := ResolveName(rctx, c, h.Owner+"-nonexistent.invalid", true) // the steps above added the servers and enabled it
 	cancel()
 	t.Logf("dns_resolve_name via VPP: %v %v %v", ip4, ip6, err)
 	dfkittest.HoldForEvidence(t, "CLI: show dns servers")

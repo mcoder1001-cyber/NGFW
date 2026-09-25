@@ -18,6 +18,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -250,13 +251,27 @@ func (*NameServerDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // MaxNameLen is the longest name dns_resolve_name carries (u8[256], NUL-terminated).
 const MaxNameLen = 253
 
-// ResolveName asks VPP's resolver for name (dns_resolve_name). The name is validated as a DNS
-// name (letters, digits, "-", "_", "."); it is never passed to a shell. VPP replies only once the
-// upstream answers or its retries give up, so ctx must carry a deadline (a host run without one
-// blocked for minutes against unreachable upstreams).
-func ResolveName(ctx context.Context, c vpp.Client, name string) (ip4, ip6 netip.Addr, err error) {
+// Ready is the caller's guarantee (D-137) that it added at least one name server (dns_name_server_add_del) and
+// enabled the resolver (dns_enable_disable(1)) on this VPP, and that both calls succeeded. VPP 26.06 dereferences a
+// NULL name server in vnet_send_dns4_request → ip4_sas when dns_resolve_* runs without one (the 2026-09-25 04:27
+// crash of the shared VPP, docs/vpp-code-track.md): the helpers below refuse to send anything without it.
+type Ready bool
+
+// ErrResolverNotReady is returned by ResolveName / ResolveIP called without Ready (nothing was sent to VPP).
+var ErrResolverNotReady = errors.New("dns: dns_resolve_* may only be sent after dns_name_server_add_del and dns_enable_disable(1) succeeded " +
+	"(VPP 26.06 crashes without a name server, D-137): nothing was sent")
+
+// ResolveName asks VPP's resolver for name (dns_resolve_name). May be called only after
+// dns_name_server_add_del and dns_enable_disable(1) succeeded on this VPP — the caller says so with ready (D-137);
+// without it nothing is sent and ErrResolverNotReady is returned. The name is validated as a DNS name (letters,
+// digits, "-", "_", "."); it is never passed to a shell. VPP replies only once the upstream answers or its retries
+// give up, so ctx must carry a deadline (a host run without one blocked for minutes against unreachable upstreams).
+func ResolveName(ctx context.Context, c vpp.Client, name string, ready Ready) (ip4, ip6 netip.Addr, err error) {
 	if err := ValidateName(name); err != nil {
 		return netip.Addr{}, netip.Addr{}, err
+	}
+	if !ready {
+		return netip.Addr{}, netip.Addr{}, ErrResolverNotReady
 	}
 	buf := make([]byte, 256)
 	copy(buf, name)
@@ -273,8 +288,12 @@ func ResolveName(ctx context.Context, c vpp.Client, name string) (ip4, ip6 netip
 	return ip4, ip6, nil
 }
 
-// ResolveIP asks VPP's resolver for the PTR name of addr (dns_resolve_ip).
-func ResolveIP(ctx context.Context, c vpp.Client, addr netip.Addr) (string, error) {
+// ResolveIP asks VPP's resolver for the PTR name of addr (dns_resolve_ip). Same precondition as ResolveName: may be
+// called only after dns_name_server_add_del and dns_enable_disable(1) succeeded (ready, D-137).
+func ResolveIP(ctx context.Context, c vpp.Client, addr netip.Addr, ready Ready) (string, error) {
+	if !ready {
+		return "", ErrResolverNotReady
+	}
 	req := &dns.DNSResolveIP{Address: make([]byte, 16)}
 	addr = addr.Unmap()
 	if addr.Is6() {

@@ -54,7 +54,7 @@ func Lookup(ctx context.Context, c vpp.Client, a *vrxv1.DnsLookupAction, cacheRe
 	}
 	lctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	ip4, ip6, err := dns.ResolveName(lctx, c, name)
+	ip4, ip6, err := dns.ResolveName(lctx, c, name, dns.Ready(cacheReady))
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
 			return status.Error(codes.Unavailable, err.Error())

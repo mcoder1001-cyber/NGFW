@@ -139,16 +139,16 @@ func TestResolveHelpers(t *testing.T) {
 	name := make([]byte, 256)
 	copy(name, "w5-host.example")
 	f.Reply("dns_resolve_ip", &dns.DNSResolveIPReply{Name: name})
-	ip4, ip6, err := ResolveName(context.Background(), f, "w5-host.example")
+	ip4, ip6, err := ResolveName(context.Background(), f, "w5-host.example", true)
 	if err != nil || ip4.String() != "10.5.0.9" || ip6.IsValid() {
 		t.Fatalf("resolve name: %v %v %v", ip4, ip6, err)
 	}
-	got, err := ResolveIP(context.Background(), f, netip.MustParseAddr("10.5.0.9"))
+	got, err := ResolveIP(context.Background(), f, netip.MustParseAddr("10.5.0.9"), true)
 	if err != nil || got != "w5-host.example" {
 		t.Fatalf("resolve ip: %q %v", got, err)
 	}
 	for _, bad := range []string{"", "a b", "x;rm -rf /", "$(id)", string(make([]byte, 300))} {
-		if _, _, err := ResolveName(context.Background(), f, bad); !errors.Is(err, dfkit.ErrSpec) {
+		if _, _, err := ResolveName(context.Background(), f, bad, true); !errors.Is(err, dfkit.ErrSpec) {
 			t.Errorf("%q: %v", bad, err)
 		}
 	}

@@ -2,6 +2,7 @@ package dns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"testing"
@@ -130,5 +131,23 @@ func TestTheModelSeesTheWindow(t *testing.T) {
 	}
 	if len(m.crashes) != 1 {
 		t.Fatalf("the model missed the window: %v", m.crashes)
+	}
+}
+
+// D-137: the helpers refuse to send dns_resolve_* unless the caller states that it set the resolver up.
+func TestResolveHelpersRefuseWithoutReady(t *testing.T) {
+	f, m := newCrashFake(t)
+	f.On("dns_resolve_ip", func(api.Message) ([]api.Message, error) {
+		t.Fatal("dns_resolve_ip reached VPP without Ready")
+		return nil, nil
+	})
+	if _, _, err := ResolveName(context.Background(), f, "gw.lab.example", false); !errors.Is(err, ErrResolverNotReady) {
+		t.Fatalf("ResolveName without Ready: %v", err)
+	}
+	if _, err := ResolveIP(context.Background(), f, netip.MustParseAddr("192.0.2.1"), false); !errors.Is(err, ErrResolverNotReady) {
+		t.Fatalf("ResolveIP without Ready: %v", err)
+	}
+	if len(f.Calls()) != 0 || len(m.crashes) != 0 {
+		t.Fatalf("messages were sent: %d (crashes %v)", len(f.Calls()), m.crashes)
 	}
 }

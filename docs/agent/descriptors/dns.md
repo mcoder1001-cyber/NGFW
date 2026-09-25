@@ -7,10 +7,13 @@ name servers, plus resolve action helpers. Message names only from `apps/agent/b
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
 | `dns.name-server` | `dns.name-server/<ip>` | `dns_name_server_add_del` is_add=1 / 0 | **write-only** (`ErrRetrieveUnsupported`) | re-apply (address is the key) | — |
-| `dns.enable` (singleton) | `dns.enable/global` | `dns_enable_disable` enable=1 / 0 | **write-only** | in place | — (see ordering) |
+| `dns.enable` (singleton) | `dns.enable/global` | `dns_enable_disable` enable=1 / 0 | **write-only** | in place (Value carries the upstream set: a changed set re-enables after the new servers exist) | — (see ordering) |
 
-Actions (not desired state): `ResolveName(ctx, client, name)` (`dns_resolve_name`; name validated to DNS characters,
-never a shell), `ResolveIP(ctx, client, addr)` (`dns_resolve_ip`).
+Actions (not desired state): `ResolveName(ctx, client, name, ready)` (`dns_resolve_name`; name validated to DNS
+characters, never a shell), `ResolveIP(ctx, client, addr, ready)` (`dns_resolve_ip`). **Precondition (D-137):** call them
+only after `dns_name_server_add_del` and `dns_enable_disable(1)` succeeded on this VPP and say so with `ready`
+(`dns.Ready(true)`); without it they return `ErrResolverNotReady` and send nothing (unit test
+`TestResolveHelpersRefuseWithoutReady`).
 
 ## Notes and limitations
 - **No dump, no getter** in `dns.api` (enable_disable, name_server_add_del, resolve_name, resolve_ip only): both
@@ -18,7 +21,14 @@ never a shell), `ResolveIP(ctx, client, addr)` (`dns_resolve_ip`).
   `NAME_SERVER_NOT_FOUND` on delete = already gone.
 - **Ordering is reversed vs. the DF-8 prompt:** VPP refuses `dns_enable_disable(1)` with `NO_NAME_SERVERS` while no
   server is configured. `dns.enable` therefore has no dependency and `RegisterGlobals` puts `dns.name-server` first (the
-  scheduler breaks ties by registration order); deletes run in reverse (disable first).
+  scheduler breaks ties by registration order). A dependency on the servers would be wrong: the scheduler deletes and
+  re-creates dependents around a delete, re-enabling before the replacement server exists.
+- **Never enabled without a name server (F-unbound-chrony-syslog, V-item):** VPP 26.06 crashes on a DNS request (API or
+  UDP 53 packet) while enabled with no server, and the scheduler runs deletes before creates. So the globals owner's
+  `dns.name-server` Delete sends `dns_enable_disable(0)` first, and `Enable.Upstreams` makes a changed server set an
+  update of the switch that re-enables it after the new servers were created. Fake-VPP model test
+  `TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers` drives the real scheduler through server replacements.
+- The host test `TestDNSOnHost` needs `VRX_DNS_VPP_HOST=1` **and** `VRX_DF8_GLOBALS=1` (D-064: it can crash VPP).
 - `dns_resolve_name` replies only after the upstream answers or VPP's retries give up: pass a ctx with a deadline
   (a host run without one blocked for minutes against unreachable upstreams).
 - **`dns_resolve_name` / `dns_resolve_ip` crash VPP 26.06 when the plugin has no name server** (never enabled): SIGSEGV in

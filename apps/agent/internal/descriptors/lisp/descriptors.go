@@ -823,6 +823,7 @@ func NewGpeFwdEntry(c vpp.Client, owner string, opts ...df6.Option) *df6.KeyedDe
 // Register registers every LISP / LISP-GPE descriptor with r. The global switches (LISP,
 // LISP-GPE, PITR) are setters only on the globals owner (df6.WithGlobalsOwner); other agents
 // get the require variants (check, never set or reset — D-071).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df6.Option) {
 	o := df6.BuildOptions(owner, opts)
 	r.Register(df6.Global(enableSpec(), c, o))

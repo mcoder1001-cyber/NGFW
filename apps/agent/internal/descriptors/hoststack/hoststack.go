@@ -219,6 +219,7 @@ func newConfig(opts []Option) *config {
 // Register registers the per-owner descriptors: namespaces, session rules, the TCP source pool
 // and — for an agent that is not the globals owner — the require-only hoststack.session (it never
 // sets the session layer, D-071). Namespaces are registered before rules (tie-break order).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	c := newConfig(opts)
 	st := stateFor(owner, client, c.boot)

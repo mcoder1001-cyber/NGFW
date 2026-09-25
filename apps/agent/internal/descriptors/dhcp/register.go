@@ -83,6 +83,7 @@ func WithVRFScope(in func(vrf uint32) bool) Option {
 
 // Register constructs every descriptor of the dhcp plugin with the shared client and owner and
 // registers them in dependency-friendly order. This is the one entry point the agent (P05) wires.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	r.Register(NewProxy(client, opts...))
 	r.Register(NewProxyVSS(client, opts...))

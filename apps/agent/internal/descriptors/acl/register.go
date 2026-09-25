@@ -58,6 +58,7 @@ func (o options) interfaceDependency(ifName string) scheduler.Dependency {
 // Register constructs every descriptor of the acl plugin with the shared client and owner and
 // registers them, in dependency-friendly order (ACLs before the bindings that reference them).
 // This is the one entry point the agent (P05) wires.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Option) {
 	r.Register(NewACL(client, owner))
 	r.Register(NewMacipACL(client, owner))

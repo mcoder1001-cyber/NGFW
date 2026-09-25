@@ -80,6 +80,7 @@ func WithBootStore(s dfkit.BootStore) Option { return func(c *Config) { c.Boot =
 func WithGlobalsOwner(on bool) Option { return func(c *Config) { c.GlobalsOwner = on } }
 
 // Register constructs every descriptor of the plugin and registers it (P05 wires this).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) {
 	cfg := Config{Client: c, Owner: owner}
 	for _, o := range opts {

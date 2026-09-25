@@ -68,6 +68,7 @@ func WithKeyer(k *vpn.Keyer) Option { return func(c *Config) { c.Keys = k } }
 func WithSecrets(r vpn.Resolver) Option { return func(c *Config) { c.Secrets = r } }
 
 // Register constructs every descriptor of the plugin and registers it (P05 wires this).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) {
 	cfg := Config{Client: c, Owner: owner}
 	for _, o := range opts {

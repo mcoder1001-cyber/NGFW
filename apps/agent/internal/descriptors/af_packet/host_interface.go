@@ -190,6 +190,7 @@ func (d *HostInterfaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 }
 
 // Register registers the host-interface descriptor with r.
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) {
 	r.Register(New(c, owner, opts...))
 }

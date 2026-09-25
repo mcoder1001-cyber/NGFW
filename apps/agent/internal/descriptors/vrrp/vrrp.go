@@ -812,6 +812,7 @@ func (d *StateDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 }
 
 // Register constructs every vrrp descriptor (VRs, peers, tracking, state).
+// Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewVR(c, owner, opts...))
 	r.Register(NewPeers(c, owner, opts...))

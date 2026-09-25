@@ -35,6 +35,7 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -636,7 +637,7 @@ export class FakeAgent {
       // wave-BC: F-host-stack
       // wave-BC: F-snmp
       // wave-BC: F-ipfix-sflow
-      ipfixState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'unknown method IpfixState' }),
+      ipfixState: ipfixStateFake(this),
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
       // wave-BC: F-lisp

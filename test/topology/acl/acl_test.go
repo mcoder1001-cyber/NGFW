@@ -366,6 +366,9 @@ func TestACLTopology(t *testing.T) {
 		r.wanIf: map[string]any{"enabled": true, "description": "F-acl wan side", "ipv4": []string{r.wanGW + "/24"}},
 	})
 	c1 := a.commit("acl-rev1-interfaces")
+	// registered before the foreign ACL: cleanups run last-in first-out, so the foreign ACL is unbound (below) before
+	// this removes the interfaces (D-095c: unbind before deleting an interface)
+	t.Cleanup(func() { apiCleanup(t, a, r) })
 	rev1 := c1["revision"].(map[string]any)["id"].(float64)
 	idx := waitIfs(t, conn, r.lanIf, r.wanIf)
 	for _, l := range v19Guard(t, conn, idx) {
@@ -654,6 +657,23 @@ func TestACLTopology(t *testing.T) {
 
 	t.Run("cleanup-through-api", func(t *testing.T) {
 		a.t = t
+		// D-095c: nothing may stay bound to an interface that is deleted — the foreign ACL is unbound first (it is
+		// deleted by its own cleanup)
+		if n, acls := ifaceACLs(t, conn, idx[r.lanIf]); len(acls) > 0 {
+			var keep []uint32
+			in := n
+			for i, x := range acls {
+				if x == foreign {
+					if i < int(n) {
+						in--
+					}
+					continue
+				}
+				keep = append(keep, x)
+			}
+			setIfaceACLs(t, conn, idx[r.lanIf], in, keep...)
+			t.Logf("foreign ACL %d unbound from %s before the interfaces are deleted", foreign, r.lanIf)
+		}
 		r.peers(t, false) // D-101
 		for _, n := range []string{r.lanIf, r.wanIf} {
 			a.must(200, "DELETE", "/api/v1/config/interfaces/"+n, nil)
@@ -664,6 +684,23 @@ func TestACLTopology(t *testing.T) {
 		t.Logf("commit (cleanup) → %d %s", c.status, trunc(c.raw, 800))
 	})
 	_ = rev2
+}
+
+// apiCleanup removes this test's configuration through the API (veths down first, D-101; the agent unbinds the ACLs
+// before it deletes them or the interfaces, D-095c). Registered with t.Cleanup right after the first ACL commit, so it
+// also runs when a step fails — before the stack and the rig are stopped (cleanups run last-in first-out).
+func apiCleanup(t *testing.T, a *api, r rig) {
+	t.Helper()
+	a.t = t
+	r.peers(t, false)
+	a.call("POST", "/api/v1/config/discard", nil)
+	a.call("PUT", "/api/v1/config/acl", map[string]any{})
+	a.call("PUT", "/api/v1/config/objects", map[string]any{})
+	for _, n := range []string{r.lanIf, r.wanIf} {
+		a.call("DELETE", "/api/v1/config/interfaces/"+n, nil)
+	}
+	c := a.call("POST", "/api/v1/config/commit?comment=acl-test-cleanup", nil)
+	t.Logf("cleanup commit (acl, objects, rig interfaces) → %d %s", c.status, trunc(c.raw, 300))
 }
 
 // grepLines keeps the lines of out that contain one of the needles (plus the following indented lines).

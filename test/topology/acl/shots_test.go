@@ -65,12 +65,22 @@ func TestACLScreenshots(t *testing.T) {
 		r.wanIf: map[string]any{"enabled": true, "description": "WAN (rig)", "ipv4": []string{r.wanGW + "/24"}},
 	})
 	a.commit("acl-shots-interfaces")
+	t.Cleanup(func() { // runs last: nothing of ours may be left
+		if own := ownACLs(t, conn, s.prefix); len(own) != 0 {
+			t.Errorf("ACLs left: %v", own)
+		}
+	})
+	t.Cleanup(func() { apiCleanup(t, a, r) }) // after the foreign ACL's cleanup below (last-in first-out, D-095c)
 	idx := waitIfs(t, conn, r.lanIf, r.wanIf)
 	v19Guard(t, conn, idx)
 	foreign, _ := addACL(t, conn, s.prefix+"-foreign:guard", []acl_types.ACLRule{foreignRule(s.num)})
 	setIfaceACLs(t, conn, idx[r.lanIf], 1, foreign)
 	t.Cleanup(func() {
 		n, acls := ifaceACLs(t, conn, idx[r.lanIf])
+		if len(acls) == 0 {
+			delACL(t, conn, foreign)
+			return
+		}
 		var keep []uint32
 		in := n
 		for i, x := range acls {
@@ -110,6 +120,14 @@ func TestACLScreenshots(t *testing.T) {
 		"macipAttachments": []any{map[string]any{"list": "wan-l2", "interface": r.wanIf}},
 	})
 	a.commit("acl-shots")
+	if !countersFlag(t, conn) && os.Getenv("VRX_ACL_STATS_GLOBALS") == "1" {
+		unlock := globalsLock(t) // D-082; never switched off (V7)
+		if !countersFlag(t, conn) {
+			enableCounters(t, conn)
+		}
+		unlock()
+		t.Logf("counters flag switched on under flock -x (VRX_ACL_STATS_GLOBALS=1): %v", countersFlag(t, conn))
+	}
 	if countersFlag(t, conn) {
 		st.preflight(t)
 		r.peers(t, true)
@@ -149,17 +167,5 @@ func TestACLScreenshots(t *testing.T) {
 	t.Log("screenshots:\n" + strings.TrimSpace(outp))
 	if err != nil {
 		t.Fatalf("screenshot script: %v", err)
-	}
-	r.peers(t, false)
-	a.must(200, "POST", "/api/v1/config/discard", nil)
-	a.must(200, "PUT", "/api/v1/config/acl", map[string]any{})
-	a.must(200, "PUT", "/api/v1/config/objects", map[string]any{})
-	for _, n := range []string{r.lanIf, r.wanIf} {
-		a.must(200, "DELETE", "/api/v1/config/interfaces/"+n, nil)
-	}
-	c := a.call("POST", "/api/v1/config/commit?comment=acl-shots-cleanup", nil)
-	t.Logf("cleanup commit → %d", c.status)
-	if own := ownACLs(t, conn, s.prefix); len(own) != 0 {
-		t.Errorf("ACLs left: %v", own)
 	}
 }

@@ -1229,11 +1229,7 @@ export const ServicesSchema = withUi(
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-rpf-adl-pbr
-    hostStack: withUi(HostStackSchema.optional(), {
-      title: 'Host stack',
-      group: 'host-stack',
-      order: 10,
-    }), // F-host-stack (unanchored)
+    hostStack: HostStackSchema.optional(), // F-host-stack (unanchored)
   }),
   {
     title: 'Services',

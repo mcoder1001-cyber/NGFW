@@ -8,9 +8,9 @@ merged deps you can rely on: P08, DF-6, W-seed (+ the wave-B/C anchor pass, docs
   - P08: desired/ + subsystems/ + projection patterns, `Wiring.IfaceClaims()` (= `df6.WithClaims` store), `Wiring.BootStore()`, `subsystems.SlotIDRange()` (W-seed), the vpn page shell + `vpnTabs` registry (W-seed)
   - also on main: TD-2, TD-3 (V19 sanitizer + preflight), TD-5 if merged
 read first: prompts/features/F-srv6.md · docs/status/wave-BC-numbers.md (Pack rules, section F-srv6) · docs/status/wave-A-hotspots.md (§0 rules; ids A1 A2 A6 C1–C7 P1 P4 P5 W1–W3 A7) · docs/agent/descriptors/{sr,df6}.md · docs/status/tasks/DF-6.md + DF-6-questions.md (Q6) · docs/vpp-code-track.md V14, V15, V19, V22 · docs/decisions/LOG.md D-063, D-071, D-074, D-076, D-080, D-082, D-085, D-087, D-094, D-095, D-101
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; SIDs, BSIDs and steered prefixes inside one slot-unique IPv6 /48 (e.g. fd00:<SLOT hex>::/48, the natcommon.Scope convention); VRFs/tables in <SLOT>000–<SLOT>999
+slot: 4 → VRX_SLOT=4 VRX_TEST_PREFIX=w4 VRX_HTTP_PORT=3000+100·4 VRX_WEB_PORT=5000+100·4 VRX_METRICS_PORT=9100+10·4+1 VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock VRX_PG_DATABASE=vrx_w4 VRX_VALKEY_DB=4 VRX_VPP_TABLE_BASE=4000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 4)"`
+  - rig prefix w4 → 10.4.{1,2}.0/24; SIDs, BSIDs and steered prefixes inside one slot-unique IPv6 /48 (e.g. fd00:<SLOT hex>::/48, the natcommon.Scope convention); VRFs/tables in 4000–4999
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -56,8 +56,19 @@ V19/V24 SAFETY (D-095, D-101): before ANY packet through the rig, run TD-3's pre
 evidence: Playwright is not installed — use the headless Chrome approach from P07a/P07b/P08 (kept outside the product code) for screenshots (en + fa/RTL: SRv6 tab — Local SIDs / Policies / Steering, SID-list editor, counters column); paste `vppctl show sr localsids`, `show sr policies`, `show sr steering-policies`, `show ip6 fib table <t>`
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-srv6.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-srv6-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-srv6.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> SIDs/policies/steering/tables left (Retrieve + `show sr localsids` + `show ip6 fib table <t>` pasted) · globals restored to the recorded previous values (if you had the opt-in) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · vrx_w4 dropped · no w4 SIDs/policies/steering/tables left (Retrieve + `show sr localsids` + `show ip6 fib table <t>` pasted) · globals restored to the recorded previous values (if you had the opt-in) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-srv6-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
+
+## Manager addendum (2026-09-25 10:30, ngfw-46) — rules that landed after this envelope was written
+- **TD-11b (on main):** every descriptor you register declares `RecordsNoOwnership()` (finds its objects by key/tag) or `CheckPersistent() error` (records claims over the persisted Wiring store); the agent refuses to start otherwise. Creates are claim-first (dfkit ClaimFirst).
+- **TD-11c (approved, merging):** every interface creator registers `iface.RegisterKind` or provides the `interface/<name>` KeyProvider and removes itself from the guard allowlist (mpls-tunnel → F-mpls-srmpls; gre/ipip/vxlan… → F-tunnels).
+- **TD-8 seams (on main):** use Env.Publish / RequestResync / dynamic desired sources / metrics collector / Wiring.IDRange — never fork them; the agent refuses to start without an ID range (TD-8b).
+- **TD-23 (approved, merging):** fake-agent actions via `registerActionHandler(kind, fn)`; coretest hooks via `RegisterExtension(name, fn)` (and `RegisterFeatureIsEnabled` for feature_is_enabled) — until it is on main, keep your hook in your own file so it becomes one registration line.
+- **D-132:** no UI timer < 30 s on anything that walks VPP; Refresh button; the agent serialises full walks (one in flight, UNAVAILABLE after 3 s).
+- **D-137/D-139:** never call VPP dns.api; **D-128:** never `show trace`/`trace add`/`clear trace`; **D-126:** no classify sweeps by index.
+- **WEB-1 (approved, merging):** SchemaForm presence toggle — never call `dropPhantomOptionals`.
+- **Host runs:** af_packet creates on the shared VPP fail until TD-25 merges (approved, first in the merge queue). Do code, unit tests, fake-VPP tests and CI first; the manager tells you when host runs are open. VPP NRestarts is 2 (baseline).
+- **Usage limit:** if you are stopped by it, the manager resumes you; commit early and often.

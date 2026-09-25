@@ -638,6 +638,10 @@ export class FakeAgent {
       // wave-BC: F-ipfix-sflow
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
+      srv6State: (call, cb) => {
+        this.record('Srv6State', call.request);
+        cb({ code: status.UNIMPLEMENTED, details: 'Srv6State is not modelled by the fake yet (F-srv6 contract stub)' });
+      },
       // wave-BC: F-lisp
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn

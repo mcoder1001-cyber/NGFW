@@ -1352,7 +1352,11 @@ export interface RoutingConfig {
     | BfdConfig
     | undefined;
   /** Routing policy: prefix lists and route maps (FRR). */
-  policy: RoutingPolicy | undefined;
+  policy:
+    | RoutingPolicy
+    | undefined;
+  /** SRv6 local SIDs, policies and steering (F-srv6, VPP sr); unset = not configured. */
+  srv6: Srv6Config | undefined;
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -5274,6 +5278,197 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`. */
+export interface Srv6Config {
+  /**
+   * Outer IPv6 source of encapsulating policies that set none, and VPP's global default
+   * (sr_set_encap_source; applied by the globals owner only, D-071; write-only, never retrieved).
+   */
+  encapSource?:
+    | string
+    | undefined;
+  /**
+   * Hop limit of the outer IPv6 header, 1–255 (sr_set_encap_hop_limit; VPP-wide, globals owner only,
+   * write-only). Unset = VPP's default (64).
+   */
+  encapHopLimit?:
+    | number
+    | undefined;
+  /** Local SIDs keyed by SID (canonical IPv6 address). */
+  localSids: { [key: string]: Srv6LocalSid };
+  /** SR policies keyed by binding SID (canonical IPv6 address). */
+  policies: { [key: string]: Srv6Policy };
+  /** Steering entries: a prefix of a VRF or an L2 interface into a policy's binding SID. */
+  steering: Srv6Steering[];
+}
+
+export interface Srv6Config_LocalSidsEntry {
+  key: string;
+  value: Srv6LocalSid | undefined;
+}
+
+export interface Srv6Config_PoliciesEntry {
+  key: string;
+  value: Srv6Policy | undefined;
+}
+
+/** Srv6LocalSid mirrors `routing.srv6.localSids.<sid>` (sr_localsid_add_del). */
+export interface Srv6LocalSid {
+  /** "end" | "end.x" | "end.t" | "end.dx2" | "end.dx4" | "end.dx6" | "end.dt4" | "end.dt6". */
+  behavior?:
+    | string
+    | undefined;
+  /** Penultimate segment pop (end, end.x, end.t). Zod default false. */
+  psp?:
+    | boolean
+    | undefined;
+  /** VRF (IPv6 table) the SID is installed in. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Cross-connect interface (end.x, end.dx2, end.dx4, end.dx6). */
+  interface?:
+    | string
+    | undefined;
+  /** Next hop: IPv6 for end.x / end.dx6, IPv4 for end.dx4. */
+  nextHop?:
+    | string
+    | undefined;
+  /** Lookup VRF: IPv6 table for end.t / end.dt6, IPv4 table for end.dt4. */
+  lookupVrf?: string | undefined;
+}
+
+/** Srv6Policy mirrors `routing.srv6.policies.<bsid>` (sr_policy_add_v2 / sr_policy_mod_v2 / sr_policy_del). */
+export interface Srv6Policy {
+  /** "default" | "spray" | "tef". Zod default "default". */
+  type?:
+    | string
+    | undefined;
+  /** true = H.Encaps (outer IPv6 header + SRH), false = H.Insert. Zod default true. */
+  encap?:
+    | boolean
+    | undefined;
+  /** VRF (IPv6 table) of the binding SID. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Outer source of this encapsulating policy; unset = Srv6Config.encap_source (D-074). */
+  encapSource?:
+    | string
+    | undefined;
+  /** Segment lists (at least one). */
+  sidLists: Srv6SidList[];
+}
+
+/** Srv6SidList mirrors one entry of `routing.srv6.policies.<bsid>.sidLists`. */
+export interface Srv6SidList {
+  /** Segment IDs in order (1–16 IPv6 addresses). */
+  sids: string[];
+  /** Load-balancing weight 1–65535. Zod default 1. */
+  weight?: number | undefined;
+}
+
+/**
+ * Srv6Steering mirrors one entry of `routing.srv6.steering` (sr_steering_add_del): a discriminated
+ * union on `type`; the fields of the other variant are unset.
+ */
+export interface Srv6Steering {
+  /** "l3" (prefix + vrf) | "l2" (interface). */
+  type?:
+    | string
+    | undefined;
+  /** l3: IPv4 or IPv6 network prefix. */
+  prefix?:
+    | string
+    | undefined;
+  /** l3: VRF of the prefix. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** l2: the interface whose received frames are steered. */
+  interface?:
+    | string
+    | undefined;
+  /** Binding SID of the policy (routing.srv6.policies key). */
+  bsid?: string | undefined;
+}
+
+/** Srv6StateRequest asks for the live SRv6 state of this owner. */
+export interface Srv6StateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** Srv6StateResponse is one snapshot of this owner's SRv6 objects (status, not configuration). */
+export interface Srv6StateResponse {
+  /** Local SIDs, sorted by SID. */
+  localSids: Srv6StateLocalSid[];
+  /** Policies, sorted by binding SID. */
+  policies: Srv6StatePolicy[];
+  /** Steering entries, sorted: L3 by table and prefix, then L2 by interface. */
+  steering: Srv6StateSteering[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dumps were taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** Srv6StateLocalSid is one local SID as VPP has it, with its counters. */
+export interface Srv6StateLocalSid {
+  /** The SID (canonical IPv6 address). */
+  sid: string;
+  /** Behaviour, as in Srv6LocalSid.behavior ("end", "end.x", …). */
+  behavior: string;
+  psp: boolean;
+  /** IPv6 table id the SID is installed in. */
+  fibTable: number;
+  /** Cross-connect interface (logical name; "" when none). */
+  interface: string;
+  /** Next hop ("" when none). */
+  nextHop: string;
+  /** Lookup table id (end.t / end.dt4 / end.dt6; 0 otherwise). */
+  lookupTable: number;
+  /** sr_localsids_with_packet_stats_details: traffic processed by the SID ("good") and dropped ("bad"). */
+  goodPackets: string;
+  goodBytes: string;
+  badPackets: string;
+  badBytes: string;
+}
+
+/** Srv6StatePolicy is one SR policy as VPP has it. */
+export interface Srv6StatePolicy {
+  /** Binding SID (canonical IPv6 address). */
+  bsid: string;
+  /** "default" | "spray" | "tef". */
+  type: string;
+  encap: boolean;
+  /** IPv6 table id of the binding SID. */
+  fibTable: number;
+  /** Outer source address (encapsulating policies; "" otherwise). */
+  encapSource: string;
+  /** Segment lists in VPP's order. */
+  sidLists: Srv6StateSidList[];
+}
+
+/** Srv6StateSidList is one segment list of a policy. */
+export interface Srv6StateSidList {
+  sids: string[];
+  weight: number;
+}
+
+/** Srv6StateSteering is one steering entry as VPP has it. */
+export interface Srv6StateSteering {
+  /** "ipv4" | "ipv6" | "l2". */
+  trafficType: string;
+  /** L3: the steered prefix and its table id. */
+  prefix: string;
+  fibTable: number;
+  /** L2: the interface (logical name). */
+  interface: string;
+  /** Binding SID of the policy the traffic is steered into. */
+  bsid: string;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11907,6 +12102,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     rip: undefined,
     bfd: undefined,
     policy: undefined,
+    srv6: undefined,
   };
 }
 
@@ -11932,6 +12128,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
+    }
+    if (message.srv6 !== undefined) {
+      Srv6Config.encode(message.srv6, writer.uint32(138).fork()).join();
     }
     return writer;
   },
@@ -12005,6 +12204,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.policy = RoutingPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 17: {
+            if (tag !== 138) {
+              break;
+            }
+
+            message.srv6 = Srv6Config.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12026,6 +12233,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
+      srv6: isSet(object.srv6) ? Srv6Config.fromJSON(object.srv6) : undefined,
     };
   },
 
@@ -12052,6 +12260,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.policy !== undefined) {
       obj.policy = RoutingPolicy.toJSON(message.policy);
     }
+    if (message.srv6 !== undefined) {
+      obj.srv6 = Srv6Config.toJSON(message.srv6);
+    }
     return obj;
   },
 
@@ -12072,6 +12283,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.bfd = (object.bfd !== undefined && object.bfd !== null) ? BfdConfig.fromPartial(object.bfd) : undefined;
     message.policy = (object.policy !== undefined && object.policy !== null)
       ? RoutingPolicy.fromPartial(object.policy)
+      : undefined;
+    message.srv6 = (object.srv6 !== undefined && object.srv6 !== null)
+      ? Srv6Config.fromPartial(object.srv6)
       : undefined;
     return message;
   },
@@ -42617,6 +42831,1787 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseSrv6Config(): Srv6Config {
+  return { encapSource: undefined, encapHopLimit: undefined, localSids: {}, policies: {}, steering: [] };
+}
+
+export const Srv6Config: MessageFns<Srv6Config> = {
+  encode(message: Srv6Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.encapSource !== undefined) {
+      writer.uint32(10).string(message.encapSource);
+    }
+    if (message.encapHopLimit !== undefined) {
+      writer.uint32(16).uint32(message.encapHopLimit);
+    }
+    globalThis.Object.entries(message.localSids).forEach(([key, value]: [string, Srv6LocalSid]) => {
+      Srv6Config_LocalSidsEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    globalThis.Object.entries(message.policies).forEach(([key, value]: [string, Srv6Policy]) => {
+      Srv6Config_PoliciesEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    for (const v of message.steering) {
+      Srv6Steering.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.encapHopLimit = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = Srv6Config_LocalSidsEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.localSids[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = Srv6Config_PoliciesEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.policies[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.steering.push(Srv6Steering.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config {
+    return {
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : undefined,
+      encapHopLimit: isSet(object.encapHopLimit)
+        ? globalThis.Number(object.encapHopLimit)
+        : isSet(object.encap_hop_limit)
+        ? globalThis.Number(object.encap_hop_limit)
+        : undefined,
+      localSids: isObject(object.localSids)
+        ? (globalThis.Object.entries(object.localSids) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6LocalSid.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.local_sids)
+        ? (globalThis.Object.entries(object.local_sids) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6LocalSid.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      policies: isObject(object.policies)
+        ? (globalThis.Object.entries(object.policies) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6Policy }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6Policy.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      steering: globalThis.Array.isArray(object?.steering)
+        ? object.steering.map((e: any) => Srv6Steering.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6Config): unknown {
+    const obj: any = {};
+    if (message.encapSource !== undefined) {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.encapHopLimit !== undefined) {
+      obj.encapHopLimit = Math.round(message.encapHopLimit);
+    }
+    if (message.localSids) {
+      const entries = globalThis.Object.entries(message.localSids) as [string, Srv6LocalSid][];
+      if (entries.length > 0) {
+        obj.localSids = {};
+        entries.forEach(([k, v]) => {
+          obj.localSids[k] = Srv6LocalSid.toJSON(v);
+        });
+      }
+    }
+    if (message.policies) {
+      const entries = globalThis.Object.entries(message.policies) as [string, Srv6Policy][];
+      if (entries.length > 0) {
+        obj.policies = {};
+        entries.forEach(([k, v]) => {
+          obj.policies[k] = Srv6Policy.toJSON(v);
+        });
+      }
+    }
+    if (message.steering?.length) {
+      obj.steering = message.steering.map((e) => Srv6Steering.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config>): Srv6Config {
+    return Srv6Config.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config>): Srv6Config {
+    const message = createBaseSrv6Config();
+    message.encapSource = object.encapSource ?? undefined;
+    message.encapHopLimit = object.encapHopLimit ?? undefined;
+    message.localSids = (globalThis.Object.entries(object.localSids ?? {}) as [string, Srv6LocalSid][]).reduce(
+      (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, Srv6LocalSid]) => {
+        if (value !== undefined) {
+          acc[key] = Srv6LocalSid.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.policies = (globalThis.Object.entries(object.policies ?? {}) as [string, Srv6Policy][]).reduce(
+      (acc: { [key: string]: Srv6Policy }, [key, value]: [string, Srv6Policy]) => {
+        if (value !== undefined) {
+          acc[key] = Srv6Policy.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.steering = object.steering?.map((e) => Srv6Steering.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6Config_LocalSidsEntry(): Srv6Config_LocalSidsEntry {
+  return { key: "", value: undefined };
+}
+
+export const Srv6Config_LocalSidsEntry: MessageFns<Srv6Config_LocalSidsEntry> = {
+  encode(message: Srv6Config_LocalSidsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      Srv6LocalSid.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config_LocalSidsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config_LocalSidsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = Srv6LocalSid.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config_LocalSidsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? Srv6LocalSid.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Config_LocalSidsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = Srv6LocalSid.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config_LocalSidsEntry>): Srv6Config_LocalSidsEntry {
+    return Srv6Config_LocalSidsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config_LocalSidsEntry>): Srv6Config_LocalSidsEntry {
+    const message = createBaseSrv6Config_LocalSidsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? Srv6LocalSid.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Config_PoliciesEntry(): Srv6Config_PoliciesEntry {
+  return { key: "", value: undefined };
+}
+
+export const Srv6Config_PoliciesEntry: MessageFns<Srv6Config_PoliciesEntry> = {
+  encode(message: Srv6Config_PoliciesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      Srv6Policy.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config_PoliciesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config_PoliciesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = Srv6Policy.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config_PoliciesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? Srv6Policy.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Config_PoliciesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = Srv6Policy.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config_PoliciesEntry>): Srv6Config_PoliciesEntry {
+    return Srv6Config_PoliciesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config_PoliciesEntry>): Srv6Config_PoliciesEntry {
+    const message = createBaseSrv6Config_PoliciesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? Srv6Policy.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6LocalSid(): Srv6LocalSid {
+  return {
+    behavior: undefined,
+    psp: undefined,
+    vrf: undefined,
+    interface: undefined,
+    nextHop: undefined,
+    lookupVrf: undefined,
+  };
+}
+
+export const Srv6LocalSid: MessageFns<Srv6LocalSid> = {
+  encode(message: Srv6LocalSid, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.behavior !== undefined) {
+      writer.uint32(10).string(message.behavior);
+    }
+    if (message.psp !== undefined) {
+      writer.uint32(16).bool(message.psp);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.nextHop !== undefined) {
+      writer.uint32(42).string(message.nextHop);
+    }
+    if (message.lookupVrf !== undefined) {
+      writer.uint32(50).string(message.lookupVrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6LocalSid {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6LocalSid();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.behavior = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.psp = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.lookupVrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6LocalSid {
+    return {
+      behavior: isSet(object.behavior) ? globalThis.String(object.behavior) : undefined,
+      psp: isSet(object.psp) ? globalThis.Boolean(object.psp) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      lookupVrf: isSet(object.lookupVrf)
+        ? globalThis.String(object.lookupVrf)
+        : isSet(object.lookup_vrf)
+        ? globalThis.String(object.lookup_vrf)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Srv6LocalSid): unknown {
+    const obj: any = {};
+    if (message.behavior !== undefined) {
+      obj.behavior = message.behavior;
+    }
+    if (message.psp !== undefined) {
+      obj.psp = message.psp;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.lookupVrf !== undefined) {
+      obj.lookupVrf = message.lookupVrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6LocalSid>): Srv6LocalSid {
+    return Srv6LocalSid.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6LocalSid>): Srv6LocalSid {
+    const message = createBaseSrv6LocalSid();
+    message.behavior = object.behavior ?? undefined;
+    message.psp = object.psp ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.nextHop = object.nextHop ?? undefined;
+    message.lookupVrf = object.lookupVrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Policy(): Srv6Policy {
+  return { type: undefined, encap: undefined, vrf: undefined, encapSource: undefined, sidLists: [] };
+}
+
+export const Srv6Policy: MessageFns<Srv6Policy> = {
+  encode(message: Srv6Policy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.encap !== undefined) {
+      writer.uint32(16).bool(message.encap);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.encapSource !== undefined) {
+      writer.uint32(34).string(message.encapSource);
+    }
+    for (const v of message.sidLists) {
+      Srv6SidList.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Policy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Policy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.encap = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sidLists.push(Srv6SidList.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Policy {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      encap: isSet(object.encap) ? globalThis.Boolean(object.encap) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : undefined,
+      sidLists: globalThis.Array.isArray(object?.sidLists)
+        ? object.sidLists.map((e: any) => Srv6SidList.fromJSON(e))
+        : globalThis.Array.isArray(object?.sid_lists)
+        ? object.sid_lists.map((e: any) => Srv6SidList.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6Policy): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.encap !== undefined) {
+      obj.encap = message.encap;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.encapSource !== undefined) {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.sidLists?.length) {
+      obj.sidLists = message.sidLists.map((e) => Srv6SidList.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Policy>): Srv6Policy {
+    return Srv6Policy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Policy>): Srv6Policy {
+    const message = createBaseSrv6Policy();
+    message.type = object.type ?? undefined;
+    message.encap = object.encap ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.encapSource = object.encapSource ?? undefined;
+    message.sidLists = object.sidLists?.map((e) => Srv6SidList.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6SidList(): Srv6SidList {
+  return { sids: [], weight: undefined };
+}
+
+export const Srv6SidList: MessageFns<Srv6SidList> = {
+  encode(message: Srv6SidList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sids) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(16).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6SidList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6SidList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sids.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6SidList {
+    return {
+      sids: globalThis.Array.isArray(object?.sids) ? object.sids.map((e: any) => globalThis.String(e)) : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6SidList): unknown {
+    const obj: any = {};
+    if (message.sids?.length) {
+      obj.sids = message.sids;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6SidList>): Srv6SidList {
+    return Srv6SidList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6SidList>): Srv6SidList {
+    const message = createBaseSrv6SidList();
+    message.sids = object.sids?.map((e) => e) || [];
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Steering(): Srv6Steering {
+  return { type: undefined, prefix: undefined, vrf: undefined, interface: undefined, bsid: undefined };
+}
+
+export const Srv6Steering: MessageFns<Srv6Steering> = {
+  encode(message: Srv6Steering, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.bsid !== undefined) {
+      writer.uint32(42).string(message.bsid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Steering {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Steering();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Steering {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Steering): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.bsid !== undefined) {
+      obj.bsid = message.bsid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Steering>): Srv6Steering {
+    return Srv6Steering.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Steering>): Srv6Steering {
+    const message = createBaseSrv6Steering();
+    message.type = object.type ?? undefined;
+    message.prefix = object.prefix ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.bsid = object.bsid ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6StateRequest(): Srv6StateRequest {
+  return { owner: "" };
+}
+
+export const Srv6StateRequest: MessageFns<Srv6StateRequest> = {
+  encode(message: Srv6StateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: Srv6StateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateRequest>): Srv6StateRequest {
+    return Srv6StateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateRequest>): Srv6StateRequest {
+    const message = createBaseSrv6StateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSrv6StateResponse(): Srv6StateResponse {
+  return { localSids: [], policies: [], steering: [], owner: "", retrievedAt: undefined };
+}
+
+export const Srv6StateResponse: MessageFns<Srv6StateResponse> = {
+  encode(message: Srv6StateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.localSids) {
+      Srv6StateLocalSid.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.policies) {
+      Srv6StatePolicy.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.steering) {
+      Srv6StateSteering.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(34).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.localSids.push(Srv6StateLocalSid.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.policies.push(Srv6StatePolicy.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.steering.push(Srv6StateSteering.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateResponse {
+    return {
+      localSids: globalThis.Array.isArray(object?.localSids)
+        ? object.localSids.map((e: any) => Srv6StateLocalSid.fromJSON(e))
+        : globalThis.Array.isArray(object?.local_sids)
+        ? object.local_sids.map((e: any) => Srv6StateLocalSid.fromJSON(e))
+        : [],
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => Srv6StatePolicy.fromJSON(e))
+        : [],
+      steering: globalThis.Array.isArray(object?.steering)
+        ? object.steering.map((e: any) => Srv6StateSteering.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Srv6StateResponse): unknown {
+    const obj: any = {};
+    if (message.localSids?.length) {
+      obj.localSids = message.localSids.map((e) => Srv6StateLocalSid.toJSON(e));
+    }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => Srv6StatePolicy.toJSON(e));
+    }
+    if (message.steering?.length) {
+      obj.steering = message.steering.map((e) => Srv6StateSteering.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateResponse>): Srv6StateResponse {
+    return Srv6StateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateResponse>): Srv6StateResponse {
+    const message = createBaseSrv6StateResponse();
+    message.localSids = object.localSids?.map((e) => Srv6StateLocalSid.fromPartial(e)) || [];
+    message.policies = object.policies?.map((e) => Srv6StatePolicy.fromPartial(e)) || [];
+    message.steering = object.steering?.map((e) => Srv6StateSteering.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6StateLocalSid(): Srv6StateLocalSid {
+  return {
+    sid: "",
+    behavior: "",
+    psp: false,
+    fibTable: 0,
+    interface: "",
+    nextHop: "",
+    lookupTable: 0,
+    goodPackets: "0",
+    goodBytes: "0",
+    badPackets: "0",
+    badBytes: "0",
+  };
+}
+
+export const Srv6StateLocalSid: MessageFns<Srv6StateLocalSid> = {
+  encode(message: Srv6StateLocalSid, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sid !== "") {
+      writer.uint32(10).string(message.sid);
+    }
+    if (message.behavior !== "") {
+      writer.uint32(18).string(message.behavior);
+    }
+    if (message.psp !== false) {
+      writer.uint32(24).bool(message.psp);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(32).uint32(message.fibTable);
+    }
+    if (message.interface !== "") {
+      writer.uint32(42).string(message.interface);
+    }
+    if (message.nextHop !== "") {
+      writer.uint32(50).string(message.nextHop);
+    }
+    if (message.lookupTable !== 0) {
+      writer.uint32(56).uint32(message.lookupTable);
+    }
+    if (message.goodPackets !== "0") {
+      writer.uint32(64).uint64(message.goodPackets);
+    }
+    if (message.goodBytes !== "0") {
+      writer.uint32(72).uint64(message.goodBytes);
+    }
+    if (message.badPackets !== "0") {
+      writer.uint32(80).uint64(message.badPackets);
+    }
+    if (message.badBytes !== "0") {
+      writer.uint32(88).uint64(message.badBytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateLocalSid {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateLocalSid();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sid = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.behavior = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.psp = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.lookupTable = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.goodPackets = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.goodBytes = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.badPackets = reader.uint64().toString();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.badBytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateLocalSid {
+    return {
+      sid: isSet(object.sid) ? globalThis.String(object.sid) : "",
+      behavior: isSet(object.behavior) ? globalThis.String(object.behavior) : "",
+      psp: isSet(object.psp) ? globalThis.Boolean(object.psp) : false,
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : "",
+      lookupTable: isSet(object.lookupTable)
+        ? globalThis.Number(object.lookupTable)
+        : isSet(object.lookup_table)
+        ? globalThis.Number(object.lookup_table)
+        : 0,
+      goodPackets: isSet(object.goodPackets)
+        ? globalThis.String(object.goodPackets)
+        : isSet(object.good_packets)
+        ? globalThis.String(object.good_packets)
+        : "0",
+      goodBytes: isSet(object.goodBytes)
+        ? globalThis.String(object.goodBytes)
+        : isSet(object.good_bytes)
+        ? globalThis.String(object.good_bytes)
+        : "0",
+      badPackets: isSet(object.badPackets)
+        ? globalThis.String(object.badPackets)
+        : isSet(object.bad_packets)
+        ? globalThis.String(object.bad_packets)
+        : "0",
+      badBytes: isSet(object.badBytes)
+        ? globalThis.String(object.badBytes)
+        : isSet(object.bad_bytes)
+        ? globalThis.String(object.bad_bytes)
+        : "0",
+    };
+  },
+
+  toJSON(message: Srv6StateLocalSid): unknown {
+    const obj: any = {};
+    if (message.sid !== "") {
+      obj.sid = message.sid;
+    }
+    if (message.behavior !== "") {
+      obj.behavior = message.behavior;
+    }
+    if (message.psp !== false) {
+      obj.psp = message.psp;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== "") {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.lookupTable !== 0) {
+      obj.lookupTable = Math.round(message.lookupTable);
+    }
+    if (message.goodPackets !== "0") {
+      obj.goodPackets = message.goodPackets;
+    }
+    if (message.goodBytes !== "0") {
+      obj.goodBytes = message.goodBytes;
+    }
+    if (message.badPackets !== "0") {
+      obj.badPackets = message.badPackets;
+    }
+    if (message.badBytes !== "0") {
+      obj.badBytes = message.badBytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateLocalSid>): Srv6StateLocalSid {
+    return Srv6StateLocalSid.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateLocalSid>): Srv6StateLocalSid {
+    const message = createBaseSrv6StateLocalSid();
+    message.sid = object.sid ?? "";
+    message.behavior = object.behavior ?? "";
+    message.psp = object.psp ?? false;
+    message.fibTable = object.fibTable ?? 0;
+    message.interface = object.interface ?? "";
+    message.nextHop = object.nextHop ?? "";
+    message.lookupTable = object.lookupTable ?? 0;
+    message.goodPackets = object.goodPackets ?? "0";
+    message.goodBytes = object.goodBytes ?? "0";
+    message.badPackets = object.badPackets ?? "0";
+    message.badBytes = object.badBytes ?? "0";
+    return message;
+  },
+};
+
+function createBaseSrv6StatePolicy(): Srv6StatePolicy {
+  return { bsid: "", type: "", encap: false, fibTable: 0, encapSource: "", sidLists: [] };
+}
+
+export const Srv6StatePolicy: MessageFns<Srv6StatePolicy> = {
+  encode(message: Srv6StatePolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bsid !== "") {
+      writer.uint32(10).string(message.bsid);
+    }
+    if (message.type !== "") {
+      writer.uint32(18).string(message.type);
+    }
+    if (message.encap !== false) {
+      writer.uint32(24).bool(message.encap);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(32).uint32(message.fibTable);
+    }
+    if (message.encapSource !== "") {
+      writer.uint32(42).string(message.encapSource);
+    }
+    for (const v of message.sidLists) {
+      Srv6StateSidList.encode(v!, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StatePolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StatePolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.encap = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sidLists.push(Srv6StateSidList.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StatePolicy {
+    return {
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      encap: isSet(object.encap) ? globalThis.Boolean(object.encap) : false,
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : "",
+      sidLists: globalThis.Array.isArray(object?.sidLists)
+        ? object.sidLists.map((e: any) => Srv6StateSidList.fromJSON(e))
+        : globalThis.Array.isArray(object?.sid_lists)
+        ? object.sid_lists.map((e: any) => Srv6StateSidList.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6StatePolicy): unknown {
+    const obj: any = {};
+    if (message.bsid !== "") {
+      obj.bsid = message.bsid;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.encap !== false) {
+      obj.encap = message.encap;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.encapSource !== "") {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.sidLists?.length) {
+      obj.sidLists = message.sidLists.map((e) => Srv6StateSidList.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StatePolicy>): Srv6StatePolicy {
+    return Srv6StatePolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StatePolicy>): Srv6StatePolicy {
+    const message = createBaseSrv6StatePolicy();
+    message.bsid = object.bsid ?? "";
+    message.type = object.type ?? "";
+    message.encap = object.encap ?? false;
+    message.fibTable = object.fibTable ?? 0;
+    message.encapSource = object.encapSource ?? "";
+    message.sidLists = object.sidLists?.map((e) => Srv6StateSidList.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6StateSidList(): Srv6StateSidList {
+  return { sids: [], weight: 0 };
+}
+
+export const Srv6StateSidList: MessageFns<Srv6StateSidList> = {
+  encode(message: Srv6StateSidList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sids) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(16).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateSidList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateSidList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sids.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateSidList {
+    return {
+      sids: globalThis.Array.isArray(object?.sids) ? object.sids.map((e: any) => globalThis.String(e)) : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+    };
+  },
+
+  toJSON(message: Srv6StateSidList): unknown {
+    const obj: any = {};
+    if (message.sids?.length) {
+      obj.sids = message.sids;
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateSidList>): Srv6StateSidList {
+    return Srv6StateSidList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateSidList>): Srv6StateSidList {
+    const message = createBaseSrv6StateSidList();
+    message.sids = object.sids?.map((e) => e) || [];
+    message.weight = object.weight ?? 0;
+    return message;
+  },
+};
+
+function createBaseSrv6StateSteering(): Srv6StateSteering {
+  return { trafficType: "", prefix: "", fibTable: 0, interface: "", bsid: "" };
+}
+
+export const Srv6StateSteering: MessageFns<Srv6StateSteering> = {
+  encode(message: Srv6StateSteering, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.trafficType !== "") {
+      writer.uint32(10).string(message.trafficType);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(24).uint32(message.fibTable);
+    }
+    if (message.interface !== "") {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.bsid !== "") {
+      writer.uint32(42).string(message.bsid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateSteering {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateSteering();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.trafficType = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateSteering {
+    return {
+      trafficType: isSet(object.trafficType)
+        ? globalThis.String(object.trafficType)
+        : isSet(object.traffic_type)
+        ? globalThis.String(object.traffic_type)
+        : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : "",
+    };
+  },
+
+  toJSON(message: Srv6StateSteering): unknown {
+    const obj: any = {};
+    if (message.trafficType !== "") {
+      obj.trafficType = message.trafficType;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.bsid !== "") {
+      obj.bsid = message.bsid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateSteering>): Srv6StateSteering {
+    return Srv6StateSteering.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateSteering>): Srv6StateSteering {
+    const message = createBaseSrv6StateSteering();
+    message.trafficType = object.trafficType ?? "";
+    message.prefix = object.prefix ?? "";
+    message.fibTable = object.fibTable ?? 0;
+    message.interface = object.interface ?? "";
+    message.bsid = object.bsid ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +44727,22 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State: {
+    path: "/vrx.v1.Dataplane/Srv6State" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: Srv6StateRequest): Buffer => Buffer.from(Srv6StateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): Srv6StateRequest => Srv6StateRequest.decode(value),
+    responseSerialize: (value: Srv6StateResponse): Buffer => Buffer.from(Srv6StateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): Srv6StateResponse => Srv6StateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +44788,14 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State: handleUnaryCall<Srv6StateRequest, Srv6StateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +44925,28 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State(
+    request: Srv6StateRequest,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
+  ): ClientUnaryCall;
+  srv6State(
+    request: Srv6StateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
+  ): ClientUnaryCall;
+  srv6State(
+    request: Srv6StateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
   ): ClientUnaryCall;
 }
 

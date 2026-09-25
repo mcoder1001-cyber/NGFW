@@ -1,0 +1,57 @@
+{
+  "interfaces": {
+    "host-w4l0": {
+      "enabled": true,
+      "ipv6": ["fd00:4:1::1/64"],
+      "vrf": "default"
+    },
+    "host-w4l1": {
+      "enabled": true
+    }
+  },
+  "vrfs": {
+    "cust-a": { "id": 4001 }
+  },
+  "routing": {
+    "srv6": {
+      "encapSource": "fd00:4::1",
+      "encapHopLimit": 32,
+      "localSids": {
+        "fd00:4:ff::1": { "behavior": "end", "psp": true, "vrf": "default" },
+        "fd00:4:ff::2": { "behavior": "end.x", "psp": false, "vrf": "default", "interface": "host-w4l0", "nextHop": "fd00:4:1::2" },
+        "fd00:4:ff::a": { "behavior": "end.dt4", "psp": false, "vrf": "default", "lookupVrf": "cust-a" },
+        "fd00:4:ff::b": { "behavior": "end.dt6", "psp": false, "vrf": "default", "lookupVrf": "cust-a" },
+        "fd00:4:ff::c": { "behavior": "end.dx2", "psp": false, "vrf": "default", "interface": "host-w4l1" }
+      },
+      "policies": {
+        "fd00:4:bb::1": {
+          "type": "default",
+          "encap": true,
+          "vrf": "default",
+          "sidLists": [
+            { "sids": ["fd00:4:ee::1", "fd00:4:ee::a"], "weight": 1 },
+            { "sids": ["fd00:4:ee::2", "fd00:4:ee::a"], "weight": 3 }
+          ]
+        },
+        "fd00:4:bb::2": {
+          "type": "default",
+          "encap": true,
+          "vrf": "default",
+          "encapSource": "fd00:4::2",
+          "sidLists": [{ "sids": ["fd00:4:ee::c"], "weight": 1 }]
+        },
+        "fd00:4:bb::3": {
+          "type": "spray",
+          "encap": false,
+          "vrf": "default",
+          "sidLists": [{ "sids": ["fd00:4:ee::3"], "weight": 1 }]
+        }
+      },
+      "steering": [
+        { "type": "l3", "prefix": "10.4.100.0/24", "vrf": "cust-a", "bsid": "fd00:4:bb::1" },
+        { "type": "l3", "prefix": "fd00:4:100::/48", "vrf": "cust-a", "bsid": "fd00:4:bb::3" },
+        { "type": "l2", "interface": "host-w4l1", "bsid": "fd00:4:bb::2" }
+      ]
+    }
+  }
+}

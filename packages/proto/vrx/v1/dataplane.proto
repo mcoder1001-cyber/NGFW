@@ -84,6 +84,14 @@ service Dataplane {
   // wave-BC: F-ipfix-sflow
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+
+  // Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+  // steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+  // (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+  // Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+  // (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+  rpc Srv6State(Srv6StateRequest) returns (Srv6StateResponse);
+
   // wave-BC: F-lisp
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
@@ -966,6 +974,10 @@ message RoutingConfig {
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-igmp-mfib
   // wave-BC: F-srv6
+
+  // SRv6 local SIDs, policies and steering (F-srv6, VPP sr); unset = not configured.
+  Srv6Config srv6 = 17;
+
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
 }
@@ -3620,6 +3632,151 @@ message RemoteAccessProfile {
 // ----- F-capture-trace -----
 
 // ----- F-srv6 -----
+
+// Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`.
+message Srv6Config {
+  // Outer IPv6 source of encapsulating policies that set none, and VPP's global default
+  // (sr_set_encap_source; applied by the globals owner only, D-071; write-only, never retrieved).
+  optional string encap_source = 1;
+  // Hop limit of the outer IPv6 header, 1–255 (sr_set_encap_hop_limit; VPP-wide, globals owner only,
+  // write-only). Unset = VPP's default (64).
+  optional uint32 encap_hop_limit = 2;
+  // Local SIDs keyed by SID (canonical IPv6 address).
+  map<string, Srv6LocalSid> local_sids = 3;
+  // SR policies keyed by binding SID (canonical IPv6 address).
+  map<string, Srv6Policy> policies = 4;
+  // Steering entries: a prefix of a VRF or an L2 interface into a policy's binding SID.
+  repeated Srv6Steering steering = 5;
+}
+
+// Srv6LocalSid mirrors `routing.srv6.localSids.<sid>` (sr_localsid_add_del).
+message Srv6LocalSid {
+  // "end" | "end.x" | "end.t" | "end.dx2" | "end.dx4" | "end.dx6" | "end.dt4" | "end.dt6".
+  optional string behavior = 1;
+  // Penultimate segment pop (end, end.x, end.t). Zod default false.
+  optional bool psp = 2;
+  // VRF (IPv6 table) the SID is installed in. Zod default "default".
+  optional string vrf = 3;
+  // Cross-connect interface (end.x, end.dx2, end.dx4, end.dx6).
+  optional string interface = 4;
+  // Next hop: IPv6 for end.x / end.dx6, IPv4 for end.dx4.
+  optional string next_hop = 5;
+  // Lookup VRF: IPv6 table for end.t / end.dt6, IPv4 table for end.dt4.
+  optional string lookup_vrf = 6;
+}
+
+// Srv6Policy mirrors `routing.srv6.policies.<bsid>` (sr_policy_add_v2 / sr_policy_mod_v2 / sr_policy_del).
+message Srv6Policy {
+  // "default" | "spray" | "tef". Zod default "default".
+  optional string type = 1;
+  // true = H.Encaps (outer IPv6 header + SRH), false = H.Insert. Zod default true.
+  optional bool encap = 2;
+  // VRF (IPv6 table) of the binding SID. Zod default "default".
+  optional string vrf = 3;
+  // Outer source of this encapsulating policy; unset = Srv6Config.encap_source (D-074).
+  optional string encap_source = 4;
+  // Segment lists (at least one).
+  repeated Srv6SidList sid_lists = 5;
+}
+
+// Srv6SidList mirrors one entry of `routing.srv6.policies.<bsid>.sidLists`.
+message Srv6SidList {
+  // Segment IDs in order (1–16 IPv6 addresses).
+  repeated string sids = 1;
+  // Load-balancing weight 1–65535. Zod default 1.
+  optional uint32 weight = 2;
+}
+
+// Srv6Steering mirrors one entry of `routing.srv6.steering` (sr_steering_add_del): a discriminated
+// union on `type`; the fields of the other variant are unset.
+message Srv6Steering {
+  // "l3" (prefix + vrf) | "l2" (interface).
+  optional string type = 1;
+  // l3: IPv4 or IPv6 network prefix.
+  optional string prefix = 2;
+  // l3: VRF of the prefix. Zod default "default".
+  optional string vrf = 3;
+  // l2: the interface whose received frames are steered.
+  optional string interface = 4;
+  // Binding SID of the policy (routing.srv6.policies key).
+  optional string bsid = 5;
+}
+
+// Srv6StateRequest asks for the live SRv6 state of this owner.
+message Srv6StateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// Srv6StateResponse is one snapshot of this owner's SRv6 objects (status, not configuration).
+message Srv6StateResponse {
+  // Local SIDs, sorted by SID.
+  repeated Srv6StateLocalSid local_sids = 1;
+  // Policies, sorted by binding SID.
+  repeated Srv6StatePolicy policies = 2;
+  // Steering entries, sorted: L3 by table and prefix, then L2 by interface.
+  repeated Srv6StateSteering steering = 3;
+  // The owner whose view was returned.
+  string owner = 4;
+  // When the dumps were taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 5;
+}
+
+// Srv6StateLocalSid is one local SID as VPP has it, with its counters.
+message Srv6StateLocalSid {
+  // The SID (canonical IPv6 address).
+  string sid = 1;
+  // Behaviour, as in Srv6LocalSid.behavior ("end", "end.x", …).
+  string behavior = 2;
+  bool psp = 3;
+  // IPv6 table id the SID is installed in.
+  uint32 fib_table = 4;
+  // Cross-connect interface (logical name; "" when none).
+  string interface = 5;
+  // Next hop ("" when none).
+  string next_hop = 6;
+  // Lookup table id (end.t / end.dt4 / end.dt6; 0 otherwise).
+  uint32 lookup_table = 7;
+  // sr_localsids_with_packet_stats_details: traffic processed by the SID ("good") and dropped ("bad").
+  uint64 good_packets = 8;
+  uint64 good_bytes = 9;
+  uint64 bad_packets = 10;
+  uint64 bad_bytes = 11;
+}
+
+// Srv6StatePolicy is one SR policy as VPP has it.
+message Srv6StatePolicy {
+  // Binding SID (canonical IPv6 address).
+  string bsid = 1;
+  // "default" | "spray" | "tef".
+  string type = 2;
+  bool encap = 3;
+  // IPv6 table id of the binding SID.
+  uint32 fib_table = 4;
+  // Outer source address (encapsulating policies; "" otherwise).
+  string encap_source = 5;
+  // Segment lists in VPP's order.
+  repeated Srv6StateSidList sid_lists = 6;
+}
+
+// Srv6StateSidList is one segment list of a policy.
+message Srv6StateSidList {
+  repeated string sids = 1;
+  uint32 weight = 2;
+}
+
+// Srv6StateSteering is one steering entry as VPP has it.
+message Srv6StateSteering {
+  // "ipv4" | "ipv6" | "l2".
+  string traffic_type = 1;
+  // L3: the steered prefix and its table id.
+  string prefix = 2;
+  uint32 fib_table = 3;
+  // L2: the interface (logical name).
+  string interface = 4;
+  // Binding SID of the policy the traffic is steered into.
+  string bsid = 5;
+}
 
 // ----- F-lisp -----
 

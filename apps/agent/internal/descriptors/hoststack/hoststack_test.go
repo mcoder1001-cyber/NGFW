@@ -292,11 +292,16 @@ func TestHTTPStaticOptIn(t *testing.T) {
 	}
 	d := NewHTTPStatic(f, dfkit.NewMemoryBootStore())
 	for _, bad := range []string{"/etc", "/var/lib/vrx/www/../x", "/var/lib/vrx/www/a\x01"} {
-		if _, err := d.Create(ctx, HTTPStatic{WWWRoot: bad, URI: "tcp://0.0.0.0/80"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+		if _, err := d.Create(ctx, HTTPStatic{WWWRoot: bad, URI: "tcp://10.1.1.1/80"}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
 			t.Fatalf("www root %q: %v", bad, err)
 		}
 	}
-	good := HTTPStatic{WWWRoot: "/var/lib/vrx/www/site", URI: "tcp://0.0.0.0/80", CacheSizeMB: 10}.Proto()
+	for _, bad := range []string{"tcp://0.0.0.0/80", "tcp://::/80", "http://10.1.1.1/80", "tcp://10.1.1.1/0"} {
+		if _, err := d.Create(ctx, HTTPStatic{WWWRoot: "/var/lib/vrx/www/site", URI: bad}.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+			t.Fatalf("uri %q: %v", bad, err)
+		}
+	}
+	good := HTTPStatic{WWWRoot: "/var/lib/vrx/www/site", URI: "tcp://10.1.1.1/80", CacheSizeMB: 10}.Proto()
 	for i := 0; i < 2; i++ {
 		if _, err := d.Create(ctx, good); err != nil {
 			t.Fatal(err)

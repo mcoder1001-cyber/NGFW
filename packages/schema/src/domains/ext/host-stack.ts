@@ -116,8 +116,16 @@ export const HostStackHttpStaticSchema = z.strictObject({
       .regex(
         /^(tcp|tls):\/\/[0-9A-Fa-f.:]+\/[0-9]{1,5}$/,
         'tcp://<address>/<port> or tls://<address>/<port>',
-      ),
-    { title: 'URI', help: 'e.g. tcp://0.0.0.0/80' },
+      )
+      .refine((u) => {
+        const addr = u.replace(/^(tcp|tls):\/\//, '').replace(/\/[0-9]+$/, '');
+        const c = canonicalIp(addr);
+        return c !== undefined && c !== '0.0.0.0' && c !== '::';
+      }, 'listen address must be a specific, valid address (not 0.0.0.0 or ::): http_static would serve on every interface'),
+    {
+      title: 'URI',
+      help: "tcp://<one of this box's management addresses>/<port>, e.g. tcp://192.0.2.10/8080",
+    },
   ),
   cacheSizeMb: withUi(z.int().min(1).max(4095).default(10), { title: 'Cache size (MiB)' }),
 });

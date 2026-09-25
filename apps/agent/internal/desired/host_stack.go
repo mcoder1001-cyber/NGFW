@@ -23,6 +23,10 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// RuleWriteOnly marks a leaf the agent applies but VPP cannot report (D-147); the API's drift view
+// ignores it like agent.unsupported-field.
+const RuleWriteOnly = "agent.write-only-field"
+
 // HostStack projects services.hostStack.
 func HostStack(s Sink, hs *vrxv1.HostStackService, vrfID func(string) (uint32, bool)) {
 	if hs == nil {
@@ -30,6 +34,23 @@ func HostStack(s Sink, hs *vrxv1.HostStackService, vrfID func(string) (uint32, b
 	}
 	base := []string{"services", "hostStack"}
 	pt := func(segs ...string) string { return Ptr(append(append([]string{}, base...), segs...)...) }
+	// D-147: write-only leaves (no VPP getter/dump) are applied but never retrieved; the note keeps
+	// the API's running-vs-actual drift from reporting them forever (COVERAGE_RULES).
+	writeOnly := func(leaf string) {
+		s.Warnf(pt(leaf), RuleWriteOnly, "services.hostStack.%s is write-only in VPP: applied, but Retrieve cannot report it", leaf)
+	}
+	if hs.Enabled != nil {
+		writeOnly("enabled")
+	}
+	if len(hs.GetNamespaces()) > 0 {
+		writeOnly("namespaces")
+	}
+	if hs.GetTcpSourceAddresses() != nil {
+		writeOnly("tcpSourceAddresses")
+	}
+	if hs.GetHttpStatic() != nil {
+		writeOnly("httpStatic")
+	}
 	if hs.GetEnabled() {
 		s.Add(hoststack.KeySession, hoststack.Session{Enabled: true}.Proto(), pt("enabled"))
 	}
@@ -92,6 +113,8 @@ func HostStack(s Sink, hs *vrxv1.HostStackService, vrfID func(string) (uint32, b
 		case os.Getenv(hoststack.EnvHTTPStatic) != "1":
 			s.Errorf(pt("httpStatic", "enabled"), "services.host-stack-http-static",
 				"http_static is opt-in on the agent (%s=1, globals owner only): it cannot be disabled once enabled", hoststack.EnvHTTPStatic)
+		case hoststack.ValidURI(h.GetUri()) != nil:
+			s.Errorf(pt("httpStatic", "uri"), "services.host-stack-uri", "%v", hoststack.ValidURI(h.GetUri()))
 		case hoststack.ValidWWWRoot(h.GetWwwRootPath()) != nil:
 			s.Errorf(pt("httpStatic", "wwwRootPath"), "services.host-stack-www-root", "%v", hoststack.ValidWWWRoot(h.GetWwwRootPath()))
 		default:

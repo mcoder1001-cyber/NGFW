@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -136,6 +137,32 @@ func ValidID(s string) error {
 		if r != '.' && r != '-' && r != '_' && (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
 			return dfkit.Specf("id %q: invalid character %q", s, r)
 		}
+	}
+	return nil
+}
+
+// ValidURI checks an http_static listen URI: tcp|tls://<address>/<port> with a specific address.
+// The unspecified address (0.0.0.0, ::) is refused: it would expose the server on every interface.
+func ValidURI(u string) error {
+	rest, ok := strings.CutPrefix(u, "tcp://")
+	if !ok {
+		if rest, ok = strings.CutPrefix(u, "tls://"); !ok {
+			return dfkit.Specf("http_static uri %q: want tcp://<address>/<port> or tls://…", u)
+		}
+	}
+	i := strings.LastIndexByte(rest, '/')
+	if i < 0 {
+		return dfkit.Specf("http_static uri %q: no port", u)
+	}
+	a, err := dfkit.ParseAddr(rest[:i])
+	if err != nil {
+		return err
+	}
+	if a.IsUnspecified() {
+		return dfkit.Specf("http_static uri %q: the unspecified address would serve on every interface", u)
+	}
+	if p, err := strconv.Atoi(rest[i+1:]); err != nil || p < 1 || p > 65535 {
+		return dfkit.Specf("http_static uri %q: port", u)
 	}
 	return nil
 }

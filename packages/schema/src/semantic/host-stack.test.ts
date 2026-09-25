@@ -47,7 +47,7 @@ describe('services.hostStack schema', () => {
     '/var/lib/vrx/wwwx',
   ])('rejects wwwRootPath %j (D-049)', (p) => {
     const d = base();
-    hs(d).httpStatic = { enabled: true, wwwRootPath: p, uri: 'tcp://0.0.0.0/80' };
+    hs(d).httpStatic = { enabled: true, wwwRootPath: p, uri: 'tcp://10.1.1.1/80' };
     expect(schemaPaths(d)).toContain('/services/hostStack/httpStatic/wwwRootPath');
   });
 
@@ -56,7 +56,7 @@ describe('services.hostStack schema', () => {
     hs(d).httpStatic = {
       enabled: true,
       wwwRootPath: '/var/lib/vrx/www/site',
-      uri: 'tcp://0.0.0.0/80',
+      uri: 'tcp://10.1.1.1/80',
     };
     expect(schemaPaths(d)).toEqual([]);
   });
@@ -117,4 +117,15 @@ describe('services.hostStack semantics', () => {
       '/services/hostStack/sessionRules',
     );
   });
+});
+
+describe('services.hostStack.httpStatic uri', () => {
+  it.each(['tcp://0.0.0.0/80', 'tcp://::/80', 'tls://0000::/443', 'tcp://999.1.1.1/80'])(
+    'refuses %s',
+    (uri) => {
+      const d = base();
+      hs(d).httpStatic = { enabled: true, wwwRootPath: '/var/lib/vrx/www/site', uri };
+      expect(schemaPaths(d)).toContain('/services/hostStack/httpStatic/uri');
+    },
+  );
 });

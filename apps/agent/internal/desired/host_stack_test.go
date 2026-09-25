@@ -48,7 +48,7 @@ func TestHostStackProjection(t *testing.T) {
 				Remote: proto.String("::/0"), Action: proto.String("allow"), AppNamespace: proto.String("w13-app")},
 		},
 		TcpSourceAddresses: &vrxv1.HostStackTcpSource{First: proto.String("10.13.1.10"), Last: proto.String("10.13.1.20"), Vrf: proto.String("hs")},
-		HttpStatic:         &vrxv1.HostStackHttpStatic{Enabled: proto.Bool(true), WwwRootPath: proto.String("/var/lib/vrx/www/x"), Uri: proto.String("tcp://0.0.0.0/80")},
+		HttpStatic:         &vrxv1.HostStackHttpStatic{Enabled: proto.Bool(true), WwwRootPath: proto.String("/var/lib/vrx/www/x"), Uri: proto.String("tcp://10.1.1.1/80")},
 	}
 	s := &hsSink{}
 	HostStack(s, hs, hsVRF)
@@ -90,5 +90,35 @@ func TestHostStackProjection(t *testing.T) {
 	got := ds.GetServices().GetHostStack()
 	if len(got.GetSessionRules()) != 2 || got.GetEnabled() || len(got.GetNamespaces()) != 0 || got.GetSessionRules()[0].GetScope() != "global" {
 		t.Fatalf("assembled %v", got)
+	}
+}
+
+func TestHostStackCoverageNotes(t *testing.T) {
+	s := &hsSink{}
+	HostStack(s, &vrxv1.HostStackService{Enabled: proto.Bool(true),
+		Namespaces:         map[string]*vrxv1.HostStackNamespace{"a": {Vrf: proto.String("default")}},
+		TcpSourceAddresses: &vrxv1.HostStackTcpSource{First: proto.String("10.0.0.1"), Last: proto.String("10.0.0.2")}}, hsVRF)
+	got := strings.Join(s.warns, "\n")
+	for _, w := range []string{"/services/hostStack/enabled agent.write-only-field", "/services/hostStack/namespaces agent.write-only-field",
+		"/services/hostStack/tcpSourceAddresses agent.write-only-field"} {
+		if !strings.Contains(got, w) {
+			t.Errorf("missing %q in\n%s", w, got)
+		}
+	}
+	if strings.Contains(got, "sessionRules") {
+		t.Errorf("session rules are retrievable, no note: %s", got)
+	}
+}
+
+func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
+	s := &hsSink{}
+	unsupportedServices(s, &vrxv1.ServicesConfig{
+		Snmp:      &vrxv1.SnmpService{Enabled: proto.Bool(true)},
+		Dns:       &vrxv1.DnsService{}, // empty: not reported
+		HostStack: &vrxv1.HostStackService{Enabled: proto.Bool(true)},
+		Ipfix:     &vrxv1.IpfixService{Exporters: map[string]*vrxv1.IpfixService_Exporter{"x": {}}},
+	})
+	if got := strings.Join(s.warns, ","); got != "/services/snmp agent.unsupported-field" {
+		t.Fatalf("got %q", got)
 	}
 }

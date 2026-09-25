@@ -59,7 +59,7 @@ describe('host-stack e2e (PostgreSQL + fake agent)', () => {
         httpStatic: {
           enabled: true,
           wwwRootPath: '/var/lib/vrx/www/../x',
-          uri: 'tcp://0.0.0.0/80',
+          uri: 'tcp://10.1.1.1/80',
         },
       },
       mp,

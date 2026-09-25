@@ -102,7 +102,7 @@ describe('F-host-stack API (fake agent over gRPC, in-memory datastore)', () => {
         httpStatic: {
           enabled: true,
           wwwRootPath: '/var/lib/vrx/www/../../etc',
-          uri: 'tcp://0.0.0.0/80',
+          uri: 'tcp://10.1.1.1/80',
         },
       }),
     );

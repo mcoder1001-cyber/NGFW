@@ -20,6 +20,17 @@ Rules the API enforces. A failure returns 400 problem+json with a `pointer` to t
 - Session rules and `services.autoSdl.enabled` (Auto-SDL) in the same document. VPP has one session-rule engine: rules need
   `rule-table`, and Auto-SDL needs `sdl`.
 
+## http_static exposure
+
+http_static listens inside VPP, on the data plane, not behind the management plane's firewall, nginx or authentication.
+- It serves every file under `wwwRootPath`, without authentication, to anyone who can reach the listen address.
+- The URI must name one specific address of this box (`tcp://<address>/<port>`). `0.0.0.0` and `::` are refused,
+  because they would serve on every interface, WAN included. Pick an address on a management or internal interface.
+- Session rules (above) and ACLs on that interface are the only access control. Add a deny rule for untrusted remote
+  prefixes.
+- Keep only public content in the web root: no configuration, keys or backups.
+- It cannot be stopped without restarting VPP.
+
 ## Not supported (have-not list)
 
 - VCL and LD_PRELOAD applications.

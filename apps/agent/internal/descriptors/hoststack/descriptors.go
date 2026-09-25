@@ -591,8 +591,8 @@ func (d *HTTPStaticDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	if err := ValidWWWRoot(s.WWWRoot); err != nil {
 		return nil, err
 	}
-	if s.URI == "" || len(s.URI) > 255 {
-		return nil, dfkit.Specf("http_static uri %q", s.URI)
+	if err := ValidURI(s.URI); err != nil {
+		return nil, err
 	}
 	value := string(mustJSON(s))
 	done, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.boot, KeyHTTPStatic, value)

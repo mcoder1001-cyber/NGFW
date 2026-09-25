@@ -122,3 +122,42 @@ F-startup-gen), SDL knobs, the prom exporter and LB.
 
 ## Open questions
 See `F-host-stack-questions.md`.
+
+## Review round 1 (BLOCK) — fixes
+- **Merged** `claude/zealous-lovelace-1q9hzg` (F-lisp, F-licensing, F-ipfix-sflow, TD-11a, TD-16) in d59c2c8.
+  - `Domains["services"]` is one entry: `ipfixSflowDescriptors` plus the five hoststack names.
+  - Both `if in["services"]` blocks are kept.
+  - `proto.md` sections and `semantic/index.ts` are unions.
+  - `service_test.go` and the nav lists take the integration branch's version.
+  - Generated files were regenerated with `pnpm gen` / `buf` 1.73 and `make -C apps/cli gen docs`, never hand-merged.
+  - `reachability_test.go`: added `"hoststack": {wired, "F-host-stack"}`. `maxPending` is unchanged because hoststack was
+    never pending.
+- **No silent drop.** The ipfix `unsupportedServices` is now the single services reporter.
+  - It walks every set `ServicesConfig` field by reflection.
+  - It skips fields listed in `servicesHandled` (`ipfix`, `host_stack`) and empty messages (`proto.Size == 0`).
+  - Every other set field is reported as `agent.unsupported-field`.
+  - Test: `TestUnsupportedServicesNoSilentDrop`.
+- **Write-only leaves** (D-147): `enabled`, `namespaces`, `tcpSourceAddresses` and `httpStatic` each emit a warning
+  `agent.write-only-field` at their pointer.
+  - The API's `COVERAGE_RULES` gains that rule, so `driftOf` ignores these leaves. Session rules are still compared.
+  - Tests: `TestHostStackCoverageNotes` (agent) and `features/host-stack/drift.test.ts` (API).
+- **http_static.**
+  - The URI must name a specific address: `0.0.0.0` and `::` are refused by the schema (pointer `/services/hostStack/httpStatic/uri`),
+    by the agent's DryRun (`services.host-stack-uri`) and by the descriptor (`ValidURI`).
+  - The help text no longer shows `0.0.0.0`.
+  - The exposure section is added to `docs/user/services/host-stack.md`.
+- **Verification** (real output):
+  - `go vet ./...` clean; `go test -race ./...` all ok.
+  - Test counts:
+
+    | Suite | Test files | Tests |
+    |---|---|---|
+    | schema | 40 | 1248 |
+    | proto | 2 | 74 |
+    | api | 18 | 137 |
+    | web | 19 | 113 |
+
+  - golangci-lint 2.13.2 reports 3 findings. All are in files I don't own that came from the integration branch:
+    - `service.go:550`
+    - `descriptors/kit/kit_test.go:43`
+    - `coretest/lisp.go:20`

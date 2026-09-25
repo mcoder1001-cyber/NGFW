@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
@@ -146,23 +147,29 @@ func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, b
 	sflowObjects(s, ix.GetSflow(), owner)
 }
 
-// unsupportedServices reports the services sub-trees this build does not implement.
+// servicesHandled lists the ServicesConfig fields (proto names) this build projects; every other
+// set, non-empty field is reported as agent.unsupported-field (no silent drop). One reporter for
+// every services family: a feature that implements a sub-tree adds its field name here.
+var servicesHandled = map[protoreflect.Name]bool{
+	"ipfix":      true, // F-ipfix-sflow
+	"host_stack": true, // F-host-stack
+}
+
+// unsupportedServices reports the services sub-trees this build does not implement: every
+// populated field of ServicesConfig not in servicesHandled whose message is non-empty.
 func unsupportedServices(s Sink, svc *vrxv1.ServicesConfig) {
-	for _, it := range []struct {
-		key string
-		m   proto.Message
-		set bool
-	}{
-		{"dhcp", svc.GetDhcp(), svc.GetDhcp() != nil},
-		{"dns", svc.GetDns(), svc.GetDns() != nil},
-		{"snmp", svc.GetSnmp(), svc.GetSnmp() != nil},
-		{"lldp", svc.GetLldp(), svc.GetLldp() != nil},
-		{"ntp", svc.GetNtp(), svc.GetNtp() != nil},
-		{"qos", svc.GetQos(), svc.GetQos() != nil},
-	} {
-		if it.set && proto.Size(it.m) > 0 {
-			s.Warnf(Ptr("services", it.key), RuleUnsupported, "services.%s is not implemented by this agent build and is not applied", it.key)
+	m := svc.ProtoReflect()
+	fields := m.Descriptor().Fields()
+	for i := 0; i < fields.Len(); i++ {
+		fd := fields.Get(i)
+		if servicesHandled[fd.Name()] || !m.Has(fd) {
+			continue
 		}
+		if fd.Kind() == protoreflect.MessageKind && !fd.IsList() && !fd.IsMap() && proto.Size(m.Get(fd).Message().Interface()) == 0 {
+			continue
+		}
+		key := fd.JSONName()
+		s.Warnf(Ptr("services", key), RuleUnsupported, "services.%s is not implemented by this agent build and is not applied", key)
 	}
 }
 

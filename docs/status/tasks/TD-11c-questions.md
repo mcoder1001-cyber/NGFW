@@ -45,10 +45,20 @@ wired in `subsystems.Register`. TD-11a owns that README hunk and `core.go:11-14`
   that family (ADDRESS_FOUND_FOR_INTERFACE). If a NIC carries someone else's address, our VRF binding or unbinding fails,
   and the transaction rolls back cleanly. The agent never removes an address it does not hold. Create restores an IPv4
   binding it already changed when IPv6 is then refused, and releases the claim.
-- **N3, the trade-off of 3.2.** The keyed claims of a transaction reach disk at its end, before the new desired state is saved. If the agent
-  *process* dies in the middle of a transaction, that transaction's keyed claims are lost. An untagged object it created then stays in
-  VPP unclaimed, so it is invisible and never reverted, until VPP restarts, which makes the claims expire anyway (D-080). Before this
-  change the same scale cost one whole-file rewrite with two fsyncs per claim: 2000 claims took 22.0 s, now 35 ms (TD-11c.md). Interface claims
-  (`IfaceClaims`) still write at once, because there are few of them and the envelope scoped the batching to KeyedClaims.
-- **N4, 3.1c.** Following the alias is generic, so F-vlan-qinq's `SubinterfaceDescriptor.ProvidedKeys` (e771ecb) is no longer needed
-  for ordering. It is harmless and can stay, since the two agree. F-bonding and F-bridge-l2 need no KeyProvider obligation for delete order.
+- **N3 — WITHDRAWN in fix round 1 (D-133, review F1).** Claim-first durability now holds: inside a transaction each keyed
+  Claim or Release appends one line to `claims-<family>-<owner>.journal` before it returns, with one write(2) and no fsync. The
+  page cache survives the death of the agent process, and anything that loses it restarts VPP, which voids the claims (D-080).
+  The transaction end compacts the journal into the snapshot with one atomic, fsync'd write. Opening the store replays the
+  journal. The earlier text, which accepted that an agent killed mid-transaction loses that transaction's claims, no longer
+  applies. Cost for 2000 claims: 22.0 s on the base, 35 ms with batching only, 50 ms with batching and the journal. Interface claims
+  (`IfaceClaims`) still write at once.
+- **N4 — AMENDED in fix round 1 (review F3).** 3.1c orders a creator after its attributes only when the retrieved alias names
+  the creator. That is the case when the VPP device class is mapped to it (`iface.RegisterKind`, or the built-in table in
+  interface/dump.go; sub-interfaces by type), or when the creator provides `interface/<name>` itself (`scheduler.KeyProvider`).
+  **Obligation for every interface creator:** `RegisterKind` or a KeyProvider. The guard
+  `subsystems/TestEveryInterfaceCreatorNamesItsAlias` enforces it. It keeps a shrink-only allowlist of today's gaps, and a source
+  scan requires every interface-creating descriptor package to be listed. The gaps are in TD-11c.md, "Fix round 1": mpls-tunnel →
+  F-mpls-srmpls; the df6 tunnels gre, ipip, ipip.sixrd, vxlan, vxlan-gpe, gtpu.tunnel, gtpu.forward, l2tp and pppoe → F-tunnels;
+  lcp.itf-pair → P12. gtpu.forward shares the GTPU class with gtpu.tunnel, so only a KeyProvider can fix it. F-vlan-qinq's
+  `SubinterfaceDescriptor.ProvidedKeys` (e771ecb) is redundant with the sub-interface type mapping, but it is harmless and can
+  stay. F-bonding (bond: class mapped) and F-bridge-l2 (BVI as a loopback: class mapped) have no further obligation.

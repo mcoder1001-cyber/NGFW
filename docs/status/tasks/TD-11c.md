@@ -38,7 +38,7 @@ are untouched (TD-11b and TD-9).
   and dirty, and the next write persists them. Outside a transaction, writes still happen at once. `IfaceClaims` is unchanged.
 - The agent brackets every transaction (apply, resync, revert) in `Service.applyLocked`. The claims are flushed after the outcome
   and before the new desired state is saved. A failed flush makes the agent DEGRADED until a later flush succeeds. This part is
-  outside my files (Q1). The mid-transaction crash trade-off is N3.
+  outside my files (Q1). Fix round 1 (below) replaced the N3 trade-off with a journal (D-133) and made a failed flush DEGRADED.
 
 ## How verified
 
@@ -206,6 +206,130 @@ shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./
 CI GATE PASSED
 ```
 An earlier run on c5d8521, before the W-seed merge, also passed (`CI GATE PASSED`).
+
+## Fix round 1 (review TD-11c-review.md @ ac313a1c, D-133)
+All changes are unit-tested on the fake. `main` was merged in at 50798421, after TD-8 merged, so F5 covers TD-8's `syncLocked`.
+
+| item | done | where |
+|---|---|---|
+| **F1** claim-first durable (HIGH) | Inside a transaction every keyed Claim or Release appends one line to `claims-<family>-<owner>.journal` (O_APPEND, one write(2), no fsync) **before it returns**, so before the descriptor writes VPP. A failed append fails the Claim; a short write is cut back, so the journal holds only whole lines. The transaction end compacts: one atomic, fsync'd snapshot write, then the journal is emptied. `OpenKeyedClaims` replays the journal over the snapshot and compacts it. A torn last line is dropped; a bad line before it fails closed, like a corrupt snapshot. Prune within a batch is not journaled: a replayed record of another boot is ignored and pruned again at the next connect. | stores.go (KeyedClaims hunk), f87c6a60, 2f2e9ef0 |
+| **F2** failed flush ≠ APPLIED | The flush runs after the transaction and **before** the outcome switch. On failure APPLIED becomes DEGRADED ("claim stores not persisted: …"), so the desired state is not merged and the API re-applies running. Other outcomes keep their status, and the agent is marked DEGRADED. The records stay in memory and in the journal; the next transaction end writes them. | service.go `applyLocked`, `claimsNotPersisted` |
+| **F3** N4 amended + guard | The obligation for every interface creator is `iface.RegisterKind` **or** a KeyProvider for `interface/<name>`. `subsystems/TestEveryInterfaceCreatorNamesItsAlias` builds every creator, checks the device-class mapping (`iface.Kind`) and `scheduler.KeyProvider`, and fails for a creator with neither. A source scan fails for an interface-creating descriptor package that is not in the table. The known gaps are in a shrink-only allowlist, listed below. Mutation check: removing gre from the allowlist fails the test, and removing gre from the table fails the source scan. | creators_guard_test.go, cc44bbbc |
+| **F4** panic-safe bracket | `claimsBatch()` returns end plus a deferred cleanup that ends the batch if the transaction panicked before end ran. | service.go |
+| **F5** TD-8's second boundary | TD-8 merged, so `syncLocked` now uses the same `claimsBatch()` and `claimsNotPersisted` (a failed end means not in sync, DEGRADED). | dynsource.go (3-line hunk), a83c37ef |
+| F6, F7 | Left for later: F6, a stale-index claim is released only at the next VPP boot's Prune; F7, core claims have no ctx and should use TD-11b's `ClaimContext` when both are merged. | — |
+| Q2 | The projection stays as it is. The gRPC-on-DPDK proof goes to F-startup-apply's real run (manager note). | — |
+
+**Interface creators without an alias creator today** (the F3 allowlist; each row fixes its own; output of the guard):
+```
+interface.loopback: device class mapped
+af-packet.host-interface: device class mapped
+interface.subinterface: device class mapped
+tapv2.tap: device class mapped
+bond.bond: device class mapped
+memif.memif: device class mapped
+wireguard.interface: KeyProvider
+ipsec.itf: KeyProvider
+mpls-tunnel: GAP → F-mpls-srmpls
+gre.tunnel: GAP → F-tunnels
+ipip.tunnel: GAP → F-tunnels
+ipip.sixrd: GAP → F-tunnels
+vxlan.tunnel: GAP → F-tunnels
+vxlan-gpe.tunnel: GAP → F-tunnels
+gtpu.tunnel: GAP → F-tunnels
+gtpu.forward: GAP → F-tunnels (shares the GTPU class with gtpu.tunnel: needs a KeyProvider)
+l2tp.tunnel: GAP → F-tunnels
+pppoe.session: GAP → F-tunnels
+lcp.itf-pair: GAP → P12 (untagged VPP-side host tap: needs a KeyProvider)
+```
+Device classes for F-tunnels' `RegisterKind` calls (VPP 26.06 `VNET_DEVICE_CLASS .name`): "GRE tunnel device", "IPIP tunnel
+device", "ip6ip-6rd", "VXLAN", "VXLAN_GPE", "GTPU", "L2TPv3", "PPPoE", "MPLS tunnel device".
+
+### The new tests fail before the fix
+F1 on ac313a1c (`./internal/subsystems/`):
+```
+--- FAIL: TestKeyedClaimsSurviveAgentDeathMidTransaction (0.00s)
+    stores_journal_test.go:131: claims of the interrupted transaction lost: 0 records
+--- FAIL: TestKeyedClaimsJournal (0.00s)
+    stores_journal_test.go:178: claim a not in the journal when Claim returned
+FAIL	ngfw/agent/internal/subsystems	0.057s
+```
+`TestKeyedClaimsSurviveAgentDeathMidTransaction` runs the product wiring, a claim-first keyed family on an in-memory "VPP", and the
+real scheduler. The transaction writes VPP, and the process "dies" before the transaction end (no compaction). A new agent over
+the same state dir knows the claims: Retrieve reports both objects, re-committing the same document gives an empty plan
+(idempotent), and removing them converges.
+
+F2: the old `service.go` with the new test:
+```
+--- FAIL: TestClaimStoresBracketEveryTransaction (0.05s)
+    claimstxn_test.go:38: status APPLY_STATUS_APPLIED, want APPLY_STATUS_DEGRADED:  results=[key:"interface.loopback/loop703" …]
+FAIL	ngfw/agent/internal/agent	0.108s
+```
+F5: the pre-F5 `dynsource.go` with the new test:
+```
+--- FAIL: TestClaimStoresBracketSourceSync (0.04s)
+    claimstxn_test.go:92: sync: begins 0 flushes 0, want 1 and 1
+FAIL	ngfw/agent/internal/agent	0.102s
+```
+### After
+```
+--- PASS: TestEveryInterfaceCreatorNamesItsAlias (0.93s)
+--- PASS: TestKeyedClaimsFlushOncePerTxn (0.16s)
+--- PASS: TestKeyedClaimsPruneInTxn (0.00s)
+--- PASS: TestKeyedClaimsSurviveAgentDeathMidTransaction (0.01s)
+--- PASS: TestKeyedClaimsJournal (0.03s)
+--- PASS: TestKeyedClaimsAndCorruptFile (0.00s)
+ok  	ngfw/agent/internal/subsystems	1.193s
+--- PASS: TestClaimStoresBracketEveryTransaction (0.10s)
+--- PASS: TestClaimStoresBracketSourceSync (0.03s)
+ok  	ngfw/agent/internal/agent	0.180s
+```
+`TestKeyedClaimsFlushOncePerTxn` changed its assertion: the claim of a transaction whose snapshot write failed is now on disk
+(journal), where before it was only in memory. The whole agent module is green under `go test -race ./...`,
+`go vet ./...` is clean, and golangci-lint on the touched packages reports `0 issues.`
+
+### Performance (2000 keyed claims in one transaction, host disk, scratch test not committed)
+```
+base (998e391):          2000 claims: 21.961s  (2000 whole-file rewrites, 2 fsyncs each)
+round 0 (batch only):    2000 claims: 35ms     (1 file write)
+fix round 1 (journal):   2000 claims: 50ms / 51ms  (2000 journal appends 39ms / 37ms, 1 fsync'd snapshot write)
+                         1000 claims: 13ms / 24ms   500 claims: 17ms / 23ms
+```
+
+### Merge notes
+- **TD-11b (M1, required at the second merge).** TD-11b's `core/ownership_test.go` `TestInterfaceObjectsRecordNoStore` is a
+  deliberate tripwire. In a scratch 3-way overlay of this branch and task/TD-11b (base main) there were no textual
+  conflicts and the build passed, but that test fails: "core.Env gained Claims …". Change core/ownership.go:
+  `InterfaceTableDescriptor` and `InterfaceAddrDescriptor` drop `RecordsNoOwnership()` and get
+  `CheckPersistent() error { if d.Claims == nil { return nil }; return persist.Require("core <name>: interface claims (subsystems.IfaceClaims)", d.Claims) }`.
+  `subsystems.IfaceClaims` is `persist.Store` through fileClaims. Then allow `Claims` in the tripwire's field list. My
+  stores.go keeps its import block and hunks off TD-11b's lines, and `git merge-file` over main reports 0 conflicts for
+  stores.go, subsystems.go, service.go, agent.go and reconciler.go.
+- **TD-9 (envelope obligation, review F4).** Keep `flushClaims()` after the outcome is known and before `st.save()` on every
+  path, including timeout/DEGRADED. Never run it on the caller's cancellable ctx (it takes none today).
+
+### Host
+The optional host re-check was skipped. This round changes only the keyed claim stores and the transaction bracket, and the
+round-0 host proof (core claims on an untagged af_packet NIC, `TestUntaggedNICClaimsOnHost`) does not exercise either. Slot 10
+is also shared with the running F-unbound-chrony-syslog.
+
+### CI (fix round 1)
+`TMPDIR=/tmp/g-w10c tools/ci.sh --base main` at 2f2e9ef0 (main with TD-8 merged in):
+```
+branch    task/TD-11c @ 2f2e9ef0   (base: main)
+logs      /root/ngfw-wt/logs/ci/TD-11c-20260925-001500-1924018
+no contract files changed in the 16 commit(s) of HEAD since main (8a633616)
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~649641 bytes (649.64 KB) in 1.32s no leaks found
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    1m59.458s
+== apps/agent: make lint test build ==  (every package ok)
+shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
+CI GATE PASSED
+```
 
 ## Out of scope
 - `core/README.md:64-68` (M5 is now done) and the `core.go:11-14` alias doc: these are TD-11a's hunks (Q3).

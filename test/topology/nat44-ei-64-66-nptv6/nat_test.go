@@ -213,14 +213,12 @@ func TestNatEI6466Nptv6(t *testing.T) {
 	a := f.a
 	tbl := fmt.Sprintf("%s-n64", s.prefix)
 	tblID := s.num*1000 + 64
-	// a failed run's slot VRF and its route (the rollback step never ran); the agent is not asked again afterwards
+	// the slot VRF (and a failed run's NAT64 route): the configuration keeps the VRF at the end (see cleanup-through-api)
 	t.Cleanup(func() {
-		if !t.Failed() {
-			return
-		}
 		for _, l := range gcSlotVRF(t, conn, uint32(tblID), netip.MustParsePrefix(r.addr(2, 0)+"/24")) { //nolint:gosec // slot ≤ 11
 			t.Log("cleanup: " + l)
 		}
+		t.Log("vppctl show ip6 fib table (slot VRF) after the cleanup:\n" + grepLines(vppctl(t, "show", "ip6", "fib", "table", fmt.Sprint(tblID)), "fib_index"))
 	})
 
 	t.Run("config", func(t *testing.T) {
@@ -353,9 +351,13 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		for _, n := range []string{r.lanIf, r.wanIf, f.loopIn, f.loopOut} {
 			a.must(200, "DELETE", "/api/v1/config/interfaces/"+n, nil)
 		}
-		a.must(200, "DELETE", "/api/v1/config/vrfs/"+tbl, nil)
+		// the slot VRF stays in the configuration: VPP 26.06's nat64 locks the VRF's IPv6 table on every prefix add and
+		// static-BIB add/delete and never unlocks it (nat64.c "TODO: missing fib_table_unlock"), so VPP cannot delete that
+		// table until it restarts and the agent's delete of the VRF would fail its verify (docs/vpp-code-track.md V-new);
+		// the test removes the IPv4 table through the binary API in its Cleanup
 		c := a.commit("nat-ei-cleanup")
-		t.Logf("commit (interfaces and VRF deleted) → %v revision %v", c["status"], c["revision"].(map[string]any)["id"])
+		t.Logf("commit (interfaces deleted) → %v revision %v", c["status"], c["revision"].(map[string]any)["id"])
+		t.Log("vppctl show ip6 fib table " + fmt.Sprint(tblID) + " (the nat64 locks):\n" + grepLines(vppctl(t, "show", "ip6", "fib", "table", fmt.Sprint(tblID)), "fib_index"))
 		if left := f.sc.ours(t, conn); len(left) != 0 {
 			t.Errorf("NAT objects of the slot left: %v", left)
 		}

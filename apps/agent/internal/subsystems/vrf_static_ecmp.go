@@ -46,16 +46,24 @@ func ViaFrr(i int, sr *vrxv1.StaticRoute, ext *frr.Extensions) bool {
 	return sr.GetViaFrr() || frr.FlaggedStatic(i, sr, ext)
 }
 
-// SvsRange is the id range source-VRF-select tables are allocated from: the top of the slot's table range when
-// VRX_VPP_TABLE_BASE is set (shared-host rules §1), svs.DefaultRange otherwise. A malformed VRX_VPP_TABLE_BASE yields an
-// empty range, so the projection fails loudly instead of allocating outside the slot.
+// SvsRange is the id range source-VRF-select tables are allocated from, derived from the agent's VPP id scope (TD-8,
+// fail closed): the top 100 ids of the slot's or reserved range with VRX_VPP_TABLE_BASE (shared-host rules §1, §12),
+// svs.DefaultRange (just below 2^32-1) with VRX_VPP_ID_RANGE=all (the product agent on a box of its own), and the empty
+// range when neither is set or the setting is malformed or contradictory — the projection then fails loudly on the first
+// sourceSelect entry instead of allocating ids the agent does not own (it needs no id otherwise).
+//
+// It reads ResolveIDScope, the same function the agent resolves Config.IDs (and so Env.IDs / Wiring.IDRange) from:
+// the projection runs in the service, which holds no Wiring, and the service and agent core are not this feature's
+// files — so the scope is resolved from the same environment rather than passed down (F-vrf-static-ecmp questions Q16).
 func SvsRange() svs.Range {
-	r, err := SlotIDRange()
+	s, err := ResolveIDScope()
 	switch {
 	case err != nil:
 		return svs.Range{}
-	case r == nil:
+	case s.Range != nil:
+		return svs.RangeIn(s.Range.Lo, s.Range.Hi)
+	case s.All:
 		return svs.DefaultRange
 	}
-	return svs.RangeIn(r.Lo, r.Hi)
+	return svs.Range{}
 }

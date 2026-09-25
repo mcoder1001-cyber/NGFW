@@ -165,7 +165,10 @@ func TestVrfStaticEcmpSelectorRegisteredOnce(t *testing.T) {
 	}
 }
 
+// The svs range follows the agent's VPP id scope (TD-8, fail closed): the slot's top 100 ids, the product's high range
+// only with VRX_VPP_ID_RANGE=all, and nothing when no scope (or a bad one) is set.
 func TestSvsRangeFromSlot(t *testing.T) {
+	t.Setenv(subsystems.EnvIDRange, "")
 	t.Setenv(subsystems.EnvTableBase, "2000")
 	if r := subsystems.SvsRange(); r != (svs.Range{Lo: 2900, Hi: 2999}) {
 		t.Fatalf("slot range %v", r)
@@ -174,11 +177,26 @@ func TestSvsRangeFromSlot(t *testing.T) {
 	if r := subsystems.SvsRange(); r != (svs.Range{}) {
 		t.Fatalf("malformed base → %v", r)
 	}
+	t.Setenv(subsystems.EnvIDRange, subsystems.IDRangeAll)
+	t.Setenv(subsystems.EnvTableBase, "2000")
+	if r := subsystems.SvsRange(); r != (svs.Range{}) {
+		t.Fatalf("base and all both set → %v, want the empty range", r)
+	}
 	if err := os.Unsetenv(subsystems.EnvTableBase); err != nil {
 		t.Fatal(err)
 	}
 	if r := subsystems.SvsRange(); r != svs.DefaultRange {
-		t.Fatalf("product range %v", r)
+		t.Fatalf("VRX_VPP_ID_RANGE=all → %v, want the product range", r)
+	}
+	if err := os.Unsetenv(subsystems.EnvIDRange); err != nil {
+		t.Fatal(err)
+	}
+	if r := subsystems.SvsRange(); r != (svs.Range{}) {
+		t.Fatalf("no id scope → %v, want the empty range (fail closed)", r)
+	}
+	// an empty range allocates nothing: the projection refuses a source select instead of using ids it does not own
+	if _, err := svs.Allocate([]string{"lan"}, subsystems.SvsRange(), nil); err == nil {
+		t.Fatal("allocation in the empty range succeeded")
 	}
 }
 

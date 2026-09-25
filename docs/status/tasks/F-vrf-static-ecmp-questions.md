@@ -101,3 +101,12 @@ The D-072 selector is now installed by `internal/subsystems` package init (`subs
 P12 and every other package must **not** call `frr.RegisterStaticSelector` (it panics on a second call). A test outside
 `subsystems` that needs `viaFrr` semantics links the package (`import _ "ngfw/agent/internal/subsystems"`); the
 `renderers/frr` package itself cannot (import cycle) and keeps RF-1's stand-in selector in its own tests.
+
+## Q16 svs range and TD-8's id-range seam (follow-up after TD-11b, 2026-09-25)
+TD-8 made an unset id range fail closed, so `TestSvsRangeFromSlot` ("no VRX_VPP_TABLE_BASE → svs.DefaultRange") failed.
+Fixed on this side: `subsystems.SvsRange()` now derives from `ResolveIDScope()` — slot/reserved range → its top 100 ids;
+`VRX_VPP_ID_RANGE=all` → `svs.DefaultRange`; nothing set, malformed or both set → the empty range (the projection then
+refuses the first `sourceSelect` entry, `vrfs.source-select.tables`; no id is needed otherwise). It reads the same
+function the agent resolves `Config.IDs` from, not `Wiring.IDRange`, because the projection runs in the service, which
+holds no Wiring, and `agent.go`/`service.go` are agent core (A5). If the manager wants it strictly through the seam:
+one `ServiceConfig` field (the svs range, or the IDScope) set from the wiring in `agent.go` — a one-line A5 change.

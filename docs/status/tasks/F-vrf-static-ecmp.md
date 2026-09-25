@@ -498,3 +498,15 @@ No process of mine running; `vrx_w2` dropped by the e2e teardown (`select count(
 untouched in this round (`show ip table` lists no w2 table; `NRestarts=1`, unchanged since D-128). Not removed (the `rm`
 was refused by the permission check earlier): `/run/vrx-test/w2/{vse,kea,kea-relay}` (the topology run's logs; the
 `kea*` directories are the kea renderer tests' scratch paths from the CI run) and the git-ignored `dist/`/`bin/` output.
+
+## Follow-up after TD-11b (2026-09-25)
+
+Main merged (`de2111da`: TD-11b ownership guard, TD-8 id range, TD-4; `docs/vpp-code-track.md` conflict = main's V25 row
+kept, the V-new section after it). TD-11b's start-up guard refused the svs descriptors (no declaration): new
+`apps/agent/internal/descriptors/svs/ownership.go` — `svs.table` and `svs.interface` `RecordsNoOwnership()` (ours by the
+table's VPP name `<owner>:svs:<id>` / by that table), `svs.route` `CheckPersistent()` = `dfkit.CheckBoot` over its
+applied-once BootStore (the persisted `Wiring.BootStore`). Core `vrf`/`route` were already declared by TD-11b
+(`core/ownership.go`). `TestSvsRangeFromSlot` failed on TD-8's fail-closed id range: `SvsRange()` now follows
+`ResolveIDScope()` (slot range → top 100; `VRX_VPP_ID_RANGE=all` → the product range; none/bad → empty, the projection
+refuses a source select) — why not `Wiring.IDRange`: Q16. `go test -race -count=1` of `internal/agent`, `subsystems`,
+`descriptors/svs`, `descriptors/core`, `actions/vrf-static-ecmp`: all `ok`. No host run.

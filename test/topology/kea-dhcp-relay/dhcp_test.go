@@ -225,7 +225,8 @@ func (tp *topo) keaSubnets(t *testing.T) ([]string, bool) {
 	subs, _ := d4["subnet4"].([]any)
 	for _, s := range subs {
 		m, _ := s.(map[string]any)
-		out = append(out, fmt.Sprintf("%v(id %v)", m["subnet"], m["id"]))
+		id, _ := m["id"].(float64)
+		out = append(out, fmt.Sprintf("%v(id %.0f)", m["subnet"], id))
 	}
 	_, hasInput := d4["user-context"]
 	return out, hasInput

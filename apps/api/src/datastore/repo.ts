@@ -76,6 +76,8 @@ export interface PendingCommit {
  * D-102 (TD-2 verify V2): an existing user whose password hash a promoted snapshot changed. `syncUsers` applies
  * admin-reset semantics in the promote transaction (credential generation bumped, failed logins/lock cleared, API
  * keys deleted with any candidate lock they held); the commit engine ends the sessions once it committed and audits.
+ * D-100 (3), TD-4: also an existing user whose `disabled` flipped false → true — generation bumped only (API keys
+ * stay; they are refused while the account is disabled). Both in one promote: ONE bump, one entry, both reasons.
  */
 export interface PasswordReset {
   userId: number;
@@ -85,6 +87,8 @@ export interface PasswordReset {
   apiKeysRevoked: { id: string; name: string }[];
   /** A candidate locked by one of those keys was discarded with its lock. */
   discardedCandidate: boolean;
+  /** Why the generation moved: `password` (D-102 reset) and/or `disabled` (D-100 (3)). */
+  reasons: ('password' | 'disabled')[];
 }
 
 /** Does running (PostgreSQL) match the data plane? (review M3) */
@@ -111,7 +115,8 @@ export interface ConfigTx extends ConfigReads {
   setPending(p: Omit<PendingCommit, 'createdAt'> | null): Promise<void>;
   /**
    * Make app_user follow `management.users` (hashes: only where the document carries one). An EXISTING user whose
-   * hash changes gets admin-reset semantics in this transaction (D-102); those users are returned.
+   * hash changes gets admin-reset semantics in this transaction (D-102), one who becomes disabled a generation bump
+   * (D-100 (3)); those users are returned.
    */
   syncUsers(users: readonly UserConfig[]): Promise<PasswordReset[]>;
   /** Re-activate the given secret versions (rollback, review M2); unknown refs/versions are skipped. */

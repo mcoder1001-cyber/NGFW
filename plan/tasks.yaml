@@ -2773,7 +2773,7 @@ tasks:
   deps: []
   priority: 2
   est_hours: 14
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.8
@@ -2787,7 +2787,7 @@ tasks:
   worktree: /root/ngfw-wt/TD-10a
   owner: ngfw-46 slot5
   started: 2026-09-24T19:17
-  finished: ''
+  finished: '2026-09-25'
   notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a | done
     30381b6, CI green; review running | fix round 1 c365a95; verify APPROVE 00d3ab9f; queued with the merger
 - id: TD-10b

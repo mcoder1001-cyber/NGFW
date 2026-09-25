@@ -140,6 +140,8 @@ async function readPending(db: Exec): Promise<PendingCommit | null> {
     kind: r.kind,
     deadline: r.deadline,
     createdAt: r.createdAt,
+    restoreSecrets: r.restoreSecrets ?? null,
+    warnings: r.warnings ?? null,
   };
 }
 

@@ -1,0 +1,13 @@
+# TASK ENVELOPE — TD-10a API commit engine correctness (from the product owner's REVIEW-2026-09-24, verified; D-125)
+id: TD-10a   branch: task/TD-10a   worktree: /root/ngfw-wt/TD-10a   base: main@3a6c679   started: 2026-09-24T19:15
+slot: 5 → eval "$(tools/lab env 5)" (own DB vrx_w5, Valkey db 5, ports 3500/5500) — api e2e under `tools/lab lock shared`
+read first: /root/ngfw-wt/REVIEW-2026-09-24-verdicts.md (item → verdict → row), /root/ngfw-wt/REVIEW-2026-09-24-verified-plan.md (section A "TD-10a" + section F), /root/ngfw-wt/REVIEW-2026-09-24-verify-results.json (per-item file:line evidence on main, section s2), docs/04-api-datamodel.md, LOG D-091, D-097, D-102, D-111, D-112.
+scope (exactly): review 2.1 checkPending / confirm FAILED_PRECONDITION must read Health.last_txn_id (confirmed ≠ reverted); 2.2 restoreSecrets persisted in config_pending (migration 0004) and applied on confirm; 2.3f secret delete inside commits.exclusive (one txn, FOR UPDATE); 2.4a explicit server time budget, 409 commit-busy, client deadlines above the server budget, web/CLI outcome lookup on timeout; 2.4b Postgres advisory lock instead of the in-process mutex (D-111 follow-up); 2.5 API part: agent warnings kept in config_pending and returned from confirm and the 422 extras; 5.7b CLI client: no redirect follow, no same-host downgrade, no 307/308 body replay; ARCH-01 API half: on boot, agent reconnect and RECONCILE_DONE compare Health.last_txn_id with the config_sync/running txnId (whichever came last) and re-apply through reconcile().
+every behaviour change gets a test that FAILS on main first (paste the main failure).
+files you own: apps/api/src/commit/** apps/api/src/secrets/secrets.service.ts apps/api/src/datastore/repo.ts (PendingCommit) apps/api/src/db/schema.ts apps/api/migrations/0004_* apps/api/src/common/mutex.ts apps/api/src/testing/fake-agent.ts (Apply/revert hunk only) apps/web/src/net.ts apps/web/src/pages/RevisionsPage.tsx (timeout-recovery hunk) apps/cli/internal/api/client.go docs/status/tasks/TD-10a*
+must not touch: apps/api/src/{auth,users}/** (TD-4 / TD-10b), apps/api/src/state/** (P08), agent code.
+merge order: after TD-4 (the merger rebases). Contract: if the OpenAPI/api-client changes, commit it as `contract(api-client): …` + TD-10a-contract.md.
+CI: `TMPDIR=/tmp/g-w5 tools/ci.sh --base main`. Ports 3000/8080/9101 belong to tools/app.
+GIT RULE: git only as `git -C /root/ngfw-wt/TD-10a …`; NEVER in /root/ngfw.
+time box: 14 h, WIP commits every 45 min (docs/status/tasks/TD-10a-wip.md). finish: TD-10a.md with pasted evidence, all committed, final message = 10-line summary.
+never: merge · restart/kill VPP · pkill · secrets in files/logs

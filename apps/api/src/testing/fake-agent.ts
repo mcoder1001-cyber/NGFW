@@ -131,9 +131,20 @@ export class FakeAgent {
   current: Json = {};
   confirmed: Json = {};
   pending: { txnId: string; deadline: Date; timer: NodeJS.Timeout } | undefined;
+  /**
+   * Health.last_txn_id as the real agent keeps it (service.go confirmLocked/applyLocked): the last transaction applied
+   * WITHOUT a confirm window, or the last one confirmed. A confirm-window apply leaves it alone until the confirm; a
+   * revert never changes it (TD-10a, review 2.1).
+   */
   lastTxnId = '';
   degraded = false;
   lastReconcileAt: Date | undefined;
+  /** Health.reconcile_in_progress (TD-9 review L8: an Apply the agent is still finishing after the API gave up). */
+  reconcileInProgress = false;
+  /** Answer a confirm only after this delay — the transaction IS confirmed (simulates a lost confirm answer, TD-10a). */
+  confirmDelayMs = 0;
+  /** gRPC deadline of the last call per method (TD-10a 2.4a: the server's time budget reaches the agent). */
+  deadlines: Record<string, Date | number | undefined> = {};
   /** Every request received, for assertions. */
   calls: { method: string; request: unknown }[] = [];
   /** One-shot override of the next Apply outcome (after request checks, before any state change). */
@@ -206,6 +217,10 @@ export class FakeAgent {
     this.pending = undefined;
     this.current = structuredClone(state);
     this.confirmed = structuredClone(state);
+    this.lastTxnId = '';
+    this.reconcileInProgress = false;
+    this.confirmDelayMs = 0;
+    this.deadlines = {};
     this.calls = [];
     this.nextApply = undefined;
     this.dryRunIssues = undefined;
@@ -322,6 +337,27 @@ export class FakeAgent {
     };
   }
 
+  /**
+   * The agent confirms the pending transaction on its own path — as a confirm whose answer the API never received
+   * (a previous API process, a cut route) leaves it (TD-10a, review 2.1).
+   */
+  confirmPending(): string {
+    if (!this.pending) throw new Error('fake agent: nothing pending');
+    const txnId = this.pending.txnId;
+    clearTimeout(this.pending.timer);
+    this.pending = undefined;
+    this.confirmed = structuredClone(this.current);
+    this.lastTxnId = txnId;
+    return txnId;
+  }
+
+  /** The confirm timer of the pending transaction fires now (TD-10a tests). */
+  revertNow(): void {
+    if (!this.pending) throw new Error('fake agent: nothing pending');
+    clearTimeout(this.pending.timer);
+    this.revert(this.pending.txnId);
+  }
+
   private revert(txnId: string): void {
     this.pending = undefined;
     this.emit(EventKind.EVENT_KIND_CONFIRM_REVERTED, {
@@ -340,6 +376,7 @@ export class FakeAgent {
       cb: sendUnaryData<ApplyResponse>,
     ) => {
       const r = call.request;
+      this.deadlines['Apply'] = call.getDeadline();
       if (!this.checkCommon('Apply', r, cb)) return;
       const hasDesired = r.desiredState !== undefined;
       if (!r.confirmTxnId && !(r.txnId && hasDesired)) {
@@ -358,8 +395,9 @@ export class FakeAgent {
         clearTimeout(this.pending.timer);
         this.pending = undefined;
         this.confirmed = structuredClone(this.current);
+        this.lastTxnId = r.confirmTxnId;
         if (!hasDesired) {
-          return cb(null, {
+          const confirmed: ApplyResponse = {
             txnId: r.confirmTxnId,
             status: ApplyStatus.APPLY_STATUS_CONFIRMED,
             results: [],
@@ -368,7 +406,12 @@ export class FakeAgent {
             appliedAt: new Date(),
             confirmDeadline: undefined,
             message: '',
-          });
+          };
+          if (this.confirmDelayMs > 0) {
+            setTimeout(() => cb(null, confirmed), this.confirmDelayMs);
+            return;
+          }
+          return cb(null, confirmed);
         }
       } else if (this.pending) {
         return cb({
@@ -439,7 +482,6 @@ export class FakeAgent {
         else next[d] = structuredClone(desired[d]);
       }
       this.current = next;
-      this.lastTxnId = r.txnId;
       this.lastReconcileAt = new Date();
       let confirmDeadline: Date | undefined;
       if (r.confirmTimeoutSec > 0) {
@@ -452,6 +494,7 @@ export class FakeAgent {
         };
       } else {
         this.confirmed = structuredClone(this.current);
+        this.lastTxnId = r.txnId;
       }
       const summary = this.summary(results);
       this.emit(EventKind.EVENT_KIND_RECONCILE_DONE, {
@@ -472,6 +515,7 @@ export class FakeAgent {
 
     const dryRun: handleUnaryCall<DryRunRequest, ValidationReport> = (call, cb) => {
       const r = call.request;
+      this.deadlines['DryRun'] = call.getDeadline();
       if (!this.checkCommon('DryRun', r, cb)) return;
       const desired = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
       let domains: string[];
@@ -518,7 +562,7 @@ export class FakeAgent {
         confirmDeadline: this.pending?.deadline,
         degraded: this.degraded,
         lastReconcileAt: this.lastReconcileAt,
-        reconcileInProgress: false,
+        reconcileInProgress: this.reconcileInProgress,
       });
     };
 

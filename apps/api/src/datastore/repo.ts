@@ -1,4 +1,5 @@
 import type { UserConfig } from '@ngfw/schema';
+import type { ProblemIssue } from '../common/problem.js';
 import type { SecretChange } from './documents.js';
 
 /**
@@ -70,6 +71,13 @@ export interface PendingCommit {
   kind: string;
   deadline: Date;
   createdAt: Date;
+  /**
+   * A rollback's secret versions (`{ "<kind>/<name>": version }`) that become active when the commit is confirmed —
+   * by the API's confirm, the deadline watcher or a reconcile after an API restart (TD-10a, review 2.2). null = none.
+   */
+  restoreSecrets?: Record<string, number> | null;
+  /** The agent's warnings of this commit; confirm returns them again (TD-10a, review 2.5). */
+  warnings?: ProblemIssue[] | null;
 }
 
 /**

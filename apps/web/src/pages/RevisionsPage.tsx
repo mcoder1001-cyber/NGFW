@@ -18,17 +18,19 @@ import Typography from '@mui/material/Typography';
 import { diff } from '@ngfw/schema';
 import { useFormatters } from '@ngfw/ui-kit';
 import { ServerDataGrid, type FetchPage, type GridColDef } from '@ngfw/ui-kit/data-grid';
-import { useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useRef, useState, type ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api';
-import { call } from '../api-problem';
+import { call, isUnreachable } from '../api-problem';
 import { usePermissions } from '../auth/AuthProvider';
 import { ConfirmWindowField, DEFAULT_CONFIRM_MINUTES, confirmWindowValid, trackPending, type ConfirmWindow } from '../config/CommitDialog';
 import { CommitResultView } from '../config/CommitResultView';
+import { confirmStore } from '../config/confirm-store';
 import { DiffView } from '../config/DiffView';
 import { ProblemAlert } from '../config/ProblemAlert';
 import { useEffectiveChanges } from '../config/effective';
 import { qk, usePending, useRevision, useRollback, useRunning, type CommitResult, type RevisionMeta } from '../config/queries';
+import { applyOutcome, OUTCOME_WAIT, type ApplyOutcome } from '../net';
 import { PageHeader } from '../shell/PageHeader';
 
 const REV_INPUT = { min: 1, dir: 'ltr' } as const;
@@ -65,7 +67,65 @@ function RevisionDiff({ from, to }: { from: number; to: number }) {
   );
 }
 
-function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onClose: () => void }) {
+type LostAnswer = ApplyOutcome | 'looking' | 'lookup-failed';
+
+/**
+ * TD-10a (review 2.4a): what became of a rollback whose answer never arrived (deadline passed, route cut) — from the
+ * API's own state: pending commit and sync (GET /state/system), newest revision.
+ */
+async function lookupOutcome(sentAt: number, beforeRevision: number | null, waitUntil: number): Promise<ApplyOutcome | 'lookup-failed'> {
+  try {
+    const [sys, revs] = await Promise.all([
+      call(api.GET('/api/v1/state/system')),
+      call(api.GET('/api/v1/config/revisions', { params: { query: { limit: 1, offset: 0 } } })),
+    ]);
+    return applyOutcome({
+      sentAt,
+      now: Date.now(),
+      waitUntil,
+      beforeRevision,
+      pending: sys.data.pendingCommit as { txnId?: unknown; deadline?: unknown; createdAt?: unknown } | null,
+      sync: sys.data.sync,
+      newest: revs.data.items[0] ?? null,
+    });
+  } catch {
+    return 'lookup-failed';
+  }
+}
+
+/**
+ * Review M1: follow a lost answer up until the server's budget has surely passed — an early network error or a proxy
+ * 502/504 arrives while the rollback may still be applying, and "not applied, try again" then would invite a second
+ * rollback. Resolves with the first decisive outcome, or after the budget; null when `alive()` turned false.
+ */
+async function followOutcome(sentAt: number, beforeRevision: number | null, alive: () => boolean): Promise<ApplyOutcome | 'lookup-failed' | null> {
+  const waitUntil = sentAt + OUTCOME_WAIT.untilMs;
+  for (;;) {
+    const o = await lookupOutcome(sentAt, beforeRevision, waitUntil);
+    if (!alive()) return null;
+    if (o === 'lookup-failed' ? Date.now() >= waitUntil : o.kind !== 'running') return o;
+    await new Promise((r) => setTimeout(r, OUTCOME_WAIT.everyMs));
+    if (!alive()) return null;
+  }
+}
+
+function LostAnswerAlert({ lost }: { lost: LostAnswer }) {
+  const { t } = useTranslation('revisions');
+  if (lost === 'looking' || (lost !== 'lookup-failed' && lost.kind === 'running')) return <Alert severity="info">{t('rollback.outcome.looking')}</Alert>;
+  if (lost === 'lookup-failed') return <Alert severity="error">{t('rollback.outcome.lookupFailed')}</Alert>;
+  switch (lost.kind) {
+    case 'applied':
+      return <Alert severity="success">{t('rollback.outcome.applied', { revision: lost.revision })}</Alert>;
+    case 'pending':
+      return <Alert severity="warning">{t('rollback.outcome.pending', { txnId: lost.txnId })}</Alert>;
+    case 'unknown':
+      return <Alert severity="error">{t('rollback.outcome.unknown', { reason: lost.reason })}</Alert>;
+    default:
+      return <Alert severity="info">{t('rollback.outcome.notApplied')}</Alert>;
+  }
+}
+
+function RollbackDialog({ target, runningRev, onClose }: { target: RevisionMeta | null; runningRev: number | null; onClose: () => void }) {
   const { t } = useTranslation(['revisions', 'config']);
   const running = useRunning(target !== null);
   const rev = useRevision(target?.id ?? null);
@@ -73,15 +133,22 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
   const [comment, setComment] = useState('');
   const [revert, setRevert] = useState<ConfirmWindow>({ enabled: true, minutes: DEFAULT_CONFIRM_MINUTES });
   const [result, setResult] = useState<CommitResult | null>(null);
+  const [lost, setLost] = useState<LostAnswer | null>(null);
+  const follow = useRef(0); // generation of the current outcome follow-up; closing or resubmitting ends it
   const changes = useMemo(() => (running.data !== undefined && rev.data ? diff(running.data, rev.data.payload) : null), [running.data, rev.data]);
   const close = () => {
+    follow.current += 1;
     rollback.reset();
     setResult(null);
+    setLost(null);
     setComment('');
     onClose();
   };
   if (!target) return null;
-  const submit = () =>
+  const submit = () => {
+    const sentAt = Date.now();
+    const win = revert;
+    setLost(null);
     rollback.mutate(
       { rev: target.id, comment, confirmSec: revert.enabled ? revert.minutes * 60 : undefined },
       {
@@ -91,8 +158,24 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
             close();
           } else setResult(outcome.result);
         },
+        onError: (e) => {
+          // no answer is not "failed": the server may have finished it (TD-10a, review 2.4a)
+          if (!isUnreachable(e)) return;
+          setLost('looking');
+          const gen = ++follow.current;
+          void followOutcome(sentAt, runningRev, () => follow.current === gen).then((o) => {
+            if (o === null) return;
+            setLost(o);
+            if (o !== 'lookup-failed' && o.kind === 'pending') {
+              const deadlineMs = win.enabled ? Math.min(o.deadlineMs, sentAt + win.minutes * 60_000) : o.deadlineMs;
+              confirmStore.track({ txnId: o.txnId, deadlineMs, kind: 'rollback', trackedAt: Date.now() });
+            }
+          });
+        },
       },
     );
+  };
+  const settled = lost !== null && lost !== 'looking' && lost !== 'lookup-failed' && (lost.kind === 'applied' || lost.kind === 'pending');
   return (
     <Dialog open onClose={rollback.isPending ? undefined : close} maxWidth="md" fullWidth aria-labelledby="rollback-title">
       <DialogTitle id="rollback-title">{t('rollback.title', { id: target.id })}</DialogTitle>
@@ -123,12 +206,12 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
               slotProps={{ htmlInput: { maxLength: 1024 } }}
             />
             <ConfirmWindowField value={revert} onChange={setRevert} />
-            {rollback.isError && <ProblemAlert error={rollback.error} />}
+            {lost ? <LostAnswerAlert lost={lost} /> : rollback.isError && <ProblemAlert error={rollback.error} />}
           </Stack>
         )}
       </DialogContent>
       <DialogActions>
-        {result ? (
+        {result || settled ? (
           <Button variant="contained" onClick={close}>
             {t('config:close')}
           </Button>
@@ -141,7 +224,7 @@ function RollbackDialog({ target, onClose }: { target: RevisionMeta | null; onCl
               variant="contained"
               color="warning"
               onClick={submit}
-              disabled={rollback.isPending || !confirmWindowValid(revert) || changes === null}
+              disabled={rollback.isPending || lost === 'looking' || !confirmWindowValid(revert) || changes === null}
             >
               {rollback.isPending ? t('rollback.running') : t('rollback.submit', { id: target.id })}
             </Button>
@@ -271,7 +354,7 @@ export function RevisionsPage() {
         </Button>
       </Stack>
       {cmp && <RevisionDiff from={cmp.from} to={cmp.to} />}
-      <RollbackDialog target={target} onClose={() => setTarget(null)} />
+      <RollbackDialog target={target} runningRev={runningRev} onClose={() => setTarget(null)} />
     </PageHeader>
   );
 }

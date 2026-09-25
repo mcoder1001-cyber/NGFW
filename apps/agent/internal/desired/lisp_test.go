@@ -18,7 +18,7 @@ type lispSink struct {
 func (s *lispSink) Add(k scheduler.Key, v proto.Message, _ string) {
 	s.kvs = append(s.kvs, scheduler.KV{Key: k, Value: v})
 }
-func (s *lispSink) Errorf(p, rule, _ string, _ ...any) { s.errs = append(s.errs, p+" "+rule) }
+func (s *lispSink) Errorf(p, rule, _ string, _ ...any)   { s.errs = append(s.errs, p+" "+rule) }
 func (s *lispSink) Warnf(string, string, string, ...any) {}
 
 // Builder → assembler round trip of the L2 and negative-mapping parts (the agent tests cover the rest).

@@ -2,6 +2,7 @@ import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyInstance, RouteOptions } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
+import { PRIVILEGED_ROUTES } from '../audit/audit.interceptor.js';
 import { loadEnv } from '../config.js';
 import { TokensService } from './tokens.service.js';
 
@@ -143,5 +144,41 @@ describe('route guard', () => {
   it('keeps the public list exactly as reviewed', () => {
     const present = routes.map((r) => `${r.method} ${r.url}`).filter((k) => PUBLIC.has(k));
     expect(new Set(present)).toEqual(PUBLIC);
+  });
+
+  it('TD-10b: every fail-closed (privileged) audit route exists — a renamed route cannot silently fail open', () => {
+    const keys = new Set(routes.map((r) => `${r.method} ${r.url}`));
+    for (const k of PRIVILEGED_ROUTES) expect(keys.has(k), k).toBe(true);
+  });
+
+  it('TD-10b: the docs cookie opens only /api/docs, never an API route; a forged one opens nothing', async () => {
+    const token = await app
+      .get(TokensService)
+      .signAccess({ id: 9001, username: 'ro-matrix', role: 'readonly' });
+    const cookie = { cookie: `vrx_docs=${token}` };
+    expect((await app.inject({ method: 'GET', url: '/api/docs-json' })).statusCode).toBe(401);
+    // the Swagger UI page and its init script (which inlines the spec) — what a browser loads
+    const page = await app.inject({ method: 'GET', url: '/api/docs', headers: cookie });
+    expect(page.statusCode).toBe(200);
+    expect(page.headers['content-type']).toMatch(/text\/html/);
+    const init = await app.inject({
+      method: 'GET',
+      url: '/api/docs/swagger-ui-init.js',
+      headers: cookie,
+    });
+    expect(init.statusCode).toBe(200);
+    expect(init.body).toContain('"openapi": "3.1.0"');
+    expect(
+      (await app.inject({ method: 'GET', url: '/api/v1/config', headers: cookie })).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/docs',
+          headers: { cookie: 'vrx_docs=abc.def.ghi' },
+        })
+      ).statusCode,
+    ).toBe(401);
   });
 });

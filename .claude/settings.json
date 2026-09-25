@@ -20,14 +20,11 @@
       "ToolSearch"
     ],
     "deny": [
-      "Bash(git push*)",
       "Bash(shutdown*)",
       "Bash(reboot*)",
       "Bash(rm -rf /*)",
       "Bash(rm -rf ~*)",
-      "Bash(git reset --hard*)",
-      "Bash(git rebase*)",
-      "Bash(git push --force*)"
+      "Bash(git reset --hard*)"
     ]
   }
 }

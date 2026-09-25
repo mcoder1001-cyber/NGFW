@@ -4,15 +4,22 @@ import { problems } from '../common/problem.js';
 /** Minimum length of a new password (P06; documented as `minLength` in the OpenAPI contract). */
 export const PASSWORD_MIN = 12;
 
-/** The new-password field as documented: the product rule. */
-export const newPasswordDoc = z.string().min(PASSWORD_MIN).max(1024);
 /**
- * The new-password field as parsed: any non-empty value. The length rule is enforced by `assertPasswordPolicy`, the one
- * place that can waive it (VRX_DEV_WEAK_PASSWORDS), so the contract keeps documenting the product rule.
+ * The new-password field. `weak = false` is the product rule and what the OpenAPI documents; `weak = true`
+ * (VRX_DEV_WEAK_PASSWORDS, development only) accepts any non-empty value. The route pipes build it from the environment
+ * (EnvZodPipe), so with the flag off a request is parsed exactly as before and every issue is reported together.
  */
-export const newPasswordIn = z.string().min(1).max(1024);
+export function newPassword(weak = false) {
+  return z
+    .string()
+    .min(weak ? 1 : PASSWORD_MIN)
+    .max(1024);
+}
 
-/** 400 with pointer `/password` (as the schema check it replaces) unless the password is long enough or dev mode is on. */
+/**
+ * Defence in depth for any caller of UsersService.setPassword that did not come through a route pipe: 400 with pointer
+ * `/password` unless the password is long enough or dev mode is on.
+ */
 export function assertPasswordPolicy(password: string, devWeakPasswords: boolean): void {
   if (devWeakPasswords || password.length >= PASSWORD_MIN) return;
   throw problems.badRequest('invalid request body', [

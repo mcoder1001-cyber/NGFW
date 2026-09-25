@@ -145,6 +145,12 @@ describe('route guard', () => {
     });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toHaveProperty('openapi', '3.1.0');
+    // both password routes publish the product rule, whatever VRX_DEV_WEAK_PASSWORDS says at runtime
+    const paths = ok.json().paths;
+    for (const p of ['/api/v1/auth/password', '/api/v1/users/{name}/password']) {
+      const body = paths[p].post.requestBody.content['application/json'].schema;
+      expect(body.properties.password, p).toMatchObject({ minLength: 12, maxLength: 1024 });
+    }
   });
 
   it('keeps the public list exactly as reviewed', () => {

@@ -54,7 +54,8 @@ const Env = z.object({
   VRX_LOGIN_LOCKOUT_SEC: z.coerce.number().int().min(1).default(900),
   /**
    * DEVELOPMENT ONLY: accept new passwords shorter than PASSWORD_MIN (any non-empty one, e.g. admin/admin on a lab box).
-   * Off by default; a warning is logged at boot while it is on. Never set it in a product image.
+   * Off by default; a warning is logged at boot while it is on. Refused with NODE_ENV=production (the packaged unit sets
+   * it, docs/tech-debt.md), so a product image cannot run with it.
    */
   VRX_DEV_WEAK_PASSWORDS: z
     .enum(['0', '1', 'true', 'false'])
@@ -64,6 +65,16 @@ const Env = z.object({
   VRX_PASSWORD_RATE_PER_MIN: z.coerce.number().int().min(1).default(5),
   /** Telemetry relay heartbeat interval. */
   VRX_WS_HEARTBEAT_MS: z.coerce.number().int().min(50).default(15_000),
+  /** `production` in the packaged unit (P10): development switches such as VRX_DEV_WEAK_PASSWORDS are refused. */
+  NODE_ENV: z.string().optional(),
+}).superRefine((env, ctx) => {
+  if (env.VRX_DEV_WEAK_PASSWORDS && env.NODE_ENV === 'production') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['VRX_DEV_WEAK_PASSWORDS'],
+      message: 'development only: refused with NODE_ENV=production',
+    });
+  }
 });
 export type Env = z.infer<typeof Env>;
 

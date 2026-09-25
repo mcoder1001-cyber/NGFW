@@ -1,7 +1,8 @@
-import { type ArgumentMetadata, Injectable, type PipeTransform } from '@nestjs/common';
+import { type ArgumentMetadata, Inject, Injectable, mixin, type PipeTransform, type Type } from '@nestjs/common';
 import { pointerIssues } from '@ngfw/schema';
 import type { SchemaObject } from '@nestjs/swagger';
 import { z } from 'zod';
+import { ENV, type Env } from '../config.js';
 import { problems } from './problem.js';
 import { safeText } from './text.js';
 
@@ -24,6 +25,24 @@ export class ZodPipe<T extends z.ZodType> implements PipeTransform<unknown, z.ou
     }
     return r.data;
   }
+}
+
+/**
+ * A ZodPipe whose schema depends on the parsed environment, built once per pipe instance through DI:
+ * `@Body(EnvZodPipe((env) => bodySchema(env.VRX_…)))`. The OpenAPI decorators keep documenting the product schema.
+ */
+export function EnvZodPipe<T extends z.ZodType>(build: (env: Env) => T): Type<PipeTransform<unknown, z.output<T>>> {
+  @Injectable()
+  class EnvPipe implements PipeTransform<unknown, z.output<T>> {
+    private readonly pipe: ZodPipe<T>;
+    constructor(@Inject(ENV) env: Env) {
+      this.pipe = new ZodPipe(build(env));
+    }
+    transform(value: unknown, meta: ArgumentMetadata): z.output<T> {
+      return this.pipe.transform(value, meta);
+    }
+  }
+  return mixin(EnvPipe);
 }
 
 export function openapi(schema: z.ZodType, io: 'input' | 'output' = 'input'): SchemaObject {

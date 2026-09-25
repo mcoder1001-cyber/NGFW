@@ -24,7 +24,11 @@ WEB_PORT="${VRX_APP_WEB_PORT:-8080}"
 API_HOST="${VRX_APP_API_HOST:-127.0.0.1}"
 API_PORT="${VRX_APP_API_PORT:-3000}"
 METRICS_PORT="${VRX_APP_METRICS_PORT:-9101}"
-WEAK_PASSWORDS="${VRX_APP_WEAK_PASSWORDS:-0}"
+case "${VRX_APP_WEAK_PASSWORDS:-0}" in
+  1 | true) WEAK_PASSWORDS=1 ;;
+  0 | false) WEAK_PASSWORDS=0 ;;
+  *) echo "app: VRX_APP_WEAK_PASSWORDS must be 0 or 1 (got '${VRX_APP_WEAK_PASSWORDS}')" >&2; exit 2 ;;
+esac
 STATE=/var/lib/vrx-app
 RUN=/run/vrx-app
 LOG=/var/log/vrx-app
@@ -119,7 +123,6 @@ cmd_up() {
     VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_AGENT_SOCKET="$AGENT_SOCKET" VRX_COOKIE_SECURE=0 VRX_DEV_WEAK_PASSWORDS="$WEAK_PASSWORDS" \
     VRX_SECRET_KEY_FILE="$STATE/secret.key" node "$ROOT/apps/api/dist/main.js"
   wait_port "$API_HOST" "$API_PORT" vrx-api api
-  echo "VRX_DEV_WEAK_PASSWORDS=$WEAK_PASSWORDS" >"$RUN/api.env"
 
   say "web UI"
   start_svc web env VRX_HTTP_PORT="$API_PORT" VRX_WEB_PORT="$WEB_PORT" \
@@ -143,7 +146,9 @@ cmd_status() {
   echo "web UI:"
   if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
   echo "API docs: http://<host>:$WEB_PORT/api/docs   (API itself on $API_HOST:$API_PORT)"
-  if [[ -f "$RUN/api.env" ]] && grep -qx "VRX_DEV_WEAK_PASSWORDS=1" "$RUN/api.env"; then
+  # read the flag from the running API process itself, so the warning always matches what runs
+  local api; api="$(pidof_svc api)"
+  if [[ -n "$api" ]] && tr '\0' '\n' <"/proc/$api/environ" 2>/dev/null | grep -qx 'VRX_DEV_WEAK_PASSWORDS=1'; then
     echo "WARNING: the API runs with VRX_DEV_WEAK_PASSWORDS=1 — short passwords are accepted (development only)"
   fi
 }

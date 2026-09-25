@@ -5089,6 +5089,99 @@ export interface components {
           };
         };
       };
+      /**
+       * Load balancer
+       * @description VPP lb plugin: virtual IPs spread over application servers (GRE, L3DSR or NAT; Maglev hashing). Tier T3: no health checks, no L7. Write-only in VPP 26.06; deleted VIPs linger until the lb garbage collection (V20).
+       */
+      lb?: {
+        /** Settings (global) */
+        settings?: {
+          /**
+           * IPv4 source
+           * Format: ipv4
+           */
+          ip4Source?: string;
+          /**
+           * IPv6 source
+           * Format: ipv6
+           */
+          ip6Source?: string;
+          /** Sticky-table buckets per worker */
+          flowBuckets?: number;
+          /** Flow timeout (s) */
+          flowTimeoutSec?: number;
+        };
+        /**
+         * Virtual IPs
+         * @default {}
+         */
+        vips: {
+          [key: string]: {
+            /** VIP prefix */
+            prefix: string;
+            /**
+             * Protocol
+             * @default any
+             * @enum {string}
+             */
+            protocol: 'any' | 'tcp' | 'udp';
+            /** Port */
+            port?: number;
+            /**
+             * Encapsulation
+             * @enum {string}
+             */
+            encap: 'gre4' | 'gre6' | 'l3dsr' | 'nat4' | 'nat6';
+            /** DSCP (l3dsr) */
+            dscp?: number;
+            /**
+             * Service type (nat)
+             * @enum {string}
+             */
+            srvType?: 'clusterip' | 'nodeport';
+            /** Target port (nat) */
+            targetPort?: number;
+            /** Node port (nat nodeport) */
+            nodePort?: number;
+            /**
+             * New-flows table length
+             * @default 1024
+             */
+            newFlowsTableLength: number;
+            /**
+             * Source-IP sticky
+             * @default false
+             */
+            srcIpSticky: boolean;
+            /**
+             * Application servers
+             * @default []
+             */
+            servers: {
+              /** Address */
+              address: string;
+              /**
+               * Flush on delete
+               * @default false
+               */
+              flushOnDelete: boolean;
+            }[];
+          };
+        };
+        /**
+         * NAT interfaces
+         * @default []
+         */
+        natInterfaces: {
+          /** Interface */
+          interface: string;
+          /**
+           * Family
+           * @enum {string}
+           */
+          family: 'ip4' | 'ip6';
+        }[];
+      };
     };
     /**
      * High availability

@@ -13,13 +13,13 @@ import (
 // of an agent that is not the globals owner is only required (NewTableFor), never owned.
 func (*TableDescriptor) RecordsNoOwnership() {}
 
-// CheckPersistent: MPLS enabled on an untagged interface is ours by a claim in the owner's DF-1
+// CheckPersistent declares that MPLS enabled on an untagged interface is ours by a claim in the owner's DF-1
 // claim store (Target.ClaimFirst); the product wiring installs the persisted IfaceClaims.
 func (d *InterfaceDescriptor) CheckPersistent() error {
 	return dfkit.CheckClaims(NameInterface, d.Owner)
 }
 
-// CheckPersistent: a label route in the shared table 0 is ours by its D-080 boot record in the
+// CheckPersistent declares that a label route in the shared table 0 is ours by its D-080 boot record in the
 // owner's DF-7 BootStore (review H2); the product wiring installs Wiring.BootStore() with
 // df7.SetBootStore.
 func (d *RouteDescriptor) CheckPersistent() error {

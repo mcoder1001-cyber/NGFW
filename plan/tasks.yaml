@@ -1626,7 +1626,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D7.5
@@ -1639,7 +1639,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: 'D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
 - id: F-ipfix-sflow
   title: 'Wave C (day 13-15): IPFIX/flowprobe + sFlow exporters'
@@ -2928,7 +2928,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 6
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.8
@@ -2941,7 +2941,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-25'
   notes: D-125 (audit ARCH-04/-11/-05; est by the plan review) | merge after TD-10a and TD-10b (shared repo.ts / pg-repo.ts / controller hunks)
 - id: TD-16
   title: 'descriptors/kit: fsync-safe atomic writes, one ParsePrefix policy, ErrRetrieveUnsupported, Register(r, Env)'
@@ -3295,8 +3295,8 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
-  state: review
+  finished: '2026-09-25'
+  state: merged
   wbs: *id002
   prompt: ''
   id: TD-22

@@ -2,12 +2,12 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 39.4% by hours (462/1172.5 h), 40.8% by tasks (53/130)**
+**Overall: 41.1% by hours (482/1172.5 h), 43.1% by tasks (56/130)**
 
 | state | tasks |
 |---|---|
-| merged | 53 |
-| review | 32 |
+| merged | 56 |
+| review | 29 |
 | running | 5 |
 | ready | 2 |
 | parked | 2 |
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 260 / 274 | 94.9% | 27/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 69 / 605.0 | 11.4% | 11/70 | 4 | 1 | 0 |
+| S4 | 89 / 605.0 | 14.7% | 14/70 | 4 | 1 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -46,7 +46,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-srv6 — Wave C (day 13-15): SRv6 policies, network programming, service chaining proxies, SRv6-mobile (running, unassigned)
 - F-lb — Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev) (running, unassigned)
 - F-qos-flat — Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded) (running, unassigned)
-- F-snmp — Wave C (day 13-15): SNMP v2c/v3 via snmpd renderer + private MIB (review, unassigned)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - WEB-1 — ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view (review, ngfw-46 slot11)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
@@ -56,11 +55,9 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-10b — API auth, session, audit (review, unassigned)
 - TD-11c — Untagged NICs, alias-aware delete order, claim-store scale (review, unassigned)
 - TD-13 — Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write) (review, unassigned)
-- TD-15 — API hygiene: z.output response DTOs, ConfigTx userHashes/secretVersions + pool timeout, secret refs from the schema (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
 - TD-23 — Shared test seams: fake-agent action dispatch table + coretest fakevpp extension registry (no feature handlers) (review, unassigned)
 - TD-8b — Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule) (review, unassigned)
-- TD-22 — Small follow-ups from reviews: dhcp.client claim-before-write (TD-11b Q3), P08 InterfaceDrawer saveSub stale-dialog l2:null (F-bridge-l2 review #3), CommitDialog reuses applyOutcome() on a lost commit answer (TD-10a Q), examples.test.ts SIBLING regex widened for feature examples (review, unassigned)
 - TD-24 — interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease) (review, unassigned)
 - TD-25 — ifsanitize: stop the classify-pool hole ratchet (resurrect only indices a binding names; never pop fresh indices) (review, unassigned)
 

@@ -20,11 +20,14 @@
  * @param {(navKey: string) => Promise<void>} ctx.nav      clicks the left-nav entry `nav:<navKey>`, opening its
  *                                                          collapsed group first if needed (ui-nav-collapse, D-117)
  * @param {(step: string) => Promise<string>} ctx.shot     screenshot named `<slug>-<lang>-<theme>-<step>.png`
+ *                                                          (also asserts `<html dir>` matches `ctx.lang`)
+ * @param {(mode: 'light'|'dark'|'system') => Promise<void>} ctx.setTheme     runtime theme toggle, no reload
+ * @param {(newLang: 'en'|'fa') => Promise<void>} ctx.setLanguage             runtime language toggle, no reload
  * @param {(msg: string) => void} ctx.ok                    records a passing check ("ok   <msg>")
  * @param {(cond: boolean, msg: string) => void} ctx.check  same, but throws (fails the whole run) if `cond` is false
  */
 export default async function example(ctx) {
-  const { page, t, nav, shot, check } = ctx;
+  const { page, lang, t, nav, shot, setTheme, setLanguage, check } = ctx;
 
   // 1. Navigate with the nav key from apps/web/src/nav/nav.ts (the `nav:<key>` label) — never page.goto() a domain
   //    screen directly, so the harness also proves the left nav (and its collapsed-group handling) still works.
@@ -39,6 +42,33 @@ export default async function example(ctx) {
   check(await heading.isVisible(), `[${ctx.lang}/${ctx.theme}] dashboard heading is visible`);
 
   // 4. Shoot. One call per interesting state (a dialog open, a row selected, ...); `step` becomes the filename's
-  //    last segment.
+  //    last segment. `shot()` also asserts `<html dir>` matches `ctx.lang` (rtl for fa, ltr otherwise) — a
+  //    regression that left the wrong direction would fail here, not just look wrong in a screenshot a human
+  //    happens to open (WEB-3 review L3).
   await shot('1-loaded');
+
+  // 5. The runtime toggles (lib/theme.mjs) exist so a screen with expensive setup can be shot in every combination
+  //    inside one signed-in session — prove they actually do something, don't just trust the click (review M2):
+  //    `VrxThemeProvider` (packages/ui-kit) keeps `document.documentElement.style.colorScheme` equal to the
+  //    resolved theme mode, so that is the ground truth for "did setTheme(...) really take effect". Toggle to
+  //    whichever mode is NOT already active — with `--themes light,dark` this function also runs once already
+  //    in 'dark' (shots.mjs sets it before calling us), so hardcoding a target here would be a no-op on that pass.
+  const colorSchemeBefore = await page.evaluate(() => document.documentElement.style.colorScheme);
+  const target = colorSchemeBefore === 'dark' ? 'light' : 'dark';
+  await setTheme(target);
+  const colorSchemeAfter = await page.evaluate(() => document.documentElement.style.colorScheme);
+  check(colorSchemeAfter === target && colorSchemeAfter !== colorSchemeBefore, `[${lang}] setTheme('${target}') set <html style.colorScheme> to "${colorSchemeAfter}" (was "${colorSchemeBefore}")`);
+  await shot(`2-theme-${target}`);
+  await setTheme(ctx.theme); // restore this pass's own theme (shots.mjs reuses one page across --themes for one lang)
+
+  // setLanguage() flips <html dir> at runtime — the same thing ui-nav-collapse's Settings popover does for a real
+  // user, just driven by the harness. Restore the original language afterward: this page is reused for the next
+  // --themes iteration, and ctx.shot()'s own dir check (point 4 above) asserts against ctx.lang, not whatever the
+  // page happens to show.
+  const otherLang = lang === 'fa' ? 'en' : 'fa';
+  const dirBefore = await page.evaluate(() => document.documentElement.dir);
+  await setLanguage(otherLang);
+  const dirAfter = await page.evaluate(() => document.documentElement.dir);
+  check(dirAfter !== dirBefore, `[${lang}] setLanguage('${otherLang}') flipped <html dir> ("${dirBefore}" -> "${dirAfter}")`);
+  await setLanguage(lang); // restore
 }

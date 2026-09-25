@@ -17,7 +17,8 @@ apps/web/test/e2e/
     auth.mjs        login(page, tr, lang, user, pw), signOut(page, tr, lang)
     nav.mjs         nav(page, tr, lang, key) — opens a collapsed left-nav group first if needed (ui-nav-collapse, D-117)
     theme.mjs       setTheme(page, tr, lang, mode), setLanguage(page, tr, lang, newLang) — runtime toggles, no reload
-    shot.mjs        shot(page, outDir, name, { base }) — screenshot + one console log line naming what was captured
+    shot.mjs        shot(page, outDir, name, { base, lang, check }) — screenshot + a console log line naming what was
+                     captured; with `lang`+`check`, also asserts <html dir> matches lang (rtl for fa)
     checklist.mjs   createChecklist() → { ok(msg), check(cond, msg), results } — check() throws (fails the run) on false
   shots.mjs       CLI entry point (below)
   screens/
@@ -31,8 +32,10 @@ apps/web/test/e2e/
 
 1. Copy `screens/_example.mjs` to `screens/<your-slug>.mjs`. Keep the single default export — `shots.mjs` calls it
    once per `(--langs x --themes)` combination with a ready-made `ctx`: already signed in, `ctx.nav(key)` to reach
-   your screen (handles a collapsed group automatically), `ctx.shot(step)` to capture, `ctx.t(key, vars)` for any
-   string you need to match against, `ctx.ok`/`ctx.check` to record checks.
+   your screen (handles a collapsed group automatically), `ctx.shot(step)` to capture (also asserts `<html dir>`
+   matches `ctx.lang`), `ctx.setTheme(mode)`/`ctx.setLanguage(lang)` for the same-session runtime toggles (flip back
+   before returning — see `_example.mjs`), `ctx.t(key, vars)` for any string you need to match against, `ctx.ok`/
+   `ctx.check` to record checks.
 2. Run it against your own slot stack (below).
 3. Commit `screens/<your-slug>.mjs` under your own feature branch/task — this harness's owner (WEB-3) does not touch
    feature screens; you own yours.
@@ -45,6 +48,9 @@ deploy/dev/pg-test.sh create "$VRX_TEST_PREFIX"       # once per fresh run; idem
 apps/cli/test/devstack.sh start                       # vrx-agent (owner = your prefix) + vrx-api on VRX_HTTP_PORT
                                                        # prints nothing secret; admin password -> /run/vrx-test/<prefix>/admin.pw
 pnpm --filter @ngfw/web build                         # or `pnpm --filter @ngfw/web dev` for a dev server instead of preview
+# `pnpm preview` FORKS the real vite server as a CHILD process — the $! below is the pnpm wrapper, not the
+# process actually listening on VRX_WEB_PORT. Killing only the wrapper at teardown leaves that child running and
+# the port "in use" for your next run. See the teardown block below, which stops the real listener by port.
 ( cd apps/web && VRX_WEB_PORT=$VRX_WEB_PORT VRX_HTTP_PORT=$VRX_HTTP_PORT pnpm preview ) &
 WEB_PID=$!
 # wait for it, e.g.: until curl -fsS "http://127.0.0.1:$VRX_WEB_PORT" >/dev/null 2>&1; do sleep 0.2; done
@@ -66,11 +72,18 @@ VRX_TEST_PREFIX="$VRX_TEST_PREFIX" \
   node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots /tmp/shots-<slot>
 
 # teardown — stop everything you started, by PID, and leave no state behind:
-kill "$WEB_PID"
+# vite preview's REAL listener is a child of $WEB_PID (see the note above) — find it by the port it's actually
+# bound to, not by the wrapper's PID, and kill that. No pkill (docs/lab/shared-host-rules.md): this still targets
+# one specific PID, found from your own slot's own port.
+WEB_LISTEN_PID=$(ss -ltnp "sport = :$VRX_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
+[ -n "$WEB_LISTEN_PID" ] && kill "$WEB_LISTEN_PID"
+kill "$WEB_PID" 2>/dev/null   # the pnpm wrapper, if it's still around
 apps/cli/test/devstack.sh stop
 deploy/dev/pg-test.sh drop "$VRX_TEST_PREFIX"
 valkey-cli -h 127.0.0.1 -n "$VRX_VALKEY_DB" flushdb
 rm -rf "/run/vrx-test/$VRX_TEST_PREFIX"
+# verify — a run that "tore down" but left the port open blocks your own next run and looks like it needs pkill:
+ss -ltn "sport = :$VRX_WEB_PORT" | grep -q LISTEN && echo "WARNING: $VRX_WEB_PORT still open" || echo "port $VRX_WEB_PORT closed"
 ```
 
 Both `shots.mjs` and `flow.e2e.mjs` exit non-zero on any failed check **or any browser `pageerror`** — a run that
@@ -95,7 +108,8 @@ dependency is added by this harness.
 ## Rules this harness follows (docs/lab/shared-host-rules.md)
 
 - Every object your run creates (test users, revisions, ...) is prefixed with your slot's `VRX_TEST_PREFIX`.
-- Never `pkill`/`killall` — stop exactly the PIDs you started (`devstack.sh stop`, `kill $WEB_PID`).
+- Never `pkill`/`killall` — stop exactly the PIDs you started (`devstack.sh stop`, and for `vite preview`, the PID
+  actually bound to `VRX_WEB_PORT` — see the teardown snippet above, not just `$WEB_PID`).
 - Never `show trace`/`trace add` (banned on the shared VPP, D-128) — this harness never touches VPP directly; it only
   drives the browser against the API/web stack.
 - Tear down everything before you finish: `devstack.sh stop`, drop your database, flush your Valkey db, remove

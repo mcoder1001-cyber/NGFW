@@ -22,8 +22,8 @@ import { launchBrowser, newPage } from './lib/browser.mjs';
 import { createChecklist } from './lib/checklist.mjs';
 import { createTranslator } from './lib/locales.mjs';
 import { nav } from './lib/nav.mjs';
-import { shot } from './lib/shot.mjs';
-import { setTheme } from './lib/theme.mjs';
+import { shot, shotName } from './lib/shot.mjs';
+import { setLanguage, setTheme } from './lib/theme.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(here, '../..');
@@ -63,8 +63,13 @@ try {
       await login(page, tr, lang, ADMIN_USER, ADMIN_PW);
       await page.waitForURL((u) => !u.pathname.startsWith('/login'));
       ok(`[${slug}/${lang}] signed in as ${ADMIN_USER}`);
+      // The Settings popover's own button/menu labels are rendered in whatever language the page is CURRENTLY
+      // showing, which a screen can change at runtime via ctx.setLanguage(). Track it so a second toggle (e.g. a
+      // restore back to `lang`) still finds the popover by its actually-rendered label, not the label from before
+      // the first switch — `setLanguage(page, tr, <current>, newLang)` needs `<current>`, not the pass's fixed `lang`.
+      let currentLang = lang;
       for (const theme of THEMES) {
-        if (theme !== THEMES[0]) await setTheme(page, tr, lang, theme);
+        if (theme !== THEMES[0]) await setTheme(page, tr, currentLang, theme);
         const ctx = {
           page,
           lang,
@@ -72,7 +77,15 @@ try {
           base: BASE,
           t: (key, vars) => tr(lang, key, vars),
           nav: (key) => nav(page, tr, lang, key, { check: (c, m) => check(c, `[${slug}/${lang}] ${m}`) }),
-          shot: (step) => shot(page, OUT, `${slug}-${lang}-${theme}-${step}`, { base: BASE }),
+          // runtime toggles (lib/theme.mjs) — no reload/re-login. If your screen calls setLanguage(), remember to
+          // flip it back before returning (or before your next ctx.shot()), since ctx.shot()'s dir check below still
+          // asserts against `lang`, this (lang x theme) pass's fixed identity, not whatever the page currently shows.
+          setTheme: (mode) => setTheme(page, tr, currentLang, mode),
+          setLanguage: async (newLang) => {
+            await setLanguage(page, tr, currentLang, newLang);
+            currentLang = newLang;
+          },
+          shot: (step) => shot(page, OUT, shotName({ slug, lang, theme, step }), { base: BASE, lang, check: (c, m) => check(c, `[${slug}/${lang}/${theme}] ${m}`) }),
           ok: (msg) => ok(`[${slug}/${lang}/${theme}] ${msg}`),
           check: (cond, msg) => check(cond, `[${slug}/${lang}/${theme}] ${msg}`),
         };

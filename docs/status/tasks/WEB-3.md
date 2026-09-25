@@ -231,13 +231,167 @@ Caught by re-checking `ss -ltnp` after the first kill and stopping the child PID
 kills the wrapper PID as the simple case; a worker should still verify the port is actually closed afterward.
 
 ## Out of scope
-- Dark theme was not exercised in the real-stack proof (only `light`, per the proof requirement); `lib/theme.mjs`'s
-  `setTheme`/`setLanguage` are implemented and used by `screens/_example.mjs`'s documented pattern, but not run
-  against the live stack here — a feature worker exercising `--themes light,dark` on their own screen is the next
-  real use.
+- ~~Dark theme was not exercised in the real-stack proof~~ — done in Fix round 1 below (review M2).
 - Migrating F-vlan-qinq's and F-nat44-ed-sessions' private `shots.mjs` onto this library (envelope: "they migrate
   later", not this task).
 - No product code touched; `tools/app` was never used (slot 11 stack only, per the envelope).
+- `apps/web/package.json`'s `lint` script and `tools/ci.sh`'s forbidden-pattern grep not covering `test/e2e/**`
+  (review finding #6, informational, pre-existing) — the manager is boarding this separately.
+- The bare `waitForTimeout` in `screens/interfaces.mjs:9`/`screens/users.mjs:7` (review finding #5, L nit) — not in
+  the manager's fix-round-1 list, left as is.
+
+## Fix round 1 (review `0ea17400`, `docs/status/tasks/WEB-3-review.md`)
+
+Addressed M1, M2 and the L about `shot.mjs`'s dir logging / unused `shotName()`. Files touched:
+`README.md`, `lib/shot.mjs`, `shots.mjs`, `screens/_example.mjs`.
+
+### M1 — README teardown didn't document the vite child-PID wrinkle
+`README.md`'s "Running against your slot stack" now says explicitly, at both the point `pnpm preview` is started
+and in the teardown block, that `pnpm preview` forks the real vite listener as a **child** of the `$!` PID. The
+teardown snippet now finds the actual listener from the port itself and kills that (no `pkill`):
+```bash
+WEB_LISTEN_PID=$(ss -ltnp "sport = :$VRX_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
+[ -n "$WEB_LISTEN_PID" ] && kill "$WEB_LISTEN_PID"
+kill "$WEB_PID" 2>/dev/null   # the pnpm wrapper, if it's still around
+...
+ss -ltn "sport = :$VRX_WEB_PORT" | grep -q LISTEN && echo "WARNING: $VRX_WEB_PORT still open" || echo "port $VRX_WEB_PORT closed"
+```
+"Rules this harness follows" updated to match. Proven live during this round's own teardown (below): the listener's
+PID (`3412046`) was a different process from the wrapper PID captured at start time, confirming the wrinkle is real
+and that the new snippet finds and stops the right one.
+
+### M2 — setTheme/setLanguage never exercised against a live browser
+`screens/_example.mjs` now calls both after its normal nav+shot steps, against real DOM state (no polling/sleep —
+a direct `page.evaluate()` read before and after each toggle), and `check()`s that something actually changed:
+- **Theme**: `VrxThemeProvider` (`packages/ui-kit`) sets `document.documentElement.style.colorScheme` to the
+  resolved mode — the toggle target is picked as whichever mode is NOT already active (a hardcoded `'dark'` target
+  would be a no-op on the pass that starts already dark under `--themes light,dark`; caught by the real run below,
+  fixed before this round's evidence was taken).
+- **Language**: asserts `document.documentElement.dir` flips (`ltr` <-> `rtl`) after `setLanguage()`, then restores
+  the original language.
+
+Fixing this exposed a second, more interesting real bug in `shots.mjs` itself, not just the demo: `ctx.setLanguage`
+was calling `lib/theme.mjs`'s `setLanguage(page, tr, lang, newLang)` with the pass's fixed `lang`, but that function
+needs the **currently-displayed** language to find the Settings popover by its (now-translated) accessible label —
+after the first toggle (en -> fa), a second call meant to restore (fa -> en) still passed the stale `lang: 'en'`
+and timed out looking for a button labelled "Settings" while the page was actually showing "تنظیمات". Fixed by
+tracking a `currentLang` per (slug, lang) session in `shots.mjs`, updated after every `setLanguage()` call, and
+used by both `ctx.setTheme`/`ctx.setLanguage` internally (`ctx.lang` itself is unchanged — it stays the pass's
+fixed identity, matching what `ctx.shot()`'s dir-check and the `ok`/`check` message prefixes use).
+
+### L — `lib/shot.mjs`: dir only logged; `shotName()` unused
+`shot(page, outDir, name, { base, lang, check })` now takes optional `lang`/`check` and, when given, asserts
+`<html dir>` matches the expected direction for `lang` (`rtl` for `fa`, else `ltr`) instead of only logging it —
+opt-in so `flow.e2e.mjs`'s 43 fixed checks stay exactly 43 (its own `shot()` wrapper doesn't pass either). Wired
+into `shots.mjs`'s `ctx.shot()`, so every screen (including the two proof screens) now gets this assertion for free.
+`shotName()` is now actually called from `shots.mjs` (`shotName({ slug, lang, theme, step })`) instead of the name
+being rebuilt inline — one source of truth for the naming convention, as originally intended.
+
+### Verified — real stack, slot 11 (checked free first: `ss -ltn 'sport = :4100'` empty, `/run/vrx-test/w11` absent)
+Same procedure as the original proof (agent+API owner `w11`, `vite preview` of this tree's build on `127.0.0.1:6100`,
+`flock -s /run/lock/vrx-lab.lock` for each run, Chrome-for-Testing 154.0.8037.57 + playwright-core 1.63.0, no
+`show trace`/`trace add`). Reused this session's already-fresh build (`apps/web/dist`, `apps/api/dist/main.js`,
+`apps/agent/bin/vrx-agent` — none touched by this fix round; no product code changed).
+
+```
+$ node apps/web/test/e2e/shots.mjs --base http://127.0.0.1:6100 --screens _example,interfaces,users \
+    --out <dir> --langs en,fa --themes light,dark --admin-password-file /run/vrx-test/w11/admin.pw
+ok   [_example/en] signed in as admin
+ok   [_example/en/light] [en/light] dashboard heading is visible
+shot _example-en-light-1-loaded.png  (ltr/en)  /
+ok   [_example/en/light] _example-en-light-1-loaded.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [_example/en/light] [en] setTheme('dark') set <html style.colorScheme> to "dark" (was "light")
+shot _example-en-light-2-theme-dark.png  (ltr/en)  /
+ok   [_example/en/light] _example-en-light-2-theme-dark.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [_example/en/light] [en] setLanguage('fa') flipped <html dir> ("ltr" -> "rtl")
+ok   [_example/en/dark] [en/dark] dashboard heading is visible
+shot _example-en-dark-1-loaded.png  (ltr/en)  /
+ok   [_example/en/dark] _example-en-dark-1-loaded.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [_example/en/dark] [en] setTheme('light') set <html style.colorScheme> to "light" (was "dark")
+shot _example-en-dark-2-theme-light.png  (ltr/en)  /
+ok   [_example/en/dark] _example-en-dark-2-theme-light.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [_example/en/dark] [en] setLanguage('fa') flipped <html dir> ("ltr" -> "rtl")
+ok   [_example/fa] signed in as admin
+ok   [_example/fa/light] [fa/light] dashboard heading is visible
+shot _example-fa-light-1-loaded.png  (rtl/fa)  /
+ok   [_example/fa/light] _example-fa-light-1-loaded.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [_example/fa/light] [fa] setTheme('dark') set <html style.colorScheme> to "dark" (was "light")
+shot _example-fa-light-2-theme-dark.png  (rtl/fa)  /
+ok   [_example/fa/light] _example-fa-light-2-theme-dark.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [_example/fa/light] [fa] setLanguage('en') flipped <html dir> ("rtl" -> "ltr")
+ok   [_example/fa/dark] [fa/dark] dashboard heading is visible
+shot _example-fa-dark-1-loaded.png  (rtl/fa)  /
+ok   [_example/fa/dark] _example-fa-dark-1-loaded.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [_example/fa/dark] [fa] setTheme('light') set <html style.colorScheme> to "light" (was "dark")
+shot _example-fa-dark-2-theme-light.png  (rtl/fa)  /
+ok   [_example/fa/dark] _example-fa-dark-2-theme-light.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [_example/fa/dark] [fa] setLanguage('en') flipped <html dir> ("rtl" -> "ltr")
+ok   [interfaces/en] signed in as admin
+ok   [interfaces/en/light] [en/light] interfaces grid is visible
+shot interfaces-en-light-1-grid.png  (ltr/en)  /interfaces
+ok   [interfaces/en/light] interfaces-en-light-1-grid.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [interfaces/en/dark] [en/dark] interfaces grid is visible
+shot interfaces-en-dark-1-grid.png  (ltr/en)  /interfaces
+ok   [interfaces/en/dark] interfaces-en-dark-1-grid.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [interfaces/fa] signed in as admin
+ok   [interfaces/fa/light] [fa/light] interfaces grid is visible
+shot interfaces-fa-light-1-grid.png  (rtl/fa)  /interfaces
+ok   [interfaces/fa/light] interfaces-fa-light-1-grid.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [interfaces/fa/dark] [fa/dark] interfaces grid is visible
+shot interfaces-fa-dark-1-grid.png  (rtl/fa)  /interfaces
+ok   [interfaces/fa/dark] interfaces-fa-dark-1-grid.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [users/en] signed in as admin
+ok   [users/en] [en] nav: opened the collapsed "System" group to reach users
+ok   [users/en/light] [en/light] users heading is visible
+shot users-en-light-1-list.png  (ltr/en)  /system/users
+ok   [users/en/light] users-en-light-1-list.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [users/en/dark] [en/dark] users heading is visible
+shot users-en-dark-1-list.png  (ltr/en)  /system/users
+ok   [users/en/dark] users-en-dark-1-list.png: <html dir="ltr"> matches en (expected "ltr")
+ok   [users/fa] signed in as admin
+ok   [users/fa] [fa] nav: opened the collapsed "سیستم" group to reach users
+ok   [users/fa/light] [fa/light] users heading is visible
+shot users-fa-light-1-list.png  (rtl/fa)  /system/users
+ok   [users/fa/light] users-fa-light-1-list.png: <html dir="rtl"> matches fa (expected "rtl")
+ok   [users/fa/dark] [fa/dark] users heading is visible
+shot users-fa-dark-1-list.png  (rtl/fa)  /system/users
+ok   [users/fa/dark] users-fa-dark-1-list.png: <html dir="rtl"> matches fa (expected "rtl")
+
+SHOTS OK (44 checks, 3 screen(s) x 2 lang(s) x 2 theme(s))
+EXIT: 0
+```
+**pageErrors: 0.** 16 screenshots captured, all correctly named `<slug>-<lang>-<theme>-<step>.png` (verified by
+listing the output dir). Two real bugs were found and fixed while getting this run green (the hardcoded `'dark'`
+target no-op, and the `setLanguage` restore using a stale `lang`) — both described above, both would otherwise have
+shipped as an "exercised" toggle that only worked once per direction.
+
+**Regression check — `flow.e2e.mjs` still 43/43** (the `lib/shot.mjs` signature change is additive/opt-in):
+```
+$ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots <dir>
+...
+E2E PASSED (43 checks)
+EXIT: 0
+```
+`grep -c "^ok"` = 43, `grep -i pageerror` = 0.
+
+### Teardown
+```
+$ ss -ltnp "sport = :$VRX_WEB_PORT"
+LISTEN ... 127.0.0.1:6100 ... pid=3412046   # the CHILD — different from the pnpm wrapper's PID captured at start
+$ kill 3412046                              # found via the new README snippet, not pkill
+$ kill "$WEB_PID" 2>/dev/null               # wrapper, already gone
+port 6100 closed
+$ apps/cli/test/devstack.sh stop
+api stopped (pid 3404343)
+agent stopped (pid 3404250)
+removed slot secrets and logs from /run/vrx-test/w11 (use stop --keep to keep them)
+$ deploy/dev/pg-test.sh drop w11
+ok     nothing named vrx_w11 / vrx_w11 remains
+$ valkey-cli -h 127.0.0.1 -n 11 flushdb
+OK
+```
+Verified after teardown: `ss -ltnp` nothing on 4100/6100/9211; `/run/vrx-test/w11` empty then removed entirely;
+`vrx_w11` db/role gone; Valkey db 11 `dbsize` = 0.
 
 ## Questions
 None.

@@ -33,7 +33,8 @@
     "title": "Communities (v2c, read-only)",
     "secret": "Community (secret reference)",
     "value": "Community string",
-    "sources": "Allowed source prefixes"
+    "sources": "Allowed source prefixes",
+    "empty": "No communities yet. Add one below to allow SNMPv2c read-only polling."
   },
   "users": {
     "title": "SNMPv3 users (authPriv)",
@@ -41,7 +42,8 @@
     "protocols": "Auth / privacy",
     "auth": "Authentication",
     "authPass": "Authentication passphrase",
-    "privPass": "Privacy passphrase (AES)"
+    "privPass": "Privacy passphrase (AES)",
+    "empty": "No SNMPv3 users yet. Add one below for authenticated, encrypted polling."
   },
   "traps": {
     "title": "Trap receivers",
@@ -50,6 +52,8 @@
     "version": "Version",
     "credential": "Community or user",
     "community": "v2c community {{name}}",
-    "user": "v3 user {{name}}"
-  }
+    "user": "v3 user {{name}}",
+    "empty": "No trap receivers. Add a receiver address below to send traps."
+  },
+  "loading": "Loading SNMP configuration and state"
 }

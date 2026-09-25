@@ -31,5 +31,6 @@
   },
   "port": "port",
   "any": "any",
-  "stateError": "Live state unavailable"
+  "stateError": "Live state unavailable",
+  "loading": "Loading host-stack configuration and state"
 }

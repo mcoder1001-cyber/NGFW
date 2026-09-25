@@ -6,6 +6,7 @@ import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import IconButton from '@mui/material/IconButton';
+import LinearProgress from '@mui/material/LinearProgress';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
@@ -74,6 +75,9 @@ export default function SnmpTab() {
 
   return (
     <Box>
+      {(cand.isPending || state.isPending) && <LinearProgress aria-label={t('loading')} sx={{ mb: 2 }} />}
+      {cand.isError && <ProblemAlert error={cand.error} sx={{ mb: 2 }} />}
+      {state.isError && <ProblemAlert error={state.error} sx={{ mb: 2 }} />}
       {error !== null && <ProblemAlert error={error} sx={{ mb: 2 }} />}
       <StateCard state={state.data} />
       <General cfg={cfg} readOnly={ro} onSave={run} />
@@ -234,6 +238,7 @@ function Communities({ cfg, readOnly, canWriteSecrets, onSave, onError }: Secret
           </TableRow>
         </TableHead>
         <TableBody>
+          {entries.length === 0 && <EmptyRow text={t('communities.empty')} />}
           {entries.map(([n, c]) => (
             <TableRow key={n}>
               <TableCell>{n}</TableCell>
@@ -335,6 +340,7 @@ function Users({ cfg, readOnly, canWriteSecrets, onSave, onError }: SecretEditPr
           </TableRow>
         </TableHead>
         <TableBody>
+          {entries.length === 0 && <EmptyRow text={t('users.empty')} />}
           {entries.map(([n, u]) => (
             <TableRow key={n}>
               <TableCell>{n}</TableCell>
@@ -437,6 +443,7 @@ function Traps({ cfg, readOnly, onSave }: EditProps) {
           </TableRow>
         </TableHead>
         <TableBody>
+          {list.length === 0 && <EmptyRow text={t('traps.empty')} />}
           {list.map((r, i) => (
             <TableRow key={`${r.address}:${r.port ?? 162}:${r.version ?? 'v2c'}`}>
               <TableCell dir="ltr">{`${r.address}:${r.port ?? 162}`}</TableCell>
@@ -502,5 +509,18 @@ function Traps({ cfg, readOnly, onSave }: EditProps) {
         </Button>
       </Stack>
     </Section>
+  );
+}
+
+/** Guidance row for an empty list (screen readers get it as a normal table cell). */
+function EmptyRow({ text }: { text: string }) {
+  return (
+    <TableRow>
+      <TableCell colSpan={8}>
+        <Typography variant="body2" color="text.secondary">
+          {text}
+        </Typography>
+      </TableCell>
+    </TableRow>
   );
 }

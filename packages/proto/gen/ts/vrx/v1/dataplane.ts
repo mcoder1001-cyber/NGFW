@@ -2170,7 +2170,11 @@ export interface ServicesConfig {
     | NtpService
     | undefined;
   /** QoS: policers, shapers, marking maps, interface attachments (D-052). */
-  qos: QosService | undefined;
+  qos:
+    | QosService
+    | undefined;
+  /** Load balancer: VIPs, application servers, NAT interfaces (VPP lb plugin, F-lb; tier T3). */
+  lb: LbService | undefined;
 }
 
 /** SocketAddress is an `{ address, port }` pair (listen sockets, collectors). */
@@ -5274,6 +5278,183 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/**
+ * LbService is `services.lb` (VPP lb plugin; WBS D7.9, tier T3). Every lb object is write-only in VPP
+ * 26.06 (V20, D-063): Retrieve never reports this message; LbState is the read-only live view.
+ */
+export interface LbService {
+  /** VPP-global settings (lb_conf); applied only by the globals owner (D-071). */
+  settings:
+    | LbSettings
+    | undefined;
+  /** Virtual IPs keyed by name. */
+  vips: { [key: string]: LbVip };
+  /** Interfaces with the lb NAT in2out feature (nat4/nat6 VIPs). */
+  natInterfaces: LbNatInterface[];
+}
+
+export interface LbService_VipsEntry {
+  key: string;
+  value: LbVip | undefined;
+}
+
+/** LbSettings is `services.lb.settings` (lb_conf). */
+export interface LbSettings {
+  /** Outer source of gre4 packets / SNAT source of nat4 nodeport VIPs; unset = VPP default. */
+  ip4Source?:
+    | string
+    | undefined;
+  /** Outer source of gre6 packets / SNAT source of nat6 nodeport VIPs; unset = VPP default. */
+  ip6Source?:
+    | string
+    | undefined;
+  /** Sticky-table buckets per worker (power of two); unset = keep VPP's value. */
+  flowBuckets?:
+    | number
+    | undefined;
+  /** Flow timeout in seconds; unset = keep VPP's value. */
+  flowTimeoutSec?: number | undefined;
+}
+
+/** LbVip is `services.lb.vips.<name>`. */
+export interface LbVip {
+  /** VIP prefix (CIDR, host bits zero). */
+  prefix?:
+    | string
+    | undefined;
+  /** "any" | "tcp" | "udp". */
+  protocol?:
+    | string
+    | undefined;
+  /** Destination port (tcp/udp VIPs); unset for protocol any. */
+  port?:
+    | number
+    | undefined;
+  /** "gre4" | "gre6" | "l3dsr" | "nat4" | "nat6". */
+  encap?:
+    | string
+    | undefined;
+  /** DSCP written by an l3dsr VIP. */
+  dscp?:
+    | number
+    | undefined;
+  /** "clusterip" | "nodeport" (nat4/nat6). */
+  srvType?:
+    | string
+    | undefined;
+  /** Port on the application server (nat4/nat6). */
+  targetPort?:
+    | number
+    | undefined;
+  /** Node port of a nodeport VIP (ignored by VPP 26.06). */
+  nodePort?:
+    | number
+    | undefined;
+  /** Entries of the new-flows (Maglev) table, a power of two. */
+  newFlowsTableLength?:
+    | number
+    | undefined;
+  /** Hash on the source address only. */
+  srcIpSticky?:
+    | boolean
+    | undefined;
+  /** Application servers. */
+  servers: LbServer[];
+}
+
+/** LbServer is one application server of a VIP. */
+export interface LbServer {
+  /** Server address (the encapsulation's family). */
+  address?:
+    | string
+    | undefined;
+  /** Also drop the server's sticky-table entries when it is removed. */
+  flushOnDelete?: boolean | undefined;
+}
+
+/** LbNatInterface is one entry of `services.lb.nat_interfaces`. */
+export interface LbNatInterface {
+  /** Logical interface name. */
+  interface?:
+    | string
+    | undefined;
+  /** "ip4" | "ip6". */
+  family?: string | undefined;
+}
+
+/** LbStateRequest selects VIPs by configuration name. */
+export interface LbStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** VIP names of the agent's stored desired state; empty = every configured VIP. */
+  names: string[];
+}
+
+/** LbStateResponse is one snapshot of the lb plugin for this agent's VIPs. */
+export interface LbStateResponse {
+  /** One entry per configured VIP, sorted by name. */
+  vips: LbVipState[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dumps were taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** lb_vip_dump entries in the whole VPP (every owner, "removed" ones included). */
+  totalVppVips: number;
+}
+
+/** LbServerState is one application server as lb_as_dump reports it. */
+export interface LbServerState {
+  /** Server address. */
+  address: string;
+  /** true = in use (LB_AS_FLAGS_USED); false = removed, waiting for the lb garbage collection. */
+  inUse: boolean;
+  /** VPP clock (seconds) at which the server was last used / removed. */
+  inUseSince: number;
+}
+
+/** LbVipState is the live state of one configured VIP. */
+export interface LbVipState {
+  /** Configuration name (services.lb.vips key). */
+  name: string;
+  /** Configured prefix. */
+  prefix: string;
+  /** Configured protocol (VPP 26.06 does not report it: lb_vip_details.protocol is always 0). */
+  protocol: string;
+  /** Configured port (0 = all ports). */
+  port: number;
+  /** This agent created the VIP on the running VPP instance (its D-080 boot record exists). */
+  applied: boolean;
+  /**
+   * lb_vip_dump entries with this prefix and port: 0 = not in VPP, 1 = the VIP, > 1 = the VIP plus
+   * "removed" ones (a VIP change is delete + add) until the lb garbage collection.
+   */
+  vppEntries: number;
+  /** Encapsulation VPP reports (from the VIP type): gre4, gre6, l3dsr, nat4, nat6; "" = not in VPP. */
+  encap: string;
+  /** DSCP of an l3dsr VIP as VPP reports it. */
+  dscp: number;
+  /** Target port of a nat VIP (VPP 26.06 sends it byte-swapped; the agent swaps it back). */
+  targetPort: number;
+  /** Application servers of every entry with this prefix and port (in use and removed). */
+  servers: LbServerState[];
+}
+
+/** LbFlushVipRequest names one configured VIP. */
+export interface LbFlushVipRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** VIP name in the agent's stored desired state (services.lb.vips key). */
+  name: string;
+}
+
+/** LbFlushVipResponse is the outcome of a flush. */
+export interface LbFlushVipResponse {
+  /** The VIP that was flushed (prefix/protocol/port). */
+  vip: string;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -18237,6 +18418,7 @@ function createBaseServicesConfig(): ServicesConfig {
     ipfix: undefined,
     ntp: undefined,
     qos: undefined,
+    lb: undefined,
   };
 }
 
@@ -18262,6 +18444,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     }
     if (message.qos !== undefined) {
       QosService.encode(message.qos, writer.uint32(58).fork()).join();
+    }
+    if (message.lb !== undefined) {
+      LbService.encode(message.lb, writer.uint32(90).fork()).join();
     }
     return writer;
   },
@@ -18335,6 +18520,14 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
             message.qos = QosService.decode(reader, reader.uint32());
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.lb = LbService.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -18356,6 +18549,7 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       ipfix: isSet(object.ipfix) ? IpfixService.fromJSON(object.ipfix) : undefined,
       ntp: isSet(object.ntp) ? NtpService.fromJSON(object.ntp) : undefined,
       qos: isSet(object.qos) ? QosService.fromJSON(object.qos) : undefined,
+      lb: isSet(object.lb) ? LbService.fromJSON(object.lb) : undefined,
     };
   },
 
@@ -18382,6 +18576,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     if (message.qos !== undefined) {
       obj.qos = QosService.toJSON(message.qos);
     }
+    if (message.lb !== undefined) {
+      obj.lb = LbService.toJSON(message.lb);
+    }
     return obj;
   },
 
@@ -18405,6 +18602,7 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
       : undefined;
     message.ntp = (object.ntp !== undefined && object.ntp !== null) ? NtpService.fromPartial(object.ntp) : undefined;
     message.qos = (object.qos !== undefined && object.qos !== null) ? QosService.fromPartial(object.qos) : undefined;
+    message.lb = (object.lb !== undefined && object.lb !== null) ? LbService.fromPartial(object.lb) : undefined;
     return message;
   },
 };
@@ -42617,6 +42815,1503 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseLbService(): LbService {
+  return { settings: undefined, vips: {}, natInterfaces: [] };
+}
+
+export const LbService: MessageFns<LbService> = {
+  encode(message: LbService, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.settings !== undefined) {
+      LbSettings.encode(message.settings, writer.uint32(10).fork()).join();
+    }
+    globalThis.Object.entries(message.vips).forEach(([key, value]: [string, LbVip]) => {
+      LbService_VipsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    for (const v of message.natInterfaces) {
+      LbNatInterface.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbService {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbService();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.settings = LbSettings.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = LbService_VipsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.vips[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.natInterfaces.push(LbNatInterface.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbService {
+    return {
+      settings: isSet(object.settings) ? LbSettings.fromJSON(object.settings) : undefined,
+      vips: isObject(object.vips)
+        ? (globalThis.Object.entries(object.vips) as [string, any][]).reduce(
+          (acc: { [key: string]: LbVip }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LbVip.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      natInterfaces: globalThis.Array.isArray(object?.natInterfaces)
+        ? object.natInterfaces.map((e: any) => LbNatInterface.fromJSON(e))
+        : globalThis.Array.isArray(object?.nat_interfaces)
+        ? object.nat_interfaces.map((e: any) => LbNatInterface.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbService): unknown {
+    const obj: any = {};
+    if (message.settings !== undefined) {
+      obj.settings = LbSettings.toJSON(message.settings);
+    }
+    if (message.vips) {
+      const entries = globalThis.Object.entries(message.vips) as [string, LbVip][];
+      if (entries.length > 0) {
+        obj.vips = {};
+        entries.forEach(([k, v]) => {
+          obj.vips[k] = LbVip.toJSON(v);
+        });
+      }
+    }
+    if (message.natInterfaces?.length) {
+      obj.natInterfaces = message.natInterfaces.map((e) => LbNatInterface.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbService>): LbService {
+    return LbService.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbService>): LbService {
+    const message = createBaseLbService();
+    message.settings = (object.settings !== undefined && object.settings !== null)
+      ? LbSettings.fromPartial(object.settings)
+      : undefined;
+    message.vips = (globalThis.Object.entries(object.vips ?? {}) as [string, LbVip][]).reduce(
+      (acc: { [key: string]: LbVip }, [key, value]: [string, LbVip]) => {
+        if (value !== undefined) {
+          acc[key] = LbVip.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.natInterfaces = object.natInterfaces?.map((e) => LbNatInterface.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbService_VipsEntry(): LbService_VipsEntry {
+  return { key: "", value: undefined };
+}
+
+export const LbService_VipsEntry: MessageFns<LbService_VipsEntry> = {
+  encode(message: LbService_VipsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      LbVip.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbService_VipsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbService_VipsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = LbVip.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbService_VipsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? LbVip.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: LbService_VipsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = LbVip.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbService_VipsEntry>): LbService_VipsEntry {
+    return LbService_VipsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbService_VipsEntry>): LbService_VipsEntry {
+    const message = createBaseLbService_VipsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null) ? LbVip.fromPartial(object.value) : undefined;
+    return message;
+  },
+};
+
+function createBaseLbSettings(): LbSettings {
+  return { ip4Source: undefined, ip6Source: undefined, flowBuckets: undefined, flowTimeoutSec: undefined };
+}
+
+export const LbSettings: MessageFns<LbSettings> = {
+  encode(message: LbSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ip4Source !== undefined) {
+      writer.uint32(10).string(message.ip4Source);
+    }
+    if (message.ip6Source !== undefined) {
+      writer.uint32(18).string(message.ip6Source);
+    }
+    if (message.flowBuckets !== undefined) {
+      writer.uint32(24).uint32(message.flowBuckets);
+    }
+    if (message.flowTimeoutSec !== undefined) {
+      writer.uint32(32).uint32(message.flowTimeoutSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbSettings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbSettings();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ip4Source = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ip6Source = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.flowBuckets = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.flowTimeoutSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbSettings {
+    return {
+      ip4Source: isSet(object.ip4Source)
+        ? globalThis.String(object.ip4Source)
+        : isSet(object.ip4_source)
+        ? globalThis.String(object.ip4_source)
+        : undefined,
+      ip6Source: isSet(object.ip6Source)
+        ? globalThis.String(object.ip6Source)
+        : isSet(object.ip6_source)
+        ? globalThis.String(object.ip6_source)
+        : undefined,
+      flowBuckets: isSet(object.flowBuckets)
+        ? globalThis.Number(object.flowBuckets)
+        : isSet(object.flow_buckets)
+        ? globalThis.Number(object.flow_buckets)
+        : undefined,
+      flowTimeoutSec: isSet(object.flowTimeoutSec)
+        ? globalThis.Number(object.flowTimeoutSec)
+        : isSet(object.flow_timeout_sec)
+        ? globalThis.Number(object.flow_timeout_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LbSettings): unknown {
+    const obj: any = {};
+    if (message.ip4Source !== undefined) {
+      obj.ip4Source = message.ip4Source;
+    }
+    if (message.ip6Source !== undefined) {
+      obj.ip6Source = message.ip6Source;
+    }
+    if (message.flowBuckets !== undefined) {
+      obj.flowBuckets = Math.round(message.flowBuckets);
+    }
+    if (message.flowTimeoutSec !== undefined) {
+      obj.flowTimeoutSec = Math.round(message.flowTimeoutSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbSettings>): LbSettings {
+    return LbSettings.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbSettings>): LbSettings {
+    const message = createBaseLbSettings();
+    message.ip4Source = object.ip4Source ?? undefined;
+    message.ip6Source = object.ip6Source ?? undefined;
+    message.flowBuckets = object.flowBuckets ?? undefined;
+    message.flowTimeoutSec = object.flowTimeoutSec ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbVip(): LbVip {
+  return {
+    prefix: undefined,
+    protocol: undefined,
+    port: undefined,
+    encap: undefined,
+    dscp: undefined,
+    srvType: undefined,
+    targetPort: undefined,
+    nodePort: undefined,
+    newFlowsTableLength: undefined,
+    srcIpSticky: undefined,
+    servers: [],
+  };
+}
+
+export const LbVip: MessageFns<LbVip> = {
+  encode(message: LbVip, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefix !== undefined) {
+      writer.uint32(10).string(message.prefix);
+    }
+    if (message.protocol !== undefined) {
+      writer.uint32(18).string(message.protocol);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(24).uint32(message.port);
+    }
+    if (message.encap !== undefined) {
+      writer.uint32(34).string(message.encap);
+    }
+    if (message.dscp !== undefined) {
+      writer.uint32(40).uint32(message.dscp);
+    }
+    if (message.srvType !== undefined) {
+      writer.uint32(50).string(message.srvType);
+    }
+    if (message.targetPort !== undefined) {
+      writer.uint32(56).uint32(message.targetPort);
+    }
+    if (message.nodePort !== undefined) {
+      writer.uint32(64).uint32(message.nodePort);
+    }
+    if (message.newFlowsTableLength !== undefined) {
+      writer.uint32(72).uint32(message.newFlowsTableLength);
+    }
+    if (message.srcIpSticky !== undefined) {
+      writer.uint32(80).bool(message.srcIpSticky);
+    }
+    for (const v of message.servers) {
+      LbServer.encode(v!, writer.uint32(90).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbVip {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbVip();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.encap = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.dscp = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.srvType = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.targetPort = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.nodePort = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.newFlowsTableLength = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.srcIpSticky = reader.bool();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.servers.push(LbServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbVip {
+    return {
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      encap: isSet(object.encap) ? globalThis.String(object.encap) : undefined,
+      dscp: isSet(object.dscp) ? globalThis.Number(object.dscp) : undefined,
+      srvType: isSet(object.srvType)
+        ? globalThis.String(object.srvType)
+        : isSet(object.srv_type)
+        ? globalThis.String(object.srv_type)
+        : undefined,
+      targetPort: isSet(object.targetPort)
+        ? globalThis.Number(object.targetPort)
+        : isSet(object.target_port)
+        ? globalThis.Number(object.target_port)
+        : undefined,
+      nodePort: isSet(object.nodePort)
+        ? globalThis.Number(object.nodePort)
+        : isSet(object.node_port)
+        ? globalThis.Number(object.node_port)
+        : undefined,
+      newFlowsTableLength: isSet(object.newFlowsTableLength)
+        ? globalThis.Number(object.newFlowsTableLength)
+        : isSet(object.new_flows_table_length)
+        ? globalThis.Number(object.new_flows_table_length)
+        : undefined,
+      srcIpSticky: isSet(object.srcIpSticky)
+        ? globalThis.Boolean(object.srcIpSticky)
+        : isSet(object.src_ip_sticky)
+        ? globalThis.Boolean(object.src_ip_sticky)
+        : undefined,
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => LbServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbVip): unknown {
+    const obj: any = {};
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.protocol !== undefined) {
+      obj.protocol = message.protocol;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.encap !== undefined) {
+      obj.encap = message.encap;
+    }
+    if (message.dscp !== undefined) {
+      obj.dscp = Math.round(message.dscp);
+    }
+    if (message.srvType !== undefined) {
+      obj.srvType = message.srvType;
+    }
+    if (message.targetPort !== undefined) {
+      obj.targetPort = Math.round(message.targetPort);
+    }
+    if (message.nodePort !== undefined) {
+      obj.nodePort = Math.round(message.nodePort);
+    }
+    if (message.newFlowsTableLength !== undefined) {
+      obj.newFlowsTableLength = Math.round(message.newFlowsTableLength);
+    }
+    if (message.srcIpSticky !== undefined) {
+      obj.srcIpSticky = message.srcIpSticky;
+    }
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => LbServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbVip>): LbVip {
+    return LbVip.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbVip>): LbVip {
+    const message = createBaseLbVip();
+    message.prefix = object.prefix ?? undefined;
+    message.protocol = object.protocol ?? undefined;
+    message.port = object.port ?? undefined;
+    message.encap = object.encap ?? undefined;
+    message.dscp = object.dscp ?? undefined;
+    message.srvType = object.srvType ?? undefined;
+    message.targetPort = object.targetPort ?? undefined;
+    message.nodePort = object.nodePort ?? undefined;
+    message.newFlowsTableLength = object.newFlowsTableLength ?? undefined;
+    message.srcIpSticky = object.srcIpSticky ?? undefined;
+    message.servers = object.servers?.map((e) => LbServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbServer(): LbServer {
+  return { address: undefined, flushOnDelete: undefined };
+}
+
+export const LbServer: MessageFns<LbServer> = {
+  encode(message: LbServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.flushOnDelete !== undefined) {
+      writer.uint32(16).bool(message.flushOnDelete);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.flushOnDelete = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbServer {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      flushOnDelete: isSet(object.flushOnDelete)
+        ? globalThis.Boolean(object.flushOnDelete)
+        : isSet(object.flush_on_delete)
+        ? globalThis.Boolean(object.flush_on_delete)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LbServer): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.flushOnDelete !== undefined) {
+      obj.flushOnDelete = message.flushOnDelete;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbServer>): LbServer {
+    return LbServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbServer>): LbServer {
+    const message = createBaseLbServer();
+    message.address = object.address ?? undefined;
+    message.flushOnDelete = object.flushOnDelete ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbNatInterface(): LbNatInterface {
+  return { interface: undefined, family: undefined };
+}
+
+export const LbNatInterface: MessageFns<LbNatInterface> = {
+  encode(message: LbNatInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.family !== undefined) {
+      writer.uint32(18).string(message.family);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbNatInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbNatInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbNatInterface {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      family: isSet(object.family) ? globalThis.String(object.family) : undefined,
+    };
+  },
+
+  toJSON(message: LbNatInterface): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.family !== undefined) {
+      obj.family = message.family;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbNatInterface>): LbNatInterface {
+    return LbNatInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbNatInterface>): LbNatInterface {
+    const message = createBaseLbNatInterface();
+    message.interface = object.interface ?? undefined;
+    message.family = object.family ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbStateRequest(): LbStateRequest {
+  return { owner: "", names: [] };
+}
+
+export const LbStateRequest: MessageFns<LbStateRequest> = {
+  encode(message: LbStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.names) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: LbStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbStateRequest>): LbStateRequest {
+    return LbStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbStateRequest>): LbStateRequest {
+    const message = createBaseLbStateRequest();
+    message.owner = object.owner ?? "";
+    message.names = object.names?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseLbStateResponse(): LbStateResponse {
+  return { vips: [], owner: "", retrievedAt: undefined, totalVppVips: 0 };
+}
+
+export const LbStateResponse: MessageFns<LbStateResponse> = {
+  encode(message: LbStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.vips) {
+      LbVipState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    if (message.totalVppVips !== 0) {
+      writer.uint32(32).uint32(message.totalVppVips);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vips.push(LbVipState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.totalVppVips = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbStateResponse {
+    return {
+      vips: globalThis.Array.isArray(object?.vips) ? object.vips.map((e: any) => LbVipState.fromJSON(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      totalVppVips: isSet(object.totalVppVips)
+        ? globalThis.Number(object.totalVppVips)
+        : isSet(object.total_vpp_vips)
+        ? globalThis.Number(object.total_vpp_vips)
+        : 0,
+    };
+  },
+
+  toJSON(message: LbStateResponse): unknown {
+    const obj: any = {};
+    if (message.vips?.length) {
+      obj.vips = message.vips.map((e) => LbVipState.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.totalVppVips !== 0) {
+      obj.totalVppVips = Math.round(message.totalVppVips);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbStateResponse>): LbStateResponse {
+    return LbStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbStateResponse>): LbStateResponse {
+    const message = createBaseLbStateResponse();
+    message.vips = object.vips?.map((e) => LbVipState.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.totalVppVips = object.totalVppVips ?? 0;
+    return message;
+  },
+};
+
+function createBaseLbServerState(): LbServerState {
+  return { address: "", inUse: false, inUseSince: 0 };
+}
+
+export const LbServerState: MessageFns<LbServerState> = {
+  encode(message: LbServerState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.inUse !== false) {
+      writer.uint32(16).bool(message.inUse);
+    }
+    if (message.inUseSince !== 0) {
+      writer.uint32(24).uint32(message.inUseSince);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbServerState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbServerState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.inUse = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.inUseSince = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbServerState {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      inUse: isSet(object.inUse)
+        ? globalThis.Boolean(object.inUse)
+        : isSet(object.in_use)
+        ? globalThis.Boolean(object.in_use)
+        : false,
+      inUseSince: isSet(object.inUseSince)
+        ? globalThis.Number(object.inUseSince)
+        : isSet(object.in_use_since)
+        ? globalThis.Number(object.in_use_since)
+        : 0,
+    };
+  },
+
+  toJSON(message: LbServerState): unknown {
+    const obj: any = {};
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.inUse !== false) {
+      obj.inUse = message.inUse;
+    }
+    if (message.inUseSince !== 0) {
+      obj.inUseSince = Math.round(message.inUseSince);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbServerState>): LbServerState {
+    return LbServerState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbServerState>): LbServerState {
+    const message = createBaseLbServerState();
+    message.address = object.address ?? "";
+    message.inUse = object.inUse ?? false;
+    message.inUseSince = object.inUseSince ?? 0;
+    return message;
+  },
+};
+
+function createBaseLbVipState(): LbVipState {
+  return {
+    name: "",
+    prefix: "",
+    protocol: "",
+    port: 0,
+    applied: false,
+    vppEntries: 0,
+    encap: "",
+    dscp: 0,
+    targetPort: 0,
+    servers: [],
+  };
+}
+
+export const LbVipState: MessageFns<LbVipState> = {
+  encode(message: LbVipState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(26).string(message.protocol);
+    }
+    if (message.port !== 0) {
+      writer.uint32(32).uint32(message.port);
+    }
+    if (message.applied !== false) {
+      writer.uint32(40).bool(message.applied);
+    }
+    if (message.vppEntries !== 0) {
+      writer.uint32(48).uint32(message.vppEntries);
+    }
+    if (message.encap !== "") {
+      writer.uint32(58).string(message.encap);
+    }
+    if (message.dscp !== 0) {
+      writer.uint32(64).uint32(message.dscp);
+    }
+    if (message.targetPort !== 0) {
+      writer.uint32(72).uint32(message.targetPort);
+    }
+    for (const v of message.servers) {
+      LbServerState.encode(v!, writer.uint32(82).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbVipState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbVipState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.applied = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.vppEntries = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.encap = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.dscp = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.targetPort = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.servers.push(LbServerState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbVipState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      applied: isSet(object.applied) ? globalThis.Boolean(object.applied) : false,
+      vppEntries: isSet(object.vppEntries)
+        ? globalThis.Number(object.vppEntries)
+        : isSet(object.vpp_entries)
+        ? globalThis.Number(object.vpp_entries)
+        : 0,
+      encap: isSet(object.encap) ? globalThis.String(object.encap) : "",
+      dscp: isSet(object.dscp) ? globalThis.Number(object.dscp) : 0,
+      targetPort: isSet(object.targetPort)
+        ? globalThis.Number(object.targetPort)
+        : isSet(object.target_port)
+        ? globalThis.Number(object.target_port)
+        : 0,
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => LbServerState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbVipState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.applied !== false) {
+      obj.applied = message.applied;
+    }
+    if (message.vppEntries !== 0) {
+      obj.vppEntries = Math.round(message.vppEntries);
+    }
+    if (message.encap !== "") {
+      obj.encap = message.encap;
+    }
+    if (message.dscp !== 0) {
+      obj.dscp = Math.round(message.dscp);
+    }
+    if (message.targetPort !== 0) {
+      obj.targetPort = Math.round(message.targetPort);
+    }
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => LbServerState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbVipState>): LbVipState {
+    return LbVipState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbVipState>): LbVipState {
+    const message = createBaseLbVipState();
+    message.name = object.name ?? "";
+    message.prefix = object.prefix ?? "";
+    message.protocol = object.protocol ?? "";
+    message.port = object.port ?? 0;
+    message.applied = object.applied ?? false;
+    message.vppEntries = object.vppEntries ?? 0;
+    message.encap = object.encap ?? "";
+    message.dscp = object.dscp ?? 0;
+    message.targetPort = object.targetPort ?? 0;
+    message.servers = object.servers?.map((e) => LbServerState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbFlushVipRequest(): LbFlushVipRequest {
+  return { owner: "", name: "" };
+}
+
+export const LbFlushVipRequest: MessageFns<LbFlushVipRequest> = {
+  encode(message: LbFlushVipRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbFlushVipRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbFlushVipRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbFlushVipRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+    };
+  },
+
+  toJSON(message: LbFlushVipRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbFlushVipRequest>): LbFlushVipRequest {
+    return LbFlushVipRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbFlushVipRequest>): LbFlushVipRequest {
+    const message = createBaseLbFlushVipRequest();
+    message.owner = object.owner ?? "";
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+function createBaseLbFlushVipResponse(): LbFlushVipResponse {
+  return { vip: "" };
+}
+
+export const LbFlushVipResponse: MessageFns<LbFlushVipResponse> = {
+  encode(message: LbFlushVipResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vip !== "") {
+      writer.uint32(10).string(message.vip);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbFlushVipResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbFlushVipResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vip = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbFlushVipResponse {
+    return { vip: isSet(object.vip) ? globalThis.String(object.vip) : "" };
+  },
+
+  toJSON(message: LbFlushVipResponse): unknown {
+    const obj: any = {};
+    if (message.vip !== "") {
+      obj.vip = message.vip;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbFlushVipResponse>): LbFlushVipResponse {
+    return LbFlushVipResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbFlushVipResponse>): LbFlushVipResponse {
+    const message = createBaseLbFlushVipResponse();
+    message.vip = object.vip ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +44427,35 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState: {
+    path: "/vrx.v1.Dataplane/LbState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LbStateRequest): Buffer => Buffer.from(LbStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LbStateRequest => LbStateRequest.decode(value),
+    responseSerialize: (value: LbStateResponse): Buffer => Buffer.from(LbStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LbStateResponse => LbStateResponse.decode(value),
+  },
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip: {
+    path: "/vrx.v1.Dataplane/LbFlushVip" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LbFlushVipRequest): Buffer => Buffer.from(LbFlushVipRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LbFlushVipRequest => LbFlushVipRequest.decode(value),
+    responseSerialize: (value: LbFlushVipResponse): Buffer => Buffer.from(LbFlushVipResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LbFlushVipResponse => LbFlushVipResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +44501,19 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState: handleUnaryCall<LbStateRequest, LbStateResponse>;
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip: handleUnaryCall<LbFlushVipRequest, LbFlushVipResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +44643,47 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState(
+    request: LbStateRequest,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  lbState(
+    request: LbStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  lbState(
+    request: LbStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
+  ): ClientUnaryCall;
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
+  ): ClientUnaryCall;
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
   ): ClientUnaryCall;
 }
 

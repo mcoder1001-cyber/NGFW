@@ -1,0 +1,69 @@
+{
+  "interfaces": {
+    "GigabitEthernet0/8/0": {
+      "enabled": true,
+      "ipv4": ["10.2.1.1/24"],
+      "ipv6": ["2001:db8:2:1::1/64"]
+    },
+    "GigabitEthernet0/9/0": {
+      "enabled": true,
+      "ipv4": ["10.2.2.1/24"],
+      "ipv6": ["2001:db8:2:2::1/64"]
+    }
+  },
+  "services": {
+    "lb": {
+      "settings": {
+        "ip4Source": "10.2.2.1",
+        "ip6Source": "2001:db8:2:2::1",
+        "flowBuckets": 2048,
+        "flowTimeoutSec": 60
+      },
+      "vips": {
+        "web": {
+          "prefix": "10.2.250.1/32",
+          "protocol": "tcp",
+          "port": 80,
+          "encap": "gre4",
+          "newFlowsTableLength": 1024,
+          "srcIpSticky": false,
+          "servers": [
+            { "address": "10.2.2.10", "flushOnDelete": false },
+            { "address": "10.2.2.11", "flushOnDelete": true }
+          ]
+        },
+        "dsr": {
+          "prefix": "10.2.250.2/32",
+          "protocol": "any",
+          "encap": "l3dsr",
+          "dscp": 10,
+          "newFlowsTableLength": 256,
+          "srcIpSticky": true,
+          "servers": [{ "address": "10.2.2.12", "flushOnDelete": false }]
+        },
+        "dns": {
+          "prefix": "10.2.250.3/32",
+          "protocol": "udp",
+          "port": 53,
+          "encap": "nat4",
+          "srvType": "nodeport",
+          "targetPort": 5353,
+          "nodePort": 30053,
+          "newFlowsTableLength": 1024,
+          "srcIpSticky": false,
+          "servers": [{ "address": "10.2.2.13", "flushOnDelete": false }]
+        },
+        "v6": {
+          "prefix": "2001:db8:2:250::1/128",
+          "protocol": "tcp",
+          "port": 443,
+          "encap": "gre6",
+          "newFlowsTableLength": 2048,
+          "srcIpSticky": false,
+          "servers": [{ "address": "2001:db8:2:2::10", "flushOnDelete": false }]
+        }
+      },
+      "natInterfaces": [{ "interface": "GigabitEthernet0/9/0", "family": "ip4" }]
+    }
+  }
+}

@@ -367,3 +367,25 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-lb: LbState, LbFlushVip
+
+`services.lb` is `ServicesConfig.lb = 11` → `LbService{settings, vips map, nat_interfaces}` (numbers:
+docs/status/wave-BC-numbers.md § F-lb). Every lb object is **write-only** (VPP 26.06 corrupts `lb_vip_details`, V20,
+D-063): `Retrieve` never returns `services.lb`, DryRun notes `/services/lb` as `agent.write-only`, and the live view is
+the state RPC below — never a Retrieve source.
+
+- `LbState(LbStateRequest{owner, names[]}) → LbStateResponse{vips[], owner, retrieved_at, total_vpp_vips}` — one
+  `LbVipState` per VIP of the agent's stored desired state (sorted by name; `names` filters): the configured
+  prefix/protocol/port, `applied` (the agent's D-080 boot record for `lb.vip/<prefix>/<protocol>/<port>` exists on the
+  running VPP instance), `vpp_entries` (lb_vip_dump entries with that prefix and port — > 1 means "removed" copies
+  waiting for the lb garbage collection), the VIP type VPP reports as `encap`, `dscp`, `target_port` (swapped back to
+  host order), and every application server of those entries from lb_as_dump with `in_use` (false = removed) and
+  `in_use_since` (VPP clock). The protocol is not reported by VPP 26.06, so a tcp and a udp VIP on the same prefix and
+  port share their entries. One VPP walk at a time per agent (D-132): a second caller waits up to 3 s, then
+  `UNAVAILABLE`. `UNAVAILABLE` without VPP.
+- `LbFlushVip(LbFlushVipRequest{owner, name}) → LbFlushVipResponse{vip}` — `lb_flush_vip` for the VIP `name` of the
+  stored desired state. `NOT_FOUND` for an unknown name; `FAILED_PRECONDITION` unless this agent created the VIP on the
+  running VPP instance (boot record) and lb_as_dump shows an application server of it in use (VPP 26.06 flushes an
+  uninitialised VIP index when its lookup fails, so the agent never sends a flush it cannot prove will match).
+  API: `POST /api/v1/actions/lb/vips/{name}/flush` (audited like every mutation).

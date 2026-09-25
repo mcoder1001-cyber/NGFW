@@ -54,6 +54,8 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_LbState_FullMethodName        = "/vrx.v1.Dataplane/LbState"
+	Dataplane_LbFlushVip_FullMethodName     = "/vrx.v1.Dataplane/LbFlushVip"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +94,15 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+	// Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+	LbState(ctx context.Context, in *LbStateRequest, opts ...grpc.CallOption) (*LbStateResponse, error)
+	// LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+	// flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+	// agent on the running VPP instance and has an application server in use.
+	LbFlushVip(ctx context.Context, in *LbFlushVipRequest, opts ...grpc.CallOption) (*LbFlushVipResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +220,26 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) LbState(ctx context.Context, in *LbStateRequest, opts ...grpc.CallOption) (*LbStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LbStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LbState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) LbFlushVip(ctx context.Context, in *LbFlushVipRequest, opts ...grpc.CallOption) (*LbFlushVipResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LbFlushVipResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LbFlushVip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +276,15 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+	// Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+	LbState(context.Context, *LbStateRequest) (*LbStateResponse, error)
+	// LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+	// flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+	// agent on the running VPP instance and has an application server in use.
+	LbFlushVip(context.Context, *LbFlushVipRequest) (*LbFlushVipResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +318,12 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) LbState(context.Context, *LbStateRequest) (*LbStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LbState not implemented")
+}
+func (UnimplementedDataplaneServer) LbFlushVip(context.Context, *LbFlushVipRequest) (*LbFlushVipResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LbFlushVip not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +469,42 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_LbState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LbStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LbState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LbState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LbState(ctx, req.(*LbStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_LbFlushVip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LbFlushVipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LbFlushVip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LbFlushVip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LbFlushVip(ctx, req.(*LbFlushVipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +531,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "LbState",
+			Handler:    _Dataplane_LbState_Handler,
+		},
+		{
+			MethodName: "LbFlushVip",
+			Handler:    _Dataplane_LbFlushVip_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

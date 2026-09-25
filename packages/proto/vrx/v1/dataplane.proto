@@ -78,6 +78,17 @@ service Dataplane {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+
+  // LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+  // port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+  // number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+  // Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+  rpc LbState(LbStateRequest) returns (LbStateResponse);
+  // LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+  // flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+  // agent on the running VPP instance and has an application server in use.
+  rpc LbFlushVip(LbFlushVipRequest) returns (LbFlushVipResponse);
+
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
@@ -1501,6 +1512,10 @@ message ServicesConfig {
 
   // wave-BC: F-host-stack
   // wave-BC: F-lb
+
+  // Load balancer: VIPs, application servers, NAT interfaces (VPP lb plugin, F-lb; tier T3).
+  LbService lb = 11;
+
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
 }
@@ -3608,6 +3623,140 @@ message RemoteAccessProfile {
 // ----- F-mpls-srmpls -----
 
 // ----- F-lb -----
+
+// LbService is `services.lb` (VPP lb plugin; WBS D7.9, tier T3). Every lb object is write-only in VPP
+// 26.06 (V20, D-063): Retrieve never reports this message; LbState is the read-only live view.
+message LbService {
+  // VPP-global settings (lb_conf); applied only by the globals owner (D-071).
+  LbSettings settings = 1;
+  // Virtual IPs keyed by name.
+  map<string, LbVip> vips = 2;
+  // Interfaces with the lb NAT in2out feature (nat4/nat6 VIPs).
+  repeated LbNatInterface nat_interfaces = 3;
+}
+
+// LbSettings is `services.lb.settings` (lb_conf).
+message LbSettings {
+  // Outer source of gre4 packets / SNAT source of nat4 nodeport VIPs; unset = VPP default.
+  optional string ip4_source = 1;
+  // Outer source of gre6 packets / SNAT source of nat6 nodeport VIPs; unset = VPP default.
+  optional string ip6_source = 2;
+  // Sticky-table buckets per worker (power of two); unset = keep VPP's value.
+  optional uint32 flow_buckets = 3;
+  // Flow timeout in seconds; unset = keep VPP's value.
+  optional uint32 flow_timeout_sec = 4;
+}
+
+// LbVip is `services.lb.vips.<name>`.
+message LbVip {
+  // VIP prefix (CIDR, host bits zero).
+  optional string prefix = 1;
+  // "any" | "tcp" | "udp".
+  optional string protocol = 2;
+  // Destination port (tcp/udp VIPs); unset for protocol any.
+  optional uint32 port = 3;
+  // "gre4" | "gre6" | "l3dsr" | "nat4" | "nat6".
+  optional string encap = 4;
+  // DSCP written by an l3dsr VIP.
+  optional uint32 dscp = 5;
+  // "clusterip" | "nodeport" (nat4/nat6).
+  optional string srv_type = 6;
+  // Port on the application server (nat4/nat6).
+  optional uint32 target_port = 7;
+  // Node port of a nodeport VIP (ignored by VPP 26.06).
+  optional uint32 node_port = 8;
+  // Entries of the new-flows (Maglev) table, a power of two.
+  optional uint32 new_flows_table_length = 9;
+  // Hash on the source address only.
+  optional bool src_ip_sticky = 10;
+  // Application servers.
+  repeated LbServer servers = 11;
+}
+
+// LbServer is one application server of a VIP.
+message LbServer {
+  // Server address (the encapsulation's family).
+  optional string address = 1;
+  // Also drop the server's sticky-table entries when it is removed.
+  optional bool flush_on_delete = 2;
+}
+
+// LbNatInterface is one entry of `services.lb.nat_interfaces`.
+message LbNatInterface {
+  // Logical interface name.
+  optional string interface = 1;
+  // "ip4" | "ip6".
+  optional string family = 2;
+}
+
+// LbStateRequest selects VIPs by configuration name.
+message LbStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VIP names of the agent's stored desired state; empty = every configured VIP.
+  repeated string names = 2;
+}
+
+// LbStateResponse is one snapshot of the lb plugin for this agent's VIPs.
+message LbStateResponse {
+  // One entry per configured VIP, sorted by name.
+  repeated LbVipState vips = 1;
+  // The owner whose view was returned.
+  string owner = 2;
+  // When the dumps were taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+  // lb_vip_dump entries in the whole VPP (every owner, "removed" ones included).
+  uint32 total_vpp_vips = 4;
+}
+
+// LbServerState is one application server as lb_as_dump reports it.
+message LbServerState {
+  // Server address.
+  string address = 1;
+  // true = in use (LB_AS_FLAGS_USED); false = removed, waiting for the lb garbage collection.
+  bool in_use = 2;
+  // VPP clock (seconds) at which the server was last used / removed.
+  uint32 in_use_since = 3;
+}
+
+// LbVipState is the live state of one configured VIP.
+message LbVipState {
+  // Configuration name (services.lb.vips key).
+  string name = 1;
+  // Configured prefix.
+  string prefix = 2;
+  // Configured protocol (VPP 26.06 does not report it: lb_vip_details.protocol is always 0).
+  string protocol = 3;
+  // Configured port (0 = all ports).
+  uint32 port = 4;
+  // This agent created the VIP on the running VPP instance (its D-080 boot record exists).
+  bool applied = 5;
+  // lb_vip_dump entries with this prefix and port: 0 = not in VPP, 1 = the VIP, > 1 = the VIP plus
+  // "removed" ones (a VIP change is delete + add) until the lb garbage collection.
+  uint32 vpp_entries = 6;
+  // Encapsulation VPP reports (from the VIP type): gre4, gre6, l3dsr, nat4, nat6; "" = not in VPP.
+  string encap = 7;
+  // DSCP of an l3dsr VIP as VPP reports it.
+  uint32 dscp = 8;
+  // Target port of a nat VIP (VPP 26.06 sends it byte-swapped; the agent swaps it back).
+  uint32 target_port = 9;
+  // Application servers of every entry with this prefix and port (in use and removed).
+  repeated LbServerState servers = 10;
+}
+
+// LbFlushVipRequest names one configured VIP.
+message LbFlushVipRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VIP name in the agent's stored desired state (services.lb.vips key).
+  string name = 2;
+}
+
+// LbFlushVipResponse is the outcome of a flush.
+message LbFlushVipResponse {
+  // The VIP that was flushed (prefix/protocol/port).
+  string vip = 1;
+}
 
 // ----- F-qos-flat -----
 

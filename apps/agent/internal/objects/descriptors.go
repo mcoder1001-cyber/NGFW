@@ -117,6 +117,10 @@ type descriptor struct {
 
 var _ scheduler.Descriptor = (*descriptor)(nil)
 
+// RecordsNoOwnership (TD-11b, dfkit/persist): no VPP object and no claim — the family finds its objects
+// by key in this owner's own persisted store (objects-<owner>.json), where every entry is ours by construction.
+func (*descriptor) RecordsNoOwnership() {}
+
 func (d *descriptor) Name() string { return descriptorOf[d.kind] }
 
 func (d *descriptor) KeyOf(obj proto.Message) scheduler.Key {

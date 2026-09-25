@@ -94,6 +94,7 @@ func New() *VPP {
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	v.installSRv6()              // F-srv6 (coretest/srv6.go); a RegisterExtension line once TD-23 is on main
 	return v
 }
 

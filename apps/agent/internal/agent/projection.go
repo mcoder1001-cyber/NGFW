@@ -300,6 +300,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
+	desired.Srv6(p, ds, in, vrfID) // routing.srv6 (internal/desired/srv6.go)
 	// wave-BC: F-lisp
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib
@@ -423,6 +424,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
+	desired.AssembleSrv6(ds, kvs, in, nameOf, subsystems.Srv6Env()) // routing.srv6; the globals are write-only
 	// wave-BC: F-lisp
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib

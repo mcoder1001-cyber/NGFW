@@ -39,6 +39,7 @@ import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
+import { bgpFake } from '../features/bgp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -655,8 +656,7 @@ export class FakeAgent {
       // wave-A: P11
       // wave-A: F-wireguard
       // wave-A: P12
-      routingState: (_call, cb) =>
-        cb({ code: status.UNIMPLEMENTED, details: 'RoutingState (P12)' }),
+      ...bgpFake(this), // routingState + listRoutes of FRR routes (source lcp-rt-dynamic; the rest → F-vrf's fake)
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
     };

@@ -7,6 +7,7 @@ import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
+import { annotateFrr, FRR_PROTOCOLS, protoSource } from '../bgp/routes.js'; // P12: FRR annotation + proto filter
 
 /** `GET /api/v1/state/routes` query (the P06 parameters plus the FIB browser's filters). */
 export const RoutesQuery = z.object({
@@ -31,6 +32,11 @@ export const RoutesQuery = z.object({
     .describe(
       'only routes that carry this FIB source (VPP name: API, interface, adjacency, svs, …)',
     ),
+  // P12: routes FRR installed (linux-nl source lcp-rt-dynamic) of one FRR protocol, per page (features/bgp/routes.ts)
+  proto: z
+    .enum(FRR_PROTOCOLS)
+    .optional()
+    .describe('only FRR routes of this protocol (bgp, ospf, …)'),
 });
 
 const PathOut = z.object({
@@ -56,6 +62,10 @@ export const RouteOut = z.object({
   distance: z.number().int().optional().describe('administrative distance of a static route'),
   paths: z.array(PathOut).describe('the entry’s paths and what they resolve to (DPO kind)'),
   statsIndex: z.number().int(),
+  proto: z
+    .string()
+    .optional()
+    .describe('FRR protocol of an `frr` route (bgp, static, …), from FRR’s RIB'), // P12
 });
 export type RouteOut = z.infer<typeof RouteOut>;
 
@@ -67,6 +77,12 @@ export const RoutesOut = z.object({
   tableId: z.number().int().optional(),
   retrievedAt: z.string().optional(),
   items: z.array(RouteOut),
+  protoFiltered: z
+    .boolean()
+    .optional()
+    .describe(
+      'P12: proto was given — total counts every FRR route of the VRF, items only the protocol',
+    ),
 });
 
 /** One FIB entry of the agent's ListRoutes as a `/state/routes` item. */
@@ -122,6 +138,11 @@ export class VrfStaticEcmpController {
   @ApiQuery({ name: 'family', required: false, schema: { type: 'string', enum: ['ipv4', 'ipv6'] } })
   @ApiQuery({ name: 'prefix', required: false, schema: { type: 'string' } })
   @ApiQuery({ name: 'source', required: false, schema: { type: 'string' } })
+  @ApiQuery({
+    name: 'proto',
+    required: false,
+    schema: { type: 'string', enum: [...FRR_PROTOCOLS] },
+  })
   @ApiOperation({
     operationId: 'State_routes',
     summary:
@@ -142,7 +163,7 @@ export class VrfStaticEcmpController {
           vrf,
           family: q.family ?? '',
           prefix: q.prefix ?? '',
-          source: q.source ?? '',
+          source: protoSource(q.proto, q.source, q.pageSize),
           offset: need > 0 ? offset : 0,
           limit: need > 0 ? need : 1,
         });
@@ -169,7 +190,8 @@ export class VrfStaticEcmpController {
       total,
       ...(q.vrf !== undefined && last ? { vrf: last.vrf, tableId: last.tableId } : {}),
       ...(last?.retrievedAt ? { retrievedAt: last.retrievedAt.toISOString() } : {}),
-      items,
+      items: await annotateFrr(this.agent, items, q.proto), // P12
+      ...(q.proto !== undefined ? { protoFiltered: true } : {}),
     };
   }
 

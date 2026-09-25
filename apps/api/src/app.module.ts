@@ -74,6 +74,7 @@ import { vrfStaticEcmpFeature } from './features/vrf-static-ecmp/index.js';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
+import { bgpFeature } from './features/bgp/index.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 
@@ -158,6 +159,7 @@ export class AppModule {
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12
+        ...bgpFeature.controllers,
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
       ],
@@ -227,6 +229,7 @@ export class AppModule {
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12
+        ...bgpFeature.providers,
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
         { provide: APP_GUARD, useClass: AuthGuard },

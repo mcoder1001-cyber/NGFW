@@ -15,15 +15,16 @@ The API stores secrets encrypted in PostgreSQL: AES-GCM, with the secret name as
 | 3 | **Agent resolver:** the agent reads ciphertext from PostgreSQL itself and holds the decryption key | 5 h | 8 h | high: widens the agent's privileges (DB credentials + master key), two processes can decrypt everything |
 
 ## Recommendation
-**Option 1.** It keeps one trust direction (API → agent over the root:vrx 0660 agent socket, server.go:122, VRX_SOCKET_GROUP=vrx; only the API runs in group vrx) and keeps the master key in the API only. Retrieve, DryRun and error messages never echo SecretBundle contents. The sealed cache is needed because of restart safety: the agent must rebuild the data plane after `kill -9 vpp` or its own restart without the API. It is built once, in P11, and F-wireguard, P12 and F-unbound consume it.
+**Option 1.** It keeps one trust direction (API → agent over the root:vrx 0660 agent socket, server.go:122, VRX_SOCKET_GROUP=vrx; only the API runs in group vrx) and keeps the master key in the API only. Retrieve, DryRun and error messages never echo SecretBundle contents. The sealed cache is needed because of restart safety: the agent must rebuild the data plane after `kill -9 vpp` or its own restart without the API. It is built once, in P11, and F-wireguard, P12 and F-unbound consume it. **Whatever option is chosen, the secret material must be loaded before the agent's first resync after a restart** (F-wireguard review F3, 2026-09-25): a resync without it recreates WireGuard interfaces and peers without their keys and tears down working tunnels — so with option 1 the sealed cache is mandatory, not an optimisation.
 
 ## What continues meanwhile
 Everything, except the end-to-end secret steps named above. Workers build against the `vpn.Resolver` interface with the fixture resolver. The architecture audit's ARCH-07 cleanup (6 resolver interfaces; Go regexes looser than the Zod ones) is done together with the answer.
 
-_Refreshed 2026-09-24 (D-125): the socket wording now matches the code, and the no-echo rule was added. Nothing else changed._
+_Refreshed 2026-09-24 (D-125): the socket wording now matches the code, and the no-echo rule was added. 2026-09-25: the load-before-first-resync requirement (F-wireguard review F3). Nothing else changed._
 
 ## خلاصهٔ فارسی
 - **مسئله:** کلیدها و رمزهای VPN (مثل PSK و کلید خصوصی) در API رمزنگاری‌شده ذخیره می‌شوند، ولی ایجنت برای نوشتن فایل‌های strongSwan، WireGuard و FRR به متن ساده‌شان نیاز دارد. هنوز هیچ کانالی این اسرار را از API به ایجنت نمی‌رساند.
 - **دلیل نیاز به تصمیم شما:** این یک مرز امنیتی است، پس طبق سیاست تصمیم‌گیری با شماست.
+- **نکتهٔ تازه (۲۰۲۶-۰۹-۲۵):** هر گزینه‌ای انتخاب شود، اسرار باید پیش از اولین resync بعد از ری‌استارت ایجنت در دسترس باشند؛ وگرنه تونل‌های WireGuard بدون کلید دوباره ساخته و قطع می‌شوند. برای همین در گزینهٔ ۱ کش مهروموم‌شده الزامی است.
 - **پیشنهاد من، گزینهٔ ۱:** API موقع commit اسرار را در یک فیلد جداگانه که هیچ‌جا ذخیره نمی‌شود به ایجنت می‌فرستد. این کار از راه سوکت ایجنت با دسترسی root:vrx 0660 انجام می‌شود و فقط API در گروه vrx است. Retrieve، DryRun و پیام‌های خطا هرگز محتوای اسرار را برنمی‌گردانند. ایجنت آن‌ها را در یک کش محلیِ مهروموم‌شده نگه می‌دارد تا بعد از ری‌استارت هم بدون API کار کند. کلید اصلی فقط پیش API می‌ماند.
 - **چه چیزی منتظر می‌ماند:** فقط مرحلهٔ end-to-end اسرار در P11، F-wireguard، P12 و F-unbound. بقیهٔ کارها ادامه دارد.

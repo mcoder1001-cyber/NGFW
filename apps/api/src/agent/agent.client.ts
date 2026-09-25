@@ -46,6 +46,8 @@ import {
   // wave-A: F-object-model
   type FqdnObjectStateResponse,
   // wave-A: F-acl
+  type AclStateRequest,
+  type AclStateResponse,
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -178,6 +180,10 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.fqdnObjectState, { names, owner: this.owner });
   }
   // wave-A: F-acl
+  /** ACL runtime state (F-acl, proto.md §11): list summaries, a counter page, bindings; an older agent → 501. */
+  aclState(req: Omit<AclStateRequest, 'owner'>): Promise<AclStateResponse> {
+    return this.unary(this.c.aclState, { ...req, owner: this.owner });
+  }
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6

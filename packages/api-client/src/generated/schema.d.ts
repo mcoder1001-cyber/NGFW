@@ -674,6 +674,108 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/acl/lists': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** ACL and MACIP lists with pending marks and live VPP status (index, VPP rules, hits) */
+    get: operations['Acl_lists'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/acl/lists/{name}/rules': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One list’s rules in sequence order, paged and searched server-side, with per-rule hits */
+    get: operations['Acl_rules'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/acl/attachments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** ACLs bound per interface as VPP holds them (other owners’ included) vs the running config */
+    get: operations['Acl_attachments'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/acl/export.csv': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export a list’s rules as CSV (docs/user/firewall/acl.md format) */
+    get: operations['Acl_exportCsv'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/acl/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Import CSV rules into a list of the candidate (dry run by default; streamed) */
+    post: operations['Acl_importCsv'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/acl/lists/{name}/rules/bulk': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Bulk edit of a list’s rules in the candidate: enable, disable, delete, move to sequence, renumber */
+    post: operations['Acl_bulk'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8450,6 +8552,520 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_lists: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            countersAvailable: boolean;
+            countersReason: string;
+            /** @description why the live columns are empty (agent unavailable, older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            lists: {
+              name: string;
+              description: string | null;
+              tags: string[];
+              /** @description configuration rules (candidate) */
+              rules: number;
+              /** @description candidate vs running */
+              pending: ('added' | 'changed' | 'deleted') | null;
+              attachments: {
+                target: {
+                  kind: string;
+                  interface?: string;
+                  zone?: string;
+                };
+                direction: string;
+                sequence: number;
+                enabled: boolean;
+              }[];
+              /** @description null = not in VPP (not applied) or the agent is unavailable */
+              live: {
+                aclIndex: number;
+                /** @description rules of the VPP ACL (the expansion of the list) */
+                vppRules: number;
+                /** @description VPP rules are attributed to configuration rules */
+                mappingKnown: boolean;
+                configRules: number;
+                packets: number;
+                bytes: number;
+              } | null;
+            }[];
+            macip: {
+              name: string;
+              description: string | null;
+              rules: number;
+              /** @description candidate vs running */
+              pending: ('added' | 'changed' | 'deleted') | null;
+              interfaces: string[];
+              live: {
+                aclIndex: number;
+                vppRules: number;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_rules: {
+    parameters: {
+      query?: {
+        hitsOnly?: boolean;
+        source?: 'running' | 'candidate';
+        filter?: string;
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            /** @enum {string} */
+            source: 'running' | 'candidate';
+            page: number;
+            pageSize: number;
+            /** @description rules matching the filter */
+            total: number;
+            /** @description the agent reported the list (it is in VPP) */
+            applied: boolean;
+            mappingKnown: boolean;
+            countersAvailable: boolean;
+            countersReason: string;
+            agentError: string | null;
+            items: {
+              /** @description position in the document: /acl/lists/<list>/rules/<index> */
+              index: number;
+              sequence: number;
+              /** @description the configuration rule (AclRule) */
+              rule: {
+                [key: string]: unknown;
+              };
+              pending: ('added' | 'changed') | null;
+              live: {
+                /** @enum {string} */
+                status: 'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'unknown';
+                vppRules: number;
+                packets: number;
+                bytes: number;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_attachments: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            agentError: string | null;
+            retrievedAt: string | null;
+            interfaces: {
+              interface: string;
+              swIfIndex: number | null;
+              input: {
+                aclIndex: number;
+                /** @description list name when the ACL is this agent’s */
+                name: string | null;
+                tag: string;
+                /** @description another owner’s ACL (preserved, D-066) */
+                foreign: boolean;
+              }[];
+              output: {
+                aclIndex: number;
+                /** @description list name when the ACL is this agent’s */
+                name: string | null;
+                tag: string;
+                /** @description another owner’s ACL (preserved, D-066) */
+                foreign: boolean;
+              }[];
+              macip: {
+                aclIndex: number;
+                /** @description list name when the ACL is this agent’s */
+                name: string | null;
+                tag: string;
+                /** @description another owner’s ACL (preserved, D-066) */
+                foreign: boolean;
+              } | null;
+              expected: {
+                input: string[];
+                output: string[];
+                macip: string | null;
+              };
+              /** @description this agent’s part of VPP’s lists equals the running configuration */
+              inSync: boolean | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_exportCsv: {
+    parameters: {
+      query: {
+        source?: 'running' | 'candidate';
+        list: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': string;
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_importCsv: {
+    parameters: {
+      query: {
+        dryRun?: boolean;
+        mode?: 'replace' | 'append';
+        list: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'text/csv': string;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            /** @enum {string} */
+            mode: 'replace' | 'append';
+            dryRun: boolean;
+            rows: number;
+            valid: number;
+            errorCount: number;
+            /** @description first 200 */
+            errors: {
+              line?: number;
+              column?: string;
+              message: string;
+            }[];
+            warnings: {
+              line?: number;
+              column?: string;
+              message: string;
+            }[];
+            existingRules: number;
+            /** @description first 20 parsed rules (dry run) */
+            preview: {
+              [key: string]: unknown;
+            }[];
+            imported: number;
+            /** @description rules of the list afterwards (dry run: now) */
+            total: number;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Acl_bulk: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json':
+          | {
+              /** @enum {string} */
+              op: 'enable' | 'disable' | 'delete';
+              sequences: number[];
+            }
+          | {
+              /** @constant */
+              op: 'move';
+              sequences: number[];
+              to: number;
+            }
+          | {
+              /** @constant */
+              op: 'renumber';
+              /** @default 10 */
+              start?: number;
+              /** @default 10 */
+              step?: number;
+            };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            op: string;
+            changed: number;
+            total: number;
+            before: number;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

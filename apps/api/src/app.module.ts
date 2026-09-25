@@ -68,6 +68,7 @@ import { UsersService } from './users/users.service.js';
 // wave-A: F-object-model
 import { objectModelFeature } from './features/object-model/index.js';
 // wave-A: F-acl
+import { aclFeature } from './features/acl/index.js';
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
 // wave-A: F-nat44-ei-64-66-nptv6
@@ -152,6 +153,7 @@ export class AppModule {
         // wave-A: F-object-model
         ...objectModelFeature.controllers,
         // wave-A: F-acl
+        ...aclFeature.controllers,
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
         // wave-A: F-nat44-ei-64-66-nptv6
@@ -221,6 +223,7 @@ export class AppModule {
         // wave-A: F-object-model
         ...objectModelFeature.providers,
         // wave-A: F-acl
+        ...aclFeature.providers,
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
         // wave-A: F-nat44-ei-64-66-nptv6

@@ -398,3 +398,41 @@ slot nat44 lock free
 ```
 `apps/*/dist`, `packages/*/dist` and `apps/agent/bin` are removed after the final commit. **NRestarts moved 1 → 2 at
 04:27:21 — not during any run of this task (Q8).**
+
+## Fix round 1 (2026-09-25, review `57d18bbc` APPROVE WITH CHANGES)
+
+ED re-merged first: `task/F-nat44-ed-sessions@4421baec` → merge `3df4b9f1` (clean; `packages/proto/gen.sh` → no diff).
+Fix commit `9203615d`. No host runs (af_packet creates blocked until TD-25). Each code fix has a test that fails on
+the old code (checked by running it against the old code where noted).
+
+| item | fix | test (fails on the old code) |
+|---|---|---|
+| R1 (H1) | `desired/nat64.go`: DryRun warning `nat.nat64-tenant-vrf` at `/nat/nat64/prefixes/<i>/vrf` and `/nat/nat64/staticBibs/<i>/vrf` for a non-default VRF — "…this VRF cannot be deleted until VPP restarts (V-new c)…" (pools lock/unlock correctly: no warning). User page: its own paragraph (commit rolled back as a whole, rollback affected, confirmed-commit revert cannot complete → DEGRADED + retries). V-new (c) corrected likewise. Core VRF descriptor untouched (the manager's core row). | `desired/nat64_test.go` `TestNat64TenantVRFWarningAndOnePrefixPerVRF` (old code: no warning); the two v6Doc tests now expect exactly that warning |
+| R2 (H2) | topology `nat64` / `restart-nat64` and the NAT64 screenshot behind `VRX_NAT64_TENANT_VRF_HOST=1` (off by default; without it rev 1 has no slot VRF either and the phases `t.Skip` with the reason); `run.sh` header; questions Q10 (any opt-in run quarantines slot 4's table 4064 until a VPP restart) | `go vet` + `go test` of the package (skips without VRX_INTEGRATION); no host run allowed |
+| R3 (M1) | ED's `nat44_ei_show_running_config` stub + `nat44_ei` import deleted from `coretest/nat44ed.go`; `coretest/nat44ei.go` header fixed; Q2 items 5–6 | `coretest/nat44ei_test.go` `TestExtensionsModelDisjointMessages` — each extension on a bare model, every registered binapi message claimed by at most one; with the old `nat44ed.go`: `"nat44_ei_show_running_config" is modelled by extensions #0 and #1` (run) |
+| R4 (M2) | `natSessionsVariant` takes `release, err := s.natWalk(ctx)` after `natReady`; `natVariantWalk` mutex and the `sync` import removed | `agent/rpc_nat44_ei_test.go` `TestNatVariantWalksShareTheEDWalkSlot`: while an ED walk holds the slot, EI and NAT64 calls with a 30-ms deadline → DeadlineExceeded, a blocked EI call runs after release (old code: separate lock → no DeadlineExceeded) |
+| M3 | cost documented at `ListNat64` and `natSessionsVariant`; follow-up in Q10 (tech-debt row is the manager's) | — |
+| L1 | NAT64 port fix: inside port always from the BIB, swap only when `il_port` ≠ BIB `in_port`; a row without BIB entry is left as reported | `TestListNat64PortWorkaround`: ICMP row with remote port 0 (old code swapped it) + a row without BIB entry |
+| L2 | `nat.ei-port-forward-pool` also for EI identity mappings with a port (address outside every pool, not static-mapping-only, no interface pool) at `/nat/identityMappings/<i>/ip`; user table + V-new (d) | `TestNat44EIBuilderEDOnlyAndWarnings` identity cases (old code: no error) |
+| L3 | unknown `NatSessionVariant` (> NAT64) → INVALID_ARGUMENT for sessions and kill (was: ED) | in `TestNatVariantWalksShareTheEDWalkSlot` |
+| L4 | subtree-scoped locale keys `fieldIn.<subtree>.<name>.title|help` (en + fa): NAT64 inside/outside "(IPv6)/(IPv4)" + help, NPTv6 external prefix + help; ui-kit's "seconds"/pager "of" are not mine | `NatV6Tabs.test.tsx` "deep localisation" (scoped key wins for nat64, nat66 keeps the shared one) |
+| L5 | the stale-binding hazard on `docs/agent/descriptors/npt66.md` and V-new (a) | docs |
+| L6 | NPTv6 status chip "configured (not readable)" / fa "پیکربندی‌شده (خواندنی نیست)" (+ user page) | `NatV6Tabs.test.tsx` fa test |
+| L7 | noted: the EI tab is always shown with a mode bar (acceptable per review) | — |
+| L8 | agent builder: one NAT64 prefix per VRF (`nat.nat64-valid` at the second prefix's `/vrf`, not projected), parity with the schema | `TestNat64TenantVRFWarningAndOnePrefixPerVRF` |
+| L9 | `go test -race -count=20 ./internal/agent/` once (09:23–09:28): 20/20 PASS, 256 s — not reproduced (Q10) | — |
+| L10 | for the merger: keep the `fake.ts` spread order at the rebase (Q10) | — |
+
+Housekeeping: the reviewer's `apps/api/dist` and `packages/{api-client,proto,schema,ui-kit}/dist` removed before the
+work (rebuilt for the web tests and CI, removed again after CI).
+
+CI (head `9203615d`; afterwards only this file changed):
+- `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` with the branch's copy: stops at the contract guard (D-127 SIGPIPE, as
+  before; the branch carries 12 `contract(…)` commits), log `…/ci/F-nat44-ei-64-66-nptv6-20260925-093435-401807`.
+- main's copy (`56200c3e`): contract guard, generated-output gate and forbidden patterns pass; the D-128 trace ban stops
+  on P08's inherited `test/topology/interfaces/interfaces_test.go:291-302` (not mine, Q9: the D-112 rebase replaces
+  it), log `…/ci/F-nat44-ei-64-66-nptv6-20260925-093458-405315`.
+- the branch's `tools/ci.sh quick` (whole gate without the guard): turbo 30/30, `apps/agent` make lint test build,
+  `apps/cli`, test/ modules (`test/topology/nat44-ei-64-66-nptv6`: gofmt, vet, ok) → **CI GATE PASSED**, 6m45s, log
+  `…/ci/F-nat44-ei-64-66-nptv6-20260925-094625-571965`.
+- `go test -race -count=20 ./internal/agent/`: ok, 256 s.

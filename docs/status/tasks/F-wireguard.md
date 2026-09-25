@@ -235,3 +235,22 @@ Not in this round (follow-ups per the review): F4 (API treats `agent.secret-unav
 TD-10a), F5 (refcount shared material), F6 (placeholder instead of an `hmac:` prefix without a meta row), F7 (DF-5 ref in
 meta), F8 (batched meta writes), F12 (0/0, ::/0 and IPv6 auto-routes on the post-TD-25 stack re-run), F13 (API invariant in
 proto.md), F14 (projection env seam). No host runs this round (af_packet/interface creates blocked until TD-25).
+
+### Fix round 1 — CI
+Plain `TMPDIR=/tmp/g-w6 tools/ci.sh --base main` (`logs/ci/F-wireguard-20260925-095440-658311`): every step up to the
+history scan passes (generated output clean, `ok: vrxtestsecrets only in test code`, `ok: no secret-shaped strings`); gitleaks
+then reports the one known history hit — `efcf783a apps/api/test/e2e/wireguard.e2e.test.ts:22 generic-api-key`, the public
+example key (review §1 / Q12: false positive, the D-112 squash drops it). On the squash of `f8a61e19` (`1d4d4159`, `git
+commit-tree`, no ref) the full gate is green:
+```
+  contract guard: 1d4d415994fb4c1bfa8baeba4d40264b78b3b8bf vs main   0m00s
+  generate + generated-output gate                   1m43s
+  forbidden patterns (+ gitleaks)                    0m05s
+  lint · typecheck · unit tests · build (turbo)   4m04s
+  apps/agent: make lint test build                   0m59s
+  apps/cli: make lint test build                     0m10s
+  mode quick · wall time 7m21s · logs /root/ngfw-wt/logs/ci/F-wireguard-20260925-095645-675710
+CI GATE PASSED
+ok: vrxtestsecrets only in test code
+ok: gitleaks — scanned ~390972 bytes (390.97 KB) in 1.19s no leaks found
+```

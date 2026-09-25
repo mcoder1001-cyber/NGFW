@@ -25,6 +25,7 @@ import { buildNav, currentNavPath, isCollapsible, type NavGroup } from '../nav/n
 import { domains } from '../schema/registry';
 import { ConfirmBanner } from '../config/ConfirmBanner';
 import { PendingChangeBar, SyncBanner } from '../config/PendingChangeBar';
+import { LicenseBanner } from '../domains/system/licensing/LicenseBanner'; // wave-BC: F-licensing (unanchored)
 import { SettingsPopover } from './SettingsPopover';
 import { UserMenu } from './UserMenu';
 
@@ -209,6 +210,8 @@ export function AppShell({ devRoutes = DEV_ROUTES }: { devRoutes?: boolean }) {
         <Toolbar />
         <ConfirmBanner />
         <SyncBanner />
+        {/* wave-BC: F-licensing (unanchored) */}
+        <LicenseBanner />
         <PendingChangeBar />
         <Suspense fallback={<LinearProgress aria-label={t('loading')} />}>
           <Outlet />

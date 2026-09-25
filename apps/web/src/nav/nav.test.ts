@@ -71,6 +71,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-ab-upgrade
       // wave-BC: F-images
       // wave-BC: F-hardening-lite
+      // wave-BC: F-licensing (unanchored)
+      'licensing',
       // web: WEB-2
       'dev-schema-form',
       'dev-data-grid',

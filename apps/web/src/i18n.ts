@@ -49,6 +49,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
+import enLicensing from './locales/en/licensing.json';
+import faLicensing from './locales/fa/licensing.json';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
@@ -111,6 +113,7 @@ export const NAMESPACES = [
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  'licensing',
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
@@ -175,6 +178,7 @@ const en = {
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  licensing: enLicensing,
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
@@ -236,6 +240,7 @@ const fa = {
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  licensing: faLicensing,
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade

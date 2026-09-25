@@ -325,7 +325,7 @@ func TestUnboundChronySyslog(t *testing.T) {
 		"address": "127.0.0.1", "port": s.port(16), "protocol": "tcp", "severity": "info", "facilities": []string{"local7"}, "queueSize": 1000,
 	}})
 	c1 := a.commit("ucs-1")
-	t.Logf("commit ucs-1: revision %v, status %v", c1["revision"], c1["status"])
+	t.Logf("commit ucs-1: revision %v, status %v", revID(c1), c1["status"])
 	for _, f := range []string{ubConf, chConf, chSrc, rsConf} {
 		if _, err := os.Stat(f); err != nil {
 			t.Fatalf("not rendered: %v", err)
@@ -425,6 +425,10 @@ func TestUnboundChronySyslog(t *testing.T) {
 		delete(b, "serverStats")
 		delete(b, "status")
 		delete(b, "sourceStats")
+		if b["localZones"] != nil { // unbound's built-in zones (localhost, RFC 6761 reverse zones …) are noise here
+			b["localZones"] = ours(b["localZones"])
+			b["localData"] = ours(b["localData"])
+		}
 		t.Logf("GET %s →\n%s", p, jsonOf(b))
 	}
 	// A slot agent is never the globals owner: it refuses the lookup BEFORE anything reaches VPP (VPP 26.06 crashes on
@@ -435,7 +439,7 @@ func TestUnboundChronySyslog(t *testing.T) {
 	// ---- a listen-port change needs a restart (D-079) → pending; agent restart with the renderings deleted -----
 	a.must(200, "PUT", "/api/v1/config/services/dns/resolvers/lab", resolver(dnsPort2))
 	c2 := a.commit("ucs-2-port")
-	rev2 := c2["revision"]
+	rev2 := revID(c2)
 	pend := a.must(200, "GET", "/api/v1/state/dns", nil).body["pendingActions"]
 	t.Logf("after the listen-port commit (revision %v): pendingActions=%s", rev2, jsonOf(pend))
 	if !strings.Contains(jsonOf(pend), `"restart"`) {
@@ -493,15 +497,15 @@ func TestUnboundChronySyslog(t *testing.T) {
 	// ---- rollback restores the previous rendering (list_local_data, Retrieve via /state/drift) ---------------
 	a.must(200, "PUT", "/api/v1/config/services/dns/resolvers/lab", resolver(dnsPort2, map[string]any{"name": "new.lab.example.", "type": "A", "data": fmt.Sprintf("10.%d.53.2", s.num)}))
 	c3 := a.commit("ucs-3-record")
-	ld := jsonOf(a.must(200, "GET", "/api/v1/state/dns", nil).body["localData"])
+	ld := jsonOf(ours(a.must(200, "GET", "/api/v1/state/dns", nil).body["localData"]))
 	ips3, _ := lookup(addr2, "new.lab.example")
-	t.Logf("revision %v: list_local_data=%s; new.lab.example → %v", c3["revision"], ld, ips3)
+	t.Logf("revision %v: list_local_data=%s; new.lab.example → %v", revID(c3), ld, ips3)
 	if !strings.Contains(ld, "new.lab.example.") {
 		t.Fatal("the new record is not served")
 	}
 	rb := a.must(200, "POST", fmt.Sprintf("/api/v1/config/rollback/%v", rev2), nil)
 	t.Logf("POST /api/v1/config/rollback/%v → status %v, revision %v", rev2, rb.body["status"], rb.body["revision"])
-	ld = jsonOf(a.must(200, "GET", "/api/v1/state/dns", nil).body["localData"])
+	ld = jsonOf(ours(a.must(200, "GET", "/api/v1/state/dns", nil).body["localData"]))
 	_, err := lookup(addr2, "new.lab.example")
 	t.Logf("after rollback: list_local_data=%s; new.lab.example → %v", ld, err)
 	if strings.Contains(ld, "new.lab.example.") {
@@ -595,4 +599,24 @@ func shots(t *testing.T, st *stack, script, out string) {
 		t.Errorf("screenshot script: %v", err)
 	}
 	st.api.must(200, "POST", "/api/v1/config/discard", nil)
+}
+
+// revID is the id of the revision a commit returned.
+func revID(commit map[string]any) any {
+	if r, ok := commit["revision"].(map[string]any); ok {
+		return r["id"]
+	}
+	return commit["revision"]
+}
+
+// ours keeps the list entries that mention this test's zones (".example").
+func ours(v any) []any {
+	l, _ := v.([]any)
+	out := []any{}
+	for _, e := range l {
+		if strings.Contains(jsonOf(e), "example") {
+			out = append(out, e)
+		}
+	}
+	return out
 }

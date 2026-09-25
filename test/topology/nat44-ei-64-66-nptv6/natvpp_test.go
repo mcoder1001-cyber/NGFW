@@ -22,6 +22,7 @@ import (
 	vppapi "go.fd.io/govpp/api"
 
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/nat44_ed"
 	"ngfw/agent/binapi/nat44_ei"
@@ -596,4 +597,23 @@ func errText(err error) string {
 		return "ok"
 	}
 	return err.Error()
+}
+
+// gcSlotVRF removes what a failed run leaves of the slot VRF (the agent never got to the rollback): the NAT64 phase's route and the
+// IPv4/IPv6 tables (API source), through the binary API. The IPv6 table can survive with nat64 locks — VPP 26.06's
+// nat64_add_del_prefix delete does not unlock its FIB ("TODO: missing fib_table_unlock"), a leak until VPP restarts.
+func gcSlotVRF(t *testing.T, conn vppapi.Connection, table uint32, route netip.Prefix) []string {
+	t.Helper()
+	ctx, cancel := ctx10()
+	defer cancel()
+	svc := ip.NewServiceClient(conn)
+	var ev []string
+	pfx := ip_types.Prefix{Address: ip_types.Address{Af: ip_types.ADDRESS_IP4, Un: ip_types.AddressUnionIP4(ip_types.IP4Address(route.Addr().As4()))}, Len: uint8(route.Bits())} //nolint:gosec // ≤ 32
+	_, err := svc.IPRouteAddDel(ctx, &ip.IPRouteAddDel{IsAdd: false, Route: ip.IPRoute{TableID: table, Prefix: pfx}})
+	ev = append(ev, fmt.Sprintf("ip_route_add_del is_add=0 table %d %s → %s", table, route, errText(err)))
+	for _, v6 := range []bool{false, true} {
+		_, err := svc.IPTableAddDel(ctx, &ip.IPTableAddDel{IsAdd: false, Table: ip.IPTable{TableID: table, IsIP6: v6}})
+		ev = append(ev, fmt.Sprintf("ip_table_add_del is_add=0 table %d ipv6=%v → %s", table, v6, errText(err)))
+	}
+	return ev
 }

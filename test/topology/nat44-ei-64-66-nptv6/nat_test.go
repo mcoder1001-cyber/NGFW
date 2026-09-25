@@ -213,6 +213,15 @@ func TestNatEI6466Nptv6(t *testing.T) {
 	a := f.a
 	tbl := fmt.Sprintf("%s-n64", s.prefix)
 	tblID := s.num*1000 + 64
+	// a failed run's slot VRF and its route (the rollback step never ran); the agent is not asked again afterwards
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		for _, l := range gcSlotVRF(t, conn, uint32(tblID), netip.MustParsePrefix(r.addr(2, 0)+"/24")) { //nolint:gosec // slot ≤ 11
+			t.Log("cleanup: " + l)
+		}
+	})
 
 	t.Run("config", func(t *testing.T) {
 		a.t = t

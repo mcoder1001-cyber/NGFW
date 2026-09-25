@@ -3253,8 +3253,8 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
-  state: review
+  finished: '2026-09-25'
+  state: merged
   wbs: *id002
   prompt: ''
   id: TD-8b

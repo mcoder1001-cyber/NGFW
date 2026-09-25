@@ -105,31 +105,46 @@ VPP, under the agent's transaction lock.
 |---|---|---|
 | events (A5) | `w.Publish(ev)` | Every `StreamEvents` subscriber receives a copy. The stream sets `seq`, and the bus sets `ts` when it is unset. `EVENT_KIND_UNSPECIFIED` is dropped. |
 | resync (A5) | `w.RequestResync()` never blocks and is safe inside a descriptor call | `watchVPP` runs `Service.Resync` and `Wiring.AfterResync`. Requests coalesce. A request made while VPP is down is dropped, because the reconnect resyncs anyway. A request within 5 s of the last requested resync is deferred to the end of those 5 s (with a WARN), so a descriptor that requests a resync on every resync cannot loop. |
-| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or the empty range with `ErrNoIDRange` (a family that ignores the error still owns nothing). Convert with `ids.DF2()`, `ids.DF7()` or `ids.VPN()` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `VRX_VPP_TABLE_BASE=<base>` gives base..base+999. `VRX_VPP_ID_RANGE=all` gives every id. If neither is set, the agent owns no id: a family that asks for a range fails its registration, and start-up logs a warning. A malformed value, or both variables set, refuses start-up. |
+| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or the empty range with `ErrNoIDRange` (a family that ignores the error still owns nothing). Convert with `ids.DF2()`, `ids.DF7()` or `ids.VPN()` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `VRX_VPP_TABLE_BASE=<base>` gives base..base+999. `VRX_VPP_ID_RANGE=all` gives every id. If neither is set, start-up is refused (`ErrNoIDRange`, TD-8b; `docs/lab/shared-host-rules.md` §12); only a `Config` built in code without a range owns no id, so a family that asks for one fails its registration. A malformed value, or both variables set, refuses start-up too. A df7 family registers with `df7.WithIDs(ids.DF7())`. |
 | S1 dynamic desired source | `w.AddDynamicSource(DynamicSource{Name, Descriptors, Desired, Run})` | A source **in sync** is merged into every transaction under the txn lock (Apply, resync, confirm revert) and into DryRun's plan, which runs without the lock, so Desired must be safe to call concurrently. Its descriptors are in scope, and its view is the document as stored after the transaction. `Run` starts once after the first resync and stops with the agent. Its `sync(ctx)` runs a transaction scoped to the source's descriptors. A source's descriptors must be registered and belong to no domain. The failure semantics are below. |
 | metrics | `w.AddMetricsCollector(MetricsCollector{Name, Collect})` | Every scrape of `/metrics` appends the collector's families after the agent's own. Collectors run outside every agent lock, with a 5 s deadline each. A collector that fails or panics serves nothing, and `vrx_agent_metrics_collector_errors_total{collector}` counts the failure. |
 
 Dynamic objects are not configuration, so Retrieve never returns them. In Apply results they have no
 JSON pointer and no `subsystem`.
 
-### S1: a source never costs the configuration its transaction (TD-8 fix round 1)
+### S1: a rejected dynamic object is quarantined on its own (TD-8 fix round 1, TD-8b)
 
-The authoritative text is the `DynamicSource` doc comment in `internal/subsystems/seams.go`.
+The authoritative text is the `DynamicSource` doc comment in `internal/subsystems/seams.go`. A dynamic
+object VPP rejects costs neither the configuration its transaction nor its source the rest of its
+objects. The one exception: a config change cannot delete what a live dynamic object depends on while
+that object cannot go (its source is out of sync, or VPP refuses to delete it).
 
 - **Readiness.** Every source starts out of sync. It is in sync after its first successful sync:
   Run's first sync once its cache is filled, or, for a source without Run, the sync the agent runs
   once after the first resync. A source out of sync takes part in no transaction, and its
   descriptors are out of scope. So an agent restart with VPP intact deletes no dynamic object.
+- **Per-key quarantine (TD-8b, verify V1).** If a transaction fails because of a dynamic object (a
+  missing dependency of a dynamic key, the failed operation on one, or a verification that names only
+  one source's keys, V4), the agent quarantines that key and runs the transaction again under the same
+  lock, with the rest of the source in scope. The key is desired as it was: a rejected Create is left
+  out, a rejected Update or Delete keeps the old value. At most three such reruns per transaction. The
+  source stays in sync; later transactions keep the held value until a sync applies the source's own.
+  The agent retries each key with a backoff of 5 s doubling to 60 s, and a sync retries a key at once
+  when the source's value for it changed. A sync that leaves keys quarantined returns an error wrapping
+  `subsystems.ErrQuarantined` (the rest applied).
 - **Fallback.** A source whose Desired panics, or returns a key outside its descriptors or a
-  duplicate, is left out before the transaction runs. If the transaction then fails because of a
-  dynamic object, the agent runs it once more without the sources, under the same lock. That covers
-  a plan issue or a failed operation on a dynamic key, and a failed Retrieve or verification of a
-  source descriptor. There is no second run after DEGRADED.
-  - Each culprit is reported three ways: a SKIPPED result with its key, an `ERROR` event with the
-    attributes `source`, `reason` and `key`, and a count in
+  duplicate, is left out before the transaction runs. If quarantine cannot settle the transaction
+  (another plan issue on a dynamic key, a failed Retrieve of a source descriptor, a quarantined key
+  failing again, more than three keys), the agent runs it once more without the sources, under the
+  same lock. There is no second run after DEGRADED.
+  - Each culprit, key or source, is reported three ways: a SKIPPED result with its key, an `ERROR`
+    event with the attributes `source`, `reason` and `key`, and a count in
     `vrx_agent_dynamic_source_errors_total{source,reason}` (reason `invalid`, `panic`, `rejected`,
     `stopped`).
-  - DryRun reports the same case as a WARNING issue, `agent.dynamic-source-skipped`.
+  - DryRun reports a key it would quarantine as a WARNING issue `agent.dynamic-object-quarantined`,
+    and a source it would leave out as `agent.dynamic-source-skipped`.
+- **Deadline.** A source's sync, its reruns included, runs within the agent's own 5 min deadline
+  (TD-9 review L7). A sync cut by it rolls back and is retried.
 - **Retry.** A source left out, or whose sync failed, is out of sync. The agent retries its sync
   with a backoff of 5 s doubling to 60 s. One exception: an UNAVAILABLE sync of a source that is in
   sync changes nothing, because the reconnect resync includes it.
@@ -150,7 +165,8 @@ Rules for a source's author:
    objects as "not desired".
 2. **sync only from Run.** A call from Desired or from a descriptor call runs inside a transaction.
    There it would wait for the lock its own goroutine holds, so the agent refuses it at once with
-   `FAILED_PRECONDITION`.
+   `FAILED_PRECONDITION`. Never call it from any goroutine they start either (verify V3): the agent
+   cannot recognise that goroutine, and the call deadlocks.
 3. **Lock order (review R7).** The agent's transaction lock comes first, then the source's own locks.
    Desired runs under the transaction lock and takes the source's cache lock. So Run must not hold a
    lock that Desired takes while it calls sync, or the two deadlock (ABBA). Update the cache, unlock,

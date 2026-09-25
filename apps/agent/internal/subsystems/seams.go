@@ -42,8 +42,9 @@ const IDRangeAll = "all"
 // SlotIDRangeSize is the number of table/numeric ids a slot owns.
 const SlotIDRangeSize = 1000
 
-// ErrNoIDRange means that neither VRX_VPP_TABLE_BASE nor VRX_VPP_ID_RANGE=all is set: the agent owns
-// no numeric id (fail closed), never "every id" by default.
+// ErrNoIDRange means that neither VRX_VPP_TABLE_BASE nor VRX_VPP_ID_RANGE=all is set: the agent
+// refuses to start (TD-8b, D-129 Q3), and a Config built in code without a range owns no numeric id
+// (fail closed), never "every id" by default.
 var ErrNoIDRange = errors.New("no VPP id range: set " + EnvTableBase + " (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or " + EnvIDRange + "=" + IDRangeAll + " (the product agent on a box of its own)")
 
 // IDRange is a closed range of numeric ids (FIB tables, SPD/SA ids, policy ids, map ids). Convert it
@@ -109,7 +110,8 @@ func (s IDScope) String() string {
 	return "none (fail closed)"
 }
 
-// ResolveIDScope reads the agent's id range from the environment and fails closed:
+// ResolveIDScope reads the agent's id range from the environment and fails closed (the agent refuses
+// to start on any error, ErrNoIDRange included; docs/lab/shared-host-rules.md §12):
 //
 //	VRX_VPP_TABLE_BASE=<base>   → base..base+999 (a test slot, or a reserved range on a shared host)
 //	VRX_VPP_ID_RANGE=all        → every id (the product agent on a box of its own)
@@ -154,15 +156,18 @@ func SlotIDRange() (*IDRange, error) {
 }
 
 // IDRange returns the id range of this agent (Env.IDs): a copy of the slot's or reserved range, nil =
-// every id (only with VRX_VPP_ID_RANGE=all), or the empty range NoIDs with ErrNoIDRange (fail closed:
-// a family that ignores the error still owns nothing). A family that allocates numeric ids calls it
-// on its Register line, fails the registration on error, and converts the range with DF2, DF7 or VPN:
+// every id (only with VRX_VPP_ID_RANGE=all), or the empty range NoIDs with ErrNoIDRange (a Config
+// built in code without a range; the agent process refuses to start without one). It fails closed: a
+// family that ignores the error still owns nothing. A family that allocates numeric ids takes its
+// range only from here — never nil, never a missing option — on its Register line, fails the
+// registration on error, and converts the range with DF2, DF7 or VPN; its test asserts that NoIDs()
+// owns nothing:
 //
 //	ids, err := w.IDRange()
 //	if err != nil {
 //		return nil, fmt.Errorf("<family>: %w", err)
 //	}
-//	… ids.DF7() (nil = every id) / ids.VPN() …
+//	… df7.WithIDs(ids.DF7()) (nil = every id) / ids.DF2() / ids.VPN() …
 func (w *Wiring) IDRange() (*IDRange, error) {
 	switch {
 	case w.env.IDs.Range != nil:
@@ -198,19 +203,27 @@ func (w *Wiring) RequestResync() {
 // ---- dynamic desired sources (S1) ------------------------------------------------------------
 
 // SyncFunc runs one transaction for a dynamic source: its current Desired, scoped to its descriptors,
-// under the agent's transaction lock. It returns nil when the transaction ended APPLIED, and an error
-// when VPP is disconnected (the reconnect resync includes a source that is in sync), ctx is done, the
-// transaction failed or rolled back, Desired panicked, sync was called from the wrong place, or the
-// source is stopped (its Run ended).
+// under the agent's transaction lock, within the agent's own deadline (5 min, its reruns included).
+// It returns nil when the transaction ended APPLIED with every object of the source; an error wrapping
+// ErrQuarantined when it ended APPLIED while some objects stay quarantined (the rest applied); and an
+// error when VPP is disconnected (the reconnect resync includes a source that is in sync), ctx is
+// done, the transaction failed or rolled back, Desired panicked, sync was called from the wrong
+// place, or the source is stopped (its Run ended).
 //
 // Call it only from Run (TD-8 review R6/R7):
-//   - Never from Desired or from a descriptor call. Both run inside a transaction, under the
-//     transaction lock, and sync waits for that lock: the agent refuses such a call at once
-//     (FAILED_PRECONDITION "… inside …") instead of deadlocking.
+//   - Never from Desired or from a descriptor call, or from any goroutine they start (TD-8 verify
+//     V3). Both run inside a transaction, under the transaction lock, and sync waits for that lock:
+//     the agent refuses a call from their own goroutine at once (FAILED_PRECONDITION "… inside …")
+//     instead of deadlocking, but it cannot recognise a goroutine they start, which then deadlocks.
 //   - Lock order: the agent's transaction lock first, then the source's own locks. Desired runs under
 //     the transaction lock and takes the source's cache lock, so Run must not hold a lock that Desired
 //     takes while it calls sync (that is an ABBA deadlock). Update the cache, unlock, then call sync.
 type SyncFunc func(ctx context.Context) error
+
+// ErrQuarantined is wrapped by the error of a SyncFunc whose transaction ended APPLIED while some of
+// the source's objects stay quarantined (TD-8b): VPP rejected their change, the agent holds them as
+// they were and retries them with backoff, and the rest of the source applied.
+var ErrQuarantined = errors.New("dynamic objects quarantined")
 
 // DynamicSource is a feature-owned source of desired state the configuration document does not
 // carry (seam S1, wave-BC-numbers.md): F-mpls-ldp's FRR→VPP label sync, F-igmp-mfib's PIM→mFIB sync.
@@ -222,7 +235,11 @@ type SyncFunc func(ctx context.Context) error
 // by the reconnect resync, a config change that removes what a dynamic object depends on deletes both
 // in one transaction, and nothing but the scheduler writes VPP.
 //
-// Failure semantics (TD-8 review R1–R3): a source never costs the configuration its transaction.
+// Failure semantics (TD-8 review R1–R3, TD-8b): a dynamic object VPP rejects is quarantined on its
+// own. It costs neither the configuration its transaction nor its source the rest of its objects.
+// The one exception: a config change cannot delete what a live dynamic object depends on while that
+// object cannot go (its source is out of sync, or VPP refuses to delete it); that change fails with
+// "cannot delete … depends on it" or rolls back.
 //   - In sync: the source's last sync ended APPLIED, and no transaction has left it out since. Every
 //     source is out of sync from start-up until its first successful sync: Run's first sync, after it
 //     filled its cache, or — for a source without Run — the sync the agent runs once after its first
@@ -230,17 +247,28 @@ type SyncFunc func(ctx context.Context) error
 //     of scope, so the scheduler neither creates nor deletes its objects (an agent restart with VPP
 //     intact deletes nothing). A config change that deletes what one of its live objects depends on
 //     fails with "cannot delete … depends on it" until the source is back in sync.
-//   - A source whose Desired panics, or returns a key outside Descriptors or a duplicate, is left out
-//     of the transaction before it runs. When the transaction fails because of a dynamic object (a
-//     plan issue or the failed operation on a dynamic key, a failed Retrieve or verification naming
-//     one of Descriptors), the agent runs it once more without the dynamic sources, under the same
-//     lock (not after DEGRADED: a failed rollback is never retried). The user's commit, the resync
-//     after a VPP restart and the confirm revert then succeed on the configuration alone. The response
-//     lists the dynamic key as SKIPPED with the source and the cause, an ERROR event carries the
-//     attributes source, reason and key, and vrx_agent_dynamic_source_errors_total{source,reason}
-//     counts it (reason invalid, panic, rejected, stopped). DryRun plans the same: a source Apply
-//     would leave out is a WARNING issue "agent.dynamic-source-skipped". Every source left out is
-//     out of sync until its next successful sync.
+//   - Per-key quarantine (TD-8 verify V1). When a transaction fails because of a dynamic object — a
+//     missing dependency of a dynamic key, the failed operation on one, or a verification that names
+//     only one source's keys (V4) — the agent quarantines that key and runs the transaction again,
+//     under the same lock, with the rest of the source in scope. Still declarative: a quarantined key
+//     is desired as it was (a rejected Create is left out, a rejected Update or Delete keeps the old
+//     value), so the scheduler leaves it as it is. At most three such reruns per transaction; a
+//     source stays in sync while some of its keys are quarantined. Every later transaction desires
+//     the held value too, until a sync applies the source's own value: the agent retries each key
+//     with backoff (5 s doubling to 60 s), and a sync also retries a key at once when the source's
+//     value for it changed.
+//   - Whole-source fallback (R2). A source whose Desired panics, or returns a key outside Descriptors
+//     or a duplicate, is left out of the transaction before it runs. When quarantine cannot settle a
+//     transaction (another plan issue on a dynamic key, a failed Retrieve of one of Descriptors, a
+//     quarantined key failing again, more than three keys), the agent runs it once more without the
+//     dynamic sources (not after DEGRADED: a failed rollback is never retried). The user's commit,
+//     the resync after a VPP restart and the confirm revert then succeed on the configuration alone.
+//     Every source left out is out of sync until its next successful sync.
+//   - Reporting, the same for a key and a source: the response lists the dynamic key as SKIPPED with
+//     the source and the cause, an ERROR event carries the attributes source, reason and key, and
+//     vrx_agent_dynamic_source_errors_total{source,reason} counts it (reason invalid, panic, rejected,
+//     stopped). DryRun plans the same: a key Apply would quarantine is a WARNING issue
+//     "agent.dynamic-object-quarantined", a source it would leave out "agent.dynamic-source-skipped".
 //   - A source out of sync whose sync failed, or that a transaction left out, is retried by the
 //     agent: a sync with backoff (5 s doubling to 60 s), so it rejoins on its own once VPP accepts its
 //     objects again. A failed sync takes the source out of sync, except UNAVAILABLE for a source in

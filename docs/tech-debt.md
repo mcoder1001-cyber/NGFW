@@ -58,6 +58,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 | DF-7 manager window: pin the V22b ip4-options trigger (`VRX_DF7_VRRP_HOST=1`, `VRX_DF7_IGMP_HOST=1`, VPP idle) | manager | PENDING-vpp-c-track option 2 |
 | F-startup-gen Q4: tools/lab provision still has its own startup.conf template | idle pool (TD-19 owns the same provision hunk) | first `tools/lab provision vrx-b\|vrx-c --apply` |
 | D-100 shared single-line pattern in packages/schema; TD-6 review F3–F9 | idle pool | — |
+| TD-8b (D-129 Q3): the agent refuses to start without an id range — P10's packaged vrx-agent unit ships `VRX_VPP_ID_RANGE=all` in its EnvironmentFile (the product box is its own VPP), with a packaging test that the unit's environment resolves to `all` | P10 | P10 merge |
 
 ## P08 re-review (D-118, 2026-09-24) — interfaces vertical slice, no code in P08's fix round 2
 - **R2-stores** (low; `apps/agent/internal/subsystems/stores.go:124`, DF-1 `attributes.go:259-260`): a DF-1 attribute Create on an

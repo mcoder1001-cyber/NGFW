@@ -49,10 +49,11 @@ type Config struct {
 	// default for the production owner "vrx"); test slots on the shared host are never the owner.
 	GlobalsOwner bool
 	// IDs is the VPP numeric id range the families may allocate (TD-8, subsystems.ResolveIDScope:
-	// VRX_VPP_TABLE_BASE or VRX_VPP_ID_RANGE=all). It fails closed: the zero value (neither variable
-	// set, or a Config built in code) owns no id, so a family that allocates ids refuses to register.
+	// VRX_VPP_TABLE_BASE or VRX_VPP_ID_RANGE=all). ConfigFromEnv without either refuses to start
+	// (TD-8b, D-129 Q3); the zero value of a Config built in code owns no id (fail closed), so a family
+	// that allocates ids refuses to register.
 	IDs subsystems.IDScope
-	// idsErr is a malformed or contradictory id range setting (Validate refuses to start).
+	// idsErr is a missing, malformed or contradictory id range setting (Validate refuses to start).
 	idsErr error
 }
 
@@ -77,10 +78,7 @@ func ConfigFromEnv() Config {
 	case "0", "false", "no":
 		globals = false
 	}
-	ids, idsErr := subsystems.ResolveIDScope()
-	if errors.Is(idsErr, subsystems.ErrNoIDRange) {
-		idsErr = nil // fail closed without refusing to start: the zero scope owns no id (Start warns)
-	}
+	ids, idsErr := subsystems.ResolveIDScope() // none set: ErrNoIDRange, start-up refused (TD-8b, D-129 Q3)
 	return Config{
 		IDs:            ids,
 		idsErr:         idsErr,

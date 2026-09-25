@@ -2,12 +2,12 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 44.7% by hours (524.5/1172.5 h), 46.9% by tasks (61/130)**
+**Overall: 45.2% by hours (529.5/1172.5 h), 47.7% by tasks (62/130)**
 
 | state | tasks |
 |---|---|
-| merged | 61 |
-| review | 24 |
+| merged | 62 |
+| review | 23 |
 | running | 5 |
 | ready | 6 |
 | parked | 2 |
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 127.5 / 605.0 | 21.1% | 18/70 | 4 | 5 | 0 |
+| S4 | 132.5 / 605.0 | 21.9% | 19/70 | 4 | 5 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -53,7 +53,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-9 — Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED) (review, unassigned)
 - TD-13 — Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
-- TD-8b — Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule) (review, unassigned)
 - TD-24 — interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease) (review, unassigned)
 
 ## Parked

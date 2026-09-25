@@ -78,3 +78,22 @@ Prove a forwarding path instead with (all read-only, all scoped to your own obje
 `pcap trace` / `pcap dispatch trace` are VPP-global captures and are no substitute on the shared host. `tools/ci.sh` (check, quick,
 full) fails on any trace command or tracedump API call outside docs and the generated bindings; there is no escape hatch. The ban holds
 until VPP carries the NULL guard, and even then the trace buffer stays VPP-global (a single-tenant tool for a per-slot VPP).
+
+## 12. VPP numeric id ranges: explicit, fail closed (TD-8, TD-8b; D-129 Q3)
+Every vrx-agent on this host has an explicit range for the VPP numeric ids its families allocate: FIB/VRF tables, SPD/SA ids,
+policy, map and pool ids. No agent owns "every id" by default.
+
+| agent | setting | ids |
+|---|---|---|
+| worker slot N (1–11) | `VRX_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
+| CI slot 12 (`tools/ci.sh full`) | `VRX_VPP_TABLE_BASE=12000` | 12000–12999 |
+| `tools/app`: the integrated main build, owner `vrx`, `/run/vrx/agent.sock` | `VRX_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
+| the product agent on a box of its own (P10's unit) | `VRX_VPP_ID_RANGE=all` | every id |
+
+- `VRX_VPP_ID_RANGE=all` is never set on this shared host.
+- Neither variable set: the agent refuses to start (`ErrNoIDRange`, which cites this section).
+- Both variables set, a malformed base, or any other `VRX_VPP_ID_RANGE` value: the agent refuses to start.
+- A harness that starts `vrx-agent` with a clean environment passes `VRX_VPP_TABLE_BASE` through (`test/topology/interfaces` does).
+- An id-allocating family takes its range only from `w.IDRange()` (never `nil`, never a missing option; df7: `df7.WithIDs(ids.DF7())`),
+  and its test asserts that `NoIDs()` owns nothing.
+- Take VRF table ids typed by hand into tools/app from 13000–13999 too. The `vrf` descriptor does not check them.

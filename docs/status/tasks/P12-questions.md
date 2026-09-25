@@ -147,3 +147,14 @@ F-bfd-redistribution sit in the table.
 
 `apps/cli` (not P12's) has `show bgp summary` exiting 10 ("no REST endpoint yet"). It can now read `GET /api/v1/state/bgp`
 (operationId `Bgp_state`). Owner of apps/cli: wire it (one table row), or tell me to.
+
+## Q15 — main's TD-11b guard vs F-vrf-static-ecmp's svs descriptors on this branch (not P12's code)
+
+After `merge main` (TD-11b b5e74c08) every agent unit test that calls `subsystems.Register` fails on this branch with
+"refusing to start: … svs.table / svs.interface / svs.route … declares neither CheckPersistent nor RecordsNoOwnership":
+the svs family comes from F-vrf-static-ecmp's branch (merged into P12's base by the manager), which predates TD-11b
+(`task/F-vrf-static-ecmp`@19d250c0 has no declaration either). P12's own descriptors pass the guard (`frr.config`
+RecordsNoOwnership, lcp.itf-pair wrapper CheckPersistent). I do not edit `descriptors/svs` (F-vrf's). Verified with a
+local, uncommitted `go test -overlay` that adds the three declarations: every agent package is green except F-vrf's
+pre-existing `TestSvsRangeFromSlot`. **Ask:** F-vrf's fix round adds them (svs records applied-once in the BootStore →
+`CheckPersistent` via `dfkit.CheckBoot`); until then `tools/ci.sh` is red on this branch for that reason only.

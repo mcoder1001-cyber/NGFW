@@ -2,11 +2,13 @@ package natcommon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -100,19 +102,45 @@ func (d *Descriptor[T]) Dependencies(obj proto.Message) []scheduler.Dependency {
 	return d.ops.Deps(spec)
 }
 
-// Create implements scheduler.Descriptor.
+// Create implements scheduler.Descriptor. The key is claimed BEFORE the VPP call (TD-11b, review
+// 3.3): a claim that cannot be recorded fails the Create with nothing written — claiming after the
+// call left an object in VPP that no rollback undid and, untagged, Retrieve never reported. When the
+// call fails, a claim this Create made is released again, unless the call returned a
+// scheduler.PartialCreate error (it changed VPP; with or without Meta): then the claim stays for the
+// scheduler's rollback Delete, which proves ownership with it and releases it (scheduler.
+// IsPartialCreate is the predicate both sides use). A claim that existed before the Create is never
+// released here.
 func (d *Descriptor[T]) Create(ctx context.Context, obj proto.Message) (any, error) {
 	spec, err := Decode[T](obj)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", d.ops.Name, err)
 	}
+	if d.ops.Global {
+		return d.ops.Create(ctx, spec)
+	}
+	key := string(d.Key(spec))
+	had := d.ops.Claims.Claimed(key)
+	if err := d.ops.Claims.Claim(key); err != nil {
+		return nil, fmt.Errorf("%s: claim: %w", d.ops.Name, err)
+	}
 	meta, err := d.ops.Create(ctx, spec)
-	if err == nil && !d.ops.Global {
-		if cerr := d.ops.Claims.Claim(string(d.Key(spec))); cerr != nil {
-			return meta, fmt.Errorf("%s: claim: %w", d.ops.Name, cerr)
+	if err != nil && !had && !scheduler.IsPartialCreate(err) { // a partial Create keeps the claim: the rollback deletes it
+		if rerr := d.ops.Claims.Release(key); rerr != nil {
+			err = errors.Join(err, fmt.Errorf("%s: release claim: %w", d.ops.Name, rerr))
 		}
 	}
 	return meta, err
+}
+
+// CheckPersistent is the product agent's guard (dfkit/persist, TD-11b review 3.2): a descriptor that
+// records claims needs a claim store that survives an agent restart — the product wiring passes
+// natcommon.WithClaims(Wiring.KeyedClaims("nat")); the in-memory default is for tests. Global
+// singletons record no claims.
+func (d *Descriptor[T]) CheckPersistent() error {
+	if d.ops.Global {
+		return nil
+	}
+	return persist.Require("natcommon "+d.ops.Name+": claims (pass natcommon.WithClaims(Wiring.KeyedClaims(\"nat\")))", d.ops.Claims)
 }
 
 // Update implements scheduler.Descriptor.

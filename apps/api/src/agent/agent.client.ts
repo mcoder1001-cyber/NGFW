@@ -15,6 +15,28 @@ import {
   type StreamStatsRequest,
   type ValidationReport,
   // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
   type BondStateResponse,
   // wave-A: F-bridge-l2
@@ -122,6 +144,28 @@ export class AgentClient implements OnModuleDestroy {
 
   // Feature RPCs: one method per RPC under the feature's anchor, e.g.
   // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
   /** F-bonding: live bonds (proto.md §11); an agent without the RPC answers 501. */
   bondState(names: string[] = []): Promise<BondStateResponse> {

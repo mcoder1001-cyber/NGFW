@@ -68,6 +68,16 @@ export * from './domains/services.js';
 export * from './domains/ha.js';
 export * from './domains/management.js';
 // Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
+// wave-BC: F-det44-map-dslite-cnat
+// wave-BC: F-pki
+// wave-BC: F-ospf
+// wave-BC: F-isis-rip
+// wave-BC: F-mpls-srmpls
+// wave-BC: F-srv6
+// wave-BC: F-lisp
+// wave-BC: F-bfd-redistribution
+// wave-BC: F-mpls-ldp
+// wave-BC: F-igmp-mfib
 // wave-A: F-bonding
 export * from './domains/ext/bonding.js';
 // wave-A: F-bridge-l2

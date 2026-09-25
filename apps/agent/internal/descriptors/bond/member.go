@@ -11,6 +11,7 @@ import (
 
 	bondapi "ngfw/agent/binapi/bond"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	"ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -122,11 +123,7 @@ func (d *MemberDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 // untagged NIC is ours only through the claim recorded in the owner's iface.ClaimStore, which must survive an agent
 // restart (the product wiring installs subsystems.IfaceClaims, D-075); the in-memory default is for tests.
 func (d *MemberDescriptor) CheckPersistent() error {
-	s := iface.Claims(d.owner)
-	if p, ok := s.(interface{ Persistent() bool }); ok && p.Persistent() {
-		return nil
-	}
-	return fmt.Errorf("bond.member of owner %q: claims on untagged member NICs are kept in %T, which does not survive an agent restart (install a persisted store with iface.SetClaimStore)", d.owner, s)
+	return persist.Require("bond.member of owner "+d.owner+": claims on untagged member NICs (install a persisted store with iface.SetClaimStore)", iface.Claims(d.owner))
 }
 
 // Normalize implements scheduler.Normalizer: bond and member references in canonical alias form.

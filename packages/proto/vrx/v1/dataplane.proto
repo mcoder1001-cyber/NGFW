@@ -69,6 +69,28 @@ service Dataplane {
   // one blank line before and after, so every anchor stays a detached comment and out of the generated
   // code (the same rule for the field/value anchors in the messages below). New messages go in your
   // `// ----- <task-id> -----` section at the end of this file; numbers only from wave-A-hotspots.md §2.
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
 
   // BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
@@ -345,6 +367,8 @@ message StreamStatsRequest {
   repeated string interfaces = 2;
   // Include per-worker CPU load (StatsBatch.worker_cpu). Off by default: cheaper.
   bool include_worker_cpu = 3;
+
+  // wave-BC: F-dashboard-prom-alarms
 }
 
 // StatsBatch is one sample of every requested counter, taken at the same instant from the VPP
@@ -362,6 +386,8 @@ message StatsBatch {
   repeated WorkerCpu worker_cpu = 4;
   // Effective interval in milliseconds (echo of the request, after defaulting).
   uint32 interval_ms = 5;
+
+  // wave-BC: F-dashboard-prom-alarms
 }
 
 // InterfaceCounters are the simple counters of one interface (/if/rx, /if/tx, /if/drops, …).
@@ -440,6 +466,13 @@ enum EventKind {
   // A rollback failed; the agent is degraded until an Apply succeeds (AD-4).
   EVENT_KIND_DEGRADED = 9;
 
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
   // wave-A: F-neighbors-ra
   // wave-A: F-object-model
   // wave-A: P11
@@ -484,6 +517,11 @@ message ActionRequest {
     // Packet capture on one interface (pcap output).
     CaptureAction capture = 3;
 
+    // wave-BC: F-det44-map-dslite-cnat
+    // wave-BC: F-ikev2-native
+    // wave-BC: F-ra-vpn
+    // wave-BC: F-ha-state-sync
+    // wave-BC: F-backup-restore
     // wave-A: F-neighbors-ra
     // wave-A: F-nat44-ed-sessions
     // wave-A: F-unbound-chrony-syslog
@@ -547,6 +585,8 @@ message CaptureAction {
   CaptureDirection direction = 5;
   // Bytes captured per packet; 0 = 65535.
   uint32 snaplen = 6;
+
+  // wave-BC: F-capture-trace
 }
 
 // ActionOutput is one streamed chunk of an action. The stream ends with exactly one `done`.
@@ -559,6 +599,8 @@ message ActionOutput {
     bytes pcap_chunk = 2;
     // Terminal message with the summary.
     ActionDone done = 3;
+
+    // wave-BC: F-backup-restore
   }
 }
 
@@ -930,6 +972,11 @@ message RoutingConfig {
   // Routing policy: prefix lists and route maps (FRR).
   RoutingPolicy policy = 9;
 
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-srv6
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
 }
@@ -1218,6 +1265,9 @@ message OspfInterface {
   optional uint32 priority = 7;
   // Zod default false.
   optional bool bfd = 8;
+
+  // wave-BC: F-ospf
+  // wave-BC: F-bfd-redistribution
 }
 
 // OspfConfig mirrors `routing.ospf`.
@@ -1248,6 +1298,9 @@ message IsisInterface {
   optional string network_type = 4;
   // Zod default false.
   optional bool bfd = 5;
+
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
 }
 
 // IsisConfig mirrors `routing.isis`.
@@ -1262,12 +1315,16 @@ message IsisConfig {
   map<string, IsisInterface> interfaces = 4;
   // Redistribution into IS-IS (the `isis` key is never set).
   Redistribute redistribute = 5;
+
+  // wave-BC: F-isis-rip
 }
 
 // RipInterface mirrors `routing.rip.interfaces.<name>`.
 message RipInterface {
   // Zod default false.
   optional bool passive = 1;
+
+  // wave-BC: F-isis-rip
 }
 
 // RipConfig mirrors `routing.rip`.
@@ -1282,6 +1339,8 @@ message RipConfig {
   Redistribute redistribute = 4;
   // Zod default 1.
   optional uint32 default_metric = 5;
+
+  // wave-BC: F-isis-rip
 }
 
 // BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add).
@@ -1300,12 +1359,16 @@ message BfdSession {
   optional uint32 detect_multiplier = 6;
   // Zod default true.
   optional bool enabled = 7;
+
+  // wave-BC: F-bfd-redistribution
 }
 
 // BfdConfig mirrors `routing.bfd`.
 message BfdConfig {
   // Static BFD sessions.
   repeated BfdSession sessions = 1;
+
+  // wave-BC: F-bfd-redistribution
 }
 
 // ----- tunnels (P02c, mirrors packages/schema/src/domains/tunnels.ts) -----
@@ -1322,6 +1385,9 @@ message TunnelsConfig {
   map<string, VxlanTunnel> vxlan = 2;
   // IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec.
   map<string, IpipTunnel> ipip = 3;
+
+  // wave-BC: F-tunnels
+  // wave-BC: F-lisp
 }
 
 // GreTunnel is `tunnels.gre.<name>`.
@@ -1418,6 +1484,8 @@ message IpipTunnel {
   optional string dst = 12;
   // Outer DSCP 0–63; unset = copy the inner DSCP.
   optional uint32 dscp = 13;
+
+  // wave-BC: F-tunnels
 }
 
 // ----- services (P02c, mirrors packages/schema/src/domains/services.ts) -----
@@ -1442,6 +1510,8 @@ message ServicesConfig {
   // QoS: policers, shapers, marking maps, interface attachments (D-052).
   QosService qos = 7;
 
+  // wave-BC: F-host-stack
+  // wave-BC: F-lb
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
 }
@@ -1697,6 +1767,8 @@ message SnmpService {
     optional string access = 2;
     // Allowed source prefixes (CIDR); empty = any.
     repeated string sources = 3;
+
+    // wave-BC: F-snmp
   }
   // SNMPv3 USM user.
   message V3User {
@@ -1712,6 +1784,8 @@ message SnmpService {
     optional string priv_ref = 5;
     // "ro" | "rw".
     optional string access = 6;
+
+    // wave-BC: F-snmp
   }
   // Trap / inform receiver.
   message TrapReceiver {
@@ -1750,6 +1824,8 @@ message SnmpService {
   map<string, V3User> v3_users = 10;
   // Trap receivers.
   repeated TrapReceiver trap_receivers = 11;
+
+  // wave-BC: F-snmp
 }
 
 // LldpService is `services.lldp`.
@@ -1799,6 +1875,8 @@ message IpfixService {
     optional uint32 template_interval_sec = 7;
     // UDP checksum.
     optional bool udp_checksum = 8;
+
+    // wave-BC: F-ipfix-sflow
   }
   // Flowprobe settings.
   message Flowprobe {
@@ -1827,6 +1905,8 @@ message IpfixService {
     optional bool record_l4 = 5;
     // Monitored interfaces.
     repeated Interface interfaces = 6;
+
+    // wave-BC: F-ipfix-sflow
   }
   // sFlow settings.
   message Sflow {
@@ -1846,6 +1926,8 @@ message IpfixService {
     optional string vrf = 7;
     // Sampled interfaces.
     repeated string interfaces = 8;
+
+    // wave-BC: F-ipfix-sflow
   }
   // Exporters keyed by name.
   map<string, Exporter> exporters = 1;
@@ -1853,6 +1935,8 @@ message IpfixService {
   Flowprobe flowprobe = 2;
   // sFlow; unset = not configured.
   Sflow sflow = 3;
+
+  // wave-BC: F-ipfix-sflow
 }
 
 // NtpService is `services.ntp` (chrony; one instance, bound to vrf).
@@ -1939,6 +2023,8 @@ message QosService {
   map<string, QosMap> maps = 3;
   // Attachments keyed by VPP interface name.
   map<string, QosInterface> interfaces = 4;
+
+  // wave-BC: F-qos-flat
 }
 
 // QosPolicerAction is a conform/exceed/violate action.
@@ -1975,6 +2061,8 @@ message QosPolicer {
   QosPolicerAction exceed_action = 11;
   // Violate action.
   QosPolicerAction violate_action = 12;
+
+  // wave-BC: F-qos-flat
 }
 
 // QosShaper is `services.qos.shapers.<name>`.
@@ -2051,6 +2139,8 @@ message QosInterface {
   Store store = 5;
   // Mark.
   Mark mark = 6;
+
+  // wave-BC: F-qos-flat
 }
 
 // ----- ha (P02c, mirrors packages/schema/src/domains/ha.ts) -----
@@ -2063,6 +2153,8 @@ message HaConfig {
   map<string, VrrpInstance> vrrp = 2;
   // Cluster membership / sync; unset = standalone.
   HaCluster cluster = 3;
+
+  // wave-BC: F-vrrp-config-sync
 }
 
 // VrrpInstance is `ha.vrrp.<name>`.
@@ -2107,6 +2199,8 @@ message VrrpInstance {
   optional string engine = 13;
   // Tracked interfaces.
   repeated Track track = 14;
+
+  // wave-BC: F-vrrp-config-sync
 }
 
 // HaCluster is `ha.cluster`.
@@ -2126,6 +2220,8 @@ message HaCluster {
     optional bool ipsec = 2;
     // ACL sessions.
     optional bool acl = 3;
+
+    // wave-BC: F-ha-state-sync
   }
   // Enabled.
   optional bool enabled = 1;
@@ -2145,6 +2241,8 @@ message HaCluster {
   optional bool config_sync = 8;
   // State sync.
   StateSync state_sync = 9;
+
+  // wave-BC: F-vrrp-config-sync
 }
 
 // ----- management (P02a, mirrors packages/schema/src/domains/management.ts) -----
@@ -2161,6 +2259,9 @@ message ManagementConfig {
   ManagementTls tls = 3;
   // Remote syslog targets (rsyslog renderer).
   repeated SyslogTarget syslog = 4;
+
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-backup-restore
 }
 
 // ManagementUser mirrors one entry of `management.users`.
@@ -2191,6 +2292,8 @@ message ManagementAaa {
   AaaRadius radius = 2;
   // TACACS+ servers.
   AaaTacacs tacacs = 3;
+
+  // wave-BC: F-aaa
 }
 
 // AaaRadius mirrors `management.aaa.radius`.
@@ -2312,6 +2415,8 @@ message NatConfig {
   MapConfig map = 23;
   // CNAT.
   CnatConfig cnat = 24;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // NatTimeouts mirrors `nat.timeouts` (seconds).
@@ -2565,6 +2670,8 @@ message Det44Config {
   repeated Mapping mappings = 6;
   // Session timeouts.
   NatTimeouts timeouts = 7;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // DsliteConfig mirrors `nat.dslite`.
@@ -2589,6 +2696,8 @@ message DsliteConfig {
   Endpoint b4 = 3;
   // IPv4 pools.
   repeated Pool pools = 4;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // MapDomain mirrors one entry of `nat.map.domains`.
@@ -2622,6 +2731,8 @@ message MapDomain {
   optional uint32 mtu = 10;
   // Per-PSID rules (lw4o6 / MAP-E with rules).
   repeated Rule rules = 11;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // MapParameters mirrors `nat.map.parameters`.
@@ -2686,6 +2797,8 @@ message MapConfig {
   MapParameters parameters = 2;
   // Interfaces MAP runs on.
   repeated MapInterface interfaces = 3;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // CnatEndpoint is an address + port pair used by CNAT.
@@ -2710,6 +2823,8 @@ message CnatTranslation {
   repeated CnatEndpoint backends = 5;
   // "default" | "maglev".
   optional string lb_type = 6;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // CnatConfig mirrors `nat.cnat`.
@@ -2747,6 +2862,8 @@ message CnatConfig {
   repeated CnatTranslation translations = 1;
   // SNAT policy.
   Snat snat = 2;
+
+  // wave-BC: F-det44-map-dslite-cnat
 }
 
 // ----- objects (P02b, mirrors packages/schema/src/domains/objects.ts) -----
@@ -3230,6 +3347,8 @@ message IpsecTunnel {
   optional bool anti_replay = 25;
   // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
   optional string underlay_vrf = 26;
+
+  // wave-BC: F-ikev2-native
 }
 
 // IpsecSettings mirrors `vpn.ipsec.settings`.
@@ -3238,6 +3357,8 @@ message IpsecSettings {
   optional string crypto_engine = 1;
   // Asynchronous crypto (dedicated crypto workers / QAT).
   optional bool async_crypto = 2;
+
+  // wave-BC: F-ikev2-native
 }
 
 // IpsecConfig mirrors `vpn.ipsec`.
@@ -3322,6 +3443,8 @@ message PkiCa {
   Crl crl = 3;
   // OCSP responder URL.
   optional string ocsp_url = 4;
+
+  // wave-BC: F-pki
 }
 
 // PkiCertificate mirrors `vpn.pki.certificates.<name>`.
@@ -3349,6 +3472,8 @@ message PkiCertificate {
   Acme acme = 5;
   // Alert this many days before expiry.
   optional uint32 expiry_alert_days = 6;
+
+  // wave-BC: F-pki
 }
 
 // PkiConfig mirrors `vpn.pki`.
@@ -3584,3 +3709,51 @@ message BondLacpPort {
 // ----- F-kea-dhcp-relay -----
 
 // ----- F-unbound-chrony-syslog -----
+
+// ----- F-det44-map-dslite-cnat -----
+
+// ----- F-tunnels -----
+
+// ----- F-vrrp-config-sync -----
+
+// ----- F-pki -----
+
+// ----- F-ikev2-native -----
+
+// ----- F-ospf -----
+
+// ----- F-isis-rip -----
+
+// ----- F-mpls-srmpls -----
+
+// ----- F-lb -----
+
+// ----- F-qos-flat -----
+
+// ----- F-host-stack -----
+
+// ----- F-snmp -----
+
+// ----- F-ipfix-sflow -----
+
+// ----- F-capture-trace -----
+
+// ----- F-srv6 -----
+
+// ----- F-lisp -----
+
+// ----- F-bfd-redistribution -----
+
+// ----- F-ra-vpn -----
+
+// ----- F-mpls-ldp -----
+
+// ----- F-igmp-mfib -----
+
+// ----- F-dashboard-prom-alarms -----
+
+// ----- F-aaa -----
+
+// ----- F-ha-state-sync -----
+
+// ----- F-backup-restore -----

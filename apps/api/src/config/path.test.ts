@@ -34,3 +34,23 @@ describe('pointerFromUrl', () => {
     expect(status('/api/v1/config/interfaces/%E0%A4%A')).toBe(400);
   });
 });
+
+describe('pointerFromUrl — control characters (TD-2 #4, D-049)', () => {
+  it.each([
+    ['ESC', '%1B%5B2K'],
+    ['CR', 'a%0Db'],
+    ['C1 CSI', '%C2%9B31m'],
+    ['RLO', 'x%E2%80%AEy'],
+    ['FSI', 'x%E2%81%A8y'],
+  ])('%s in a segment → 400 with a pointer', (_n, seg) => {
+    try {
+      pointerFromUrl(`/api/v1/config/routing/bgp/neighbors/${seg}`, P);
+      expect.unreachable();
+    } catch (e) {
+      const p = (e as ProblemError).body();
+      expect(p.status).toBe(400);
+      expect(p.errors?.[0]?.pointer).toMatch(/^\/routing\/bgp\/neighbors\/.*\\u\{/);
+      expect(JSON.stringify(p)).not.toMatch(/\\u001b|\\r|\u009b|\u202e|\u2068/);
+    }
+  });
+});

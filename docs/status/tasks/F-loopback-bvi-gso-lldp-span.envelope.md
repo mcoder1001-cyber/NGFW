@@ -29,7 +29,7 @@ obligations:
   - D-077: base new descriptors on descriptors/dfkit
   - D-104: use, do not rebuild, DF-7's lldp/span and P08's loopback path
   - D-105 (TD-3 M2): add a semantic rule on your contract commit that refuses config loopbacks loop16000–loop16383 (reserved for the agent's quarantine holders); rule id `interfaces.loopback-bvi-gso-lldp-span-…`, pointer to the offending key
-numbers: NOT yet in wave-A-hotspots §2 (you are a follow-on). Proposed from the "20–29 waves B+" block; the manager confirms and records them in §2 before spawn. Reusing a number or taking "next free" blocks the merge.
+numbers: wave-A-hotspots §2 "Proposed for the follow-ons and wave B" block, confirmed and binding by D-109 (e) (restated in docs/status/wave-BC-numbers.md "Batch-2 follow-ons"). Reusing a number or taking "next free" blocks the merge.
   - Interface.gso = 20 and Interface.mirror = 21 (+ a nested Mirror message)
   - ServicesConfig.nsim = 9 (ServicesConfig 8 is F-rpf-adl-pbr's auto_sdl) (+ NsimService)
   - rpc LldpNeighbors (+ LldpNeighbor* messages)

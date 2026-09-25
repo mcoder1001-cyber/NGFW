@@ -117,8 +117,9 @@ func (t Target) claimHolder() string {
 	return fmt.Sprintf("%s@%s#%d", t.Holder, t.Identity, t.Index)
 }
 
-// ResolveTarget resolves a logical name (D-069) for holder. Nothing is claimed here: the claim is
-// recorded only after VPP accepted the add (Claim), so a failed add never leaves one (review H1).
+// ResolveTarget resolves a logical name (D-069) for holder. Nothing is claimed here: a Create claims
+// with ClaimFirst right before its add (TD-11b) and releases on failure (Claim.Undo), or — the older
+// order — with Claim after VPP accepted the add; either way a failed add never leaves one (review H1).
 func ResolveTarget(ctx context.Context, c vpp.Client, name, owner, holder string) (Target, error) {
 	t, err := iface.Dump(ctx, c, owner)
 	if err != nil {
@@ -143,7 +144,8 @@ func (t Target) Claimed() bool {
 	return !t.Untagged || iface.Claims(t.Owner).Claimed(t.Name, t.claimHolder())
 }
 
-// Claim records the claim after a successful add (no-op on tagged interfaces).
+// Claim records the claim after a successful add (no-op on tagged interfaces). Prefer ClaimFirst
+// (TD-11b, review 3.3): when this Claim fails the add has already changed VPP.
 func (t Target) Claim() error {
 	if !t.Untagged {
 		return nil

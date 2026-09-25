@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/srv6': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SRv6 local SIDs (with good/bad counters), policies and steering of this agent, joined with the running VRF names */
+    get: operations['Srv6_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8388,6 +8405,113 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Srv6_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            localSids: {
+              sid: string;
+              /** @description end, end.x, end.t, end.dx2, end.dx4, end.dx6, end.dt4, end.dt6 */
+              behavior: string;
+              psp: boolean;
+              /** @description VRF (IPv6 table) the SID is installed in */
+              vrf: string;
+              table: number;
+              interface: string | null;
+              nextHop: string | null;
+              /** @description end.t / end.dt4 / end.dt6: the VRF the inner packet is looked up in */
+              lookupVrf: string | null;
+              lookupTable: number | null;
+              /** @description packets processed by the SID */
+              goodPackets: number;
+              goodBytes: number;
+              /** @description packets the SID dropped */
+              badPackets: number;
+              badBytes: number;
+              /** @description whether the running configuration names this SID */
+              configured: boolean;
+            }[];
+            policies: {
+              bsid: string;
+              /** @description default, spray or tef */
+              type: string;
+              encap: boolean;
+              /** @description VRF (IPv6 table) of the binding SID */
+              vrf: string;
+              table: number;
+              /** @description outer source address (encapsulating policies) */
+              encapSource: string | null;
+              sidLists: {
+                sids: string[];
+                weight: number;
+              }[];
+              configured: boolean;
+            }[];
+            steering: {
+              /** @enum {string} */
+              type: 'l3' | 'l2';
+              /** @enum {string} */
+              trafficType: 'ipv4' | 'ipv6' | 'l2';
+              prefix: string | null;
+              vrf: string | null;
+              table: number | null;
+              interface: string | null;
+              bsid: string;
+              configured: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

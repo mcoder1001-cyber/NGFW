@@ -398,7 +398,7 @@ keeps live state out of `Retrieve`). The agent reads FRR through the RF-1 render
 `router bgp`, each `BgpNeighborState{address, remote_as, state, uptime_sec, prefixes_received, prefixes_sent, flaps
 (= FRR connectionsDropped), established, description, afis[{afi, prefixes_received, prefixes_sent}], messages_received,
 messages_sent}`, sorted by VRF then address), `show ip[v6] route vrf all summary json` (→ `rib_counts`
-`"<family>/<vrf>/<protocol>"`), the registered FRR state readers named in `readers` (JSON text by key, redacted; an
+`"<family>/<vrf>/<protocol>"` with FRR's protocol names; `…/bgp` = FRR's `ebgp` + `ibgp`), the registered FRR state readers named in `readers` (JSON text by key, redacted; an
 unknown key → `INVALID_ARGUMENT`; F-ospf/F-isis-rip/F-bfd read their daemons through this), and for `rib_prefixes` (≤ 100
 canonical CIDRs, else `INVALID_ARGUMENT`) one `show ip[v6] route vrf <rib_vrf> <prefix> json` each (→ `rib[]`: the
 entries FRR has for exactly that prefix: `prefix, vrf, protocol, selected, installed, distance, metric, next_hops[{address,

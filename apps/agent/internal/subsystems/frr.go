@@ -550,6 +550,9 @@ func (rt *FRR) State(ctx context.Context, readers, prefixes []string, vrf string
 		for v, sm := range byVRF {
 			for _, r := range sm.Routes {
 				st.RIBCounts[fam+"/"+v+"/"+r.Type] += r.RIB
+				if r.Type == "ebgp" || r.Type == "ibgp" { // FRR's summary splits BGP; "<fam>/<vrf>/bgp" is their sum
+					st.RIBCounts[fam+"/"+v+"/bgp"] += r.RIB
+				}
 			}
 		}
 	}

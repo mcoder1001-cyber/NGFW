@@ -275,3 +275,57 @@ func TestFRRPathsByOwner(t *testing.T) {
 		t.Fatal("VRX_FRR=off")
 	}
 }
+
+func TestStateCountsAndReaders(t *testing.T) {
+	f := newFakeFRR()
+	answers := map[string]string{
+		string(frr.ShowVersion):                       "FRRouting 10.7.1 (host).\n",
+		string(bgp.ShowSummary):                       `{"default":{"ipv4Unicast":{"as":65080,"routerId":"10.8.1.1","peers":{"10.8.1.2":{"remoteAs":65081,"state":"Established","pfxRcd":100}}}}}`,
+		string(frr.ShowIPSummaryAll):                  `{"default":{"routes":[{"fib":2,"rib":2,"type":"connected"},{"fib":150,"rib":150,"type":"ebgp"},{"fib":50,"rib":50,"type":"ibgp"}]}}`,
+		string(frr.ShowIPv6SummaryAll):                `{"default":{"routes":[]}}`,
+		"show ip route vrf default 10.8.64.0/25 json": `{"10.8.64.0/25":[{"prefix":"10.8.64.0/25","protocol":"bgp","selected":true,"installed":true,"distance":20,"nexthops":[{"ip":"10.8.1.2","interfaceName":"w8-l0","active":true,"fib":true}]}]}`,
+	}
+	f.On(frr.VtyshBin, func(c renderers.Command) (renderers.Output, error) {
+		for i, a := range c.Args {
+			if a == "-c" && i+1 < len(c.Args) {
+				return renderers.Output{Stdout: []byte(answers[c.Args[i+1]])}, nil
+			}
+		}
+		return renderers.Output{}, nil
+	})
+	paths := tempPaths(t)
+	rt := newFRRAt(Env{Owner: "w8"}, f, paths, true)
+	defer rt.Close()
+	ctx := context.Background()
+	st, err := rt.State(ctx, nil, nil, "")
+	if err != nil || st.Running || st.Err == "" {
+		t.Fatalf("FRR down must be reported in Err, not as an error: %+v %v", st, err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.SocketDir(), "zebra.vty"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st, err = rt.State(ctx, []string{bgp.SummaryReader}, []string{"10.8.64.0/25"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.Running || st.Version != "10.7.1" || st.Err != "" {
+		t.Fatalf("state %+v", st)
+	}
+	if st.RIBCounts["ipv4/default/bgp"] != 200 || st.RIBCounts["ipv4/default/ebgp"] != 150 || st.RIBCounts["ipv4/default/connected"] != 2 {
+		t.Fatalf("rib counts %v (bgp = ebgp + ibgp)", st.RIBCounts)
+	}
+	if len(st.BGP) != 1 || st.BGP[0].Neighbors[0].PrefixesReceived != 100 || st.Readers[bgp.SummaryReader] == "" {
+		t.Fatalf("bgp %+v readers %v", st.BGP, st.Readers)
+	}
+	if len(st.RIB) != 1 || st.RIB[0].GetProtocol() != "bgp" || st.RIB[0].GetNextHops()[0].GetInterface() != "w8-l0" {
+		t.Fatalf("rib lookup %v", st.RIB)
+	}
+	for _, bad := range []struct {
+		readers, prefixes []string
+		vrf               string
+	}{{readers: []string{"nope"}}, {prefixes: []string{"10.8.64.1/25"}}, {vrf: "a b"}} {
+		if _, err := rt.State(ctx, bad.readers, bad.prefixes, bad.vrf); !errors.Is(err, ErrState) {
+			t.Errorf("%+v: %v, want ErrState", bad, err)
+		}
+	}
+}

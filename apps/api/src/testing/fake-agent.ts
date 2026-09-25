@@ -35,6 +35,7 @@ import {
   type ValidationReport,
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
+import { lbFake } from '../features/lb/fake.js';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -632,8 +633,7 @@ export class FakeAgent {
       // wave-BC: F-isis-rip
       // wave-BC: F-mpls-srmpls
       // wave-BC: F-lb
-      lbState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'unknown method LbState' }),
-      lbFlushVip: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'unknown method LbFlushVip' }),
+      ...lbFake(this).handlers(),
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack
       // wave-BC: F-snmp

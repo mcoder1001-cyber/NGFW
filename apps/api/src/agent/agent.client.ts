@@ -24,6 +24,8 @@ import {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  type LbFlushVipResponse,
+  type LbStateResponse,
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
@@ -152,6 +154,14 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  /** F-lb: live lb state of the configured VIPs (proto.md "F-lb"); an agent without the RPC answers 501. */
+  lbState(names: string[] = []): Promise<LbStateResponse> {
+    return this.unary(this.c.lbState, { names, owner: this.owner });
+  }
+  /** F-lb: flush the sticky flow table of one configured VIP (lb_flush_vip). */
+  lbFlushVip(name: string): Promise<LbFlushVipResponse> {
+    return this.unary(this.c.lbFlushVip, { name, owner: this.owner });
+  }
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp

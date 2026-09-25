@@ -21,7 +21,6 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
-	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/scheduler"
 )
@@ -131,15 +130,6 @@ func ParseFRRValue(v proto.Message) (*vrxv1.DesiredState, string, error) {
 		return nil, "", fmt.Errorf("%w: %v", ErrFRRValue, err)
 	}
 	return doc, status, nil
-}
-
-// FRRDependencies are the linux-cp pairs the FRR document names (their taps must exist before FRR configures them).
-func FRRDependencies(doc *vrxv1.DesiredState) []scheduler.Dependency {
-	var out []scheduler.Dependency
-	for _, name := range sortedKeys(doc.GetInterfaces()) {
-		out = append(out, scheduler.Dependency{Key: scheduler.Join(lcp.NameItfPair, name)})
-	}
-	return out
 }
 
 // FRROptions are the agent-side facts the FRR builder needs.

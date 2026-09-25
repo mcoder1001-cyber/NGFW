@@ -42,8 +42,8 @@ One singleton scheduler object in `Domains["routing"]`, value = the FRR-relevant
 (`desired.FRRDoc`: bgp, policy, viaFrr statics, paired interfaces' lcp/addresses/description — references, never secret
 values) plus a status. It exists while any of these exists — **a paired interface alone counts**: FRR keeps the VPP
 addresses on the Linux side for as long as the pair exists, because with linux-nl listening in FRR's netns a removal of
-the tap address would be mirrored into VPP and take the address off the VPP interface. Removing a pair is safe: the
-scheduler deletes first (the pair and its tap go), then updates FRR. The object belongs to the `routing` domain, so an
+the tap address would be mirrored into VPP and take the address off the VPP interface. Removing or recreating a pair is an
+Update of the stage (`TestFRRStageSurvivesPairChanges`), never the framework-only teardown. The object belongs to the `routing` domain, so an
 address change of a paired interface reaches the tap in a transaction that includes `routing` (the API sends every
 domain; an `interfaces`-only Apply leaves the tap addresses to the next routing transaction).
 
@@ -54,7 +54,9 @@ domain; an `interfaces`-only Apply leaves the tap addresses to the next routing 
 - **Retrieve**: `applied` when `frr-reload.py --test` of the last applied files is empty, `drift` otherwise (→ Update),
   `unreachable` when FRR has no vty socket, `unknown` after an agent restart when FRR holds configuration (→ Update:
   the re-apply is an empty diff for an unchanged document; sessions stay up).
-- **Dependencies**: `lcp.itf-pair/<n>` of every paired interface in the document (taps exist before FRR configures them).
+- **Dependencies**: none (review H1). A dependency on the pairs — hard or optional — makes the scheduler recreate the
+  singleton around every pair change, and its Delete (the framework-only configuration) drops every BGP session and tap
+  address. zebra/bgpd take configuration for an interface that appears later and apply it when it does.
 - Which FRR: owner `vrx` → `/etc/frr` (product, no pathspace); `VRX_FRR_PATHSPACE=<slot>` → that slot's frrtest
   instance; otherwise, or `VRX_FRR=off`, none — FRR content is then an `agent.unsupported-field` warning, not applied.
 - Assemble: `routing.bgp`, `routing.policy` and the viaFrr statics come back from the object when its status is

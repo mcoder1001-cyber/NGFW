@@ -335,13 +335,12 @@ func (*frrConfigDescriptor) RecordsNoOwnership() {}
 func (*frrConfigDescriptor) Name() string                      { return frrConfigName }
 func (*frrConfigDescriptor) KeyOf(proto.Message) scheduler.Key { return desired.FRRConfigKey }
 
-func (*frrConfigDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	doc, _, err := desired.ParseFRRValue(obj)
-	if err != nil {
-		return nil
-	}
-	return desired.FRRDependencies(doc)
-}
+// Dependencies implements scheduler.Descriptor: none (review H1). A dependency on the linux-cp pairs — hard or optional —
+// makes the scheduler recreate this singleton around every pair change: its Delete applies the framework-only
+// configuration, which drops every BGP session and every tap address (and, with linux-nl listening in the taps' netns,
+// the VPP interface addresses). zebra and bgpd accept configuration for an interface that appears later and apply it
+// when it does, so no ordering is needed.
+func (*frrConfigDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
 func (d *frrConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	doc, _, err := desired.ParseFRRValue(obj)

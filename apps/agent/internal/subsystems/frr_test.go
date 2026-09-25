@@ -3,6 +3,7 @@ package subsystems
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -15,8 +16,14 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
+	"ngfw/agent/internal/descriptors/dfkit"
+	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
+	"ngfw/agent/internal/ownertable"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/bgp"
@@ -103,7 +110,7 @@ func TestFRRConfigLifecycle(t *testing.T) {
 	if d.KeyOf(v) != "frr.config/vrx" {
 		t.Fatal(d.KeyOf(v))
 	}
-	if deps := d.Dependencies(v); len(deps) != 1 || deps[0].Key != "lcp.itf-pair/host-w8l0" || deps[0].Optional {
+	if deps := d.Dependencies(v); len(deps) != 0 { // review H1: no (cascading) dependency on the pairs
 		t.Fatalf("deps %+v", deps)
 	}
 
@@ -329,3 +336,93 @@ func TestStateCountsAndReaders(t *testing.T) {
 		}
 	}
 }
+
+// TestFRRStageSurvivesPairChanges (review H1): removing one of two pairs, or recreating one (host type tap → tun), must
+// Update frr.config — never delete it (the framework-only apply that drops every BGP session and tap address).
+func TestFRRStageSurvivesPairChanges(t *testing.T) {
+	ctx := context.Background()
+	v := coretest.New()
+	f := newFakeFRR()
+	paths := tempPaths(t)
+	if err := os.WriteFile(filepath.Join(paths.SocketDir(), "zebra.vty"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rt := newFRRAt(Env{Owner: "w7"}, f, paths, true)
+	defer rt.Close()
+	reg := scheduler.NewRegistry()
+	core.Register(reg, core.Env{Client: v, Owner: "w7", Owned: ownertable.NewMemory(), IfRef: core.AliasInterfaceRef})
+	reg.Register(iface.NewAlias(v, "w7"))
+	reg.Register(&tapGatedPairs{ItfPairDescriptor: lcp.NewItfPair(v, "w7", lcp.WithInterfaceKey(dfkit.DefaultInterfaceKey)), client: v, owner: "w7"})
+	reg.Register(&frrConfigDescriptor{rt: rt})
+	sched := scheduler.New(reg, nil)
+	sched.VerifyRetries = 0
+
+	build := func(t *testing.T, js string) []scheduler.KV {
+		t.Helper()
+		ds := frrDoc(t, js)
+		sink := &kvSink{}
+		desired.Interfaces(sink, ds.GetInterfaces(), func(string) (uint32, bool) { return 0, true }, nil)
+		desired.Lcp(sink, ds.GetInterfaces())
+		desired.FRR(sink, ds, map[string]bool{"routing": true}, desired.FRROptions{})
+		if len(sink.errs) > 0 {
+			t.Fatalf("projection: %v", sink.errs)
+		}
+		return sink.kvs
+	}
+	apply := func(t *testing.T, js string) *scheduler.TxnResult {
+		t.Helper()
+		f.Reset()
+		res := sched.Apply(ctx, build(t, js), nil)
+		if res.Outcome != scheduler.OutcomeApplied {
+			t.Fatalf("apply: %v %v", res.Err, res.Results)
+		}
+		return res
+	}
+	opOn := func(res *scheduler.TxnResult, key scheduler.Key) []string {
+		var ops []string
+		for _, r := range res.Results {
+			if r.Key == key {
+				ops = append(ops, r.Op)
+			}
+		}
+		return ops
+	}
+	const bgpDoc = `"routing":{"bgp":{"asn":65070,"neighbors":{"10.7.1.2":{"remoteAs":65071}}}}`
+	apply(t, `{"interfaces":{"loop701":{"lcp":{"hostIfName":"w7-a"}},"loop702":{"lcp":{"hostIfName":"w7-b"}}},`+bgpDoc+`}`)
+
+	frameworkOnly := func() bool { // a frr.conf written without `router bgp` = the teardown
+		conf, _ := os.ReadFile(paths.ConfFile())
+		return !strings.Contains(string(conf), "router bgp")
+	}
+	res := apply(t, `{"interfaces":{"loop701":{"lcp":{"hostIfName":"w7-a"}},"loop702":{}},`+bgpDoc+`}`)
+	if ops := opOn(res, desired.FRRConfigKey); strings.Join(ops, ",") != scheduler.OpUpdate {
+		t.Fatalf("removing one pair: frr.config ops %v, want exactly [update] (results %v)", ops, res.Results)
+	}
+	if frameworkOnly() {
+		t.Fatal("removing one pair applied the framework-only configuration")
+	}
+	res = apply(t, `{"interfaces":{"loop701":{"lcp":{"hostIfName":"w7-a","hostIfType":"tun"}},"loop702":{}},`+bgpDoc+`}`)
+	if ops := opOn(res, desired.FRRConfigKey); strings.Join(ops, ",") != scheduler.OpUpdate {
+		t.Fatalf("recreating a pair: frr.config ops %v, want exactly [update] (results %v)", ops, res.Results)
+	}
+	if ops := opOn(res, scheduler.Join(lcp.NameItfPair, "loop701")); len(ops) == 0 {
+		t.Fatalf("the pair was not recreated: %v", res.Results)
+	}
+	if frameworkOnly() {
+		t.Fatal("recreating a pair applied the framework-only configuration")
+	}
+}
+
+// kvSink collects a projection (desired.Sink).
+type kvSink struct {
+	kvs  []scheduler.KV
+	errs []string
+}
+
+func (s *kvSink) Add(k scheduler.Key, v proto.Message, _ string) {
+	s.kvs = append(s.kvs, scheduler.KV{Key: k, Value: v})
+}
+func (s *kvSink) Errorf(p, rule, format string, a ...any) {
+	s.errs = append(s.errs, p+" "+rule+": "+fmt.Sprintf(format, a...))
+}
+func (s *kvSink) Warnf(string, string, string, ...any) {}

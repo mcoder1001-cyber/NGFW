@@ -14,7 +14,7 @@ import { TokensService } from './tokens.service.js';
  * accepts it; a check of the descriptor that is read refuses it.
  */
 vi.mock('node:fs', async (importOriginal) => {
-  const m = await importOriginal<typeof import('node:fs')>();
+  const m = await importOriginal<typeof fs>();
   return { ...m, lstatSync: vi.fn(m.lstatSync) };
 });
 

@@ -63,6 +63,9 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
   it('2.3b the login rate limit is per client, not one global bucket behind the proxy', async () => {
     const P = '203.0.113.20';
     const Q = '203.0.113.21';
+    // the limiter is a fixed per-minute window: do not straddle a minute boundary (fix round 1: that was a flake)
+    const inMinute = Date.now() % 60_000;
+    if (inMinute > 50_000) await new Promise((r) => setTimeout(r, 60_000 - inMinute + 100));
     const statuses: number[] = [];
     for (let i = 0; i <= RATE; i++)
       statuses.push(

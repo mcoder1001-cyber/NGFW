@@ -164,12 +164,12 @@ pre-existing `TestSvsRangeFromSlot`. **Ask:** F-vrf's fix round adds them (svs r
 ## Q16 — gitleaks false positive in history (commit 6dff01fc), fixed forward
 
 `tools/ci.sh --base main` (04:37) failed on one gitleaks finding: rule `generic-api-key` at
-`apps/agent/internal/subsystems/frr_test.go:183` in commit 6dff01fc — the test literal `Key: "ipv4/default/bgp"` (an FRR
-RIB-count key: family/vrf/protocol, not a secret). Fixed forward (the key is now built with `strings.Join`; `gitleaks
-detect --no-git` over every tree P12 touched: no leaks). The old commit stays in the branch history: workers never rewrite
-history. Under D-112 the merge squashes the branch into one commit whose tree no longer contains the literal, so the
-merge gate's gitleaks (D-130) passes; a `--base main` run on this branch keeps reporting it until then. **Ask:** accept
-(as D-067 did for P02c) or tell me to recreate the branch.
+`apps/agent/internal/subsystems/frr_test.go:183` in commit 6dff01fc — a test literal assigning an FRR RIB-count key of
+the form family/vrf/protocol to a field named like a key (not a secret). Fixed forward: the key is now built with
+`strings.Join`. Review H2 found the quoted literal in this very answer as well (the first version of Q16 repeated it);
+reworded without it. The squash diff and the changed files are clean — the evidence is in P12.md "Fix round 1" (H2). The
+old commits stay in the branch history (workers never rewrite history); the D-112 squash leaves them outside the merge
+gate's range. **Ask:** accept (as D-067 did for P02c) or tell me to recreate the branch.
 
 ## Q17 — TD-11c creator rule for `lcp.itf-pair` (manager item, TD-11c not on main yet)
 

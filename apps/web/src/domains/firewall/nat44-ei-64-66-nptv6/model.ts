@@ -39,10 +39,15 @@ export function subtreeSchema(key: Subtree): JsonSchema {
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
 
 /**
- * Titles and help texts of every property at every depth (objects and array items) from `field.<name>.title|help`,
- * the English schema title as the fallback; fieldset groups from `group.<name>`.
+ * Titles and help texts of every property at every depth (objects and array items) from
+ * `fieldIn.<scope>.<name>.title|help` (a subtree's own wording, e.g. NAT64's IPv6 inside), then
+ * `field.<name>.title|help`, the English schema title as the fallback; fieldset groups from `group.<name>`.
  */
-export function localizeDeep(schema: JsonSchema, t: Translate): JsonSchema {
+export function localizeDeep(schema: JsonSchema, t: Translate, scope?: string): JsonSchema {
+  const text = (name: string, leaf: 'title' | 'help', fallback: string): string => {
+    const shared = t(`field.${name}.${leaf}`, { defaultValue: fallback });
+    return scope ? t(`fieldIn.${scope}.${name}.${leaf}`, { defaultValue: shared }) : shared;
+  };
   const walk = (s: JsonSchema): JsonSchema => {
     const out: Record<string, unknown> = { ...s };
     if (s.properties && typeof s.properties === 'object') {
@@ -50,10 +55,10 @@ export function localizeDeep(schema: JsonSchema, t: Translate): JsonSchema {
       for (const [name, raw] of Object.entries(s.properties as Record<string, JsonSchema>)) {
         const prop = walk(raw);
         const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
-        const help = t(`field.${name}.help`, { defaultValue: '' });
+        const help = text(name, 'help', '');
         props[name] = {
           ...prop,
-          title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
+          title: text(name, 'title', prop.title ?? name),
           'x-vrx-ui': { ...hints, ...(help ? { help } : {}) },
         } as JsonSchema;
       }

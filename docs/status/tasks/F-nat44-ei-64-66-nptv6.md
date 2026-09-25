@@ -1,7 +1,7 @@
 # F-nat44-ei-64-66-nptv6 — NAT44-EI, NAT64, NAT66, NPTv6
 
 Branch `task/F-nat44-ei-64-66-nptv6` (slot 4), base `task/F-nat44-ed-sessions@acc1877` (speculative, D-114); ED's fix
-round 1 (`bf093407`) merged in at `d3740a12` (Q3). Questions: `F-nat44-ei-64-66-nptv6-questions.md` (Q1–Q7); contract:
+round 1 (`bf093407`) merged in at `d3740a12` (Q3). Questions: `F-nat44-ei-64-66-nptv6-questions.md` (Q1–Q10); contract:
 `F-nat44-ei-64-66-nptv6-contract.md`; WIP log: `F-nat44-ei-64-66-nptv6-wip.md`; screenshots:
 `F-nat44-ei-64-66-nptv6-screens/`. Host logs: `/root/ngfw-wt/logs/F-nat44-ei-64-66-nptv6-*.log`.
 
@@ -15,7 +15,7 @@ round 1 (`bf093407`) merged in at `d3740a12` (Q3). Questions: `F-nat44-ei-64-66-
 | agent: wiring | `subsystems/nat44_ei_64_66_nptv6.go` (persisted `KeyedClaims("nat")`, `WithGlobalsOwner(env.GlobalsOwner)`), `Domains["nat"]` group; coretest models `coretest/{nat44ei,nat64,npt66}.go` (nat64.go also holds nat66) with VPP's quirks (EI reserve-port rule, nat64 st_details defect, npt66 duplicate add) |
 | agent: state | `internal/actions/nat44-ei-64-66-nptv6` (EI through ED's pager via an adapter; EI kill by the inside endpoint; NAT64 pager with owner scope, scan cap and the BIB port correction); `internal/agent/rpc_nat44_ei.go`; variant dispatch hunks in `rpc_nat44_ed.go` and `server.go`; EI/NAT64 walks serialised (D-132) |
 | API | `features/nat44-ei-64-66-nptv6` (`Nat44Ei6466Nptv6Controller`): `GET /state/nat/ei/sessions`, `POST /actions/nat/ei/sessions/kill` (operator, audited), `GET /state/nat/nat64/sessions`, `GET /state/nat/nptv6` (running bindings, `writeOnly: true`); `fake.ts`; OpenAPI, api-client and the CLI operation table regenerated |
-| UI | `domains/firewall/nat44-ei-64-66-nptv6`: tabs NAT44-EI (mode switch + paged EI session browser with kill), NAT64 (schema form + session table), NAT66 (schema form + mappings with a live drift status), NPTv6 (schema form + running bindings marked write-only); 30-s refresh + Refresh button (D-132); en + fa (`nat44-ei-64-66-nptv6.json`, identical key sets) |
+| UI | `domains/firewall/nat44-ei-64-66-nptv6`: tabs NAT44-EI (mode switch + paged EI session browser with kill), NAT64 (schema form + session table), NAT66 (schema form + mappings with a live drift status), NPTv6 (schema form + running bindings marked "configured (not readable)"); 30-s refresh + Refresh button (D-132); en + fa (`nat44-ei-64-66-nptv6.json`, identical key sets) |
 | docs | `docs/user/firewall/nat44-ei-64-66-nptv6.md` (EI vs ED, NAT64 + DNS64, 464XLAT PLAT, NAT66, NPTv6 example, REST, CLI, data plane), `docs/agent/descriptors/npt66.md`, `docs/vpp-code-track.md` `### V-new (F-nat44-ei-64-66-nptv6)` (a)–(d) |
 | tests | unit: builders, round trips (slot and globals owner), npt66 idempotency through the reconciler, actions, gRPC variants, service on the fake (commit, Retrieve, loss + resyncs, rollback, delete order); API unit + e2e; web (6 tests); host: `TestNpt66OnHost`; topology `test/topology/nat44-ei-64-66-nptv6` (af_packet rig) + the screenshot run; schema example `nat-ei-nat64-nat66-nptv6.json` |
 
@@ -352,11 +352,13 @@ The commits after that run touch only `docs/status/tasks/F-nat44-ei-64-66-nptv6*
    the schema default is false, so every document carries it).
 6. **EI port forward outside the pools → error** `nat.ei-port-forward-pool` (VPP NO_SUCH_ENTRY otherwise); skipped with
    `staticMappingOnly` or an interface pool (unverifiable). Options: error (taken) / let VPP fail the apply (422).
-7. **NAT64 port correction in the agent** (V-new b) from the BIB, only for rows with `r_port` 0.
-8. **D-132**: a package mutex serialises EI/NAT64 walks; grids and drift poll ≥ 30 s + Refresh.
+7. **NAT64 port correction in the agent** (V-new b): the inside port from the BIB; a row is swapped only when its
+   `il_port` differs from the BIB's inside port (fix round 1, review L1; was: every row with `r_port` 0).
+8. **D-132**: the EI/NAT64 walks take F-nat44-ed-sessions' per-agent walk slot `s.natWalk(ctx)` (fix round 1, R4; was a
+   package mutex of my own); grids and drift poll ≥ 30 s + Refresh.
 9. **Test side**: the NAT64 phase moves only the lan interface into the slot VRF (+ a route to the wan subnet) because
    VPP's NAT64 is multi-tenant on the inside only (Q6); the slot VRF stays configured at the end (nat64 FIB lock leak,
-   V-new c).
+   V-new c). Since fix round 1 (R2) the tenant-VRF NAT64 phases are opt-in (`VRX_NAT64_TENANT_VRF_HOST=1`).
 
 ## Out of scope / not done
 

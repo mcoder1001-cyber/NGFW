@@ -27,6 +27,13 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// ruleNat64TenantVRF warns that a NAT64 prefix or static BIB entry in a non-default VRF pins that VRF in VPP 26.06:
+// nat64_add_del_prefix never unlocks the VRF's IPv6 table and nat64_add_del_static_bib_entry locks it on every add and
+// delete (V-new c), so a later commit that deletes the VRF fails its verify and is rolled back, and a rollback or a
+// confirmed-commit revert to a revision without the VRF fails the same way, until VPP restarts. (Pools lock and unlock
+// correctly.)
+const ruleNat64TenantVRF = "nat.nat64-tenant-vrf"
+
 // nat64PrefixLengths are the RFC 6052 prefix lengths VPP accepts.
 var nat64PrefixLengths = map[int]bool{32: true, 40: true, 48: true, 56: true, 64: true, 96: true}
 
@@ -49,6 +56,7 @@ func nat64Build(s Sink, n *vrxv1.Nat64Config, vrfID func(string) (uint32, bool))
 			natAdd(s, nat64.NameInterface, ifName+"/"+side, &nat64.InterfaceSpec{Interface: ifName, Side: side}, Ptr("nat", "nat64", side, strconv.Itoa(i)))
 		}
 	}
+	prefixVRF := map[uint32]string{} // VPP keeps one NAT64 prefix per VRF and overwrites (nat64.c nat64_add_del_prefix)
 	for i, p := range n.GetPrefixes() {
 		pt := Ptr("nat", "nat64", "prefixes", strconv.Itoa(i))
 		pfx, err := netip.ParsePrefix(p.GetPrefix())
@@ -67,6 +75,12 @@ func nat64Build(s Sink, n *vrxv1.Nat64Config, vrfID func(string) (uint32, bool))
 		if !ok {
 			continue
 		}
+		if prev, dup := prefixVRF[vrf]; dup {
+			s.Errorf(pt+"/vrf", "nat.nat64-valid", "one NAT64 prefix per VRF: %s already uses this VRF (VPP would overwrite it)", prev)
+			continue
+		}
+		prefixVRF[vrf] = pfx.String()
+		nat64TenantVRFWarn(s, vrf, p.GetVrf(), pt+"/vrf")
 		spec := nat64.PrefixSpec{Prefix: pfx.String(), VRF: vrf}
 		spec.Normalize()
 		natAdd(s, nat64.NamePrefix, fmt.Sprintf("%s/%d", spec.Prefix, spec.VRF), &spec, pt)
@@ -110,10 +124,19 @@ func nat64Build(s Sink, n *vrxv1.Nat64Config, vrfID func(string) (uint32, bool))
 		if !ok {
 			continue
 		}
+		nat64TenantVRFWarn(s, vrf, b.GetVrf(), pt+"/vrf")
 		spec := nat64.StaticBIBSpec{InsideIP: in.String(), InsidePort: b.GetInside().GetPort(), OutsideIP: out.String(), OutsidePort: b.GetOutside().GetPort(), Protocol: b.GetProtocol(), VRF: vrf}
 		spec.Normalize()
 		natAdd(s, nat64.NameStaticBIB, fmt.Sprintf("%s/%s/%d/%d", spec.Protocol, spec.InsideIP, spec.InsidePort, spec.VRF), &spec, pt)
 	}
+}
+
+// nat64TenantVRFWarn warns at ptr when a NAT64 prefix or static BIB entry is bound to a non-default VRF (V-new c).
+func nat64TenantVRFWarn(s Sink, vrf uint32, name, ptr string) {
+	if vrf == 0 {
+		return
+	}
+	s.Warnf(ptr, ruleNat64TenantVRF, "NAT64 in VRF %q: VPP 26.06 keeps the VRF's IPv6 table locked, so this VRF cannot be deleted until VPP restarts (V-new c); a commit, rollback or confirmed-commit revert that deletes it fails and is rolled back", name)
 }
 
 // assembleNat64 builds `nat.nat64` from retrieved objects in canonical form. `enabled` is reported when any nat64

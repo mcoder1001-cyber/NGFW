@@ -26,7 +26,7 @@ export function SubtreeForm({ subtree }: { subtree: Subtree }) {
   const ifs = useCandidateInterfaces();
   const [saved, setSaved] = useState(false);
   const schema = useMemo(
-    () => localizeDeep(subtreeSchema(subtree), (k, o) => t(k, o ?? {})),
+    () => localizeDeep(subtreeSchema(subtree), (k, o) => t(k, o ?? {}), subtree),
     [t, subtree],
   );
   const interfaceOptions = useMemo(() => Object.keys(ifs.data ?? {}).sort(), [ifs.data]);

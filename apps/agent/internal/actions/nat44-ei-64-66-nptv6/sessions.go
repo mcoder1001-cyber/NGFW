@@ -186,18 +186,20 @@ type BIBSource interface {
 	InsidePorts(ctx context.Context) (map[BIBKey]uint32, error)
 }
 
-// fixPorts works around VPP 26.06's nat64_st_details (nat64_api.c nat64_api_st_walk sets il_port twice, the second
-// time to the remote port, and never sets r_port): a row whose remote port is 0 carries the remote port in its
-// inside-port field, and its real inside port is its BIB entry's (looked up by the outside endpoint, which the
-// details carry intact). docs/vpp-code-track.md V-new (F-nat44-ei-64-66-nptv6).
+// fixPorts works around VPP 26.06's nat64_st_details (nat64_api.c nat64_api_st_walk sets il_port twice — first to
+// the BIB's in_port, then to the remote port — and never sets r_port). The inside port is always the BIB entry's
+// (looked up by the outside endpoint, which the details carry intact); a row whose il_port differs from it carries the
+// remote port there, and only such a row is swapped (review L1: a fixed VPP's real remote port 0, e.g. ICMP, stays 0).
+// A row whose BIB entry went away between the two walks is left as reported. Left over: on 26.06 a session whose
+// remote port equals its inside port shows remote port 0. docs/vpp-code-track.md V-new (b).
 func fixPorts(rows []nat64.SessionEntry, bib map[BIBKey]uint32) {
 	for i := range rows {
 		r := &rows[i]
-		if r.RemotePort != 0 {
-			continue // a fixed VPP reports both ports
+		in, ok := bib[BIBKey{Protocol: r.Protocol, Outside: r.OutsideLocal, Port: r.OutsidePort}]
+		if !ok || r.InsidePort == in {
+			continue
 		}
-		r.RemotePort = r.InsidePort
-		r.InsidePort = bib[BIBKey{Protocol: r.Protocol, Outside: r.OutsideLocal, Port: r.OutsidePort}]
+		r.RemotePort, r.InsidePort = r.InsidePort, in
 	}
 }
 
@@ -219,6 +221,11 @@ func OwnsNat64(scope natcommon.Scope, s nat64.SessionEntry) bool {
 // ListNat64 returns one page (offset, limit 1..MaxLimit) of the owner's NAT64 sessions for protocol ("" = all),
 // counting at most scanCap owned sessions (0 = natsessions.DefaultScanCap); the page's ports are corrected with the
 // BIB (fixPorts, VPP 26.06 defect) when bibs is not nil.
+//
+// Cost (review M3, a follow-up in the status file): each page is one whole-table walk — src.Sessions (DF-3's
+// nat64.Sessions) materialises every owner's rows before the scope filter, the scan cap bounds only the owned rows
+// counted — plus, when the page has rows, one nat64_bib_dump of all protocols. Paging repeats both walks. The follow-up
+// streams the ST dump keeping only offset+limit rows and the counters, and dumps the BIB only for the page's protocols.
 func ListNat64(ctx context.Context, src Nat64Source, bibs BIBSource, scope natcommon.Scope, protocol string, offset, limit, scanCap int) (Nat64Page, error) {
 	if limit < 1 || limit > natsessions.MaxLimit {
 		return Nat64Page{}, fmt.Errorf("%w: limit %d outside 1–%d", natsessions.ErrInvalid, limit, natsessions.MaxLimit)

@@ -223,10 +223,20 @@ func TestNat44EIBuilderEDOnlyAndWarnings(t *testing.T) {
 	for _, extra := range []string{`"staticMappingOnly": true,`, `"pools": [{"name": "w", "interface": "host-w4w0"}],`} {
 		s = newSink()
 		desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"], `+extra+`
-		  "staticMappings": [{"name": "a", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 80}}]}`), vrfID)
+		  "staticMappings": [{"name": "a", "protocol": "tcp", "local": {"ip": "10.4.1.2", "port": 80}, "external": {"ip": "10.4.2.110", "port": 80}}],
+		  "identityMappings": [{"ip": "10.4.2.111", "protocol": "tcp", "port": 22}]}`), vrfID)
 		if len(s.errs) != 0 {
 			t.Fatalf("%s: %v", extra, s.errs)
 		}
+	}
+	// review L2: an identity mapping with a port reserves it on its own address, the same rule; without a port it
+	// reserves nothing
+	s = newSink()
+	desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"], "pools": [{"name": "p", "range": "10.4.2.100-10.4.2.101"}],
+	  "identityMappings": [{"ip": "10.4.2.111", "protocol": "tcp", "port": 22}, {"ip": "10.4.2.100", "protocol": "tcp", "port": 22},
+	    {"ip": "10.4.2.112"}, {"interface": "host-w4w0", "protocol": "udp", "port": 53}]}`), vrfID)
+	if strings.Join(s.errs, ",") != "/nat/identityMappings/0/ip nat.ei-port-forward-pool" {
+		t.Fatalf("identity mapping with a port outside the pools: %v", s.errs)
 	}
 	// enabled:false keeps the EI configuration and projects nothing (D-062)
 	s = newSink()

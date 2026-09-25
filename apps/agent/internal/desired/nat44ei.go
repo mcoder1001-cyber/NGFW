@@ -74,7 +74,7 @@ func nat44EI(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 		nat44EIStatic(s, m, i, pools, nat.GetStaticMappingOnly(), vrfID)
 	}
 	for i, m := range nat.GetIdentityMappings() {
-		nat44EIIdentity(s, m, i, vrfID)
+		nat44EIIdentity(s, m, i, pools, nat.GetStaticMappingOnly(), vrfID)
 	}
 	for i := range nat.GetLoadBalancedMappings() {
 		s.Errorf(Ptr("nat", "loadBalancedMappings", strconv.Itoa(i)), ruleModeEDFeatures, "load balancing requires mode 'ed' (nat44-ed)")
@@ -215,7 +215,7 @@ func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools eiPools, stat
 	natAdd(s, nat44ei.NameStaticMapping, spec.Name, &spec, pt)
 }
 
-func nat44EIIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, vrfID func(string) (uint32, bool)) {
+func nat44EIIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "identityMappings", strconv.Itoa(i))
 	if (m.Ip == nil) == (m.Interface == nil) {
 		s.Errorf(pt, "nat.identity-mappings", "exactly one of ip or interface is required")
@@ -233,6 +233,14 @@ func nat44EIIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, vrfID func(stri
 		return
 	default:
 		spec.Protocol, spec.Port = m.GetProtocol(), m.GetPort()
+	}
+	// review L2: an identity mapping with a port reserves that port on its own address like a port forward
+	// (nat44_ei_add_static_mapping: e_addr = l_addr, then nat44_ei_reserve_port), so the address must be a pool's
+	if !spec.AddrOnly && !staticOnly && spec.IP != "" && !pools.ifPools {
+		if a, err := netip.ParseAddr(spec.IP); err == nil && !pools.contains(a) {
+			s.Errorf(pt+"/ip", ruleEIPortForwardPool, "in mode 'ei' an identity mapping with a port needs a pool address (nat44-ei reserves the port on it); %s is in no nat.pools range — add it or omit the port", spec.IP)
+			return
+		}
 	}
 	vrf, ok := natVRF(s, m.GetVrf(), vrfID, pt+"/vrf")
 	if !ok {

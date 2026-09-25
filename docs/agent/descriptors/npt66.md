@@ -30,8 +30,12 @@ by name (it still exists — the binding depends on it), the Meta is the fallbac
 
 **Limitations (no dump; V-new in docs/vpp-code-track.md).** Retrieve never reports NPTv6, so `/state/drift` cannot see
 it; `GET /api/v1/state/nat/nptv6` shows the running bindings with a write-only marker instead. A binding removed from the
-configuration while the agent was down stays in VPP until VPP restarts (the agent forgets what it applied). Evidence on
-the host: `vppctl show npt66 bindings` (all owners, without the interface).
+configuration while the agent was down stays in VPP until VPP restarts (the agent forgets what it applied). A binding
+whose interface was deleted first — a crash mid-transaction, another owner, a manual delete; the agent itself deletes
+the binding first (D-095c) — stays on the freed `sw_if_index`: npt66 has no interface-delete hook, while
+`feature.c` clears the interface's features. A later interface that reuses the index then gets no npt66 feature from
+its first add (VPP sees an update of the existing binding) until the binding is deleted and added again (review L5).
+Evidence on the host: `vppctl show npt66 bindings` (all owners, without the interface).
 
 Tests: `npt66_test.go` (keys, masking, write-only contract, idempotent resync through the reconciler, simulated loss,
 validation, foreign interface), `npt66_integration_test.go` (loopback `loop<N>66`, prefixes `fd00:<N>:10::/48 →

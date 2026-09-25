@@ -165,8 +165,10 @@ func TestListNat64PortWorkaround(t *testing.T) {
 	f := fake64{rows: []nat64.SessionEntry{
 		{InsideLocal: "fd00:4:1::2", InsidePort: 8000, OutsideLocal: "10.4.64.1", OutsidePort: 11570, OutsideRemote: "10.4.2.2", Protocol: "tcp"},                 // as VPP 26.06 sends it
 		{InsideLocal: "fd00:4:1::3", InsidePort: 50000, OutsideLocal: "10.4.64.1", OutsidePort: 1024, OutsideRemote: "10.4.2.2", RemotePort: 53, Protocol: "udp"}, // a fixed VPP
+		{InsideLocal: "fd00:4:1::4", InsidePort: 7, OutsideLocal: "10.4.64.1", OutsidePort: 7, OutsideRemote: "10.4.2.2", Protocol: "icmp"},                       // a fixed VPP, remote port 0 (L1)
+		{InsideLocal: "fd00:4:1::5", InsidePort: 8000, OutsideLocal: "10.4.64.1", OutsidePort: 11571, OutsideRemote: "10.4.2.2", Protocol: "tcp"},                 // its BIB entry went away between the walks
 	}}
-	bib := fakeBIB{{Protocol: "tcp", Outside: "10.4.64.1", Port: 11570}: 46001}
+	bib := fakeBIB{{Protocol: "tcp", Outside: "10.4.64.1", Port: 11570}: 46001, {Protocol: "udp", Outside: "10.4.64.1", Port: 1024}: 50000, {Protocol: "icmp", Outside: "10.4.64.1", Port: 7}: 7}
 	p, err := ListNat64(context.Background(), f, bib, natcommon.ScopeFor("w4"), "", 0, 10, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -176,5 +178,11 @@ func TestListNat64PortWorkaround(t *testing.T) {
 	}
 	if r := p.Rows[1]; r.InsidePort != 50000 || r.RemotePort != 53 {
 		t.Fatalf("a complete row was changed: %+v", r)
+	}
+	if r := p.Rows[2]; r.InsidePort != 7 || r.RemotePort != 0 {
+		t.Fatalf("a real remote port 0 was replaced: %+v", r)
+	}
+	if r := p.Rows[3]; r.InsidePort != 8000 || r.RemotePort != 0 {
+		t.Fatalf("a row without BIB entry was changed: %+v", r)
 	}
 }

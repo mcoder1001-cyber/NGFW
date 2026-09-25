@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -267,5 +268,48 @@ func TestNptv6BindingDeletedBeforeItsInterface(t *testing.T) {
 	}
 	if st := v.NPT66().Stale(); len(st) != 0 || v.NPT66().Count() != 0 {
 		t.Fatalf("npt66 after delete: %d bindings, stale %v", v.NPT66().Count(), st)
+	}
+}
+
+// D-132 / review M2: the EI and NAT64 walks share F-nat44-ed-sessions' per-agent walk slot — an ED walk in progress
+// blocks them (a caller whose deadline passes gives up), and they run once the slot is free. Review L3: an unknown
+// variant is INVALID_ARGUMENT, not an ED page.
+func TestNatVariantWalksShareTheEDWalkSlot(t *testing.T) {
+	v := coretest.New()
+	fixtures(v)
+	s := newSvc(t, v, t.TempDir())
+	ctx := context.Background()
+	release, err := s.natWalk(ctx) // an ED walk (NatSessions / NatSummary) holds the slot
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, variant := range []vrxv1.NatSessionVariant{vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64} {
+		short, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
+		_, err := s.NatSessions(short, &vrxv1.NatSessionsRequest{Variant: variant.Enum()})
+		cancel()
+		if grpcCode(err) != codes.DeadlineExceeded {
+			t.Fatalf("%v walk while the ED walk runs: %v (want DeadlineExceeded)", variant, err)
+		}
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum()})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("the EI walk ran while the ED walk held the slot: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	release()
+	if err := <-done; err != nil {
+		t.Fatalf("EI walk after the ED walk: %v", err)
+	}
+	if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: vrxv1.NatSessionVariant(9).Enum()}); grpcCode(err) != codes.InvalidArgument {
+		t.Fatalf("unknown variant: %v", err)
+	}
+	c := natServer(t, s)
+	if _, err := kill(t, c, &vrxv1.NatSessionKillAction{Variant: vrxv1.NatSessionVariant(9).Enum(), Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 1}); grpcCode(err) != codes.InvalidArgument {
+		t.Fatalf("unknown kill variant: %v", err)
 	}
 }

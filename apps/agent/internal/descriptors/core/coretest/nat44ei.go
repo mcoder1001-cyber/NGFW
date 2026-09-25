@@ -6,8 +6,8 @@ package coretest
 // address dump too), interface-bound static / identity mappings dumped twice (resolved twin, then the to-resolve
 // record), mapping deletes matched by the endpoint (never the tag), sessions dumped per user and deleted by the
 // inside endpoint only (nat44_ei_del_session ignores the external host), every dump empty while disabled, a disable
-// wiping everything. It replaces the nat44_ei_show_running_config stub of coretest/nat44ed.go (installed later: the
-// extensions run in file order).
+// wiping everything. It is the only model of the nat44_ei_* messages: F-nat44-ed-sessions' stub of
+// nat44_ei_show_running_config was dropped here (review M1, D-134/TD-23: one extension per VPP message).
 
 import (
 	"net/netip"

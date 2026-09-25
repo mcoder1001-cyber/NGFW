@@ -22,7 +22,7 @@ Outbound, Static & port forwards and Pools tabs whatever the mode.
 | session key | full 5-tuple: one outside address:port serves many destinations | inside address:port: one outside address:port per inside endpoint, whatever the destination |
 | reachability | only the destination a host talked to answers | any remote host can reach a mapped inside endpoint (full cone, friendlier to peer-to-peer and some games/VoIP) |
 | twice-NAT, self twice-NAT, out-to-in-only, load-balanced mappings | yes | **no** — rejected with `400` and a pointer (rule `nat.mode-ed-features`) |
-| port forward external address | any address | **a pool address** (nat44-ei reserves the port on a pool address; rule `nat.ei-port-forward-pool`), unless `staticMappingOnly` |
+| port forward external address, identity mapping address with a port | any address | **a pool address** (nat44-ei reserves the port on a pool address; rule `nat.ei-port-forward-pool`), unless `staticMappingOnly` or an interface pool |
 | `sessionLimit` | applied | not applied (nat44-ei takes it from startup.conf; a warning) |
 | `staticMappingOnly`, `connectionTracking` | not supported by VPP (warning) | applied |
 
@@ -70,9 +70,20 @@ CLAT side on a VRX is a MAP-T domain (*NAT → MAP*).
 
 **VRFs.** VPP's NAT64 is multi-tenant on the inside only: the prefix is chosen by the inside interface's IPv6 VRF, the
 outside is always the default VRF, and the translated IPv4 packet is routed in the inside interface's IPv4 VRF (add a
-route there towards the outside when the inside is in a tenant VRF). VPP 26.06 never releases the table locks NAT64 takes
-on a tenant VRF, so such a VRF cannot be deleted until VPP restarts — keep NAT64 in the default VRF unless you need
-tenants.
+route there towards the outside when the inside is in a tenant VRF).
+
+**A NAT64 tenant VRF cannot be deleted until VPP restarts.** VPP 26.06 never releases the IPv6 table locks that a NAT64
+prefix or static BIB entry takes on a non-default VRF, even after you remove them or disable NAT64 (pools are not
+affected). Until VPP restarts:
+- a commit that deletes that VRF fails its verification and is rolled back as a whole: none of its other changes are
+  applied;
+- a rollback to a revision without that VRF fails the same way;
+- a confirmed commit that added such a VRF cannot be reverted automatically when the confirmation times out: the revert
+  fails, the router stays on the new configuration and reports DEGRADED, and it retries on every resync.
+
+Commit preview (dry run) warns at the prefix's or static BIB entry's `vrf` (rule `nat.nat64-tenant-vrf`: "this VRF cannot
+be deleted until VPP restarts"). Keep NAT64 in the default VRF unless you need tenants, and plan a VPP restart before
+removing a tenant VRF that has carried NAT64.
 
 The NAT64 tab shows the live session table (IPv6 client, IPv4 pool endpoint, IPv4 remote and its IPv6 form), paged on
 the server and refreshed every 30 s or with *Refresh*. VPP has no NAT64 session delete, so there is no kill.
@@ -104,7 +115,7 @@ interface.
 
 VPP cannot list NPTv6 bindings (no dump in VPP 26.06): the agent applies every binding of the running configuration and
 re-applies it on every resync, but cannot read it back. The NPTv6 tab therefore shows the running bindings marked
-*applied (write-only)*; check the data plane with `vppctl show npt66 bindings`. A binding removed while the agent was
+*configured (not readable)*; check the data plane with `vppctl show npt66 bindings`. A binding removed while the agent was
 stopped stays in VPP until VPP restarts.
 
 ## Plugin-wide settings, restarts

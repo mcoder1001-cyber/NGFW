@@ -162,6 +162,21 @@ describe('nat44-ei-64-66-nptv6 model', () => {
       s.properties as Record<string, { items: { properties: Record<string, { title: string }> } }>
     )['prefixes'];
     expect(prefixes?.items.properties['prefix']?.title).toBe('PFX');
+    // review L4: a subtree's own wording (fieldIn.<subtree>.<name>) wins over the shared field.<name>, so NAT64's
+    // inside help is translated and NAT66's inside keeps the shared text
+    const tr = (k: string, o?: Record<string, unknown>) =>
+      ({
+        'field.inside.title': 'IN',
+        'fieldIn.nat64.inside.title': 'IN6',
+        'fieldIn.nat64.inside.help': 'V6 ONLY',
+      })[k] ?? String(o?.['defaultValue'] ?? k);
+    type Props = { properties: Record<string, { title: string; 'x-vrx-ui'?: { help?: string } }> };
+    const n64 = localizeDeep(subtreeSchema('nat64'), tr, 'nat64') as unknown as Props;
+    expect(n64.properties['inside']?.title).toBe('IN6');
+    expect(n64.properties['inside']?.['x-vrx-ui']?.help).toBe('V6 ONLY');
+    const n66 = localizeDeep(subtreeSchema('nat66'), tr, 'nat66') as unknown as Props;
+    expect(n66.properties['inside']?.title).toBe('IN');
+    expect(n66.properties['inside']?.['x-vrx-ui']?.help).not.toBe('V6 ONLY');
     expect(
       driftUnder(
         {
@@ -263,7 +278,7 @@ describe('NAT screen: EI, NAT64, NAT66, NPTv6 tabs', () => {
   });
 
   it(
-    'NAT66 and NPTv6: mappings with their live status; bindings marked write-only (fa, RTL)',
+    'NAT66 and NPTv6: mappings with their live status; bindings marked configured, not readable (fa, RTL)',
     LONG,
     async () => {
       const api = installFakeApi();
@@ -295,7 +310,7 @@ describe('NAT screen: EI, NAT64, NAT66, NPTv6 tabs', () => {
         { timeout: 30_000 },
       );
       expect(within(running).getByText('fd00:1:20::/48')).toBeInTheDocument();
-      expect(within(running).getByText('اعمال‌شده (فقط‌نوشتنی)')).toBeInTheDocument();
+      expect(within(running).getByText('پیکربندی‌شده (خواندنی نیست)')).toBeInTheDocument();
       const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
       expect(tabs.slice(4)).toEqual(['NAT44-EI', 'NAT64', 'NAT66', 'NPTv6']);
     },

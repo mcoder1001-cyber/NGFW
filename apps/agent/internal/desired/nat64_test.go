@@ -47,8 +47,8 @@ func v6Rig(t *testing.T) *coretest.VPP {
 func TestNat64Nat66Nptv6BuilderKeysAndPointers(t *testing.T) {
 	s := newSink()
 	desired.Nat(s, natDoc(t, v6Doc), vrfID)
-	if len(s.errs)+len(s.warns) != 0 {
-		t.Fatalf("errors %v warnings %v", s.errs, s.warns)
+	if len(s.errs) != 0 || strings.Join(s.warns, ",") != "/nat/nat64/prefixes/0/vrf nat.nat64-tenant-vrf" {
+		t.Fatalf("errors %v warnings %v (want only the tenant-VRF warning)", s.errs, s.warns)
 	}
 	want := map[string]string{
 		"nat64.enable/global":                    "/nat/nat64",
@@ -173,7 +173,7 @@ func TestNat64Nat66RoundTripNonOwner(t *testing.T) {
 	canon.Nptv6 = natDoc(t, v6Doc).GetNptv6()
 	s2 := newSink()
 	desired.Nat(s2, canon, vrfID)
-	if len(s2.errs)+len(s2.warns) != 0 || strings.Join(s2.keys(), ",") != strings.Join(s.keys(), ",") {
+	if len(s2.errs) != 0 || len(s2.warns) != 1 || !strings.HasSuffix(s2.warns[0], "/vrf nat.nat64-tenant-vrf") || strings.Join(s2.keys(), ",") != strings.Join(s.keys(), ",") {
 		t.Fatalf("canonical document projects differently:\n%v\n%v", s2.keys(), s.keys())
 	}
 }
@@ -206,5 +206,35 @@ func TestAssembleV6EmptyAndPureRoundTrip(t *testing.T) {
 	desired.Nat(again, desired.AssembleNat(s.kvs, tableName), vrfID)
 	if strings.Join(again.keys(), ",") != strings.Join(s.keys(), ",") {
 		t.Fatalf("pure round trip:\n%v\n%v", again.keys(), s.keys())
+	}
+}
+
+// Review H1 / R1 (V-new c): a NAT64 prefix or static BIB entry in a non-default VRF pins the VRF's IPv6 table in VPP
+// 26.06 (the locks are never released), so the builder warns at its /vrf pointer; pools lock and unlock correctly, and
+// the default VRF is never deleted. Review L8: one NAT64 prefix per VRF (VPP overwrites), as the schema's nat64-valid.
+func TestNat64TenantVRFWarningAndOnePrefixPerVRF(t *testing.T) {
+	s := newSink()
+	desired.Nat(s, natDoc(t, `{"nat64": {"enabled": true,
+	  "prefixes": [{"prefix": "fd00:4:64::/96", "vrf": "cust"}, {"prefix": "64:ff9b::/96", "vrf": "default"}],
+	  "pools": [{"range": "10.4.64.1", "vrf": "cust"}],
+	  "staticBibs": [
+	    {"protocol": "tcp", "inside": {"ip": "fd00:4::80", "port": 80}, "outside": {"ip": "10.4.64.1", "port": 8080}, "vrf": "cust"},
+	    {"protocol": "tcp", "inside": {"ip": "fd00:4::81", "port": 80}, "outside": {"ip": "10.4.64.1", "port": 8081}}]}}`), vrfID)
+	if len(s.errs) != 0 {
+		t.Fatalf("errors %v", s.errs)
+	}
+	if got := strings.Join(s.warns, ","); got != "/nat/nat64/prefixes/0/vrf nat.nat64-tenant-vrf,/nat/nat64/staticBibs/0/vrf nat.nat64-tenant-vrf" {
+		t.Fatalf("warnings %s", got)
+	}
+	s = newSink()
+	desired.Nat(s, natDoc(t, `{"nat64": {"enabled": true,
+	  "prefixes": [{"prefix": "64:ff9b::/96"}, {"prefix": "fd00:4:64::/96", "vrf": "default"}, {"prefix": "fd00:4:65::/96", "vrf": "cust"}]}}`), vrfID)
+	if got := strings.Join(s.errs, ","); got != "/nat/nat64/prefixes/1/vrf nat.nat64-valid" {
+		t.Fatalf("errors %s (want the second default-VRF prefix refused)", got)
+	}
+	for _, k := range s.keys() {
+		if strings.HasPrefix(k, "nat64.prefix/fd00:4:64::") {
+			t.Fatalf("the refused prefix was still projected: %v", s.keys())
+		}
 	}
 }

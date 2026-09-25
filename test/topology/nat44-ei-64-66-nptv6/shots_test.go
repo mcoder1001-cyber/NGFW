@@ -85,7 +85,9 @@ func TestNatEI6466Screenshots(t *testing.T) {
 	pv := start(t, "vite-preview", filepath.Join(f.st.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 
-	a.patch("/vrfs", map[string]any{tbl: map[string]any{"id": tblID, "description": "NAT64 slot VRF"}})
+	if tenantVRFHost() { // the NAT64 screenshot needs the slot VRF (opt-in, see tenantVRFHostEnv)
+		a.patch("/vrfs", map[string]any{tbl: map[string]any{"id": tblID, "description": "NAT64 slot VRF"}})
+	}
 	a.patch("/interfaces", map[string]any{
 		r.lanIf:   map[string]any{"enabled": true, "description": "NAT inside (rig lan)", "ipv4": []string{r.lanGW + "/24"}, "ipv6": []string{a6.lanGW + "/64", a6.nptGW + "/64"}},
 		r.wanIf:   map[string]any{"enabled": true, "description": "NAT outside (rig wan)", "ipv4": []string{r.wanGW + "/24"}, "ipv6": []string{a6.wanGW + "/64"}},
@@ -151,11 +153,16 @@ func TestNatEI6466Screenshots(t *testing.T) {
 	}
 	shots("ei,nat66,nptv6")
 
-	// NAT64 with a live session (rev 3 of TestNatEI6466Nptv6, its assertions included)
-	f.nat64(t, tbl, uint32(tblID)) //nolint:gosec // slot ≤ 11
-	n64 := a.must(200, "GET", "/api/v1/state/nat/nat64/sessions", nil)
-	t.Logf("GET /state/nat/nat64/sessions → %s", trunc(n64.raw, 600))
-	shots("nat64")
+	// NAT64 with a live session (rev 3 of TestNatEI6466Nptv6, its assertions included) — opt-in: it pins the slot VRF
+	// in VPP until VPP restarts (tenantVRFHostEnv)
+	if tenantVRFHost() {
+		f.nat64(t, tbl, uint32(tblID)) //nolint:gosec // slot ≤ 11
+		n64 := a.must(200, "GET", "/api/v1/state/nat/nat64/sessions", nil)
+		t.Logf("GET /state/nat/nat64/sessions → %s", trunc(n64.raw, 600))
+		shots("nat64")
+	} else {
+		t.Logf("NAT64 screenshot skipped: set %s=1 (it leaves table %d in VPP until VPP restarts)", tenantVRFHostEnv, tblID)
+	}
 
 	// leave nothing behind: rollback, then the interfaces through the API with the veths down (D-101); the slot VRF
 	// stays (nat64 FIB locks, V-new) and its IPv4 table is removed in Cleanup

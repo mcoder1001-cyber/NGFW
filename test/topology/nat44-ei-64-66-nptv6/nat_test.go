@@ -13,10 +13,11 @@
 //	  restart-ei      agent stopped → the npt66 binding, EI and NAT66 objects deleted via binapi (dependents first) →
 //	                  agent started → back within 30 s, exactly one npt66 binding; a second restart without loss
 //	                  re-applies the write-only binding and still leaves exactly one
-//	  nat64           rev 3: EI removed, the rig interfaces in the slot VRF, NAT64 with the slot /96 in that VRF →
+//	  nat64           OPT-IN (VRX_NAT64_TENANT_VRF_HOST=1, see tenantVRFHost; otherwise skipped, and rev 1 has no slot
+//	                  VRF) rev 3: EI removed, the rig lan in the slot VRF, NAT64 with the slot /96 in that VRF →
 //	                  Retrieve == canonical → v6 client → [fd00:N:64::<v4>]:8000 reaches the IPv4 wan host (tcpdump
 //	                  sees the NAT64 pool address), static BIB inbound, vppctl show nat64 session table all, the API
-//	  restart-nat64   the same loss/restart for NAT64 + NAT66 + NPTv6
+//	  restart-nat64   OPT-IN as nat64: the same loss/restart for NAT64 + NAT66 + NPTv6
 //	  rollback        to rev 1 → Retrieve has no NAT object, VPP holds none of ours, no npt66 binding of the slot, the
 //	                  plugins stay enabled (D-071)
 //
@@ -143,6 +144,15 @@ func (f *fixture) retrieveUntil(t *testing.T, want *vrxv1.NatConfig, timeout tim
 	return time.Since(start), got
 }
 
+// tenantVRFHostEnv opts in to the tenant-VRF NAT64 host phases (nat64 / restart-nat64 here, the NAT64 screenshot in
+// shots_test.go). Off by default (D-064 style, review H2): VPP 26.06 never releases nat64's locks on the slot VRF's
+// IPv6 table (docs/vpp-code-track.md V-new c), so every run leaves `<slot>:<slot>-n64` (table <slot>064) in VPP until
+// VPP restarts, and every later transaction of that slot's agent that covers `vrfs` then fails its verify and is
+// rolled back. The evidence of those phases is in docs/status/tasks/F-nat44-ei-64-66-nptv6.md (host run 9).
+const tenantVRFHostEnv = "VRX_NAT64_TENANT_VRF_HOST"
+
+func tenantVRFHost() bool { return os.Getenv(tenantVRFHostEnv) == "1" }
+
 func TestNatEI6466Nptv6(t *testing.T) {
 	if os.Getenv("VRX_INTEGRATION") != "1" {
 		t.Skip("F-nat44-ei-64-66-nptv6 topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
@@ -223,7 +233,9 @@ func TestNatEI6466Nptv6(t *testing.T) {
 
 	t.Run("config", func(t *testing.T) {
 		a.t = t
-		a.patch("/vrfs", map[string]any{tbl: map[string]any{"id": tblID, "description": "NAT64 slot VRF"}})
+		if tenantVRFHost() { // the VRF only with the opt-in: without NAT64 in it the table is deletable, but unused
+			a.patch("/vrfs", map[string]any{tbl: map[string]any{"id": tblID, "description": "NAT64 slot VRF"}})
+		}
 		a.patch("/interfaces", map[string]any{
 			r.lanIf:   map[string]any{"enabled": true, "description": "NAT inside (rig lan)", "ipv4": []string{r.lanGW + "/24"}, "ipv6": []string{a6.lanGW + "/64", a6.nptGW + "/64"}},
 			r.wanIf:   map[string]any{"enabled": true, "description": "NAT outside (rig wan)", "ipv4": []string{r.wanGW + "/24"}, "ipv6": []string{a6.wanGW + "/64"}},
@@ -232,7 +244,7 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		})
 		c := a.commit("nat-ei-rev1-interfaces")
 		f.rev1 = int(c["revision"].(map[string]any)["id"].(float64))
-		t.Logf("commit interfaces + VRF %s (%d) → %v revision %d", tbl, tblID, c["status"], f.rev1)
+		t.Logf("commit interfaces (+ VRF %s (%d) when %s=1: %v) → %v revision %d", tbl, tblID, tenantVRFHostEnv, tenantVRFHost(), c["status"], f.rev1)
 
 		// validation failures → 400 problem+json with the pointer; running untouched
 		for _, bad := range []struct {
@@ -318,11 +330,16 @@ func TestNatEI6466Nptv6(t *testing.T) {
 	if t.Failed() {
 		return
 	}
-	t.Run("nat64", func(t *testing.T) { a.t = t; f.nat64(t, tbl, uint32(tblID)) }) //nolint:gosec // slot ≤ 11
+	skip64 := func(t *testing.T) {
+		if !tenantVRFHost() {
+			t.Skipf("tenant-VRF NAT64 host phase: set %s=1 — the run leaves table %d in VPP until VPP restarts (V-new c, questions file)", tenantVRFHostEnv, tblID)
+		}
+	}
+	t.Run("nat64", func(t *testing.T) { skip64(t); a.t = t; f.nat64(t, tbl, uint32(tblID)) }) //nolint:gosec // slot ≤ 11
 	if t.Failed() {
 		return
 	}
-	t.Run("restart-nat64", func(t *testing.T) { a.t = t; f.restart(t, f.canon) })
+	t.Run("restart-nat64", func(t *testing.T) { skip64(t); a.t = t; f.restart(t, f.canon) })
 	if t.Failed() {
 		return
 	}
@@ -351,7 +368,7 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		for _, n := range []string{r.lanIf, r.wanIf, f.loopIn, f.loopOut} {
 			a.must(200, "DELETE", "/api/v1/config/interfaces/"+n, nil)
 		}
-		// the slot VRF stays in the configuration: VPP 26.06's nat64 locks the VRF's IPv6 table on every prefix add and
+		// with the opt-in, the slot VRF stays in the configuration: VPP 26.06's nat64 locks the VRF's IPv6 table on every prefix add and
 		// static-BIB add/delete and never unlocks it (nat64.c "TODO: missing fib_table_unlock"), so VPP cannot delete that
 		// table until it restarts and the agent's delete of the VRF would fail its verify (docs/vpp-code-track.md V-new);
 		// the test removes the IPv4 table through the binary API in its Cleanup

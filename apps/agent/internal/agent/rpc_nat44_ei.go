@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sync"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -28,22 +27,34 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// natVariantOf reports whether a variant is served by this file (EI, NAT64); ED and unset stay F-nat44-ed-sessions'.
+// natVariantOf reports whether a variant is served by this file: EI, NAT64 and any value this build does not know
+// (answered INVALID_ARGUMENT here, review L3); unset and ED stay F-nat44-ed-sessions'.
 func natVariantOf(v vrxv1.NatSessionVariant) bool {
-	return v == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI || v == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64
+	return v != vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_UNSPECIFIED && v != vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_ED
 }
 
-// natVariantWalk serialises the EI / NAT64 table walks of this agent (D-132: one walk at a time; a NAT64 st dump and
-// a nat44-ei user dump hold the worker barrier while they run). A caller waits for the walk in progress.
-var natVariantWalk sync.Mutex
-
-// natSessionsVariant serves NatSessions for the EI and NAT64 tables.
+// natSessionsVariant serves NatSessions for the EI and NAT64 tables. The walk takes F-nat44-ed-sessions' per-agent walk
+// slot (s.natWalk, D-132: one VPP walk at a time in the agent, ED's and these together; a caller whose deadline passes
+// while another walk runs gives up).
+//
+// Cost note (review M3, follow-up): a NAT64 page is one nat64_st_dump of the whole session table (DF-3's
+// nat64.Sessions materialises every owner's rows; only offset+limit rows are kept) plus, when the page has rows, one
+// nat64_bib_dump of all protocols for the port correction. Streaming the ST dump and dumping the BIB only for the
+// page's protocols is the follow-up.
 func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
-	natVariantWalk.Lock()
-	defer natVariantWalk.Unlock()
+	switch req.GetVariant() {
+	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unknown NAT session variant %d", req.GetVariant())
+	}
+	release, err := s.natWalk(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	limit := int(req.GetLimit())
 	switch {
 	case limit == 0:
@@ -137,8 +148,12 @@ func (b nat64BIB) InsidePorts(ctx context.Context) (map[natvariants.BIBKey]uint3
 // natSessionKillVariant runs the EI kill (NAT64 has no session delete in VPP 26.06: INVALID_ARGUMENT). Same stream
 // contract as the ED kill: validation errors before any output, then exactly one `done`.
 func (s *Service) natSessionKillVariant(ctx context.Context, a *vrxv1.NatSessionKillAction, send func(*vrxv1.ActionOutput) error) error {
-	if a.GetVariant() == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64 {
+	switch a.GetVariant() {
+	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI:
+	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
 		return status.Error(codes.InvalidArgument, "NAT64 sessions cannot be deleted: VPP 26.06 has no NAT64 session delete")
+	default:
+		return status.Errorf(codes.InvalidArgument, "unknown NAT session variant %d", a.GetVariant())
 	}
 	if !s.vpp.Connected() {
 		return status.Error(codes.Unavailable, "VPP binary API is not connected")

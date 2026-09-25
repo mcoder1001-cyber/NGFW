@@ -85,7 +85,7 @@
     "drift_one": "{{count}} difference from the running configuration",
     "drift_other": "{{count}} differences from the running configuration",
     "unknown": "unknown",
-    "writeOnly": "applied (write-only)"
+    "writeOnly": "configured (not readable)"
   },
   "field": {
     "enabled": {
@@ -162,6 +162,24 @@
     "internal": {
       "title": "Internal prefix",
       "help": "Network prefix, host bits zero"
+    }
+  },
+  "fieldIn": {
+    "nat64": {
+      "inside": {
+        "title": "Inside (IPv6)",
+        "help": "IPv6-only side"
+      },
+      "outside": {
+        "title": "Outside (IPv4)",
+        "help": "IPv4 side"
+      }
+    },
+    "nptv6": {
+      "external": {
+        "title": "External prefix",
+        "help": "Network prefix, host bits zero"
+      }
     }
   }
 }

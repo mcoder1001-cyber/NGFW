@@ -17,9 +17,14 @@ number. Details: `F-nat44-ei-64-66-nptv6-contract.md`.
    checks also allow `nat44_ei_output_interface_get` (DF-3's read-only cursor get).
 4. `apps/web/src/domains/firewall/nat44-ed-sessions/NatPage.test.tsx` (two assertions): the NAT44-ED tabs are asserted
    as the first four (`slice(0, 4)`); the siblings' tabs follow.
-5. `apps/agent/internal/descriptors/core/coretest/nat44ed.go` is untouched: my `coretest/nat44ei.go` replaces its
-   `nat44_ei_show_running_config` stub through the `extensions` seam (it runs later). D-134/TD-23 hoists that seam:
-   my three `init()` registrations (`coretest/{nat44ei,nat64,npt66}.go`) become three registration lines at rebase.
+5. (fix round 1, review M1/R3) `apps/agent/internal/descriptors/core/coretest/nat44ed.go`: ED's
+   `nat44_ei_show_running_config` stub (3 lines) and the then-unused `nat44_ei` import are **deleted**, so my
+   `coretest/nat44ei.go` is the only model of that message — TD-23's registry panics in every `coretest.New()` when two
+   extensions claim one message. Guard test: `coretest/nat44ei_test.go` `TestExtensionsModelDisjointMessages` (fails
+   on the old stub). At the rebase onto TD-23 my three `init()` bodies become registration lines:
+   `coretest/nat44ei.go:98-99` (nat44-ei), `coretest/nat64.go:105-106` (nat64 + nat66), `coretest/npt66.go:105-106`.
+6. (fix round 1, R4) the second merge of `task/F-nat44-ed-sessions` (ED@4421baec, clean): the EI / NAT64 walks now
+   take ED's per-agent walk slot `s.natWalk(ctx)`; my own lock is gone.
 
 ## Q3 (info, base): F-nat44-ed-sessions' fix round 1 merged into my branch (speculative base, D-114)
 My base was `task/F-nat44-ed-sessions@acc1877`. Its fix round (bf093407: per-call caps, streamed pager with
@@ -39,10 +44,13 @@ claims — the limitation (a binding removed while the agent was down stays unti
 - `nat64_st_details` carry the remote port in `il_port` and no `r_port` (nat64_api.c sets il_port twice). The agent
   corrects the page from the BIB; a fixed VPP (r_port set) is left alone.
 - nat64 locks a tenant VRF's IPv6 table on every prefix add and static-BIB add/delete and never unlocks: such a VRF
-  cannot be deleted until VPP restarts; the agent's VRF delete then fails verify (DEGRADED). On slot 4 the IPv6 table
-  4064 now holds `nat64-hi:24` locks (my test runs; cleared only by a VPP restart — **the manager's nightly gc will see
-  `w4:w4-n64` in `show ip6 fib`; it is this leak, not a forgotten object**). The topology test keeps its slot VRF in the
-  configuration and removes the IPv4 table through binapi.
+  cannot be deleted until VPP restarts. Corrected in fix round 1 (review H1): a commit that deletes that VRF fails
+  its verify and is **rolled back as a whole** (DEGRADED only when that revert fails too); a rollback to a revision
+  without the VRF fails the same way, and a confirmed-commit auto-revert of a commit that added such a VRF cannot
+  complete (the agent stays DEGRADED and retries on every resync). The builder now warns at the prefix's / static
+  BIB's `/vrf` (`nat.nat64-tenant-vrf`); user page and V-new (c) state the failure modes. The core row (boot-scoped
+  "deleted by us, kept alive by VPP" VRF record) and the product-owner decision are the manager's (review "For the
+  manager"); the core VRF descriptor is untouched.
 - nat44-ei reserves a port forward's external port on a pool address (NO_SUCH_ENTRY otherwise): the builder refuses
   it with a pointer (`nat.ei-port-forward-pool`) — found by host run 1.
 
@@ -76,3 +84,26 @@ overlapped 04:27:21–04:27:36, so none is rerun (the next "before" value is NRe
 Main's gate (D-128 packet-trace ban) fails on `test/topology/interfaces/interfaces_test.go` lines 291–302 (`trace add`,
 `show trace`), P08's pre-merge copy that this branch carries through its base (ED ← W-seed ← P08). Main's copy has no
 trace; the D-112 rebase onto main replaces the file. The branch's own `tools/ci.sh quick` is green.
+
+## Q10 (fix round 1, 2026-09-25): manager notes — slot-4 quarantine, M3 follow-up, the race run
+- **Slot 4 quarantine (review H2 / R2).** The tenant-VRF NAT64 host phases (topology `nat64` / `restart-nat64`, the
+  NAT64 screenshot) are now opt-in: `VRX_NAT64_TENANT_VRF_HOST=1`, off by default (rev 1 then has no slot VRF either).
+  **Any run with it quarantines slot 4's table 4064 (`w4:w4-n64`) until a VPP restart:** VPP keeps the IPv6 table with
+  `nat64-hi` locks, the name parses as owned by `w4`, and every later slot-4 agent transaction that covers `vrfs`
+  (start-up resync included) plans `delete vrf/4064`, fails verify and rolls back. Please put this in the next slot-4
+  envelope; run it only right before a planned VPP restart. The evidence already exists (host run 9, status file).
+- **M3 follow-up (tech debt).** Each NAT64 page is one whole `nat64_st_dump` (DF-3's `nat64.Sessions` materialises
+  every owner's rows; the scan cap bounds only the owned rows counted) plus one all-protocol `nat64_bib_dump` when the
+  page has rows; paging repeats both. Follow-up: stream the ST dump keeping only offset+limit rows and the counters,
+  and dump the BIB only for the page's protocols. Documented in `actions/nat44-ei-64-66-nptv6/sessions.go` (ListNat64)
+  and `rpc_nat44_ei.go`; a docs/tech-debt.md row is the manager's (I do not own that file).
+- **Flaky `internal/agent` test (review L9).** `go test -race -count=20 ./internal/agent/` ran once in fix round 1
+  (09:23–09:28, host under the other slots' load): 20/20 PASS, 256 s — **not reproduced**, so no test name to report.
+  If it recurs it belongs on D-121's flake list.
+- **Low items done in this round:** L1 (NAT64 port fix swaps only when `il_port` ≠ the BIB's inside port), L2
+  (`nat.ei-port-forward-pool` also for EI identity mappings with a port), L3 (unknown variant → INVALID_ARGUMENT for
+  sessions and kill), L4 (NAT64 inside/outside and NPTv6 external wording translated through subtree-scoped locale
+  keys `fieldIn.<subtree>.<name>`; ui-kit's "seconds" / pager "of" are not mine), L5 (hazard on the npt66 descriptor
+  page and V-new (a)), L6 (NPTv6 status "configured (not readable)"), L8 (one NAT64 prefix per VRF in the agent
+  builder, `nat.nat64-valid`). L7 is noted in the status file; L10 (keep the `fake.ts` spread order at the rebase)
+  is noted here for the merger.

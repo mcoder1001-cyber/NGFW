@@ -161,8 +161,11 @@ export function LldpPage() {
       <Typography color="text.secondary" sx={{ mb: 1 }}>
         {t('lldp.intro')}
       </Typography>
-      <Alert severity="info" sx={{ mb: 2 }}>
+      <Alert severity="info" sx={{ mb: 1 }}>
         {t('lldp.globalsNote')}
+      </Alert>
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        {t('lldp.indexNote')}
       </Alert>
       <Typography component="h3" variant="h6" gutterBottom>
         {t('lldp.settings')}

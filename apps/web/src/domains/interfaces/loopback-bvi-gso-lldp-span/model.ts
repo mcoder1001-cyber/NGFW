@@ -183,3 +183,13 @@ export function presence(on: boolean): VrxStatus {
 /** Pointers of the two `services` forms (server problems are mapped relative to them). */
 export const LLDP_POINTER = '/services/lldp';
 export const NSIM_POINTER = '/services/nsim';
+
+/** `schema` without the named properties (and without them in `required`). */
+export function withoutProps(schema: JsonSchema, names: string[]): JsonSchema {
+  const props = { ...((schema.properties ?? {}) as Record<string, JsonSchema>) };
+  for (const n of names) delete props[n];
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((r) => !names.includes(r))
+    : undefined;
+  return { ...schema, properties: props, ...(required ? { required } : {}) } as JsonSchema;
+}

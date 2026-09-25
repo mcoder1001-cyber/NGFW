@@ -44,7 +44,8 @@
       "ttl": "TTL (s)",
       "lastHeard": "Last heard",
       "portDescription": "Port description"
-    }
+    },
+    "indexNote": "VPP 26.06 enables LLDP by the hardware interface index. On an interface whose software and hardware indexes differ (anything created after start-up, such as loopbacks) LLDP may be enabled on ANOTHER interface; the agent then reports an error but cannot undo it until VPP restarts. Use LLDP on the interfaces created at start-up (the data NICs)."
   },
   "mirror": {
     "title": "Port mirroring",
@@ -69,10 +70,11 @@
     "title": "Network delay simulator",
     "lab": "lab tool",
     "intro": "Adds delay, a bandwidth limit and random loss between two interfaces or on the output of interfaces (VPP nsim). For lab tests only.",
-    "warning": "The simulator is VPP-wide: only the agent that owns the VPP-global settings applies it (never a lab slot). VPP has no way to read it back, and it cannot unconfigure the delay model: removing it here detaches the interfaces and leaves the model inert.",
+    "warning": "The simulator is VPP-wide and a lab tool: it is applied only by the agent that owns the VPP-global settings AND runs with VRX_NSIM=lab (the API refuses a commit with it otherwise, 409). On a VPP with worker threads it needs `nsim { poll-main-thread }` in startup.conf. Configuring it keeps VPP's main thread polling (a busy core) until VPP restarts; VPP cannot read it back or unconfigure it — removing it here only detaches the interfaces.",
     "off": "The simulator is not configured.",
     "on": "The simulator is configured.",
-    "remove": "Remove simulator"
+    "remove": "Remove simulator",
+    "crossConnectToggle": "Cross-connect two interfaces through the simulator"
   },
   "field": {
     "enabled": {

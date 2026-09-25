@@ -1,11 +1,13 @@
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -13,7 +15,7 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { problemFor } from '../InterfaceDrawer';
 import { createMergePatch, localizeSchema } from '../model';
 import { useCandidateInterfaces } from '../queries';
-import { formSchemas, localizeAll, NSIM_POINTER, parentNames } from './model';
+import { formSchemas, localizeAll, NSIM_POINTER, parentNames, withoutProps } from './model';
 import { useCandidateServices, usePatchServices } from './queries';
 
 const NS = 'loopback-bvi-gso-lldp-span';
@@ -29,8 +31,19 @@ export function NsimPage() {
   const services = useCandidateServices();
   const ifs = useCandidateInterfaces();
   const patch = usePatchServices();
-  const schema = useMemo(() => formSchemas.nsim(), []);
+  const full = useMemo(() => formSchemas.nsim(), []);
   const current = services.data?.nsim;
+  // the optional cross-connect is a switch of its own (review M6): SchemaForm would otherwise materialise it with its
+  // required interfaces empty, and a model without a cross-connect could not be saved
+  const [xcToggled, setXc] = useState<boolean | null>(null);
+  const xc = xcToggled ?? current?.crossConnect !== undefined;
+  const schema = useMemo(() => (xc ? full : withoutProps(full, ['crossConnect'])), [full, xc]);
+  const formValue = useMemo(() => {
+    if (xc || current === undefined) return current;
+    const rest: Record<string, unknown> = { ...current };
+    delete rest['crossConnect'];
+    return rest;
+  }, [current, xc]);
 
   const save = async (v: unknown) => {
     await patch
@@ -55,9 +68,16 @@ export function NsimPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             {current === undefined ? t('nsim.off') : t('nsim.on')}
           </Typography>
+          <FormControlLabel
+            sx={{ mb: 1 }}
+            control={
+              <Switch checked={xc} disabled={!perms.editConfig} onChange={(_e, on) => setXc(on)} />
+            }
+            label={t('nsim.crossConnectToggle')}
+          />
           <SchemaForm
             schema={localizeAll(schema, (k, o) => t(k, o ?? {}), localizeSchema)}
-            value={current}
+            value={formValue}
             readOnly={!perms.editConfig}
             interfaceOptions={parentNames(ifs.data)}
             submitLabel={t('save')}

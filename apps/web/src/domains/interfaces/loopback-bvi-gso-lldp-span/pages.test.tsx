@@ -247,3 +247,87 @@ describe('LLDP, mirroring and nsim screens', () => {
     },
   );
 });
+
+// Review M6: the two SchemaForms are submitted and the PATCH bodies asserted.
+describe('form submits', () => {
+  it(
+    'LLDP: saving an edit with empty management fields patches only the change',
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi('operator');
+      withFeature(api);
+      let patched: unknown;
+      api.on('PATCH /api/v1/config/services', (_r, body) => {
+        patched = body;
+        return { body: {} };
+      });
+      await signIn();
+      render(app('/interfaces/lldp'));
+      const name = await screen.findByLabelText(/^System name/, {}, { timeout: 20_000 });
+      fireEvent.change(name, { target: { value: 'vrx-lab' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(patched).toEqual({ lldp: { systemName: 'vrx-lab' } }), {
+        timeout: 20_000,
+      });
+    },
+  );
+
+  it(
+    'nsim: a model without a cross-connect is saved without one',
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi('operator');
+      withFeature(api);
+      let patched: unknown;
+      api.on('PATCH /api/v1/config/services', (_r, body) => {
+        patched = body;
+        return { body: {} };
+      });
+      await signIn();
+      render(app('/tools/nsim'));
+      const delay = await screen.findByLabelText(/^Delay \(ms\)/, {}, { timeout: 20_000 });
+      fireEvent.change(delay, { target: { value: '35' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(patched).toEqual({ nsim: { delayMs: 35 } }), { timeout: 20_000 });
+    },
+  );
+
+  it(
+    'nsim: switching the cross-connect off removes it (merge patch null)',
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi('operator');
+      withFeature(api);
+      api.on('GET /api/v1/config/candidate/services', {
+        body: {
+          nsim: {
+            delayMs: 20,
+            bandwidthMbps: 100,
+            packetSize: 1500,
+            dropFraction: 0,
+            crossConnect: { a: 'loop7101', b: 'loop7102' },
+            outputInterfaces: [],
+          },
+        },
+      });
+      let patched: unknown;
+      api.on('PATCH /api/v1/config/services', (_r, body) => {
+        patched = body;
+        return { body: {} };
+      });
+      await signIn();
+      render(app('/tools/nsim'));
+      const toggle = await screen.findByLabelText(
+        /Cross-connect two interfaces/,
+        {},
+        { timeout: 20_000 },
+      );
+      expect((toggle as HTMLInputElement).checked).toBe(true);
+      fireEvent.click(toggle);
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(patched).toEqual({ nsim: { crossConnect: null } }), {
+        timeout: 20_000,
+      });
+    },
+  );
+});

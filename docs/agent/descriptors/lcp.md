@@ -79,3 +79,5 @@ fill it identically).
   VPP is added, in the lcp default netns of that moment, and closes with the last pair; kernel table T → VPP table T
   (254/255 → 0); FRR routes get FIB source `lcp-rt-dynamic`, kernel/static ones `lcp-rt`; VPP→Linux: the tap carrier
   follows the phy's hardware link, admin state/MTU/addresses only at pair creation unless `lcp lcp-sync` is on.
+- TD-11c creator rule: `ProvidedKeys` = `interface/lcp-host.<host_if_name>` (reserved alias namespace; `.` is not valid in a
+  configuration interface name): the pair is the known creator of its VPP-side tap.

@@ -177,7 +177,7 @@ TD-11c's `TestEveryInterfaceCreatorNamesItsAlias` lists `lcp.itf-pair` as a know
 host tap: needs a KeyProvider"). The pair's VPP-side tap gets a VPP-chosen name (`tap4096…`, lcp_interface.c
 `auto_id_offset 4096`) that the value does not carry (it carries the *Linux* name), and nothing in the document sets
 attributes on it (it is not a configuration interface), so there is no attribute whose delete order the alias could fix.
-**Proposal** (applied when TD-11c lands and I merge main, with a unit test, and the allowlist entry removed):
+**Done** (`descriptors/lcp/lcp.go` + `TestItfPairProvidesHostAlias`; TD-11c's allowlist entry is removed when TD-11c lands and I merge main):
 `(*ItfPairDescriptor).ProvidedKeys(obj) = [interface/lcp-host.<hostIfName>]` — a reserved alias namespace (`lcp-host.` is
 not a valid parent interface name in the schema, so it can never collide with a configuration interface), which makes the
 pair the known creator of its tap for 3.1c. Alternative: map the tap's device class (`virtio`) — wrong, tapv2 owns that

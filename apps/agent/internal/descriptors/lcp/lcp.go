@@ -289,6 +289,21 @@ func (*ItfPairDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(NameItfPair, s.Interface)
 }
 
+// HostAliasPrefix is the reserved alias namespace of the VPP-side host taps: "interface/lcp-host.<host_if_name>" ('.' is
+// not valid in a configuration interface name, so the alias can never collide with one).
+const HostAliasPrefix = "lcp-host."
+
+// ProvidedKeys implements scheduler.KeyProvider (TD-11c creator rule): the pair is the creator of its VPP-side host tap,
+// which VPP names itself (tap4096…) and nothing in the configuration names, so it answers for the reserved alias
+// interface/lcp-host.<host_if_name>.
+func (d *ItfPairDescriptor) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	var s ItfPair
+	if err := dfkit.Decode(obj, &s); err != nil || s.HostIfName == "" {
+		return nil
+	}
+	return []scheduler.Key{d.o.ifaceKey(HostAliasPrefix + s.HostIfName)}
+}
+
 // Dependencies implements scheduler.Descriptor: the VPP-side interface (D-065 alias key) and the
 // default namespace (optional — only orders the plan when it is configured).
 func (d *ItfPairDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {

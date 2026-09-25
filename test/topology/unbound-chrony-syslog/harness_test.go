@@ -38,6 +38,9 @@ func slotFromEnv(t *testing.T) slot {
 		t.Fatalf("VRX_TEST_PREFIX=%q: needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
+	if n < 1 || n > 12 { // review L4: w0/w00 would take the product stack's ports (3000, 5000, 9101)
+		t.Fatalf("VRX_TEST_PREFIX=%q: slot %d outside 1..12", p, n)
+	}
 	env := func(k, def string) string {
 		if v := os.Getenv(k); v != "" {
 			return v

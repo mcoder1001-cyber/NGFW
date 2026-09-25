@@ -12,6 +12,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
+	featureapi "ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/fib_types"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -80,6 +81,11 @@ type VPP struct {
 	// mtuFilter (P08, SetMtuFilter) rewrites the MTU a sw_interface_set_mtu stores (fault injection).
 	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
 	flow      *FlowState // F-ipfix-sflow (ipfix_sflow.go)
+	// installingExt/onOwner (see On, below) are the extension-collision guard: which extension (if
+	// any) is currently being installed on this model, and which extension last claimed each VPP
+	// message name.
+	installingExt string
+	onOwner       map[string]string
 }
 
 // New returns a model with local0 and the default tables.
@@ -96,12 +102,156 @@ func New() *VPP {
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	v.installIpfixSflow()        // F-ipfix-sflow: exporters, flowprobe, sflow
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	v.installExtensions()        // TD-23/D-134: every feature registered with RegisterExtension
 	return v
+}
+
+// --- Extension registry (TD-23/D-134) ------------------------------------------------------------
+//
+// README: features register here; never edit the dispatcher. Call RegisterExtension instead of
+// editing New() or this registry — typically from the feature's own coretest/<slug>.go's init().
+// Modelled on F-nat44-ed-sessions' original ad hoc `var extensions []func(*VPP)` seam, generalised because three
+// wave-A branches each independently reinvented that same package-level slice (a guaranteed
+// redeclaration conflict at merge). On (below) panics when two *different* extensions claim the same
+// VPP message name instead of silently letting the second one clobber the first's model: two
+// extensions disagreeing about the same VPP message is a bug for them to resolve explicitly, not a
+// silently-broken model for whichever extension installed first. F-rpf-adl-pbr and F-bridge-l2 both
+// used to hook "feature_is_enabled" this way (uRPF/ADL's arc checks vs. the mactime feature's) — that
+// specific message now has its own narrower composable seam, RegisterFeatureIsEnabled (below), so
+// they no longer trip this panic at all; On's collision guard remains the backstop for every other
+// message, which every other feature read so far only ever owns alone.
+//
+//	func init() { coretest.RegisterExtension("bridge-l2", (*coretest.VPP).installBridgeL2) }
+//
+// Reset convention (F4/F6): this registry, like RegisterFeatureIsEnabled and fake-agent.ts's
+// actionHandlers, is a package-level global with no reset call — there is no Go-side equivalent of
+// fake-agent.ts's resetActionHandlersForTest(). A name registered anywhere (a feature's init(), or a
+// test) is permanent for the rest of that test binary's run. That's fine for a real feature's
+// init()-time registration (once, for the process's whole life) or a test-only name nothing else
+// queries; never register a real feature's slug or FeatureName from a test.
+
+type extension struct {
+	name    string
+	install func(*VPP)
+}
+
+var (
+	extMu  sync.Mutex
+	extAll []extension
+)
+
+// RegisterExtension adds a feature's model installer, applied by every New() in registration order.
+// name identifies the feature (its slug) for the collision panic in On; registering the same name
+// twice panics immediately — a copy-paste of the one-liner, not a second feature reusing it.
+func RegisterExtension(name string, install func(*VPP)) {
+	extMu.Lock()
+	defer extMu.Unlock()
+	for _, e := range extAll {
+		if e.name == name {
+			panic(fmt.Sprintf("coretest: extension %q already registered", name))
+		}
+	}
+	extAll = append(extAll, extension{name, install})
+}
+
+// installExtensions applies every registered extension to v, in registration order.
+func (v *VPP) installExtensions() {
+	extMu.Lock()
+	all := append([]extension(nil), extAll...)
+	extMu.Unlock()
+	for _, e := range all {
+		v.installingExt = e.name
+		e.install(v)
+	}
+	v.installingExt = ""
+}
+
+// On registers h for VPP messages named name, like the embedded fake.Client.On, but — while an
+// extension is being installed (installExtensions, above) — panics if a *different* extension
+// already claimed name instead of silently replacing its handler (the F-rpf-adl-pbr × F-bridge-l2
+// mactime case: both model "feature_is_enabled"). Core setup (install, installIfExt, run before any
+// extension) and an extension replacing its own earlier registration are unaffected: only two
+// distinct extension names claiming the same message name panics.
+func (v *VPP) On(name string, h fake.Handler) *VPP {
+	if v.installingExt != "" {
+		if v.onOwner == nil {
+			v.onOwner = map[string]string{}
+		}
+		if owner, claimed := v.onOwner[name]; claimed && owner != v.installingExt {
+			panic(fmt.Sprintf(
+				"coretest: extension %q replaces VPP message %q already modelled by extension %q — compose them explicitly (e.g. dispatch on the request) instead of both calling On",
+				v.installingExt, name, owner,
+			))
+		}
+		v.onOwner[name] = v.installingExt
+	}
+	v.Client.On(name, h)
+	return v
+}
+
+// --- feature_is_enabled composition seam (TD-23 fix round 1, F5) ---------------------------------
+//
+// README: features register here; never edit the dispatcher (the "feature_is_enabled" handler
+// install() installs above). "feature_is_enabled" is the one VPP message multiple features are
+// guaranteed to keep wanting to hook: it's a generic, arc-wide "is this feature stacked on this
+// interface" query, not naturally one-feature-owned like almost every other message coretest
+// models. The general extension-collision guard (VPP.On) would correctly panic the moment two
+// features both call v.On("feature_is_enabled", ...) — confirmed real, not hypothetical:
+// F-rpf-adl-pbr's device-input/adl-input model and F-bridge-l2's mactime model both need it. Rather
+// than let that panic surface for the first time live during a rebase, features register their own
+// answer here instead, keyed by FeatureName; install() (core, before any extension, so registering
+// here never itself claims a VPP message name and so never trips VPP.On's guard) dispatches to it.
+// An unregistered feature name answers IsEnabled: true — VPP's own cast of an unknown feature index
+// (F-rpf-adl-pbr's V23(a) comment).
+//
+//	func init() {
+//		coretest.RegisterFeatureIsEnabled("adl-input", func(v *coretest.VPP, req *feature.FeatureIsEnabled) *feature.FeatureIsEnabledReply {
+//			...
+//		})
+//	}
+//
+// Go-side registry reset convention (F4/F6): like RegisterExtension, this is a package-level
+// registry with no reset — a name registered by a test (or a feature's init()) is permanent for the
+// rest of that test binary. Harmless as long as every registered name is either a real feature's
+// unique FeatureName (registered once, for the life of the process) or a test-only synthetic name
+// that nothing else queries; do not reuse a real feature's FeatureName in a test.
+
+type featureIsEnabledFn func(*VPP, *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply
+
+var (
+	featMu  sync.Mutex
+	featAll = map[string]featureIsEnabledFn{}
+)
+
+// RegisterFeatureIsEnabled adds featureName's own feature_is_enabled answer, used by every model's
+// core-installed handler (install(), above). Registering the same featureName twice panics — two
+// features sharing a bare feature name is a bug to notice immediately, not silently resolve to
+// whichever registered last.
+func RegisterFeatureIsEnabled(featureName string, fn featureIsEnabledFn) {
+	featMu.Lock()
+	defer featMu.Unlock()
+	if _, dup := featAll[featureName]; dup {
+		panic(fmt.Sprintf("coretest: feature_is_enabled handler for %q already registered", featureName))
+	}
+	featAll[featureName] = fn
 }
 
 func reply(m api.Message) ([]api.Message, error) { return []api.Message{m}, nil }
 
 func (v *VPP) install() {
+	// feature_is_enabled is core-owned (TD-23 fix round 1, F5) so registering an answer through
+	// RegisterFeatureIsEnabled never itself trips VPP.On's collision guard — see the README comment
+	// above RegisterFeatureIsEnabled.
+	v.On("feature_is_enabled", func(m api.Message) ([]api.Message, error) {
+		req := m.(*featureapi.FeatureIsEnabled)
+		featMu.Lock()
+		fn := featAll[req.FeatureName]
+		featMu.Unlock()
+		if fn == nil {
+			return reply(&featureapi.FeatureIsEnabledReply{IsEnabled: true}) // VPP's own unknown-feature cast
+		}
+		return reply(fn(v, req))
+	})
 	v.On("show_version", func(api.Message) ([]api.Message, error) {
 		return reply(&vpe.ShowVersionReply{Program: "vpe", Version: "26.06-fake"})
 	})

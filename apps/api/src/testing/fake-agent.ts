@@ -8,6 +8,8 @@ import {
   type ServerUnaryCall,
 } from '@grpc/grpc-js';
 import {
+  type ActionOutput,
+  type ActionRequest,
   type ApplyRequest,
   type ApplyResponse,
   ApplyOperation,
@@ -51,6 +53,71 @@ import { lispStateFake } from '../features/lisp/fake.js';
  * Tests steer failures through `nextApply` / `dryRunIssues`. It never touches VPP.
  */
 type Json = Record<string, unknown>;
+
+// --- Action dispatch (D-134/TD-23) --------------------------------------------------------------
+//
+// README: features register here; never edit the dispatcher. Call registerActionHandler instead of
+// editing the `action` const inside FakeAgent.impl(), and never spread a whole replacement `action`
+// into impl()'s returned object. Before this seam, four wave-A branches
+// each did the latter to the same `action:` property; whichever merged last silently won and the
+// other three lost Action support with no error. One handler per ActionRequest oneof case, keyed by
+// whichever field of the request is set — 'ping' | 'traceroute' | 'capture' today, plus whatever a
+// later contract PR adds to the oneof (ActionKind tracks it automatically via `keyof ActionRequest`).
+//
+// Reset convention (fix round 1, F4): actionHandlers is a module-level global, shared by every
+// FakeAgent in a test file (or worker) — registering under one agent's owner is visible to all of
+// them. Any test file that calls registerActionHandler MUST call resetActionHandlersForTest() in its
+// own afterEach, exactly as fake-agent-action.test.ts does; nothing enforces this globally (there is
+// no shared Vitest setupFiles hook), so it is a convention, not a guarantee. Vitest's default
+// per-file isolation keeps a forgotten reset from leaking across *files*, but not across the `it`
+// blocks of one file.
+
+/** The populated field of an ActionRequest, i.e. which oneof case it carries. */
+export type ActionKind = keyof ActionRequest;
+
+/**
+ * A feature's Action implementation for one oneof case; same shape as the RPC itself. May be async
+ * (fix round 1, F3): the dispatcher below awaits/catches a returned Promise the same way it catches a
+ * synchronous throw, so `async (call) => { ...; throw ... }` still ends the call with a status
+ * instead of hanging.
+ */
+export type ActionHandler = handleServerStreamingCall<ActionRequest, ActionOutput>;
+
+const actionHandlers: Partial<Record<ActionKind, ActionHandler>> = {};
+
+/**
+ * Registers fn as the fake agent's handler for ActionRequest's `kind` oneof case (e.g. 'ping'). Call
+ * it once per kind — module load time is fine (features/<slug>/fake.ts). Registering a kind that is
+ * already registered throws: two features claiming the same case is a bug to resolve explicitly at
+ * rebase, not a silent last-registration-wins.
+ */
+export function registerActionHandler(kind: ActionKind, fn: ActionHandler): void {
+  if (actionHandlers[kind] !== undefined) {
+    throw new Error(`fake-agent: an action handler for '${kind}' is already registered`);
+  }
+  actionHandlers[kind] = fn;
+}
+
+/** Test-only: undoes registerActionHandler between test cases. Never called from product code. */
+export function resetActionHandlersForTest(): void {
+  for (const kind of Object.keys(actionHandlers) as ActionKind[]) {
+    delete actionHandlers[kind];
+  }
+}
+
+/** Which oneof case request carries, or undefined if none is set (an empty/malformed request). */
+function actionKindOf(request: ActionRequest): ActionKind | undefined {
+  return (Object.keys(request) as ActionKind[]).find((k) => request[k] !== undefined);
+}
+
+/** Wraps err as a gRPC-status Error, keeping its own numeric `code` if it set one. */
+function asGrpcError(err: unknown, fallback: status): Error & { code: status } {
+  const code = (err as { code?: unknown } | undefined)?.code;
+  const resolved = typeof code === 'number' ? (code as status) : fallback;
+  return err instanceof Error
+    ? Object.assign(err, { code: resolved })
+    : Object.assign(new Error(String(err)), { code: resolved });
+}
 
 export interface FakeAgentOptions {
   owner?: string;
@@ -611,6 +678,40 @@ export class FakeAgent {
       });
     };
 
+    // Dispatcher — never edit this to add a feature's case; call registerActionHandler instead (see
+    // the README comment near ActionKind above). It owns ending the call with a status on every path:
+    // no handler for the request's oneof case answers UNIMPLEMENTED, and a handler that throws —
+    // synchronously, or asynchronously by rejecting (fix round 1, F3: ActionHandler's type says
+    // `void`, but TS lets an `async` function satisfy that, so a handler can return a Promise at
+    // runtime even though the type doesn't say so; `result instanceof Promise` catches it either
+    // way) — answers with its own `code` or INTERNAL. Every path ends the call through 'error', never
+    // destroy() (D-134: a destroyed stream never reaches the client with a status, so the caller
+    // hangs to its deadline).
+    const action: handleServerStreamingCall<ActionRequest, ActionOutput> = (call) => {
+      this.record('Action', call.request);
+      const kind = actionKindOf(call.request);
+      const handler = kind === undefined ? undefined : actionHandlers[kind];
+      if (!handler) {
+        call.emit(
+          'error',
+          Object.assign(new Error(`action '${kind ?? '(unset)'}' is not implemented`), {
+            code: status.UNIMPLEMENTED,
+          }),
+        );
+        return;
+      }
+      try {
+        const result: unknown = handler(call);
+        if (result instanceof Promise) {
+          result.catch((err: unknown) => {
+            call.emit('error', asGrpcError(err, status.INTERNAL));
+          });
+        }
+      } catch (err) {
+        call.emit('error', asGrpcError(err, status.INTERNAL));
+      }
+    };
+
     return {
       apply,
       dryRun,
@@ -619,12 +720,7 @@ export class FakeAgent {
       interfaceState,
       streamStats,
       streamEvents,
-      action: (call) => {
-        this.record('Action', call.request);
-        call.destroy(
-          Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
-        );
-      },
+      action,
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
       // wave-BC: F-det44-map-dslite-cnat

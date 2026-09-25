@@ -14,14 +14,18 @@ func (*VRFDescriptor) RecordsNoOwnership() {}
 // RecordsNoOwnership declares that a loopback is ours by its interface tag "<owner>:<name>".
 func (*LoopbackDescriptor) RecordsNoOwnership() {}
 
-// RecordsNoOwnership declares that a table binding is ours when its interface's tag is (no store
-// in this build; TD-11c's claim path on untagged interfaces replaces this with CheckPersistent over
-// its claim store — ownership_test.go fails until it does).
-func (*InterfaceTableDescriptor) RecordsNoOwnership() {}
+// CheckPersistent requires a persisted claim store: a table binding on an untagged interface is ours
+// by its claim in Env.Claims (TD-11c claim path, D-071/D-080; the product passes
+// subsystems.IfaceClaims). A tagged interface's binding is ours by the tag.
+func (d *InterfaceTableDescriptor) CheckPersistent() error {
+	return persist.Require("core "+InterfaceTableName+": claims", d.Claims)
+}
 
-// RecordsNoOwnership declares that an address is ours when its interface's tag is (see
-// InterfaceTableDescriptor).
-func (*InterfaceAddrDescriptor) RecordsNoOwnership() {}
+// CheckPersistent requires a persisted claim store: an address on an untagged interface is ours by
+// its claim in Env.Claims (see InterfaceTableDescriptor).
+func (d *InterfaceAddrDescriptor) CheckPersistent() error {
+	return persist.Require("core "+InterfaceAddrName+": claims", d.Claims)
+}
 
 // CheckPersistent requires a persisted route owner table: a route (no tag field in VPP) is ours by
 // its record there — ownertable.Open in the state dir; ownertable.NewMemory is for tests.

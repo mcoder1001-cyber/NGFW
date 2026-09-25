@@ -9,6 +9,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"sync"
 
 	"go.fd.io/govpp/api"
 
@@ -54,17 +55,23 @@ func (v *VPP) Flow() FlowState {
 	return f
 }
 
+// identityOnce installs coretestIdentity once per test binary (not on every New, review item 5).
+var identityOnce sync.Once
+
+// coretestIdentity is a fixed complete D-080 identity (never the host's /proc), as dfkittest.NewFake uses.
+func coretestIdentity(ctx context.Context, c vpp.Client) (bootid.Identity, error) {
+	id, err := bootid.Reader{ProcRoot: os.DevNull}.Current(ctx, c)
+	if err != nil {
+		return bootid.Identity{}, err
+	}
+	id.BootID, id.StartTime = "coretest", 1
+	return id, nil
+}
+
 func (v *VPP) installIpfixSflow() {
 	// The fake VPP is not a process: the DF-8 descriptors (sflow's learned hw→sw map) need a complete
 	// D-080 identity, so use a fixed one as dfkittest.NewFake does (never the host's /proc).
-	dfkit.IdentitySource = func(ctx context.Context, c vpp.Client) (bootid.Identity, error) {
-		id, err := bootid.Reader{ProcRoot: os.DevNull}.Current(ctx, c)
-		if err != nil {
-			return bootid.Identity{}, err
-		}
-		id.BootID, id.StartTime = "coretest", 1
-		return id, nil
-	}
+	identityOnce.Do(func() { dfkit.IdentitySource = coretestIdentity })
 	v.flow = &FlowState{
 		Exporters: []ipfix_export.IpfixAllExporterDetails{{PathMtu: 512, TemplateInterval: 20, VrfID: ^uint32(0), CollectorAddress: unspec4(), SrcAddress: unspec4()}},
 		Flowprobe: map[uint32]flowprobe.FlowprobeInterfaceDetails{},

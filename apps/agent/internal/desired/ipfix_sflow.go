@@ -55,7 +55,7 @@ const RuleUnsupported = "agent.unsupported-field"
 var ipfixState = struct {
 	sync.Mutex
 	globalsOwner bool
-	names        map[string]string // collector address → exporter name of the last projection
+	names        map[string]string // collector address → exporter name of the stored (applied) document
 }{names: map[string]string{}}
 
 // SetIpfixGlobalsOwner records the D-071 role of this agent for the projection (subsystems sets it
@@ -74,7 +74,7 @@ func IpfixGlobalsOwner() bool {
 }
 
 // IpfixExporterName is the configuration name of the exporter with this collector address in the
-// last projected document ("" when unknown). VPP keeps no names; Retrieve and IpfixState use it.
+// stored desired state ("" when unknown). VPP keeps no names; Retrieve and IpfixState use it.
 func IpfixExporterName(collector string) string {
 	ipfixState.Lock()
 	defer ipfixState.Unlock()
@@ -102,6 +102,26 @@ func orStr(p *string, d string) string {
 	return *p
 }
 
+// SetIpfixExporterNames records the exporter names of the agent's STORED desired state (called by
+// the service when it refreshes its snapshot after a successful apply/revert and at start) — never
+// from a projection, so DryRun, failed or rolled-back transactions do not change them.
+func SetIpfixExporterNames(svc *vrxv1.ServicesConfig) {
+	names := map[string]string{}
+	for name, e := range svc.GetIpfix().GetExporters() {
+		if !orBool(e.Enabled, true) {
+			continue
+		}
+		if c, err := netip.ParseAddr(e.GetCollector().GetAddress()); err == nil {
+			if prev, dup := names[c.Unmap().String()]; !dup || name < prev {
+				names[c.Unmap().String()] = name
+			}
+		}
+	}
+	ipfixState.Lock()
+	ipfixState.names = names
+	ipfixState.Unlock()
+}
+
 // IpfixSflow emits the objects of services.ipfix. vrfID maps a VRF name to its table id.
 func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, bool)) {
 	if svc == nil {
@@ -113,11 +133,7 @@ func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, b
 		return
 	}
 	owner := IpfixGlobalsOwner()
-	names := map[string]string{}
-	defaultName := exporters(s, ix, vrfID, owner, names)
-	ipfixState.Lock()
-	ipfixState.names = names
-	ipfixState.Unlock()
+	defaultName := exporters(s, ix, vrfID, owner, map[string]string{})
 
 	fp := ix.GetFlowprobe()
 	if len(fp.GetInterfaces()) == 0 {

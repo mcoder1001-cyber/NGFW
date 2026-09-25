@@ -301,3 +301,31 @@ func sflowRate(t *testing.T, v *coretest.VPP, n uint32) {
 		t.Fatal(err)
 	}
 }
+
+// TestIpfixExporterNamesOnlyFromAppliedState (review item 1): DryRun and a rolled-back apply never
+// rename exporters; a successful apply does.
+func TestIpfixExporterNamesOnlyFromAppliedState(t *testing.T) {
+	v := coretest.New()
+	s := newIpfixSvc(t, v, t.TempDir(), true)
+	all := []string{"interfaces", "vrfs", "routing", "services"}
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", Subsystems: all, DesiredState: doc(t, ipfixDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	renamed := doc(t, strings.Replace(ipfixDoc, `"lan":`, `"renamed":`, 1))
+	if _, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: renamed, Subsystems: all}); err != nil {
+		t.Fatal(err)
+	}
+	if n := desired.IpfixExporterName("10.7.11.9"); n != "lan" {
+		t.Fatalf("DryRun renamed the exporter: %q", n)
+	}
+	// a transaction that fails (unknown interface for flowprobe) and is rolled back
+	bad := doc(t, strings.Replace(strings.Replace(ipfixDoc, `"lan":`, `"renamed":`, 1), `{"interface": "loop711"`, `{"interface": "loop799"`, 1))
+	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", Subsystems: all, DesiredState: bad}); r.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		t.Fatalf("applied %v", r)
+	}
+	if n := desired.IpfixExporterName("10.7.11.9"); n != "lan" {
+		t.Fatalf("failed apply renamed the exporter: %q", n)
+	}
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a3", Subsystems: all, DesiredState: renamed}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if n := desired.IpfixExporterName("10.7.11.9"); n != "renamed" {
+		t.Fatalf("applied rename not seen: %q", n)
+	}
+}

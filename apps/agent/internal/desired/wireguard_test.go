@@ -89,3 +89,37 @@ func TestWireguardBuilderFindings(t *testing.T) {
 		t.Fatalf("projected without vpn: %v %v", s2.keys, s2.issues)
 	}
 }
+
+// Review F1: routeAllowedIps with an allowed IP that contains a peer endpoint routed in the same VRF (the full-tunnel
+// 0.0.0.0/0 peer with vrf == underlayVrf) would send the tunnel's own UDP into the tunnel. The builder refuses the route
+// with an ERROR at the allowed IP (the schema's vpn.wireguard-route-loop is the API-side twin).
+func TestWireguardRouteLoopRefused(t *testing.T) {
+	const pub = "HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw="
+	refs := WireguardEnv{SecretRef: func(r string) (string, error) { return "x25519:" + r, nil }}
+	all := map[string]bool{"vpn": true, "interfaces": true, "routing": true}
+	doc := func(vrf string) *vrxv1.DesiredState {
+		return wgState(t, `{"vpn": {"wireguard": {"interfaces": {"a": {"instance": 7001, "listenAddress": "10.7.8.1",
+		  "privateKeyRef": "key/a", "routeAllowedIps": true, "vrf": "`+vrf+`",
+		  "peers": {"hq": {"publicKey": "`+pub+`", "endpoint": {"address": "203.0.113.9", "port": 51820}, "allowedIps": ["0.0.0.0/0"]}}}}}}}`)
+	}
+	s := &sink{}
+	Wireguard(s, doc("default"), all, vrfs, refs)
+	if !strings.Contains(strings.Join(s.issues, "\n"), "E vpn.wireguard-route-loop /vpn/wireguard/interfaces/a/peers/hq/allowedIps/0") {
+		t.Fatalf("no route-loop error: %v", s.issues)
+	}
+	for _, k := range s.keys {
+		if strings.HasPrefix(k, "ip.route/") {
+			t.Fatalf("the looping route was projected: %s", k)
+		}
+	}
+	// routes in another VRF than the endpoint's underlay: no loop, the route is projected
+	s = &sink{}
+	Wireguard(s, doc("red"), all, vrfs, refs)
+	var route bool
+	for _, k := range s.keys {
+		route = route || strings.HasPrefix(k, "ip.route/7001/0.0.0.0/0@")
+	}
+	if !route || strings.Contains(strings.Join(s.issues, "\n"), "route-loop") {
+		t.Fatalf("overlay VRF red: keys %v issues %v", s.keys, s.issues)
+	}
+}

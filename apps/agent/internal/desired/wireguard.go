@@ -78,10 +78,35 @@ func Wireguard(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(st
 		s.Warnf(Ptr("vpn", "remoteAccess"), ruleUnsupportedField, "vpn.remoteAccess is not implemented by this agent build (F-ra-vpn)")
 	}
 	ifs := v.GetWireguard().GetInterfaces()
+	eps := wireguardEndpoints(ifs)
 	for _, name := range sortedKeys(ifs) {
-		wireguardInterface(s, name, ifs[name], in, vrfID, env)
+		wireguardInterface(s, name, ifs[name], in, vrfID, env, eps)
 	}
 }
+
+// wgEndpoint is a peer endpoint (an IP literal) and the underlay VRF its tunnel packets are routed in.
+type wgEndpoint struct {
+	vrf  string
+	addr netip.Addr
+	peer string
+}
+
+// wireguardEndpoints lists every peer endpoint of every WireGuard interface (the route-loop check, review F1).
+func wireguardEndpoints(ifs map[string]*vrxv1.WireguardInterface) []wgEndpoint {
+	var out []wgEndpoint
+	for _, name := range sortedKeys(ifs) {
+		w := ifs[name]
+		for _, pname := range sortedKeys(w.GetPeers()) {
+			if a, err := netip.ParseAddr(w.GetPeers()[pname].GetEndpoint().GetAddress()); err == nil {
+				out = append(out, wgEndpoint{vrf: vrfName(w.GetUnderlayVrf()), addr: a.Unmap(), peer: name + "/" + pname})
+			}
+		}
+	}
+	return out
+}
+
+// RuleWireguardRouteLoop is the builder's twin of the schema rule vpn.wireguard-route-loop.
+const RuleWireguardRouteLoop = "vpn.wireguard-route-loop"
 
 // secretRef maps a D-051 reference to its DF-5 reference. Without material in the agent
 // (PENDING-secret-channel) it reports a WARNING at pointer and returns the wireguard.UnavailableRef
@@ -108,7 +133,7 @@ func vrfName(n string) string {
 	return n
 }
 
-func wireguardInterface(s Sink, name string, w *vrxv1.WireguardInterface, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv) {
+func wireguardInterface(s Sink, name string, w *vrxv1.WireguardInterface, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv, eps []wgEndpoint) {
 	pt := Ptr("vpn", "wireguard", "interfaces", name)
 	if w.Instance == nil {
 		s.Errorf(pt+"/instance", ruleWireguardInstance, "WireGuard interface %q has no instance", name)
@@ -168,14 +193,20 @@ func wireguardInterface(s Sink, name string, w *vrxv1.WireguardInterface, in map
 	}
 
 	for _, pname := range sortedKeys(w.GetPeers()) {
-		wireguardPeer(s, pt, wg, pname, w.GetPeers()[pname], underlay, overlay, w.GetRouteAllowedIps() && in["routing"], env)
+		var loops []wgEndpoint // endpoints routed in this interface's overlay VRF: an automatic route must not cover them
+		for _, e := range eps {
+			if e.vrf == overlayName {
+				loops = append(loops, e)
+			}
+		}
+		wireguardPeer(s, pt, wg, pname, w.GetPeers()[pname], underlay, overlay, w.GetRouteAllowedIps() && in["routing"], env, loops)
 	}
 	if w.GetRouteAllowedIps() && !in["routing"] && len(w.GetPeers()) > 0 {
 		s.Warnf(pt+"/routeAllowedIps", RuleWireguardDomain, "%s/routeAllowedIps is applied only in a transaction that includes `routing`", pt)
 	}
 }
 
-func wireguardPeer(s Sink, ipt, wg, name string, p *vrxv1.WireguardPeer, underlay, overlay uint32, routes bool, env WireguardEnv) {
+func wireguardPeer(s Sink, ipt, wg, name string, p *vrxv1.WireguardPeer, underlay, overlay uint32, routes bool, env WireguardEnv, loops []wgEndpoint) {
 	pt := ipt + "/peers/" + Ptr(name)[1:]
 	pub := p.GetPublicKey()
 	if raw, err := base64.StdEncoding.DecodeString(pub); err != nil || len(raw) != vpn.X25519KeyLen {
@@ -213,6 +244,14 @@ func wireguardPeer(s Sink, ipt, wg, name string, p *vrxv1.WireguardPeer, underla
 	}
 	for i, a := range p.GetAllowedIps() {
 		c, _ := vpn.CanonicalPrefix(a) // checked above
+		if pfx, err := netip.ParsePrefix(c); err == nil {
+			if hit := coveredEndpoint(pfx, loops); hit != nil {
+				// review F1: the route would carry the tunnel's own UDP to that endpoint into the tunnel
+				s.Errorf(pt+"/allowedIps/"+strconv.Itoa(i), RuleWireguardRouteLoop,
+					"routeAllowedIps would route %s via %s and it contains the endpoint %s of peer %s (same VRF): a forwarding loop", c, wg, hit.addr, hit.peer)
+				continue
+			}
+		}
 		nh, err := WireguardRouteNextHop(c)
 		if err != nil {
 			s.Errorf(pt+"/allowedIps/"+strconv.Itoa(i), RuleWireguardValue, "%v", err)
@@ -402,4 +441,13 @@ func isWireguardRoute(r *core.Route, wg string) bool {
 	}
 	nh, err := WireguardRouteNextHop(r.GetPrefix())
 	return err == nil && r.GetPaths()[0].GetAddress() == nh
+}
+
+func coveredEndpoint(p netip.Prefix, eps []wgEndpoint) *wgEndpoint {
+	for i := range eps {
+		if p.Contains(eps[i].addr) {
+			return &eps[i]
+		}
+	}
+	return nil
 }

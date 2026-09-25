@@ -1,7 +1,15 @@
 import type { RootConfig } from '../index.js';
 import { jsonPointer } from '../pointer.js';
 import type { SemanticIssue, ValidatorDefinition } from './registry.js';
-import { type Cidr, cidrsOverlap, ipFamily, parseCidr, parseIp, sameCidr } from './tunnels-common.js';
+import {
+  type Cidr,
+  cidrContainsIp,
+  cidrsOverlap,
+  ipFamily,
+  parseCidr,
+  parseIp,
+  sameCidr,
+} from './tunnels-common.js';
 
 /**
  * F-wireguard rules for `vpn.wireguard` (tier (b)), in addition to P02c's `vpn.wireguard-unique`,
@@ -15,6 +23,12 @@ import { type Cidr, cidrsOverlap, ipFamily, parseCidr, parseIp, sameCidr } from 
  *   would be ambiguous; the identical prefix stays `vpn.wireguard-unique`'s).
  * - `vpn.wireguard-endpoint-family`: a peer endpoint given as an IP address has the family of the interface's
  *   listen address (VPP sends from `listenAddress`).
+ * - `vpn.wireguard-route-loop` (F-wireguard review F1): with `routeAllowedIps`, every allowed IP becomes a route via
+ *   `wg<N>` in the interface's `vrf`. VPP stacks each peer's tunnel packets on the route to its endpoint in the peer's
+ *   **underlay** VRF, so an allowed IP that contains a peer endpoint of any WireGuard interface whose `underlayVrf` is this
+ *   `vrf` (the full-tunnel `0.0.0.0/0` peer with `vrf` = `underlayVrf`) would route the tunnel's own UDP into the tunnel:
+ *   a forwarding loop. It is refused at the allowed IP; use a narrower allowed IP, another overlay VRF, or leave
+ *   `routeAllowedIps` off and add the routes by hand (with a more specific route to the endpoint).
  */
 
 const P = (...segments: (string | number)[]): string => jsonPointer('vpn', ...segments);
@@ -61,7 +75,10 @@ const allowedIps: ValidatorDefinition = {
           if (cidr === undefined) return; // the schema reports it
           const pointer = P('wireguard', 'interfaces', ifName, 'peers', peerName, 'allowedIps', i);
           if (cidr.address !== cidr.first) {
-            issues.push({ pointer, message: `${text} has host bits set (a network prefix is expected)` });
+            issues.push({
+              pointer,
+              message: `${text} has host bits set (a network prefix is expected)`,
+            });
             return;
           }
           const clash = taken.find((t) => t.peer !== peerName && cidrsOverlap(t.cidr, cidr));
@@ -103,9 +120,47 @@ const endpointFamily: ValidatorDefinition = {
   },
 };
 
+const routeLoop: ValidatorDefinition = {
+  name: 'vpn.wireguard-route-loop',
+  domains: ['vpn'],
+  validate(config) {
+    const issues: SemanticIssue[] = [];
+    // peer endpoints (IP literals) by the underlay VRF their tunnel packets are routed in
+    const endpoints: { vrf: string; address: string; iface: string; peer: string }[] = [];
+    for (const [ifName, w] of wireguardOf(config)) {
+      for (const [peerName, peer] of Object.entries(w.peers)) {
+        const address = peer.endpoint?.address;
+        if (address !== undefined && parseIp(address) !== undefined) {
+          endpoints.push({ vrf: w.underlayVrf, address, iface: ifName, peer: peerName });
+        }
+      }
+    }
+    for (const [ifName, w] of wireguardOf(config)) {
+      if (!w.routeAllowedIps) continue;
+      for (const [peerName, peer] of Object.entries(w.peers)) {
+        peer.allowedIps.forEach((text, i) => {
+          const cidr = parseCidr(text);
+          if (cidr === undefined) return;
+          const hit = endpoints.find(
+            (e) =>
+              e.vrf === w.vrf && cidrContainsIp(cidr, ipFamily(e.address), parseIp(e.address)!),
+          );
+          if (hit === undefined) return;
+          issues.push({
+            pointer: P('wireguard', 'interfaces', ifName, 'peers', peerName, 'allowedIps', i),
+            message: `routeAllowedIps would route ${text} via wg${w.instance} in VRF '${w.vrf}', and it contains the endpoint ${hit.address} of peer '${hit.peer}' (interface '${hit.iface}', underlay VRF '${hit.vrf}'): the tunnel's own packets would loop into the tunnel — use a narrower allowed IP, another VRF, or routeAllowedIps off with a more specific route to the endpoint`,
+          });
+        });
+      }
+    }
+    return issues;
+  },
+};
+
 /** F-wireguard's validators (one spread line in semantic/index.ts). */
 export const wireguardValidators: readonly ValidatorDefinition[] = [
   publicKeyUnique,
   allowedIps,
   endpointFamily,
+  routeLoop,
 ];

@@ -63,8 +63,16 @@ anything. Either:
 
 - enable **Route allowed IPs** (`routeAllowedIps: true`, default off — TNSR does not do it either): the agent installs,
   in the interface's VRF, a route for every allowed IP of every peer with the prefix's first address as next hop
-  (`10.0.9.0/24 via 10.0.9.0 wg0`; `0.0.0.0/0 via 0.0.0.1 wg0`). These routes belong to the WireGuard interface; they do
-  not appear in `routing.static`.
+  (`10.0.9.0/24 via 10.0.9.0 wg0`; `0.0.0.0/0 via 0.0.0.1 wg0` — only in a VRF that does not route the endpoints, see
+  below). These routes belong to the WireGuard interface; they do not appear in `routing.static`. The screen switches it
+  on for **new** interfaces (the schema default stays off, TNSR parity).
+  **Routing loop — refused.** VPP sends a peer's tunnel packets along the route to its endpoint in the *underlay* VRF.
+  If `vrf` equals `underlayVrf` and an allowed IP contains a peer's endpoint — the classic full-tunnel peer with
+  `0.0.0.0/0` — the automatic route would carry the tunnel's own UDP into the tunnel (and take over that VRF's default
+  route). The commit is refused (`vpn.wireguard-route-loop`, 400 at the allowed IP; the agent refuses the same route).
+  For a full tunnel, put the interface in its own overlay VRF, narrow the allowed IP, or leave the switch off and add
+  the routes yourself with a more specific route to the endpoint (via the underlay next hop). A static route with the
+  same prefix as an automatic one is refused as a duplicate (`agent.duplicate-object`).
 - or add static routes yourself with a next hop inside the peer's allowed IPs, e.g.
   `{"prefix": "192.168.20.0/24", "nextHops": [{"address": "10.200.0.2", "interface": "wg0"}]}` for a peer with
   allowed IP `10.200.0.2/32` and `192.168.20.0/24`.
@@ -129,6 +137,7 @@ Besides the schema, the commit checks (problem+json pointers):
 - `vpn.wireguard-allowed-ips`: allowed IPs are network prefixes (no host bits) and do not overlap between peers of one
   interface;
 - `vpn.wireguard-endpoint-family`: an IP endpoint has the listen address's family;
+- `vpn.wireguard-route-loop`: with **Route allowed IPs**, no allowed IP may contain a peer endpoint routed in the same VRF;
 - `vpn.wireguard-address-overlap`, `vpn.local-address-configured`, `vpn.vrf-exists`, `secrets.ref-exists`.
 
 Peer endpoints must be IP addresses in this release (the schema accepts hostnames; the agent does not resolve them and

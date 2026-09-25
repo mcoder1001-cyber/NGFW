@@ -16,7 +16,10 @@ const wg = (instance: number, extra: Record<string, unknown> = {}) => ({
   peers: {},
   ...extra,
 });
-const doc = (interfaces: Record<string, unknown>) => ({ ...BASE, vpn: { wireguard: { interfaces } } });
+const doc = (interfaces: Record<string, unknown>) => ({
+  ...BASE,
+  vpn: { wireguard: { interfaces } },
+});
 const run = (d: unknown, name?: string) => {
   const config = RootConfig.parse(d);
   return sortIssues(
@@ -58,7 +61,9 @@ describe('F-wireguard semantic rules', () => {
       },
     ]);
     // the whole pipeline reports it too (and nothing else)
-    expect(validateSemantics(RootConfig.parse(d))).toEqual(run(d, 'vpn.wireguard-public-key-unique'));
+    expect(validateSemantics(RootConfig.parse(d))).toEqual(
+      run(d, 'vpn.wireguard-public-key-unique'),
+    );
   });
 
   it('vpn.wireguard-public-key-unique leaves duplicates inside one interface to vpn.wireguard-unique', () => {
@@ -78,11 +83,21 @@ describe('F-wireguard semantic rules', () => {
       a: wg(0, {
         peers: {
           p1: { publicKey: PUB_A, allowedIps: ['10.0.0.0/16', '192.168.1.7/24', 'fd00::/64'] },
-          p2: { publicKey: PUB_B, allowedIps: ['10.0.5.0/24', '10.0.0.0/16', 'fd00::1:0/112', '172.16.0.0/12'] },
+          p2: {
+            publicKey: PUB_B,
+            allowedIps: ['10.0.5.0/24', '10.0.0.0/16', 'fd00::1:0/112', '172.16.0.0/12'],
+          },
         },
       }),
       // another interface may reuse the prefixes
-      b: wg(1, { peers: { p3: { publicKey: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=', allowedIps: ['10.0.0.0/16'] } } }),
+      b: wg(1, {
+        peers: {
+          p3: {
+            publicKey: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=',
+            allowedIps: ['10.0.0.0/16'],
+          },
+        },
+      }),
     });
     expect(run(d, 'vpn.wireguard-allowed-ips')).toEqual([
       {
@@ -91,11 +106,13 @@ describe('F-wireguard semantic rules', () => {
       },
       {
         pointer: '/vpn/wireguard/interfaces/a/peers/p2/allowedIps/0',
-        message: "10.0.5.0/24 overlaps 10.0.0.0/16 of peer 'p1' (allowed IPs of one interface must not overlap)",
+        message:
+          "10.0.5.0/24 overlaps 10.0.0.0/16 of peer 'p1' (allowed IPs of one interface must not overlap)",
       },
       {
         pointer: '/vpn/wireguard/interfaces/a/peers/p2/allowedIps/2',
-        message: "fd00::1:0/112 overlaps fd00::/64 of peer 'p1' (allowed IPs of one interface must not overlap)",
+        message:
+          "fd00::1:0/112 overlaps fd00::/64 of peer 'p1' (allowed IPs of one interface must not overlap)",
       },
     ]);
   });
@@ -104,8 +121,16 @@ describe('F-wireguard semantic rules', () => {
     const d = doc({
       a: wg(0, {
         peers: {
-          v6: { publicKey: PUB_A, allowedIps: ['10.0.0.0/24'], endpoint: { address: '2001:db8::7', port: 51820 } },
-          v4: { publicKey: PUB_B, allowedIps: ['10.1.0.0/24'], endpoint: { address: '203.0.113.9', port: 51820 } },
+          v6: {
+            publicKey: PUB_A,
+            allowedIps: ['10.0.0.0/24'],
+            endpoint: { address: '2001:db8::7', port: 51820 },
+          },
+          v4: {
+            publicKey: PUB_B,
+            allowedIps: ['10.1.0.0/24'],
+            endpoint: { address: '203.0.113.9', port: 51820 },
+          },
           dns: {
             publicKey: 'AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=',
             allowedIps: ['10.2.0.0/24'],
@@ -117,8 +142,62 @@ describe('F-wireguard semantic rules', () => {
     expect(run(d, 'vpn.wireguard-endpoint-family')).toEqual([
       {
         pointer: '/vpn/wireguard/interfaces/a/peers/v6/endpoint/address',
-        message: 'endpoint 2001:db8::7 is IPv6 but the interface listens on IPv4 address 198.51.100.2',
+        message:
+          'endpoint 2001:db8::7 is IPv6 but the interface listens on IPv4 address 198.51.100.2',
       },
+    ]);
+  });
+
+  it('vpn.wireguard-route-loop: routeAllowedIps with an allowed IP containing a peer endpoint in the same VRF (review F1)', () => {
+    const fullTunnel = (extra: Record<string, unknown>) =>
+      wg(0, {
+        routeAllowedIps: true,
+        peers: {
+          hq: {
+            publicKey: PUB_A,
+            allowedIps: ['0.0.0.0/0'],
+            endpoint: { address: '203.0.113.9', port: 51820 },
+          },
+          lan: { publicKey: PUB_B, allowedIps: ['10.9.0.0/16'] },
+        },
+        ...extra,
+      });
+    expect(run(doc({ a: fullTunnel({}) }), 'vpn.wireguard-route-loop')).toEqual([
+      {
+        pointer: '/vpn/wireguard/interfaces/a/peers/hq/allowedIps/0',
+        message:
+          "routeAllowedIps would route 0.0.0.0/0 via wg0 in VRF 'default', and it contains the endpoint 203.0.113.9 of peer 'hq' (interface 'a', underlay VRF 'default'): the tunnel's own packets would loop into the tunnel — use a narrower allowed IP, another VRF, or routeAllowedIps off with a more specific route to the endpoint",
+      },
+    ]);
+    // the whole pipeline refuses it too
+    expect(
+      validateSemantics(RootConfig.parse(doc({ a: fullTunnel({}) }))).map((i) => i.pointer),
+    ).toContain('/vpn/wireguard/interfaces/a/peers/hq/allowedIps/0');
+    // fine: routes off, or the routes live in another VRF than the endpoints
+    expect(
+      run(doc({ a: fullTunnel({ routeAllowedIps: false }) }), 'vpn.wireguard-route-loop'),
+    ).toEqual([]);
+    expect(run(doc({ a: fullTunnel({ vrf: 'customer-a' }) }), 'vpn.wireguard-route-loop')).toEqual(
+      [],
+    );
+    // another interface's endpoint in this interface's VRF loops as well
+    const d = doc({
+      a: wg(0, {
+        routeAllowedIps: true,
+        peers: { net: { publicKey: PUB_A, allowedIps: ['203.0.113.0/24'] } },
+      }),
+      b: wg(1, {
+        peers: {
+          far: {
+            publicKey: PUB_B,
+            allowedIps: ['10.8.0.0/16'],
+            endpoint: { address: '203.0.113.9', port: 1 },
+          },
+        },
+      }),
+    });
+    expect(run(d, 'vpn.wireguard-route-loop').map((i) => i.pointer)).toEqual([
+      '/vpn/wireguard/interfaces/a/peers/net/allowedIps/0',
     ]);
   });
 });

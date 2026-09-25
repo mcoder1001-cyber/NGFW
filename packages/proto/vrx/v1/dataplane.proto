@@ -80,6 +80,11 @@ service Dataplane {
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
+
+  // HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
+  // this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
+  rpc HostStackState(HostStackStateRequest) returns (HostStackStateResponse);
+
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
   // wave-BC: F-capture-trace
@@ -1500,6 +1505,10 @@ message ServicesConfig {
   QosService qos = 7;
 
   // wave-BC: F-host-stack
+
+  // VPP host stack: session layer, app namespaces, session rules, TCP source addresses, http_static (F-host-stack).
+  HostStackService host_stack = 10;
+
   // wave-BC: F-lb
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
@@ -3612,6 +3621,120 @@ message RemoteAccessProfile {
 // ----- F-qos-flat -----
 
 // ----- F-host-stack -----
+
+// HostStackService is `services.hostStack` (F-host-stack, D-085): the API-configurable part of VPP's host stack.
+message HostStackService {
+  // Required state of the session layer (rule-table engine); set only by the globals owner (D-071).
+  optional bool enabled = 1;
+  // Application namespaces by id.
+  map<string, HostStackNamespace> namespaces = 2;
+  // Session rules (the host-stack "firewall"), each with a unique tag.
+  repeated HostStackSessionRule session_rules = 3;
+  // TCP source-address pool of one VRF (write-only in VPP, no delete).
+  HostStackTcpSource tcp_source_addresses = 4;
+  // http_static server (agent opt-in only, cannot be disabled via the API).
+  HostStackHttpStatic http_static = 5;
+}
+
+// HostStackNamespace is one application namespace.
+message HostStackNamespace {
+  // Namespace secret as a `key/<name>` reference (D-051); refused until the secret channel exists.
+  optional string secret_ref = 1;
+  // VPP interface the namespace is bound to.
+  optional string interface = 2;
+  // VRF (ip4/ip6 fib).
+  optional string vrf = 3;
+}
+
+// HostStackSessionRule is one session rule.
+message HostStackSessionRule {
+  // Unique tag (the agent prefixes its owner in VPP).
+  optional string tag = 1;
+  // "global" | "local".
+  optional string scope = 2;
+  // "tcp" | "udp".
+  optional string transport = 3;
+  // Local prefix (canonical CIDR).
+  optional string local = 4;
+  // Local port; unset = any.
+  optional uint32 local_port = 5;
+  // Remote prefix (canonical CIDR, same family).
+  optional string remote = 6;
+  // Remote port; unset = any.
+  optional uint32 remote_port = 7;
+  // "allow" | "deny" | "redirect".
+  optional string action = 8;
+  // App index for action redirect.
+  optional uint32 redirect_app_index = 9;
+  // App namespace id; unset = default namespace.
+  optional string app_namespace = 10;
+}
+
+// HostStackTcpSource is the TCP source-address pool of one VRF.
+message HostStackTcpSource {
+  // First address.
+  optional string first = 1;
+  // Last address.
+  optional string last = 2;
+  // VRF.
+  optional string vrf = 3;
+}
+
+// HostStackHttpStatic is the http_static server.
+message HostStackHttpStatic {
+  // Enabled.
+  optional bool enabled = 1;
+  // Web root, under /var/lib/vrx/www/.
+  optional string www_root_path = 2;
+  // Listen URI, e.g. tcp://0.0.0.0/80.
+  optional string uri = 3;
+  // Cache size in MiB.
+  optional uint32 cache_size_mb = 4;
+}
+
+// HostStackStateRequest asks for the host-stack snapshot.
+message HostStackStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// HostStackRuleState is one session rule as VPP reports it (this owner's tags only).
+message HostStackRuleState {
+  // Tag without the owner prefix.
+  string tag = 1;
+  // "global" | "local" | "both".
+  string scope = 2;
+  // "tcp" | "udp" | other VPP transport names.
+  string transport = 3;
+  // Local prefix.
+  string local = 4;
+  // Local port (0 = any).
+  uint32 local_port = 5;
+  // Remote prefix.
+  string remote = 6;
+  // Remote port (0 = any).
+  uint32 remote_port = 7;
+  // "allow" | "deny" | "redirect".
+  string action = 8;
+  // VPP app namespace indexes the rule applies to.
+  repeated uint32 appns_indexes = 9;
+}
+
+// HostStackStateResponse is one host-stack snapshot.
+message HostStackStateResponse {
+  // Session layer answered the rules dump (VPP has no getter; true when the dump works).
+  bool session_enabled = 1;
+  // Why session_enabled is false or unknown (e.g. "session layer disabled"), empty otherwise.
+  string session_detail = 2;
+  // App namespaces this agent applied on the running VPP (write-only in VPP: from the agent's records).
+  repeated string namespaces = 3;
+  // This owner's session rules.
+  repeated HostStackRuleState rules = 4;
+  // Number of session rules in VPP (all owners).
+  uint32 rule_count_total = 5;
+  // Snapshot time.
+  google.protobuf.Timestamp retrieved_at = 6;
+}
 
 // ----- F-snmp -----
 

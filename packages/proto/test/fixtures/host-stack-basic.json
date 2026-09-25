@@ -1,0 +1,34 @@
+{
+  "vrfs": { "hs": { "id": 1300 } },
+  "interfaces": { "loop13": { "ipv4": ["10.13.1.1/24"] } },
+  "services": {
+    "hostStack": {
+      "enabled": true,
+      "namespaces": {
+        "w13-app": { "interface": "loop13", "vrf": "hs" }
+      },
+      "sessionRules": [
+        {
+          "tag": "w13-deny-ssh",
+          "scope": "global",
+          "transport": "tcp",
+          "local": "10.13.1.0/24",
+          "localPort": 31390,
+          "remote": "10.13.2.0/24",
+          "action": "deny"
+        },
+        {
+          "tag": "w13-allow-v6",
+          "scope": "local",
+          "transport": "udp",
+          "local": "fd00:13::/48",
+          "remote": "::/0",
+          "remotePort": 31391,
+          "action": "allow",
+          "appNamespace": "w13-app"
+        }
+      ],
+      "tcpSourceAddresses": { "first": "10.13.1.10", "last": "10.13.1.20", "vrf": "hs" }
+    }
+  }
+}

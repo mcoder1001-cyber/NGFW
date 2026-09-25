@@ -367,3 +367,14 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+<!-- F-host-stack (unanchored: no wave-BC anchor in this file) -->
+### F-host-stack: HostStackState
+
+`rpc HostStackState(HostStackStateRequest) returns (HostStackStateResponse)` — read-only snapshot of VPP's host stack
+for `GET /api/v1/state/host-stack`. `session_enabled` is true when `session_rules_v2_dump` answers (VPP has no
+session-layer getter; a disabled layer makes the dump fail and `session_detail` says why). `rules` are this owner's
+session rules only (VPP tag `<owner>:<tag>`, the prefix stripped); `rule_count_total` counts every rule in VPP.
+`namespaces` are the app-namespace ids this agent applied to the running VPP instance (VPP has no namespace dump:
+from the agent's own D-076 records, never echoed desired state). Never mutates. Config: `ServicesConfig.host_stack = 10`
+(`HostStackService`, `HostStackNamespace`, `HostStackSessionRule`, `HostStackTcpSource`, `HostStackHttpStatic`).

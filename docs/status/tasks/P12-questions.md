@@ -170,3 +170,15 @@ detect --no-git` over every tree P12 touched: no leaks). The old commit stays in
 history. Under D-112 the merge squashes the branch into one commit whose tree no longer contains the literal, so the
 merge gate's gitleaks (D-130) passes; a `--base main` run on this branch keeps reporting it until then. **Ask:** accept
 (as D-067 did for P02c) or tell me to recreate the branch.
+
+## Q17 — TD-11c creator rule for `lcp.itf-pair` (manager item, TD-11c not on main yet)
+
+TD-11c's `TestEveryInterfaceCreatorNamesItsAlias` lists `lcp.itf-pair` as a known gap owned by P12 ("untagged VPP-side
+host tap: needs a KeyProvider"). The pair's VPP-side tap gets a VPP-chosen name (`tap4096…`, lcp_interface.c
+`auto_id_offset 4096`) that the value does not carry (it carries the *Linux* name), and nothing in the document sets
+attributes on it (it is not a configuration interface), so there is no attribute whose delete order the alias could fix.
+**Proposal** (applied when TD-11c lands and I merge main, with a unit test, and the allowlist entry removed):
+`(*ItfPairDescriptor).ProvidedKeys(obj) = [interface/lcp-host.<hostIfName>]` — a reserved alias namespace (`lcp-host.` is
+not a valid parent interface name in the schema, so it can never collide with a configuration interface), which makes the
+pair the known creator of its tap for 3.1c. Alternative: map the tap's device class (`virtio`) — wrong, tapv2 owns that
+class. Until then the TD-11c branch carries the entry as its allowlist says.

@@ -849,7 +849,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.11
@@ -866,7 +866,8 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md | D-105: add the semantic check refusing loop16000–loop16383
     (reserved for agent quarantine holders, TD-3 M2) on this task''s contract branch | envelope draft docs/status/tasks/F-loopback-bvi-gso-lldp-span.envelope.md (prep-waveA, D-109) | D-125: merge after
-    TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | review APPROVE WITH CHANGES 777f629f; fix round 1 (nsim lab opt-in, ClaimFirst, TD-23 registrations)'
+    TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | review APPROVE WITH CHANGES 777f629f; fix round 1 (nsim lab opt-in, ClaimFirst, TD-23 registrations) | fix
+    round 1 1ca7f9c3; verify APPROVE e3ae10a2; rebase round after TD-23/TD-11c/F-bridge-l2/F-rpf/WEB-1'
 - id: F-vrf-static-ecmp
   title: 'Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions'
   prompt: prompts/features/F-vrf-static-ecmp.md
@@ -972,7 +973,7 @@ tasks:
   started: 2026-09-24T17:28
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-object-model.envelope.md
-    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | APPROVED (verify 24df718); queued'
+    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | APPROVED (verify 24df718); queued | TD-11b declarations 8f5d90b8 (manager-checked); queued'
 - id: F-acl
   title: 'Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL'
   prompt: prompts/features/F-acl.md
@@ -1001,7 +1002,7 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-acl.envelope.md (prep-waveA, D-109) | D-125:
     merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 envelope: mandatory interfaceDependency + same-commit-removal test (review 3.4, +1 h) | done
-    a6fcdff2 (CI green; screenshots pending TD-25); review running'
+    a6fcdff2 (CI green; screenshots pending TD-25); review running | fix round 1 122306d4; verify APPROVE 7bc16c13; rebase round after F-object-model/TD-23/F-host-acl/F-rpf'
 - id: F-host-acl-nftables
   title: 'Wave A (day 7-9): local-in ACL + nftables host policy renderer'
   prompt: prompts/features/F-host-acl-nftables.md
@@ -1068,7 +1069,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D4.2
@@ -1082,7 +1083,8 @@ tasks:
   finished: ''
   notes: 'NPTv6 part needs npt66 plugin (handover) — build the rest, skip-unless-loaded | D-060: npt66 loaded — NPTv6 part no longer skipped | prompts-s4: suggested deps +F-nat44-ed-sessions (shared nat
     page/tabs; ED and EI mutually exclusive on one VPP) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-nat44-ei-64-66-nptv6.envelope.md (prep-waveA, D-109) | D-125: merge after TD-11a
-    (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-11b (no escape hatch) | review APPROVE WITH CHANGES 57d18bbc; fix round 1 R1-R4'
+    (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-11b (no escape hatch) | review APPROVE WITH CHANGES 57d18bbc; fix round 1 R1-R4 | fix round
+    1 9203615d; verify APPROVE 60da3bf3; after ED + TD-23'
 - id: F-det44-map-dslite-cnat
   title: 'Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies'
   prompt: prompts/features/F-det44-map-dslite-cnat.md
@@ -1194,7 +1196,7 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109) | D-125 envelope: review 3.3b — peer.go must not return meta+error with the peer left in VPP (delete it, or best-effort
-    subscription), fake-VPP test (+1 h) | done 0e19dcaf (CI green; e2e secret step waits PENDING-secret-channel); review running'
+    subscription), fake-VPP test (+1 h) | done 0e19dcaf (CI green; e2e secret step waits PENDING-secret-channel); review running | fix round 1 173e49b4; verify APPROVE 4797e681; queued'
 - id: F-tunnels
   title: 'Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE'
   prompt: prompts/features/F-tunnels.md
@@ -1257,7 +1259,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 16
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D3.1
@@ -1278,7 +1280,8 @@ tasks:
     after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | D-125 at spawn: S2 + S3 mandatory — drop ''only if the manager confirms'' (envelope:15, review 4.3); render derived bgp community-list
     / bgp as-path access-list lines (4.5); warning text ''not yet rendered by this agent build (FRR renderer pending P12)'' (4.4); name GET /api/v1/state/bgp/neighbors (6.3b); frr README.md + section.go:20
     (4.6) | running on combined base W-seed-BC + TD-8 + F-vrf-static-ecmp (slot 8) | done b14d68d1 (topology run 6 PASS); review running; Q1 linux-nl window = manager decision after review | review APPROVE
-    WITH CHANGES 7931c596; fix round 1 (H1 pair dependency, H2 gitleaks text, mediums); H3 VPP-FIB proof deferred to row P12-fib-proof (LAB-vpp-per-slot) — manager'
+    WITH CHANGES 7931c596; fix round 1 (H1 pair dependency, H2 gitleaks text, mediums); H3 VPP-FIB proof deferred to row P12-fib-proof (LAB-vpp-per-slot) — manager | fix round 1 e7b374b5; verify APPROVE
+    f16d754c; merge main after F-vrf (M1 + N1–N3), then short re-verify'
 - id: F-ospf
   title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
   prompt: prompts/features/F-ospf.md
@@ -1394,7 +1397,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D7.3
@@ -1411,7 +1414,7 @@ tasks:
   started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | done c94e90d9
-    (CI green; 04:27 dns crash guarded, D-137); review running'
+    (CI green; 04:27 dns crash guarded, D-137); review running | review APPROVE WITH CHANGES b665904f; fix round 1 (H1 IPv6-only cache crash, H2 live readiness, M1–M3, M5) — D-139'
 - id: F-mpls-srmpls
   title: 'Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109)'
   prompt: prompts/features/F-mpls-srmpls.md
@@ -1424,7 +1427,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D2.8
@@ -1436,7 +1439,7 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed | prompts-s4: suggested deps consider splitting: static MPLS/SR-MPLS vs LDP sync (V5) — docs/status/tasks/prompts-s4.md
-    | D-125 envelope: checkPaths ≤ 255 paths (review 1.5d)'
+    | D-125 envelope: checkPaths ≤ 255 paths (review 1.5d) | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - branch: ''
   deps:
   - F-mpls-srmpls
@@ -1499,7 +1502,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.7
@@ -1510,7 +1513,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ' | D-074: manager generates srv6_ad/am/as binapi on main before spawning'
+  notes: ' | D-074: manager generates srv6_ad/am/as binapi on main before spawning | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - id: F-lisp
   title: 'Wave C (day 13-15): LISP/LISP-GPE'
   prompt: prompts/features/F-lisp.md
@@ -1571,7 +1574,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.9
@@ -1584,7 +1587,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - id: F-qos-flat
   title: 'Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded)'
   prompt: prompts/features/F-qos-flat.md
@@ -1596,7 +1599,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.8
@@ -1610,7 +1613,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - id: F-snmp
   title: 'Wave C (day 13-15): SNMP v2c/v3 via snmpd renderer + private MIB'
   prompt: prompts/features/F-snmp.md
@@ -2900,7 +2903,7 @@ tasks:
   - P08
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.7
@@ -2914,7 +2917,7 @@ tasks:
   finished: ''
   notes: 'D-125 (audit ARCH-02; est by the plan review, the audit gave none) | P11, P12, F-kea-dhcp-relay, F-unbound-chrony-syslog, F-snmp and F-host-acl-nftables merge after TD-13 | reconciler.go hunks:
     TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | done 3a83c96b (CI green; 11 tests base-first, 13 mutations caught);
-    review running | review APPROVE WITH CHANGES c8b34d4e; fix round 1 (M1 mask only refs, M2 SkipValidators for TD-9 drift)'
+    review running | review APPROVE WITH CHANGES c8b34d4e; fix round 1 (M1 mask only refs, M2 SkipValidators for TD-9 drift) | fix round 1 04a51453; verify APPROVE a01ac419; merger: before TD-9'
 - id: TD-15
   title: 'API hygiene: z.output response DTOs, ConfigTx userHashes/secretVersions + pool timeout, secret refs from the schema'
   prompt: ''
@@ -3078,7 +3081,7 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-125 | merge after the ui-nav-collapse branch | the `// wave-A: UI-domain-editor` anchor goes into W-seed-BC''s scope (manager) | started 2026-09-25 04:15 slot 11, speculative base task/WEB-1
-    c2e3eabb (D-114)'
+    c2e3eabb (D-114) | review APPROVE WITH CHANGES 3ac4825e; screenshots + api-client multi-segment path helper'
 - id: TEST-traffic-A
   title: Wave-A traffic scenario on the af_packet rig (VLAN, bridge/BVI, VRF/ECMP, uRPF/PBR, ACL, NAT44 ED/EI) with tcpdump evidence
   prompt: ''
@@ -3327,7 +3330,8 @@ tasks:
   est_hours: 3
   scope: F-kea review Q5 (H, bug on main)
   files_owned: apps/agent/internal/descriptors/core/ifaddr.go (Retrieve) core/*_test.go coretest/dhcp.go test/topology/interfaces/dhcplease_test.go docs/status/tasks/TD-24*
-  notes: done d80cf4bf (CI green; host proof written, pending TD-25); review running; speculative base task/TD-11c
+  notes: done d80cf4bf (CI green; host proof written, pending TD-25); review running; speculative base task/TD-11c | review APPROVE WITH CHANGES 50fb951d → doc 54db34e0; merger after TD-11c; host proof
+    after TD-25
 - template: ''
   parked_on: ''
   branch: task/TD-25
@@ -3335,7 +3339,7 @@ tasks:
   owner: ''
   started: 2026-09-25T05:15
   finished: ''
-  state: running
+  state: review
   wbs: *id003
   prompt: ''
   id: TD-25
@@ -3346,7 +3350,7 @@ tasks:
   est_hours: 4
   scope: 'incident 2026-09-25 05:05: every af_packet create fails closed (placeholder cap 64 < 122 freed indices); tech-debt TD-3 re-review M3'
   files_owned: apps/agent/internal/vpp/ifsanitize/** docs/vpp-code-track.md (V19/V23) docs/status/tasks/TD-25*
-  notes: URGENT; blocks all host runs that create interfaces
+  notes: 'URGENT; blocks all host runs that create interfaces | done 6841297f; review APPROVE 0e7a39a0 (no H/M); merger: FIRST'
 - template: ''
   parked_on: ''
   branch: ''

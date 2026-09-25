@@ -37,6 +37,8 @@ import faVpn from './locales/fa/vpn.json';
 // wave-BC: F-qos-flat
 // wave-BC: F-host-stack
 // wave-BC: F-snmp
+import enSnmp from './locales/en/snmp.json';
+import faSnmp from './locales/fa/snmp.json';
 // wave-BC: F-ipfix-sflow
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
@@ -99,6 +101,7 @@ export const NAMESPACES = [
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
+  'snmp',
   // wave-BC: F-ipfix-sflow
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
@@ -163,6 +166,7 @@ const en = {
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
+  snmp: enSnmp,
   // wave-BC: F-ipfix-sflow
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
@@ -224,6 +228,7 @@ const fa = {
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
+  snmp: faSnmp,
   // wave-BC: F-ipfix-sflow
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6

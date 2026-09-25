@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { DomainTab } from '../DomainTabsPage';
 
 /**
@@ -10,6 +11,7 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-snmp
+  { id: 'snmp', labelKey: 'snmp:tab', Component: lazy(() => import('./snmp/SnmpTab')) },
   // wave-BC: F-ipfix-sflow
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog

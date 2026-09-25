@@ -60,6 +60,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-wireguard
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
+      'services', // F-snmp (unanchored)
       'users',
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:

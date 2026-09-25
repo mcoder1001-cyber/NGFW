@@ -1,0 +1,55 @@
+{
+  "tab": "SNMP",
+  "save": "ذخیره",
+  "add": "افزودن",
+  "remove": "حذف {{name}}",
+  "name": "نام",
+  "any": "همه",
+  "yes": "بله",
+  "no": "خیر",
+  "adminOnly": "فقط مدیر سیستم می‌تواند رشته‌های community و عبارت‌های عبور را بنویسد.",
+  "mibHint": "MIB اختصاصی (VRX-MIB: شمارنده‌های رابط‌های VPP و سلامت عامل) در deploy/snmp/VRX-MIB.txt است.",
+  "state": {
+    "title": "وضعیت",
+    "configured": "پیکربندی‌شده: {{value}}",
+    "reachable": "پاسخ عامل: {{value}}",
+    "sysName": "sysName: {{value}}",
+    "credential": "خوانده‌شده با: {{value}}",
+    "subagent": "زیرعامل VRX-MIB: {{value}}",
+    "registered": "ثبت‌شده",
+    "notRegistered": "ثبت‌نشده",
+    "pending": "snmpd پیش از فعال‌شدن کامل تغییر به یک اقدام نیاز دارد: {{action}}"
+  },
+  "general": {
+    "title": "عمومی",
+    "enabled": "عامل SNMP فعال",
+    "sysName": "sysName",
+    "sysLocation": "sysLocation",
+    "sysContact": "sysContact",
+    "engineId": "شناسه موتور (هگز)",
+    "subagent": "ارائه VRX-MIB (شمارنده‌های رابط VPP)"
+  },
+  "communities": {
+    "title": "Communityها (v2c، فقط خواندنی)",
+    "secret": "Community (ارجاع به راز)",
+    "value": "رشته community",
+    "sources": "پیشوندهای مبدأ مجاز"
+  },
+  "users": {
+    "title": "کاربران SNMPv3 (authPriv)",
+    "level": "سطح امنیت",
+    "protocols": "احراز هویت / حریم خصوصی",
+    "auth": "احراز هویت",
+    "authPass": "عبارت عبور احراز هویت",
+    "privPass": "عبارت عبور حریم خصوصی (AES)"
+  },
+  "traps": {
+    "title": "گیرندگان trap",
+    "address": "نشانی",
+    "port": "درگاه",
+    "version": "نسخه",
+    "credential": "Community یا کاربر",
+    "community": "community نسخه v2c {{name}}",
+    "user": "کاربر v3 {{name}}"
+  }
+}

@@ -226,6 +226,79 @@ How the gate was run, and why (D-127 and one inherited finding):
 3. The first run of main's copy found 6 golangci-lint issues in this task's code (ACL naming, De Morgan, builtin shadowing, a
    tagged switch) → fixed in 942f292d together with the TD-11b declaration and D-132 (CONTINUE-quota "Also new").
 
+## Fix round 1 (review 298263fa: APPROVE WITH CHANGES; time box 90 min)
+
+| id | fix | commit | test that fails on the old code |
+|---|---|---|---|
+| H1 | An enabled **output** attachment at priority ≤ −200 (before `NF_IP_PRI_CONNTRACK`) is refused: Go `Build` → `acl.host-attachment` at `/acl/hostAttachments/<i>/priority`; schema tier-b rule `acl.host-output-priority` (400 at the same pointer, before the agent is asked). Docs corrected ("replies are not cut" now holds by construction) | 723c92cf (`contract(schema)`), a0e82b38 | `TestBuildErrors` "output before conntrack" (−300) / "output at conntrack" (−200): no issue on the old code; `TestOutputPriorityAfterConntrack` (−199, other hooks, disabled attachment stay fine); schema `acl.host-output-priority …` (5/5) |
+| H2 | Mode `apply` requires the product owner **and** `Env.GlobalsOwner` (D-071: the root-netns firewall is a host-wide singleton): `ProductPaths`/`PathsFromEnv(stateDir, owner, globalsOwner)` fall back to `check`; `VRX_HOST_ACL_MODE=apply` is refused without it; `Paths.Validate` checks it too. `tools/app`: `VRX_HOST_ACL_MODE=check` added to the product agent's env line — that one line only (manager's Q5 answer); tools/app was not run | a0e82b38 | `TestPathsFromEnv` (owner vrx without globals → check; apply without globals → error; Validate): does not build on the old API, which had no globals input and returned apply for owner vrx |
+| M1 | Retrieve pairs a kernel rule with its stored annotations only while (a) its verdict equals the stored one and (b) its body still hashes as right after the last `nft -f` (sha256 of the kernel's `expr` JSON, counter values stripped; stored as `kernel_hashes` after a read-back in Create/Update). (c) The table's `flags dormant` is parsed (`HostTable.dormant`). Unhooked chains were already visible and are now tested | 71e85fa7 | `TestKernelDriftIsVisible` + "verdict flip, comment kept", "port edit, comment kept", "dormant table", "chain not hooked" (the first three are invisible on the old `annotate`); `TestDescriptorLifecycle` (read-back after the load, hashes stored); round trip with and without stored hashes |
+| M2 | The anti-lockout check is a pure function of the configuration: matches through FQDN-bearing objects count as *partial* whatever the resolver answers (an FQDN accept never protects management, an FQDN drop may hit it), and a rule whose FQDN object has no answer of a family yet takes part as a non-rendered ghost. A config accepted at commit therefore can never produce `acl.host-anti-lockout` at a resync, so the failure cannot reach the other domains. Scoping a runtime descriptor failure to one key (DEGRADED/FAILED for `host-acl.nftables/vrx` only) is scheduler semantics — every descriptor error rolls the transaction back today; with the check DNS-independent no such failure is left for this family (TD-13's validator would be the place for more) | b3439a64 | `TestAntiLockoutIgnoresFQDNAnswers`: the same findings with the FQDN objects resolved and unresolved; on the old code "fqdn accept (resolved)", "fqdn drop (resolved)", "fqdn drop (unresolved)" gave no error |
+| M3 | `TestRetrieveSubsystems` takes its unimplemented example from the registry (first root key without a `subsystems.Domains` entry; skipped when none) | 32ad5184 | (test-only change) |
+| M4 | the manager's (P10) — not touched | — | — |
+| L1 | the error says to set `antiLockout.sources` when none are configured, and that FQDN matches never protect | b3439a64 | `TestAntiLockoutMessageWithoutSources` |
+| L4 | user doc: use a confirmed commit (`commit confirm <sec>`) for host-ACL changes (other tables, a wrong `sources`) | 32ad5184 | — |
+| L5 | stale "5 s poll" comment removed | 32ad5184 | — |
+| L2, L3, L6 | not done (time box): an IPv4-only-sources warning, a log rate limit, deriving the UI's schema copies — tech-debt candidates | — | — |
+
+Q8 (reconciliation with F-acl) is left to the merger, as instructed.
+
+### Unit evidence
+```
+--- PASS: TestKernelRoundTrip (0.04s)
+--- PASS: TestKernelDriftIsVisible (0.06s)
+--- PASS: TestDescriptorLifecycle (0.08s)
+--- PASS: TestPathsFromEnv (0.00s)
+--- PASS: TestAntiLockout (0.01s)
+--- PASS: TestBuildErrors (0.23s)
+--- PASS: TestOutputPriorityAfterConntrack (0.00s)
+--- PASS: TestAntiLockoutIgnoresFQDNAnswers (0.00s)
+--- PASS: TestAntiLockoutMessageWithoutSources (0.00s)
+ok  	ngfw/agent/internal/renderers/nftables	0.473s
+--- PASS: TestHostACLDomainOnFake (0.15s)
+--- PASS: TestHostACLSurvivesRestart (0.08s)
+--- PASS: TestRetrieveSubsystems (0.02s)
+ok  	ngfw/agent/internal/agent	0.298s
+ ✓ src/semantic/host-acl-nftables.test.ts (5 tests) 265ms
+      Tests  5 passed (5)
+```
+
+### Netns run on slot 9 (once, under `tools/lab lock shared`, slot netns only)
+```
+root netns `nft list tables` before = after (diff empty):
+table ip filter / table ip nat / table ip mangle / table ip6 filter / table ip6 nat / table ip6 mangle
+VPP NRestarts=2 before, NRestarts=2 after
+    port 2323 from 10.9.77.2: dial tcp 10.9.77.1:2323: i/o timeout (dropped)
+    drop rule (sequence 20) counter: 0 → 2 packets; allowed rule (sequence 10): 1 packets
+    port 2424 after the update: dial tcp 10.9.77.1:2424: connect: connection refused (rejected)
+    restart simulation: table re-rendered in 129.357802ms; diff against the first listing (counters normalised): empty
+--- PASS: TestIntegrationHostFirewallInSlotNetns (2.67s)
+```
+No w9 namespace left afterwards.
+
+### CI (fix round 1)
+`TMPDIR=/tmp/g-hacl bash /tmp/g-hacl/ci.sh --base main` (main's copy) on 32ad5184 → failed only the D-128 packet-trace ban on
+the inherited `test/topology/interfaces/interfaces_test.go:291/297/302` (base-branch file; main replaced it, the reviewer
+confirmed in Q9 that the rebase removes it). Re-run with that one pathspec excluded in a temp copy (`/tmp/g-hacl/ci-trace-excl.sh`,
+nothing changed in the repository) → **CI GATE PASSED** (quick, 7m38s, logs `/root/ngfw-wt/logs/ci/F-host-acl-nftables-20260925-045415-3827508`):
+```
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  generate + generated-output gate                   1m54s
+  forbidden patterns (+ gitleaks)                    0m05s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   3m57s
+  apps/agent: make lint test build                   1m04s
+  apps/cli: make lint test build                     0m11s
+  test/ Go modules, unit mode (… test/topology/host-acl-nftables …)   0m11s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m10s
+  warnings: this status file uncommitted (committed right after); subjects `test(agent)+docs(host-acl): …`,
+  `review(…)` not Conventional (the squash at merge replaces them)
+CI GATE PASSED
+```
+Cleanup after the round: no w9 netns/links, no process of this task, lab lock released, root netns unchanged (above),
+`apps/*/dist`, `packages/*/dist`, `apps/agent/bin` removed.
+
 ## Acceptance
 
 - [x] Golden + hostile-input tests (quote/brace/newline injection in descriptions and interface names) green

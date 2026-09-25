@@ -22,14 +22,17 @@
 //     key exists either in the desired set or in the retrieved actual state. A missing
 //     mandatory dependency fails the transaction before anything is applied.
 //  2. Order: objects are sorted topologically by their Dependencies (dependency before
-//     dependent). Ties are broken by descriptor registration order, then by key, so the
-//     order is deterministic. Optional dependencies only influence ordering; they never
-//     block.
+//     dependent). Ties are broken by stage (StageVPP before StageDaemon, see Stages below), then
+//     by descriptor registration order, then by key, so the order is deterministic. Optional
+//     dependencies only influence ordering; they never block.
 //  3. Diff: the actual state is the union of Descriptor.Retrieve() over all descriptors.
 //     For each desired key: absent in actual → Create; present and proto.Equal(desired,
 //     actual) → no-op; present and different → Update. Actual keys that are owned by this
 //     agent (see Ownership) and absent from desired → Delete. Applying the same desired
 //     state twice therefore yields an empty Plan (idempotency).
+//     Check (TD-13): every Create and Update of a descriptor that implements Validator is
+//     validated against the state after the transaction (see Validators below). A rejection
+//     fails the transaction before its first operation: FAILED, nothing touched.
 //  4. Apply: Creates and Updates run in topological order, Deletes in reverse topological
 //     order (dependents first). Update may return ErrRecreate; the reconciler then Deletes
 //     the old object and Creates the new one, and re-creates every dependent object as
@@ -45,6 +48,41 @@
 // never called concurrently with each other. Retrieve may be called at any time (drift
 // detection, state RPCs) and must be safe to call concurrently with itself. Every method
 // honours ctx cancellation and deadlines.
+//
+// # Validators (tier 3) and stages (TD-13, D-125 ARCH-02)
+//
+// A descriptor whose objects are a daemon's configuration implements Validator (validator.go) and
+// declares StageDaemon (Stager, stage.go). Validate renders the configuration into a private temp
+// dir and runs the daemon's own checker on it (kea-dhcp4 -t, unbound-checkconf, nft -c,
+// vtysh -C, …). The scheduler calls it for every Create and Update of the descriptor's objects in
+// Plan (the DryRun RPC) and in every Apply, after planning and before the first operation — so a
+// configuration the daemon would refuse never follows VPP writes of the same transaction. The
+// contract a Validator must keep:
+//
+//   - read only: no side effect outside a private temp dir it removes again — no daemon file
+//     written, no reload or restart, no VPP call, no ownership claim; a plan may run it any
+//     number of times;
+//   - never call back into the Scheduler (Plan holds its read lock, Apply its write lock): what it
+//     needs of other objects is in the view;
+//   - bounded: it honours ctx, which carries a deadline (Scheduler.ValidateTimeout, default
+//     DefaultValidateTimeout = 30 s); the scheduler stops waiting at the deadline and a panic is
+//     recovered — both are findings;
+//   - safe for concurrent use with itself, Retrieve and (once abandoned at its deadline) the next
+//     transaction's operations;
+//   - its error names the offending leaf with InvalidAt(pointer, err) when the value carries a
+//     pointer, and never carries a secret: every plaintext it resolved is masked by the validator
+//     (rfkit.Redactor); the scheduler masks the value's secret references — D-051 references and
+//     *_ref fields, the only secret leaves D-040 lets cross (RedactLeaves).
+//
+// A finding is an Issue with Rule RuleValidator; DryRun and a FAILED Apply report it as a
+// ValidationIssue (rule "agent.validator") with the key in its message. Create still validates
+// what it writes (defence in depth); it simply no longer finds a configuration the plan rejected.
+//
+// The stage breaks ties in the dependency sort (the first tie-breaker, greedy): of the operations
+// ready at the same time, VPP-stage creates and updates go before daemon-stage ones, and deletes the
+// other way round. A real dependency always wins, and the rollback is the exact reverse of what
+// ran. The periodic drift check plans with PlanOptions.SkipValidators. See
+// docs/agent/scheduler-validators.md.
 //
 // # Meta
 //

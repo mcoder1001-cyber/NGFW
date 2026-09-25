@@ -2,12 +2,12 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 45.2% by hours (529.5/1172.5 h), 47.7% by tasks (62/130)**
+**Overall: 45.8% by hours (537.5/1172.5 h), 48.5% by tasks (63/130)**
 
 | state | tasks |
 |---|---|
-| merged | 62 |
-| review | 23 |
+| merged | 63 |
+| review | 22 |
 | running | 5 |
 | ready | 6 |
 | parked | 2 |
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 132.5 / 605.0 | 21.9% | 19/70 | 4 | 5 | 0 |
+| S4 | 140.5 / 605.0 | 23.2% | 20/70 | 4 | 5 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -51,7 +51,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 - WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (review, unassigned)
 - TD-9 — Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED) (review, unassigned)
-- TD-13 — Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
 - TD-24 — interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease) (review, unassigned)
 

@@ -183,6 +183,11 @@ transaction). `errors` holds every finding (`ISSUE_SEVERITY_ERROR` first, then b
 `code` unset — converged objects are not listed, `summary.unchanged` counts them — and `summary` counts the rest. DryRun never fails with an application error; gRPC errors as for Apply. The commit engine runs DryRun as its
 tier-3 validation before it touches the datastore.
 
+Rule `agent.validator` (TD-13): a descriptor's tier-3 check rejected the object. The check is the daemon's own checker
+run on a staged copy, for example `kea-dhcp4 -t`. `pointer` is the leaf the checker named, else the object's pointer,
+and `message` is `<key>: validator: <text>` with its secret references masked. An Apply that meets this rule answers
+`FAILED` with nothing touched.
+
 ## 4. Confirm timeout (self-revert)
 
 `confirm_timeout_sec > 0` on an apply makes the transaction **pending**:

@@ -112,6 +112,7 @@ var Domains = map[string][]string{
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
+	"services": ipfixSflowDescriptors, // other services families: extend ipfixSflowDescriptors' slice here
 	// wave-BC: F-lisp
 	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
@@ -257,6 +258,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
+	// wave-BC: F-ipfix-sflow (unanchored)
+	if err := registerIpfixSflow(r, w); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

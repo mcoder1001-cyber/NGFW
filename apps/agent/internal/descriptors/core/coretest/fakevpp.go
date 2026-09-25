@@ -79,6 +79,7 @@ type VPP struct {
 	Internal map[routeKey]uint8
 	// mtuFilter (P08, SetMtuFilter) rewrites the MTU a sw_interface_set_mtu stores (fault injection).
 	mtuFilter func(swIfIndex uint32, mtu [4]uint32) [4]uint32
+	flow      *FlowState // F-ipfix-sflow (ipfix_sflow.go)
 }
 
 // New returns a model with local0 and the default tables.
@@ -93,6 +94,7 @@ func New() *VPP {
 	}
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
+	v.installIpfixSflow()        // F-ipfix-sflow: exporters, flowprobe, sflow
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	return v
 }

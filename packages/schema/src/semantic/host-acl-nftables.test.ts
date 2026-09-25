@@ -58,4 +58,28 @@ describe('acl.hostSettings (F-host-acl-nftables)', () => {
     );
     expect(validateSemantics(config)).toEqual([]);
   });
+
+  it('acl.host-output-priority refuses output attachments at or before conntrack (-200), fix round 1 H1', () => {
+    const config = RootConfig.parse({
+      acl: {
+        host: { a: {}, b: {}, c: {}, d: {}, e: {} },
+        hostAttachments: [
+          { list: 'a', chain: 'output', priority: -300 },
+          { list: 'b', chain: 'output', priority: -200 },
+          { list: 'c', chain: 'output', priority: -199 },
+          { list: 'd', chain: 'input', priority: -500 },
+          { list: 'e', chain: 'forward', priority: -300 },
+          { list: 'e', chain: 'output', priority: -400, enabled: false },
+        ],
+      },
+    });
+    const issues = validateSemantics(config).filter((i) =>
+      i.pointer.startsWith('/acl/hostAttachments'),
+    );
+    expect(issues.map((i) => i.pointer)).toEqual([
+      '/acl/hostAttachments/0/priority',
+      '/acl/hostAttachments/1/priority',
+    ]);
+    expect(issues[0]?.message).toContain('connection tracking');
+  });
 });

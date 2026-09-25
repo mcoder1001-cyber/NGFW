@@ -33,17 +33,17 @@ func neverReplying(t *testing.T, timeout time.Duration) *Conn {
 }
 
 // within runs f and fails the test when it does not return within d (the base blocks forever).
-func within(t *testing.T, d time.Duration, f func() error) (error, time.Duration) {
+func within(t *testing.T, d time.Duration, f func() error) (time.Duration, error) {
 	t.Helper()
 	done := make(chan error, 1)
 	start := time.Now()
 	go func() { done <- f() }()
 	select {
 	case err := <-done:
-		return err, time.Since(start)
+		return time.Since(start), err
 	case <-time.After(d):
 		t.Fatalf("the call did not return within %s: VPP never replies and nothing bounds the wait", d)
-		return nil, 0
+		return 0, nil
 	}
 }
 
@@ -63,7 +63,7 @@ func TestDefaultReplyTimeoutIsBounded(t *testing.T) {
 func TestInvokeNeverRepliedTimesOut(t *testing.T) {
 	const timeout = 200 * time.Millisecond
 	c := neverReplying(t, timeout)
-	err, took := within(t, 5*time.Second, func() error {
+	took, err := within(t, 5*time.Second, func() error {
 		return c.Invoke(context.Background(), &vpe.ShowVersion{}, &vpe.ShowVersionReply{})
 	})
 	if !isTimeout(err) || !errors.Is(err, context.DeadlineExceeded) {
@@ -75,7 +75,7 @@ func TestInvokeNeverRepliedTimesOut(t *testing.T) {
 	// A caller's earlier deadline wins and stays the caller's error.
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	err, _ = within(t, 5*time.Second, func() error { return c.Invoke(ctx, &vpe.ShowVersion{}, &vpe.ShowVersionReply{}) })
+	_, err = within(t, 5*time.Second, func() error { return c.Invoke(ctx, &vpe.ShowVersion{}, &vpe.ShowVersionReply{}) })
 	if !errors.Is(err, context.DeadlineExceeded) || isTimeout(err) {
 		t.Fatalf("caller deadline: err = %v, want the caller's context.DeadlineExceeded", err)
 	}
@@ -99,14 +99,14 @@ func TestStreamNeverRepliedTimesOut(t *testing.T) {
 			return err
 		}
 	}
-	err, took := within(t, 5*time.Second, recv())
+	took, err := within(t, 5*time.Second, recv())
 	if !isTimeout(err) || !errors.Is(err, core.ErrReplyTimeout) {
 		t.Fatalf("err = %v, want ErrTimeout", err)
 	}
 	if took < timeout || took > timeout+2*time.Second {
 		t.Fatalf("returned after %s, want ≈ %s", took, timeout)
 	}
-	_, took = within(t, 5*time.Second, recv(core.WithReplyTimeout(600*time.Millisecond)))
+	took, _ = within(t, 5*time.Second, recv(core.WithReplyTimeout(600*time.Millisecond)))
 	if took < 600*time.Millisecond {
 		t.Fatalf("the caller's WithReplyTimeout did not override the default: returned after %s", took)
 	}

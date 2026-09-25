@@ -54,6 +54,7 @@ const (
 	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_SnmpState_FullMethodName      = "/vrx.v1.Dataplane/SnmpState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +93,9 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+	// daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+	SnmpState(ctx context.Context, in *SnmpStateRequest, opts ...grpc.CallOption) (*SnmpStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +213,16 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) SnmpState(ctx context.Context, in *SnmpStateRequest, opts ...grpc.CallOption) (*SnmpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SnmpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SnmpState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +259,9 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+	// daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+	SnmpState(context.Context, *SnmpStateRequest) (*SnmpStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +295,9 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) SnmpState(context.Context, *SnmpStateRequest) (*SnmpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SnmpState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +443,24 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_SnmpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SnmpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SnmpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SnmpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SnmpState(ctx, req.(*SnmpStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +487,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "SnmpState",
+			Handler:    _Dataplane_SnmpState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

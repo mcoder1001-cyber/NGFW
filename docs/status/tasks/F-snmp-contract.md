@@ -13,8 +13,14 @@ Numbers from `docs/status/wave-BC-numbers.md` § F-snmp.
 | `services.snmp.v3Users.<n>.view` | `SnmpService.V3User.view = 7` | optional view name |
 
 New messages in the `// ----- F-snmp -----` section: `SnmpView`, `SnmpMonitors`, `SnmpMonitorDisk`, `SnmpMonitorLoad`,
-`SnmpSubagent`. No new RPC (`SnmpState` not needed: the renderer's Retrieve state is carried by the API's
-`GET /api/v1/state/snmp` through the existing Retrieve of `services`), no `ActionRequest` member, no `EventKind`.
+`SnmpSubagent`, `SnmpStateRequest`, `SnmpStateResponse`.
+
+**RPC `SnmpState`** (second contract commit): Retrieve returns a `DesiredState` and cannot carry daemon status, the
+pending daemon action or the subagent state, so `GET /api/v1/state/snmp` needs it (envelope: "only if renderer
+Retrieve cannot carry the state"). Fields in docs/contracts/proto.md §11 "F-snmp: SnmpState". API side: one method in
+`agent.client.ts` (P4), UNIMPLEMENTED stub in `testing/fake-agent.ts` (P5), real fake in
+`apps/api/src/features/snmp/fake.ts`. No `ActionRequest` member, no `EventKind`. A "last trap sent" time is **not**
+in the response: snmpd does not expose it (question Q4).
 
 Schema: sub-schemas in `packages/schema/src/domains/ext/snmp.ts`; key lines in `domains/services.ts`
 (`SnmpSchema`, `SnmpCommunitySchema`, `SnmpV3UserSchema`) — **unanchored** (no `wave-BC: F-snmp` anchor exists in

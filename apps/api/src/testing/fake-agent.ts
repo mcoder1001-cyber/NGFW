@@ -635,6 +635,7 @@ export class FakeAgent {
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack
       // wave-BC: F-snmp
+      snmpState: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'SnmpState' }),
       // wave-BC: F-ipfix-sflow
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6

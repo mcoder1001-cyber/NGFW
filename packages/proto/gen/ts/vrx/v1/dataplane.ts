@@ -5354,6 +5354,43 @@ export interface SnmpSubagent {
   enabled?: boolean | undefined;
 }
 
+/** SnmpStateRequest selects the agent (owner check as in Retrieve). */
+export interface SnmpStateRequest {
+  /** Expected agent owner; empty = any. */
+  owner: string;
+}
+
+/** SnmpStateResponse is the snmpd stage state (F-snmp). Credentials are named, never shown. */
+export interface SnmpStateResponse {
+  /** An enabled services.snmp is applied. */
+  configured: boolean;
+  /** The local agent answered the state query. */
+  reachable: boolean;
+  /** Endpoint the query used ("127.0.0.1:161"). */
+  endpoint: string;
+  /** Credential the query used, by name ("v3 user noc", "v2c community"). */
+  credential: string;
+  /** System group values read back from snmpd. */
+  sysName: string;
+  sysDescr: string;
+  sysLocation: string;
+  sysContact: string;
+  /** sysUpTime in hundredths of a second. */
+  sysUpTime: string;
+  /** Query error (redacted), when not reachable. */
+  error: string;
+  /** Configured engine id (hex; empty = daemon default). */
+  engineId: string;
+  /** Daemon action the agent is waiting for ("snmpd needs restart …", D-079); empty = none. */
+  pendingAction: string;
+  /** VRX-MIB subagent registered with the AgentX master. */
+  subagentRegistered: boolean;
+  /** Registrations since the agent started (re-registrations after snmpd restarts included). */
+  subagentRegistrations: string;
+  /** Last subagent session error. */
+  subagentError: string;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return { txnId: "", desiredState: undefined, subsystems: [], confirmTimeoutSec: 0, confirmTxnId: "", owner: "" };
 }
@@ -43350,6 +43387,422 @@ export const SnmpSubagent: MessageFns<SnmpSubagent> = {
   },
 };
 
+function createBaseSnmpStateRequest(): SnmpStateRequest {
+  return { owner: "" };
+}
+
+export const SnmpStateRequest: MessageFns<SnmpStateRequest> = {
+  encode(message: SnmpStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: SnmpStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpStateRequest>): SnmpStateRequest {
+    return SnmpStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpStateRequest>): SnmpStateRequest {
+    const message = createBaseSnmpStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSnmpStateResponse(): SnmpStateResponse {
+  return {
+    configured: false,
+    reachable: false,
+    endpoint: "",
+    credential: "",
+    sysName: "",
+    sysDescr: "",
+    sysLocation: "",
+    sysContact: "",
+    sysUpTime: "0",
+    error: "",
+    engineId: "",
+    pendingAction: "",
+    subagentRegistered: false,
+    subagentRegistrations: "0",
+    subagentError: "",
+  };
+}
+
+export const SnmpStateResponse: MessageFns<SnmpStateResponse> = {
+  encode(message: SnmpStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.configured !== false) {
+      writer.uint32(8).bool(message.configured);
+    }
+    if (message.reachable !== false) {
+      writer.uint32(16).bool(message.reachable);
+    }
+    if (message.endpoint !== "") {
+      writer.uint32(26).string(message.endpoint);
+    }
+    if (message.credential !== "") {
+      writer.uint32(34).string(message.credential);
+    }
+    if (message.sysName !== "") {
+      writer.uint32(42).string(message.sysName);
+    }
+    if (message.sysDescr !== "") {
+      writer.uint32(50).string(message.sysDescr);
+    }
+    if (message.sysLocation !== "") {
+      writer.uint32(58).string(message.sysLocation);
+    }
+    if (message.sysContact !== "") {
+      writer.uint32(66).string(message.sysContact);
+    }
+    if (message.sysUpTime !== "0") {
+      writer.uint32(72).uint64(message.sysUpTime);
+    }
+    if (message.error !== "") {
+      writer.uint32(82).string(message.error);
+    }
+    if (message.engineId !== "") {
+      writer.uint32(90).string(message.engineId);
+    }
+    if (message.pendingAction !== "") {
+      writer.uint32(98).string(message.pendingAction);
+    }
+    if (message.subagentRegistered !== false) {
+      writer.uint32(104).bool(message.subagentRegistered);
+    }
+    if (message.subagentRegistrations !== "0") {
+      writer.uint32(112).uint64(message.subagentRegistrations);
+    }
+    if (message.subagentError !== "") {
+      writer.uint32(122).string(message.subagentError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SnmpStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSnmpStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.reachable = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.endpoint = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.credential = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sysName = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sysDescr = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.sysLocation = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.sysContact = reader.string();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.sysUpTime = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.engineId = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.pendingAction = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.subagentRegistered = reader.bool();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.subagentRegistrations = reader.uint64().toString();
+            continue;
+          }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.subagentError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SnmpStateResponse {
+    return {
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      reachable: isSet(object.reachable) ? globalThis.Boolean(object.reachable) : false,
+      endpoint: isSet(object.endpoint) ? globalThis.String(object.endpoint) : "",
+      credential: isSet(object.credential) ? globalThis.String(object.credential) : "",
+      sysName: isSet(object.sysName)
+        ? globalThis.String(object.sysName)
+        : isSet(object.sys_name)
+        ? globalThis.String(object.sys_name)
+        : "",
+      sysDescr: isSet(object.sysDescr)
+        ? globalThis.String(object.sysDescr)
+        : isSet(object.sys_descr)
+        ? globalThis.String(object.sys_descr)
+        : "",
+      sysLocation: isSet(object.sysLocation)
+        ? globalThis.String(object.sysLocation)
+        : isSet(object.sys_location)
+        ? globalThis.String(object.sys_location)
+        : "",
+      sysContact: isSet(object.sysContact)
+        ? globalThis.String(object.sysContact)
+        : isSet(object.sys_contact)
+        ? globalThis.String(object.sys_contact)
+        : "",
+      sysUpTime: isSet(object.sysUpTime)
+        ? globalThis.String(object.sysUpTime)
+        : isSet(object.sys_up_time)
+        ? globalThis.String(object.sys_up_time)
+        : "0",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      engineId: isSet(object.engineId)
+        ? globalThis.String(object.engineId)
+        : isSet(object.engine_id)
+        ? globalThis.String(object.engine_id)
+        : "",
+      pendingAction: isSet(object.pendingAction)
+        ? globalThis.String(object.pendingAction)
+        : isSet(object.pending_action)
+        ? globalThis.String(object.pending_action)
+        : "",
+      subagentRegistered: isSet(object.subagentRegistered)
+        ? globalThis.Boolean(object.subagentRegistered)
+        : isSet(object.subagent_registered)
+        ? globalThis.Boolean(object.subagent_registered)
+        : false,
+      subagentRegistrations: isSet(object.subagentRegistrations)
+        ? globalThis.String(object.subagentRegistrations)
+        : isSet(object.subagent_registrations)
+        ? globalThis.String(object.subagent_registrations)
+        : "0",
+      subagentError: isSet(object.subagentError)
+        ? globalThis.String(object.subagentError)
+        : isSet(object.subagent_error)
+        ? globalThis.String(object.subagent_error)
+        : "",
+    };
+  },
+
+  toJSON(message: SnmpStateResponse): unknown {
+    const obj: any = {};
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.reachable !== false) {
+      obj.reachable = message.reachable;
+    }
+    if (message.endpoint !== "") {
+      obj.endpoint = message.endpoint;
+    }
+    if (message.credential !== "") {
+      obj.credential = message.credential;
+    }
+    if (message.sysName !== "") {
+      obj.sysName = message.sysName;
+    }
+    if (message.sysDescr !== "") {
+      obj.sysDescr = message.sysDescr;
+    }
+    if (message.sysLocation !== "") {
+      obj.sysLocation = message.sysLocation;
+    }
+    if (message.sysContact !== "") {
+      obj.sysContact = message.sysContact;
+    }
+    if (message.sysUpTime !== "0") {
+      obj.sysUpTime = message.sysUpTime;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.engineId !== "") {
+      obj.engineId = message.engineId;
+    }
+    if (message.pendingAction !== "") {
+      obj.pendingAction = message.pendingAction;
+    }
+    if (message.subagentRegistered !== false) {
+      obj.subagentRegistered = message.subagentRegistered;
+    }
+    if (message.subagentRegistrations !== "0") {
+      obj.subagentRegistrations = message.subagentRegistrations;
+    }
+    if (message.subagentError !== "") {
+      obj.subagentError = message.subagentError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SnmpStateResponse>): SnmpStateResponse {
+    return SnmpStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SnmpStateResponse>): SnmpStateResponse {
+    const message = createBaseSnmpStateResponse();
+    message.configured = object.configured ?? false;
+    message.reachable = object.reachable ?? false;
+    message.endpoint = object.endpoint ?? "";
+    message.credential = object.credential ?? "";
+    message.sysName = object.sysName ?? "";
+    message.sysDescr = object.sysDescr ?? "";
+    message.sysLocation = object.sysLocation ?? "";
+    message.sysContact = object.sysContact ?? "";
+    message.sysUpTime = object.sysUpTime ?? "0";
+    message.error = object.error ?? "";
+    message.engineId = object.engineId ?? "";
+    message.pendingAction = object.pendingAction ?? "";
+    message.subagentRegistered = object.subagentRegistered ?? false;
+    message.subagentRegistrations = object.subagentRegistrations ?? "0";
+    message.subagentError = object.subagentError ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -43465,6 +43918,19 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState: {
+    path: "/vrx.v1.Dataplane/SnmpState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SnmpStateRequest): Buffer => Buffer.from(SnmpStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SnmpStateRequest => SnmpStateRequest.decode(value),
+    responseSerialize: (value: SnmpStateResponse): Buffer => Buffer.from(SnmpStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SnmpStateResponse => SnmpStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -43510,6 +43976,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState: handleUnaryCall<SnmpStateRequest, SnmpStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -43639,6 +44110,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SnmpState reports the snmpd renderer stage (F-snmp): daemon state read over SNMP, the pending
+   * daemon action, the VRX-MIB AgentX subagent. No credential value, ever. Never mutates.
+   */
+  snmpState(
+    request: SnmpStateRequest,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
+  ): ClientUnaryCall;
+  snmpState(
+    request: SnmpStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
+  ): ClientUnaryCall;
+  snmpState(
+    request: SnmpStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SnmpStateResponse) => void,
   ): ClientUnaryCall;
 }
 

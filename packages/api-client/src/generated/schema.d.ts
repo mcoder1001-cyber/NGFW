@@ -5519,6 +5519,15 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
+      /** @description `tls-required` (D-100): the password was sent over plain HTTP from a remote peer — connect through https; the attempt is not counted as a failed login */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
       /** @description Rate limited */
       429: {
         headers: {
@@ -5754,6 +5763,8 @@ export interface operations {
           /** @enum {string} */
           role?: 'admin' | 'operator' | 'readonly';
           expiresInDays?: number;
+          /** @description the caller’s current password (write-only) — required when the caller is a login (Bearer/JWT) session: TLS only, rate-limited per account together with password changes (429), a wrong one counts toward the login lockout. Not allowed with `Authorization: ApiKey` (400 `current-not-allowed-with-api-key`, never checked) */
+          current?: string;
         };
       };
     };
@@ -5792,8 +5803,21 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
-      /** @description Role too low */
+      /**
+       * @description Role too low
+       *
+       *     Step-up (D-100): `tls-required` — a password in the body over plain HTTP from a remote peer; `forbidden` — wrong `current` (counts toward the login lockout); `locked` — the account is locked (no key is created)
+       */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `rate-limited`: the account’s per-minute budget of current-password checks (VRX_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked */
+      429: {
         headers: {
           [name: string]: unknown;
         };

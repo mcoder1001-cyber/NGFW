@@ -72,6 +72,19 @@ func (b *bus) publish(ev *vrxv1.Event) {
 	}
 }
 
+// publishFeature is the Env.Publish hook (A5, TD-8): a feature's event (F-neighbors-ra, F-object-model,
+// P11, P12, F-wireguard, F-acl, …) reaches every StreamEvents subscriber like the agent's own. The bus
+// publishes a copy (the publisher may reuse or change ev afterwards) with seq cleared (each stream
+// numbers its events) and ts set when unset; an UNSPECIFIED kind is dropped.
+func (b *bus) publishFeature(ev *vrxv1.Event) {
+	if ev == nil || ev.GetKind() == vrxv1.EventKind_EVENT_KIND_UNSPECIFIED {
+		return
+	}
+	c := proto.Clone(ev).(*vrxv1.Event)
+	c.Seq = 0
+	b.publish(c)
+}
+
 func (s *subscriber) wants(ev *vrxv1.Event) bool {
 	if len(s.kinds) > 0 && !s.kinds[ev.GetKind()] {
 		return false

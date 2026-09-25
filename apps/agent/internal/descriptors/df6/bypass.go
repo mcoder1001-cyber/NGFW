@@ -80,6 +80,16 @@ type BypassDescriptor[T proto.Message] struct {
 	claims ClaimStore
 }
 
+// CheckPersistent is the product agent's guard (dfkit/persist, TD-11b review 3.2): the per-boot
+// records (Options.Claims, keyed by id) and the per-interface claims (the owner's DF-1 store) must
+// both survive an agent restart.
+func (d *BypassDescriptor[T]) CheckPersistent() error {
+	if err := checkIDClaims(d.spec.Name, d.claims); err != nil {
+		return err
+	}
+	return checkIfaceClaims(d.spec.Name, d.owner)
+}
+
 // NewBypassDescriptor returns the descriptor for spec.
 func NewBypassDescriptor[T proto.Message](spec BypassSpec[T], c vpp.Client, owner string, opts ...Option) *BypassDescriptor[T] {
 	if spec.Families == [2]string{} {
@@ -218,7 +228,9 @@ func (d *BypassDescriptor[T]) Create(ctx context.Context, obj proto.Message) (an
 		return nil, err
 	}
 	if err := d.apply(ctx, iface, idx, v4, v6); err != nil {
-		return nil, err
+		// one family may be enabled already: the Meta makes the scheduler journal this Create so
+		// the rollback's Delete disables what was enabled (TD-11b, review 3.3)
+		return IfMeta{SwIfIndex: uint32(idx)}, scheduler.PartialCreate(err)
 	}
 	return IfMeta{SwIfIndex: uint32(idx)}, nil
 }

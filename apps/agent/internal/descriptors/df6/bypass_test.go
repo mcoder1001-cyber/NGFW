@@ -21,12 +21,17 @@ type countingFake struct {
 	count map[[2]uint32]int // {sw_if_index, is_ipv6} → times enabled
 	// bm is vxlan's bypass bitmap, which VPP does not clear when an interface is deleted
 	bm map[[2]uint32]bool
+	// failV6Enable makes every ip6 enable fail (retval -9), for partial Creates (TD-11b)
+	failV6Enable bool
 }
 
 func newCountingFake() *countingFake {
 	f := &countingFake{FakeVPP: df6test.NewFakeVPP(), count: map[[2]uint32]int{}, bm: map[[2]uint32]bool{}}
 	f.On("sw_interface_set_vxlan_bypass", func(req api.Message) ([]api.Message, error) {
 		r := req.(*vxlanapi.SwInterfaceSetVxlanBypass)
+		if f.failV6Enable && r.IsIPv6 && r.Enable {
+			return []api.Message{&vxlanapi.SwInterfaceSetVxlanBypassReply{Retval: -9}}, nil
+		}
 		bk := [2]uint32{uint32(r.SwIfIndex), 0}
 		if r.IsIPv6 {
 			bk[1] = 1

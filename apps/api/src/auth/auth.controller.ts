@@ -16,6 +16,7 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import type { FastifyReply } from 'fastify';
@@ -23,16 +24,20 @@ import { z } from 'zod';
 import { ENV, type Env } from '../config.js';
 import { Protected, PublicDoc } from '../common/responses.js';
 import { sourceIp, type VrxRequest } from '../common/principal.js';
-import { EnvZodPipe, openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
+import { ProblemError } from '../common/problem.js';
+import { EnvZodPipe, openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
 import { AuthService, type LoginResult } from './auth.service.js';
 import { newPassword, PASSWORD_MIN } from '../users/password-policy.js';
 import { UsersService } from '../users/users.service.js';
 import { MinRole, NoAudit, Public } from './decorators.js';
+import { secureTransport } from './transport.js';
 
 export const REFRESH_COOKIE = 'vrx_refresh';
 const COOKIE_PATH = '/api/v1/auth';
+const TLS_REQUIRED =
+  '`tls-required` (D-100): the password was sent over plain HTTP from a remote peer — connect through https; the attempt is not counted as a failed login';
 
 const LoginBody = z.strictObject({
   username: safeText(64).min(1),
@@ -49,6 +54,15 @@ const ApiKeyBody = z.strictObject({
   /** Role cap; the effective role is never above the owner's. */
   role: z.enum(ROLES).optional(),
   expiresInDays: z.number().int().min(1).max(3650).optional(),
+  /** D-100 (2), TD-4: step-up — the same shape as PasswordBody.current. */
+  current: z
+    .string()
+    .min(1)
+    .max(1024)
+    .optional()
+    .describe(
+      'the caller’s current password (write-only) — required when the caller is a login (Bearer/JWT) session: TLS only, rate-limited per account together with password changes (429), a wrong one counts toward the login lockout. Not allowed with `Authorization: ApiKey` (400 `current-not-allowed-with-api-key`, never checked)',
+    ),
 });
 
 const UserOut = z.object({ id: z.number().int(), username: z.string(), role: z.enum(ROLES) });
@@ -118,6 +132,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in with a local user; sets the refresh cookie' })
   @ApiBody({ schema: openapi(LoginBody) })
   @ApiOkResponse({ schema: openapi(SessionOut, 'output') })
+  @ApiResponse({
+    status: 403,
+    description: TLS_REQUIRED,
+    content: { 'application/problem+json': { schema: ref('Problem') } },
+  })
   @PublicDoc(400, 401, 429)
   async login(
     @Body(new ZodPipe(LoginBody)) body: z.output<typeof LoginBody>,
@@ -126,7 +145,7 @@ export class AuthController {
   ) {
     return this.setRefresh(
       reply,
-      await this.auth.login(body.username, body.password, sourceIp(req)),
+      await this.auth.login(body.username, body.password, sourceIp(req), secureTransport(req)),
     );
   }
 
@@ -205,6 +224,18 @@ export class AuthController {
   }
 
   @Post('api-keys')
+  @ApiResponse({
+    status: 403,
+    description:
+      'Step-up (D-100): `tls-required` — a password in the body over plain HTTP from a remote peer; `forbidden` — wrong `current` (counts toward the login lockout); `locked` — the account is locked (no key is created)',
+    content: { 'application/problem+json': { schema: ref('Problem') } },
+  })
+  @ApiResponse({
+    status: 429,
+    description:
+      '`rate-limited`: the account’s per-minute budget of current-password checks (VRX_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked',
+    content: { 'application/problem+json': { schema: ref('Problem') } },
+  })
   @Protected(400)
   @ApiOperation({
     summary: 'Create an API key (`Authorization: ApiKey <key>`); the key is shown once',
@@ -215,15 +246,27 @@ export class AuthController {
     @Body(new ZodPipe(ApiKeyBody)) body: z.output<typeof ApiKeyBody>,
     @Req() req: VrxRequest,
   ) {
-    const created = await this.auth.createApiKey(
-      req.principal!,
-      body.name,
-      body.role,
-      body.expiresInDays,
-    );
+    const via = req.principal!.via;
+    // D-100 (2): the audit row says which credential created the key — never the password
+    req.audit = { after: { name: body.name, via } };
+    let created: Awaited<ReturnType<AuthService['createApiKey']>>;
+    try {
+      created = await this.auth.createApiKey(
+        req.principal!,
+        body.name,
+        body.role,
+        body.expiresInDays,
+        { current: body.current, secure: secureTransport(req) },
+      );
+    } catch (e) {
+      // TD-4 review M1: a failed creation says why — the problem slug only (never the detail, never the password)
+      if (e instanceof ProblemError)
+        req.audit = { after: { name: body.name, via, reason: e.slug } };
+      throw e;
+    }
     req.audit = {
       resource: `api-key/${created.id}`,
-      after: { name: created.name, role: created.role },
+      after: { name: created.name, role: created.role, via },
     };
     return created;
   }

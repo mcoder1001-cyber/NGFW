@@ -80,7 +80,7 @@ def call(method, path, body=None, auth=None):
     with urllib.request.urlopen(req, timeout=30) as r:
         return json.loads(r.read() or b"null")
 tok = call("POST", "/api/v1/auth/login", {"username": "admin", "password": open(pwfile).read().strip()})["accessToken"]
-k = call("POST", "/api/v1/auth/api-keys", {"name": "sdk-live", "role": role, "expiresInDays": 1}, "Bearer " + tok)
+k = call("POST", "/api/v1/auth/api-keys", {"name": "sdk-live", "role": role, "expiresInDays": 1, "current": open(pwfile).read().strip()}, "Bearer " + tok)
 fd = os.open(keyfile, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
 os.write(fd, k["key"].encode()); os.close(fd)
 print(f"live: API key '{k['name']}' role={k['role']} id={k['id']} → {keyfile} (0600, not printed)")

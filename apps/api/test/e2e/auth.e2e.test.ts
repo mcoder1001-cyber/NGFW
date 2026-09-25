@@ -120,6 +120,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     const k = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
       name: 'automation',
       role: 'readonly',
+      current: PW.op,
     });
     expect(k.status).toBe(201);
     expect(k.body.key).toMatch(/^vrxk_/);
@@ -144,6 +145,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     const up = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
       name: 'escalate',
       role: 'admin',
+      current: PW.op,
     });
     expect(up.body.role).toBe('operator');
   });

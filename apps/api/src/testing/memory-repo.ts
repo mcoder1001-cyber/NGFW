@@ -152,8 +152,11 @@ export class MemoryConfigRepo implements ConfigRepo {
           for (const u of users) {
             const prev = s.users.get(u.username);
             // D-102: an existing user's changed hash bumps the generation (no API keys in this repo)
-            const reset =
+            const password =
               prev !== undefined && u.passwordHash !== undefined && u.passwordHash !== prev.hash;
+            // D-100 (3): so does an existing user this promote disables (once, when both happen)
+            const disabled = prev !== undefined && !prev.disabled && u.disabled === true;
+            const reset = password || disabled;
             const id = prev?.id ?? this.nextUserId++;
             const gen = (prev?.gen ?? 0) + (reset ? 1 : 0);
             s.users.set(u.username, {
@@ -171,6 +174,10 @@ export class MemoryConfigRepo implements ConfigRepo {
                 gen,
                 apiKeysRevoked: [],
                 discardedCandidate: false,
+                reasons: [
+                  ...(password ? ['password' as const] : []),
+                  ...(disabled ? ['disabled' as const] : []),
+                ],
               });
           }
           return resets;

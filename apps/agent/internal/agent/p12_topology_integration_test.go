@@ -12,11 +12,12 @@ package agent
 // sessions back without anything else → link down on a VPP interface (observed) → rollback of the whole BGP config →
 // sessions down, no BGP route → cleanup (peers down before the agent deletes its af_packet interfaces, D-101/V24).
 //
-// FIB proof (the VPP side of linux-nl): linux_nl's socket lives in the netns that was the lcp default netns when the
-// first pair of the whole VPP was created (lcp_nl.c), the root netns today. With VRX_P12_LINUXNL=1 (a manager window,
-// D-071: lcp default netns is VPP-global) the test holds the globals lock exclusively, refuses unless no pair exists
-// and the default netns is unset, sets it to ns-<p>-frr for the first pair and restores it right after; every step then
-// also checks the routes in VPP (ListRoutes source lcp-rt-dynamic). Without it the VPP checks are skipped and said so.
+// FIB proof (the VPP side of linux-nl; P12.md "P12-fib-proof"): linux_nl hears only pairs whose netns equals the lcp
+// default netns at pair-add time, from the one socket it opens in that netns with the first pair of the whole VPP
+// (lcp_nl.c, lcp_interface.c). On the shared VPP (default netns unset, D-071: never changed from a slot) FRR's routes in
+// ns-<p>-frr cannot reach VPP, so the VPP checks run only with VRX_P12_FIB=private: a VPP of this slot's own
+// (LAB-vpp-per-slot, VRX_VPP_API_SOCKET ≠ /run/vpp/api.sock) whose startup.conf has `linux-cp { default netns
+// ns-<p>-frr }`. The test refuses that mode on anything else and never changes a VPP-global setting itself.
 
 import (
 	"context"
@@ -26,7 +27,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -49,8 +49,9 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// EnvP12LinuxNL opts into the linux-nl FIB proof (manager window only).
-const EnvP12LinuxNL = "VRX_P12_LINUXNL"
+// EnvP12FIB = "private" adds the VPP FIB checks (row P12-fib-proof: a private VPP whose lcp default netns is
+// ns-<p>-frr); anything else leaves them out.
+const EnvP12FIB = "VRX_P12_FIB"
 
 // EnvP12Topology runs the topology test (test/topology/bgp/run.sh sets it): it takes the slot's rig over (the agent
 // recreates its VPP side) and runs three FRR instances, so it is not part of a plain package run.
@@ -220,6 +221,9 @@ func (e *p12Env) vrxDoc(withBGP, denyHalf, lanUp bool) *vrxv1.DesiredState {
 	e.t.Helper()
 	n, p := e.slot, e.prefix
 	lcp := func(host string) map[string]any {
+		if e.fib { // the default netns (linux-cp { default netns }) — the only netns linux-nl hears (M4)
+			return map[string]any{"hostIfName": host, "hostIfType": "tap"}
+		}
 		return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
 	}
 	d := map[string]any{
@@ -388,51 +392,22 @@ func (e *p12Env) evidence(when string) {
 	}
 }
 
-// enableFIBProof is T2: under the exclusive globals lock, with no pair on this VPP and no default netns, the agent's
-// first pair opens linux_nl's socket in FRR's netns; the default netns is restored right after that apply.
-func (e *p12Env) enableFIBProof() func() {
+// checkPrivateFIB enforces the preconditions of the FIB checks (VRX_P12_FIB=private): a VPP that is not the shared
+// one, whose linux-cp default netns is FRR's netns.
+func (e *p12Env) checkPrivateFIB() {
 	e.t.Helper()
-	f, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // shared lock file
+	sock := vppSocket()
+	if sock == "/run/vpp/api.sock" {
+		e.t.Fatalf("%s=private needs a VPP of this slot's own (VRX_VPP_API_SOCKET), not the shared %s (D-071)", EnvP12FIB, sock)
+	}
+	cur, err := lcpdesc.NewDefaultNetns(e.raw).Current(context.Background())
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		e.t.Fatal(err)
+	if cur != e.frrNS {
+		e.t.Fatalf("%s=private: the lcp default netns is %q, want %q (startup.conf linux-cp { default netns %s })", EnvP12FIB, cur, e.frrNS, e.frrNS)
 	}
-	e.t.Cleanup(func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() })
-	ctx := context.Background()
-	svc := lcpapi.NewServiceClient(e.raw)
-	cur, err := lcpdesc.NewDefaultNetns(e.raw).Current(ctx) // "" while unset (26.06 returns garbage bytes then)
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	if cur != "" {
-		e.t.Fatalf("%s=1: the lcp default netns is %q (set by someone else): refusing", EnvP12LinuxNL, cur)
-	}
-	stream, err := svc.LcpItfPairGet(ctx, &lcpapi.LcpItfPairGet{})
-	if err != nil {
-		e.t.Fatal(err)
-	}
-	if det, _, err := stream.Recv(); err == nil && det != nil {
-		e.t.Fatalf("%s=1: a linux-cp pair exists (sw_if_index %d, %s): linux_nl's socket is already open in its netns: refusing", EnvP12LinuxNL, det.PhySwIfIndex, strings.TrimRight(det.HostIfName, "\x00"))
-	}
-	if _, err := svc.LcpDefaultNsSet(ctx, &lcpapi.LcpDefaultNsSet{Netns: e.frrNS}); err != nil {
-		e.t.Fatal(err)
-	}
-	e.t.Logf("%s=1: lcp default netns set to %s (globals lock held) — the first pair opens linux_nl's socket there", EnvP12LinuxNL, e.frrNS)
-	restored := false
-	restore := func() {
-		if restored {
-			return
-		}
-		restored = true
-		if _, err := svc.LcpDefaultNsSet(context.Background(), &lcpapi.LcpDefaultNsSet{Netns: ""}); err != nil {
-			e.t.Errorf("restore lcp default netns: %v", err)
-		}
-		e.t.Log("lcp default netns restored to unset")
-	}
-	e.t.Cleanup(restore)
-	return restore
+	e.t.Logf("%s=private: VPP %s, lcp default netns %s — linux_nl hears FRR's netns", EnvP12FIB, sock, cur)
 }
 
 func TestP12TopologyOnHost(t *testing.T) {
@@ -443,7 +418,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	vpptest.LockLab(t)
 	prefix := vpptest.Prefix(t)
 	slot := vpptest.Slot(t)
-	e := &p12Env{t: t, prefix: prefix, slot: slot, repo: repoRootP12(t), frrNS: "ns-" + prefix + "-frr", fib: os.Getenv(EnvP12LinuxNL) == "1"}
+	e := &p12Env{t: t, prefix: prefix, slot: slot, repo: repoRootP12(t), frrNS: "ns-" + prefix + "-frr", fib: os.Getenv(EnvP12FIB) == "private"}
 	restarts0 := nRestartsP12(t)
 	t.Logf("systemctl show vpp -p NRestarts (before) = %d", restarts0)
 	t.Cleanup(func() {
@@ -524,17 +499,16 @@ func TestP12TopologyOnHost(t *testing.T) {
 	})
 
 	// ---- 1. commit: pairs + FRR config; the peers come up after the preflight
-	var restore func()
 	if e.fib {
-		restore = e.enableFIBProof()
+		e.checkPrivateFIB()
+		if n := e.vppFRRRoutes(); n != 0 {
+			t.Fatalf("%d linux-nl routes of 10.%d/16 already in VPP table 0 before the test", n, slot)
+		}
 	} else {
-		t.Logf("linux-nl FIB proof not requested (%s=1 in a manager window, P12-questions Q1): VPP route counts are not checked", EnvP12LinuxNL)
+		t.Logf("VPP FIB checks not requested (%s=private on a VPP of the slot's own: row P12-fib-proof): FRR's RIB is checked", EnvP12FIB)
 	}
 	full := e.vrxDoc(true, false, true)
 	e.apply("commit", full)
-	if restore != nil {
-		restore()
-	}
 	e.peers(true)
 	e.waitEstablished(90 * time.Second)
 	e.waitRoutes("200 routes after commit", 200, 60*time.Second)
@@ -592,6 +566,14 @@ func TestP12TopologyOnHost(t *testing.T) {
 	e.waitEstablished(120 * time.Second)
 	e.waitRoutes("after agent restart + pair loss", 100, 60*time.Second)
 	t.Logf("recovered %v after the agent restart", time.Since(restartAt).Round(100*time.Millisecond))
+	if e.fib {
+		// a deleted pair flushes no route (lcp_router.c), so the count alone cannot tell a live linux-nl from stale
+		// entries: a withdrawal must still reach VPP after the pairs were recreated
+		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, false))
+		e.waitRoutes("peer 1 withdrew after the restart", 50, 5*time.Second)
+		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, true))
+		e.waitRoutes("peer 1 announces again after the restart", 100, 30*time.Second)
+	}
 	e.evidence("after restart")
 
 	// ---- 5. link down on a VPP interface: what reaches the Linux pair, when BGP notices

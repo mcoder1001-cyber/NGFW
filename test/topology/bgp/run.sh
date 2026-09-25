@@ -5,8 +5,10 @@
 # frrtest harness, which a module under test/ cannot import).
 #
 #   eval "$(tools/lab env <slot>)"; test/topology/bgp/run.sh [go test args]
-#   VRX_P12_LINUXNL=1 test/topology/bgp/run.sh   # + the linux-nl FIB proof — ONLY in a manager window (P12-questions Q1:
-#                                                 #   it sets the VPP-global lcp default netns for < 1 s, globals lock held)
+#   VRX_P12_FIB=private VRX_VPP_API_SOCKET=<private api.sock> test/topology/bgp/run.sh
+#       + the VPP FIB checks (row P12-fib-proof, docs/status/tasks/P12.md): ONLY on a VPP of the slot's own
+#         (LAB-vpp-per-slot) whose startup.conf has `linux-cp { default netns ns-<prefix>-frr }`; the test refuses the
+#         shared VPP and never changes a VPP-global setting (D-071, manager decision on review H3)
 #
 # Holds the shared lab lock for the run only (D-094); one host test package at a time (D-087).
 set -euo pipefail

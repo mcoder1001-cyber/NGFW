@@ -7,5 +7,6 @@
 withdraw on a peer → gone < 5 s · agent restart with the pairs deleted behind its back → recovered · link down on a
 VPP interface (observed) · rollback of the BGP config → 0 routes, sessions down.
 
-The VPP-side count (linux-nl → FIB source `lcp-rt-dynamic`) is checked only with `VRX_P12_LINUXNL=1`, which must run in a
-manager window (it sets the VPP-global lcp default netns for the first pair; docs/status/tasks/P12-questions.md Q1).
+The VPP-side count (linux-nl → FIB source `lcp-rt-dynamic`) is checked only with `VRX_P12_FIB=private` on a VPP of the
+slot's own (LAB-vpp-per-slot) started with `linux-cp { default netns ns-<p>-frr }` — row P12-fib-proof, test design in
+docs/status/tasks/P12.md. On the shared VPP linux_nl cannot hear FRR's netns, and nothing VPP-global is changed.

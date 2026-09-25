@@ -58,6 +58,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-host-acl-nftables
       // wave-A: P11
       // wave-A: F-wireguard
+      'vpn',
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
       'users',

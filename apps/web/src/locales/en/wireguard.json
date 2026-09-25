@@ -1,0 +1,133 @@
+{
+  "tab": "WireGuard",
+  "title": "WireGuard interfaces",
+  "live": {
+    "on": "Live status on",
+    "off": "Live status off"
+  },
+  "refresh": "Refresh",
+  "refreshHint": "The state is read from the data plane on demand (and every 30 s); peer status changes arrive live.",
+  "add": "Add interface",
+  "edit": "Edit",
+  "delete": "Delete",
+  "save": "Save to candidate",
+  "close": "Close",
+  "name": "Interface name",
+  "nameHint": "Letters, digits, '.', '_' and '-'",
+  "editTitle": "WireGuard interface {{name}}",
+  "empty": "No WireGuard interface is configured.",
+  "unconfigured": "WireGuard interfaces in the data plane that the running configuration does not name: {{names}}",
+  "peers": "Peers of {{name}}",
+  "bytesRxTx": "{{rx}} B received / {{tx}} B sent",
+  "state": {
+    "up": "Up",
+    "adminDown": "Disabled",
+    "missing": "Not in the data plane"
+  },
+  "col": {
+    "listen": "Listen",
+    "address": "Addresses",
+    "publicKey": "Public key",
+    "traffic": "Traffic",
+    "peer": "Peer",
+    "status": "Status",
+    "endpoint": "Endpoint",
+    "allowedIps": "Allowed IPs",
+    "lastHandshake": "Last handshake"
+  },
+  "peer": {
+    "add": "Add peer",
+    "none": "No peers.",
+    "name": "Peer name",
+    "editTitle": "Peer {{name}} of {{iface}}",
+    "generateClient": "Generate client keys",
+    "clientKeyHint": "The client's private key exists only in this browser session: export its configuration before you leave the page.",
+    "clientKeyError": "This browser cannot generate X25519 keys: {{error}}",
+    "status": {
+      "established": "Established",
+      "dead": "No answer",
+      "down": "No handshake",
+      "unknown": "Unknown"
+    }
+  },
+  "export": {
+    "button": "Export client configuration",
+    "hint": "Download the peer's client .conf (with its private key only if it was generated in this session)"
+  },
+  "keypair": {
+    "button": "Generate key pair",
+    "title": "Generate a WireGuard key pair",
+    "explain": "The private key is stored in the secret store as key/<name> and is never shown; use the reference in an interface's private key field and give the public key to its peers.",
+    "name": "Secret name",
+    "generate": "Generate",
+    "ref": "Reference",
+    "public": "Public key",
+    "forInterface": "Generate a key pair for this interface"
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "instance": {
+      "title": "Instance",
+      "help": "The VPP interface is wg<instance>"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "VRF of the tunnel interface"
+    },
+    "underlayVrf": {
+      "title": "Underlay VRF",
+      "help": "VRF of the listen address and the peer endpoints"
+    },
+    "listenAddress": {
+      "title": "Listen address",
+      "help": "Source address of the tunnel; configured on an interface in the underlay VRF"
+    },
+    "listenPort": {
+      "title": "Listen port"
+    },
+    "privateKeyRef": {
+      "title": "Private key (reference)",
+      "help": "key/<name> in the secret store; use \"Generate a key pair\""
+    },
+    "address": {
+      "title": "Interface addresses"
+    },
+    "mtu": {
+      "title": "MTU"
+    },
+    "routeAllowedIps": {
+      "title": "Route allowed IPs",
+      "help": "Install a route via this interface for every allowed IP of its peers (VPP needs a route with a next hop inside the allowed IP)"
+    }
+  },
+  "peerField": {
+    "description": {
+      "title": "Description"
+    },
+    "publicKey": {
+      "title": "Public key",
+      "help": "The peer's public key (base64, 44 characters)"
+    },
+    "presharedKeyRef": {
+      "title": "Pre-shared key (reference)",
+      "help": "psk/<name> in the secret store (optional)"
+    },
+    "endpoint": {
+      "title": "Endpoint",
+      "help": "IP address and port; omit for peers that always initiate"
+    },
+    "allowedIps": {
+      "title": "Allowed IPs",
+      "help": "Network prefixes accepted from and routed to this peer"
+    },
+    "persistentKeepaliveSec": {
+      "title": "Persistent keepalive (s)",
+      "help": "0 disables"
+    }
+  }
+}

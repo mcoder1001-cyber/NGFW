@@ -60,6 +60,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-nat44-ed-sessions
   // wave-A: P11
   // wave-A: F-wireguard
+  'vpn',
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 ]);

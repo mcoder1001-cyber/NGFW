@@ -222,8 +222,32 @@ The agent under test read its range through the passthrough (`/run/vrx-test/w5/p
   - ports 3590 and 9159 were released;
   - the processes were stopped by PID by the harness.
 
-## 8. CI
-`TMPDIR=/tmp/g-td8b tools/ci.sh --base main`: see §8a, filled in below after the run.
+## 8. CI — `TMPDIR=/tmp/g-td8b tools/ci.sh --base main`
+The run on `be0a1184` (04:52) passed: `CI GATE PASSED`, wall time 11m18s. After the §1b fix, the final code at
+`34448df8` gave:
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m03s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   1m57s
+  forbidden patterns (+ gitleaks)                    0m06s
+  packet-trace ban on the shared VPP (D-128)         0m02s
+  lint · typecheck · unit tests · build (turbo)   2m08s
+  apps/agent: make lint test build                   0m56s
+  apps/cli: make lint test build                     0m10s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces)   0m05s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m14s
+  mode quick · wall time 5m42s · logs /root/ngfw-wt/logs/ci/TD-8b-20260925-050529-4025938
+
+CI GATE PASSED
+```
+- The proof command on `34448df8` (`go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
+  ./internal/descriptors/df7/...`): `ok` 15.052s, 6.770s and 1.223s, plus registry 1.143s.
+- `git merge-tree` with `task/TD-11c` is still clean at `34448df8` (tree `bc27b422`).
+- No host run after 04:51. The manager's hold on host runs (the ifsanitize placeholder cap from about 05:05, TD-25)
+  came after the topology run of §7 had finished.
+- The last commit changes only this file; the CI and tests above ran on `34448df8`.
 
 ## Out of scope / left
 - The `AfterResync` deadline (L7's second half): agent.go, which conflicts with TD-9 (questions Q3).

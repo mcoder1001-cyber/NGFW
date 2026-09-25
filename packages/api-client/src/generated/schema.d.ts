@@ -1622,6 +1622,127 @@ export interface components {
           enabled: boolean;
         }[];
       };
+      /**
+       * SRv6
+       * @description Segment Routing over IPv6: local SIDs, policies and steering (VPP sr).
+       */
+      srv6?: {
+        /**
+         * Encapsulation source
+         * Format: ipv6
+         */
+        encapSource?: string;
+        /** Encapsulation hop limit */
+        encapHopLimit?: number;
+        /**
+         * Local SIDs
+         * @default {}
+         */
+        localSids: {
+          [key: string]: {
+            /**
+             * Behavior
+             * @enum {string}
+             */
+            behavior:
+              'end' | 'end.x' | 'end.t' | 'end.dx2' | 'end.dx4' | 'end.dx6' | 'end.dt4' | 'end.dt6';
+            /**
+             * Penultimate segment pop (PSP)
+             * @default false
+             */
+            psp: boolean;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** Interface */
+            interface?: string;
+            /** Next hop */
+            nextHop?: string;
+            /** Lookup VRF */
+            lookupVrf?: string;
+          };
+        };
+        /**
+         * Policies
+         * @default {}
+         */
+        policies: {
+          [key: string]: {
+            /**
+             * Type
+             * @default default
+             * @enum {string}
+             */
+            type: 'default' | 'spray' | 'tef';
+            /**
+             * Encapsulate (H.Encaps)
+             * @default true
+             */
+            encap: boolean;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /**
+             * Encapsulation source
+             * Format: ipv6
+             */
+            encapSource?: string;
+            /** Segment lists */
+            sidLists: {
+              /** Segments */
+              sids: string[];
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+            }[];
+          };
+        };
+        /**
+         * Steering
+         * @default []
+         */
+        steering: (
+          | {
+              /**
+               * Match
+               * @constant
+               */
+              type: 'l3';
+              /** Prefix */
+              prefix: string;
+              /**
+               * VRF
+               * @default default
+               */
+              vrf: string;
+              /**
+               * Binding SID
+               * Format: ipv6
+               */
+              bsid: string;
+            }
+          | {
+              /**
+               * Match
+               * @constant
+               */
+              type: 'l2';
+              /** Interface */
+              interface: string;
+              /**
+               * Binding SID
+               * Format: ipv6
+               */
+              bsid: string;
+            }
+        )[];
+      };
     };
     /**
      * NAT

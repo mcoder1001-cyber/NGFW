@@ -15,6 +15,7 @@ import {
 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
+import { srv6Field } from './ext/srv6.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -713,6 +714,7 @@ export const RoutingSchema = withUi(
     // wave-BC: F-mpls-srmpls
     // wave-BC: F-igmp-mfib
     // wave-BC: F-srv6
+    srv6: srv6Field,
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
   }),

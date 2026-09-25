@@ -26,6 +26,10 @@ Status changes arrive live (a peer event from VPP, relayed by the agent and the 
 data plane every 30 s and on **Refresh** — reading it walks VPP, so the screen never polls faster (decision D-132).
 VPP 26.06 has no per-peer byte counters: the counters shown are the interface's.
 
+![WireGuard tab: an interface with an established kernel peer and an offline road warrior](img/wireguard-list-en.png)
+![The same in Persian (RTL)](img/wireguard-list-fa.png)
+![Interface form (the one schema)](img/wireguard-interface-dialog-en.png)
+
 ## Keys
 
 WireGuard keys are never part of the configuration document; it holds references into the secret store (D-051):
@@ -41,6 +45,8 @@ WireGuard keys are never part of the configuration document; it holds references
   X25519) and fills the peer's public key; the client's private key stays in this browser tab only. **Export client
   configuration** then downloads the client's `.conf` with that private key — after you leave the page it is gone (the
   export then contains a placeholder). VRX never stores a client's private key.
+
+![Generate key pair: only the reference and the public key are shown](img/wireguard-keypair-en.png)
 
 Setting or changing a secret reference is an **admin** action (operators get 403).
 

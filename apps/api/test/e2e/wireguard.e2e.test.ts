@@ -19,7 +19,7 @@ describe('F-wireguard e2e (PostgreSQL + fake agent)', () => {
   let ro: string;
   let pubA = '';
   let pubB = '';
-  const peerKey = 'HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=';
+  const PEER_PUB = 'HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=';
 
   beforeAll(async () => {
     h = await startHarness({});
@@ -106,14 +106,14 @@ describe('F-wireguard e2e (PostgreSQL + fake agent)', () => {
         listenAddress: '10.1.51.1',
         listenPort: 20110,
         privateKeyRef: 'key/w1-site-a',
-        peers: { p1: { publicKey: peerKey, allowedIps: ['10.1.53.0/24'] } },
+        peers: { p1: { publicKey: PEER_PUB, allowedIps: ['10.1.53.0/24'] } },
       },
       b: {
         instance: 1002,
         listenAddress: '10.1.51.1',
         listenPort: 20111,
         privateKeyRef: 'key/w1-site-b',
-        peers: { dup: { publicKey: peerKey, allowedIps: ['10.1.54.0/24'] } },
+        peers: { dup: { publicKey: PEER_PUB, allowedIps: ['10.1.54.0/24'] } },
       },
     };
     expect(

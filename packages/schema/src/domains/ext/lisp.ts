@@ -28,7 +28,11 @@ const EID_PATTERN =
 
 /** An EID: an IP prefix (canonical, masked — checked by `tunnels.lisp-eid-canonical`) or a MAC address. */
 export const lispEid = withUi(
-  z.string().min(1).max(64).regex(EID_PATTERN, 'expected an IP prefix like 10.11.0.0/24 or a MAC address'),
+  z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(EID_PATTERN, 'expected an IP prefix like 10.11.0.0/24 or a MAC address'),
   { title: 'EID', help: 'IP prefix (masked, e.g. 10.11.0.0/24) or MAC address (L2 EID)' },
 );
 
@@ -38,7 +42,10 @@ const locatorSetName = withUi(objectName, { title: 'Locator set' });
 /** Actions of a negative mapping / forwarding entry (VPP `lisp_types` action 0–3). */
 export const LISP_ACTIONS = ['no-action', 'natively-forward', 'send-map-request', 'drop'] as const;
 
-const priority = withUi(z.int().min(0).max(255).default(1), { title: 'Priority', widget: 'number' });
+const priority = withUi(z.int().min(0).max(255).default(1), {
+  title: 'Priority',
+  widget: 'number',
+});
 const weight = withUi(z.int().min(0).max(255).default(1), { title: 'Weight', widget: 'number' });
 
 export const LispLocatorSchema = z.strictObject({
@@ -91,7 +98,11 @@ export const LispAdjacencySchema = z.strictObject({
 });
 
 export const LispEidTableSchema = z.strictObject({
-  vrf: withUi(objectName, { title: 'VRF', widget: 'vrf-picker', help: 'L3: IP EIDs of this VNI live in this VRF' }).optional(),
+  vrf: withUi(objectName, {
+    title: 'VRF',
+    widget: 'vrf-picker',
+    help: 'L3: IP EIDs of this VNI live in this VRF',
+  }).optional(),
   bridgeDomain: withUi(z.int().min(1).max(16777215), {
     title: 'Bridge domain',
     widget: 'number',
@@ -142,7 +153,12 @@ export const LispSchema = withUi(
     }),
     eidTables: withUi(
       z.record(z.string().regex(/^(0|[1-9]\d{0,7})$/, 'VNI'), LispEidTableSchema).default({}),
-      { title: 'EID tables', help: 'VNI → VRF (L3) or bridge domain (L2)', group: 'eids', order: 5 },
+      {
+        title: 'EID tables',
+        help: 'VNI → VRF (L3) or bridge domain (L2)',
+        group: 'eids',
+        order: 5,
+      },
     ),
     remoteMappings: withUi(z.array(LispRemoteMappingSchema).max(1024).default([]), {
       title: 'Remote mappings',

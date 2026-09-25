@@ -23,6 +23,7 @@ package nsim
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -31,6 +32,7 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	nsimapi "ngfw/agent/binapi/nsim"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -50,7 +52,21 @@ const GlobalID = "global"
 const (
 	PacketSizeMin = 64
 	PacketSizeMax = 9000
+	// WheelSlotsMax bounds the scheduler wheel VPP allocates per thread (delay × bandwidth / 8 / packet size + 1
+	// slots of 32 bytes, nsim_wheel_alloc): 2^20 slots = 32 MiB. VPP does not survive a failed allocation —
+	// clib_mem_vm_alloc returns 0 on an mmap failure, the result is only ASSERTed and the next line writes through it
+	// (NULL dereference in a release build; review M1) — so the agent refuses more, whatever the API checked
+	// (packages/schema NSIM_WHEEL_SLOTS_MAX is the same bound).
+	WheelSlotsMax = 1 << 20
 )
+
+// WheelSlots is the size of the scheduler wheel VPP allocates for c on a VPP without workers (nsim.c
+// nsim_configure: total buffer = delay × bandwidth / 8 + 0.5 bytes, slots = buffer / packet size + 1). With workers the
+// buffer is split between them, so this is the per-thread maximum.
+func (c Config) WheelSlots() float64 {
+	bytes := math.Floor(float64(c.DelayUsec)*1e-6*c.BandwidthBps/8 + 0.5)
+	return math.Floor(bytes/float64(max(c.PacketSize, 1))) + 1
+}
 
 // ConfigKey is "nsim.config/global".
 func ConfigKey() scheduler.Key { return scheduler.Join(ConfigName, GlobalID) }
@@ -78,6 +94,8 @@ func (c Config) Validate() error {
 		return dfkit.Specf("nsim bandwidth %v bit/s out of range", c.BandwidthBps)
 	case c.PacketSize < PacketSizeMin || c.PacketSize > PacketSizeMax:
 		return dfkit.Specf("nsim packet size %d outside %d–%d", c.PacketSize, PacketSizeMin, PacketSizeMax)
+	case c.WheelSlots() > WheelSlotsMax:
+		return dfkit.Specf("nsim delay × bandwidth needs a %.0f-slot scheduler wheel (more than %d, 32 MiB per thread): VPP would crash on a failed allocation", c.WheelSlots(), WheelSlotsMax)
 	}
 	return nil
 }
@@ -125,18 +143,45 @@ func decode[T any](obj proto.Message) (T, error) {
 
 // ConfigDescriptor manages nsim.config/global.
 type ConfigDescriptor struct {
-	client vpp.Client
-	store  dfkit.BootStore
+	client         vpp.Client
+	store          dfkit.BootStore
+	pollMainThread bool
 }
 
 var _ scheduler.Descriptor = (*ConfigDescriptor)(nil)
 
+// ConfigOption configures the nsim.config descriptor.
+type ConfigOption func(*ConfigDescriptor)
+
+// WithPollMainThread tells the descriptor that VPP runs with `nsim { poll-main-thread }` in startup.conf (the operator
+// asserts it; VPP has no getter): then the main thread has a wheel and a VPP with worker threads is safe.
+func WithPollMainThread(on bool) ConfigOption { return func(d *ConfigDescriptor) { d.pollMainThread = on } }
+
 // NewConfig returns the nsim.config descriptor.
-func NewConfig(c vpp.Client, store dfkit.BootStore) *ConfigDescriptor {
+func NewConfig(c vpp.Client, store dfkit.BootStore, opts ...ConfigOption) *ConfigDescriptor {
 	if store == nil {
 		store = dfkit.NewMemoryBootStore()
 	}
-	return &ConfigDescriptor{client: c, store: store}
+	d := &ConfigDescriptor{client: c, store: store}
+	for _, o := range opts {
+		o(d)
+	}
+	return d
+}
+
+// ErrWorkerThreads is returned when VPP runs worker threads and poll-main-thread is not asserted: nsim_configure
+// allocates wheels for the workers only (nsim.c: the main thread's wheel stays NULL), and nsim_inline dereferences the
+// wheel of the thread a frame is on behind an ASSERT only (node.c) — any frame the main thread sends through the output
+// feature (an API or CLI ping, other control traffic) would crash VPP (review M2 a).
+var ErrWorkerThreads = errors.New("nsim: VPP has worker threads and nsim { poll-main-thread } is not asserted")
+
+// workers returns the number of VPP worker threads (show_threads: the main thread plus the workers).
+func workers(ctx context.Context, c vpp.Client) (int, error) {
+	r, err := vlib.NewServiceClient(c).ShowThreads(ctx, &vlib.ShowThreads{})
+	if err != nil {
+		return 0, fmt.Errorf("show_threads: %w", err)
+	}
+	return max(len(r.ThreadData)-1, 0), nil
 }
 
 // Name implements scheduler.Descriptor.
@@ -160,6 +205,15 @@ func (d *ConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	applied, id, err := dfkit.AppliedThisBoot(ctx, d.client, d.store, ConfigKey(), c.record())
 	if err != nil || applied {
 		return nil, err
+	}
+	if !d.pollMainThread {
+		n, err := workers(ctx, d.client)
+		if err != nil {
+			return nil, err
+		}
+		if n > 0 {
+			return nil, fmt.Errorf("%w (%d workers): add `nsim { poll-main-thread }` to startup.conf and set VRX_NSIM_POLL_MAIN_THREAD=1 for the agent", ErrWorkerThreads, n)
+		}
 	}
 	if _, err := nsimapi.NewServiceClient(d.client).NsimConfigure2(ctx, &nsimapi.NsimConfigure2{
 		DelayInUsec: c.DelayUsec, AveragePacketSize: c.PacketSize, BandwidthInBitsPerSecond: uint64(c.BandwidthBps),
@@ -449,8 +503,8 @@ func (*OutputDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // RegisterGlobals registers the three nsim descriptors. Only the globals owner calls it (D-071): the
 // model and the cross-connect pair are VPP-wide, and an output feature without this owner's model
 // would run on another agent's parameters. store is the owner's persisted applied-once store.
-func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, store dfkit.BootStore) {
-	r.Register(NewConfig(c, store))
+func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, store dfkit.BootStore, opts ...ConfigOption) {
+	r.Register(NewConfig(c, store, opts...))
 	r.Register(NewCrossConnect(c, owner, store))
 	r.Register(NewOutput(c, owner, store))
 }

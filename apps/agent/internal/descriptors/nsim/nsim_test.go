@@ -9,6 +9,7 @@ import (
 	"go.fd.io/govpp/api"
 
 	nsimapi "ngfw/agent/binapi/nsim"
+	"ngfw/agent/binapi/vlib"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/descriptors/nsim"
@@ -30,6 +31,7 @@ type fakeNsim struct {
 	cross      int
 	crossPair  [2]uint32
 	output     map[uint32]int
+	threads    int // VPP threads (show_threads): 1 = main only
 }
 
 func newFake() *fakeNsim {
@@ -39,8 +41,18 @@ func newFake() *fakeNsim {
 			dfkittest.Iface{Index: 2, Name: "loop7002", Tag: "w7:loop7002"},
 			dfkittest.Iface{Index: 3, Name: "loop9", Tag: "w3:loop9"},
 		),
-		output: map[uint32]int{},
+		output: map[uint32]int{}, threads: 1,
 	}
+	f.On("show_threads", func(api.Message) ([]api.Message, error) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		r := &vlib.ShowThreadsReply{}
+		for i := 0; i < f.threads; i++ {
+			r.ThreadData = append(r.ThreadData, vlib.ThreadData{ID: uint32(i)}) //nolint:gosec // small
+		}
+		r.Count = uint32(len(r.ThreadData)) //nolint:gosec // small
+		return []api.Message{r}, nil
+	})
 	f.On("nsim_configure2", func(m api.Message) ([]api.Message, error) {
 		r := m.(*nsimapi.NsimConfigure2)
 		f.mu.Lock()
@@ -188,5 +200,48 @@ func TestCrossConnectAndOutput(t *testing.T) {
 		if _, err := d.Retrieve(ctx); !errors.Is(err, dfkit.ErrRetrieveUnsupported) {
 			t.Fatalf("%s Retrieve must be write-only: %v", d.Name(), err)
 		}
+	}
+}
+
+// Review M1: the agent bounds the scheduler wheel itself (VPP dereferences a failed allocation). The schema maxima
+// (10 s, 100 Gbit/s, 64-byte packets: ~2·10⁹ slots) never reach VPP.
+func TestConfigWheelBound(t *testing.T) {
+	f := newFake()
+	d := nsim.NewConfig(f, dfkit.NewMemoryBootStore())
+	huge := nsim.Config{DelayUsec: 10_000_000, BandwidthBps: 1e11, PacketSize: 64}
+	if huge.WheelSlots() < 1e9 {
+		t.Fatalf("wheel slots %.0f", huge.WheelSlots())
+	}
+	if _, err := d.Create(ctx, huge.Proto()); !errors.Is(err, dfkit.ErrSpec) {
+		t.Fatalf("an oversized model must be refused: %v", err)
+	}
+	// the largest model under the bound (2^20 slots of 1500 bytes) is accepted
+	ok := nsim.Config{DelayUsec: 1_000_000, BandwidthBps: 8 * 1500 * float64(nsim.WheelSlotsMax-1), PacketSize: 1500}
+	if ok.WheelSlots() > nsim.WheelSlotsMax {
+		t.Fatalf("test model too large: %.0f", ok.WheelSlots())
+	}
+	if _, err := d.Create(ctx, ok.Proto()); err != nil {
+		t.Fatal(err)
+	}
+	if f.configures != 1 || f.last.DelayInUsec != 1_000_000 {
+		t.Fatalf("configures %d last %+v", f.configures, f.last)
+	}
+}
+
+// Review M2 (a): with worker threads and no poll-main-thread the main thread has no wheel and VPP would crash on the
+// first frame the main thread sends through the output feature: nsim.config is refused before any nsim call.
+func TestConfigRefusesWorkerThreads(t *testing.T) {
+	f := newFake()
+	f.threads = 3 // main + 2 workers
+	model := nsim.Config{DelayUsec: 1000, BandwidthBps: 1e6, PacketSize: 1500}.Proto()
+	if _, err := nsim.NewConfig(f, dfkit.NewMemoryBootStore()).Create(ctx, model); !errors.Is(err, nsim.ErrWorkerThreads) {
+		t.Fatalf("workers without poll-main-thread: %v", err)
+	}
+	if f.configures != 0 || len(f.CallsNamed("nsim_configure2")) != 0 {
+		t.Fatal("nsim_configure2 sent on a worker box")
+	}
+	// the operator asserts `nsim { poll-main-thread }` (VRX_NSIM_POLL_MAIN_THREAD=1)
+	if _, err := nsim.NewConfig(f, dfkit.NewMemoryBootStore(), nsim.WithPollMainThread(true)).Create(ctx, model); err != nil || f.configures != 1 {
+		t.Fatalf("with poll-main-thread: %v configures %d", err, f.configures)
 	}
 }

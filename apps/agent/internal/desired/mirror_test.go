@@ -141,12 +141,18 @@ func TestNsimProjection(t *testing.T) {
 		t.Fatalf("units %+v", c)
 	}
 	s := newLbgsSink()
-	Nsim(s, ds.GetServices().GetNsim(), false)
+	Nsim(s, ds.GetServices().GetNsim(), LoopbackBviGsoLldpSpanEnv{})
 	if len(s.kvs) != 0 || s.warnings["/services/nsim"] != lbgsUnsupported {
 		t.Fatalf("slot agent: %v %v", s.kvs, s.warnings)
 	}
+	// review M2: the globals owner without the lab gate applies nothing either
 	s = newLbgsSink()
-	Nsim(s, ds.GetServices().GetNsim(), true)
+	Nsim(s, ds.GetServices().GetNsim(), LoopbackBviGsoLldpSpanEnv{GlobalsOwner: true})
+	if len(s.kvs) != 0 || s.warnings["/services/nsim"] != lbgsUnsupported {
+		t.Fatalf("globals owner without VRX_NSIM=lab: %v %v", s.kvs, s.warnings)
+	}
+	s = newLbgsSink()
+	Nsim(s, ds.GetServices().GetNsim(), LoopbackBviGsoLldpSpanEnv{GlobalsOwner: true, Nsim: true})
 	for _, k := range []scheduler.Key{nsim.ConfigKey(), nsim.CrossConnectKey(), nsim.OutputKey("loop3")} {
 		if _, ok := s.kvs[k]; !ok {
 			t.Fatalf("missing %s: %v", k, s.kvs)

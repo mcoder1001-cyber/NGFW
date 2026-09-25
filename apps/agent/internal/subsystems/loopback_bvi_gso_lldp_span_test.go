@@ -26,6 +26,7 @@ func (r *recorder) Register(d scheduler.Descriptor) { r.Registry.Register(d); r.
 func TestLoopbackBviGsoLldpSpanWiring(t *testing.T) {
 	mine := map[string]bool{gso.Name: true, span.NameMirror: true, lldp.NameInterface: true, lldp.NameGlobal: true,
 		nsim.ConfigName: true, nsim.CrossConnectName: true, nsim.OutputName: true}
+	t.Setenv(EnvNsim, EnvNsimLab)
 	for _, owner := range []bool{false, true} {
 		dir := t.TempDir()
 		owned, err := ownertable.Open(dir, "w7")
@@ -83,5 +84,33 @@ func TestLoopbackBviGsoLldpSpanWiring(t *testing.T) {
 	}
 	if err := nsim.NewConfig(coretest.New(), nil).CheckPersistent(); err == nil {
 		t.Error("nsim.config with an in-memory boot store passed CheckPersistent")
+	}
+}
+
+// Review M2: nsim is registered only for the globals owner WITH the lab gate (VRX_NSIM=lab, off by default).
+func TestNsimLabGate(t *testing.T) {
+	for _, c := range []struct {
+		owner bool
+		env   string
+		want  bool
+	}{{true, "", false}, {true, "on", false}, {false, EnvNsimLab, false}, {true, EnvNsimLab, true}} {
+		t.Setenv(EnvNsim, c.env)
+		dir := t.TempDir()
+		owned, err := ownertable.Open(dir, "w7")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := &recorder{Registry: scheduler.NewRegistry()}
+		if _, err := Register(r, Env{Client: coretest.New(), Owner: "w7", StateDir: dir, Owned: owned, GlobalsOwner: c.owner,
+			NetdevKind: func(string) (string, bool, error) { return "", false, nil }}); err != nil {
+			t.Fatal(err)
+		}
+		got := false
+		for _, d := range r.ds {
+			got = got || d.Name() == nsim.ConfigName
+		}
+		if got != c.want || LoopbackBviGsoLldpSpanEnv().Nsim != c.want {
+			t.Errorf("owner %v %s=%q: nsim registered %v, projection gate %v (want %v)", c.owner, EnvNsim, c.env, got, LoopbackBviGsoLldpSpanEnv().Nsim, c.want)
+		}
 	}
 }

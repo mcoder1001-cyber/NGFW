@@ -257,6 +257,7 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 
 func TestLoopbackBviGsoLldpSpanGlobalsOwner(t *testing.T) {
 	fakeBootIdentity(t)
+	t.Setenv("VRX_NSIM", "lab") // review M2: nsim needs the lab gate on top of the globals owner
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvcOwner(t, v, dir, true)

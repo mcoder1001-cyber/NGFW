@@ -30,6 +30,7 @@ import (
 	lldpapi "ngfw/agent/binapi/lldp"
 	nsimapi "ngfw/agent/binapi/nsim"
 	spanapi "ngfw/agent/binapi/span"
+	"ngfw/agent/binapi/vlib"
 )
 
 // VPP retvals of the nsim handlers (vnet/api_errno.h).
@@ -247,6 +248,9 @@ func (v *VPP) installLoopbackBviGsoLldpSpan() {
 		c := *r
 		v.lbgs().lldpGlobal = &c
 		return reply(&lldpapi.LldpConfigReply{})
+	})
+	v.On("show_threads", func(api.Message) ([]api.Message, error) { // a VPP without workers (nsim's worker check)
+		return reply(&vlib.ShowThreadsReply{Count: 1, ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main"}}})
 	})
 	v.On("nsim_configure2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*nsimapi.NsimConfigure2)

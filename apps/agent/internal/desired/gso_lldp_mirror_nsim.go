@@ -18,6 +18,8 @@ import (
 type LoopbackBviGsoLldpSpanEnv struct {
 	// GlobalsOwner is D-071's flag: lldp.global and nsim are applied only by the globals owner.
 	GlobalsOwner bool
+	// Nsim is the lab gate (review M2): the globals owner with VRX_NSIM=lab; nsim is applied only then.
+	Nsim bool
 }
 
 // reportUnsupportedServices reports the `services` members no feature implements; set by the merge seam
@@ -33,7 +35,7 @@ func LoopbackBviGsoLldpSpan(s Sink, ds *vrxv1.DesiredState, in map[string]bool, 
 	if in["services"] {
 		svc := ds.GetServices()
 		Lldp(s, svc.GetLldp(), env.GlobalsOwner)
-		Nsim(s, svc.GetNsim(), env.GlobalsOwner)
+		Nsim(s, svc.GetNsim(), env)
 		if reportUnsupportedServices != nil && svc != nil {
 			reportUnsupportedServices(s, svc)
 		}

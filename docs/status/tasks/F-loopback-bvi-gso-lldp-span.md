@@ -546,10 +546,22 @@ rebase round only swaps names.
 | M4 | **after TD-23** (not on main at 09:58: `git log main` head `1d3ccf31`, no TD-23 merge). At the rebase: merge main, drop the fakevpp.go hook hunk, `RegisterExtension("loopback-bvi-gso-lldp-span", …)` in `coretest/loopback_bvi_gso_lldp_span.go`, the `gso-ip4` answer through `RegisterFeatureIsEnabled`, the replicated mactime branch deleted; the core dispatcher untouched | — | — |
 | L2, L4, L5 | L2 at the rebase (seam file, `reportUnsupportedServices`, `dfkit.CheckClaims/CheckBoot`); L4, L5 not done (L5's slug is Q9, not mine) | — | — |
 
-No host run in this round (manager: af_packet creates wait for TD-25; nothing here needs VPP). A refused nsim commit is,
-by Nest's interceptor order (reasoned, not tested), not written to the audit log: the feature's interceptor is registered
-before the global `AuditInterceptor`, so it is the outer one. The 409 is visible to
-the caller; if the audit should record refusals, the gate would move into the commit service (manager's call).
+No host run in this round (manager: af_packet creates wait for TD-25; nothing here needs VPP).
+
+**Audit of the refusal (manager follow-up, TD-10b 2.3e: every config mutation attempt is audited, refusals too).** The
+gate is registered before the global `AuditInterceptor` (the feature's providers sit at its anchor in `app.module.ts`),
+so it is the outer interceptor and the audit interceptor never saw a refused request: the e2e run against the gate as
+committed at 87536251 showed **zero** audit rows for a refused commit and a refused rollback. The gate now writes the
+row itself, like the AuthGuard's 403 row: `failure`, status 409, `after: { reason: 'nsim-disabled' }`, action
+`POST /api/v1/config/commit` or `POST /api/v1/config/rollback/:rev`, user and source address, written before the 409 is
+answered. `app.module.ts` is not touched.
+- `nsim-gate.test.ts` (new API unit test): a refused commit → 409, handler not run, exactly one row with that content; a
+  refused rollback → one row under `/rollback/:rev`; a commit without nsim, or with `VRX_NSIM=lab`, writes nothing here.
+  On the old gate: 2 failed | 1 passed ("expected [] to deeply equal [ Array(1) ]").
+- e2e: both 409 cases now read `audit_log` rows written after the refusal and expect exactly one
+  `{action, username admin, failure, 409, after.reason nsim-disabled}`. On the old gate: 2 failed | 5 passed
+  ("expected [] to deeply equal [ { …(5) } ]"); now 7/7.
+- API unit tests 53/53 (9 files), `tsc` and eslint clean, prettier clean.
 
 Old-code probes (`TestProbeOld*`, only pre-fix symbols; the review-round sources swapped in at 777f629f, restored after):
 ```

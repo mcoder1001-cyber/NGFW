@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   installLldpFake,
@@ -29,6 +30,35 @@ describe('loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent)
     ro = await h.login('ro1', PW.ro);
   });
   afterAll(async () => h?.close());
+
+  /** audit_log rows written after row `since` (TD-10b 2.3e: every config mutation attempt, refusals included). */
+  const auditSince = async (since: number) =>
+    (
+      await h.db.execute(
+        sql`select action, username, result, status, after from audit_log where id > ${since} order by id`,
+      )
+    ).rows as {
+      action: string;
+      username: string;
+      result: string;
+      status: number;
+      after: unknown;
+    }[];
+  const lastAuditId = async () =>
+    Number(
+      (
+        (await h.db.execute(sql`select coalesce(max(id), 0) as id from audit_log`)).rows[0] as {
+          id: number;
+        }
+      ).id,
+    );
+  const nsimRefusal = (action: string) => ({
+    action,
+    username: 'admin',
+    result: 'failure',
+    status: 409,
+    after: { reason: 'nsim-disabled' },
+  });
 
   const commitExpect400 = async (patch: unknown, pointer: string, message: RegExp) => {
     expect((await h.call(admin, 'PATCH', '/api/v1/config', patch, MP)).status).toBe(200);
@@ -87,8 +117,11 @@ describe('loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent)
       ).status,
     ).toBe(200);
     const applies = h.fake.calls.filter((x) => x.method === 'Apply').length;
+    const since = await lastAuditId();
     const c = await h.call(admin, 'POST', '/api/v1/config/commit');
     expect(c.status).toBe(409);
+    // the refusal is audited exactly once, with its reason (TD-10b 2.3e)
+    expect(await auditSince(since)).toEqual([nsimRefusal('POST /api/v1/config/commit')]);
     expect(c.headers['content-type']).toMatch(/^application\/problem\+json/);
     expect(c.body).toMatchObject({ status: 409, detail: expect.stringMatching(/VRX_NSIM=lab/) });
     expect(c.body.errors).toEqual([expect.objectContaining({ pointer: '/services/nsim' })]);
@@ -206,9 +239,11 @@ describe('loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent)
     ).toBe(200);
     expect((await h.call(admin, 'POST', '/api/v1/config/commit')).status).toBe(409);
     expect((await h.call(admin, 'POST', '/api/v1/config/discard')).status).toBe(200);
+    const since = await lastAuditId();
     const rb = await h.call(admin, 'POST', `/api/v1/config/rollback/${last}`);
     expect(rb.status).toBe(409);
     expect(rb.body.errors).toEqual([expect.objectContaining({ pointer: '/services/nsim' })]);
+    expect(await auditSince(since)).toEqual([nsimRefusal('POST /api/v1/config/rollback/:rev')]);
   });
 
   it('the readonly role cannot change LLDP; rollback removes every leaf', async () => {

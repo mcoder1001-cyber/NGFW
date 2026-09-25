@@ -129,8 +129,8 @@ default**:
 
 - It is VPP-wide (one model, one cross-connect pair), so only the agent that owns the VPP-global settings applies it,
   and only with the lab switch **`VRX_NSIM=lab`** in the environment of the agent and of the API. Without it the API
-  refuses a commit (or a rollback) that carries `services.nsim` with **409** (pointer `/services/nsim`), and an agent
-  reports it as not applied.
+  refuses a commit (or a rollback) that carries `services.nsim` with **409** (pointer `/services/nsim`) and records
+  the attempt in the audit log (failure, 409, reason `nsim-disabled`), and an agent reports it as not applied.
 - **Configuring it keeps VPP's main thread polling (one busy core) until VPP restarts** — VPP sets the simulator's
   input node to polling and never back. VPP cannot read the model back and cannot unconfigure it: removing
   `services.nsim` only detaches the interfaces.

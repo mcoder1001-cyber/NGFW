@@ -15869,7 +15869,7 @@ type RoutingStateRequest struct {
 	Owner string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Keys of registered FRR state readers to return (e.g. "bgpSummary"); unknown key → INVALID_ARGUMENT.
 	Readers []string `protobuf:"bytes,2,rep,name=readers,proto3" json:"readers,omitempty"`
-	// RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 1000) in `rib_vrf`.
+	// RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 100) in `rib_vrf`.
 	RibPrefixes []string `protobuf:"bytes,3,rep,name=rib_prefixes,json=ribPrefixes,proto3" json:"rib_prefixes,omitempty"`
 	// VRF of the RIB lookup: a VRF name of the document ("" = default).
 	RibVrf        string `protobuf:"bytes,4,opt,name=rib_vrf,json=ribVrf,proto3" json:"rib_vrf,omitempty"`

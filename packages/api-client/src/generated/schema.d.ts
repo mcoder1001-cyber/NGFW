@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/bgp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live BGP state (instances, neighbours, prefix counts, flaps), FRR RIB counts and linux-cp pairs */
+    get: operations['Bgp_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8276,6 +8293,7 @@ export interface operations {
   State_routes: {
     parameters: {
       query?: {
+        proto?: 'bgp' | 'ospf' | 'ospf6' | 'isis' | 'rip' | 'ripng' | 'static' | 'kernel';
         source?: string;
         prefix?: string;
         family?: 'ipv4' | 'ipv6';
@@ -8328,7 +8346,11 @@ export interface operations {
                 flags: string[];
               }[];
               statsIndex: number;
+              /** @description FRR protocol of an `frr` route (bgp, static, …), from FRR’s RIB */
+              proto?: string;
             }[];
+            /** @description P12: proto was given — total counts every FRR route of the VRF, items only the protocol */
+            protoFiltered?: boolean;
           };
         };
       };
@@ -8361,6 +8383,107 @@ export interface operations {
       };
       /** @description Not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Bgp_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description FRR answered on its vty sockets */
+            frrRunning: boolean;
+            frrVersion?: string;
+            /** @description why FRR (or part of it) could not be read */
+            error?: string;
+            retrievedAt?: string;
+            instances: {
+              vrf: string;
+              asn: number;
+              routerId: string;
+              neighbors: {
+                /** @description neighbour address (the routing.bgp.neighbors key) */
+                address: string;
+                remoteAs: number;
+                /** @description FRR state: Idle, Connect, Active, OpenSent, OpenConfirm, Established, Idle (Admin) */
+                state: string;
+                /** @description seconds in Established (0 otherwise) */
+                uptimeSec: number;
+                prefixesReceived: number;
+                prefixesSent: number;
+                /** @description session drops since the daemon started */
+                flaps: number;
+                /** @description sessions established since the daemon started */
+                established: number;
+                description?: string;
+                messagesReceived: number;
+                messagesSent: number;
+                afis: {
+                  afi: string;
+                  prefixesReceived: number;
+                  prefixesSent: number;
+                }[];
+              }[];
+            }[];
+            /** @description FRR RIB routes per "<family>/<vrf>/<protocol>" */
+            ribCounts: {
+              [key: string]: number;
+            };
+            /** @description linux-cp pairs of this agent (VPP interface ↔ Linux interface FRR runs on) */
+            lcpPairs: {
+              interface: string;
+              hostIfName: string;
+              hostIfType: string;
+              netns?: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

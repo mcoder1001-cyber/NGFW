@@ -3711,7 +3711,7 @@ message RoutingStateRequest {
   string owner = 1;
   // Keys of registered FRR state readers to return (e.g. "bgpSummary"); unknown key → INVALID_ARGUMENT.
   repeated string readers = 2;
-  // RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 1000) in `rib_vrf`.
+  // RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 100) in `rib_vrf`.
   repeated string rib_prefixes = 3;
   // VRF of the RIB lookup: a VRF name of the document ("" = default).
   string rib_vrf = 4;

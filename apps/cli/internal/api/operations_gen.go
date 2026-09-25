@@ -7,7 +7,7 @@ const SpecVersion = "0.1.0"
 
 // Operations is every REST operation of the API, by operationId.
 var Operations = map[string]Operation{
-	"Actions_run":         {ID: "Actions_run", Method: "POST", Path: "/api/v1/actions/{action}", Summary: "Run an action (all 501 until the agent implements Action)", PathParams: []string{"action"}, QueryParams: nil, Body: false},
+	"Actions_run":         {ID: "Actions_run", Method: "POST", Path: "/api/v1/actions/{action}", Summary: "Run an action in the data plane (ping; traceroute and the others answer 501) and return its output", PathParams: []string{"action"}, QueryParams: nil, Body: true},
 	"Audit_list":          {ID: "Audit_list", Method: "GET", Path: "/api/v1/audit", Summary: "Audit log, newest first (admin)", PathParams: nil, QueryParams: []string{"limit", "offset"}, Body: false},
 	"Auth_apiKeys":        {ID: "Auth_apiKeys", Method: "GET", Path: "/api/v1/auth/api-keys", Summary: "API keys of the authenticated user", PathParams: nil, QueryParams: nil, Body: false},
 	"Auth_createApiKey":   {ID: "Auth_createApiKey", Method: "POST", Path: "/api/v1/auth/api-keys", Summary: "Create an API key (`Authorization: ApiKey <key>`); the key is shown once", PathParams: nil, QueryParams: nil, Body: true},
@@ -17,6 +17,7 @@ var Operations = map[string]Operation{
 	"Auth_me":             {ID: "Auth_me", Method: "GET", Path: "/api/v1/auth/me", Summary: "The authenticated user", PathParams: nil, QueryParams: nil, Body: false},
 	"Auth_password":       {ID: "Auth_password", Method: "POST", Path: "/api/v1/auth/password", Summary: "Change the own password (argon2id); same as POST /api/v1/users/{name}/password for yourself", PathParams: nil, QueryParams: nil, Body: true},
 	"Auth_refresh":        {ID: "Auth_refresh", Method: "POST", Path: "/api/v1/auth/refresh", Summary: "Rotate the refresh cookie and get a new access token", PathParams: nil, QueryParams: nil, Body: false},
+	"Bgp_state":           {ID: "Bgp_state", Method: "GET", Path: "/api/v1/state/bgp", Summary: "Live BGP state (instances, neighbours, prefix counts, flaps), FRR RIB counts and linux-cp pairs", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_breakLock":    {ID: "Config_breakLock", Method: "DELETE", Path: "/api/v1/config/lock", Summary: "Admin: break the lock of another user (the candidate is discarded)", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_candidate":    {ID: "Config_candidate", Method: "GET", Path: "/api/v1/config/candidate", Summary: "Whole candidate configuration (redacted); equals running when nobody edits", PathParams: nil, QueryParams: nil, Body: false},
 	"Config_candidateAt":  {ID: "Config_candidateAt", Method: "GET", Path: "/api/v1/config/candidate/{path}", Summary: "Node of the candidate at a JSON pointer", PathParams: []string{"path"}, QueryParams: nil, Body: false},
@@ -48,7 +49,7 @@ var Operations = map[string]Operation{
 	"State_events":        {ID: "State_events", Method: "GET", Path: "/api/v1/state/events", Summary: "System events (commits, confirm reverts, agent degradation), newest first", PathParams: nil, QueryParams: []string{"limit", "offset"}, Body: false},
 	"State_interfaces":    {ID: "State_interfaces", Method: "GET", Path: "/api/v1/state/interfaces", Summary: "Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes", PathParams: nil, QueryParams: nil, Body: false},
 	"State_neighbors":     {ID: "State_neighbors", Method: "GET", Path: "/api/v1/state/neighbors", Summary: "IP neighbours — needs an agent state RPC that the v1 contract does not have (501)", PathParams: nil, QueryParams: nil, Body: false},
-	"State_routes":        {ID: "State_routes", Method: "GET", Path: "/api/v1/state/routes", Summary: "Connected + static routes retrieved from VPP by the agent (server-side paged)", PathParams: nil, QueryParams: []string{"page", "pageSize", "vrf"}, Body: false},
+	"State_routes":        {ID: "State_routes", Method: "GET", Path: "/api/v1/state/routes", Summary: "Live FIB of a VRF (every VRF when none is given), paged and filtered by the agent, with each entry’s paths", PathParams: nil, QueryParams: []string{"family", "page", "pageSize", "prefix", "proto", "source", "vrf"}, Body: false},
 	"State_system":        {ID: "State_system", Method: "GET", Path: "/api/v1/state/system", Summary: "API + agent health, pending commit, running revision", PathParams: nil, QueryParams: nil, Body: false},
 	"Users_setPassword":   {ID: "Users_setPassword", Method: "POST", Path: "/api/v1/users/{name}/password", Summary: "Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys", PathParams: []string{"name"}, QueryParams: nil, Body: true},
 }

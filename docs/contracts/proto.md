@@ -399,7 +399,7 @@ keeps live state out of `Retrieve`). The agent reads FRR through the RF-1 render
 (= FRR connectionsDropped), established, description, afis[{afi, prefixes_received, prefixes_sent}], messages_received,
 messages_sent}`, sorted by VRF then address), `show ip[v6] route vrf all summary json` (→ `rib_counts`
 `"<family>/<vrf>/<protocol>"`), the registered FRR state readers named in `readers` (JSON text by key, redacted; an
-unknown key → `INVALID_ARGUMENT`; F-ospf/F-isis-rip/F-bfd read their daemons through this), and for `rib_prefixes` (≤ 1000
+unknown key → `INVALID_ARGUMENT`; F-ospf/F-isis-rip/F-bfd read their daemons through this), and for `rib_prefixes` (≤ 100
 canonical CIDRs, else `INVALID_ARGUMENT`) one `show ip[v6] route vrf <rib_vrf> <prefix> json` each (→ `rib[]`: the
 entries FRR has for exactly that prefix: `prefix, vrf, protocol, selected, installed, distance, metric, next_hops[{address,
 interface, active, fib}]`). `lcp_pairs[]` is this owner's linux-cp pairs from VPP (`lcp_itf_pair_get`, D-069 logical

@@ -5420,7 +5420,7 @@ export interface RoutingStateRequest {
   owner: string;
   /** Keys of registered FRR state readers to return (e.g. "bgpSummary"); unknown key → INVALID_ARGUMENT. */
   readers: string[];
-  /** RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 1000) in `rib_vrf`. */
+  /** RIB lookup: FRR's RIB entries of these prefixes (canonical CIDR, at most 100) in `rib_vrf`. */
   ribPrefixes: string[];
   /** VRF of the RIB lookup: a VRF name of the document ("" = default). */
   ribVrf: string;

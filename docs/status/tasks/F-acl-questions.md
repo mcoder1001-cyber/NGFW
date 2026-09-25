@@ -60,3 +60,29 @@ Now that `acl` is an implemented domain, every agent-level test's Retrieve reach
 acl plugin model from the start (the owned `coretest/acl.go`). There is no extension hook in `New()`, so it gets one
 line (like P08's `v.installIfExt()`). Also `agent/service_test.go` used `acl` as its example of an unimplemented
 domain; that assertion now uses `management` (one line, like F-object-model's Q5).
+
+## Q8 — the 100 000-rule step needs a manager window (and Q2's limits)
+Measured on the host (slot 3, `VRX_ACL_SCALE=10000 test/topology/acl/run.sh`, NRestarts 1 → 1): raw `acl_add_replace`
+of 10 000 rules 0.013 s, CSV import 2.8 s, commit 10.8 s end to end (agent reconcile 2.26 s of it), rule editor first
+page 0.04 s (running) / 0.7 s (candidate). A 10 000-rule `ApplyRequest` is ≈ 1.2 MB of protobuf, so 100 000 rules are
+≈ 12 MB: above the 4 MiB gRPC default on both sides (Q2) — the 100k commit will fail with RESOURCE_EXHAUSTED until the
+limits are raised; the raw `acl_add_replace` probe and the CSV import (≤ 64 MiB, streamed) do not depend on it. The
+step is opt-in and ready: `eval "$(tools/lab env 3)"; VRX_ACL_SCALE=100000 test/topology/acl/run.sh -run TestACLTopology`
+(it prints NRestarts before/after the step, the raw `acl_add_replace`/`acl_del` time of a 100 000-rule probe ACL
+tagged `w3-probe:scale`, the import/commit/first-page timings, and removes everything again). Please run it in a
+manager window (D-064) or tell me when I may; the unit-level projection of 100 000 rules takes 2.6 s
+(`internal/desired TestACLListLimitAndProjectionTime`).
+
+## Q9 — hit counters are pulled every 30 s, not pushed over WS
+The prompt says "hit-counter columns refreshed from WS". A WS topic would need the API to poll the agent for every
+subscribed list anyway (AclState is unary; StreamStats is core and interface-only). Decision: the editor asks for the
+counters of exactly the visible rows (≤ 1000, stats segment only, no VPP dump) every 30 s and on *Refresh* (D-132:
+nothing that walks VPP below 30 s). A WS topic can be added later behind the same route without changing the UI's
+data shape.
+
+## Q10 — counters availability comes from VPP, not from the D-071 role
+Slot agents are never the globals owner, so they never switch the counters on. When the flag is already on (the globals
+owner, or a test under `flock -x` on the globals lock) the per-rule counters are real, so AclState reports them as
+available whatever the role; when it is off, `counters_available=false` with the reason. The flag is read with the
+read-only CLI `show acl-plugin tables mask` (V7: no API getter). My topology test switched it on once (opt-in
+`VRX_ACL_STATS_GLOBALS=1`, flock -x) and — per the envelope — never off: it is on on the shared VPP now.

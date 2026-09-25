@@ -367,3 +367,23 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-mpls-srmpls: MplsState
+
+`rpc MplsState(MplsStateRequest) returns (MplsStateResponse)` — read-only live MPLS state of this owner; never mutates.
+Configuration is `RoutingConfig.mpls = 15` (`MplsConfig`; field 10 is F-mpls-ldp's `ldp`).
+
+- `view: "fib"` — one page of one MPLS FIB: `table_id` 0 (the default table, VPP-global: every entry is listed, including
+  VPP's reserved special labels 0–15 and other features' labels) or a table this owner created (name `<owner>:<id>`);
+  another owner's or a missing table → `NOT_FOUND`. The agent reads the table once (`mpls_route_dump`), filters by `label`
+  (0 = all), sorts by label and end-of-stack first, and returns `offset`/`limit` (0 → 100, max 1000; offset + limit ≤
+  100 000) with `total`. Walks are serialised in the agent (D-132): one MPLS FIB walk at a time; a request that cannot
+  start within 3 s → `UNAVAILABLE`. Clients refresh on demand; nothing polls faster than 30 s.
+- `view: "tunnels"` — `mpls_tunnel_dump`: this owner's tunnels (`owned`, name = the tunnel's configuration key) and
+  untagged ones (name = VPP's interface name); another owner's tunnels are never listed.
+- `tables` (both views): the MPLS tables the owner can read — 0 when VPP has it, plus its own — ascending.
+- Errors: unknown `view` / `limit` > 1000 / window beyond 100 000 → `INVALID_ARGUMENT`; VPP not connected →
+  `UNAVAILABLE`; owner mismatch → `INVALID_ARGUMENT` (as every RPC).
+- `Retrieve` (§5) reports `routing.mpls.interfaces`, `tables`, `labelRoutes` and `tunnels`; `ipBindings` and `sr` are
+  write-only in VPP 26.06 (no dump, D-063) and are never part of a Retrieve result — they are re-applied on every resync
+  (D-076) and show in the running-vs-actual diff as absent.

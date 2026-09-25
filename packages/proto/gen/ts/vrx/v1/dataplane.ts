@@ -1352,7 +1352,11 @@ export interface RoutingConfig {
     | BfdConfig
     | undefined;
   /** Routing policy: prefix lists and route maps (FRR). */
-  policy: RoutingPolicy | undefined;
+  policy:
+    | RoutingPolicy
+    | undefined;
+  /** Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls). */
+  mpls: MplsConfig | undefined;
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -5274,6 +5278,242 @@ export interface RemoteAccessProfile_Radius_Server {
     | undefined;
   /** Reference to the shared secret. */
   secretRef?: string | undefined;
+}
+
+/** MplsConfig mirrors `routing.mpls` (F-mpls-srmpls). Fields 1–9 are F-mpls-srmpls's; 10 is F-mpls-ldp's. */
+export interface MplsConfig {
+  /** Interfaces with MPLS enabled (sw_interface_set_mpls_enable), configuration keys. Canonical order: sorted. */
+  interfaces: string[];
+  /** Additional MPLS FIBs by decimal table id (mpls_table_add_del); table 0 (the default MPLS table) is never listed. */
+  tables: { [key: string]: MplsTable };
+  /** Static label routes (mpls_route_add_del). Canonical order: table, label, end-of-stack first. */
+  labelRoutes: MplsLabelRoute[];
+  /** Local label ↔ IP prefix bindings (mpls_ip_bind_unbind; write-only in VPP 26.06, never in a Retrieve result). */
+  ipBindings: MplsIpBinding[];
+  /** MPLS tunnel interfaces by name (mpls_tunnel_add_del); the name is the tunnel interface's logical name. */
+  tunnels: { [key: string]: MplsTunnel };
+  /** SR-MPLS (sr_mpls plugin; write-only in VPP 26.06, never in a Retrieve result). */
+  sr: MplsSr | undefined;
+}
+
+export interface MplsConfig_TablesEntry {
+  key: string;
+  value: MplsTable | undefined;
+}
+
+export interface MplsConfig_TunnelsEntry {
+  key: string;
+  value: MplsTunnel | undefined;
+}
+
+/** MplsTable mirrors `routing.mpls.tables.<id>`: an additional MPLS FIB (no settings yet). */
+export interface MplsTable {
+}
+
+/** MplsLabelRoute mirrors one entry of `routing.mpls.labelRoutes`. */
+export interface MplsLabelRoute {
+  /** MPLS table id; Zod default 0 (the default MPLS table). */
+  table?:
+    | number
+    | undefined;
+  /** Local label 16–1048575. */
+  label?:
+    | number
+    | undefined;
+  /** End of stack; Zod default true. */
+  eos?:
+    | boolean
+    | undefined;
+  /** EOS payload: "ip4", "ip6" or "ethernet"; unset = ip6 when a next hop is IPv6, else ip4. */
+  payload?:
+    | string
+    | undefined;
+  /** Paths (load-balanced by weight). Canonical order: next hop, interface, lookup VRF, out labels, weight. */
+  paths: MplsPath[];
+}
+
+/** MplsPath mirrors one path of a label route or MPLS tunnel. */
+export interface MplsPath {
+  /** Next-hop address (canonical text). */
+  nextHop?:
+    | string
+    | undefined;
+  /** Egress interface or MPLS tunnel (configuration key / tunnel name). */
+  interface?:
+    | string
+    | undefined;
+  /** Out-label stack pushed on the path, outermost first (≤ 16 labels); empty = pop. */
+  outLabels: number[];
+  /** Weight 1–255; Zod default 1. */
+  weight?:
+    | number
+    | undefined;
+  /** End-of-stack routes: pop and look the IP payload up in this VRF (no next hop, no interface). */
+  vrf?: string | undefined;
+}
+
+/** MplsIpBinding mirrors one entry of `routing.mpls.ipBindings`. */
+export interface MplsIpBinding {
+  /** Local label 16–1048575 (installed in MPLS table 0). */
+  label?:
+    | number
+    | undefined;
+  /** VRF of the prefix; Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** IP prefix (network address, CIDR). */
+  prefix?: string | undefined;
+}
+
+/** MplsTunnel mirrors `routing.mpls.tunnels.<name>`. */
+export interface MplsTunnel {
+  /** Paths with their out labels. Canonical order as MplsLabelRoute.paths. */
+  paths: MplsPath[];
+  /** Layer-2 only tunnel; Zod default false. */
+  l2Only?: boolean | undefined;
+}
+
+/** MplsSr mirrors `routing.mpls.sr`. */
+export interface MplsSr {
+  /** SR-MPLS policies by decimal binding SID. */
+  policies: { [key: string]: MplsSrPolicy };
+  /** Steering of IP prefixes into policies by BSID. */
+  steering: MplsSrSteering[];
+}
+
+export interface MplsSr_PoliciesEntry {
+  key: string;
+  value: MplsSrPolicy | undefined;
+}
+
+/** MplsSrPolicy mirrors `routing.mpls.sr.policies.<bsid>`. */
+export interface MplsSrPolicy {
+  /** Segment lists (at least one). */
+  segmentLists: MplsSrSegmentList[];
+  /** Replicate on every list instead of load-balancing; Zod default false. */
+  spray?: boolean | undefined;
+}
+
+/** MplsSrSegmentList mirrors one segment list of an SR-MPLS policy. */
+export interface MplsSrSegmentList {
+  /** Segment labels, first segment first (1–16 labels, each 16–1048575). */
+  labels: number[];
+  /** Weight 1–255; Zod default 1. */
+  weight?: number | undefined;
+}
+
+/** MplsSrSteering mirrors one entry of `routing.mpls.sr.steering`. */
+export interface MplsSrSteering {
+  /** VRF of the prefix; Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Steered IP prefix (CIDR). */
+  prefix?:
+    | string
+    | undefined;
+  /** Binding SID of the policy. */
+  bsid?:
+    | number
+    | undefined;
+  /** Optional VPN label pushed under the segments. */
+  vpnLabel?: number | undefined;
+}
+
+/** MplsStateRequest selects one view of the live MPLS state. */
+export interface MplsStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /**
+   * "fib" (one page of the MPLS FIB of table_id) or "tunnels" (every MPLS tunnel this owner can name). Anything else →
+   * INVALID_ARGUMENT.
+   */
+  view: string;
+  /**
+   * fib: the MPLS table: 0 (the default table, shared) or a table this owner created; another owner's table or a
+   * missing one → NOT_FOUND.
+   */
+  tableId: number;
+  /** fib: only entries of this local label (0 = every label). */
+  label: number;
+  /** fib: index of the first entry of the page in the sorted, filtered list (0-based). */
+  offset: number;
+  /** fib: page size; 0 = 100; max 1000. */
+  limit: number;
+}
+
+/** MplsStateResponse is one view of the live MPLS state. */
+export interface MplsStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** The view that was read ("fib" or "tunnels"). */
+  view: string;
+  /** fib: the MPLS table that was read. */
+  tableId: number;
+  /** fib: entries that matched the filter (the agent reads the whole table; only the page crosses this boundary). */
+  total: number;
+  /** fib: the page, sorted by label, then end-of-stack before non-end-of-stack. */
+  entries: MplsStateFibEntry[];
+  /** tunnels: this owner's MPLS tunnels (and untagged ones), sorted by name. */
+  tunnels: MplsStateTunnel[];
+  /** The MPLS tables the owner can read (0 when it exists, plus the owner's own), ascending. */
+  tables: MplsStateTable[];
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** MplsStateTable is one readable MPLS table. */
+export interface MplsStateTable {
+  tableId: number;
+  /** VPP's table name ("" for an unnamed table). */
+  name: string;
+}
+
+/** MplsStateFibEntry is one MPLS FIB entry (live state, not configuration). */
+export interface MplsStateFibEntry {
+  /** Local label (reserved labels 0–15 are VPP's special entries and are listed too). */
+  label: number;
+  /** End of stack. */
+  eos: boolean;
+  /** EOS payload ("ip4", "ip6", "ethernet", "mpls"; "" for non-EOS entries). */
+  payload: string;
+  /** The entry's paths. */
+  paths: MplsStatePath[];
+}
+
+/** MplsStatePath is one path of an MPLS FIB entry or tunnel. */
+export interface MplsStatePath {
+  /** "normal", "local", "drop", "icmp-unreach", "icmp-prohibit", … (fib_api_path_type). */
+  type: string;
+  /** Next-hop protocol ("ip4", "ip6", "mpls", "ethernet"). */
+  proto: string;
+  /** Next-hop address; "" when the path has none. */
+  nextHop: string;
+  /** Egress interface: its logical name (D-069), else VPP's name; "" when none. */
+  interface: string;
+  /** Table the next hop or the payload is looked up in. */
+  tableId: number;
+  /** Pushed out labels, outermost first. */
+  outLabels: number[];
+  weight: number;
+  preference: number;
+}
+
+/** MplsStateTunnel is one live MPLS tunnel. */
+export interface MplsStateTunnel {
+  /** The tunnel's logical name (our tag id), else VPP's interface name. */
+  name: string;
+  /** VPP's interface name (mpls-tunnel<N>). */
+  interface: string;
+  swIfIndex: number;
+  tunnelIndex: number;
+  l2Only: boolean;
+  multicast: boolean;
+  /** The tunnel's paths. */
+  paths: MplsStatePath[];
+  /** true when the tunnel carries this owner's tag (created by this agent). */
+  owned: boolean;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -11907,6 +12147,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     rip: undefined,
     bfd: undefined,
     policy: undefined,
+    mpls: undefined,
   };
 }
 
@@ -11932,6 +12173,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
+    }
+    if (message.mpls !== undefined) {
+      MplsConfig.encode(message.mpls, writer.uint32(122).fork()).join();
     }
     return writer;
   },
@@ -12005,6 +12249,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.policy = RoutingPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.mpls = MplsConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12026,6 +12278,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
+      mpls: isSet(object.mpls) ? MplsConfig.fromJSON(object.mpls) : undefined,
     };
   },
 
@@ -12052,6 +12305,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.policy !== undefined) {
       obj.policy = RoutingPolicy.toJSON(message.policy);
     }
+    if (message.mpls !== undefined) {
+      obj.mpls = MplsConfig.toJSON(message.mpls);
+    }
     return obj;
   },
 
@@ -12072,6 +12328,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.bfd = (object.bfd !== undefined && object.bfd !== null) ? BfdConfig.fromPartial(object.bfd) : undefined;
     message.policy = (object.policy !== undefined && object.policy !== null)
       ? RoutingPolicy.fromPartial(object.policy)
+      : undefined;
+    message.mpls = (object.mpls !== undefined && object.mpls !== null)
+      ? MplsConfig.fromPartial(object.mpls)
       : undefined;
     return message;
   },
@@ -42617,6 +42876,2401 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseMplsConfig(): MplsConfig {
+  return { interfaces: [], tables: {}, labelRoutes: [], ipBindings: [], tunnels: {}, sr: undefined };
+}
+
+export const MplsConfig: MessageFns<MplsConfig> = {
+  encode(message: MplsConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.interfaces) {
+      writer.uint32(10).string(v!);
+    }
+    globalThis.Object.entries(message.tables).forEach(([key, value]: [string, MplsTable]) => {
+      MplsConfig_TablesEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    for (const v of message.labelRoutes) {
+      MplsLabelRoute.encode(v!, writer.uint32(26).fork()).join();
+    }
+    for (const v of message.ipBindings) {
+      MplsIpBinding.encode(v!, writer.uint32(34).fork()).join();
+    }
+    globalThis.Object.entries(message.tunnels).forEach(([key, value]: [string, MplsTunnel]) => {
+      MplsConfig_TunnelsEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
+    if (message.sr !== undefined) {
+      MplsSr.encode(message.sr, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = MplsConfig_TablesEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.tables[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.labelRoutes.push(MplsLabelRoute.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.ipBindings.push(MplsIpBinding.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            const entry5 = MplsConfig_TunnelsEntry.decode(reader, reader.uint32());
+            if (entry5.value !== undefined) {
+              message.tunnels[entry5.key] = entry5.value;
+            }
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sr = MplsSr.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsConfig {
+    return {
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      tables: isObject(object.tables)
+        ? (globalThis.Object.entries(object.tables) as [string, any][]).reduce(
+          (acc: { [key: string]: MplsTable }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: MplsTable.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      labelRoutes: globalThis.Array.isArray(object?.labelRoutes)
+        ? object.labelRoutes.map((e: any) => MplsLabelRoute.fromJSON(e))
+        : globalThis.Array.isArray(object?.label_routes)
+        ? object.label_routes.map((e: any) => MplsLabelRoute.fromJSON(e))
+        : [],
+      ipBindings: globalThis.Array.isArray(object?.ipBindings)
+        ? object.ipBindings.map((e: any) => MplsIpBinding.fromJSON(e))
+        : globalThis.Array.isArray(object?.ip_bindings)
+        ? object.ip_bindings.map((e: any) => MplsIpBinding.fromJSON(e))
+        : [],
+      tunnels: isObject(object.tunnels)
+        ? (globalThis.Object.entries(object.tunnels) as [string, any][]).reduce(
+          (acc: { [key: string]: MplsTunnel }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: MplsTunnel.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      sr: isSet(object.sr) ? MplsSr.fromJSON(object.sr) : undefined,
+    };
+  },
+
+  toJSON(message: MplsConfig): unknown {
+    const obj: any = {};
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.tables) {
+      const entries = globalThis.Object.entries(message.tables) as [string, MplsTable][];
+      if (entries.length > 0) {
+        obj.tables = {};
+        entries.forEach(([k, v]) => {
+          obj.tables[k] = MplsTable.toJSON(v);
+        });
+      }
+    }
+    if (message.labelRoutes?.length) {
+      obj.labelRoutes = message.labelRoutes.map((e) => MplsLabelRoute.toJSON(e));
+    }
+    if (message.ipBindings?.length) {
+      obj.ipBindings = message.ipBindings.map((e) => MplsIpBinding.toJSON(e));
+    }
+    if (message.tunnels) {
+      const entries = globalThis.Object.entries(message.tunnels) as [string, MplsTunnel][];
+      if (entries.length > 0) {
+        obj.tunnels = {};
+        entries.forEach(([k, v]) => {
+          obj.tunnels[k] = MplsTunnel.toJSON(v);
+        });
+      }
+    }
+    if (message.sr !== undefined) {
+      obj.sr = MplsSr.toJSON(message.sr);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsConfig>): MplsConfig {
+    return MplsConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsConfig>): MplsConfig {
+    const message = createBaseMplsConfig();
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.tables = (globalThis.Object.entries(object.tables ?? {}) as [string, MplsTable][]).reduce(
+      (acc: { [key: string]: MplsTable }, [key, value]: [string, MplsTable]) => {
+        if (value !== undefined) {
+          acc[key] = MplsTable.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.labelRoutes = object.labelRoutes?.map((e) => MplsLabelRoute.fromPartial(e)) || [];
+    message.ipBindings = object.ipBindings?.map((e) => MplsIpBinding.fromPartial(e)) || [];
+    message.tunnels = (globalThis.Object.entries(object.tunnels ?? {}) as [string, MplsTunnel][]).reduce(
+      (acc: { [key: string]: MplsTunnel }, [key, value]: [string, MplsTunnel]) => {
+        if (value !== undefined) {
+          acc[key] = MplsTunnel.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.sr = (object.sr !== undefined && object.sr !== null) ? MplsSr.fromPartial(object.sr) : undefined;
+    return message;
+  },
+};
+
+function createBaseMplsConfig_TablesEntry(): MplsConfig_TablesEntry {
+  return { key: "", value: undefined };
+}
+
+export const MplsConfig_TablesEntry: MessageFns<MplsConfig_TablesEntry> = {
+  encode(message: MplsConfig_TablesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      MplsTable.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsConfig_TablesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsConfig_TablesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = MplsTable.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsConfig_TablesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? MplsTable.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: MplsConfig_TablesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = MplsTable.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsConfig_TablesEntry>): MplsConfig_TablesEntry {
+    return MplsConfig_TablesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsConfig_TablesEntry>): MplsConfig_TablesEntry {
+    const message = createBaseMplsConfig_TablesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? MplsTable.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseMplsConfig_TunnelsEntry(): MplsConfig_TunnelsEntry {
+  return { key: "", value: undefined };
+}
+
+export const MplsConfig_TunnelsEntry: MessageFns<MplsConfig_TunnelsEntry> = {
+  encode(message: MplsConfig_TunnelsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      MplsTunnel.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsConfig_TunnelsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsConfig_TunnelsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = MplsTunnel.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsConfig_TunnelsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? MplsTunnel.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: MplsConfig_TunnelsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = MplsTunnel.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsConfig_TunnelsEntry>): MplsConfig_TunnelsEntry {
+    return MplsConfig_TunnelsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsConfig_TunnelsEntry>): MplsConfig_TunnelsEntry {
+    const message = createBaseMplsConfig_TunnelsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? MplsTunnel.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseMplsTable(): MplsTable {
+  return {};
+}
+
+export const MplsTable: MessageFns<MplsTable> = {
+  encode(_: MplsTable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsTable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsTable();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(_: any): MplsTable {
+    return {};
+  },
+
+  toJSON(_: MplsTable): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsTable>): MplsTable {
+    return MplsTable.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<MplsTable>): MplsTable {
+    const message = createBaseMplsTable();
+    return message;
+  },
+};
+
+function createBaseMplsLabelRoute(): MplsLabelRoute {
+  return { table: undefined, label: undefined, eos: undefined, payload: undefined, paths: [] };
+}
+
+export const MplsLabelRoute: MessageFns<MplsLabelRoute> = {
+  encode(message: MplsLabelRoute, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.table !== undefined) {
+      writer.uint32(8).uint32(message.table);
+    }
+    if (message.label !== undefined) {
+      writer.uint32(16).uint32(message.label);
+    }
+    if (message.eos !== undefined) {
+      writer.uint32(24).bool(message.eos);
+    }
+    if (message.payload !== undefined) {
+      writer.uint32(34).string(message.payload);
+    }
+    for (const v of message.paths) {
+      MplsPath.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsLabelRoute {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsLabelRoute();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.table = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.label = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.eos = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.payload = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.paths.push(MplsPath.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsLabelRoute {
+    return {
+      table: isSet(object.table) ? globalThis.Number(object.table) : undefined,
+      label: isSet(object.label) ? globalThis.Number(object.label) : undefined,
+      eos: isSet(object.eos) ? globalThis.Boolean(object.eos) : undefined,
+      payload: isSet(object.payload) ? globalThis.String(object.payload) : undefined,
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => MplsPath.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: MplsLabelRoute): unknown {
+    const obj: any = {};
+    if (message.table !== undefined) {
+      obj.table = Math.round(message.table);
+    }
+    if (message.label !== undefined) {
+      obj.label = Math.round(message.label);
+    }
+    if (message.eos !== undefined) {
+      obj.eos = message.eos;
+    }
+    if (message.payload !== undefined) {
+      obj.payload = message.payload;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => MplsPath.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsLabelRoute>): MplsLabelRoute {
+    return MplsLabelRoute.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsLabelRoute>): MplsLabelRoute {
+    const message = createBaseMplsLabelRoute();
+    message.table = object.table ?? undefined;
+    message.label = object.label ?? undefined;
+    message.eos = object.eos ?? undefined;
+    message.payload = object.payload ?? undefined;
+    message.paths = object.paths?.map((e) => MplsPath.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMplsPath(): MplsPath {
+  return { nextHop: undefined, interface: undefined, outLabels: [], weight: undefined, vrf: undefined };
+}
+
+export const MplsPath: MessageFns<MplsPath> = {
+  encode(message: MplsPath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.nextHop !== undefined) {
+      writer.uint32(10).string(message.nextHop);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    writer.uint32(26).fork();
+    for (const v of message.outLabels) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.weight !== undefined) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(42).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsPath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsPath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag === 24) {
+              message.outLabels.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 26) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.outLabels.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsPath {
+    return {
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      outLabels: globalThis.Array.isArray(object?.outLabels)
+        ? object.outLabels.map((e: any) => globalThis.Number(e))
+        : globalThis.Array.isArray(object?.out_labels)
+        ? object.out_labels.map((e: any) => globalThis.Number(e))
+        : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: MplsPath): unknown {
+    const obj: any = {};
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.outLabels?.length) {
+      obj.outLabels = message.outLabels.map((e) => Math.round(e));
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsPath>): MplsPath {
+    return MplsPath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsPath>): MplsPath {
+    const message = createBaseMplsPath();
+    message.nextHop = object.nextHop ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.outLabels = object.outLabels?.map((e) => e) || [];
+    message.weight = object.weight ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsIpBinding(): MplsIpBinding {
+  return { label: undefined, vrf: undefined, prefix: undefined };
+}
+
+export const MplsIpBinding: MessageFns<MplsIpBinding> = {
+  encode(message: MplsIpBinding, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.label !== undefined) {
+      writer.uint32(8).uint32(message.label);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(18).string(message.vrf);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(26).string(message.prefix);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsIpBinding {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsIpBinding();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.label = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsIpBinding {
+    return {
+      label: isSet(object.label) ? globalThis.Number(object.label) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+    };
+  },
+
+  toJSON(message: MplsIpBinding): unknown {
+    const obj: any = {};
+    if (message.label !== undefined) {
+      obj.label = Math.round(message.label);
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsIpBinding>): MplsIpBinding {
+    return MplsIpBinding.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsIpBinding>): MplsIpBinding {
+    const message = createBaseMplsIpBinding();
+    message.label = object.label ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.prefix = object.prefix ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsTunnel(): MplsTunnel {
+  return { paths: [], l2Only: undefined };
+}
+
+export const MplsTunnel: MessageFns<MplsTunnel> = {
+  encode(message: MplsTunnel, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.paths) {
+      MplsPath.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.l2Only !== undefined) {
+      writer.uint32(16).bool(message.l2Only);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsTunnel {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsTunnel();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.paths.push(MplsPath.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.l2Only = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsTunnel {
+    return {
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => MplsPath.fromJSON(e)) : [],
+      l2Only: isSet(object.l2Only)
+        ? globalThis.Boolean(object.l2Only)
+        : isSet(object.l2_only)
+        ? globalThis.Boolean(object.l2_only)
+        : undefined,
+    };
+  },
+
+  toJSON(message: MplsTunnel): unknown {
+    const obj: any = {};
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => MplsPath.toJSON(e));
+    }
+    if (message.l2Only !== undefined) {
+      obj.l2Only = message.l2Only;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsTunnel>): MplsTunnel {
+    return MplsTunnel.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsTunnel>): MplsTunnel {
+    const message = createBaseMplsTunnel();
+    message.paths = object.paths?.map((e) => MplsPath.fromPartial(e)) || [];
+    message.l2Only = object.l2Only ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsSr(): MplsSr {
+  return { policies: {}, steering: [] };
+}
+
+export const MplsSr: MessageFns<MplsSr> = {
+  encode(message: MplsSr, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.policies).forEach(([key, value]: [string, MplsSrPolicy]) => {
+      MplsSr_PoliciesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    for (const v of message.steering) {
+      MplsSrSteering.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsSr {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsSr();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = MplsSr_PoliciesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.policies[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.steering.push(MplsSrSteering.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsSr {
+    return {
+      policies: isObject(object.policies)
+        ? (globalThis.Object.entries(object.policies) as [string, any][]).reduce(
+          (acc: { [key: string]: MplsSrPolicy }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: MplsSrPolicy.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      steering: globalThis.Array.isArray(object?.steering)
+        ? object.steering.map((e: any) => MplsSrSteering.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: MplsSr): unknown {
+    const obj: any = {};
+    if (message.policies) {
+      const entries = globalThis.Object.entries(message.policies) as [string, MplsSrPolicy][];
+      if (entries.length > 0) {
+        obj.policies = {};
+        entries.forEach(([k, v]) => {
+          obj.policies[k] = MplsSrPolicy.toJSON(v);
+        });
+      }
+    }
+    if (message.steering?.length) {
+      obj.steering = message.steering.map((e) => MplsSrSteering.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsSr>): MplsSr {
+    return MplsSr.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsSr>): MplsSr {
+    const message = createBaseMplsSr();
+    message.policies = (globalThis.Object.entries(object.policies ?? {}) as [string, MplsSrPolicy][]).reduce(
+      (acc: { [key: string]: MplsSrPolicy }, [key, value]: [string, MplsSrPolicy]) => {
+        if (value !== undefined) {
+          acc[key] = MplsSrPolicy.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.steering = object.steering?.map((e) => MplsSrSteering.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMplsSr_PoliciesEntry(): MplsSr_PoliciesEntry {
+  return { key: "", value: undefined };
+}
+
+export const MplsSr_PoliciesEntry: MessageFns<MplsSr_PoliciesEntry> = {
+  encode(message: MplsSr_PoliciesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      MplsSrPolicy.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsSr_PoliciesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsSr_PoliciesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = MplsSrPolicy.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsSr_PoliciesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? MplsSrPolicy.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: MplsSr_PoliciesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = MplsSrPolicy.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsSr_PoliciesEntry>): MplsSr_PoliciesEntry {
+    return MplsSr_PoliciesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsSr_PoliciesEntry>): MplsSr_PoliciesEntry {
+    const message = createBaseMplsSr_PoliciesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? MplsSrPolicy.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseMplsSrPolicy(): MplsSrPolicy {
+  return { segmentLists: [], spray: undefined };
+}
+
+export const MplsSrPolicy: MessageFns<MplsSrPolicy> = {
+  encode(message: MplsSrPolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.segmentLists) {
+      MplsSrSegmentList.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.spray !== undefined) {
+      writer.uint32(16).bool(message.spray);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsSrPolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsSrPolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.segmentLists.push(MplsSrSegmentList.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.spray = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsSrPolicy {
+    return {
+      segmentLists: globalThis.Array.isArray(object?.segmentLists)
+        ? object.segmentLists.map((e: any) => MplsSrSegmentList.fromJSON(e))
+        : globalThis.Array.isArray(object?.segment_lists)
+        ? object.segment_lists.map((e: any) => MplsSrSegmentList.fromJSON(e))
+        : [],
+      spray: isSet(object.spray) ? globalThis.Boolean(object.spray) : undefined,
+    };
+  },
+
+  toJSON(message: MplsSrPolicy): unknown {
+    const obj: any = {};
+    if (message.segmentLists?.length) {
+      obj.segmentLists = message.segmentLists.map((e) => MplsSrSegmentList.toJSON(e));
+    }
+    if (message.spray !== undefined) {
+      obj.spray = message.spray;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsSrPolicy>): MplsSrPolicy {
+    return MplsSrPolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsSrPolicy>): MplsSrPolicy {
+    const message = createBaseMplsSrPolicy();
+    message.segmentLists = object.segmentLists?.map((e) => MplsSrSegmentList.fromPartial(e)) || [];
+    message.spray = object.spray ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsSrSegmentList(): MplsSrSegmentList {
+  return { labels: [], weight: undefined };
+}
+
+export const MplsSrSegmentList: MessageFns<MplsSrSegmentList> = {
+  encode(message: MplsSrSegmentList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    writer.uint32(10).fork();
+    for (const v of message.labels) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.weight !== undefined) {
+      writer.uint32(16).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsSrSegmentList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsSrSegmentList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag === 8) {
+              message.labels.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 10) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.labels.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsSrSegmentList {
+    return {
+      labels: globalThis.Array.isArray(object?.labels) ? object.labels.map((e: any) => globalThis.Number(e)) : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: MplsSrSegmentList): unknown {
+    const obj: any = {};
+    if (message.labels?.length) {
+      obj.labels = message.labels.map((e) => Math.round(e));
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsSrSegmentList>): MplsSrSegmentList {
+    return MplsSrSegmentList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsSrSegmentList>): MplsSrSegmentList {
+    const message = createBaseMplsSrSegmentList();
+    message.labels = object.labels?.map((e) => e) || [];
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsSrSteering(): MplsSrSteering {
+  return { vrf: undefined, prefix: undefined, bsid: undefined, vpnLabel: undefined };
+}
+
+export const MplsSrSteering: MessageFns<MplsSrSteering> = {
+  encode(message: MplsSrSteering, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== undefined) {
+      writer.uint32(10).string(message.vrf);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.bsid !== undefined) {
+      writer.uint32(24).uint32(message.bsid);
+    }
+    if (message.vpnLabel !== undefined) {
+      writer.uint32(32).uint32(message.vpnLabel);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsSrSteering {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsSrSteering();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.bsid = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.vpnLabel = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsSrSteering {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      bsid: isSet(object.bsid) ? globalThis.Number(object.bsid) : undefined,
+      vpnLabel: isSet(object.vpnLabel)
+        ? globalThis.Number(object.vpnLabel)
+        : isSet(object.vpn_label)
+        ? globalThis.Number(object.vpn_label)
+        : undefined,
+    };
+  },
+
+  toJSON(message: MplsSrSteering): unknown {
+    const obj: any = {};
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.bsid !== undefined) {
+      obj.bsid = Math.round(message.bsid);
+    }
+    if (message.vpnLabel !== undefined) {
+      obj.vpnLabel = Math.round(message.vpnLabel);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsSrSteering>): MplsSrSteering {
+    return MplsSrSteering.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsSrSteering>): MplsSrSteering {
+    const message = createBaseMplsSrSteering();
+    message.vrf = object.vrf ?? undefined;
+    message.prefix = object.prefix ?? undefined;
+    message.bsid = object.bsid ?? undefined;
+    message.vpnLabel = object.vpnLabel ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsStateRequest(): MplsStateRequest {
+  return { owner: "", view: "", tableId: 0, label: 0, offset: 0, limit: 0 };
+}
+
+export const MplsStateRequest: MessageFns<MplsStateRequest> = {
+  encode(message: MplsStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.view !== "") {
+      writer.uint32(18).string(message.view);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(24).uint32(message.tableId);
+    }
+    if (message.label !== 0) {
+      writer.uint32(32).uint32(message.label);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(40).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(48).uint32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.view = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.label = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      view: isSet(object.view) ? globalThis.String(object.view) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      label: isSet(object.label) ? globalThis.Number(object.label) : 0,
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: MplsStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.view !== "") {
+      obj.view = message.view;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.label !== 0) {
+      obj.label = Math.round(message.label);
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStateRequest>): MplsStateRequest {
+    return MplsStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStateRequest>): MplsStateRequest {
+    const message = createBaseMplsStateRequest();
+    message.owner = object.owner ?? "";
+    message.view = object.view ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.label = object.label ?? 0;
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseMplsStateResponse(): MplsStateResponse {
+  return { owner: "", view: "", tableId: 0, total: 0, entries: [], tunnels: [], tables: [], retrievedAt: undefined };
+}
+
+export const MplsStateResponse: MessageFns<MplsStateResponse> = {
+  encode(message: MplsStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.view !== "") {
+      writer.uint32(18).string(message.view);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(24).uint32(message.tableId);
+    }
+    if (message.total !== 0) {
+      writer.uint32(32).uint32(message.total);
+    }
+    for (const v of message.entries) {
+      MplsStateFibEntry.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.tunnels) {
+      MplsStateTunnel.encode(v!, writer.uint32(50).fork()).join();
+    }
+    for (const v of message.tables) {
+      MplsStateTable.encode(v!, writer.uint32(58).fork()).join();
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.view = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.entries.push(MplsStateFibEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.tunnels.push(MplsStateTunnel.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.tables.push(MplsStateTable.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      view: isSet(object.view) ? globalThis.String(object.view) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      entries: globalThis.Array.isArray(object?.entries)
+        ? object.entries.map((e: any) => MplsStateFibEntry.fromJSON(e))
+        : [],
+      tunnels: globalThis.Array.isArray(object?.tunnels)
+        ? object.tunnels.map((e: any) => MplsStateTunnel.fromJSON(e))
+        : [],
+      tables: globalThis.Array.isArray(object?.tables)
+        ? object.tables.map((e: any) => MplsStateTable.fromJSON(e))
+        : [],
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: MplsStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.view !== "") {
+      obj.view = message.view;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => MplsStateFibEntry.toJSON(e));
+    }
+    if (message.tunnels?.length) {
+      obj.tunnels = message.tunnels.map((e) => MplsStateTunnel.toJSON(e));
+    }
+    if (message.tables?.length) {
+      obj.tables = message.tables.map((e) => MplsStateTable.toJSON(e));
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStateResponse>): MplsStateResponse {
+    return MplsStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStateResponse>): MplsStateResponse {
+    const message = createBaseMplsStateResponse();
+    message.owner = object.owner ?? "";
+    message.view = object.view ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.total = object.total ?? 0;
+    message.entries = object.entries?.map((e) => MplsStateFibEntry.fromPartial(e)) || [];
+    message.tunnels = object.tunnels?.map((e) => MplsStateTunnel.fromPartial(e)) || [];
+    message.tables = object.tables?.map((e) => MplsStateTable.fromPartial(e)) || [];
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseMplsStateTable(): MplsStateTable {
+  return { tableId: 0, name: "" };
+}
+
+export const MplsStateTable: MessageFns<MplsStateTable> = {
+  encode(message: MplsStateTable, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tableId !== 0) {
+      writer.uint32(8).uint32(message.tableId);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStateTable {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStateTable();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStateTable {
+    return {
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+    };
+  },
+
+  toJSON(message: MplsStateTable): unknown {
+    const obj: any = {};
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStateTable>): MplsStateTable {
+    return MplsStateTable.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStateTable>): MplsStateTable {
+    const message = createBaseMplsStateTable();
+    message.tableId = object.tableId ?? 0;
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+function createBaseMplsStateFibEntry(): MplsStateFibEntry {
+  return { label: 0, eos: false, payload: "", paths: [] };
+}
+
+export const MplsStateFibEntry: MessageFns<MplsStateFibEntry> = {
+  encode(message: MplsStateFibEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.label !== 0) {
+      writer.uint32(8).uint32(message.label);
+    }
+    if (message.eos !== false) {
+      writer.uint32(16).bool(message.eos);
+    }
+    if (message.payload !== "") {
+      writer.uint32(26).string(message.payload);
+    }
+    for (const v of message.paths) {
+      MplsStatePath.encode(v!, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStateFibEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStateFibEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.label = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.eos = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.payload = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.paths.push(MplsStatePath.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStateFibEntry {
+    return {
+      label: isSet(object.label) ? globalThis.Number(object.label) : 0,
+      eos: isSet(object.eos) ? globalThis.Boolean(object.eos) : false,
+      payload: isSet(object.payload) ? globalThis.String(object.payload) : "",
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => MplsStatePath.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: MplsStateFibEntry): unknown {
+    const obj: any = {};
+    if (message.label !== 0) {
+      obj.label = Math.round(message.label);
+    }
+    if (message.eos !== false) {
+      obj.eos = message.eos;
+    }
+    if (message.payload !== "") {
+      obj.payload = message.payload;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => MplsStatePath.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStateFibEntry>): MplsStateFibEntry {
+    return MplsStateFibEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStateFibEntry>): MplsStateFibEntry {
+    const message = createBaseMplsStateFibEntry();
+    message.label = object.label ?? 0;
+    message.eos = object.eos ?? false;
+    message.payload = object.payload ?? "";
+    message.paths = object.paths?.map((e) => MplsStatePath.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMplsStatePath(): MplsStatePath {
+  return { type: "", proto: "", nextHop: "", interface: "", tableId: 0, outLabels: [], weight: 0, preference: 0 };
+}
+
+export const MplsStatePath: MessageFns<MplsStatePath> = {
+  encode(message: MplsStatePath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== "") {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.proto !== "") {
+      writer.uint32(18).string(message.proto);
+    }
+    if (message.nextHop !== "") {
+      writer.uint32(26).string(message.nextHop);
+    }
+    if (message.interface !== "") {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(40).uint32(message.tableId);
+    }
+    writer.uint32(50).fork();
+    for (const v of message.outLabels) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.weight !== 0) {
+      writer.uint32(56).uint32(message.weight);
+    }
+    if (message.preference !== 0) {
+      writer.uint32(64).uint32(message.preference);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStatePath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStatePath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.proto = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag === 48) {
+              message.outLabels.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 50) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.outLabels.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.preference = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStatePath {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      proto: isSet(object.proto) ? globalThis.String(object.proto) : "",
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      outLabels: globalThis.Array.isArray(object?.outLabels)
+        ? object.outLabels.map((e: any) => globalThis.Number(e))
+        : globalThis.Array.isArray(object?.out_labels)
+        ? object.out_labels.map((e: any) => globalThis.Number(e))
+        : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      preference: isSet(object.preference) ? globalThis.Number(object.preference) : 0,
+    };
+  },
+
+  toJSON(message: MplsStatePath): unknown {
+    const obj: any = {};
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.proto !== "") {
+      obj.proto = message.proto;
+    }
+    if (message.nextHop !== "") {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.outLabels?.length) {
+      obj.outLabels = message.outLabels.map((e) => Math.round(e));
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.preference !== 0) {
+      obj.preference = Math.round(message.preference);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStatePath>): MplsStatePath {
+    return MplsStatePath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStatePath>): MplsStatePath {
+    const message = createBaseMplsStatePath();
+    message.type = object.type ?? "";
+    message.proto = object.proto ?? "";
+    message.nextHop = object.nextHop ?? "";
+    message.interface = object.interface ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.outLabels = object.outLabels?.map((e) => e) || [];
+    message.weight = object.weight ?? 0;
+    message.preference = object.preference ?? 0;
+    return message;
+  },
+};
+
+function createBaseMplsStateTunnel(): MplsStateTunnel {
+  return {
+    name: "",
+    interface: "",
+    swIfIndex: 0,
+    tunnelIndex: 0,
+    l2Only: false,
+    multicast: false,
+    paths: [],
+    owned: false,
+  };
+}
+
+export const MplsStateTunnel: MessageFns<MplsStateTunnel> = {
+  encode(message: MplsStateTunnel, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.interface !== "") {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(24).uint32(message.swIfIndex);
+    }
+    if (message.tunnelIndex !== 0) {
+      writer.uint32(32).uint32(message.tunnelIndex);
+    }
+    if (message.l2Only !== false) {
+      writer.uint32(40).bool(message.l2Only);
+    }
+    if (message.multicast !== false) {
+      writer.uint32(48).bool(message.multicast);
+    }
+    for (const v of message.paths) {
+      MplsStatePath.encode(v!, writer.uint32(58).fork()).join();
+    }
+    if (message.owned !== false) {
+      writer.uint32(64).bool(message.owned);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MplsStateTunnel {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMplsStateTunnel();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.tunnelIndex = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.l2Only = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.multicast = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.paths.push(MplsStatePath.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.owned = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MplsStateTunnel {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      tunnelIndex: isSet(object.tunnelIndex)
+        ? globalThis.Number(object.tunnelIndex)
+        : isSet(object.tunnel_index)
+        ? globalThis.Number(object.tunnel_index)
+        : 0,
+      l2Only: isSet(object.l2Only)
+        ? globalThis.Boolean(object.l2Only)
+        : isSet(object.l2_only)
+        ? globalThis.Boolean(object.l2_only)
+        : false,
+      multicast: isSet(object.multicast) ? globalThis.Boolean(object.multicast) : false,
+      paths: globalThis.Array.isArray(object?.paths)
+        ? object.paths.map((e: any) => MplsStatePath.fromJSON(e))
+        : [],
+      owned: isSet(object.owned) ? globalThis.Boolean(object.owned) : false,
+    };
+  },
+
+  toJSON(message: MplsStateTunnel): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.tunnelIndex !== 0) {
+      obj.tunnelIndex = Math.round(message.tunnelIndex);
+    }
+    if (message.l2Only !== false) {
+      obj.l2Only = message.l2Only;
+    }
+    if (message.multicast !== false) {
+      obj.multicast = message.multicast;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => MplsStatePath.toJSON(e));
+    }
+    if (message.owned !== false) {
+      obj.owned = message.owned;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MplsStateTunnel>): MplsStateTunnel {
+    return MplsStateTunnel.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MplsStateTunnel>): MplsStateTunnel {
+    const message = createBaseMplsStateTunnel();
+    message.name = object.name ?? "";
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.tunnelIndex = object.tunnelIndex ?? 0;
+    message.l2Only = object.l2Only ?? false;
+    message.multicast = object.multicast ?? false;
+    message.paths = object.paths?.map((e) => MplsStatePath.fromPartial(e)) || [];
+    message.owned = object.owned ?? false;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -42732,6 +45386,20 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /**
+   * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+   * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+   * (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+   */
+  mplsState: {
+    path: "/vrx.v1.Dataplane/MplsState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: MplsStateRequest): Buffer => Buffer.from(MplsStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): MplsStateRequest => MplsStateRequest.decode(value),
+    responseSerialize: (value: MplsStateResponse): Buffer => Buffer.from(MplsStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): MplsStateResponse => MplsStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -42777,6 +45445,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+   * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+   * (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+   */
+  mplsState: handleUnaryCall<MplsStateRequest, MplsStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -42906,6 +45580,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+   * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+   * (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+   */
+  mplsState(
+    request: MplsStateRequest,
+    callback: (error: ServiceError | null, response: MplsStateResponse) => void,
+  ): ClientUnaryCall;
+  mplsState(
+    request: MplsStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: MplsStateResponse) => void,
+  ): ClientUnaryCall;
+  mplsState(
+    request: MplsStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: MplsStateResponse) => void,
   ): ClientUnaryCall;
 }
 

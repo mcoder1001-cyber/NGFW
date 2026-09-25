@@ -77,6 +77,12 @@ service Dataplane {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+
+  // MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+  // paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+  // (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+  rpc MplsState(MplsStateRequest) returns (MplsStateResponse);
+
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
   // wave-BC: F-host-stack
@@ -964,6 +970,10 @@ message RoutingConfig {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+
+  // Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls).
+  MplsConfig mpls = 15;
+
   // wave-BC: F-igmp-mfib
   // wave-BC: F-srv6
   // wave-A: F-neighbors-ra
@@ -3606,6 +3616,201 @@ message RemoteAccessProfile {
 // ----- F-isis-rip -----
 
 // ----- F-mpls-srmpls -----
+
+// MplsConfig mirrors `routing.mpls` (F-mpls-srmpls). Fields 1–9 are F-mpls-srmpls's; 10 is F-mpls-ldp's.
+message MplsConfig {
+  // Interfaces with MPLS enabled (sw_interface_set_mpls_enable), configuration keys. Canonical order: sorted.
+  repeated string interfaces = 1;
+  // Additional MPLS FIBs by decimal table id (mpls_table_add_del); table 0 (the default MPLS table) is never listed.
+  map<string, MplsTable> tables = 2;
+  // Static label routes (mpls_route_add_del). Canonical order: table, label, end-of-stack first.
+  repeated MplsLabelRoute label_routes = 3;
+  // Local label ↔ IP prefix bindings (mpls_ip_bind_unbind; write-only in VPP 26.06, never in a Retrieve result).
+  repeated MplsIpBinding ip_bindings = 4;
+  // MPLS tunnel interfaces by name (mpls_tunnel_add_del); the name is the tunnel interface's logical name.
+  map<string, MplsTunnel> tunnels = 5;
+  // SR-MPLS (sr_mpls plugin; write-only in VPP 26.06, never in a Retrieve result).
+  MplsSr sr = 6;
+
+  // 10 reserved: ldp (F-mpls-ldp)
+  // wave-BC: F-mpls-ldp
+}
+
+// MplsTable mirrors `routing.mpls.tables.<id>`: an additional MPLS FIB (no settings yet).
+message MplsTable {}
+
+// MplsLabelRoute mirrors one entry of `routing.mpls.labelRoutes`.
+message MplsLabelRoute {
+  // MPLS table id; Zod default 0 (the default MPLS table).
+  optional uint32 table = 1;
+  // Local label 16–1048575.
+  optional uint32 label = 2;
+  // End of stack; Zod default true.
+  optional bool eos = 3;
+  // EOS payload: "ip4", "ip6" or "ethernet"; unset = ip6 when a next hop is IPv6, else ip4.
+  optional string payload = 4;
+  // Paths (load-balanced by weight). Canonical order: next hop, interface, lookup VRF, out labels, weight.
+  repeated MplsPath paths = 5;
+}
+
+// MplsPath mirrors one path of a label route or MPLS tunnel.
+message MplsPath {
+  // Next-hop address (canonical text).
+  optional string next_hop = 1;
+  // Egress interface or MPLS tunnel (configuration key / tunnel name).
+  optional string interface = 2;
+  // Out-label stack pushed on the path, outermost first (≤ 16 labels); empty = pop.
+  repeated uint32 out_labels = 3;
+  // Weight 1–255; Zod default 1.
+  optional uint32 weight = 4;
+  // End-of-stack routes: pop and look the IP payload up in this VRF (no next hop, no interface).
+  optional string vrf = 5;
+}
+
+// MplsIpBinding mirrors one entry of `routing.mpls.ipBindings`.
+message MplsIpBinding {
+  // Local label 16–1048575 (installed in MPLS table 0).
+  optional uint32 label = 1;
+  // VRF of the prefix; Zod default "default".
+  optional string vrf = 2;
+  // IP prefix (network address, CIDR).
+  optional string prefix = 3;
+}
+
+// MplsTunnel mirrors `routing.mpls.tunnels.<name>`.
+message MplsTunnel {
+  // Paths with their out labels. Canonical order as MplsLabelRoute.paths.
+  repeated MplsPath paths = 1;
+  // Layer-2 only tunnel; Zod default false.
+  optional bool l2_only = 2;
+}
+
+// MplsSr mirrors `routing.mpls.sr`.
+message MplsSr {
+  // SR-MPLS policies by decimal binding SID.
+  map<string, MplsSrPolicy> policies = 1;
+  // Steering of IP prefixes into policies by BSID.
+  repeated MplsSrSteering steering = 2;
+}
+
+// MplsSrPolicy mirrors `routing.mpls.sr.policies.<bsid>`.
+message MplsSrPolicy {
+  // Segment lists (at least one).
+  repeated MplsSrSegmentList segment_lists = 1;
+  // Replicate on every list instead of load-balancing; Zod default false.
+  optional bool spray = 2;
+}
+
+// MplsSrSegmentList mirrors one segment list of an SR-MPLS policy.
+message MplsSrSegmentList {
+  // Segment labels, first segment first (1–16 labels, each 16–1048575).
+  repeated uint32 labels = 1;
+  // Weight 1–255; Zod default 1.
+  optional uint32 weight = 2;
+}
+
+// MplsSrSteering mirrors one entry of `routing.mpls.sr.steering`.
+message MplsSrSteering {
+  // VRF of the prefix; Zod default "default".
+  optional string vrf = 1;
+  // Steered IP prefix (CIDR).
+  optional string prefix = 2;
+  // Binding SID of the policy.
+  optional uint32 bsid = 3;
+  // Optional VPN label pushed under the segments.
+  optional uint32 vpn_label = 4;
+}
+
+// MplsStateRequest selects one view of the live MPLS state.
+message MplsStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // "fib" (one page of the MPLS FIB of table_id) or "tunnels" (every MPLS tunnel this owner can name). Anything else →
+  // INVALID_ARGUMENT.
+  string view = 2;
+  // fib: the MPLS table: 0 (the default table, shared) or a table this owner created; another owner's table or a
+  // missing one → NOT_FOUND.
+  uint32 table_id = 3;
+  // fib: only entries of this local label (0 = every label).
+  uint32 label = 4;
+  // fib: index of the first entry of the page in the sorted, filtered list (0-based).
+  uint32 offset = 5;
+  // fib: page size; 0 = 100; max 1000.
+  uint32 limit = 6;
+}
+
+// MplsStateResponse is one view of the live MPLS state.
+message MplsStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // The view that was read ("fib" or "tunnels").
+  string view = 2;
+  // fib: the MPLS table that was read.
+  uint32 table_id = 3;
+  // fib: entries that matched the filter (the agent reads the whole table; only the page crosses this boundary).
+  uint32 total = 4;
+  // fib: the page, sorted by label, then end-of-stack before non-end-of-stack.
+  repeated MplsStateFibEntry entries = 5;
+  // tunnels: this owner's MPLS tunnels (and untagged ones), sorted by name.
+  repeated MplsStateTunnel tunnels = 6;
+  // The MPLS tables the owner can read (0 when it exists, plus the owner's own), ascending.
+  repeated MplsStateTable tables = 7;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 8;
+}
+
+// MplsStateTable is one readable MPLS table.
+message MplsStateTable {
+  uint32 table_id = 1;
+  // VPP's table name ("" for an unnamed table).
+  string name = 2;
+}
+
+// MplsStateFibEntry is one MPLS FIB entry (live state, not configuration).
+message MplsStateFibEntry {
+  // Local label (reserved labels 0–15 are VPP's special entries and are listed too).
+  uint32 label = 1;
+  // End of stack.
+  bool eos = 2;
+  // EOS payload ("ip4", "ip6", "ethernet", "mpls"; "" for non-EOS entries).
+  string payload = 3;
+  // The entry's paths.
+  repeated MplsStatePath paths = 4;
+}
+
+// MplsStatePath is one path of an MPLS FIB entry or tunnel.
+message MplsStatePath {
+  // "normal", "local", "drop", "icmp-unreach", "icmp-prohibit", … (fib_api_path_type).
+  string type = 1;
+  // Next-hop protocol ("ip4", "ip6", "mpls", "ethernet").
+  string proto = 2;
+  // Next-hop address; "" when the path has none.
+  string next_hop = 3;
+  // Egress interface: its logical name (D-069), else VPP's name; "" when none.
+  string interface = 4;
+  // Table the next hop or the payload is looked up in.
+  uint32 table_id = 5;
+  // Pushed out labels, outermost first.
+  repeated uint32 out_labels = 6;
+  uint32 weight = 7;
+  uint32 preference = 8;
+}
+
+// MplsStateTunnel is one live MPLS tunnel.
+message MplsStateTunnel {
+  // The tunnel's logical name (our tag id), else VPP's interface name.
+  string name = 1;
+  // VPP's interface name (mpls-tunnel<N>).
+  string interface = 2;
+  uint32 sw_if_index = 3;
+  uint32 tunnel_index = 4;
+  bool l2_only = 5;
+  bool multicast = 6;
+  // The tunnel's paths.
+  repeated MplsStatePath paths = 7;
+  // true when the tunnel carries this owner's tag (created by this agent).
+  bool owned = 8;
+}
 
 // ----- F-lb -----
 

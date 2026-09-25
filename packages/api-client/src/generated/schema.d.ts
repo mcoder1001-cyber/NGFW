@@ -1622,6 +1622,156 @@ export interface components {
           enabled: boolean;
         }[];
       };
+      /** MPLS */
+      mpls?: {
+        /**
+         * MPLS interfaces
+         * @default []
+         */
+        interfaces: string[];
+        /**
+         * MPLS tables
+         * @default {}
+         */
+        tables: {
+          [key: string]: Record<string, never>;
+        };
+        /**
+         * Label routes
+         * @default []
+         */
+        labelRoutes: {
+          /**
+           * MPLS table
+           * @default 0
+           */
+          table: number;
+          /** Local label */
+          label: number;
+          /**
+           * End of stack
+           * @default true
+           */
+          eos: boolean;
+          /**
+           * Payload
+           * @enum {string}
+           */
+          payload?: 'ip4' | 'ip6' | 'ethernet';
+          /** Paths */
+          paths: {
+            /** Next hop */
+            nextHop?: string;
+            /** Interface */
+            interface?: string;
+            /**
+             * Out labels
+             * @default []
+             */
+            outLabels: number[];
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+            /** Lookup VRF */
+            vrf?: string;
+          }[];
+        }[];
+        /**
+         * Label bindings
+         * @default []
+         */
+        ipBindings: {
+          /** Local label */
+          label: number;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** Prefix */
+          prefix: string;
+        }[];
+        /**
+         * MPLS tunnels
+         * @default {}
+         */
+        tunnels: {
+          [key: string]: {
+            /** Paths */
+            paths: {
+              /** Next hop */
+              nextHop?: string;
+              /** Interface */
+              interface?: string;
+              /**
+               * Out labels
+               * @default []
+               */
+              outLabels: number[];
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+              /** Lookup VRF */
+              vrf?: string;
+            }[];
+            /**
+             * L2 only
+             * @default false
+             */
+            l2Only: boolean;
+          };
+        };
+        /**
+         * SR-MPLS
+         * @default {}
+         */
+        sr: {
+          /**
+           * SR policies
+           * @default {}
+           */
+          policies: {
+            [key: string]: {
+              /** Segment lists */
+              segmentLists: {
+                /** Segments */
+                labels: number[];
+                /**
+                 * Weight
+                 * @default 1
+                 */
+                weight: number;
+              }[];
+              /**
+               * Spray
+               * @default false
+               */
+              spray: boolean;
+            };
+          };
+          /**
+           * Steering
+           * @default []
+           */
+          steering: {
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** Prefix */
+            prefix: string;
+            /** Binding SID */
+            bsid: number;
+            /** VPN label */
+            vpnLabel?: number;
+          }[];
+        };
+      };
     };
     /**
      * NAT

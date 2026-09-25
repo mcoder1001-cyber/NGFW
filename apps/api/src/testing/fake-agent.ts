@@ -631,6 +631,8 @@ export class FakeAgent {
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
       // wave-BC: F-mpls-srmpls
+      mplsState: (_call, cb) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'MplsState: contract stub (F-mpls-srmpls)' }),
       // wave-BC: F-lb
       // wave-BC: F-qos-flat
       // wave-BC: F-host-stack

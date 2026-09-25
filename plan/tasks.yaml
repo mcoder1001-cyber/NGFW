@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-09-24'
+updated: '2026-09-25'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -724,7 +724,7 @@ tasks:
   owner: ngfw-46 (no slot)
   started: 2026-09-24T19:17
   finished: ''
-  state: running
+  state: merged
   id: W-seed-BC
   title: 'Wave-B/C anchor pass: seed every wave-BC site listed in docs/status/wave-BC-numbers.md (A4 cases, SY1–SY5, ED nat.go/natTabs groups), directly above the first wave-A anchor — no behaviour change'
   prompt: /root/ngfw-wt/W-seed-BC.envelope.md
@@ -737,7 +737,7 @@ tasks:
   - D0.1
   scope: anchors only (D-119 M1)
   files_owned: hotspot files (anchors only)
-  notes: D-119 M1 | SPECULATIVE from task/W-seed (D-114)
+  notes: D-119 M1 | SPECULATIVE from task/W-seed (D-114) | merged 7279831 (squash 4e2b21d, D-112), main gate green
 - template: ''
   parked_on: ''
   branch: task/TD-8
@@ -745,7 +745,7 @@ tasks:
   owner: ngfw-46 (no slot, unit only)
   started: ''
   finished: ''
-  state: running
+  state: merged
   id: TD-8
   title: 'Agent seams: Env.Publish/Resync wiring (W-seed Q1), S1 dynamic desired source, metrics collector hook'
   prompt: docs/status/wave-BC-launch-queue.md
@@ -759,7 +759,8 @@ tasks:
   - D1.2
   scope: A5 hunks in apps/agent/internal/agent/{agent,service,metrics}.go + subsystems/seams*.go (D-119 M2)
   files_owned: apps/agent/internal/agent/{agent,service,metrics}.go (seam hunks only) apps/agent/internal/subsystems/seams*.go docs/status/tasks/TD-8*
-  notes: D-119 M2 | SPECULATIVE from task/W-seed@df67a8e; scope +fail-closed SlotIDRange +ARCH-1 coverage table (audit A3/A4, D-123)
+  notes: D-119 M2 | SPECULATIVE from task/W-seed@df67a8e; scope +fail-closed SlotIDRange +ARCH-1 coverage table (audit A3/A4, D-123) | merged 8a633616 (squash 6320e21d, D-112), main gate green | APPROVED
+    (verify d74bd49); merging
 - id: F-vlan-qinq
   title: 'Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking'
   prompt: prompts/features/F-vlan-qinq.md
@@ -784,7 +785,7 @@ tasks:
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-vlan-qinq.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vlan-qinq.envelope.md |
     D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | done 01b80ff, CI green; host run 1 NRestarts 0→0; VPP crash 18:41:08 during its run 2 packet
-    phase (D-126); review spawned'
+    phase (D-126); review spawned | APPROVED (verify 381b81c); queued'
 - id: F-bonding
   title: 'Wave A (day 7-9): LACP/XOR/RR/active-backup bonds'
   prompt: prompts/features/F-bonding.md
@@ -796,7 +797,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.5
@@ -808,7 +809,7 @@ tasks:
   started: 2026-09-24T19:17
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-bonding.envelope.md (prep-waveA, D-109) | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125:
-    merge after TD-11c, or else a KeyProvider obligation in the envelope | SPECULATIVE from task/W-seed@df67a8e (contains P08 r2 + TD-5)'
+    merge after TD-11c, or else a KeyProvider obligation in the envelope | SPECULATIVE from task/W-seed@df67a8e (contains P08 r2 + TD-5) | done 793d1f2d, CI green, host NRestarts 1→1; review running'
 - id: F-bridge-l2
   title: 'Wave A (day 7-9): bridge domains, L2XC/L3XC, split-horizon, MAC aging, time-range MAC filter'
   prompt: prompts/features/F-bridge-l2.md
@@ -820,7 +821,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D1.6
@@ -833,7 +834,7 @@ tasks:
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-bridge-l2.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-bridge-l2.envelope.md |
     D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-11c, or else a KeyProvider obligation in the envelope | D-125: l3xc
-    guard for > 255 paths + schema .max(32) (review 1.5d, +0.25 h)'
+    guard for > 255 paths + schema .max(32) (review 1.5d, +0.25 h) | APPROVED (verify 54690a5 + D-132 fix 8e6741d4); held for TD-23 (D-134)'
 - id: F-loopback-bvi-gso-lldp-span
   title: 'Wave A (day 7-9): loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim'
   prompt: prompts/features/F-loopback-bvi-gso-lldp-span.md
@@ -847,7 +848,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D1.11
@@ -857,10 +858,10 @@ tasks:
   - D1.9
   scope: loopback/BVI, GSO/offload flags, LLDP, SPAN/ERSPAN, nsim
   files_owned: '- apps/agent/internal/descriptors/{lldp,span,gso,nsim}/**, docs/agent/descriptors/{lldp,span,gso,nsim}.md'
-  branch: ''
-  worktree: ''
+  branch: task/F-loopback-bvi-gso-lldp-span
+  worktree: /root/ngfw-wt/F-loopback-bvi-gso-lldp-span
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (BVI membership uses its l2 descriptor); soft +F-tunnels (ERSPAN over GRE) — docs/status/tasks/prompts-s4.md | D-105: add the semantic check refusing loop16000–loop16383
     (reserved for agent quarantine holders, TD-3 M2) on this task''s contract branch | envelope draft docs/status/tasks/F-loopback-bvi-gso-lldp-span.envelope.md (prep-waveA, D-109) | D-125: merge after
@@ -892,7 +893,7 @@ tasks:
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-vrf-static-ecmp.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-vrf-static-ecmp.envelope.md
     | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 merge acceptance: named cmd_op.go `action()` hunk + CLI test — ping/traceroute send
-    <host> (review 5.7a, +1 h)'
+    <host> (review 5.7a, +1 h) | fix round 1 (review 4435fcf: H1 ListRoutes barrier walks, M1 ping with workers, M2 window cap)'
 - id: F-neighbors-ra
   title: 'Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD'
   prompt: prompts/features/F-neighbors-ra.md
@@ -905,7 +906,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D2.3
@@ -917,7 +918,7 @@ tasks:
   started: 2026-09-24T17:28
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-neighbors-ra.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-neighbors-ra.envelope.md
-    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list)'
+    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | APPROVED (verify 788ae04); held for TD-23 (D-134)'
 - id: F-rpf-adl-pbr
   title: 'Wave A (day 7-9): uRPF strict/loose, ADL, ABF policy-based routing'
   prompt: prompts/features/F-rpf-adl-pbr.md
@@ -931,7 +932,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D2.4
@@ -946,7 +947,8 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +DF-4 (ABF policies resolve ACLs by name) — docs/status/tasks/prompts-s4.md | D-104: +dep TD-3 (TD-3 owns descriptors/{classify,adl} until merged) | envelope draft docs/status/tasks/F-rpf-adl-pbr.envelope.md
     (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-rpf-adl-pbr.envelope.md | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting
-    > 2 h → merge, add to TD-11a''s retro list) | D-125 review fix list: adl.go:177 interface dependency mandatory (3.4); urpf/adl/abf call sites claim first (3.3); +2 h'
+    > 2 h → merge, add to TD-11a''s retro list) | D-125 review fix list: adl.go:177 interface dependency mandatory (3.4); urpf/adl/abf call sites claim first (3.3); +2 h | APPROVED (verify 178b5cd); held
+    for TD-23 (D-134)'
 - id: F-object-model
   title: 'Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags'
   prompt: prompts/features/F-object-model.md
@@ -957,7 +959,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D5.1
@@ -969,7 +971,7 @@ tasks:
   started: 2026-09-24T17:28
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-object-model.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-object-model.envelope.md
-    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list)'
+    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | APPROVED (verify 24df718); queued'
 - id: F-acl
   title: 'Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL'
   prompt: prompts/features/F-acl.md
@@ -983,7 +985,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D5.2
@@ -991,10 +993,10 @@ tasks:
   - D5.5
   scope: MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor, ADL/Auto-SDL
   files_owned: '- apps/agent/internal/descriptors/acl/** (gap-only: edit only for a proven defect, name the test) and docs/agent/descriptors/acl.md'
-  branch: ''
-  worktree: ''
+  branch: task/F-acl
+  worktree: /root/ngfw-wt/F-acl
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'prompts-s4: suggested deps soft +F-rpf-adl-pbr (ADL/Auto-SDL screens it links to) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-acl.envelope.md (prep-waveA, D-109) | D-125:
     merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125 envelope: mandatory interfaceDependency + same-commit-removal test (review 3.4, +1 h)'
@@ -1010,16 +1012,16 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 15
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D5.3
   scope: local-in ACL + nftables host policy renderer
   files_owned: '- apps/agent/internal/renderers/nftables/** and docs/agent/renderers/nftables.md'
-  branch: ''
-  worktree: ''
+  branch: task/F-host-acl-nftables
+  worktree: /root/ngfw-wt/F-host-acl-nftables
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'prompts-s4: suggested deps +F-object-model (host rules expand objects via internal/objects) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-host-acl-nftables.envelope.md
     (prep-waveA, D-109) | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
@@ -1049,7 +1051,8 @@ tasks:
   started: 2026-09-24T17:28
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-nat44-ed-sessions.envelope.md (prep-waveA, D-109) | batch 1, SPECULATIVE from task/W-seed@8b7558e (D-114/D-120), envelope /root/ngfw-wt/F-nat44-ed-sessions.envelope.md
-    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-11b (no escape hatch)'
+    | D-125: merge after TD-11a (escape hatch: APPROVE''d and waiting > 2 h → merge, add to TD-11a''s retro list) | D-125: merge after TD-11b (no escape hatch) | fix round 1 (review 0ee338e: H1 per-host
+    scans, M1 twice-NAT kill)'
 - id: F-nat44-ei-64-66-nptv6
   title: 'Wave A (day 7-9): NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)'
   prompt: prompts/features/F-nat44-ei-64-66-nptv6.md
@@ -1062,17 +1065,17 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D4.2
   - D4.3
   scope: NAT44-EI, NAT64, NAT66, NPTv6 (npt66 skip-unless-loaded)
   files_owned: '- apps/agent/internal/descriptors/npt66/** and docs/agent/descriptors/npt66.md'
-  branch: ''
-  worktree: ''
+  branch: task/F-nat44-ei-64-66-nptv6
+  worktree: /root/ngfw-wt/F-nat44-ei-64-66-nptv6
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'NPTv6 part needs npt66 plugin (handover) — build the rest, skip-unless-loaded | D-060: npt66 loaded — NPTv6 part no longer skipped | prompts-s4: suggested deps +F-nat44-ed-sessions (shared nat
     page/tabs; ED and EI mutually exclusive on one VPP) — docs/status/tasks/prompts-s4.md | envelope draft docs/status/tasks/F-nat44-ei-64-66-nptv6.envelope.md (prep-waveA, D-109) | D-125: merge after TD-11a
@@ -1117,7 +1120,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 16
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.1
@@ -1174,7 +1177,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D6.5
@@ -1182,10 +1185,10 @@ tasks:
   files_owned: apps/agent/internal/descriptors/wireguard/** (gap-only; keep TD-3's sanitizer hunk in interface.go) docs/agent/descriptors/wireguard.md apps/agent/internal/desired/wireguard*.go apps/agent/internal/subsystems/wireguard*.go
     apps/agent/internal/agent/rpc_wireguard*.go apps/agent/internal/actions/wireguard/** packages/schema/src/semantic/wireguard*.ts apps/api/src/features/wireguard/** apps/api/test/e2e/wireguard* apps/web/src/domains/vpn/wireguard/**
     apps/web/src/locales/{en,fa}/wireguard.json docs/user/vpn/wireguard.md test/topology/wireguard/** docs/status/tasks/F-wireguard*
-  branch: ''
-  worktree: ''
+  branch: task/F-wireguard
+  worktree: /root/ngfw-wt/F-wireguard
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109) | D-125 envelope: review 3.3b — peer.go must not return meta+error with the peer left in VPP (delete it, or best-effort
     subscription), fake-VPP test (+1 h)'
@@ -1251,7 +1254,7 @@ tasks:
   - TD-8
   priority: 3
   est_hours: 16
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D3.1
@@ -1263,15 +1266,15 @@ tasks:
     keep TD-3''s sanitizer hunk) apps/agent/internal/lcpmap/** (linux-cp interface mapper for `frr.WithInterfaceMapper`) apps/agent/internal/desired/{bgp,lcp}*.go apps/agent/internal/subsystems/{frr,lcp}*.go
     apps/agent/internal/agent/rpc_{bgp,routing}*.go packages/schema/src/semantic/bgp*.ts apps/api/src/features/bgp/** apps/api/test/e2e/bgp* apps/web/src/domains/routing/bgp/** apps/web/src/locales/{en,fa}/bgp.json
     docs/user/routing/bgp.md docs/agent/renderers/{frr,frr-bgp}.md docs/agent/descriptors/lcp.md test/topology/bgp/** docs/status/tasks/P12* apps/agent/internal/renderers/frr/README.md (review 4.6 doc nit)'
-  branch: ''
-  worktree: ''
+  branch: task/P12
+  worktree: /root/ngfw-wt/P12
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'needs linux_cp/linux_nl enabled in startup.conf (handover) | D-060: un-parked (plugins enabled 2026-09-24) | envelope draft docs/status/tasks/P12.envelope.md (prep-waveA, D-109) | D-125: merge
     after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | D-125 at spawn: S2 + S3 mandatory — drop ''only if the manager confirms'' (envelope:15, review 4.3); render derived bgp community-list
     / bgp as-path access-list lines (4.5); warning text ''not yet rendered by this agent build (FRR renderer pending P12)'' (4.4); name GET /api/v1/state/bgp/neighbors (6.3b); frr README.md + section.go:20
-    (4.6)'
+    (4.6) | running on combined base W-seed-BC + TD-8 + F-vrf-static-ecmp (slot 8)'
 - id: F-ospf
   title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
   prompt: prompts/features/F-ospf.md
@@ -1358,7 +1361,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.1
@@ -1368,10 +1371,10 @@ tasks:
     apps/agent/internal/desired/{kea,dhcp_relay}*.go apps/agent/internal/subsystems/kea*.go apps/agent/internal/agent/rpc_kea*.go packages/schema/src/semantic/kea-dhcp-relay*.ts apps/api/src/features/kea-dhcp-relay/**
     apps/api/test/e2e/kea-dhcp-relay* apps/web/src/domains/services/kea-dhcp-relay/** apps/web/src/locales/{en,fa}/kea-dhcp-relay.json docs/user/services/kea-dhcp-relay.md test/topology/kea-dhcp-relay/**
     docs/status/tasks/F-kea-dhcp-relay*'
-  branch: ''
-  worktree: ''
+  branch: task/F-kea-dhcp-relay
+  worktree: /root/ngfw-wt/F-kea-dhcp-relay
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-kea-dhcp-relay.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
 - id: F-unbound-chrony-syslog
@@ -1386,7 +1389,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D7.3
@@ -1397,10 +1400,10 @@ tasks:
     apps/agent/internal/subsystems/{unbound,chrony,rsyslog,dns}*.go apps/agent/internal/agent/rpc_{dns,ntp,logs}*.go apps/agent/internal/actions/unbound-chrony-syslog/** packages/schema/src/domains/ext/syslog*.ts
     packages/schema/src/semantic/unbound-chrony-syslog*.ts apps/api/src/features/unbound-chrony-syslog/** apps/api/test/e2e/unbound-chrony-syslog* apps/web/src/domains/services/unbound-chrony-syslog/**
     apps/web/src/locales/{en,fa}/unbound-chrony-syslog.json docs/user/services/unbound-chrony-syslog.md test/topology/unbound-chrony-syslog/** docs/status/tasks/F-unbound-chrony-syslog*
-  branch: ''
-  worktree: ''
+  branch: task/F-unbound-chrony-syslog
+  worktree: /root/ngfw-wt/F-unbound-chrony-syslog
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
 - id: F-mpls-srmpls
@@ -1415,7 +1418,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D2.8
@@ -1490,7 +1493,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.7
@@ -1513,7 +1516,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D6.8
@@ -1537,7 +1540,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.10
@@ -1562,7 +1565,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.9
@@ -1587,7 +1590,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.8
@@ -1613,7 +1616,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.5
@@ -1639,7 +1642,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D7.6
@@ -2031,7 +2034,7 @@ tasks:
   - ui-nav-collapse
   priority: 6
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D12.2
@@ -2566,7 +2569,7 @@ tasks:
   - TD-6
   priority: 4
   est_hours: 2
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.6
@@ -2578,7 +2581,7 @@ tasks:
   started: 2026-09-24T16:09
   finished: ''
   notes: 'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 902a935, CI green (fresh
-    cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt'
+    cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt | merged bd205c13 (squash 04d78d0f, D-112), main gate green'
 - id: TD-12
   title: De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout)
   prompt: /root/ngfw-wt/TD-12.envelope.md
@@ -2617,8 +2620,8 @@ tasks:
   branch: task/WEB-1
   worktree: /root/ngfw-wt/WEB-1
   owner: ngfw-46 slot11
-  started: ''
-  notes: D-123 web-ahead
+  started: 2026-09-25T00:14
+  notes: 'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3)'
 - template: ''
   parked_on: ''
   finished: ''
@@ -2631,14 +2634,14 @@ tasks:
   - P08
   priority: 2
   est_hours: 9
-  state: running
+  state: review
   scope: web-ahead (D-123); SPECULATIVE on task/P08
   files_owned: apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.*) docs/status/tasks/WEB-2*
   branch: task/WEB-2
   worktree: /root/ngfw-wt/WEB-2
   owner: ngfw-46 slot1
-  started: ''
-  notes: D-123 web-ahead
+  started: 2026-09-25T00:14
+  notes: D-123 web-ahead | APPROVED (verify 1250124); queued
 - template: ''
   parked_on: ''
   finished: ''
@@ -2651,13 +2654,13 @@ tasks:
   - ui-nav-collapse
   priority: 3
   est_hours: 4
-  state: ready
+  state: running
   scope: web-ahead (D-123)
   files_owned: apps/web/test/e2e/{lib/**,shots.mjs,README.md,screens/_example.mjs,flow.e2e.mjs}
-  branch: ''
-  worktree: ''
+  branch: task/WEB-3
+  worktree: /root/ngfw-wt/WEB-3
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   notes: D-123
 - template: ''
   parked_on: ''
@@ -2731,7 +2734,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 14.5
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
@@ -2742,10 +2745,10 @@ tasks:
     365-367; TestStateCrashInjection updated). D-entry for the timeouts amends docs/contracts/proto.md §2 item 3; test: fake-VPP ''never reply'' hook'
   files_owned: apps/agent/internal/agent/{agent,service,state,server}.go (non-seam hunks) apps/agent/internal/scheduler/reconciler.go (ApplyWith ctx / rollback ctx and descriptor-call recover wrappers only)
     apps/agent/internal/vpp/conn.go apps/agent/internal/ownertable/** apps/agent/internal/descriptors/dfkit/boot.go apps/agent/cmd/vrx-agent/** docs/contracts/proto.md (§2) docs/status/tasks/TD-9*
-  branch: ''
-  worktree: ''
+  branch: task/TD-9
+  worktree: /root/ngfw-wt/TD-9
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | est 13 h review plan (10 h must-have) + 1.5 h audit ARCH-01 agent half | merge after TD-8 (preferred: one slot does TD-8 then TD-9), TD-12 (owns service_test.go) | not a wave-A gate; hard
     dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases'
@@ -2757,7 +2760,7 @@ tasks:
   deps: []
   priority: 2
   est_hours: 14
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.8
@@ -2772,7 +2775,8 @@ tasks:
   owner: ngfw-46 slot5
   started: 2026-09-24T19:17
   finished: ''
-  notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a
+  notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a | done
+    30381b6, CI green; review running
 - id: TD-10b
   title: API auth, session, audit
   prompt: ''
@@ -2782,7 +2786,7 @@ tasks:
   - TD-4
   priority: 3
   est_hours: 12
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.9
@@ -2792,10 +2796,10 @@ tasks:
     fail closed on audit write error for privileged routes, /api/docs (a)/(b)'
   files_owned: apps/api/src/{auth,users,audit}/** apps/api/src/common/principal.ts apps/api/src/app.ts (trustProxy + /api/docs hook) apps/api/src/datastore/pg-repo.ts (syncUsers hunk) tools/app (vite xfwd
     + banner) new root-only break-glass unlock tool docs/status/tasks/TD-10b*
-  branch: ''
-  worktree: ''
+  branch: task/TD-10b
+  worktree: /root/ngfw-wt/TD-10b
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | not a wave-A gate; dep of P10, F-aaa, SEC-auth | TD-4 Q3 (demote/delete revoke) is PENDING-session-revocation (policy #4): build the recommended option, only that hunk follows the answer
     | tools/app bind/TLS follows PENDING-tools-app-transport'
@@ -2835,7 +2839,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
@@ -2843,13 +2847,13 @@ tasks:
     deletes it), 3.3b generic half; R2-stores (claim-index refresh bounded by the caller ctx); DF-2 N3/N5 and DF-6 N4/N6/N7 claim hygiene where it touches these files (tech-debt)'
   files_owned: apps/agent/internal/scheduler/{descriptor,reconciler}.go (executor.create hunk) apps/agent/internal/descriptors/{natcommon,interface/attributes.go,dfkit,df6,df2/claims.go} (Persistent/RequirePersistent
     guard) apps/agent/internal/subsystems/stores.go (claim-index refresh) docs/status/tasks/TD-11b*
-  branch: ''
-  worktree: ''
+  branch: task/TD-11b
+  worktree: /root/ngfw-wt/TD-11b
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | spawn right after P08 merges (DF-1 and dhcp.client are live then) | F-nat44-ed-sessions and F-nat44-ei-64-66-nptv6 merge after TD-11b (no escape hatch) | reconciler.go hunks: TD-9 ApplyWith
-    ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases'
+    ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | fix round 1 (review be3a57a5: M1 guard coverage, M2 silent orphan, L1 refresh cap)'
 - id: TD-11c
   title: Untagged NICs, alias-aware delete order, claim-store scale
   prompt: ''
@@ -2859,7 +2863,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 11
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.7
@@ -2868,14 +2872,14 @@ tasks:
     alias to its creator; 3 h), 3.2 flush-per-txn (KeyedClaims batching, one flush per transaction; 3 h)
   files_owned: apps/agent/internal/descriptors/core/{core,ifaddr}.go apps/agent/internal/subsystems/subsystems.go (core.Register hunk, not an anchor) apps/agent/internal/scheduler/reconciler.go (topo hunk)
     apps/agent/internal/subsystems/stores.go (KeyedClaims batching) docs/status/tasks/TD-11c*
-  branch: ''
-  worktree: ''
+  branch: task/TD-11c
+  worktree: /root/ngfw-wt/TD-11c
   owner: ''
-  started: ''
+  started: 2026-09-25T00:14
   finished: ''
   notes: 'D-125 | gates the real F-startup-apply run, the first DPDK run (P10/P14 on real NICs) and INTEGRATE-E2E; lands before the F-nat44-ed-sessions and F-acl scale tests | F-bonding and F-bridge-l2
     merge after TD-11c (or carry a KeyProvider obligation in their envelopes) | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever
-    merges second rebases'
+    merges second rebases | fix round 1 (review ac313a1c: F1 claim journal D-133, F2 DEGRADED, F3 creator guard)'
 - id: TD-13
   title: Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write)
   prompt: ''
@@ -2956,7 +2960,7 @@ tasks:
   - TD-7
   priority: 5
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.6
@@ -3186,3 +3190,105 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-125 | parked: needs PENDING-vpp-host-hardening A+B (≈12×(heap+buffers), hugepages above 555) — option F there'
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: merged
+  wbs: &id002
+  - D0.1
+  prompt: ''
+  id: TD-20
+  title: 'Ban show trace / trace add on the shared VPP: topology evidence via FIB + counters, ci.sh do_trace_ban guard, shared-host-rules §11, V25'
+  stage: S2
+  deps: []
+  priority: 1
+  est_hours: 2
+  scope: D-128
+  files_owned: test/topology/interfaces/** tools/ci.sh (do_trace_ban) docs/lab/shared-host-rules.md §11 docs/vpp-code-track.md
+  notes: merged a54b493 (squash c5b69266); verify 54219db
+- template: ''
+  parked_on: ''
+  branch: task/TD-23
+  worktree: /root/ngfw-wt/TD-23
+  owner: ''
+  started: 2026-09-25T00:14
+  finished: ''
+  state: running
+  wbs: *id002
+  prompt: ''
+  id: TD-23
+  title: 'Shared test seams: fake-agent action dispatch table + coretest fakevpp extension registry (no feature handlers)'
+  stage: S4
+  deps: []
+  priority: 1
+  est_hours: 1.5
+  scope: D-134 (merger request)
+  files_owned: apps/api/src/testing/fake-agent.ts (dispatcher) apps/agent/internal/descriptors/core/coretest/{fakevpp.go (registry),extensions_test.go} docs/status/tasks/TD-23*
+  notes: state running; branch task/TD-23; lands before F-rpf-adl-pbr/F-neighbors-ra/F-bridge-l2/F-bonding/F-nat44-ed/F-vrf/F-nat44-ei merge
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: *id002
+  prompt: ''
+  id: TD-8b
+  title: 'Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology
+    harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule)'
+  stage: S4
+  deps:
+  - TD-8
+  priority: 3
+  est_hours: 5
+  scope: TD-8 verify V1/V2/V3 + review Q3 (D-129)
+  files_owned: apps/agent/internal/agent/dynsource.go apps/agent/internal/subsystems/seams*.go tools/app (env line) test/topology/interfaces (env passthrough) docs/status/tasks/TD-8b*
+  notes: must merge before F-mpls-ldp and F-igmp-mfib
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: todo
+  wbs: *id002
+  prompt: ''
+  id: TD-21
+  title: 'Scheduler scale: executor.dependents and topo re-sort keys on every operation (O(n^2)); 4000 objects = 13.7 s — index dependents once per plan'
+  stage: S4
+  deps:
+  - TD-11c
+  priority: 3
+  est_hours: 4
+  scope: F-object-model Q9; unblocks F-acl/F-vrf 100k-scale steps
+  files_owned: apps/agent/internal/scheduler/{reconciler,plan}*.go (topo/dependents only) docs/status/tasks/TD-21*
+  notes: after TD-11c (topo hunk) and TD-9 (reconciler ctx hunks)
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: *id002
+  prompt: ''
+  id: TD-22
+  title: 'Small follow-ups from reviews: dhcp.client claim-before-write (TD-11b Q3), P08 InterfaceDrawer saveSub stale-dialog l2:null (F-bridge-l2 review #3), CommitDialog reuses applyOutcome() on a lost
+    commit answer (TD-10a Q), examples.test.ts SIBLING regex widened for feature examples'
+  stage: S4
+  deps:
+  - P08
+  priority: 4
+  est_hours: 4
+  scope: review follow-ups (D-133)
+  files_owned: apps/agent/internal/descriptors/dhcp/** (client claim order) apps/web/src/domains/interfaces/InterfaceDrawer.tsx (saveSub) apps/web/src/components/CommitDialog.tsx packages/schema/src/examples.test.ts
+    docs/status/tasks/TD-22*
+  notes: merge after WEB-1 (it also edits InterfaceDrawer.tsx) and TD-10a

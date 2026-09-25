@@ -46,13 +46,12 @@ type flakyVPP struct {
 	released  chan struct{}
 }
 
-func newFlaky(t *testing.T) *flakyVPP {
-	f := &flakyVPP{VPP: coretest.New(), released: make(chan struct{})}
-	// Registered first, so it runs last: whatever a failed test leaves hanging returns, and the
-	// service's own cleanup (Close takes the transaction lock) can finish.
-	t.Cleanup(func() { close(f.released) })
-	return f
-}
+func newFlaky() *flakyVPP { return &flakyVPP{VPP: coretest.New(), released: make(chan struct{})} }
+
+// releaseAtEnd makes whatever a failed test leaves hanging return when the test ends. Call it after
+// the service or agent was created: cleanups run last-in first-out, so this one runs before their
+// Close/Stop, which takes the transaction lock.
+func (f *flakyVPP) releaseAtEnd(t *testing.T) { t.Cleanup(func() { close(f.released) }) }
 
 func (f *flakyVPP) set(fn func(f *flakyVPP)) {
 	f.mu.Lock()
@@ -191,8 +190,9 @@ func scrape(m *metrics) string {
 // next Apply — the retry with the same txn_id included — works.
 func TestApplyReturnsWhenVPPNeverReplies(t *testing.T) {
 	const replyTimeout = 300 * time.Millisecond
-	fv := newFlaky(t)
+	fv := newFlaky()
 	s := newSvcWith(t, bounded(fv, replyTimeout), t.TempDir())
+	fv.releaseAtEnd(t)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
@@ -226,8 +226,9 @@ func TestApplyReturnsWhenVPPNeverReplies(t *testing.T) {
 // Review 1.4: the caller's deadline bounds only the wait for the lock. A transaction that started runs
 // to its end although the caller gave up; its outcome is stored, so the caller's retry gets it.
 func TestCallerDeadlineDoesNotCutTheTransaction(t *testing.T) {
-	fv := newFlaky(t)
+	fv := newFlaky()
 	s := newSvcWith(t, fv, t.TempDir())
+	fv.releaseAtEnd(t)
 	fv.set(func(f *flakyVPP) { f.slow, f.delay = tableAdd(7001, false), 400*time.Millisecond })
 	red := &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -266,8 +267,9 @@ func TestCallerDeadlineDoesNotCutTheTransaction(t *testing.T) {
 // transaction lock; the owed resync / revert converges once VPP answers again.
 func TestResyncAndRevertHaveTheirOwnDeadline(t *testing.T) {
 	const txn = 300 * time.Millisecond
-	fv := newFlaky(t)
+	fv := newFlaky()
 	s := newSvcWith(t, fv, t.TempDir())
+	fv.releaseAtEnd(t)
 	setTxnTimeout(s, txn)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -306,8 +308,9 @@ func TestResyncAndRevertHaveTheirOwnDeadline(t *testing.T) {
 // Review 1.1b: a failed resync is retried with backoff (retryMin doubling to retryMax) while DEGRADED,
 // without a VPP reconnect, until one succeeds.
 func TestOwedResyncRetriedWithBackoff(t *testing.T) {
-	fv := newFlaky(t)
+	fv := newFlaky()
 	s := newSvcWith(t, fv, t.TempDir())
+	fv.releaseAtEnd(t)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_START}})
@@ -336,7 +339,7 @@ func TestOwedResyncTakesTheAgentsResyncPath(t *testing.T) {
 	old := resyncMinInterval
 	resyncMinInterval = 0
 	t.Cleanup(func() { resyncMinInterval = old })
-	fc := &flakyConn{flakyVPP: newFlaky(t), states: make(chan vpp.ConnState, 4)}
+	fc := &flakyConn{flakyVPP: newFlaky(), states: make(chan vpp.ConnState, 4)}
 	oldDial := dialVPP
 	dialVPP = func(string, vpp.ConnOptions) vppConn { return fc }
 	t.Cleanup(func() { dialVPP = oldDial })
@@ -345,6 +348,7 @@ func TestOwedResyncTakesTheAgentsResyncPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(a.Stop)
+	fc.releaseAtEnd(t)
 	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	defer a.svc.events().unsubscribe(sub)
 	fc.states <- vpp.ConnState{Connected: true}
@@ -415,8 +419,9 @@ func TestApplyAnswersCarryWarnings(t *testing.T) {
 // Review 1.5b: the confirm window starts when the transaction was applied (applied_at + timeout,
 // proto.md §4), so a slow apply does not eat into it.
 func TestConfirmWindowStartsAtAppliedAt(t *testing.T) {
-	fv := newFlaky(t)
+	fv := newFlaky()
 	s := newSvcWith(t, fv, t.TempDir())
+	fv.releaseAtEnd(t)
 	fv.set(func(f *flakyVPP) { f.slow, f.delay = tableAdd(7001, false), 300*time.Millisecond })
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`), ConfirmTimeoutSec: 2})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -555,7 +560,7 @@ func TestLinkEventsWatcherRestarts(t *testing.T) {
 // no longer keeps watchVPP from the resync.
 func TestConnectHookHasItsOwnDeadline(t *testing.T) {
 	defer setConnectHookTimeout(200 * time.Millisecond)()
-	fc := &flakyConn{flakyVPP: newFlaky(t), states: make(chan vpp.ConnState, 4)}
+	fc := &flakyConn{flakyVPP: newFlaky(), states: make(chan vpp.ConnState, 4)}
 	var first atomic.Bool // only the connect hook's ControlPing (the boot identity) goes unanswered
 	fc.hangOn(func(m api.Message) bool {
 		_, ok := m.(*memclnt.ControlPing)
@@ -569,6 +574,7 @@ func TestConnectHookHasItsOwnDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(a.Stop)
+	fc.releaseAtEnd(t)
 	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	defer a.svc.events().unsubscribe(sub)
 	fc.states <- vpp.ConnState{Connected: true}

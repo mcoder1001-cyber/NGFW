@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { DomainTab } from '../DomainTabsPage';
 
 /**
@@ -13,4 +14,7 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-ipfix-sflow
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  { id: 'dns', labelKey: 'unbound-chrony-syslog:tab.dns', Component: lazy(() => import('./unbound-chrony-syslog/DnsTab')) },
+  { id: 'ntp', labelKey: 'unbound-chrony-syslog:tab.ntp', Component: lazy(() => import('./unbound-chrony-syslog/NtpTab')) },
+  { id: 'logging', labelKey: 'unbound-chrony-syslog:tab.logging', Component: lazy(() => import('./unbound-chrony-syslog/LoggingTab')) },
 ];

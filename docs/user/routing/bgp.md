@@ -20,7 +20,10 @@ renders FRR's configuration and applies only the difference (`frr-reload.py`).
 *Linux pairs* lists the interfaces that have one (`interfaces.<name>.lcp`) and whether the pair exists in VPP right now.
 **Linux interface name** defaults to the VPP name when that is a valid Linux name (at most 15 letters, digits, `_ . -`);
 otherwise set it (`TenGigabitEthernet0/0/0` → e.g. `te0`). **Type** is `tap` (Ethernet, the default) or `tun`.
-**Namespace** is where the Linux interface lives (default: the linux-cp default namespace, where FRR runs). The
+**Namespace** is where the Linux interface lives. Leave it empty: the pair then lives in the linux-cp default
+namespace (`linux-cp { default netns … }` of the box, where FRR runs), the only namespace linux-nl hears. A pair in any
+other namespace still carries FRR's sessions, but linux-nl ignores it — no route, address, admin state or MTU reaches VPP
+through it; the commit shows a warning at the field (`routing.bgp-lcp-netns`). The
 interface's addresses are put on the Linux side by FRR. An interface that BGP uses as *update source*, a route map
 matches with *match interface*, or an FRR static route leaves by, needs a pair (`routing.bgp-interface-has-lcp`).
 

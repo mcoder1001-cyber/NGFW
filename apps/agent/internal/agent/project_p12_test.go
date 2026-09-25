@@ -56,6 +56,16 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 	if !warned {
 		t.Fatalf("no warning about FRR content: %+v", pj.issues)
 	}
+	// review M4: a pair outside the linux-cp default netns is invisible to linux-nl — a warning at the field
+	var netnsWarn []string
+	for _, is := range pj.issues {
+		if is.rule == "routing.bgp-lcp-netns" && is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+			netnsWarn = append(netnsWarn, is.pointer)
+		}
+	}
+	if strings.Join(netnsWarn, " ") != "/interfaces/loop821/lcp/netns" {
+		t.Fatalf("netns warnings %v, want exactly /interfaces/loop821/lcp/netns (loop822 has none)", netnsWarn)
+	}
 
 	// the pairs reach VPP (the tap gate lets lcp_itf_pair_get through once a tap exists) and Retrieve reports them
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: ds, Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)

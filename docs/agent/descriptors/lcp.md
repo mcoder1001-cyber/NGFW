@@ -81,3 +81,7 @@ fill it identically).
   follows the phy's hardware link, admin state/MTU/addresses only at pair creation unless `lcp lcp-sync` is on.
 - TD-11c creator rule: `ProvidedKeys` = `interface/lcp-host.<host_if_name>` (reserved alias namespace; `.` is not valid in a
   configuration interface name): the pair is the known creator of its VPP-side tap.
+- Review M4: a pair is in linux-nl's table only when its netns equals the linux-cp default netns at pair-add time (or both
+  are unset) — VPP `lcp_interface.c`. The projection warns (`routing.bgp-lcp-netns`, pointer `…/lcp/netns`) for any
+  non-empty `netns`, because the agent cannot see the box's startup value; the product leaves it empty
+  (`linux-cp { default netns }` is F-startup-gen's).

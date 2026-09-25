@@ -26,13 +26,21 @@ So the VRX-side FRR's kernel routes reach VPP only if that FRR runs in the netns
 | **T2 (opt-in `VRX_P12_LINUXNL=1`, manager window)** | as T1, plus: `flock -x /run/lock/vrx-globals.lock`; refuse unless **no** LCP pair exists and default netns is unset; `lcp_default_ns_set ns-w8-frr` → the agent's first pair opens linux_nl's socket in `ns-w8-frr` → restore default netns to exactly the saved value (unset) at once; the socket stays in `ns-w8-frr` while any pair exists | full: routes in `ns-w8-frr`'s main table → VPP table 0 via linux_nl, prefixes only inside the slot's `10.8.0.0/16` (`10.8.64.0/25`… peer 1, `10.8.160.0/25`… peer 2), `ip_route_dump` / ListRoutes `source=lcp-rt-dynamic` counts 200 / 100 / 0 | the global is changed for < 1 s; while my pairs exist linux_nl hears only `ns-w8-frr` (nobody else depends on linux_nl today: P11 uses its fixture pair for IKE punt only). The globals lock is held **for the whole test**, so DF-8's host test (LockGlobals, shared) and any other pair creator waits; after my pairs are deleted the socket closes (no pair left) |
 | T3 (alternative) | root-netns zebra/bgpd (a frrtest root mode, gap) with a kernel VRF `w8vrf` table 8001, taps in root enslaved to it; BGP `vrf w8vrf` → VPP table 8001 | full, table 8001 | a root-netns zebra is host-wide (startup sweep of FRR-proto kernel routes, sees ens192); one slot at a time; product-like only if the product runs FRR in root |
 
-**Default taken:** T1 always; T2's code path is in the topology test behind `VRX_P12_LINUXNL=1` and refuses to run
-without the conditions above. **Ask:** a manager window for one T2 run (≈ 10 min, slot 8; the test holds the globals lock
+**Decided (manager, fix round 1): no T2 on the shared VPP** — review H3 showed it unsafe (the recreated pairs of step 4
+reopen linux_nl's socket in root; a deleted pair flushes no route, leaving `lcp-rt-dynamic` entries in the shared table 0;
+a restore in `t.Cleanup` only; the globals lock does not exclude pair creators). The T2 code is gone. The VPP FIB proof is
+row **P12-fib-proof** on a VPP of the slot's own (LAB-vpp-per-slot), test design in P12.md. ~~Default taken: T1 always;
+T2 behind `VRX_P12_LINUXNL=1`.~~ **Ask:** a manager window for one T2 run (≈ 10 min, slot 8; the test holds the globals lock
 exclusively and prints `show lcp` / default netns before and after). T3 is not implemented (no frrtest root mode).
 Product layout = either FRR in root with default netns unset, or TNSR-style `linux-cp { default netns dataplane }` +
 FRR in that netns (startup.conf, F-startup-gen) — both work with the same agent code (the pair's `netns` leaf).
 
 ## Q2 — LCP pair leaf: `Interface` 22 `lcp` (chosen) vs `RoutingConfig` 12
+
+**Correction (review M4):** a pair's `netns` is not only where its tap goes — linux-nl hears the pair only when that netns
+equals the linux-cp default netns at pair-add time (or both are unset), VPP `lcp_interface.c`. `netns` must stay empty in
+the product (the default comes from `linux-cp { default netns }`, F-startup-gen); a non-empty value is warned about at the
+field (`routing.bgp-lcp-netns`). "Both layouts work with the same agent code" in Q1 holds only with `netns` empty.
 
 `interfaces.<name>.lcp: {hostIfName?, hostIfType? (tap|tun, default tap), netns?}` — present = the agent creates the
 linux-cp pair (DF-8 `lcp.itf-pair`). `hostIfName` default = the VPP name when it is a valid Linux name ≤ 15 bytes, else a
@@ -87,7 +95,7 @@ default VRF (Q1). Semantic rule warns when bgp.vrf ≠ default.
 VPP only knows the FIB source (`lcp-rt` = kernel/static proto, `lcp-rt-dynamic` = routing daemons), not FRR's protocol.
 **Default:** the API maps `origin` `lcp-rt*` → `frr`, and `proto=<p>` = ListRoutes `source=lcp-rt-dynamic` (or `lcp-rt`
 for `static`/`kernel`) plus a per-page annotation from the agent's `RoutingState` RIB lookup of that page's prefixes
-(bounded: one page ≤ 1000 prefixes). With BGP the only dynamic protocol in P12, `lcp-rt-dynamic` ≡ BGP; F-ospf adds its
+(bounded: one page ≤ 100 prefixes, `PROTO_PAGE_MAX` / `MaxRIBLookups`; review L1). With BGP the only dynamic protocol in P12, `lcp-rt-dynamic` ≡ BGP; F-ospf adds its
 protocol name to the same map.
 
 ## Q9 — contract numbers taken (wave-BC-numbers.md "Batch-2 follow-ons")

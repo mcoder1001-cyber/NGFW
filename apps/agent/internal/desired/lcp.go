@@ -28,6 +28,12 @@ func Lcp(s Sink, ifs map[string]*vrxv1.Interface) {
 			s.Errorf(pt+"/hostIfName", "routing.bgp-lcp-host-name", "%v", err)
 			continue
 		}
+		if ns := l.GetNetns(); ns != "" {
+			// review M4: linux-nl hears a pair only when its netns equals the linux-cp default netns at pair-add time
+			// (VPP lcp_interface.c); the agent cannot see the box's startup value, so it warns at the field
+			s.Warnf(pt+"/netns", "routing.bgp-lcp-netns",
+				"netns %q must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it — leave it empty to use the default", ns)
+		}
 		pair := lcp.ItfPair{Interface: name, HostIfName: host, HostIfType: lcpmap.HostType(l), Netns: l.GetNetns()}
 		if err := pair.Validate(); err != nil {
 			s.Errorf(pt, "routing.bgp-lcp-pair", "%v", err)

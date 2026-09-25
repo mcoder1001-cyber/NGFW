@@ -345,7 +345,8 @@
         "title": "Host interface type"
       },
       "netns": {
-        "title": "Network namespace"
+        "title": "Network namespace",
+        "help": "leave empty: the linux-cp default namespace, the only one linux-nl hears; a different namespace makes the pair invisible to linux-nl (no routes reach VPP through it)"
       }
     }
   }

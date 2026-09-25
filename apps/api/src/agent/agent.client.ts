@@ -8,11 +8,51 @@ import {
   type DryRunRequest,
   type Event,
   type HealthResponse,
+  type InterfaceStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
   type StreamStatsRequest,
   type ValidationReport,
+  // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-ha-state-sync
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: F-host-acl-nftables
+  // wave-A: F-nat44-ed-sessions
+  // wave-A: F-nat44-ei-64-66-nptv6
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
+  // wave-A: F-kea-dhcp-relay
+  // wave-A: F-unbound-chrony-syslog
 } from '@ngfw/proto';
 import type { ClientReadableStream } from '@grpc/grpc-js';
 import { ENV, type Env } from '../config.js';
@@ -84,6 +124,11 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.retrieve, { subsystems, owner: this.owner });
   }
 
+  /** Live interface table (P08, proto.md §8a); an agent without the RPC answers 501. */
+  interfaceState(names: string[] = []): Promise<InterfaceStateResponse> {
+    return this.unary(this.c.interfaceState, { names, owner: this.owner });
+  }
+
   health(timeoutMs = 5000): Promise<HealthResponse> {
     return this.unary(this.c.health, {}, timeoutMs);
   }
@@ -95,6 +140,47 @@ export class AgentClient implements OnModuleDestroy {
   streamEvents(req: StreamEventsRequest): ClientReadableStream<Event> {
     return this.c.streamEvents(req);
   }
+
+  // Feature RPCs: one method per RPC under the feature's anchor, e.g.
+  // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
+  // wave-BC: F-det44-map-dslite-cnat
+  // wave-BC: F-tunnels
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ikev2-native
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-mpls-srmpls
+  // wave-BC: F-lb
+  // wave-BC: F-qos-flat
+  // wave-BC: F-host-stack
+  // wave-BC: F-snmp
+  // wave-BC: F-ipfix-sflow
+  // wave-BC: F-capture-trace
+  // wave-BC: F-srv6
+  // wave-BC: F-lisp
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-BC: F-ha-state-sync
+  // wave-A: F-bonding
+  // wave-A: F-bridge-l2
+  // wave-A: F-loopback-bvi-gso-lldp-span
+  // wave-A: F-vrf-static-ecmp
+  // wave-A: F-neighbors-ra
+  // wave-A: F-rpf-adl-pbr
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: F-host-acl-nftables
+  // wave-A: F-nat44-ed-sessions
+  // wave-A: F-nat44-ei-64-66-nptv6
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
+  // wave-A: F-kea-dhcp-relay
+  // wave-A: F-unbound-chrony-syslog
 
   close(): void {
     this.client?.close();

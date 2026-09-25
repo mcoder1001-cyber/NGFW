@@ -3,7 +3,9 @@ import { ApplyStatus, EventKind, type ApplyResponse, type ObjectResult } from '@
 import { deepEqual, diff, parsePointer, type UserConfig } from '@ngfw/schema';
 import { randomUUID } from 'node:crypto';
 import { AgentClient } from '../agent/agent.client.js';
+import { AuditService } from '../audit/audit.service.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
+import { TokensService } from '../auth/tokens.service.js';
 import { ENV, type Env } from '../config.js';
 import { documentHash } from '../common/json.js';
 import { Mutex } from '../common/mutex.js';
@@ -13,6 +15,9 @@ import { CONFIG_REPO } from '../datastore/datastore.service.js';
 import {
   emptyDocument,
   hydrateHashes,
+  replaceUserHash,
+  secretChanges,
+  stagedHashesOnly,
   privilegedChanges,
   redact,
   secretRefs,
@@ -21,6 +26,7 @@ import { checkLock } from '../datastore/lock.js';
 import type {
   ConfigRepo,
   Doc,
+  PasswordReset,
   PendingCommit,
   RevisionMeta,
   SyncStatus,
@@ -175,6 +181,8 @@ export class CommitService implements OnApplicationShutdown {
     private readonly events: SystemEventsService,
     private readonly bus: Bus,
     @Inject(ENV) private readonly env: Env,
+    private readonly tokens: TokensService,
+    private readonly audit: AuditService,
   ) {
     this.unsubscribe = this.bus.onAgentEvent((e) => {
       if (e.kind === EventKind.EVENT_KIND_CONFIRM_REVERTED && e.txnId)
@@ -333,6 +341,24 @@ export class CommitService implements OnApplicationShutdown {
       plan: v.plan,
       notApplied: notAppliedChanges(running?.payload ?? emptyDocument(), doc, v.notApplied),
     };
+  }
+
+  /**
+   * Run `fn` while no commit/confirm/rollback is in flight (TD-2 #1: a password set must not interleave with a commit
+   * that validated against the old hash and would write it back to app_user when it promotes).
+   */
+  exclusive<T>(fn: () => Promise<T>): Promise<T> {
+    return this.mutex.run(fn);
+  }
+
+  /**
+   * Password set (D-097, review H1), called inside `exclusive`: a hash that the in-flight (lost-answer) document
+   * staged for `username` is replaced, so the reconcile's promote cannot bring the old password back.
+   */
+  replaceInflightHash(username: string, hash: string): void {
+    if (this.inflight === undefined) return;
+    const next = replaceUserHash(this.inflight.config, username, hash);
+    if (next !== null) this.inflight = { ...this.inflight, config: next };
   }
 
   commit(user: Principal, opts: CommitOptions): Promise<CommitResult> {
@@ -509,6 +535,8 @@ export class CommitService implements OnApplicationShutdown {
       });
     }
     const notApplied = notAppliedChanges(runningDoc, v.config, v.notApplied);
+    // D-097 (review H1): what is stored/promoted carries only hashes the raw document staged, never hydrated ones
+    const stored = stagedHashesOnly(v.config as Doc, doc);
     const confirmSec = opts.confirmSec ?? 0;
     const meta = {
       authorId: user.id,
@@ -532,7 +560,7 @@ export class CommitService implements OnApplicationShutdown {
       const sync = await this.lostTrack(
         'unknown',
         `no answer to Apply ${txnId}: ${p.detail ?? String(e)}`,
-        confirmSec > 0 ? undefined : { txnId, config: v.config, meta },
+        confirmSec > 0 ? undefined : { txnId, config: stored, meta },
       );
       throw new ProblemError(
         p instanceof ProblemError ? p.getStatus() : 502,
@@ -598,7 +626,7 @@ export class CommitService implements OnApplicationShutdown {
       await this.repo.tx((tx) =>
         tx.setPending({
           txnId,
-          payload: v.config as Doc,
+          payload: stored,
           hash: documentHash(redact(v.config)),
           authorId: user.id,
           comment: opts.comment ?? '',
@@ -628,7 +656,7 @@ export class CommitService implements OnApplicationShutdown {
         sync: syncJson(this.sync),
       };
     }
-    const revision = await this.promoteOrLoseTrack(txnId, v.config, meta);
+    const revision = await this.promoteOrLoseTrack(txnId, stored, meta);
     const changedDomains = new Set(
       diff(redact(runningDoc), redact(v.config)).map((c) => parsePointer(c.pointer)[0]),
     );
@@ -687,9 +715,11 @@ export class CommitService implements OnApplicationShutdown {
 
   /**
    * Persist the applied document as the new running revision (redacted, D-046) with the secret versions it uses,
-   * make app_user follow management.users, and clear the candidate when it is what was applied.
+   * make app_user follow management.users, and clear the candidate when it is what was applied. D-102: an existing
+   * user whose hash the document changed gets admin-reset semantics — in this transaction (generation, keys) and,
+   * once it committed, sessions ended and one audit row per user (`via: config`).
    */
-  private promote(
+  private async promote(
     config: Doc,
     meta: {
       authorId: number | null;
@@ -700,7 +730,7 @@ export class CommitService implements OnApplicationShutdown {
       restoreSecrets?: Record<string, number>;
     },
   ): Promise<RevisionMeta> {
-    return this.repo.tx(async (tx) => {
+    const { rev, resets } = await this.repo.tx(async (tx) => {
       const running = await tx.latestRevision();
       const payload = redact(config);
       if (meta.restoreSecrets && Object.keys(meta.restoreSecrets).length > 0) {
@@ -716,7 +746,14 @@ export class CommitService implements OnApplicationShutdown {
       }
       const refs = [...new Set(secretRefs(payload).map((r) => r.ref))];
       const secretVersions = refs.length > 0 ? await this.repo.secretVersions(refs) : null;
+      // TD-2 #6: the (redacted) revision records WHICH secret leaves it changed, before app_user follows it
+      const hashes = await this.repo.userHashes();
+      const changedSecrets = secretChanges(
+        hydrateHashes(running?.payload ?? emptyDocument(), hashes),
+        hydrateHashes(config, hashes),
+      );
       const revision = await tx.insertRevision({
+        secretChanges: changedSecrets,
         authorId: meta.authorId,
         comment: meta.comment,
         parentId: running?.id ?? null,
@@ -730,12 +767,13 @@ export class CommitService implements OnApplicationShutdown {
             : secretVersions,
       });
       const management = config['management'] as { users?: UserConfig[] } | undefined;
-      await tx.syncUsers(management?.users ?? []);
+      const resets = await tx.syncUsers(management?.users ?? []);
       if (meta.clearPending) await tx.setPending(null);
       const c = await tx.lockCandidate();
       if (c.payload === null || deepEqual(redact(c.payload), payload)) {
         await tx.saveCandidate({
           ownerId: null,
+          ownerKeyId: null,
           lockedAt: null,
           payload: null,
           baseRevisionId: null,
@@ -743,6 +781,7 @@ export class CommitService implements OnApplicationShutdown {
       } else {
         await tx.saveCandidate({
           ownerId: c.ownerId,
+          ownerKeyId: c.ownerKeyId,
           lockedAt: c.lockedAt,
           payload: c.payload,
           baseRevisionId: revision.id,
@@ -751,8 +790,71 @@ export class CommitService implements OnApplicationShutdown {
       const { payload: stored, ...metaOut } = revision;
       void stored;
       this.bus.sessions({ usersChanged: true });
-      return metaOut;
+      return { rev: metaOut, resets };
     });
+    if (resets.length > 0) await this.configResets(resets, rev, meta.txnId);
+    return rev;
+  }
+
+  /**
+   * D-102 after the promote committed: the sessions of every user whose hash the config API changed end (no kept
+   * session, no keepApiKeys — the committer's own session too when they changed their own hash this way), and each
+   * reset is audited on its own row. D-100 (3), TD-4: the same for a user the promote disabled (access tokens,
+   * refresh chains and WebSockets end now, not at TTL; API keys stay and are refused while disabled), audited as
+   * `config.user-disabled`. Hash change + disable in one promote: one revocation, two rows. Never throws: the
+   * revision is saved, and the generation in PostgreSQL already refuses the old refresh chains and key creation.
+   */
+  private async configResets(
+    resets: PasswordReset[],
+    rev: RevisionMeta,
+    txnId: string,
+  ): Promise<void> {
+    for (const r of resets) {
+      try {
+        const revoked = await this.tokens.revokeUser(r.userId, r.gen);
+        if (r.reasons.includes('password'))
+          await this.audit.write({
+            userId: rev.authorId,
+            username: rev.author,
+            sourceIp: null,
+            action: 'config.password-reset',
+            resource: `user/${r.username}`,
+            after: {
+              passwordSet: true,
+              self: rev.authorId === r.userId,
+              via: 'config',
+              revision: rev.id,
+              txnId,
+              apiKeysRevoked: r.apiKeysRevoked,
+              ...(r.discardedCandidate ? { discardedCandidate: true } : {}),
+              ...(revoked.persisted ? {} : { revocationPersisted: false }),
+            },
+            result: 'success',
+            status: null,
+          });
+        if (r.reasons.includes('disabled'))
+          await this.audit.write({
+            userId: rev.authorId,
+            username: rev.author,
+            sourceIp: null,
+            action: 'config.user-disabled',
+            resource: `user/${r.username}`,
+            after: {
+              disabled: true,
+              via: 'config',
+              revision: rev.id,
+              txnId,
+              ...(revoked.persisted ? {} : { revocationPersisted: false }),
+            },
+            result: 'success',
+            status: null,
+          });
+      } catch (e) {
+        this.log.error(
+          `config-path revocation (${r.reasons.join('+')}) of '${r.username}': ${(e as Error).message}`,
+        );
+      }
+    }
   }
 
   /** Re-arm the revert watcher for the pending commit (also after an API restart). */

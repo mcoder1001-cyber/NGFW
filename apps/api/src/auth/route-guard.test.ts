@@ -17,16 +17,23 @@ const PUBLIC = new Set([
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/refresh',
   'POST /api/v1/auth/logout',
+  // Feature public routes: one line under the feature's anchor (SY1).
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-aaa
+  // wave-BC: F-restconf-yang
 ]);
 
 /** Mutations a readonly user may call (own credentials only). */
-const READONLY_MAY = new Set(['POST /api/v1/auth/password']);
+const READONLY_MAY = new Set(['POST /api/v1/auth/password', 'POST /api/v1/users/:name/password']);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
   'DELETE /api/v1/config/lock',
   'GET /api/v1/audit',
   'POST /api/v1/secrets',
   'DELETE /api/v1/secrets/:kind/:name',
+  // Feature admin-only routes: one line under the feature's anchor (SY1).
+  // wave-BC: F-aaa
+  // wave-BC: F-backup-restore
 ]);
 
 function concrete(url: string): string {

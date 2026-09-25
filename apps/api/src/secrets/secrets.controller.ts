@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
 import type { VrxRequest } from '../common/principal.js';
 import { Protected } from '../common/responses.js';
-import { openapi, ZodPipe } from '../common/zod.js';
+import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { SecretsService } from './secrets.service.js';
 
 const SecretBody = z.strictObject({
@@ -80,12 +80,12 @@ export class SecretsController {
   @Delete(':kind/:name')
   @MinRole('admin')
   @HttpCode(204)
-  @Protected(404, 409)
+  @Protected(400, 404, 409)
   @ApiOperation({ summary: 'Delete a secret that nothing references' })
   @ApiNoContentResponse({ description: 'Deleted' })
   async delete(
-    @Param('kind') kind: string,
-    @Param('name') name: string,
+    @Param('kind', new SafeParamPipe('kind', 16)) kind: string,
+    @Param('name', new SafeParamPipe('name', 64)) name: string,
     @Req() req: VrxRequest,
   ): Promise<void> {
     req.audit = { resource: `secret/${kind}/${name}` };

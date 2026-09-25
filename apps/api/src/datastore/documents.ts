@@ -64,6 +64,62 @@ export function hydrateHashes(doc: Doc, hashes: ReadonlyMap<string, string>): Do
   return copy;
 }
 
+/**
+ * TD-2 #1: a password set through the API replaces the hash a stored document (candidate, pending commit) already
+ * carries for that user, so a later commit/confirm does not write the old hash back into app_user. Returns null when
+ * the document has no hash for the user (it is hydrated from app_user then). Never used for revisions (redacted).
+ */
+export function replaceUserHash(doc: Doc, username: string, hash: string): Doc | null {
+  const users = getAt(doc, USERS_POINTER);
+  if (!Array.isArray(users)) return null;
+  const i = users.findIndex(
+    (u) => isPlainObject(u) && u['username'] === username && u['passwordHash'] !== undefined,
+  );
+  if (i < 0) return null;
+  const copy = structuredClone(doc);
+  (getAt(copy, USERS_POINTER) as Record<string, unknown>[])[i]!['passwordHash'] = hash;
+  return copy;
+}
+
+/**
+ * D-097 / TD-2 review H1: password hashes are owned by app_user. The document a commit stores (pending row, in-flight
+ * reconcile copy, the one promote() syncs into app_user) keeps only the hashes the RAW candidate explicitly staged
+ * (an admin setting one through the config API) — never the ones hydration copied from app_user, so a delayed
+ * promote/confirm/reconcile cannot write an older hash back. `raw` is the unhydrated document that was committed.
+ */
+export function stagedHashesOnly(config: Doc, raw: Doc): Doc {
+  const users = getAt(config, USERS_POINTER);
+  if (!Array.isArray(users)) return config;
+  const staged = new Map<string, unknown>();
+  const rawUsers = getAt(raw, USERS_POINTER);
+  if (Array.isArray(rawUsers))
+    for (const u of rawUsers)
+      if (isPlainObject(u) && typeof u['username'] === 'string' && u['passwordHash'] !== undefined)
+        staged.set(u['username'], u['passwordHash']);
+  const copy = structuredClone(config);
+  for (const u of getAt(copy, USERS_POINTER) as unknown[]) {
+    if (!isPlainObject(u) || typeof u['username'] !== 'string') continue;
+    if (staged.has(u['username'])) u['passwordHash'] = staged.get(u['username']);
+    else delete u['passwordHash'];
+  }
+  return copy;
+}
+
+/** Import (D-097): a snapshot never brings password hashes; returns the document without them and their pointers. */
+export function withoutPasswordHashes(doc: unknown): { doc: unknown; removed: string[] } {
+  const users = getAt(doc, USERS_POINTER);
+  if (!Array.isArray(users)) return { doc, removed: [] };
+  const copy = structuredClone(doc);
+  const removed: string[] = [];
+  (getAt(copy, USERS_POINTER) as unknown[]).forEach((u, i) => {
+    if (isPlainObject(u) && u['passwordHash'] !== undefined) {
+      delete u['passwordHash'];
+      removed.push(`${USERS_POINTER}/${i}/passwordHash`);
+    }
+  });
+  return { doc: copy, removed };
+}
+
 /** Natural key of an array item for secret preservation: users by `username`, other lists by `name`. */
 function itemKey(item: unknown): string | undefined {
   if (!isPlainObject(item)) return undefined;
@@ -108,6 +164,92 @@ export function preserveSecrets(prev: Doc, next: Doc): Doc {
     }
   }
   return out;
+}
+
+/**
+ * A change of a secret (write-only) leaf, reported without any value (TD-2 #6, P07b review H1): diffs of redacted
+ * documents cannot see a password-hash-only edit, so it would stay invisible in the pending changes, the commit
+ * dialog and the revision history while still being committed.
+ */
+export interface SecretChange {
+  op: 'add' | 'remove' | 'replace';
+  pointer: string;
+  redacted: true;
+}
+
+/** Secret leaves of `doc` by natural path (`/management/users/username=alice/passwordHash`) → {pointer, value}. */
+function secretLeaves(doc: Doc): Map<string, { pointer: string; value: unknown }> {
+  const out = new Map<string, { pointer: string; value: unknown }>();
+  for (const pointer of secretPointers(doc)) {
+    let node: unknown = doc;
+    const natural: string[] = [];
+    for (const seg of parsePointer(pointer)) {
+      if (Array.isArray(node)) {
+        const item = node[Number(seg)];
+        natural.push(itemKey(item) ?? seg);
+        node = item;
+      } else {
+        natural.push(seg);
+        node = isPlainObject(node) ? node[seg] : undefined;
+      }
+    }
+    out.set(natural.map((x) => '/' + x).join(''), { pointer, value: node });
+  }
+  return out;
+}
+
+/**
+ * Secret leaves that differ between two documents in the SAME hydration state (both hydrated, or both raw), matched
+ * by natural key (users by username), as value-free `SecretChange`s sorted by pointer. The pointer is the leaf's
+ * position in `after` (in `before` for a removal).
+ */
+export function secretChanges(before: Doc, after: Doc): SecretChange[] {
+  const a = secretLeaves(before);
+  const b = secretLeaves(after);
+  const out: SecretChange[] = [];
+  for (const [k, x] of a) {
+    const y = b.get(k);
+    if (y === undefined) out.push({ op: 'remove', pointer: x.pointer, redacted: true });
+    else if (!deepEqual(x.value, y.value))
+      out.push({ op: 'replace', pointer: y.pointer, redacted: true });
+  }
+  for (const [k, y] of b) {
+    if (!a.has(k)) out.push({ op: 'add', pointer: y.pointer, redacted: true });
+  }
+  return out.sort((p, q) => (p.pointer < q.pointer ? -1 : p.pointer > q.pointer ? 1 : 0));
+}
+
+/**
+ * For the audit log: the redacted before/after subtrees of an edit at `base`, with every changed secret leaf marked
+ * `"<redacted>"` (before) / `"<redacted:changed>"` (after), so the row shows THAT a credential changed — never what.
+ */
+export function markSecretChanges(
+  base: string,
+  before: unknown,
+  after: unknown,
+  changes: readonly SecretChange[],
+): { before: unknown; after: unknown } {
+  const mark = (node: unknown, pointer: string, value: string): unknown => {
+    const rel = parsePointer(pointer).slice(parsePointer(base).length);
+    if (rel.length === 0) return value;
+    const copy = structuredClone(node);
+    let cur: unknown = copy;
+    for (const seg of rel.slice(0, -1)) {
+      cur = Array.isArray(cur) ? cur[Number(seg)] : isPlainObject(cur) ? cur[seg] : undefined;
+    }
+    const leaf = rel.at(-1) as string;
+    if (Array.isArray(cur)) cur[Number(leaf)] = value;
+    else if (isPlainObject(cur)) cur[leaf] = value;
+    return copy;
+  };
+  let b = before;
+  let a = after;
+  for (const c of changes) {
+    if (!(c.pointer === base || c.pointer.startsWith(base + '/'))) continue;
+    if (c.op !== 'add' && b !== undefined) b = mark(b, c.pointer, '<redacted>');
+    if (c.op !== 'remove' && a !== undefined) a = mark(a, c.pointer, '<redacted:changed>');
+  }
+  return { before: b, after: a };
 }
 
 const SECRET_REF = new RegExp(`^(?:${SECRET_KINDS.join('|')})/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`);

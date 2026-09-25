@@ -758,6 +758,7 @@ export const NatSchema = withUi(
     dslite: withUi(DsliteSchema.prefault({}), { group: 'CGNAT', order: 41 }),
     map: withUi(MapSchema.prefault({}), { group: 'CGNAT', order: 42 }),
     cnat: withUi(CnatSchema.prefault({}), { group: 'CNAT', order: 50 }),
+    // wave-BC: F-det44-map-dslite-cnat
   }),
   {
     title: 'NAT',

@@ -46,7 +46,8 @@ type KeyedSpec[T proto.Message] struct {
 //
 //   - Create: VPP has the id and we claimed it (same identity) → no-op, i.e. an idempotent
 //     re-apply of write-only types (D-076) and after an agent restart; VPP has it unclaimed →
-//     ErrNotOurs (never take over, review M3); absent → Add, then Claim.
+//     ErrNotOurs (never take over, review M3); absent → Claim, then Add (a failed Add releases
+//     the claim it made; TD-11b).
 //   - Delete: unclaimed → no-op (never touch foreign objects); claimed and present with the
 //     same identity → Del, then Release; claimed but gone → Release only.
 //   - Retrieve: the claimed ids VPP has (a claimed id VPP lost is absent → recreated).
@@ -163,14 +164,26 @@ func (d *KeyedDescriptor[T]) Create(ctx context.Context, obj proto.Message) (any
 		}
 		return nil, fmt.Errorf("%s: %w: %s", d.spec.Name, ErrNotOurs, id)
 	}
-	if err := d.spec.Add(ctx, d.client, t); err != nil {
-		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
-	}
+	// claim BEFORE the add (TD-11b; re-review N7 "keyed crash window"): an add whose claim cannot
+	// be recorded never happens — adding first left an unclaimed object that blocked every later
+	// Create with ErrNotOurs. A crash between claim and add leaves a claim without an object, which
+	// the next Create repairs (the id is absent → add).
+	had := d.claims.Claimed(id, holder)
 	if err := d.claims.Claim(id, holder); err != nil {
 		return nil, fmt.Errorf("%s: claim %s: %w", d.spec.Name, id, err)
 	}
+	if err := d.spec.Add(ctx, d.client, t); err != nil {
+		if !had {
+			_ = d.claims.Release(id, holder)
+		}
+		return nil, PluginError(d.spec.Plugin, fmt.Errorf("%s: %w", d.spec.Name, err))
+	}
 	return nil, nil
 }
+
+// CheckPersistent is the product agent's guard (dfkit/persist, TD-11b review 3.2): the keyed claims
+// must survive an agent restart and be keyed by id (checkIDClaims).
+func (d *KeyedDescriptor[T]) CheckPersistent() error { return checkIDClaims(d.spec.Name, d.claims) }
 
 // Update implements scheduler.Descriptor.
 func (d *KeyedDescriptor[T]) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {

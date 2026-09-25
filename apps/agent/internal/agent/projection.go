@@ -33,8 +33,10 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 )
 
 // Root keys of the configuration document (ROOT_KEYS in packages/schema), documented order.
@@ -43,12 +45,9 @@ var rootKeys = []string{
 	"acl", "vpn", "tunnels", "services", "ha", "management",
 }
 
-// domainDescriptors maps each implemented domain to the descriptors that realise it.
-var domainDescriptors = map[string][]string{
-	"interfaces": {core.LoopbackName, core.InterfaceTableName, core.InterfaceAddrName},
-	"vrfs":       {core.VRFName},
-	"routing":    {core.RouteName},
-}
+// domainDescriptors maps each implemented domain to the descriptors that realise it (P08: the
+// wiring lives in internal/subsystems).
+var domainDescriptors = subsystems.Domains
 
 // implementedDomains lists the implemented domains in ROOT_KEYS order.
 func implementedDomains() []string {
@@ -135,6 +134,19 @@ func (p *projected) add(k scheduler.Key, v proto.Message, pointer string) {
 	p.pointers[k] = pointer
 }
 
+// Add implements desired.Sink.
+func (p *projected) Add(k scheduler.Key, v proto.Message, pointer string) { p.add(k, v, pointer) }
+
+// Errorf implements desired.Sink.
+func (p *projected) Errorf(pointer, rule, format string, a ...any) {
+	p.errorf(pointer, rule, format, a...)
+}
+
+// Warnf implements desired.Sink.
+func (p *projected) Warnf(pointer, rule, format string, a ...any) {
+	p.warnf(pointer, rule, format, a...)
+}
+
 func (p *projected) errorf(pointer, rule, format string, a ...any) {
 	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, message: fmt.Sprintf(format, a...)})
 }
@@ -167,7 +179,8 @@ type vrfResolver func(name string) (uint32, bool)
 
 // project turns the authoritative domains of ds into KVs. resolve maps VRF names that are not in
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
-func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *projected {
+// netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
+func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -215,40 +228,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 	}
 
 	if in["interfaces"] {
-		for _, name := range sortedMapKeys(ds.GetInterfaces()) {
-			itf := ds.GetInterfaces()[name]
-			pt := ptr("interfaces", name)
-			if inst, ok := core.LoopbackInstance(name); ok {
-				p.add(core.LoopbackKey(name), &core.Loopback{Name: name, Instance: inst}, pt)
-			}
-			for _, f := range unsupportedInterfaceFields(itf) {
-				p.warnf(ptr("interfaces", name, f), "agent.unsupported-field", "interfaces.%s is not implemented by this agent build (DF-1/P08)", f)
-			}
-			if itf.Vrf != nil {
-				id, ok := vrfID(itf.GetVrf())
-				switch {
-				case !ok:
-					p.errorf(ptr("interfaces", name, "vrf"), "interfaces.vrf-exists", "VRF %q does not exist", itf.GetVrf())
-				case id != 0:
-					p.add(core.InterfaceTableKey(name), &core.InterfaceTable{Interface: name, TableId: id}, ptr("interfaces", name, "vrf"))
-				}
-			}
-			for fam, list := range map[string][]string{"ipv4": itf.GetIpv4(), "ipv6": itf.GetIpv6()} {
-				for i, a := range list {
-					ap := ptr("interfaces", name, fam, strconv.Itoa(i))
-					c, err := core.CanonAddrPrefix(a)
-					if err != nil {
-						p.errorf(ap, "interfaces.address", "%v", err)
-						continue
-					}
-					if isV6 := strings.Contains(c, ":"); isV6 != (fam == "ipv6") {
-						p.errorf(ap, "interfaces.address-family", "%s is not an %s address", a, fam)
-						continue
-					}
-					p.add(core.InterfaceAddrKey(name, c), &core.InterfaceAddress{Interface: name, Prefix: c}, ap)
-				}
-			}
-		}
+		desired.Interfaces(p, ds.GetInterfaces(), vrfID, netdev) // P08: aliases, creators, attributes, sub-interfaces
 	}
 
 	for _, k := range rootKeys {
@@ -312,6 +292,34 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver) *pro
 			p.warnf(ptr("routing"), "agent.unsupported-field", "routing protocols and policy are rendered by RF-1 (FRR), not by this agent build")
 		}
 	}
+	// Feature builders (internal/desired/<slug>.go): one call under the feature's anchor, e.g.
+	// `if in["nat"] { desired.Nat(p, ds.GetNat(), vrfID) }` (wave-A-hotspots A2).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-mpls-srmpls
+	// wave-BC: F-srv6
+	// wave-BC: F-lisp
+	// wave-BC: F-bfd-redistribution
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-ha-state-sync
+	// wave-A: F-bonding
+	// wave-A: F-bridge-l2
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-nat44-ei-64-66-nptv6
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: P12
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 	return p
 }
 
@@ -325,41 +333,10 @@ func isEmptyDomain(ds *vrxv1.DesiredState, key string) bool {
 	return proto.Size(ds.ProtoReflect().Get(fd).Message().Interface()) == 0
 }
 
-func unsupportedInterfaceFields(i *vrxv1.Interface) []string {
-	var out []string
-	if i.Enabled != nil {
-		out = append(out, "enabled")
-	}
-	if i.Description != nil {
-		out = append(out, "description")
-	}
-	if i.Mtu != nil {
-		out = append(out, "mtu")
-	}
-	if i.Mac != nil {
-		out = append(out, "mac")
-	}
-	if i.RxMode != nil {
-		out = append(out, "rxMode")
-	}
-	if len(i.GetSubinterfaces()) > 0 {
-		out = append(out, "subinterfaces")
-	}
-	if i.Unnumbered != nil {
-		out = append(out, "unnumbered")
-	}
-	if i.Promiscuous != nil {
-		out = append(out, "promiscuous")
-	}
-	if i.DhcpClient != nil {
-		out = append(out, "dhcpClient")
-	}
-	return out
-}
-
 // assemble builds the DesiredState of the given domains from retrieved KVs. names maps table ids
-// to VRF names for tables that are not among the retrieved VRFs (e.g. `vrfs` not requested).
-func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (string, bool)) *vrxv1.DesiredState {
+// to VRF names for tables that are not among the retrieved VRFs (e.g. `vrfs` not requested); stored
+// is the agent's stored `interfaces` document and live the interface table (P08, desired.Assemble).
+func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (string, bool), stored map[string]*vrxv1.Interface, live desired.Live) *vrxv1.DesiredState {
 	ds := &vrxv1.DesiredState{}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -385,17 +362,6 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		}
 		return strconv.FormatUint(uint64(id), 10)
 	}
-	iface := func(name string) *vrxv1.Interface {
-		if ds.Interfaces == nil {
-			ds.Interfaces = map[string]*vrxv1.Interface{}
-		}
-		i := ds.Interfaces[name]
-		if i == nil {
-			i = &vrxv1.Interface{}
-			ds.Interfaces[name] = i
-		}
-		return i
-	}
 	var routes []*core.Route
 	for _, kv := range kvs {
 		switch v := kv.Value.(type) {
@@ -406,36 +372,20 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 				}
 				ds.Vrfs[v.GetVrf()] = &vrxv1.Vrf{Id: proto.Uint32(v.GetId())}
 			}
-		case *core.Loopback:
-			if in["interfaces"] {
-				iface(v.GetName())
-			}
-		case *core.InterfaceTable:
-			if in["interfaces"] {
-				iface(v.GetInterface()).Vrf = proto.String(nameOf(v.GetTableId()))
-			}
-		case *core.InterfaceAddress:
-			if in["interfaces"] {
-				i := iface(v.GetInterface())
-				if strings.Contains(v.GetPrefix(), ":") {
-					i.Ipv6 = append(i.Ipv6, v.GetPrefix())
-				} else {
-					i.Ipv4 = append(i.Ipv4, v.GetPrefix())
-				}
-			}
 		case *core.Route:
 			if in["routing"] {
 				routes = append(routes, v)
 			}
 		}
 	}
-	for _, i := range ds.Interfaces {
-		sortAddrs(i.Ipv4)
-		sortAddrs(i.Ipv6)
-		// M4: every VPP interface is in exactly one table; without a binding it is the default VRF
-		// (the Zod default is "default", so an unset value here would be permanent drift).
-		if i.Vrf == nil {
-			i.Vrf = proto.String(nameOf(0))
+	if in["interfaces"] {
+		// P08: every (sub-)interface the agent created or holds an object on, plus the ones the stored
+		// document names that exist; M4 (P05): an interface without a table binding is in the default VRF.
+		if live == nil {
+			live = noLive{}
+		}
+		if ifs := desired.Assemble(kvs, stored, live, nameOf); len(ifs) > 0 {
+			ds.Interfaces = ifs
 		}
 	}
 	if in["routing"] {
@@ -465,19 +415,41 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 			ds.Routing.Static = append(ds.Routing.Static, sr)
 		}
 	}
+	// Feature assemblers (internal/desired/<slug>.go): one call under the feature's anchor; it runs after
+	// desired.Assemble and the routes, so it adds its leaves to the assembled document (wave-A-hotspots A2).
+	// wave-BC: F-det44-map-dslite-cnat
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-ikev2-native
+	// wave-BC: F-mpls-srmpls
+	// wave-BC: F-srv6
+	// wave-BC: F-lisp
+	// wave-BC: F-bfd-redistribution
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-ha-state-sync
+	// wave-A: F-bonding
+	// wave-A: F-bridge-l2
+	// wave-A: F-loopback-bvi-gso-lldp-span
+	// wave-A: F-vrf-static-ecmp
+	// wave-A: F-neighbors-ra
+	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-object-model
+	// wave-A: F-acl
+	// wave-A: F-host-acl-nftables
+	// wave-A: F-nat44-ed-sessions
+	// wave-A: F-nat44-ei-64-66-nptv6
+	// wave-A: P11
+	// wave-A: F-wireguard
+	// wave-A: P12
+	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-unbound-chrony-syslog
 	return ds
 }
 
-func sortAddrs(a []string) {
-	sort.Slice(a, func(i, j int) bool {
-		x, e1 := core.CanonAddrPrefix(a[i])
-		y, e2 := core.CanonAddrPrefix(a[j])
-		if e1 != nil || e2 != nil {
-			return a[i] < a[j]
-		}
-		return x < y
-	})
-}
+// noLive is the empty desired.Live (unit tests without an interface table).
+type noLive struct{}
+
+func (noLive) State(string) (*vrxv1.InterfaceState, bool) { return nil, false }
 
 func sortedMapKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))

@@ -1,4 +1,5 @@
 import type { UserConfig } from '@ngfw/schema';
+import type { SecretChange } from './documents.js';
 
 /**
  * Persistence port of the datastore and the commit engine. `PgConfigRepo` is the product implementation;
@@ -16,6 +17,8 @@ export interface RevisionMeta {
   hash: string;
   txnId: string | null;
   kind: string;
+  /** Secret leaves changed against the parent, without values (TD-2 #6). */
+  secretChanges: SecretChange[];
 }
 
 export interface Revision extends RevisionMeta {
@@ -26,6 +29,8 @@ export interface Revision extends RevisionMeta {
 }
 
 export interface NewRevision {
+  /** Secret leaves changed against the parent, without values (TD-2 #6). */
+  secretChanges?: SecretChange[];
   /** Secret versions pinned by this revision (review M2). */
   secretVersions?: Record<string, number> | null;
   authorId: number | null;
@@ -40,6 +45,13 @@ export interface NewRevision {
 export interface CandidateState {
   ownerId: number | null;
   owner: string | null;
+  /**
+   * The API key that holds the lock (TD-2 #5, D-093): an API-key session owns the candidate on its own; null = an
+   * interactive (JWT) session of `ownerId` — all of that user's interactive sessions share it, as before.
+   */
+  ownerKeyId: string | null;
+  /** Name of that key (null when the key was deleted meanwhile). */
+  ownerKey: string | null;
   lockedAt: Date | null;
   /** null = equals running. May carry secret leaves (write path only, never returned). */
   payload: Doc | null;
@@ -58,6 +70,25 @@ export interface PendingCommit {
   kind: string;
   deadline: Date;
   createdAt: Date;
+}
+
+/**
+ * D-102 (TD-2 verify V2): an existing user whose password hash a promoted snapshot changed. `syncUsers` applies
+ * admin-reset semantics in the promote transaction (credential generation bumped, failed logins/lock cleared, API
+ * keys deleted with any candidate lock they held); the commit engine ends the sessions once it committed and audits.
+ * D-100 (3), TD-4: also an existing user whose `disabled` flipped false → true — generation bumped only (API keys
+ * stay; they are refused while the account is disabled). Both in one promote: ONE bump, one entry, both reasons.
+ */
+export interface PasswordReset {
+  userId: number;
+  username: string;
+  /** The credential generation after the bump. */
+  gen: number;
+  apiKeysRevoked: { id: string; name: string }[];
+  /** A candidate locked by one of those keys was discarded with its lock. */
+  discardedCandidate: boolean;
+  /** Why the generation moved: `password` (D-102 reset) and/or `disabled` (D-100 (3)). */
+  reasons: ('password' | 'disabled')[];
 }
 
 /** Does running (PostgreSQL) match the data plane? (review M3) */
@@ -79,11 +110,15 @@ export interface ConfigReads {
 /** Operations inside one transaction. `lockCandidate()` serialises writers (SELECT … FOR UPDATE). */
 export interface ConfigTx extends ConfigReads {
   lockCandidate(): Promise<CandidateState>;
-  saveCandidate(c: Omit<CandidateState, 'owner' | 'updatedAt'>): Promise<void>;
+  saveCandidate(c: Omit<CandidateState, 'owner' | 'ownerKey' | 'updatedAt'>): Promise<void>;
   insertRevision(r: NewRevision): Promise<Revision>;
   setPending(p: Omit<PendingCommit, 'createdAt'> | null): Promise<void>;
-  /** Make app_user follow `management.users` (hashes: only where the document carries one). */
-  syncUsers(users: readonly UserConfig[]): Promise<void>;
+  /**
+   * Make app_user follow `management.users` (hashes: only where the document carries one). An EXISTING user whose
+   * hash changes gets admin-reset semantics in this transaction (D-102), one who becomes disabled a generation bump
+   * (D-100 (3)); those users are returned.
+   */
+  syncUsers(users: readonly UserConfig[]): Promise<PasswordReset[]>;
   /** Re-activate the given secret versions (rollback, review M2); unknown refs/versions are skipped. */
   restoreSecretVersions(versions: Record<string, number>): Promise<string[]>;
   setSync(s: Omit<SyncStatus, 'since'>): Promise<void>;

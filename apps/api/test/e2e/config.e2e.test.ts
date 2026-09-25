@@ -366,9 +366,13 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     );
     const all = await h.db.execute(sql`select * from audit_log`);
     const text = JSON.stringify(all.rows);
-    for (const secretText of ['$argon2id$', PW.op, h.adminPassword, 'passwordHash']) {
+    for (const secretText of ['$argon2id$', PW.op, h.adminPassword]) {
       expect(text).not.toContain(secretText);
     }
+    // TD-2 #6: a changed hash is marked, never shown — every passwordHash in the audit log is a redaction marker
+    const hashes = [...text.matchAll(/\\?"passwordHash\\?":\\?"([^"\\]*)/g)].map((m) => m[1]);
+    expect(hashes.length).toBeGreaterThan(0);
+    expect(hashes.every((v) => v === '<redacted>' || v === '<redacted:changed>')).toBe(true);
     // no GET is audited
     expect(items.some((e) => String(e.action).startsWith('GET '))).toBe(false);
   });

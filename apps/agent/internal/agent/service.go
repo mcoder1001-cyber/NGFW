@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -18,7 +19,9 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -36,15 +39,17 @@ const (
 // Service implements the vrx.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
-	owner   string
-	version string
-	log     *slog.Logger
-	vpp     vpp.Client
-	sched   *scheduler.Scheduler
-	st      *state
-	bus     *bus
-	metrics *metrics
-	now     func() time.Time
+	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
+	netdevKind desired.NetdevKind
+	owner      string
+	version    string
+	log        *slog.Logger
+	vpp        vpp.Client
+	sched      *scheduler.Scheduler
+	st         *state
+	bus        *bus
+	metrics    *metrics
+	now        func() time.Time
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
@@ -60,12 +65,24 @@ type Service struct {
 	reconciling     bool
 	lastReconcileAt time.Time
 	vppVersion      string
-	vrfIDs          map[string]uint32 // VRF name → table id of the stored desired state
-	vrfDesc         map[string]string // VRF name → description (D-073b)
-	routeDesc       map[string]string // "<vrf>|<prefix>" → description (D-073b)
+	vrfIDs          map[string]uint32           // VRF name → table id of the stored desired state
+	vrfDesc         map[string]string           // VRF name → description (D-073b)
+	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
+	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
+	storedDoc       *vrxv1.DesiredState         // stored desired state for DryRun's dynamic sources (TD-8; only with sources)
+	beforeTxn       func()
 	pendingTxn      string
 	deadline        time.Time
 	lastTxn         string
+
+	// sources are the dynamic desired sources (S1, TD-8): merged into every transaction's projection
+	// while they are in sync (dynsource.go).
+	sources []*dynSource
+	closed  bool // Close ran: no source retry is armed any more (guarded by txn)
+	// holder is the goroutine that holds txn, inDesired the goroutines inside a source's Desired
+	// (goid; only with sources): sync's re-entrancy guard (TD-8 review R6).
+	holder    atomic.Uint64
+	inDesired sync.Map
 }
 
 // ServiceConfig builds a Service.
@@ -78,6 +95,17 @@ type ServiceConfig struct {
 	StateDir  string
 	Metrics   *metrics
 	Now       func() time.Time
+	// BeforeTxn runs at the start of every transaction (P08: subsystems.Wiring.BeforeTxn).
+	BeforeTxn func()
+	// NetdevKind is the Linux netdev lookup of the af_packet veth rule (D-105; subsystems.Wiring.NetdevKind).
+	// nil skips the check (unit tests of other domains).
+	NetdevKind desired.NetdevKind
+	// Events is the event bus (TD-8: the agent creates it before the wiring, whose Env.Publish feeds
+	// it); nil = a new one.
+	Events *bus
+	// Sources are the dynamic desired sources (S1, TD-8; subsystems.Wiring.DynamicSources). Their
+	// descriptors must be registered with Scheduler.
+	Sources []subsystems.DynamicSource
 }
 
 // NewService loads the persisted state and returns a service. It does not touch VPP; call
@@ -96,11 +124,18 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 	if cfg.Metrics == nil {
 		cfg.Metrics = newMetrics()
 	}
+	if cfg.Events == nil {
+		cfg.Events = newBus()
+	}
+	if err := checkSources(cfg.Scheduler, cfg.Sources); err != nil {
+		return nil, err
+	}
 	s := &Service{
 		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
-		st: st, bus: newBus(), metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
-		retryMin: revertRetryMin, retryMax: revertRetryMax,
+		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
+		retryMin: revertRetryMin, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 	}
+	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
 	return s, nil
 }
@@ -108,13 +143,21 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 func (s *Service) lock(ctx context.Context) error {
 	select {
 	case s.txn <- struct{}{}:
+		if len(s.sources) > 0 {
+			s.holder.Store(goid())
+		}
 		return nil
 	case <-ctx.Done():
 		return status.FromContextError(ctx.Err()).Err()
 	}
 }
 
-func (s *Service) unlock() { <-s.txn }
+func (s *Service) unlock() {
+	if len(s.sources) > 0 {
+		s.holder.Store(0)
+	}
+	<-s.txn
+}
 
 // refreshSnapshotLocked copies what Health/DryRun need out of st (caller holds txn or is the
 // constructor).
@@ -143,8 +186,13 @@ func (s *Service) refreshSnapshotLocked() {
 			routeDesc[vrf+"|"+p] = r.GetDescription()
 		}
 	}
+	ifs := map[string]*vrxv1.Interface{}
+	for name, itf := range s.st.desired.GetInterfaces() {
+		ifs[name] = proto.Clone(itf).(*vrxv1.Interface)
+	}
 	s.mu.Lock()
 	s.vrfDesc, s.routeDesc = vrfDesc, routeDesc
+	s.storedIfs = ifs
 	s.vrfIDs = ids
 	s.pendingTxn = s.st.meta.PendingTxnID
 	s.deadline = time.Time{}
@@ -154,6 +202,12 @@ func (s *Service) refreshSnapshotLocked() {
 	s.lastTxn = s.st.meta.LastTxnID
 	s.mu.Unlock()
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
+	if len(s.sources) > 0 {
+		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
+		s.mu.Lock()
+		s.storedDoc = doc
+		s.mu.Unlock()
+	}
 }
 
 func (s *Service) resolveVRF(name string) (uint32, bool) {
@@ -320,7 +374,10 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	log.Info("reconcile start")
 
 	resp := &vrxv1.ApplyResponse{TxnId: txnID}
-	pj := project(ds, domains, s.resolveVRF)
+	if s.beforeTxn != nil {
+		s.beforeTxn()
+	}
+	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
 	var res *scheduler.TxnResult
 	if pj.hasErrors() {
 		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
@@ -328,8 +385,15 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		resp.Message = "validation failed"
 		resp.Summary = &vrxv1.ApplySummary{}
 	} else {
-		res = s.sched.ApplyWith(ctx, pj.kvs, scopeOf(domains), scheduler.ApplyOptions{Resync: m != modeTxn})
+		// S1 (TD-8): the sources in sync join the transaction; one that makes it fail is left out.
+		view := ds // resync and revert apply the stored document itself
+		if m == modeTxn && len(s.activeSources()) > 0 {
+			view = mergeDomains(s.st.desired, ds, domains)
+		}
+		var left []leftOut
+		res, left = s.applySources(ctx, pj.kvs, scopeOf(domains), domains, view, scheduler.ApplyOptions{Resync: m != modeTxn})
 		fillResponse(resp, res, pj)
+		s.leaveOutLocked(resp, txnID, left, log)
 	}
 	resp.AppliedAt = timestamppb.New(s.now())
 
@@ -564,6 +628,20 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 		}
 		return nil, status.Errorf(codes.Internal, "retrieve: %v", err)
 	}
+	var live desired.Live
+	if in := union(domains, nil); contains(in, subsystems.Interfaces) {
+		tbl, err := s.interfaceTable(ctx)
+		if err != nil {
+			if errors.Is(err, vpp.ErrDisconnected) {
+				return nil, status.Error(codes.Unavailable, err.Error())
+			}
+			return nil, status.Errorf(codes.Internal, "retrieve: %v", err)
+		}
+		live = tbl
+	}
+	s.mu.Lock()
+	stored := s.storedIfs
+	s.mu.Unlock()
 	ds := assemble(kvs, domains, func(id uint32) (string, bool) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -573,9 +651,18 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 			}
 		}
 		return "", false
-	})
+	}, stored, live)
 	s.addDescriptions(ds)
 	return &vrxv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
+}
+
+func contains(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
 }
 
 // addDescriptions fills VRF and static-route descriptions — VPP cannot store them (D-073b) —
@@ -608,11 +695,11 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
-	pj := project(req.GetDesiredState(), domains, s.resolveVRF)
+	pj := project(req.GetDesiredState(), domains, s.resolveVRF, s.netdevKind)
 	if pj.hasErrors() {
 		return report(req.GetTxnId(), pj, nil), nil
 	}
-	plan, err := s.sched.Plan(ctx, pj.kvs, scopeOf(domains))
+	plan, err := s.planSources(ctx, pj, domains, req.GetDesiredState())
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
 			return nil, status.Error(codes.Unavailable, err.Error())
@@ -662,6 +749,10 @@ func (s *Service) Close() {
 		s.timer = nil
 	}
 	s.stopRetryLocked()
+	s.closed = true
+	for _, ds := range s.sources {
+		s.stopSourceRetryLocked(ds)
+	}
 }
 
 // ---- response building ------------------------------------------------------------------------

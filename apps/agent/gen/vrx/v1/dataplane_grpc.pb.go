@@ -46,13 +46,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_Apply_FullMethodName        = "/vrx.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName     = "/vrx.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName       = "/vrx.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName  = "/vrx.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName = "/vrx.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName       = "/vrx.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName       = "/vrx.v1.Dataplane/Health"
+	Dataplane_Apply_FullMethodName          = "/vrx.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName       = "/vrx.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName         = "/vrx.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName    = "/vrx.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName   = "/vrx.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -87,6 +88,10 @@ type DataplaneClient interface {
 	Action(ctx context.Context, in *ActionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ActionOutput], error)
 	// Health reports agent and VPP connectivity. Cheap; polled by the API.
 	Health(ctx context.Context, in *HealthRequest, opts ...grpc.CallOption) (*HealthResponse, error)
+	// InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -194,6 +199,16 @@ func (c *dataplaneClient) Health(ctx context.Context, in *HealthRequest, opts ..
 	return out, nil
 }
 
+func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InterfaceStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_InterfaceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -226,6 +241,10 @@ type DataplaneServer interface {
 	Action(*ActionRequest, grpc.ServerStreamingServer[ActionOutput]) error
 	// Health reports agent and VPP connectivity. Cheap; polled by the API.
 	Health(context.Context, *HealthRequest) (*HealthResponse, error)
+	// InterfaceState dumps the live, read-only interface table (sw_if_index, type, admin/link state,
+	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
+	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
+	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -256,6 +275,9 @@ func (UnimplementedDataplaneServer) Action(*ActionRequest, grpc.ServerStreamingS
 }
 func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*HealthResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Health not implemented")
+}
+func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -383,6 +405,24 @@ func _Dataplane_Health_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InterfaceStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).InterfaceState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_InterfaceState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).InterfaceState(ctx, req.(*InterfaceStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -405,6 +445,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Health",
 			Handler:    _Dataplane_Health_Handler,
+		},
+		{
+			MethodName: "InterfaceState",
+			Handler:    _Dataplane_InterfaceState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

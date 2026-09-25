@@ -149,6 +149,8 @@ export const NextHopSchema = z
       help: 'relative share for equal-cost multipath',
       order: 3,
     }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-vrf-static-ecmp
   })
   .refine((hop) => hop.address !== undefined || hop.interface !== undefined, {
     message: 'a next hop needs an address, an interface or both',
@@ -180,6 +182,9 @@ export const StaticRouteSchema = z
       order: 5,
     }),
     description: withUi(descriptionText.optional(), { title: 'Description', order: 6 }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-A: F-vrf-static-ecmp
+    // wave-A: P12
   })
   .refine((route) => route.blackhole === (route.nextHops.length === 0), {
     message: 'a route needs at least one next hop, unless it is a blackhole route (then none)',
@@ -547,6 +552,8 @@ export const OspfInterfaceSchema = z.strictObject({
   }),
   priority: withUi(z.number().int().min(0).max(255).optional(), { title: 'DR priority', order: 7 }),
   bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 8 }),
+  // wave-BC: F-ospf
+  // wave-BC: F-bfd-redistribution
 });
 
 /** Record keyed by the interface an IGP runs on (parent or `<parent>.<id>`). */
@@ -597,6 +604,8 @@ export const IsisInterfaceSchema = z.strictObject({
     order: 5,
   }),
   bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 6 }),
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
 });
 
 export const IsisSchema = z.strictObject({
@@ -605,6 +614,7 @@ export const IsisSchema = z.strictObject({
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 3 }),
   interfaces: withUi(igpInterfaces(IsisInterfaceSchema), { order: 4 }),
   redistribute: withUi(redistributeInto('isis'), { order: 5 }),
+  // wave-BC: F-isis-rip
 });
 export type IsisConfig = z.infer<typeof IsisSchema>;
 
@@ -612,6 +622,7 @@ export type IsisConfig = z.infer<typeof IsisSchema>;
 
 export const RipInterfaceSchema = z.strictObject({
   passive: withUi(z.boolean().default(false), { title: 'Passive', order: 2 }),
+  // wave-BC: F-isis-rip
 });
 
 export const RipSchema = z.strictObject({
@@ -627,6 +638,7 @@ export const RipSchema = z.strictObject({
     title: 'Default metric',
     order: 5,
   }),
+  // wave-BC: F-isis-rip
 });
 export type RipConfig = z.infer<typeof RipSchema>;
 
@@ -656,6 +668,7 @@ export const BfdSessionSchema = z
       order: 6,
     }),
     enabled: withUi(z.boolean().default(true), { title: 'Enabled', order: 7 }),
+    // wave-BC: F-bfd-redistribution
   })
   .refine((s) => ipFamily(s.localAddress) === ipFamily(s.peerAddress), {
     message: 'local and peer address must be in the same address family',
@@ -669,6 +682,7 @@ export const BfdSchema = z.strictObject({
     itemKey: ['interface', 'peerAddress'],
     order: 1,
   }),
+  // wave-BC: F-bfd-redistribution
 });
 export type BfdConfig = z.infer<typeof BfdSchema>;
 
@@ -693,6 +707,14 @@ export const RoutingSchema = withUi(
     isis: withUi(IsisSchema.optional(), { title: 'IS-IS', group: 'dynamic', order: 5 }),
     rip: withUi(RipSchema.optional(), { title: 'RIP', group: 'dynamic', order: 6 }),
     bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-BC: F-ospf
+    // wave-BC: F-isis-rip
+    // wave-BC: F-mpls-srmpls
+    // wave-BC: F-igmp-mfib
+    // wave-BC: F-srv6
+    // wave-A: F-neighbors-ra
+    // wave-A: F-rpf-adl-pbr
   }),
   {
     title: 'Routing',

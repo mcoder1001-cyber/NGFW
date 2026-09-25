@@ -269,7 +269,10 @@ Designed for ≤ 1000 interfaces at 1 Hz (≈ 100 KB/s); `worker_cpu` is only pr
 current snapshot: degraded, pending confirm, last reconcile). Ordering promises across kinds: `RECONCILE_START`
 precedes every `RECONCILE_DONE` with the same `txn_id`; `CONFIRM_REVERTED` precedes the `RECONCILE_START` of the revert;
 `VPP_DISCONNECTED`/`VPP_CONNECTED` alternate and a `VPP_CONNECTED` is followed by a resync `RECONCILE_START/DONE`
-(empty `txn_id`); `LINK_UP`/`LINK_DOWN` reflect `want_interface_events` and are filtered by `interfaces`. The event
+(empty `txn_id`); a `RECONCILE_START/DONE` pair whose `attributes.source` is set is a dynamic desired source's own
+sync (S1, TD-8: empty `txn_id`, emitted once the sync finished, never for a sync that changed nothing), and an `ERROR`
+event with `attributes.source` names a source that a transaction left out or whose loop stopped (`attributes.reason`,
+and `attributes.key` when one object caused it); `LINK_UP`/`LINK_DOWN` reflect `want_interface_events` and are filtered by `interfaces`. The event
 buffer is bounded; on overflow the agent drops the oldest events and emits one `ERROR` event `"dropped N events"` so
 the gap is visible. Filters (`kinds`, `interfaces`) are applied before buffering.
 
@@ -286,6 +289,17 @@ P05 returns `UNIMPLEMENTED` until P08/F-* implement the actions.
 the original fields (`agent_version`, `vpp_connected`, `vpp_version`) it reports `owner`, implemented `subsystems`,
 `last_txn_id`, `pending_confirm_txn_id`/`confirm_deadline`, `degraded`, `last_reconcile_at`, `reconcile_in_progress`.
 The API's `/api/v1/state/system` and the UI's status bar derive "data plane OK / degraded / unconfirmed commit" from it.
+
+### 8a. InterfaceState (P08, additive)
+
+`InterfaceState(InterfaceStateRequest{names, owner}) → InterfaceStateResponse{interfaces[], owner, retrieved_at}` is the
+**state RPC** §5 points to for interfaces: the live table the API's `GET /api/v1/state/interfaces` merges with the
+configuration. One entry per interface this agent can name (its own tagged/created ones and untagged ones such as
+DPDK NICs — never another owner's, never `local0`), sorted by logical name: `name` (D-069 logical name = config key),
+`vpp_name`, `sw_if_index`, `type`, `admin_up`, `link_up`, `mtu` (L3), `link_mtu`, `mac`, `ipv4[]`/`ipv6[]`, `vrf`
+(+ `table_id`), sub-interface `parent`/`vlan_id`/`inner_vlan_id`, `managed`, `link_speed_kbps`, `rx_mode`,
+`description` (from the stored desired state, D-073b). Dumps only; `UNAVAILABLE` without VPP. Counters stay in
+`StreamStats` (keyed by `vpp_name`).
 
 ## 9. Compatibility rules for consumers
 
@@ -331,3 +345,25 @@ small follow-up commit on its next task (D-055); DF-1 then deletes its local `if
 copies exist; the P03b evidence shows them field-for-field identical. New descriptor families add their messages here
 under `vrx/model/<family>/v1` with a `contract(proto):` commit.
 
+## 11. Feature RPCs
+
+Each wave-A/B feature documents its new RPCs, `ActionRequest` members and `EventKind` values here, as
+`### <task-id>: <Rpc>` directly below its own anchor (docs/status/wave-A-hotspots.md C6). Sections are appended,
+never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
+
+<!-- wave-A: F-bonding -->
+<!-- wave-A: F-bridge-l2 -->
+<!-- wave-A: F-loopback-bvi-gso-lldp-span -->
+<!-- wave-A: F-vrf-static-ecmp -->
+<!-- wave-A: F-neighbors-ra -->
+<!-- wave-A: F-rpf-adl-pbr -->
+<!-- wave-A: F-object-model -->
+<!-- wave-A: F-acl -->
+<!-- wave-A: F-host-acl-nftables -->
+<!-- wave-A: F-nat44-ed-sessions -->
+<!-- wave-A: F-nat44-ei-64-66-nptv6 -->
+<!-- wave-A: P11 -->
+<!-- wave-A: F-wireguard -->
+<!-- wave-A: P12 -->
+<!-- wave-A: F-kea-dhcp-relay -->
+<!-- wave-A: F-unbound-chrony-syslog -->

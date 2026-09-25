@@ -20,6 +20,9 @@ import {
   EventKind,
   type HealthRequest,
   type HealthResponse,
+  type InterfaceState,
+  type InterfaceStateRequest,
+  type InterfaceStateResponse,
   IssueSeverity,
   ObjectResultCode,
   type ObjectResult,
@@ -70,6 +73,14 @@ export class FakeAgent {
   failAllWith: status | undefined;
   /** Answer Apply only after this delay — the transaction IS applied (simulates a lost/late answer). */
   applyDelayMs = 0;
+  /**
+   * P08 InterfaceState fidelity (review N6): extra live rows the agent does not manage (appended, `managed:false`
+   * unless set), configured interfaces VPP does not have (left out of the live table), and an agent older than
+   * P08 (the RPC answers UNIMPLEMENTED).
+   */
+  liveExtra: Partial<InterfaceState>[] = [];
+  liveMissing = new Set<string>();
+  interfaceStateUnimplemented = false;
 
   private server: Server | undefined;
   private socketPath = '';
@@ -129,6 +140,9 @@ export class FakeAgent {
     this.dryRunIssues = undefined;
     this.failAllWith = undefined;
     this.applyDelayMs = 0;
+    this.liveExtra = [];
+    this.liveMissing = new Set();
+    this.interfaceStateUnimplemented = false;
     this.implemented = [...ROOT_KEYS];
     this.degraded = false;
     this.txnCache.clear();
@@ -533,11 +547,72 @@ export class FakeAgent {
       call.on('close', end);
     };
 
+    // P08: the live table of the applied interfaces (admin state = `enabled`, link up with it).
+    const interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse> = (
+      call,
+      cb,
+    ) => {
+      const r = call.request;
+      if (!this.checkCommon('InterfaceState', r, cb)) return;
+      if (this.interfaceStateUnimplemented) {
+        return cb({ code: status.UNIMPLEMENTED, details: 'unknown method InterfaceState' });
+      }
+      const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;
+      const out: InterfaceState[] = [];
+      let idx = 1;
+      const row = (name: string, c: Json, parent: string, vlanId: number): InterfaceState => ({
+        name,
+        vppName: name,
+        swIfIndex: idx++,
+        type: parent ? 'sub-interface' : name.startsWith('loop') ? 'loopback' : 'af-packet',
+        adminUp: c['enabled'] === true,
+        linkUp: c['enabled'] === true,
+        mtu: typeof c['mtu'] === 'number' ? c['mtu'] : 9000,
+        linkMtu: 9000,
+        mac: '02:fe:00:00:00:01',
+        ipv4: (c['ipv4'] as string[] | undefined) ?? [],
+        ipv6: (c['ipv6'] as string[] | undefined) ?? [],
+        vrf: typeof c['vrf'] === 'string' ? c['vrf'] : 'default',
+        tableId: 0,
+        parent,
+        vlanId,
+        innerVlanId: 0,
+        managed: true,
+        linkSpeedKbps: '0',
+        rxMode: 'interrupt',
+        description: typeof c['description'] === 'string' ? c['description'] : '',
+      });
+      for (const name of Object.keys(ifs).sort()) {
+        const c = ifs[name]!;
+        out.push(row(name, c, '', 0));
+        const subs = (c['subinterfaces'] ?? {}) as Record<string, Json>;
+        for (const id of Object.keys(subs).sort()) {
+          const s = subs[id]!;
+          out.push(
+            row(`${name}.${id}`, s, name, typeof s['vlanId'] === 'number' ? s['vlanId'] : 0),
+          );
+        }
+      }
+      for (const x of this.liveExtra) {
+        const name = x.name ?? `extra${idx}`;
+        out.push({ ...row(name, {}, x.parent ?? '', x.vlanId ?? 0), managed: false, ...x });
+      }
+      const want = r.names;
+      cb(null, {
+        interfaces: out.filter(
+          (i) => !this.liveMissing.has(i.name) && (want.length === 0 || want.includes(i.name)),
+        ),
+        owner: this.owner,
+        retrievedAt: new Date(),
+      });
+    };
+
     return {
       apply,
       dryRun,
       retrieve,
       health,
+      interfaceState,
       streamStats,
       streamEvents,
       action: (call) => {
@@ -546,6 +621,46 @@ export class FakeAgent {
           Object.assign(new Error('actions are not implemented'), { code: status.UNIMPLEMENTED }),
         );
       },
+      // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
+      // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
+      // wave-BC: F-det44-map-dslite-cnat
+      // wave-BC: F-tunnels
+      // wave-BC: F-vrrp-config-sync
+      // wave-BC: F-pki
+      // wave-BC: F-ikev2-native
+      // wave-BC: F-ospf
+      // wave-BC: F-isis-rip
+      // wave-BC: F-mpls-srmpls
+      // wave-BC: F-lb
+      // wave-BC: F-qos-flat
+      // wave-BC: F-host-stack
+      // wave-BC: F-snmp
+      // wave-BC: F-ipfix-sflow
+      // wave-BC: F-capture-trace
+      // wave-BC: F-srv6
+      // wave-BC: F-lisp
+      // wave-BC: F-bfd-redistribution
+      // wave-BC: F-ra-vpn
+      // wave-BC: F-mpls-ldp
+      // wave-BC: F-igmp-mfib
+      // wave-BC: F-dashboard-prom-alarms
+      // wave-BC: F-ha-state-sync
+      // wave-A: F-bonding
+      // wave-A: F-bridge-l2
+      // wave-A: F-loopback-bvi-gso-lldp-span
+      // wave-A: F-vrf-static-ecmp
+      // wave-A: F-neighbors-ra
+      // wave-A: F-rpf-adl-pbr
+      // wave-A: F-object-model
+      // wave-A: F-acl
+      // wave-A: F-host-acl-nftables
+      // wave-A: F-nat44-ed-sessions
+      // wave-A: F-nat44-ei-64-66-nptv6
+      // wave-A: P11
+      // wave-A: F-wireguard
+      // wave-A: P12
+      // wave-A: F-kea-dhcp-relay
+      // wave-A: F-unbound-chrony-syslog
     };
   }
 }

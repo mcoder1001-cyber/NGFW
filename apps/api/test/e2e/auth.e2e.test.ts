@@ -120,6 +120,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     const k = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
       name: 'automation',
       role: 'readonly',
+      current: PW.op,
     });
     expect(k.status).toBe(201);
     expect(k.body.key).toMatch(/^vrxk_/);
@@ -144,6 +145,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     const up = await h.call(op, 'POST', '/api/v1/auth/api-keys', {
       name: 'escalate',
       role: 'admin',
+      current: PW.op,
     });
     expect(up.body.role).toBe('operator');
   });
@@ -229,8 +231,14 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
       username: 'op2',
       password: PW.op,
     });
-    const other = refreshCookie(l1.headers).value;
     const token = l1.body.accessToken as string;
+    // TD-2 #1: a second login session of the same user is "the other session"; the caller's own survives
+    const l2 = await h.call(undefined, 'POST', '/api/v1/auth/login', {
+      username: 'op2',
+      password: PW.op,
+    });
+    const other = refreshCookie(l2.headers).value;
+    const otherToken = l2.body.accessToken as string;
     const next = runSecret();
     expect(
       (await h.call(token, 'POST', '/api/v1/auth/password', { current: PW.op, password: next }))
@@ -244,6 +252,15 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
         })
       ).status,
     ).toBe(401);
+    expect((await h.call(otherToken, 'GET', '/api/v1/auth/me')).status).toBe(401);
+    expect((await h.call(token, 'GET', '/api/v1/auth/me')).status).toBe(200);
+    expect(
+      (
+        await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
+          cookie: `vrx_refresh=${refreshCookie(l1.headers).value}`,
+        })
+      ).status,
+    ).toBe(200);
     await h.login('op2', PW.op);
   });
 

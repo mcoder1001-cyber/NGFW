@@ -257,6 +257,9 @@ export const TunnelsSchema = withUi(
       group: 'ipip',
       order: 3,
     }),
+    // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
+    // wave-BC: F-tunnels
+    // wave-BC: F-lisp
   }),
   {
     title: 'Tunnels',

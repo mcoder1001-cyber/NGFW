@@ -1,5 +1,8 @@
 # Task: F-mpls-srmpls — static MPLS and SR-MPLS   (prepend 00-CONTEXT.md)
 
+> Refreshed 2026-09-24 on `task/prep-rest` against main (DF-6, DF-7 merged), `task/P08` and `task/W-seed`. Your TASK ENVELOPE
+> (`docs/status/tasks/F-mpls-srmpls.envelope.md`) wins for branch, files, numbers, anchors and process.
+
 > LDP is split out to **F-mpls-ldp** (D-085): the FRR `ldpd` section, the agent-side FRR→VPP label sync (V5) and the LDP state/UI
 > belong to that task, which depends on this one. Build the `routing.mpls` model, projection and page so that F-mpls-ldp can add
 > `routing.mpls.ldp` and one "LDP" tab additively. Do not build any LDP part here.
@@ -10,39 +13,47 @@ bindings, MPLS tunnels, and SR-MPLS policies + steering. Reference: TNSR "MPLS";
 LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS; T2).
 
 ## Inputs to read first
-- **Schema.** No MPLS model exists, so create contract branch `contract/F-mpls-srmpls` first (additive, commit
-  `contract(schema): mpls`) with this model:
+- **Schema.** No MPLS model exists, so commit the contract **first on your task branch** (additive, separate commits
+  `contract(schema): routing mpls` and `contract(proto): routing mpls, MplsState` — never a `contract/` branch) with this model:
   `routing.mpls{interfaces[ifName], tables{<id>: {}}, labelRoutes[{table, label, eos, paths[{nextHop?, interface?, outLabels[], weight}]}],
   ipBindings[{label, vrf, prefix}], tunnels{<name>: {paths[…], l2Only?}},
   sr{policies{<bsid>: {segmentLists[{labels[], weight}], spray?}}, steering[{vrf, prefix, bsid, vpnLabel?}]}}` + proto. The
-  `ldp` key is added later by F-mpls-ldp. Keep `routing.mpls` a plain object so that addition stays additive.
+  `ldp` key is added later by F-mpls-ldp. Keep `routing.mpls` a plain object so that addition stays additive, and seed in your own
+  files the anchors F-mpls-ldp needs: `// wave-BC: F-mpls-ldp` in `MplsSchema` (`packages/schema/src/domains/ext/mpls-srmpls.ts`), a
+  `// 10 reserved: ldp (F-mpls-ldp)` comment + anchor in `MplsConfig`, a tab anchor in your `tabs.ts`.
+  Numbers from `docs/status/wave-BC-numbers.md`: RoutingConfig 15 `mpls`; `MplsConfig` fields 1–9 yours, 10 is F-mpls-ldp's.
 
   Also write `docs/status/tasks/F-mpls-srmpls-contract.md`. Tell the manager, then continue against your branch.
 - **MPLS descriptors** (DF-7, merged: `docs/agent/descriptors/mpls.md`): `mpls-table/<id>`, `mpls-interface/<if>`,
   `mpls-route/<t>/<label>/<eos>`, `mpls-ip-bind` (write-only, D-063/D-076), `mpls-tunnel/<name>`.
   - **MPLS table 0 is VPP-global**, so only the globals owner declares `mpls-table/0` (D-071).
-  - On the shared host, the enable/bind parts run only with `VRX_DF7_GLOBALS=1` under `flock -x /run/lock/vrx-globals.lock`
-    (D-082).
+  - On the shared host (no table 0 exists), the enable/bind parts run only with `VRX_DF7_GLOBALS=1` under
+    `flock -x /run/lock/vrx-globals.lock` (D-082), in a manager window.
+  - VPP 26.06 source (`lcp_mpls_sync.c`): enabling MPLS on an interface with an LCP pair also enables it on the host tap and writes
+    `net.mpls.conf.<tap>.input` — do not enable MPLS on LCP-paired interfaces in tests (no kernel MPLS on this host).
 - **SR-MPLS** (DF-6, on main): `docs/agent/descriptors/sr_mpls.md` — `sr-mpls.policy/<bsid>`, `sr-mpls.steering`,
   `sr-mpls.endpoint-color`.
   - **No dump in binapi (V14)**, so these are write-only with exact presence probes.
   - Keep segment lists sorted (D-074), and check existence before delete (D-074).
+  - `sr-mpls.policy` depends on `mpls-table/0` (DF-6 key), so SR-MPLS policies on the shared host also need the globals window;
+    otherwise fake-client evidence.
 - `apps/agent/binapi/{mpls,sr_mpls}`: confirm every message (`mpls_route_add_del`, `mpls_table_add_del`, `mpls_ip_bind_unbind`,
   `mpls_tunnel_add_del`, `sw_interface_set_mpls_enable`, `sr_mpls_policy_add/mod/del`, `sr_mpls_steering_add_del`).
 - `docs/vpp-code-track.md` V14 and V15 (delete routes before tables).
 
 ## Scope — build exactly this
-**Files you own:**
-- `apps/agent/internal/descriptors/{mpls,sr_mpls}/**`
+**Files you own** (full list in the envelope):
+- `apps/agent/internal/descriptors/{mpls,sr_mpls}/**` (gap-only: DF-7/DF-6 built them)
 - `docs/agent/descriptors/{mpls,sr_mpls}.md`
-- `apps/agent/internal/agent/project_mpls_srmpls*.go`
+- `apps/agent/internal/desired/mpls_srmpls*.go`, `apps/agent/internal/subsystems/mpls_srmpls*.go`, `apps/agent/internal/agent/rpc_mpls_srmpls*.go`
+- `packages/schema/src/domains/ext/mpls-srmpls*.ts`, `packages/schema/src/semantic/mpls-srmpls*.ts`
 - `apps/api/src/features/mpls-srmpls/**`
 - `apps/web/src/domains/routing/mpls-srmpls/**`
 - `apps/web/src/locales/*/mpls-srmpls.json`
 - `docs/user/routing/mpls-srmpls.md`
 - `test/topology/mpls-srmpls/**`
 
-**Shared files:** one-line appends only.
+**Shared files:** one line under your `// wave-BC: F-mpls-srmpls` anchor only.
 
 **Not yours:** `renderers/frr/ldp/**`, `frrsync/ldp/**` and `docs/agent/renderers/frr-ldp.md` belong to F-mpls-ldp.
 
@@ -56,10 +67,12 @@ LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS; T2).
    routes/bindings → tunnels → SR policy → steering.
    - Unit tests on the fake client.
    - ONE host integration check (prefixed tables, globals-lock rules above).
-3. **API** — pointer routes, plus `GET /api/v1/state/routing/mpls/{fib,tunnels}` (MPLS FIB paged).
+3. **API** — pointer routes, plus `GET /api/v1/state/routing/mpls/{fib,tunnels}` (MPLS FIB paged in the agent: `MplsState` RPC).
 4. **UI** — Routing → MPLS with tabs for interfaces, label routes, tunnels, and SR policies/steering. en + fa; screenshot.
    Keep the tab list a simple array, so F-mpls-ldp appends its "LDP" tab with one entry.
 5. **Docs** — `docs/user/routing/mpls-srmpls.md`: static LSP, SR-MPLS policy + steering, CLI equivalent.
+
+- **TD-11c creator guard (2026-09-25):** every interface creator you add registers its VPP device class with `iface.RegisterKind` or provides the `interface/<name>` alias key (KeyProvider), and removes its own entry from the guard allowlist in the same branch; the allowlist only shrinks. Every descriptor also declares `RecordsNoOwnership()` or `CheckPersistent()` (TD-11b).
 
 ## Acceptance (paste the evidence)
 - [ ] `vppctl show mpls fib <table>` shows the static label routes and `show sr mpls policies` shows the policy; after rollback

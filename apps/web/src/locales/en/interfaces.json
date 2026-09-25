@@ -1,0 +1,139 @@
+{
+  "title": "Interfaces",
+  "intro": "Live interface table of the data plane (from the agent) with the configured view. Click a row to edit it; changes go to the candidate and apply on Commit.",
+  "add": "Add interface",
+  "addTitle": "Add an interface to the configuration",
+  "addHelp": "VPP interface name: host-<netdev> (af_packet lab interface), loop<N>, a NIC name or a bond. The agent creates host- and loop interfaces; other names must exist on the data plane.",
+  "addFailed": "The interface could not be added to the candidate.",
+  "badName": "Letters, digits, . _ / - ; starts with a letter",
+  "cancel": "Cancel",
+  "close": "Close",
+  "loading": "Loading…",
+  "readonly": "Your role can view but not change the configuration.",
+  "pending": "pending",
+  "notInVpp": "not in VPP",
+  "liveChip": "Live counters: {{status}}",
+  "trendLabel": "Packet rate trend of {{name}}",
+  "col": {
+    "name": "Name",
+    "type": "Type",
+    "admin": "Admin",
+    "link": "Link",
+    "mtu": "MTU",
+    "addresses": "Addresses",
+    "vrf": "VRF",
+    "rx": "RX",
+    "tx": "TX",
+    "trend": "Trend",
+    "errors": "Errors / drops"
+  },
+  "status": {
+    "up": "up",
+    "down": "down",
+    "adminDown": "admin down",
+    "degraded": "degraded"
+  },
+  "drawer": {
+    "label": "Interface {{name}}",
+    "liveTitle": "Live state",
+    "notInVpp": "VPP has no interface with this name (yet). It appears after Commit if the agent creates it (host-, loop interfaces).",
+    "configTitle": "Configuration (candidate)",
+    "notConfigured": "Not in the configuration: saving the form adds it to the candidate.",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "saved": "Saved to the candidate. Commit to apply it.",
+    "remove": "Remove from configuration",
+    "subHint": "A sub-interface is edited from its parent {{parent}}.",
+    "changedElsewhere": "This interface changed in the candidate since you opened the form (another session). Only your own edits were saved; reload to see the combined result.",
+    "reload": "Reload"
+  },
+  "sub": {
+    "title": "Sub-interfaces (802.1Q)",
+    "add": "Add sub-interface",
+    "addTitle": "New sub-interface of {{name}}",
+    "editTitle": "Sub-interface {{name}}",
+    "id": "Sub-interface id",
+    "idHelp": "Number after the dot in <parent>.<id>; usually the VLAN id",
+    "vlan": "VLAN",
+    "none": "No sub-interfaces.",
+    "actions": "Actions",
+    "remove": "Remove sub-interface {{id}}",
+    "idExists": "Sub-interface {{id}} already exists: edit it from the table"
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled",
+      "help": "admin state; interfaces stay down until enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "mtu": {
+      "title": "MTU",
+      "help": "L3 MTU in bytes (68–9216); empty = keep the driver default"
+    },
+    "mac": {
+      "title": "MAC address",
+      "help": "override the hardware address; empty = keep the burned-in MAC"
+    },
+    "promiscuous": {
+      "title": "Promiscuous",
+      "help": "accept frames for any destination MAC"
+    },
+    "rxMode": {
+      "title": "RX mode",
+      "help": "polling (default for DPDK), interrupt or adaptive"
+    },
+    "ipv4": {
+      "title": "IPv4 addresses",
+      "help": "addresses with prefix length, e.g. 10.0.0.1/24"
+    },
+    "ipv6": {
+      "title": "IPv6 addresses",
+      "help": "addresses with prefix length, e.g. 2001:db8::1/64"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "routing table this interface belongs to"
+    },
+    "unnumbered": {
+      "title": "IP unnumbered",
+      "help": "borrow the addresses of this interface (e.g. loop0); IPv4/IPv6 must then be empty"
+    },
+    "dhcpClient": {
+      "title": "DHCP client",
+      "help": "obtain an IPv4 address by DHCP; cannot be combined with unnumbered"
+    },
+    "vlanId": {
+      "title": "VLAN ID",
+      "help": "802.1Q tag (single-tag sub-interfaces)"
+    },
+    "innerVlanId": {
+      "title": "Inner VLAN ID",
+      "help": "inner tag for QinQ (not supported by this release)"
+    },
+    "dot1ad": {
+      "title": "802.1ad outer tag",
+      "help": "use an 802.1ad (0x88a8) outer tag instead of 802.1Q (0x8100)"
+    }
+  },
+  "live": {
+    "type": "Type",
+    "swIfIndex": "sw_if_index",
+    "mac": "MAC address",
+    "mtu": "MTU",
+    "linkMtu": "link",
+    "addresses": "Addresses",
+    "vrf": "VRF (table)",
+    "rxMode": "RX mode",
+    "rates": "Rates",
+    "noRates": "waiting for counters…"
+  },
+  "group": {
+    "general": "General",
+    "addressing": "Addressing",
+    "encapsulation": "Encapsulation",
+    "subinterfaces": "Sub-interfaces"
+  },
+  "rateCell": "{{bps}} · {{pps}}"
+}

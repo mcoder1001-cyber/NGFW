@@ -4,6 +4,7 @@ import type {
   ConfigRepo,
   ConfigTx,
   NewRevision,
+  PasswordReset,
   PendingCommit,
   Revision,
   RevisionMeta,
@@ -16,11 +17,19 @@ import type {
  */
 interface State {
   revisions: Revision[];
-  candidate: Omit<CandidateState, 'owner'>;
+  candidate: Omit<CandidateState, 'owner' | 'ownerKey'>;
   pending: PendingCommit | null;
   users: Map<
     string,
-    { id: number; role: string; disabled: boolean; hash: string | null; source: string }
+    {
+      id: number;
+      role: string;
+      disabled: boolean;
+      hash: string | null;
+      source: string;
+      /** credential generation (D-102) */
+      gen?: number;
+    }
   >;
   secrets: Set<string>;
   /** ref → current version, and every stored version. */
@@ -34,6 +43,7 @@ export class MemoryConfigRepo implements ConfigRepo {
     revisions: [],
     candidate: {
       ownerId: null,
+      ownerKeyId: null,
       lockedAt: null,
       payload: null,
       baseRevisionId: null,
@@ -74,6 +84,7 @@ export class MemoryConfigRepo implements ConfigRepo {
       candidate: async (): Promise<CandidateState> => ({
         ...structuredClone(s.candidate),
         owner: this.usernameOf(s, s.candidate.ownerId),
+        ownerKey: s.candidate.ownerKeyId === null ? null : `key ${s.candidate.ownerKeyId}`,
       }),
       pending: async () => structuredClone(s.pending),
     };
@@ -109,6 +120,7 @@ export class MemoryConfigRepo implements ConfigRepo {
         insertRevision: async (r: NewRevision) => {
           const rev: Revision = {
             ...structuredClone(r),
+            secretChanges: structuredClone(r.secretChanges ?? []),
             id: (s.revisions.at(-1)?.id ?? 0) + 1,
             createdAt: new Date(),
             author: this.usernameOf(s, r.authorId),
@@ -136,16 +148,39 @@ export class MemoryConfigRepo implements ConfigRepo {
           const names = new Set(users.map((u) => u.username));
           for (const [name, u] of s.users)
             if (u.source === 'config' && !names.has(name)) s.users.delete(name);
+          const resets: PasswordReset[] = [];
           for (const u of users) {
             const prev = s.users.get(u.username);
+            // D-102: an existing user's changed hash bumps the generation (no API keys in this repo)
+            const password =
+              prev !== undefined && u.passwordHash !== undefined && u.passwordHash !== prev.hash;
+            // D-100 (3): so does an existing user this promote disables (once, when both happen)
+            const disabled = prev !== undefined && !prev.disabled && u.disabled === true;
+            const reset = password || disabled;
+            const id = prev?.id ?? this.nextUserId++;
+            const gen = (prev?.gen ?? 0) + (reset ? 1 : 0);
             s.users.set(u.username, {
-              id: prev?.id ?? this.nextUserId++,
+              id,
               role: u.role,
               disabled: u.disabled,
               hash: u.passwordHash ?? prev?.hash ?? null,
               source: prev?.source ?? 'config',
+              gen,
             });
+            if (reset)
+              resets.push({
+                userId: id,
+                username: u.username,
+                gen,
+                apiKeysRevoked: [],
+                discardedCandidate: false,
+                reasons: [
+                  ...(password ? ['password' as const] : []),
+                  ...(disabled ? ['disabled' as const] : []),
+                ],
+              });
           }
+          return resets;
         },
       };
       const result = await fn(tx);

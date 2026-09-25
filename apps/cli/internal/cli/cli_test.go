@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -324,6 +325,78 @@ func TestLoginWithPasswordFileNeverPrintsSecrets(t *testing.T) {
 	}
 }
 
+// TD-4 (D-100 (2)): api-key create from a login session sends the current password (--password-file, or a prompt
+// without echo on a terminal); without a terminal it stops before any request; an API-key credential sends none.
+func TestAPIKeyCreateStepUp(t *testing.T) {
+	f := newFake(t)
+	f.override["POST /api/v1/auth/api-keys"] = func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"k1","name":"ci","role":"operator","expiresAt":null,"key":"vrxk_` + strings.Repeat("A", 43) + `"}`))
+	}
+	// the bodies of the key requests, as the fake recorded them (it has read the request body before the override)
+	sent := func() []map[string]any {
+		var out []map[string]any
+		for _, line := range f.requests() {
+			if rest, ok := strings.CutPrefix(line, "POST /api/v1/auth/api-keys "); ok {
+				var b map[string]any
+				if err := json.Unmarshal([]byte(rest), &b); err != nil {
+					t.Fatalf("key request body %q: %v", rest, err)
+				}
+				out = append(out, b)
+			}
+		}
+		return out
+	}
+	dir := t.TempDir()
+	pw := filepath.Join(dir, "pw")
+	secret := "s3cret-" + strings.Repeat("y", 12)
+	if err := os.WriteFile(pw, []byte(secret+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// an API key: no password, no prompt
+	if r := f.vrx(t, nil, "", "api-key", "create", "ci"); r.code != 0 {
+		t.Fatalf("with an API key: %d %s", r.code, r.stderr)
+	}
+	if bodies := sent(); len(bodies) != 1 || bodies[0]["current"] != nil {
+		t.Fatalf("API-key caller sent %v", bodies)
+	}
+	// a login session with --password-file: the current password goes in the body, never on the terminal
+	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": filepath.Join(dir, "sess", "session.json")}
+	if r := f.vrx(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
+		t.Fatalf("login: %d %s", r.code, r.stderr)
+	}
+	r := f.vrx(t, env, "", "--password-file", pw, "api-key", "create", "ci", "role", "operator")
+	if r.code != 0 {
+		t.Fatalf("with a session and --password-file: %d %s", r.code, r.stderr)
+	}
+	if bodies := sent(); len(bodies) != 2 || bodies[1]["current"] != secret || bodies[1]["role"] != "operator" {
+		t.Errorf("session caller sent %v", bodies)
+	}
+	if f.auth[len(f.auth)-1] != "Bearer tok-123" {
+		t.Errorf("the session was not used: %q", f.auth[len(f.auth)-1])
+	}
+	if strings.Contains(r.stdout+r.stderr, secret) {
+		t.Error("the password reached the terminal")
+	}
+	// a login session, no terminal, no --password-file: a usage error naming the ways out, nothing sent, no key file
+	keyFile := filepath.Join(dir, "k")
+	r = f.vrx(t, env, "", "api-key", "create", "ci", "file", keyFile)
+	if r.code != ExitUsage {
+		t.Fatalf("no terminal: exit %d (%s)", r.code, r.stderr)
+	}
+	for _, want := range []string{"terminal", "--password-file", "API key"} {
+		if !strings.Contains(r.stderr, want) {
+			t.Errorf("no-terminal error does not mention %q: %s", want, r.stderr)
+		}
+	}
+	if bodies := sent(); len(bodies) != 2 {
+		t.Errorf("a request was sent without the password: %v", bodies)
+	}
+	if _, err := os.Stat(keyFile); !os.IsNotExist(err) {
+		t.Errorf("key file created although nothing was minted: %v", err)
+	}
+}
+
 func TestScriptOnStdinStopsAtFirstError(t *testing.T) {
 	f := newFake(t)
 	r := f.vrx(t, nil, "set interfaces eth0 mtu 9000\n# a comment\nset interfaces eth0 mtu 1\ncommit\n")
@@ -582,5 +655,82 @@ func TestPendingCommitIsTracked(t *testing.T) {
 	a.refreshPending(context.Background())
 	if a.pending != nil || !strings.Contains(so.String(), "NOT confirmed and has been reverted automatically") {
 		t.Errorf("revert not reported: %q", so.String())
+	}
+}
+
+// p08Interfaces is GET /api/v1/state/interfaces as P08's controller builds it: a retrieved interface and
+// its sub-interface (config = Retrieve), and three rows the agent did not retrieve (config null): only in
+// the candidate, a live interface of another owner, and a configured one VPP does not have.
+const p08Interfaces = `{"retrievedAt":"2026-09-24T12:00:00.000Z","countersAt":"2026-09-24T12:00:00.000Z","items":[
+ {"name":"host-w1l0","kind":"interface","parent":null,
+  "state":{"name":"host-w1l0","vppName":"host-w1l0","swIfIndex":5,"type":"af_packet","adminUp":true,"linkUp":true,"mtu":1400,"linkMtu":1500,"mac":"02:fe:00:00:00:05","ipv4":["10.1.1.1/24"],"ipv6":[],"vrf":"default","tableId":0,"parent":"","vlanId":0,"innerVlanId":0,"managed":true,"linkSpeedKbps":"0","rxMode":"interrupt","description":"lan"},
+  "config":{"enabled":true,"promiscuous":false,"mtu":1400,"vrf":"default","ipv4":["10.1.1.1/24"],"description":"lan"},
+  "running":{"enabled":true,"mtu":1400,"ipv4":["10.1.1.1/24"],"description":"lan"},
+  "counters":{"name":"host-w1l0","swIfIndex":5,"rxPackets":"7","rxBytes":"700","txPackets":"9","txBytes":"900","drops":"0","errors":"0","punts":"0","rxMisses":"0"},
+  "hasPendingChange":false},
+ {"name":"host-w1l0.100","kind":"subinterface","parent":"host-w1l0","state":null,
+  "config":{"vlanId":100,"dot1ad":false,"enabled":true,"vrf":"default","ipv4":["10.1.100.1/24"]},
+  "running":{"vlanId":100,"enabled":true,"ipv4":["10.1.100.1/24"]},"counters":null,"hasPendingChange":false},
+ {"name":"host-w1w0","kind":"interface","parent":null,"state":null,"config":null,
+  "running":{"enabled":true,"mtu":1500,"ipv4":["10.1.2.1/24"]},"counters":null,"hasPendingChange":false},
+ {"name":"host-w1w9","kind":"interface","parent":null,"state":null,"config":null,"running":null,"counters":null,"hasPendingChange":true},
+ {"name":"host-w3l0","kind":"interface","parent":null,
+  "state":{"name":"host-w3l0","vppName":"host-w3l0","swIfIndex":7,"type":"af_packet","adminUp":true,"linkUp":true,"mtu":9000,"linkMtu":9000,"mac":"02:fe:00:00:00:07","ipv4":[],"ipv6":[],"vrf":"","tableId":7,"parent":"","vlanId":0,"innerVlanId":0,"managed":false,"linkSpeedKbps":"0","rxMode":"interrupt","description":""},
+  "config":null,"running":null,"counters":null,"hasPendingChange":false}]}`
+
+// P08 re-review R1 (D-118): `show interfaces` keeps its pre-P08 meaning — the interfaces the agent retrieved
+// from the data plane. Rows with a null config are not listed, a name lookup exits 5 "not in the data plane"
+// for them (a script checking the exit code must not take an uncommitted interface as present), and
+// completion does not offer them. --json prints the API's answer unchanged.
+func TestShowInterfacesListsOnlyRetrievedRows(t *testing.T) {
+	f := newFake(t)
+	f.override["GET /api/v1/state/interfaces"] = func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("content-type", "application/json")
+		_, _ = w.Write([]byte(p08Interfaces))
+	}
+	notRetrieved := []string{"host-w1w0", "host-w1w9", "host-w3l0"}
+
+	r := f.vrx(t, nil, "", "show", "interfaces")
+	if r.code != 0 || !strings.Contains(r.stdout, "host-w1l0 ") || !strings.Contains(r.stdout, "host-w1l0.100") || !strings.Contains(r.stdout, "1400") {
+		t.Fatalf("table: %d %q %q", r.code, r.stdout, r.stderr)
+	}
+	for _, n := range notRetrieved {
+		if strings.Contains(r.stdout, n) {
+			t.Errorf("table lists %s (config null):\n%s", n, r.stdout)
+		}
+	}
+
+	r = f.vrx(t, nil, "", "show", "interfaces", "host-w1l0")
+	if r.code != 0 || !strings.Contains(r.stdout, "Interface host-w1l0 (retrieved") || !strings.Contains(r.stdout, "mtu 1400") {
+		t.Errorf("show interfaces host-w1l0: %d %q %q", r.code, r.stdout, r.stderr)
+	}
+	for _, n := range notRetrieved {
+		r = f.vrx(t, nil, "", "show", "interfaces", n)
+		if r.code != ExitNotFound || !strings.Contains(r.stderr, "not in the data plane") {
+			t.Errorf("show interfaces %s: exit %d %q %q, want %d not in the data plane", n, r.code, r.stdout, r.stderr, ExitNotFound)
+		}
+	}
+
+	r = f.vrx(t, nil, "", "--json", "show", "interfaces")
+	if r.code != 0 || !strings.Contains(r.stdout, `"host-w1w9"`) {
+		t.Errorf("--json is the API's answer unchanged: %d %q", r.code, r.stdout)
+	}
+
+	a := &App{Stdin: os.Stdin, Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }}
+	c, _ := api.New(f.srv.URL)
+	c.Cred = api.Key("vrxk_test")
+	a.client = c
+	cs, _ := a.candidates(context.Background(), "show interfaces ")
+	var got []string
+	for _, x := range cs {
+		got = append(got, x.Text)
+	}
+	if !slices.Contains(got, "host-w1l0") || !slices.Contains(got, "host-w1l0.100") {
+		t.Errorf("completion %q lacks the retrieved interfaces", got)
+	}
+	for _, n := range notRetrieved {
+		if slices.Contains(got, n) {
+			t.Errorf("completion offers %s (config null): %q", n, got)
+		}
 	}
 }

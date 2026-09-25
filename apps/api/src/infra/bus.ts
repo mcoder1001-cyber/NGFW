@@ -10,8 +10,31 @@ export const TOPICS = [
   'reconcile.events',
   'commit.events',
   'agent.events',
+  // Feature topics: one line under the feature's anchor (wave-A-hotspots P6).
+  // wave-BC: F-vrrp-config-sync
+  // wave-BC: F-pki
+  // wave-BC: F-ospf
+  // wave-BC: F-isis-rip
+  // wave-BC: F-bfd-redistribution
+  // wave-BC: F-ra-vpn
+  // wave-BC: F-mpls-ldp
+  // wave-BC: F-igmp-mfib
+  // wave-BC: F-dashboard-prom-alarms
+  // wave-A: F-neighbors-ra
+  // wave-A: F-object-model
+  // wave-A: F-acl
+  // wave-A: P11
+  // wave-A: F-wireguard
+  // wave-A: P12
 ] as const;
 export type Topic = (typeof TOPICS)[number];
+
+export interface SessionsEvent {
+  sid?: string;
+  userId?: number;
+  exceptSid?: string;
+  usersChanged?: boolean;
+}
 
 export interface BusMessage {
   topic: Topic;
@@ -38,13 +61,14 @@ export class Bus {
     return () => this.ee.off('publish', fn);
   }
 
-  /** Sessions ended: a login session (sid), all sessions of a user (userId), or users changed by a commit. */
-  sessions(e: { sid?: string; userId?: number; usersChanged?: boolean }): void {
+  /**
+   * Sessions ended: a login session (sid), all sessions of a user (userId) except `exceptSid` (the caller's own, after
+   * changing their own password), or users changed by a commit.
+   */
+  sessions(e: SessionsEvent): void {
     this.ee.emit('sessions', e);
   }
-  onSessions(
-    fn: (e: { sid?: string; userId?: number; usersChanged?: boolean }) => void,
-  ): () => void {
+  onSessions(fn: (e: SessionsEvent) => void): () => void {
     this.ee.on('sessions', fn);
     return () => this.ee.off('sessions', fn);
   }

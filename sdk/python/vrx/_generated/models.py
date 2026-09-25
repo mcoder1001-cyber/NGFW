@@ -61,30 +61,42 @@ __all__ = [
     "ConfigCommitResponse",
     "ConfigCommitResponseResultsItem",
     "ConfigCommitResponseRevision",
+    "ConfigCommitResponseRevisionSecretChangesItem",
     "ConfigCommitResponseSync",
     "ConfigCommitResponseWarningsItem",
     "ConfigConfirmResponse",
     "ConfigConfirmResponseResultsItem",
     "ConfigConfirmResponseRevision",
+    "ConfigConfirmResponseRevisionSecretChangesItem",
     "ConfigConfirmResponseSync",
     "ConfigConfirmResponseWarningsItem",
     "ConfigDeleteAtResponse",
+    "ConfigDeleteAtResponseSecretChangesItem",
     "ConfigDiffResponse",
     "ConfigDiffResponseChangesItem",
     "ConfigDiscardResponse",
     "ConfigImportResponse",
+    "ConfigImportResponseSecretChangesItem",
     "ConfigLockResponse",
     "ConfigPatchAtResponse",
+    "ConfigPatchAtResponseSecretChangesItem",
     "ConfigPatchRootResponse",
+    "ConfigPatchRootResponseSecretChangesItem",
     "ConfigPendingResponse",
     "ConfigPendingResponsePending1",
     "ConfigPutAtResponse",
+    "ConfigPutAtResponseSecretChangesItem",
+    "ConfigRevisionDiffResponse",
+    "ConfigRevisionDiffResponseChangesItem",
     "ConfigRevisionResponse",
+    "ConfigRevisionResponseSecretChangesItem",
     "ConfigRevisionsResponse",
     "ConfigRevisionsResponseItemsItem",
+    "ConfigRevisionsResponseItemsItemSecretChangesItem",
     "ConfigRollbackResponse",
     "ConfigRollbackResponseResultsItem",
     "ConfigRollbackResponseRevision",
+    "ConfigRollbackResponseRevisionSecretChangesItem",
     "ConfigRollbackResponseSync",
     "ConfigRollbackResponseWarningsItem",
     "ConfigValidateResponse",
@@ -100,6 +112,7 @@ __all__ = [
     "HaConfigVrrpValue",
     "HaConfigVrrpValueTrackItem",
     "HaConfigVrrpValueUnicast",
+    "HealthHealthResponse",
     "InterfacesConfig",
     "InterfacesConfigValue",
     "InterfacesConfigValueDhcpClient",
@@ -313,6 +326,9 @@ __all__ = [
     "TunnelsConfigGreValue",
     "TunnelsConfigIpipValue",
     "TunnelsConfigVxlanValue",
+    "UsersSetPasswordBody",
+    "UsersSetPasswordResponse",
+    "UsersSetPasswordResponseApiKeysRevokedItem",
     "VpnConfig",
     "VpnConfigIpsec",
     "VpnConfigIpsecProposalsValue",
@@ -3398,6 +3414,7 @@ AuthApiKeysResponseItem = TypedDict(
 AuthCreateApiKeyBody = TypedDict(
     "AuthCreateApiKeyBody",
     {
+        "current": NotRequired[str],
         "expiresInDays": NotRequired[int],
         "name": Required[str],
         "role": NotRequired[Literal['admin', 'operator', 'readonly']],
@@ -3481,13 +3498,24 @@ AuthRefreshResponse = TypedDict(
     },
 )
 
+ConfigPatchRootResponseSecretChangesItem = TypedDict(
+    "ConfigPatchRootResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigPatchRootResponse = TypedDict(
     "ConfigPatchRootResponse",
     {
         "after": Required[Any],
         "before": Required[Any],
         "discardedStaleCandidateOf": NotRequired[str],
+        "ignoredSecrets": NotRequired[list[str]],
         "pointer": Required[str],
+        "secretChanges": NotRequired[list["ConfigPatchRootResponseSecretChangesItem"]],
     },
 )
 
@@ -3503,6 +3531,15 @@ ConfigCommitResponseResultsItem = TypedDict(
     },
 )
 
+ConfigCommitResponseRevisionSecretChangesItem = TypedDict(
+    "ConfigCommitResponseRevisionSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigCommitResponseRevision = TypedDict(
     "ConfigCommitResponseRevision",
     {
@@ -3514,6 +3551,7 @@ ConfigCommitResponseRevision = TypedDict(
         "id": Required[int],
         "kind": Required[str],
         "parentId": Required[Union[int, None]],
+        "secretChanges": Required[list["ConfigCommitResponseRevisionSecretChangesItem"]],
         "txnId": Required[Union[str, None]],
     },
 )
@@ -3564,6 +3602,15 @@ ConfigConfirmResponseResultsItem = TypedDict(
     },
 )
 
+ConfigConfirmResponseRevisionSecretChangesItem = TypedDict(
+    "ConfigConfirmResponseRevisionSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigConfirmResponseRevision = TypedDict(
     "ConfigConfirmResponseRevision",
     {
@@ -3575,6 +3622,7 @@ ConfigConfirmResponseRevision = TypedDict(
         "id": Required[int],
         "kind": Required[str],
         "parentId": Required[Union[int, None]],
+        "secretChanges": Required[list["ConfigConfirmResponseRevisionSecretChangesItem"]],
         "txnId": Required[Union[str, None]],
     },
 )
@@ -3638,6 +3686,7 @@ ConfigDiffResponseChangesItem = TypedDict(
         "from": NotRequired[Any],
         "op": Required[Literal['add', 'remove', 'replace']],
         "pointer": Required[str],
+        "redacted": NotRequired[Literal[True]],
         "to": NotRequired[Any],
     },
 )
@@ -3657,13 +3706,24 @@ ConfigDiscardResponse = TypedDict(
     },
 )
 
+ConfigImportResponseSecretChangesItem = TypedDict(
+    "ConfigImportResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigImportResponse = TypedDict(
     "ConfigImportResponse",
     {
         "after": Required[Any],
         "before": Required[Any],
         "discardedStaleCandidateOf": NotRequired[str],
+        "ignoredSecrets": NotRequired[list[str]],
         "pointer": Required[str],
+        "secretChanges": NotRequired[list["ConfigImportResponseSecretChangesItem"]],
     },
 )
 
@@ -3676,6 +3736,8 @@ ConfigLockResponse = TypedDict(
         "lockedAt": Required[Union[str, None]],
         "owner": Required[Union[str, None]],
         "ownerId": Required[Union[int, None]],
+        "ownerKey": Required[Union[str, None]],
+        "ownerKeyId": Required[Union[str, None]],
     },
 )
 
@@ -3688,6 +3750,17 @@ ConfigBreakLockResponse = TypedDict(
         "lockedAt": Required[Union[str, None]],
         "owner": Required[Union[str, None]],
         "ownerId": Required[Union[int, None]],
+        "ownerKey": Required[Union[str, None]],
+        "ownerKeyId": Required[Union[str, None]],
+    },
+)
+
+ConfigRevisionsResponseItemsItemSecretChangesItem = TypedDict(
+    "ConfigRevisionsResponseItemsItemSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
     },
 )
 
@@ -3702,6 +3775,7 @@ ConfigRevisionsResponseItemsItem = TypedDict(
         "id": Required[int],
         "kind": Required[str],
         "parentId": Required[Union[int, None]],
+        "secretChanges": Required[list["ConfigRevisionsResponseItemsItemSecretChangesItem"]],
         "txnId": Required[Union[str, None]],
     },
 )
@@ -3711,6 +3785,15 @@ ConfigRevisionsResponse = TypedDict(
     {
         "items": Required[list["ConfigRevisionsResponseItemsItem"]],
         "total": Required[int],
+    },
+)
+
+ConfigRevisionResponseSecretChangesItem = TypedDict(
+    "ConfigRevisionResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
     },
 )
 
@@ -3726,7 +3809,28 @@ ConfigRevisionResponse = TypedDict(
         "kind": Required[str],
         "parentId": Required[Union[int, None]],
         "payload": Required[dict[str, Any]],
+        "secretChanges": Required[list["ConfigRevisionResponseSecretChangesItem"]],
         "txnId": Required[Union[str, None]],
+    },
+)
+
+ConfigRevisionDiffResponseChangesItem = TypedDict(
+    "ConfigRevisionDiffResponseChangesItem",
+    {
+        "from": NotRequired[Any],
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": NotRequired[Literal[True]],
+        "to": NotRequired[Any],
+    },
+)
+
+ConfigRevisionDiffResponse = TypedDict(
+    "ConfigRevisionDiffResponse",
+    {
+        "changes": Required[list["ConfigRevisionDiffResponseChangesItem"]],
+        "parent": Required[Union[int, None]],
+        "revision": Required[int],
     },
 )
 
@@ -3742,6 +3846,15 @@ ConfigRollbackResponseResultsItem = TypedDict(
     },
 )
 
+ConfigRollbackResponseRevisionSecretChangesItem = TypedDict(
+    "ConfigRollbackResponseRevisionSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigRollbackResponseRevision = TypedDict(
     "ConfigRollbackResponseRevision",
     {
@@ -3753,6 +3866,7 @@ ConfigRollbackResponseRevision = TypedDict(
         "id": Required[int],
         "kind": Required[str],
         "parentId": Required[Union[int, None]],
+        "secretChanges": Required[list["ConfigRollbackResponseRevisionSecretChangesItem"]],
         "txnId": Required[Union[str, None]],
     },
 )
@@ -3820,13 +3934,33 @@ ConfigValidateResponse = TypedDict(
     },
 )
 
+ConfigPutAtResponseSecretChangesItem = TypedDict(
+    "ConfigPutAtResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
+    },
+)
+
 ConfigPutAtResponse = TypedDict(
     "ConfigPutAtResponse",
     {
         "after": Required[Any],
         "before": Required[Any],
         "discardedStaleCandidateOf": NotRequired[str],
+        "ignoredSecrets": NotRequired[list[str]],
         "pointer": Required[str],
+        "secretChanges": NotRequired[list["ConfigPutAtResponseSecretChangesItem"]],
+    },
+)
+
+ConfigPatchAtResponseSecretChangesItem = TypedDict(
+    "ConfigPatchAtResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
     },
 )
 
@@ -3836,7 +3970,18 @@ ConfigPatchAtResponse = TypedDict(
         "after": Required[Any],
         "before": Required[Any],
         "discardedStaleCandidateOf": NotRequired[str],
+        "ignoredSecrets": NotRequired[list[str]],
         "pointer": Required[str],
+        "secretChanges": NotRequired[list["ConfigPatchAtResponseSecretChangesItem"]],
+    },
+)
+
+ConfigDeleteAtResponseSecretChangesItem = TypedDict(
+    "ConfigDeleteAtResponseSecretChangesItem",
+    {
+        "op": Required[Literal['add', 'remove', 'replace']],
+        "pointer": Required[str],
+        "redacted": Required[Literal[True]],
     },
 )
 
@@ -3846,7 +3991,19 @@ ConfigDeleteAtResponse = TypedDict(
         "after": Required[Any],
         "before": Required[Any],
         "discardedStaleCandidateOf": NotRequired[str],
+        "ignoredSecrets": NotRequired[list[str]],
         "pointer": Required[str],
+        "secretChanges": NotRequired[list["ConfigDeleteAtResponseSecretChangesItem"]],
+    },
+)
+
+HealthHealthResponse = TypedDict(
+    "HealthHealthResponse",
+    {
+        "service": Required[Literal['vrx-api']],
+        "status": Required[Literal['ok']],
+        "time": Required[str],
+        "version": Required[str],
     },
 )
 
@@ -4000,5 +4157,31 @@ StateSystemResponse = TypedDict(
         "pendingCommit": Required[Union[dict[str, Any], None]],
         "runningRevision": Required[Union[int, None]],
         "sync": Required["StateSystemResponseSync"],
+    },
+)
+
+UsersSetPasswordBody = TypedDict(
+    "UsersSetPasswordBody",
+    {
+        "current": NotRequired[str],
+        "keepApiKeys": NotRequired[bool],
+        "password": Required[str],
+    },
+)
+
+UsersSetPasswordResponseApiKeysRevokedItem = TypedDict(
+    "UsersSetPasswordResponseApiKeysRevokedItem",
+    {
+        "id": Required[str],
+        "name": Required[str],
+    },
+)
+
+UsersSetPasswordResponse = TypedDict(
+    "UsersSetPasswordResponse",
+    {
+        "apiKeysRevoked": Required[list["UsersSetPasswordResponseApiKeysRevokedItem"]],
+        "discardedCandidate": Required[bool],
+        "self": Required[bool],
     },
 )

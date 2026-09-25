@@ -412,7 +412,7 @@ commit.
 
 No host runs this round (slot 4 now belongs to F-nat44-ei); no rebase (L5, the merger rebases). Commits: `c6132fe`
 contract(proto) comments · `e6c2e36` fix(agent) · `407a23e` fix(web,api) · `8af7141` contract(api-client) · `8f81fa8`
-docs · `e2a95dc` status/questions.
+docs · `e2a95dc` status/questions · `88de9a5` fix(agent,web) D-132/WEB-1 (part 2).
 
 | finding | fix | evidence |
 |---|---|---|
@@ -488,3 +488,50 @@ $ deploy/vpp/test-apply-startup.sh <the gate's vrx-startupgen>      (serial, the
 apply-startup tests: 101 passed, 0 failed
 ```
 Logs: `/root/ngfw-wt/logs/F-nat44-ed-sessions-ci-fix1-run{1,2}.log`, `…-apply-startup-serial.log`.
+
+**Run 3, the final code (`88de9a56`, after part 2 below): CI GATE PASSED** (load average 42–46):
+```
+== VRX CI gate: quick ==
+branch    task/F-nat44-ed-sessions @ 88de9a56   (base: main)
+== contract guard: HEAD vs main ==
+ok — contract commit(s) on the branch:
+  8af7141c contract(api-client): nat44-ed-sessions — truncated / retrievedAt descriptions (review H1), regenerated
+  c6132fed contract(proto): nat sessions — comments: external_nat_* is 0.0.0.0 without twice-NAT, kill uses the NAT'd external end, per-call caps, 30-s summary cache
+  2b6b70d6 contract(api-client): … · a7d74697 contract(schema): nat adjacent pools · bd4e9e33 contract(proto): nat sessions   (+ P08/W-seed ones, L5)
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+ok: gitleaks — scanned ~1238025 bytes (1.24 MB) in 1.36s no leaks found
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    30 successful, 30 total Cached:    20 cached, 30 total Time:    3m45.617s
+== apps/agent: make lint test build ==        0 issues. · 91 packages ok, 0 FAIL
+== apps/cli: make lint test build ==          0 issues.
+test/topology/nat44-ed-sessions: gofmt ok · go vet ok · ok  	ngfw/test/topology/nat44-ed-sessions	0.036s;
+== deploy/vpp: shellcheck + apply-startup fake-host harness ==
+apply-startup harness: 4 check(s) failed in scenario(s) 24 — one serial rerun
+rerun: apply-startup tests: 101 passed, 0 failed
+apply-startup harness: green (4 shards; 400 checks passed in the parallel run; scenario(s) 24 green only on the serial rerun)
+  mode quick · wall time 25m59s · logs /root/ngfw-wt/logs/ci/F-nat44-ed-sessions-20260925-035820-2586812
+CI GATE PASSED
+```
+(The only WARN is two commit subjects that are not mine: the reviewer's `review(…)` commits.) Scenario 24 of the
+branch's old harness copy is timing-sensitive under four unsharded parallel copies (Q13). Main's `deploy/vpp`, run
+sharded against this tree's `vrx-startupgen` (the gate's binary, byte-identical), passes 33+29+26+50 = 138/138 at load
+59 (`/root/ngfw-wt/logs/F-nat44-ed-sessions-mainharness-shard{1..4}.log`). The L5 rebase brings that copy.
+
+### Fix round 1, part 2 (after the 03:40 reset: CONTINUE-quota "Also new")
+
+| rule | done | evidence |
+|---|---|---|
+| **D-132** one walk at a time; no UI timer < 30 s on VPP walks; Refresh button | NatSessions and the NatSummary computation take a per-agent walk slot (ctx-aware: a caller whose deadline passes gets DEADLINE_EXCEEDED); unfiltered grid 30 s, filtered grid Refresh only, summary 30 s | `TestNatWalksAreSerialised`: 13 concurrent callers, peak 1 dump in flight (with the slot disabled it fails with 13 at once), plus the deadline path; web `review H1 / D-132` test |
+| **WEB-1** `dropPhantomOptionals` deprecated | the two calls in the NAT forms removed | web NAT tests 9/9 |
+| **TD-11b** ownership declaration | nothing to add in my files: every descriptor I register is a `natcommon.Descriptor`, which TD-11b gives `CheckPersistent()`; `registerNat44ED` passes the persisted `KeyedClaims("nat")` (`Persistent()` on task/TD-11b@14daf722) | questions "Fix round 1, part 2" |
+```
+$ go test -count=1 -v -run TestNat ./internal/agent/          (apps/agent, final code)
+--- PASS: TestNatDomainOnFake (0.11s)
+--- PASS: TestNatSessionsSummaryKillOverGRPC (0.08s)
+--- PASS: TestNatSummaryCacheAndCaps (0.04s)
+--- PASS: TestNatWalksAreSerialised (0.99s)
+ok  	ngfw/agent/internal/agent	1.297s
+$ vitest run src/domains/firewall/nat44-ed-sessions           (apps/web)
+ Test Files  1 passed (1) · Tests  9 passed (9)
+```

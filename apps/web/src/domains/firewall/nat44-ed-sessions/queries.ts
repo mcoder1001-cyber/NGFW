@@ -11,8 +11,11 @@ export const natKeys = {
   sessions: ['state', 'nat', 'sessions'] as const,
 };
 
-/** Live refresh of the unfiltered session grid (no WS topic for NAT state). */
-export const NAT_POLL_MS = 5_000;
+/**
+ * Refresh of the unfiltered session grid (no WS topic for NAT state). Every page walks VPP session tables under the
+ * worker barrier, so it is never polled faster than every 30 s (D-132); a filtered grid is refreshed by hand only.
+ */
+export const NAT_POLL_MS = 30_000;
 
 /**
  * Refresh of the summary (Outbound and Pools tabs only; paused in a background browser tab). The agent caches the

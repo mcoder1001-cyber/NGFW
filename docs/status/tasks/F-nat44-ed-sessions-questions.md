@@ -96,3 +96,23 @@ next to the tcpdump in the lan netns. The trace excerpt in the status file is fr
   main's ci.sh runs four full copies of it in parallel, and they collide on scenarios 24 and 26. Serially, the same copy
   passes 101/101. The file is not mine, and the L5 rebase replaces it with main's copy. After the rebase the step runs
   main's sharded harness and should pass.
+
+## Fix round 1, part 2 (after the 03:40 reset; CONTINUE-quota "Also new")
+- **D-132** done: NatSessions and the NatSummary computation take one per-agent walk slot (one VPP session walk at a
+  time; a caller whose deadline passes gets DEADLINE_EXCEEDED); no UI timer below 30 s (unfiltered grid 30 s, filtered
+  grid Refresh only, summary 30 s); Refresh button present.
+- **WEB-1**: the NAT forms no longer call `dropPhantomOptionals` (2 calls removed).
+- **TD-11b** (not yet on this branch): every descriptor this task registers is a `natcommon.Descriptor` (the 10 nat44-ed
+  descriptors + `nat44-ed.vrf-table`). TD-11b itself gives `natcommon.Descriptor` its `CheckPersistent()` (natcommon is
+  read-only for me). Global singletons return nil, and every other descriptor requires a `Persistent()` claim store,
+  which `registerNat44ED` already passes: `natcommon.WithClaims(Wiring.KeyedClaims("nat"))`, whose file store
+  implements `Persistent()` on task/TD-11b@14daf722. So no change is needed in my files. After the rebase, the guard
+  runs in every NAT agent test (`newSvc` → `subsystems.Register`).
+- **Q13 resolved (not a flake, not this task):** both fix-round gate runs failed only in the apply-startup harness step.
+  This branch has no diff under `deploy/`, `tools/` or `apps/agent/cmd/vrx-startupgen` against its W-seed base, and
+  `vrx-startupgen` plus its testdata are byte-identical to main's. The step fails because main's ci.sh shards a
+  harness copy that cannot shard (the pre-D-103 file from the old base). Main's own `deploy/vpp`, run sharded exactly as
+  main's ci.sh runs it against this tree's `vrx-startupgen` (the same binary as the gate's), passes 138/138 at load 59
+  (logs `/root/ngfw-wt/logs/F-nat44-ed-sessions-mainharness-shard{1..4}.log`). I did not merge main: a trial
+  `git merge-tree HEAD main` shows about 35 conflicts, mostly in files I do not own (`agent.go`, `service.go`,
+  `seams.go`, `stores.go` add/add from the re-cut W-seed). That is the L5 rebase the merger does.

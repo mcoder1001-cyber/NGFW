@@ -79,7 +79,7 @@ Use `"external": {"interface": "host-w4w0", "port": 8080}` to forward on the add
 
 *Firewall → NAT → Sessions* lists the live translations of this system, paged on the server (at most 256 rows per
 page), filtered by inside / outside / external address, port, protocol and inside VRF, with **Kill** on each row (asks for
-confirmation; TCP, UDP and ICMP sessions). The unfiltered grid refreshes every 5 s; with an address, port or protocol
+confirmation; TCP, UDP and ICMP sessions). The unfiltered grid refreshes every 30 s; with an address, port or protocol
 filter it refreshes only when you press **Refresh**. The Pools tab shows per pool the number of sessions and a
 utilisation bar (sessions ÷ (addresses × 64 512 ports) — an estimate: an endpoint-dependent session reuses a port for
 different destinations); the NAT summary behind it is refreshed every 30 s.
@@ -111,7 +111,8 @@ table while packet processing waits. So the agent bounds each request: one page 
 filter on the outside or external address, a port or the protocol looks through at most 256 hosts and 200 000 sessions
 (`truncated: true` — the total is then a lower bound; narrow the filter, e.g. by inside address), and the summary's
 per-pool / per-protocol breakdown visits at most 64 hosts (the totals are always complete). The agent computes the
-summary at most once every 30 s, however many browsers are open (`retrievedAt` tells how old it is).
+summary at most once every 30 s, however many browsers are open (`retrievedAt` tells how old it is), and it runs one
+such walk at a time: concurrent requests wait for each other instead of stalling VPP together.
 
 **Overlapping inside addresses in several VRFs.** VPP's per-host session listing matches the inside address only, not
 the VRF. When the same inside address is NATed in two VRFs, the browser shows each of those sessions once, but it may

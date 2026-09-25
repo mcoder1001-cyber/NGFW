@@ -85,7 +85,7 @@ func TestPBRPolicyNamesFACLList(t *testing.T) {
 	if res.Err != nil || res.Outcome != scheduler.OutcomeApplied {
 		t.Fatalf("apply: %v %v", res.Outcome, res.Err)
 	}
-	var aclIdx uint32 = ^uint32(0)
+	aclIdx := ^uint32(0)
 	for idx, tag := range v.ACL().ACLs() {
 		if tag == "w3:pbr-match" {
 			aclIdx = idx

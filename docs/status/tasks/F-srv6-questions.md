@@ -53,3 +53,18 @@ in `New()` calls it (listed under Shared hunks). After TD-23 merges this becomes
 The OpenAPI document changes (routing.srv6 schema, `GET /api/v1/state/srv6`). `sdk/` is not in this task's file list
 and `sdk/gen.sh --check` is not part of `tools/ci.sh` on main; the manager regenerates at merge if wanted
 (`sdk/gen.sh --openapi packages/api-client/openapi.json`).
+
+## Q10 (notice) — screenshots taken against the real API with the API's FakeAgent
+Host runs are closed until TD-25, so the committed screenshots (`docs/user/vpn/img/srv6-*.png`) show the production
+web build against the real vrx-api whose agent was `apps/api/src/testing/fake-agent.ts` served on a unix socket (sample
+counters). The real-agent screenshots are one command after TD-25: `test/topology/srv6/stack.sh <shots script> <dir>`.
+
+## Q11 (notice) — pre-existing prettier state and a known trivial conflict
+`apps/web/src/nav/nav.ts` / `nav.test.ts` already fail `prettier --check` on main (not reformatted here). The
+`import { lazy } from 'react'` line at the top of `apps/web/src/domains/vpn/tabs.ts` is also on task/F-wireguard: the
+second of the two to merge drops the duplicate line; `'vpn'` in BUILT_DOMAINS is the same duplicate union.
+
+## Pending host steps (after TD-25)
+Listed in `docs/status/tasks/F-srv6.md` → "Pending host steps (after TD-25)": `TestSrv6OnHost` (binapi loss
+simulation, vppctl shows, FIB leak scan), `test/topology/srv6/stack.sh` (API-level evidence + real-agent screenshots),
+optional `TestSrv6GlobalsOnHost` (VRX_FSRV6_GLOBALS=1, manager window), NRestarts before/after.

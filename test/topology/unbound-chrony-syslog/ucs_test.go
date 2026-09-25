@@ -298,6 +298,25 @@ func TestUnboundChronySyslog(t *testing.T) {
 		}
 	}
 
+	// Whatever happens below, leave no configuration behind (idle / disabled / empty renderings, the loopback deleted
+	// from VPP) before the agent and the API stop (cleanups run last-in first-out).
+	cleaned := false
+	cleanup := func() {
+		if cleaned {
+			return
+		}
+		cleaned = true
+		a.must(200, "PUT", "/api/v1/config/services/dns/resolvers", map[string]any{})
+		a.must(200, "PUT", "/api/v1/config/services/ntp", map[string]any{"enabled": false})
+		a.must(200, "PUT", "/api/v1/config/management/syslog", []any{})
+		if r := a.call("DELETE", "/api/v1/config/interfaces/"+lo, nil); r.status != 200 && r.status != 404 {
+			t.Errorf("delete %s: %d %s", lo, r.status, r.raw)
+		}
+		r := a.call("POST", "/api/v1/config/commit?comment=ucs-cleanup", nil)
+		t.Logf("cleanup commit → %d %v", r.status, r.body["status"])
+	}
+	t.Cleanup(cleanup)
+
 	// ---- configure through the pointer routes and commit ------------------------------------------------------
 	a.must(200, "PUT", "/api/v1/config/interfaces/"+lo, map[string]any{"enabled": true, "description": "slot resolver address", "ipv4": []string{listenIP + "/32"}})
 	a.must(200, "PUT", "/api/v1/config/services/dns/resolvers/lab", resolver(dnsPort))
@@ -504,11 +523,7 @@ func TestUnboundChronySyslog(t *testing.T) {
 	}
 
 	// ---- leave nothing behind: remove the configuration (idle / disabled / empty renderings), stop everything --
-	a.must(200, "PUT", "/api/v1/config/services/dns/resolvers", map[string]any{})
-	a.must(200, "PUT", "/api/v1/config/services/ntp", map[string]any{"enabled": false})
-	a.must(200, "PUT", "/api/v1/config/management/syslog", []any{})
-	a.must(200, "DELETE", "/api/v1/config/interfaces/"+lo, nil)
-	a.commit("ucs-cleanup")
+	cleanup()
 	b, _ := os.ReadFile(ubConf) //nolint:gosec // slot file
 	t.Logf("after the cleanup commit unbound.conf is idle: %v", strings.Contains(string(b), "# no enabled resolver"))
 	for _, p := range []*proc{rs, ub, ch} {

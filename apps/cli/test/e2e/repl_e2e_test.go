@@ -163,9 +163,12 @@ func TestREPLConfirmedCommitAutoRevertAndRBAC(t *testing.T) {
 	r.command("exit")
 	r.expect(`admin@\S+> `, long)
 
-	// a readonly API key for the RBAC check, written to a 0600 file (never printed)
+	// a readonly API key for the RBAC check, written to a 0600 file (never printed); a login session proves the
+	// current password first (TD-4, D-100 (2)), prompted without echo
 	keyFile := filepath.Join(s.dir, "ro.key")
 	r.command("api-key create cli-e2e-ro role readonly file " + keyFile)
+	r.expect(`Current password: `, long)
+	r.line(password)
 	r.expect(`written to \S+ \(mode 0600\)`, long)
 	r.command("exit")
 	if code := r.wait(long); code != 0 {

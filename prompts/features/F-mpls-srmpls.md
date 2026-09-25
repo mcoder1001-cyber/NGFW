@@ -72,6 +72,8 @@ LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS; T2).
    Keep the tab list a simple array, so F-mpls-ldp appends its "LDP" tab with one entry.
 5. **Docs** — `docs/user/routing/mpls-srmpls.md`: static LSP, SR-MPLS policy + steering, CLI equivalent.
 
+- **TD-11c creator guard (2026-09-25):** every interface creator you add registers its VPP device class with `iface.RegisterKind` or provides the `interface/<name>` alias key (KeyProvider), and removes its own entry from the guard allowlist in the same branch; the allowlist only shrinks. Every descriptor also declares `RecordsNoOwnership()` or `CheckPersistent()` (TD-11b).
+
 ## Acceptance (paste the evidence)
 - [ ] `vppctl show mpls fib <table>` shows the static label routes and `show sr mpls policies` shows the policy; after rollback
       neither remains (Retrieve / probe)

@@ -86,3 +86,10 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - (F-vrf-static-ecmp Q9/L5) CLI `vrx ping`/`traceroute` send no body (400 since ping is implemented) and the CLI docs for /state/routes are stale
 - (F-vrf-static-ecmp Q10, F-neighbors-ra Q9) the shared fake agent needs a per-feature Action dispatch table
 - (F-vrf-static-ecmp M2) FIB browser: keyset cursor instead of offset paging
+
+## From the TD-10a review (2026-09-25, TD-10a-review.md)
+- **P10 (nginx):** `proxy_read_timeout ≥ 130 s` (and `proxy_send_timeout`) on `/api/v1/config/{commit,rollback/*,commit/confirm,validate}` — the server's commit budget is 111 s (apps/api/src/commit/budget.ts) and the web waits 130 s; nginx's default 60 s cuts every slow commit into a 504 that the web can only follow up (review M1). | owner: P10 | due-before: P10 merge
+- **TD-15 (db pool):** the budget's "DB 15 s" is an assumption: add `connectionTimeoutMillis` to the pool and a `statement_timeout` for the API role so it is enforced (review L2). | owner: TD-15
+- **TD-10b:** `users.service.ts:134` password set uses `commits.exclusive` (waits without bound behind a commit); switch to `commits.userExclusive` (409 `commit-busy` after 1 s, like secret delete — D-TD10a-1, review M2). | owner: TD-10b
+- **apps/web/src/config/** (pending-change bar owner):** CommitDialog should follow a lost commit answer up with `followOutcome`/`applyOutcome` (net.ts, time-gated until the budget) as RevisionsPage does; the confirm banner should retry a confirm that got 409 `commit-busy` after `retryAfterSec` (review L5, else a confirm near the deadline can lose to a reconcile holding the lock). | owner: the row owning apps/web/src/config/**
+- **Secrets (D-TD10a-5):** deleting a secret removes every `secret_version`; a tombstone or "refuse while a revision pins it" would keep old revisions rollback-able (today: a clear 400 `secrets.ref-exists`). | owner: F-backup-restore or a secrets row

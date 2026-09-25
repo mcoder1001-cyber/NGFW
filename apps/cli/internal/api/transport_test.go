@@ -3,11 +3,13 @@ package api
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -124,41 +126,61 @@ func TestApplyDeadlineIsAboveTheServerBudget(t *testing.T) {
 }
 
 // TD-10a (review 2.4a): a commit that gets no answer in time is not reported as a plain failure — the client asks
-// the API what happened (pending commit, sync state, newest revision).
+// the API what happened (pending commit, sync state, newest revision). Review L3: a new revision is recognised by the
+// id read before the request, never by the server's clock; L4: the real per-request ApplyTimeout drives the test.
 func TestCommitTimeoutLooksUpTheOutcome(t *testing.T) {
-	release := make(chan struct{})
-	defer close(release)
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/config/commit", func(_ http.ResponseWriter, r *http.Request) {
-		select {
-		case <-release:
-		case <-r.Context().Done():
-		}
-	})
-	mux.HandleFunc("GET /api/v1/state/system", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"pendingCommit":{"txnId":"txn-td10a","deadline":"2026-09-24T20:00:00.000Z","createdAt":"2026-09-24T19:59:00.000Z"},"sync":{"state":"in-sync","reason":""}}`))
-	})
-	mux.HandleFunc("GET /api/v1/config/revisions", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"items":[{"id":7,"txnId":"txn-before","kind":"commit","createdAt":"2026-01-01T00:00:00.000Z"}],"total":7}`))
-	})
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-	c, err := New(srv.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.HTTP.Timeout = 300 * time.Millisecond // stands in for the commit deadline
-	_, err = c.Do(context.Background(), Call{Op: "Config_commit"})
-	if err == nil {
-		t.Fatal("want an error")
-	}
-	msg := err.Error()
-	for _, want := range []string{"txn-td10a", "IS pending", "newest revision 7", "sync in-sync"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("error lacks %q:\n%s", want, msg)
-		}
+	for _, tc := range []struct {
+		name  string
+		after int // newest revision id once the commit was sent
+		want  []string
+	}{
+		{"applied", 8, []string{"new since the request: revision 8 (commit, txn txn-new", "it was applied", "a commit IS pending: txn txn-td10a", "sync in-sync"}},
+		{"nothing new", 7, []string{"no new revision since the request (newest is 7)", "a commit IS pending: txn txn-td10a"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			release := make(chan struct{})
+			defer close(release)
+			var sent atomic.Bool
+			mux := http.NewServeMux()
+			mux.HandleFunc("POST /api/v1/config/commit", func(_ http.ResponseWriter, r *http.Request) {
+				sent.Store(true)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+				}
+			})
+			mux.HandleFunc("GET /api/v1/state/system", func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"pendingCommit":{"txnId":"txn-td10a","deadline":"2026-09-24T20:00:00.000Z","createdAt":"2026-09-24T19:59:00.000Z"},"sync":{"state":"in-sync","reason":""}}`))
+			})
+			mux.HandleFunc("GET /api/v1/config/revisions", func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				id, txn := 7, "txn-before"
+				if sent.Load() {
+					id = tc.after
+					if id == 8 {
+						txn = "txn-new"
+					}
+				}
+				_, _ = fmt.Fprintf(w, `{"items":[{"id":%d,"txnId":%q,"kind":"commit","createdAt":"2026-01-01T00:00:00.000Z"}],"total":%d}`, id, txn, id)
+			})
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+			c, err := New(srv.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.ApplyTimeout = 300 * time.Millisecond // the commit deadline, shortened
+			_, err = c.Do(context.Background(), Call{Op: "Config_commit"})
+			if err == nil {
+				t.Fatal("want an error")
+			}
+			for _, want := range tc.want {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("error lacks %q:\n%s", want, err)
+				}
+			}
+		})
 	}
 }
 

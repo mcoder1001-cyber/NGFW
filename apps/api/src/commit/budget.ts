@@ -9,7 +9,9 @@ import type { Env } from '../config.js';
  * - lock: a section that is busy is not queued — after `lockWaitMs` the answer is 409 `commit-busy`.
  * - health: 5 s (AgentClient default), DryRun ≤ 30 s, Apply ≤ 60 s — both capped even if VRX_AGENT_TIMEOUT_MS is
  *   larger (the gRPC deadline the agent sees).
- * - db: margin for the PostgreSQL work of a commit (candidate, validation reads, the promote transaction).
+ * - db: margin for the PostgreSQL work of a commit (candidate, validation reads, the promote transaction). An
+ *   ASSUMPTION, not enforced (review L2): there is no statement_timeout for the API role and no pool
+ *   connectionTimeoutMillis yet (docs/tech-debt.md, TD-15). The lock wait itself is bounded, pool connect included.
  *
  * Worst case with any environment: `COMMIT_BUDGET_MAX_MS` (111 s). The web waits `TIMEOUTS.apply` = 130 s
  * (apps/web/src/net.ts) and the CLI 150 s (apps/cli/internal/api/client.go ApplyTimeout); after that they look up the

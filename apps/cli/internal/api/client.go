@@ -140,6 +140,9 @@ type Error struct {
 // the server may well have finished it.
 type Outcome struct {
 	Sent time.Time
+	// Before is the newest revision id read just before the request was sent (-1: unknown). Review L3: a new revision
+	// is recognised by its id, never by comparing the server's clock with this one.
+	Before int
 	// Pending is the commit waiting for confirmation, if any.
 	Pending *struct {
 		TxnID     string `json:"txnId"`
@@ -167,7 +170,8 @@ func (o *Outcome) String() string {
 	}
 	var parts []string
 	if o.Pending != nil {
-		parts = append(parts, fmt.Sprintf("commit %s IS pending (applied, reverts at %s unless confirmed — created %s)", o.Pending.TxnID, o.Pending.Deadline, o.Pending.CreatedAt))
+		// review L3: it may be someone else's — the facts, not "yours"
+		parts = append(parts, fmt.Sprintf("a commit IS pending: txn %s, created %s, reverts at %s unless confirmed (`show pending`)", o.Pending.TxnID, o.Pending.CreatedAt, o.Pending.Deadline))
 	} else {
 		parts = append(parts, "no commit is pending")
 	}
@@ -176,11 +180,17 @@ func (o *Outcome) String() string {
 		if o.Newest.TxnID != nil {
 			txn = *o.Newest.TxnID
 		}
-		newer := ""
-		if t, err := time.Parse(time.RFC3339Nano, o.Newest.CreatedAt); err == nil && !t.Before(o.Sent.Add(-2*time.Second)) {
-			newer = ", created after this request was sent: it was probably applied"
+		desc := fmt.Sprintf("revision %d (%s, txn %s, %s)", o.Newest.ID, o.Newest.Kind, txn, o.Newest.CreatedAt)
+		switch {
+		case o.Before >= 0 && o.Newest.ID > o.Before:
+			parts = append(parts, "new since the request: "+desc+" — it was applied")
+		case o.Before >= 0:
+			parts = append(parts, fmt.Sprintf("no new revision since the request (newest is %d)", o.Newest.ID))
+		default:
+			parts = append(parts, "newest "+desc)
 		}
-		parts = append(parts, fmt.Sprintf("newest revision %d (%s, txn %s, %s%s)", o.Newest.ID, o.Newest.Kind, txn, o.Newest.CreatedAt, newer))
+	} else if o.Before >= 0 {
+		parts = append(parts, "no revision exists")
 	}
 	if o.Sync != nil {
 		s := "sync " + o.Sync.State
@@ -276,6 +286,10 @@ func contains(list []string, s string) bool {
 // confirm that gets no answer in time comes back with Error.Outcome: what the API says happened meanwhile.
 func (c *Client) Do(ctx context.Context, call Call) (*Response, error) {
 	sent := time.Now()
+	before := -1
+	if outcomeOps[call.Op] {
+		before = c.newestRevision(ctx)
+	}
 	resp, err := c.do(ctx, call)
 	if err != nil {
 		var ae *Error
@@ -290,9 +304,29 @@ func (c *Client) Do(ctx context.Context, call Call) (*Response, error) {
 	}
 	var ae *Error
 	if err != nil && errors.As(err, &ae) && ae.Status == 0 && outcomeOps[ae.Op.ID] && isTimeout(ae.Err) && ctx.Err() == nil {
-		ae.Outcome = c.lookupOutcome(ctx, sent)
+		ae.Outcome = c.lookupOutcome(ctx, sent, before)
 	}
 	return resp, err
+}
+
+// newestRevision is the id of the newest revision (0: none, -1: could not be read) — read before a commit-like
+// request so that a lost answer can be followed up by id (review L3).
+func (c *Client) newestRevision(ctx context.Context) int {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var revs struct {
+		Items []struct {
+			ID int `json:"id"`
+		} `json:"items"`
+	}
+	r, err := c.do(ctx, Call{Op: "Config_revisions", Query: url.Values{"limit": {"1"}}})
+	if err != nil || json.Unmarshal(r.Body, &revs) != nil {
+		return -1
+	}
+	if len(revs.Items) == 0 {
+		return 0
+	}
+	return revs.Items[0].ID
 }
 
 func isTimeout(err error) bool {
@@ -305,10 +339,10 @@ func isTimeout(err error) bool {
 
 // lookupOutcome asks the API what became of a commit-like request that timed out: the pending commit and sync
 // state (GET /state/system) and the newest revision (GET /config/revisions?limit=1).
-func (c *Client) lookupOutcome(ctx context.Context, sent time.Time) *Outcome {
+func (c *Client) lookupOutcome(ctx context.Context, sent time.Time, before int) *Outcome {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	o := &Outcome{Sent: sent}
+	o := &Outcome{Sent: sent, Before: before}
 	var sys struct {
 		PendingCommit *struct {
 			TxnID     string `json:"txnId"`

@@ -70,6 +70,49 @@ describe('TD-10a commit engine on PostgreSQL', () => {
     }
   });
 
+  it('H1 (fix round 1) the PostgreSQL backend holding the commit lock is terminated mid-commit: the API survives, running is re-checked', async () => {
+    await h.call(admin, 'PUT', `/api/v1/config/interfaces/loop${slot()}42`, {
+      ipv4: [`10.${slot()}.142.1/24`],
+    });
+    const lockPids = sql`select pid from pg_locks where locktype = 'advisory' and classid = 1448237121 and objid = 1 and granted`;
+    h.fake.applyDelayMs = 1500;
+    try {
+      const first = h.call(admin, 'POST', '/api/v1/config/commit?comment=h1');
+      await vi.waitFor(async () => expect((await h.db.execute(lockPids)).rows).toHaveLength(1), {
+        timeout: 5000,
+        interval: 20,
+      });
+      const killed = await h.db.execute(
+        sql`select pg_terminate_backend(pid) as ok from pg_locks where locktype = 'advisory' and classid = 1448237121 and objid = 1 and granted`,
+      );
+      expect(killed.rows).toEqual([{ ok: true }]);
+      const c = await first;
+      expect(c.status).toBe(200);
+      expect(c.body.status).toBe('applied');
+    } finally {
+      h.fake.applyDelayMs = 0;
+    }
+    await vi.waitFor(
+      async () => {
+        const ev = await h.db.execute(
+          sql`select code from system_event where code in ('COMMIT_LOCK_LOST', 'RUNNING_UNKNOWN') order by id`,
+        );
+        expect(ev.rows.map((r) => r['code'])).toEqual(['COMMIT_LOCK_LOST', 'RUNNING_UNKNOWN']);
+      },
+      { timeout: 5000, interval: 100 },
+    );
+    await vi.waitFor(
+      async () =>
+        expect((await h.call(admin, 'GET', '/api/v1/state/system')).body.sync.state).toBe(
+          'in-sync',
+        ),
+      { timeout: 10_000, interval: 200 },
+    );
+    // the lock works again: another commit goes through
+    await h.call(admin, 'PATCH', '/api/v1/config/system', { hostname: `td10a-h1-${h.prefix}` });
+    expect((await h.call(admin, 'POST', '/api/v1/config/commit')).status).toBe(200);
+  });
+
   it('2.2 + 2.5 a confirmed rollback confirmed by a restarted API restores the secret versions; warnings survive', async () => {
     const name = `tac-${h.prefix}`;
     const ref = `psk/${name}`;

@@ -217,7 +217,7 @@ All changes are unit-tested on the fake. `main` was merged in at 50798421, after
 | **F3** N4 amended + guard | The obligation for every interface creator is `iface.RegisterKind` **or** a KeyProvider for `interface/<name>`. `subsystems/TestEveryInterfaceCreatorNamesItsAlias` builds every creator, checks the device-class mapping (`iface.Kind`) and `scheduler.KeyProvider`, and fails for a creator with neither. A source scan fails for an interface-creating descriptor package that is not in the table. The known gaps are in a shrink-only allowlist, listed below. Mutation check: removing gre from the allowlist fails the test, and removing gre from the table fails the source scan. | creators_guard_test.go, cc44bbbc |
 | **F4** panic-safe bracket | `claimsBatch()` returns end plus a deferred cleanup that ends the batch if the transaction panicked before end ran. | service.go |
 | **F5** TD-8's second boundary | TD-8 merged, so `syncLocked` now uses the same `claimsBatch()` and `claimsNotPersisted` (a failed end means not in sync, DEGRADED). | dynsource.go (3-line hunk), a83c37ef |
-| F6, F7 | Left for later: F6, a stale-index claim is released only at the next VPP boot's Prune; F7, core claims have no ctx and should use TD-11b's `ClaimContext` when both are merged. | — |
+| F6, F7 | Left for later: F6, a stale-index claim is released only at the next VPP boot's Prune; F7, core claims have no ctx; TD-11b has merged, so core can now switch to `ClaimContext`/`ClaimedContext` (the 5 s `legacyBound` applies until then). | — |
 | Q2 | The projection stays as it is. The gRPC-on-DPDK proof goes to F-startup-apply's real run (manager note). | — |
 
 **Interface creators without an alias creator today** (the F3 allowlist; each row fixes its own; output of the guard):
@@ -297,14 +297,14 @@ fix round 1 (journal):   2000 claims: 50ms / 51ms  (2000 journal appends 39ms / 
 ```
 
 ### Merge notes
-- **TD-11b (M1, required at the second merge).** TD-11b's `core/ownership_test.go` `TestInterfaceObjectsRecordNoStore` is a
-  deliberate tripwire. In a scratch 3-way overlay of this branch and task/TD-11b (base main) there were no textual
-  conflicts and the build passed, but that test fails: "core.Env gained Claims …". Change core/ownership.go:
-  `InterfaceTableDescriptor` and `InterfaceAddrDescriptor` drop `RecordsNoOwnership()` and get
-  `CheckPersistent() error { if d.Claims == nil { return nil }; return persist.Require("core <name>: interface claims (subsystems.IfaceClaims)", d.Claims) }`.
-  `subsystems.IfaceClaims` is `persist.Store` through fileClaims. Then allow `Claims` in the tripwire's field list. My
-  stores.go keeps its import block and hunks off TD-11b's lines, and `git merge-file` over main reports 0 conflicts for
-  stores.go, subsystems.go, service.go, agent.go and reconciler.go.
+- **TD-11b: DONE (O1 from TD-11b's verify, 8106bd5c).** TD-11b merged to main at b5e74c08, and main was merged in at 2d1069cb
+  without conflicts; the stores.go import block had been kept off TD-11b's line. As designed, TD-11b's tripwire
+  `TestInterfaceObjectsRecordNoStore` then failed ("core.Env gained Claims …"). In `core/ownership.go`,
+  `InterfaceTableDescriptor` and `InterfaceAddrDescriptor` now declare
+  `CheckPersistent() error { return persist.Require("core interface-ip[.table]: claims", d.Claims) }` in place of
+  `RecordsNoOwnership`. `Claims` is on the tripwire's field list, and the new `TestInterfaceObjectsRequirePersistedClaims` checks that
+  nil and in-memory stores are refused (ErrVolatile) and a persisted one passes. The product wiring passes `subsystems.IfaceClaims`,
+  which is persistent through fileClaims, so the agent's ownership guard accepts it (the agent and subsystems tests are green).
 - **TD-9 (envelope obligation, review F4).** Keep `flushClaims()` after the outcome is known and before `st.save()` on every
   path, including timeout/DEGRADED. Never run it on the caller's cancellable ctx (it takes none today).
 
@@ -314,6 +314,26 @@ round-0 host proof (core claims on an untagged af_packet NIC, `TestUntaggedNICCl
 is also shared with the running F-unbound-chrony-syslog.
 
 ### CI (fix round 1)
+Final, after TD-11b and O1:
+`TMPDIR=/tmp/g-w10c tools/ci.sh --base main` at 8106bd5c (main with TD-11b merged in, plus O1):
+```
+branch    task/TD-11c @ 8106bd5c   (base: main)
+logs      /root/ngfw-wt/logs/ci/TD-11c-20260925-035041-2355181
+no contract files changed in the 19 commit(s) of HEAD since main (b5e74c08)
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~663143 bytes (663.14 KB) in 1.51s no leaks found
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    2m23.864s
+shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
+CI GATE PASSED
+```
+Also: `go vet ./...` clean, `golangci-lint run ./...` reports `0 issues.`, and `go test -race -count=1 ./...` passes with every package ok.
+After this run, main's d3a7c266 (status) and f03ec1a2 (board) were merged in; both are docs only, with no code.
+
+Earlier, before TD-11b:
 `TMPDIR=/tmp/g-w10c tools/ci.sh --base main` at 2f2e9ef0 (main with TD-8 merged in):
 ```
 branch    task/TD-11c @ 2f2e9ef0   (base: main)

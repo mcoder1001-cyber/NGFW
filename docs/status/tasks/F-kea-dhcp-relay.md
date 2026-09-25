@@ -114,7 +114,29 @@ Cleanup (through the API, veths down first, D-101): no `host-w2*` interface, no 
 table, no netns, no veth left; the Kea test daemon was stopped by its PID; `kea-dhcp4-server`/`kea-dhcp6-server` are
 still disabled and inactive; `/etc/kea` untouched.
 
-- [ ] / [x] **`tools/ci.sh --base main` green** — see "CI" below.
+- [x] **`tools/ci.sh --base main` green** — `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` on `16af8987` (after the merge of main):
+```
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m01s
+  generate + generated-output gate                   2m08s
+  forbidden patterns (+ gitleaks)                    0m07s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   1m57s
+  apps/agent: make lint test build                   1m14s
+  apps/cli: make lint test build                     0m20s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/kea-dhcp-relay)   0m12s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   4m58s
+  warnings:
+    - commit subject(s) not in Conventional Commits form (type(scope): subject):
+      review(W-seed): verify
+  mode quick · wall time 11m02s · logs /root/ngfw-wt/logs/ci/F-kea-dhcp-relay-20260925-041336-3168047
+
+CI GATE PASSED
+```
+(The first run failed on one gosec finding in a test fixture (`0o640` → `0o600`), fixed in `16af8987`. The Conventional-Commits
+warning names W-seed's `review(W-seed): verify`, inherited from the base.)
 
 ## Screenshots (real stack: this tree's agent + API + `vite preview`, the lease from the run above, one pending edit)
 

@@ -1,6 +1,6 @@
 # F-kea-dhcp-relay — WIP (slot 2, prefix w2)
 
-Updated 2026-09-25 04:15.
+Updated 2026-09-25 04:30 — task complete (see F-kea-dhcp-relay.md).
 
 ## Done (committed)
 - contract(schema,proto): DhcpLeases rpc + Dhcp* messages; four semantic rules
@@ -11,8 +11,9 @@ Updated 2026-09-25 04:15.
 - topology test PASS on the merged tree (with screenshots), docs, status, questions
 - merged main (TD-8, TD-11b, TD-20, TD-7); relay scope on Wiring.IDRange
 
-## In progress
-- `TMPDIR=/tmp/g-w2 tools/ci.sh --base main`
-
-## Left
-- CI result into F-kea-dhcp-relay.md, final cleanup (dist, bin, /run/vrx-test/w2/kea*)
+## Done at the end
+- `TMPDIR=/tmp/g-w2 tools/ci.sh --base main`: CI GATE PASSED (recorded in F-kea-dhcp-relay.md)
+- cleanup: worktree dist/ and apps/agent/bin removed; no w2 netns/veth/VPP interface/proxy/table left; Kea units disabled
+  and inactive. `/run/vrx-test/w2/kea` and `/run/vrx-test/w2/kea-relay` (test logs, Kea lease/log files of the slot
+  instance) remain: removing them outside the worktree was refused by the session's permissions — the next run of the
+  topology test deletes and recreates them.

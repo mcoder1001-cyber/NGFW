@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
-import { createMergePatch, dropPhantomOptionals, localizeSchema } from '../../interfaces/model';
+import { createMergePatch, localizeSchema } from '../../interfaces/model';
 import { useCandidateInterfaces } from '../../interfaces/queries';
 import { NAT_POINTER, pickSchema, pickValue } from './model';
 import { useCandidateNat, useFreshCandidateNat, useNatSummary, usePatchNat } from './queries';
@@ -102,7 +102,7 @@ export function OutboundTab() {
   const save = async (value: unknown) => {
     setSaved(false);
     const base = opened ?? {};
-    const cleaned = dropPhantomOptionals(schema, base, value);
+    const cleaned = value; // WEB-1: SchemaForm keeps absent optionals absent (no phantom to drop)
     const body = createMergePatch(base, cleaned) as Record<string, unknown>;
     try {
       await patch.mutateAsync(body);

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -351,4 +352,71 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 	if _, d5 := counts(); d5-d4 != natCaps.UserDumps || !r.GetTruncated() || len(r.GetSessions()) != 100 {
 		t.Fatalf("filtered NatSessions: %d session dumps (cap %d), truncated %v, %d sessions", d5-d4, natCaps.UserDumps, r.GetTruncated(), len(r.GetSessions()))
 	}
+}
+
+// D-132: one VPP session walk at a time per agent — concurrent NatSessions and NatSummary calls never dump sessions
+// in parallel (each nat44_user_session_v3_dump holds the worker barrier on a real VPP).
+func TestNatWalksAreSerialised(t *testing.T) {
+	v := coretest.New()
+	n := v.Nat44ED()
+	n.NatEnable()
+	s := newSvc(t, v, t.TempDir())
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "w1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	for u := 0; u < 20; u++ {
+		n.AddNatSession(0, 6, "10.7.1."+strconv.Itoa(10+u), 10000, "10.7.2.100", uint16(20000+u), "10.7.2.2", 80) //nolint:gosec // test data
+	}
+	// replace the model's session dump with a slow one that measures how many run at once
+	var mu sync.Mutex
+	inflight, peak, dumps := 0, 0, 0
+	v.On("nat44_user_session_v3_dump", func(api.Message) ([]api.Message, error) {
+		mu.Lock()
+		inflight++
+		dumps++
+		peak = max(peak, inflight)
+		mu.Unlock()
+		time.Sleep(3 * time.Millisecond)
+		mu.Lock()
+		inflight--
+		mu.Unlock()
+		return nil, nil
+	})
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	for i := 0; i < 6; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Protocol: proto.String("tcp")}}); err != nil {
+				t.Error(err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Limit: 50}); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if _, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); err != nil {
+			t.Error(err)
+		}
+	}()
+	wg.Wait()
+	if peak != 1 || dumps < 20 {
+		t.Fatalf("%d session dumps, at most %d at once (want 1)", dumps, peak)
+	}
+	// a caller whose deadline passes while another walk runs gives up instead of queueing forever
+	release, err := s.natWalk(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	short, cancel := context.WithTimeout(ctx, 20*time.Millisecond)
+	defer cancel()
+	if _, err := s.NatSessions(short, &vrxv1.NatSessionsRequest{}); grpcCode(err) != codes.DeadlineExceeded {
+		t.Fatalf("NatSessions while the walk slot is taken: %v", err)
+	}
+	release()
 }

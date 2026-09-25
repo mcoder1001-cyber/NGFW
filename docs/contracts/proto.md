@@ -382,6 +382,8 @@ Three additions, all read-only except the kill (wave-A-hotspots §2: `ActionRequ
   sessions whose outside address is in the pool (one scan of at most 64 users and 200 000 sessions; `truncated` = the
   breakdown is a lower bound, the totals never are). The agent caches one computation for 30 s behind a single flight
   (`retrieved_at` = when it was computed): however many clients poll, VPP sees at most one summary scan per 30 s.
+  Every session walk of the agent (a NatSessions call, a NatSummary computation) takes one per-agent slot: one walk at
+  a time, a caller whose deadline passes while waiting gets DEADLINE_EXCEEDED (D-132).
 - `ActionRequest.nat_session_kill = 5` (`NatSessionKillAction`): `nat44_del_session` with `NAT_IS_INSIDE` for the
   5-tuple (protocol, inside address/port, external address/port) in the inside VRF. ED keys sessions by the full
   5-tuple of the session's i2o flow, so the external endpoint is required and is the remote end **as the inside host

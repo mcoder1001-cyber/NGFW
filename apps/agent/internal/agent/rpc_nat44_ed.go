@@ -39,14 +39,38 @@ var (
 var natSummaryTTL = 30 * time.Second
 
 // natSummaryCache is the per-Service summary cache behind a single flight: the mutex is held while one caller
-// computes, so concurrent callers wait and then share its result. (Service is A5 core; the cache lives here.)
+// computes, so concurrent callers wait and then share its result.
 type natSummaryCache struct {
 	mu   sync.Mutex
 	at   time.Time
 	resp *vrxv1.NatSummaryResponse
 }
 
-var natSummaryCaches sync.Map // *Service → *natSummaryCache
+// natState is this feature's per-Service state (Service is A5 core, so it lives here, keyed by the Service).
+type natState struct {
+	// walk admits one VPP session walk at a time per agent (D-132: a walk holds the worker barrier; NatSessions
+	// and the NatSummary computation take it, however many API callers there are).
+	walk    chan struct{}
+	summary natSummaryCache
+}
+
+var natStates sync.Map // *Service → *natState
+
+func (s *Service) natState() *natState {
+	st, _ := natStates.LoadOrStore(s, &natState{walk: make(chan struct{}, 1)})
+	return st.(*natState)
+}
+
+// natWalk waits for this agent's VPP walk slot (or the caller's deadline) and returns its release.
+func (s *Service) natWalk(ctx context.Context) (func(), error) {
+	w := s.natState().walk
+	select {
+	case w <- struct{}{}:
+		return func() { <-w }, nil
+	case <-ctx.Done():
+		return nil, status.FromContextError(ctx.Err()).Err()
+	}
+}
 
 func (g *server) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
 	return g.svc.NatSessions(ctx, req)
@@ -136,6 +160,11 @@ func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest
 	if err != nil {
 		return nil, natErr("filter", err)
 	}
+	release, err := s.natWalk(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	page, err := natsessions.List(ctx, nat44ed.New(s.vpp, s.owner), natcommon.ScopeFor(s.owner), f, int(req.GetOffset()), limit, natCaps)
 	if err != nil {
 		return nil, natErr("nat sessions", err)
@@ -204,8 +233,7 @@ func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) 
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
-	c, _ := natSummaryCaches.LoadOrStore(s, &natSummaryCache{})
-	cache := c.(*natSummaryCache)
+	cache := &s.natState().summary
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	if now := s.now(); cache.resp != nil && now.Sub(cache.at) >= 0 && now.Sub(cache.at) < natSummaryTTL {
@@ -221,6 +249,11 @@ func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) 
 
 // natSummary computes one summary: the running config, the user dump totals and the capped per-pool breakdown.
 func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, error) {
+	release, err := s.natWalk(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	enabled, limit, err := natsessions.RunningConfig(ctx, s.vpp)
 	if err != nil {
 		return nil, natErr("nat summary", err)

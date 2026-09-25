@@ -207,15 +207,16 @@ describe('nat model', () => {
     expect(killBodyOf({ ...session(4), protocol: '47' })).toBeNull(); // never a silent `tcp`
   });
 
-  it('review H1: filters that scan sessions switch polling off; the summary polls at 30 s', () => {
+  it('review H1 / D-132: filters that scan sessions switch polling off; nothing polls faster than 30 s', () => {
     expect(isSessionLevelFilter(EMPTY_FILTER)).toBe(false);
     expect(isSessionLevelFilter({ ...EMPTY_FILTER, vrf: 'cust' })).toBe(false); // selects users only
     for (const k of ['inside', 'outside', 'external', 'port', 'protocol'] as const) {
       expect(isSessionLevelFilter({ ...EMPTY_FILTER, [k]: k === 'port' ? '80' : 'x' })).toBe(true);
     }
     expect(isSessionLevelFilter({ ...EMPTY_FILTER, port: '  ' })).toBe(false);
+    // D-132: nothing that walks VPP is polled faster than every 30 s
     expect(NAT_SUMMARY_POLL_MS).toBeGreaterThanOrEqual(30_000);
-    expect(NAT_POLL_MS).toBeLessThan(NAT_SUMMARY_POLL_MS);
+    expect(NAT_POLL_MS).toBeGreaterThanOrEqual(30_000);
   });
 
   it('natTabs: the four NAT44-ED tabs in order (siblings append after them)', () => {

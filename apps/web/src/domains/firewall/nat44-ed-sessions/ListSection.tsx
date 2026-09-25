@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../../interfaces/InterfaceDrawer';
-import { dropPhantomOptionals, localizeSchema } from '../../interfaces/model';
+import { localizeSchema } from '../../interfaces/model';
 import { useCandidateInterfaces } from '../../interfaces/queries';
 import { itemSchema, type NatListKey } from './model';
 import { useCandidateNat, useFreshCandidateNat, usePatchNat } from './queries';
@@ -101,7 +101,7 @@ export function ListSection({
   const save = async (value: unknown) => {
     if (!editing) return;
     const { index, value: before } = editing;
-    const cleaned = dropPhantomOptionals(schema, before, value) as Item;
+    const cleaned = value as Item; // WEB-1: SchemaForm keeps absent optionals absent (no phantom to drop)
     const ok = await write((list) => {
       if (index < 0) return [...list, cleaned];
       if (!same(list[index], before)) return null;

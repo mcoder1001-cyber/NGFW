@@ -379,7 +379,8 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
   installs `ip.route` objects via `wg<N>` in the interface's overlay VRF for every peer allowed IP.
 - `EVENT_KIND_WIREGUARD_PEER_CHANGED = 13`: published through the agent's event sink (`Env.Publish`, TD-8) from DF-5's
   `peer.Events()` for peers of this owner's interfaces: `interface` = `wg<N>`, attributes `public_key`, `peer_index`,
-  `established`, `dead` (`"true"`/`"false"`), `message` = `"established"` / `"dead"` / `"down"`. The API relays it on
+  `established`, `dead` (`"true"`/`"false"`), `message` = `"WireGuard peer <first 8 characters of the key>… on wg<N>:
+  established|dead|down"` (human-readable; consumers read the attributes). The API relays it on
   the WebSocket topic `wireguard.events`.
 
 <!-- wave-A: P12 -->

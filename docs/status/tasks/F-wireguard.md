@@ -218,3 +218,20 @@ CI GATE PASSED
 Also run on this tree: API e2e `test/e2e/wireguard.e2e.test.ts` 5/5 (slot DB), web vitest 15 files / 103 tests, agent
 `go test -race` of the touched packages, host checks (above). Host runs stopped after 05:05 on the manager's order (TD-25:
 interface creates fail closed on the shared VPP); the real-agent rollback step of `stack.sh` is to be rerun once TD-25 lands.
+
+## Fix round 1 (review `docs/status/tasks/F-wireguard-review.md` @ 6b79e77a: APPROVE WITH CHANGES)
+
+| id | fix | test (fails on the old code) |
+|---|---|---|
+| F1 | **Refuse** (not "require a more specific route"): new rule `vpn.wireguard-route-loop` in `packages/schema/src/semantic/wireguard.ts` — with `routeAllowedIps`, an allowed IP that contains a peer endpoint (IP literal) of any WireGuard interface whose `underlayVrf` is this interface's `vrf` is a 400 at `/vpn/wireguard/interfaces/<if>/peers/<peer>/allowedIps/<i>`. Twin in the Go builder (`desired/wireguard.go`): ERROR at the same pointer, the route is not projected. User guide: "Routing loop — refused" paragraph (full tunnel = own overlay VRF, narrower allowed IP, or switch off + a more specific route to the endpoint; a same-prefix static route is `agent.duplicate-object`) | `semantic/wireguard.test.ts` "vpn.wireguard-route-loop …" (old rule file: `1 failed`); `desired/wireguard_test.go` `TestWireguardRouteLoopRefused` (old builder: `no route-loop error: []`) |
+| F2 | Guards: `subsystems/wireguard_fixture_guard_test.go` (untagged, static: only the tagged `wireguard_fixture.go` may set `wireguardFixture`) and `wireguard_fixture_nil_test.go` (every build without the tag: the hook is nil). `tools/ci.sh` forbidden patterns: `vrxtestsecrets` only in its tagged file, `*_test.go`, `test/`, docs (the one ci.sh line; product comments no longer spell the tag) | guards, not a fix: both fail when the tag line is dropped from `wireguard_fixture.go` ("sets wireguardFixture without the … constraint", "set in a build without the test-secrets tag"); the ci.sh grep catches an untracked `zz_probe.go` carrying the tag |
+| F9 | `wireguardStateQuery`: `staleTime` = `refetchInterval` = 30 s, `refetchOnWindowFocus: false`; Refresh kept | `WireguardPage.test.tsx` "F9 (D-132) …" (old: `Cannot read properties of undefined (reading 'staleTime')`) |
+| UI default | New interfaces open with `routeAllowedIps: true` (`newInterfaceDefaults()`) and an NBMA info line (en + fa); the schema default stays false | "new interfaces open with routeAllowedIps on …" (old: `newInterfaceDefaults is not a function`); the render test opens **Add interface** and finds the hint and the switch checked (old: fails) |
+| F3 | Manager: PENDING-secret-channel. Mine: Q1 corrected (the store is a stand-in; without material a resync would delete working tunnels → material before the first resync) | doc |
+| F10 | `docs/contracts/proto.md` §11: the event `message` text as the code sends it | doc |
+| F11 | Note: the fake agent applies WireGuard configurations the real agent refuses until PENDING-secret-channel (the UI and the e2e exercise that path); users are told by the guide's release note | doc |
+
+Not in this round (follow-ups per the review): F4 (API treats `agent.secret-unavailable` as blocking for user commits,
+TD-10a), F5 (refcount shared material), F6 (placeholder instead of an `hmac:` prefix without a meta row), F7 (DF-5 ref in
+meta), F8 (batched meta writes), F12 (0/0, ::/0 and IPv6 auto-routes on the post-TD-25 stack re-run), F13 (API invariant in
+proto.md), F14 (projection env seam). No host runs this round (af_packet/interface creates blocked until TD-25).

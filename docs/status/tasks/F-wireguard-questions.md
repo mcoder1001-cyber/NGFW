@@ -10,8 +10,13 @@ Nothing carries key material from the API to the agent. What this branch does me
 - tests fill the store directly (unit, host checks: the stand-in for option 1's sealed cache, loaded before the first
   transaction); test builds only (`-tags vrxtestsecrets`) can load a slot-local 0600 fixture file (`VRX_TEST_WG_SECRETS`,
   `subsystems/wireguard_fixture.go`) — never compiled into a product build.
-When the channel lands (option 1 recommended there), its receiver calls `WireguardSecrets.Put` (or replaces the store);
-nothing else changes. The API's key-pair action stores the private key through the secrets service already.
+**Correction (review F3):** the store is a stand-in behind the `vpn.Resolver` seam, not the channel's receiver — the
+PENDING answer defines that. And "nothing else changes" was wrong: without material a resync projects the
+`unavailable:<ref>` marker, which differs from what Retrieve reports (`x25519:<pub>` / `hmac:`), so both descriptors answer
+ErrRecreate and a resync would **delete working tunnels** (Delete succeeds, Create fails). Harmless today (the product
+cannot create WireGuard), but the channel must load the material **before the first resync** (option 1's sealed cache is
+mandatory), or the descriptors must keep existing objects while material is unavailable (a scheduler hook). The manager
+adds this to PENDING-secret-channel. The API's key-pair action stores the private key through the secrets service already.
 
 ## Q2 — `routeAllowedIps` default off (prompt open question) — decided: default false, flagged
 TNSR does not auto-route allowed IPs. VPP 26.06 WireGuard interfaces are **NBMA**: a connected/attached route through

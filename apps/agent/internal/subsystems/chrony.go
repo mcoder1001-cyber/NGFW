@@ -11,7 +11,8 @@ import (
 )
 
 // newChrony returns the chrony renderer of env: product paths for the globals owner, else the slot's
-// (<slot dir>/chrony/agent, no clock control, loopback only) and the hook that prepares it. chronyd refuses a
+// (<slot dir>/chrony/agent, no clock control, loopback only, sources on the slot port 3<slot>23) and the hook that
+// prepares it. chronyd refuses a
 // command-socket directory it does not own and drops to _chrony before reading the sources, so the slot directory is
 // _chrony:_chrony 0750 (the RF-3 test layout).
 func newChrony(env Env) (*chrony.Renderer, func() error) {
@@ -19,6 +20,9 @@ func newChrony(env Env) (*chrony.Renderer, func() error) {
 		return chrony.New(chrony.NewRunner()), nil
 	}
 	p := chrony.PathsUnder(filepath.Join(slotRunDir(env.Owner), "chrony", "agent"))
+	// A slot instance never queries port 123 of anything (the host's chronyd): every source line gets the slot's
+	// NTP port 3<slot>23, where the slot's test server instance answers.
+	p.SourcePort = uint16(3000 + slotOf(env.Owner)*100 + 23) //nolint:gosec // slots 0–99
 	prep := func() error {
 		if err := mkdirShared(filepath.Dir(p.ConfDir)); err != nil {
 			return fmt.Errorf("chrony slot dir: %w", err)

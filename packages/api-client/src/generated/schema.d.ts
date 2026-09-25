@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/host-stack': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Host stack: session layer on/off, applied app namespaces, session rules (read-only) */
+    get: operations['HostStack_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8358,6 +8375,93 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HostStack_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description the session layer answers the rules dump (VPP has no getter) */
+            sessionEnabled: boolean;
+            /** @description why the layer is off or unknown; empty when on */
+            sessionDetail: string;
+            /** @description app namespaces this agent applied on the running VPP */
+            namespaces: string[];
+            /** @description this owner's session rules */
+            ruleCount: number;
+            /** @description every session rule in VPP (all owners) */
+            ruleCountTotal: number;
+            rules: {
+              tag: string;
+              scope: string;
+              transport: string;
+              local: string;
+              localPort: number;
+              remote: string;
+              remotePort: number;
+              action: string;
+              appnsIndexes: number[];
+            }[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

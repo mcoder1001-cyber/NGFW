@@ -41,6 +41,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-lb
 // wave-BC: F-qos-flat
 // wave-BC: F-host-stack
+import { hostStackFeature } from './features/host-stack/index.js';
 // wave-BC: F-snmp
 // wave-BC: F-ipfix-sflow
 // wave-BC: F-capture-trace
@@ -124,6 +125,7 @@ export class AppModule {
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
         // wave-BC: F-host-stack
+        ...hostStackFeature.controllers,
         // wave-BC: F-snmp
         // wave-BC: F-ipfix-sflow
         // wave-BC: F-capture-trace

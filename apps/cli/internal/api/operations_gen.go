@@ -40,6 +40,7 @@ var Operations = map[string]Operation{
 	"Config_runningAt":    {ID: "Config_runningAt", Method: "GET", Path: "/api/v1/config/{path}", Summary: "Node of the running configuration at a JSON pointer", PathParams: []string{"path"}, QueryParams: nil, Body: false},
 	"Config_validate":     {ID: "Config_validate", Method: "POST", Path: "/api/v1/config/validate", Summary: "Three-tier validation of the candidate (schema → semantic → agent DryRun); nothing is applied", PathParams: nil, QueryParams: nil, Body: false},
 	"Health_health":       {ID: "Health_health", Method: "GET", Path: "/api/v1/health", Summary: "Liveness of the API process", PathParams: nil, QueryParams: nil, Body: false},
+	"HostStack_state":     {ID: "HostStack_state", Method: "GET", Path: "/api/v1/state/host-stack", Summary: "Host stack: session layer on/off, applied app namespaces, session rules (read-only)", PathParams: nil, QueryParams: nil, Body: false},
 	"Secrets_delete":      {ID: "Secrets_delete", Method: "DELETE", Path: "/api/v1/secrets/{kind}/{name}", Summary: "Delete a secret that nothing references", PathParams: []string{"kind", "name"}, QueryParams: nil, Body: false},
 	"Secrets_list":        {ID: "Secrets_list", Method: "GET", Path: "/api/v1/secrets", Summary: "Secret references (no values)", PathParams: nil, QueryParams: nil, Body: false},
 	"Secrets_put":         {ID: "Secrets_put", Method: "POST", Path: "/api/v1/secrets", Summary: "Create or replace a secret; returns the reference to put into the configuration", PathParams: nil, QueryParams: []string{"replace"}, Body: true},

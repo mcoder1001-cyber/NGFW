@@ -11,8 +11,8 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/wireguard"
-	"ngfw/agent/internal/descriptors/vpn"
 	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/vpp"
 )
 

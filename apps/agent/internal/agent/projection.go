@@ -317,6 +317,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
+	desired.Wireguard(p, ds, in, vrfID, subsystems.WireguardEnv()) // vpn.wireguard (internal/desired/wireguard.go)
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
@@ -440,6 +441,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
+	desired.AssembleWireguard(ds, kvs, in, nameOf, stored) // vpn.wireguard; moves wg<N> leaves out of interfaces/routing
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog

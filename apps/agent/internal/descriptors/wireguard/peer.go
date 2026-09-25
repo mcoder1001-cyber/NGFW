@@ -103,6 +103,9 @@ func (d *Peer) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}
 	peer.SwIfIndex = idx
 	if ref := o.GetPresharedKey(); ref != "" {
+		if d051, ok := unavailable(ref); ok {
+			return nil, fmt.Errorf("wireguard: peer %s preshared key %s: %w", d.KeyOf(o), d051, ErrSecretUnavailable)
+		}
 		if err := vpn.CheckRef(ref); err != nil {
 			return nil, fmt.Errorf("wireguard: peer preshared_key: %w", err) // never echoes the value (review M1)
 		}

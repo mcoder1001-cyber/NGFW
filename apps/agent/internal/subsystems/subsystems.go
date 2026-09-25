@@ -59,6 +59,7 @@ const (
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
+	VPN = "vpn"
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 )
@@ -122,6 +123,7 @@ var Domains = map[string][]string{
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
+	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 }
@@ -258,6 +260,9 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
+	if err := w.registerWireguard(r); err != nil { // DF-5 wireguard family + wireguard.meta + secret store (wireguard.go)
+		return nil, err
+	}
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
@@ -310,6 +315,7 @@ func (w *Wiring) Connected(ctx context.Context) {
 		w.env.Log.Info("VPP boot identity", "identity", id.String(), "complete", id.Complete(), "expired_claims", n)
 	}
 	w.dhcpClient.Reconnected() // DF-8 (obligation): re-subscribe lease events on the new connection
+	w.wireguardConnected(ctx)  // F-wireguard: (re)start the peer-event watcher (wireguard.go; no anchor here, questions Q4)
 }
 
 // KeyedClaims opens (once per family) the persisted single-key claim store of a descriptor family

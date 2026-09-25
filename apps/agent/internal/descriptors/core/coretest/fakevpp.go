@@ -94,8 +94,15 @@ func New() *VPP {
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
+	for _, ext := range extensions {
+		ext(v)
+	}
 	return v
 }
+
+// extensions install the plugin models of feature domains (coretest/<slug>.go, appended in their init) on every
+// model, so agent tests of other domains retrieve their descriptors unchanged (F-nat44-ed-sessions: nat44-ed).
+var extensions []func(*VPP)
 
 func reply(m api.Message) ([]api.Message, error) { return []api.Message{m}, nil }
 

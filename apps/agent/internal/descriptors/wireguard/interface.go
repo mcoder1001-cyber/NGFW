@@ -72,6 +72,9 @@ func (d *Interface) Create(ctx context.Context, obj proto.Message) (any, error) 
 	if o.GetPort() == 0 || o.GetPort() > 65535 {
 		return nil, fmt.Errorf("wireguard: %s port %d out of range 1–65535", ItfName(o.GetInstance()), o.GetPort())
 	}
+	if d051, ok := unavailable(o.GetPrivateKey()); ok {
+		return nil, fmt.Errorf("wireguard: %s private key %s: %w", ItfName(o.GetInstance()), d051, ErrSecretUnavailable)
+	}
 	if !strings.HasPrefix(o.GetPrivateKey(), vpn.RefX25519) {
 		return nil, fmt.Errorf("wireguard: %s needs private_key as an x25519 reference", ItfName(o.GetInstance()))
 	}

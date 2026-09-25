@@ -11,8 +11,10 @@
 package wireguard
 
 import (
+	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -65,6 +67,25 @@ func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...Option) 
 		r.Register(d)
 	}
 	return peer
+}
+
+// UnavailablePrefix marks a secret reference whose material the agent does not hold (F-wireguard:
+// the API→agent secret channel is PENDING-secret-channel). The builder puts "unavailable:<D-051 ref>"
+// where the DF-5 reference belongs; Create refuses it with ErrSecretUnavailable — the transaction fails
+// loudly at that object, and a peer is never created without its preshared key.
+const UnavailablePrefix = "unavailable:"
+
+// ErrSecretUnavailable is returned by Create for an UnavailablePrefix reference.
+var ErrSecretUnavailable = errors.New("no secret material in the agent (the API→agent secret channel is pending: PENDING-secret-channel)")
+
+// UnavailableRef returns the marker of a D-051 reference whose material the agent does not hold.
+func UnavailableRef(d051 string) string { return UnavailablePrefix + d051 }
+
+func unavailable(ref string) (string, bool) {
+	if !strings.HasPrefix(ref, UnavailablePrefix) {
+		return "", false
+	}
+	return vpn.Redact(strings.TrimPrefix(ref, UnavailablePrefix)), true
 }
 
 // ItfName is the VPP name of the WireGuard interface with the given instance.

@@ -25,6 +25,10 @@ import {
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
+  type QosPolicerResetRequest,
+  type QosPolicerResetResponse,
+  type QosPolicerStateRequest,
+  type QosPolicerStateResponse,
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
@@ -153,6 +157,14 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
+  /** F-qos-flat (proto.md §11): this owner's policers and shapers as VPP reports them, with their counters. */
+  qosPolicerState(req: Omit<QosPolicerStateRequest, 'owner'>): Promise<QosPolicerStateResponse> {
+    return this.unary(this.c.qosPolicerState, { ...req, owner: this.owner });
+  }
+  /** F-qos-flat (proto.md §11): refill one policer's token buckets (policer_reset). */
+  qosPolicerReset(req: Omit<QosPolicerResetRequest, 'owner'>): Promise<QosPolicerResetResponse> {
+    return this.unary(this.c.qosPolicerReset, { ...req, owner: this.owner });
+  }
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow

@@ -46,14 +46,16 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_Apply_FullMethodName          = "/vrx.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName       = "/vrx.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName         = "/vrx.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName    = "/vrx.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName   = "/vrx.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName         = "/vrx.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName         = "/vrx.v1.Dataplane/Health"
-	Dataplane_InterfaceState_FullMethodName = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_Apply_FullMethodName           = "/vrx.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName        = "/vrx.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName          = "/vrx.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName     = "/vrx.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName    = "/vrx.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName          = "/vrx.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName          = "/vrx.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName  = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_QosPolicerState_FullMethodName = "/vrx.v1.Dataplane/QosPolicerState"
+	Dataplane_QosPolicerReset_FullMethodName = "/vrx.v1.Dataplane/QosPolicerReset"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -92,6 +94,14 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+	// agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+	// buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+	// status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+	QosPolicerState(ctx context.Context, in *QosPolicerStateRequest, opts ...grpc.CallOption) (*QosPolicerStateResponse, error)
+	// QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+	// keeps the counters (they restart only when the policer is re-created or updated).
+	QosPolicerReset(ctx context.Context, in *QosPolicerResetRequest, opts ...grpc.CallOption) (*QosPolicerResetResponse, error)
 }
 
 type dataplaneClient struct {
@@ -209,6 +219,26 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) QosPolicerState(ctx context.Context, in *QosPolicerStateRequest, opts ...grpc.CallOption) (*QosPolicerStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QosPolicerStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_QosPolicerState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) QosPolicerReset(ctx context.Context, in *QosPolicerResetRequest, opts ...grpc.CallOption) (*QosPolicerResetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QosPolicerResetResponse)
+	err := c.cc.Invoke(ctx, Dataplane_QosPolicerReset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -245,6 +275,14 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+	// agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+	// buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+	// status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+	QosPolicerState(context.Context, *QosPolicerStateRequest) (*QosPolicerStateResponse, error)
+	// QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+	// keeps the counters (they restart only when the policer is re-created or updated).
+	QosPolicerReset(context.Context, *QosPolicerResetRequest) (*QosPolicerResetResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -278,6 +316,12 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) QosPolicerState(context.Context, *QosPolicerStateRequest) (*QosPolicerStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QosPolicerState not implemented")
+}
+func (UnimplementedDataplaneServer) QosPolicerReset(context.Context, *QosPolicerResetRequest) (*QosPolicerResetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method QosPolicerReset not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -423,6 +467,42 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_QosPolicerState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QosPolicerStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).QosPolicerState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_QosPolicerState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).QosPolicerState(ctx, req.(*QosPolicerStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_QosPolicerReset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QosPolicerResetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).QosPolicerReset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_QosPolicerReset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).QosPolicerReset(ctx, req.(*QosPolicerResetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -449,6 +529,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "QosPolicerState",
+			Handler:    _Dataplane_QosPolicerState_Handler,
+		},
+		{
+			MethodName: "QosPolicerReset",
+			Handler:    _Dataplane_QosPolicerReset_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

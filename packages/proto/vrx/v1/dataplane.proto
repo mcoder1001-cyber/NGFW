@@ -79,6 +79,16 @@ service Dataplane {
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
   // wave-BC: F-qos-flat
+
+  // QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+  // agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+  // buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+  // status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+  rpc QosPolicerState(QosPolicerStateRequest) returns (QosPolicerStateResponse);
+  // QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+  // keeps the counters (they restart only when the policer is re-created or updated).
+  rpc QosPolicerReset(QosPolicerResetRequest) returns (QosPolicerResetResponse);
+
   // wave-BC: F-host-stack
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
@@ -3610,6 +3620,90 @@ message RemoteAccessProfile {
 // ----- F-lb -----
 
 // ----- F-qos-flat -----
+
+// QosPolicerStateRequest selects policers of this agent.
+message QosPolicerStateRequest {
+  // Must be empty or equal to the agent's owner (§6).
+  string owner = 1;
+  // Policer names without the owner prefix (a `services.qos.policers` key, or "shaper:<name>"); empty = all.
+  repeated string names = 2;
+}
+
+// QosPolicerCounter is one colour's counter of a policer, summed over VPP's threads.
+message QosPolicerCounter {
+  // Packets.
+  uint64 packets = 1;
+  // Bytes.
+  uint64 bytes = 2;
+}
+
+// QosPolicerStatus is one policer of this owner as VPP reports it (policer_dump_v2 + stats segment).
+message QosPolicerStatus {
+  // Name without the owner prefix: a `services.qos.policers` key, or "shaper:<name>" for a shaper.
+  string name = 1;
+  // "policer" | "shaper".
+  string kind = 2;
+  // VPP pool index (changes when the policer is re-created).
+  uint32 index = 3;
+  // "1r2c" | "1r3c-rfc2697" | "2r3c-rfc2698" | "2r3c-rfc4115" | "2r3c-mef5cf1" (the configuration spelling).
+  string type = 4;
+  // "kbps" | "pps".
+  string rate_unit = 5;
+  // Committed information rate.
+  uint32 cir = 6;
+  // Excess / peak information rate (0 for single-rate policers).
+  uint32 eir = 7;
+  // Committed burst (bytes for kbps, packets for pps).
+  uint64 cb = 8;
+  // Excess burst.
+  uint64 eb = 9;
+  // Committed token bucket fill (policer_details current_bucket, VPP's internal token units).
+  uint32 current_bucket = 10;
+  // Committed token bucket limit.
+  uint32 current_limit = 11;
+  // Extended (excess / peak) token bucket fill.
+  uint32 extended_bucket = 12;
+  // Extended token bucket limit.
+  uint32 extended_limit = 13;
+  // Conforming traffic.
+  QosPolicerCounter conform = 14;
+  // Exceeding traffic.
+  QosPolicerCounter exceed = 15;
+  // Violating traffic (three-colour policers).
+  QosPolicerCounter violate = 16;
+}
+
+// QosPolicerStateResponse lists the selected policers, sorted by name.
+message QosPolicerStateResponse {
+  // Policers.
+  repeated QosPolicerStatus policers = 1;
+  // The agent's owner.
+  string owner = 2;
+  // When VPP was read.
+  google.protobuf.Timestamp retrieved_at = 3;
+  // Non-empty when the stats segment could not be read: the counters are then zero, the rest is valid.
+  string counters_error = 4;
+}
+
+// QosPolicerResetRequest names the policer whose token buckets are refilled.
+message QosPolicerResetRequest {
+  // Must be empty or equal to the agent's owner (§6).
+  string owner = 1;
+  // Policer name without the owner prefix (a `services.qos.policers` key, or "shaper:<name>").
+  string name = 2;
+}
+
+// QosPolicerResetResponse confirms a reset.
+message QosPolicerResetResponse {
+  // The agent's owner.
+  string owner = 1;
+  // The policer.
+  string name = 2;
+  // VPP pool index of the policer that was reset.
+  uint32 index = 3;
+  // When the reset was sent.
+  google.protobuf.Timestamp reset_at = 4;
+}
 
 // ----- F-host-stack -----
 

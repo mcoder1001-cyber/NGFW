@@ -16207,8 +16207,8 @@ type LispStateMapping struct {
 	Rlocs []string `protobuf:"bytes,5,rep,name=rlocs,proto3" json:"rlocs,omitempty"`
 	// Negative-mapping action (no-action, natively-forward, send-map-request, drop).
 	Action string `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty"`
-	// Configured statically (true) or learned from a map-reply (false).
-	IsStatic bool `protobuf:"varint,7,opt,name=is_static,json=isStatic,proto3" json:"is_static,omitempty"`
+	// The mapping came from an authoritative source (map-reply authoritative bit / static).
+	Authoritative bool `protobuf:"varint,7,opt,name=authoritative,proto3" json:"authoritative,omitempty"`
 	// TTL in minutes (learned mappings).
 	Ttl           uint32 `protobuf:"varint,8,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -16287,9 +16287,9 @@ func (x *LispStateMapping) GetAction() string {
 	return ""
 }
 
-func (x *LispStateMapping) GetIsStatic() bool {
+func (x *LispStateMapping) GetAuthoritative() bool {
 	if x != nil {
-		return x.IsStatic
+		return x.Authoritative
 	}
 	return false
 }
@@ -22491,7 +22491,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x06weight\x18\x04 \x01(\rR\x06weight\"_\n" +
 	"\x13LispStateLocatorSet\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x124\n" +
-	"\blocators\x18\x02 \x03(\v2\x18.vrx.v1.LispStateLocatorR\blocators\"\xca\x01\n" +
+	"\blocators\x18\x02 \x03(\v2\x18.vrx.v1.LispStateLocatorR\blocators\"\xd3\x01\n" +
 	"\x10LispStateMapping\x12\x10\n" +
 	"\x03vni\x18\x01 \x01(\rR\x03vni\x12\x10\n" +
 	"\x03eid\x18\x02 \x01(\tR\x03eid\x12\x14\n" +
@@ -22499,8 +22499,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\vlocator_set\x18\x04 \x01(\tR\n" +
 	"locatorSet\x12\x14\n" +
 	"\x05rlocs\x18\x05 \x03(\tR\x05rlocs\x12\x16\n" +
-	"\x06action\x18\x06 \x01(\tR\x06action\x12\x1b\n" +
-	"\tis_static\x18\a \x01(\bR\bisStatic\x12\x10\n" +
+	"\x06action\x18\x06 \x01(\tR\x06action\x12$\n" +
+	"\rauthoritative\x18\a \x01(\bR\rauthoritative\x12\x10\n" +
 	"\x03ttl\x18\b \x01(\rR\x03ttl\"N\n" +
 	"\x12LispStateAdjacency\x12\x10\n" +
 	"\x03vni\x18\x01 \x01(\rR\x03vni\x12\x12\n" +

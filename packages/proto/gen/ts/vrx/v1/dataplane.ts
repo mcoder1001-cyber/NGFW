@@ -5418,8 +5418,8 @@ export interface LispStateMapping {
   rlocs: string[];
   /** Negative-mapping action (no-action, natively-forward, send-map-request, drop). */
   action: string;
-  /** Configured statically (true) or learned from a map-reply (false). */
-  isStatic: boolean;
+  /** The mapping came from an authoritative source (map-reply authoritative bit / static). */
+  authoritative: boolean;
   /** TTL in minutes (learned mappings). */
   ttl: number;
 }
@@ -44552,7 +44552,7 @@ export const LispStateLocatorSet: MessageFns<LispStateLocatorSet> = {
 };
 
 function createBaseLispStateMapping(): LispStateMapping {
-  return { vni: 0, eid: "", local: false, locatorSet: "", rlocs: [], action: "", isStatic: false, ttl: 0 };
+  return { vni: 0, eid: "", local: false, locatorSet: "", rlocs: [], action: "", authoritative: false, ttl: 0 };
 }
 
 export const LispStateMapping: MessageFns<LispStateMapping> = {
@@ -44575,8 +44575,8 @@ export const LispStateMapping: MessageFns<LispStateMapping> = {
     if (message.action !== "") {
       writer.uint32(50).string(message.action);
     }
-    if (message.isStatic !== false) {
-      writer.uint32(56).bool(message.isStatic);
+    if (message.authoritative !== false) {
+      writer.uint32(56).bool(message.authoritative);
     }
     if (message.ttl !== 0) {
       writer.uint32(64).uint32(message.ttl);
@@ -44650,7 +44650,7 @@ export const LispStateMapping: MessageFns<LispStateMapping> = {
               break;
             }
 
-            message.isStatic = reader.bool();
+            message.authoritative = reader.bool();
             continue;
           }
           case 8: {
@@ -44685,11 +44685,7 @@ export const LispStateMapping: MessageFns<LispStateMapping> = {
         : "",
       rlocs: globalThis.Array.isArray(object?.rlocs) ? object.rlocs.map((e: any) => globalThis.String(e)) : [],
       action: isSet(object.action) ? globalThis.String(object.action) : "",
-      isStatic: isSet(object.isStatic)
-        ? globalThis.Boolean(object.isStatic)
-        : isSet(object.is_static)
-        ? globalThis.Boolean(object.is_static)
-        : false,
+      authoritative: isSet(object.authoritative) ? globalThis.Boolean(object.authoritative) : false,
       ttl: isSet(object.ttl) ? globalThis.Number(object.ttl) : 0,
     };
   },
@@ -44714,8 +44710,8 @@ export const LispStateMapping: MessageFns<LispStateMapping> = {
     if (message.action !== "") {
       obj.action = message.action;
     }
-    if (message.isStatic !== false) {
-      obj.isStatic = message.isStatic;
+    if (message.authoritative !== false) {
+      obj.authoritative = message.authoritative;
     }
     if (message.ttl !== 0) {
       obj.ttl = Math.round(message.ttl);
@@ -44734,7 +44730,7 @@ export const LispStateMapping: MessageFns<LispStateMapping> = {
     message.locatorSet = object.locatorSet ?? "";
     message.rlocs = object.rlocs?.map((e) => e) || [];
     message.action = object.action ?? "";
-    message.isStatic = object.isStatic ?? false;
+    message.authoritative = object.authoritative ?? false;
     message.ttl = object.ttl ?? 0;
     return message;
   },

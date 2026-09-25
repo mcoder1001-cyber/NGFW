@@ -3755,8 +3755,8 @@ message LispStateMapping {
   repeated string rlocs = 5;
   // Negative-mapping action (no-action, natively-forward, send-map-request, drop).
   string action = 6;
-  // Configured statically (true) or learned from a map-reply (false).
-  bool is_static = 7;
+  // The mapping came from an authoritative source (map-reply authoritative bit / static).
+  bool authoritative = 7;
   // TTL in minutes (learned mappings).
   uint32 ttl = 8;
 }

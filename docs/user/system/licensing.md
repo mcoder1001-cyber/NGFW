@@ -8,7 +8,7 @@ checked only when you commit a configuration.
 
 | Situation | Status | Effect |
 |---|---|---|
-| No licence installed | `community` | The community feature set applies (currently permissive, see below). |
+| No licence installed | `community` | No gated feature: new configuration of any feature in the table below is refused. |
 | Licence valid | `valid` | The licence's features and limits apply. |
 | Licence expired, less than 30 days ago | `grace` | Licence still applies; every commit returns a warning; a banner is shown; a `license.grace` system event is recorded. |
 | Licence expired more than 30 days ago | `expired` | Community set for **new** configuration; a `license.expired` system event is recorded. |
@@ -19,20 +19,21 @@ forwarding. Only a commit that *adds* an unlicensed feature (a node that is not 
 with `403` `application/problem+json`, `type …/license-required`, `tier: "license"` and `errors[].pointer` naming the
 first offending node, for example `/ha/vrrp/lan-v4`.
 
-## Entitlement table (SAMPLE — to be confirmed by the product owner)
+## Entitlement table
 
-**Today the community set is permissive: every feature below, no limits** (`COMMUNITY` in `entitlements.ts`), until the
-product owner decides the matrix (`docs/decisions/PENDING-licensing-matrix.md`). The "Community" column is the
-restrictive SAMPLE (`SAMPLE_COMMUNITY`) used by the tests.
+**Every feature below requires a licence** (product owner decision, `docs/decisions/DEC-licensing-matrix.md`). An
+unlicensed device (no licence, `invalid`, or `expired` past grace) refuses any commit that *adds* configuration of these
+features; the community set is empty with every limit at 0 (`COMMUNITY` in `entitlements.ts`). Configuration already
+running is grandfathered and keeps working.
 
-| Feature id | Used when the configuration has | Community |
+| Feature id | Used when the configuration has | Without licence |
 |---|---|---|
-| `ipsec` | `/vpn/ipsec/tunnels/*` | no |
-| `wireguard` | `/vpn/wireguard/interfaces/*` | yes, up to 2 interfaces |
-| `bgp` | `/routing/bgp` | no |
-| `ospf` | `/routing/ospf` | yes |
-| `isis` | `/routing/isis` | no |
-| `ha` | `/ha/vrrp/*`, `/ha/cluster` | no |
+| `ipsec` | `/vpn/ipsec/tunnels/*` | refused |
+| `wireguard` | `/vpn/wireguard/interfaces/*` | refused |
+| `bgp` | `/routing/bgp` | refused |
+| `ospf` | `/routing/ospf` | refused |
+| `isis` | `/routing/isis` | refused |
+| `ha` | `/ha/vrrp/*`, `/ha/cluster` | refused |
 
 | Limit id | Counts | Missing in the licence |
 |---|---|---|
@@ -75,8 +76,11 @@ Everything else (interfaces, static routing, NAT, ACLs, services, …) is never 
 no whitespace). `binding` is optional: `serial` (DMI product serial, `/sys/class/dmi/id/product_serial`) and/or
 `machineIdHash` (SHA-256 hex of `/etc/machine-id`). Note that VM templates clone `/etc/machine-id`; prefer the serial.
 
-The API trusts the product public key(s) compiled into `apps/api/src/features/licensing/licensing.config.ts`. For
-development only, `VRX_LICENSE_PUBKEY_FILE` adds one more trusted key. The installed file is stored at
+The API trusts the product public key(s) compiled into `apps/api/src/features/licensing/licensing.config.ts`, or, when
+`VRX_LICENSE_PUBLIC_KEYS` is set (comma-separated PEM public keys; `\n` escapes allowed), exactly those keys instead.
+**Release engineering must set `VRX_LICENSE_PUBLIC_KEYS` or replace the embedded key**: the embedded key is a
+placeholder whose private half was discarded, so without that step no licence verifies and every device stays
+unlicensed. For development only, `VRX_LICENSE_PUBKEY_FILE` adds one more trusted key. The installed file is stored at
 `VRX_LICENSE_FILE` (default `/var/lib/vrx/license.vrxlic`). `VRX_LICENSE_SERIAL` overrides the detected serial.
 
 ## How support issues a licence

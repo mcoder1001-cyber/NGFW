@@ -5,7 +5,8 @@ import type { Entitlements } from './entitlements.js';
  * PRODUCT_PUBLIC_KEYS: the Ed25519 public key(s) the API build trusts. The key below is a PLACEHOLDER generated for
  * development; its private half was discarded, so no licence verifies against it. Release engineering replaces it
  * with the product key whose private half lives offline with support (docs/user/system/licensing.md). Several keys
- * may be listed for key rotation.
+ * may be listed for key rotation. VRX_LICENSE_PUBLIC_KEYS (comma-separated PEMs, `\n` escapes allowed) replaces
+ * this list when set.
  */
 export const PRODUCT_PUBLIC_KEYS: readonly string[] = [
   `-----BEGIN PUBLIC KEY-----
@@ -31,8 +32,21 @@ export interface LicensingOptions {
   /** Re-evaluation period for the expiry event (ms). */
   checkIntervalMs: number;
   now: () => Date;
-  /** Community entitlements; default COMMUNITY (permissive). Tests pass SAMPLE_COMMUNITY. */
+  /** Trusted product keys (VRX_LICENSE_PUBLIC_KEYS); replaces PRODUCT_PUBLIC_KEYS when set. */
+  publicKeys?: readonly string[] | undefined;
+  /** Community entitlements; default COMMUNITY (no gated feature). Tests may pass SAMPLE_COMMUNITY. */
   community?: Entitlements | undefined;
+}
+
+/** Parse VRX_LICENSE_PUBLIC_KEYS: comma-separated PEM public keys; undefined when unset or empty. */
+export function parsePublicKeys(raw: string | undefined): string[] | undefined {
+  if (!raw) return undefined;
+  const keys = raw
+    .split(',')
+    .map((k) => k.replace(/\\n/g, '\n').trim())
+    .filter((k) => k.length > 0)
+    .map((k) => `${k}\n`);
+  return keys.length > 0 ? keys : undefined;
 }
 
 export function licensingOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): LicensingOptions {
@@ -40,6 +54,7 @@ export function licensingOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): L
     file: env.VRX_LICENSE_FILE || '/var/lib/vrx/license.vrxlic',
     extraPublicKeyFile: env.VRX_LICENSE_PUBKEY_FILE || undefined,
     serial: env.VRX_LICENSE_SERIAL || undefined,
+    publicKeys: parsePublicKeys(env.VRX_LICENSE_PUBLIC_KEYS),
     machineIdFile: '/etc/machine-id',
     dmiSerialFile: '/sys/class/dmi/id/product_serial',
     checkIntervalMs: 3_600_000,

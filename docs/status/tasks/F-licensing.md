@@ -27,7 +27,7 @@ Branch `task/F-licensing` (base be53867). Cloud container run: no PostgreSQL, Va
 
 ## Review fixes (coordinator BLOCK)
 1. `COMMUNITY` is now permissive (every gated feature, no limits); the restrictive set is `SAMPLE_COMMUNITY` (tests via
-   `LicensingOptions.community`, docs table). `docs/decisions/PENDING-licensing-matrix.md` (matrix + real signing key;
+   `LicensingOptions.community`, docs table). `docs/decisions/DEC-licensing-matrix.md` (matrix + real signing key;
    nothing parked).
 2. Unreadable / non-verifying stored licence: `Logger.warn` with path + error class only (no content/signature);
    state `invalid` with reason (test asserts the log has no signature).

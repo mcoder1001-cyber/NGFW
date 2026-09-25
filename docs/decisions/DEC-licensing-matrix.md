@@ -1,8 +1,8 @@
-# PENDING: licensing-matrix
+# DEC: licensing-matrix (resolved)
 
 - raised: 2026-09-25 by F-licensing
-- decision: **<empty until the product owner fills it>**
-- parked tasks: none (enforcement is permissive until answered)
+- decision: **2026-09-25, product owner: every gated feature requires a licence, apply now.** `COMMUNITY` = no gated feature, every limit 0; running configuration stays grandfathered (D-144) and the 30-day grace stays. The embedded key remains a placeholder: release engineering sets `VRX_LICENSE_PUBLIC_KEYS` or replaces the key (D-151).
+- parked tasks: none
 
 ## Context
 F-licensing enforces entitlements at commit validation (offline Ed25519 `.vrxlic`). Two things only the product owner
@@ -27,3 +27,8 @@ Option 1 now; product owner supplies the matrix (option 3 or 2) and the key befo
 
 ## What continues meanwhile
 Everything: F-licensing merges with permissive enforcement; no task is parked.
+
+## Decision
+2026-09-25, product owner: every gated feature (ipsec, wireguard, bgp, ospf, isis, ha) requires a licence; apply now
+(a stricter variant of option 3). Implemented by S-license-all: `COMMUNITY` is empty with zero limits, grandfathering and
+grace unchanged; new env var `VRX_LICENSE_PUBLIC_KEYS` replaces the embedded placeholder key list. LOG: D-151.

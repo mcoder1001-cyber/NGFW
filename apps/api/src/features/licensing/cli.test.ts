@@ -1,9 +1,8 @@
-import { execFileSync, spawnSync } from 'node:child_process';
 import { createPublicKey } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Test } from '@nestjs/testing';
 import { APP_FILTER } from '@nestjs/core';
 import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
@@ -22,8 +21,20 @@ const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 /** tools/license/vrx-license.mjs end to end; keys are generated under a fresh temp dir (0700) and deleted. */
 describe('vrx-license CLI', () => {
   const dir = mkdtempSync(join(tmpdir(), 'vrx-lic-cli-'));
-  const run = (...args: string[]) =>
-    spawnSync(process.execPath, [CLI, ...args], { encoding: 'utf8' });
+  type Cli = {
+    main: (argv: string[], io: { out: (s: string) => void; err: (s: string) => void }) => number;
+  };
+  let cli: Cli;
+  beforeAll(async () => {
+    cli = (await import(pathToFileURL(CLI).href)) as Cli;
+  });
+  /** The CLI in-process (apps/api may not spawn processes — tools/ci.sh forbidden patterns). */
+  const run = (...args: string[]) => {
+    let stdout = '';
+    let stderr = '';
+    const status = cli.main(args, { out: (x) => (stdout += x), err: (x) => (stderr += x) });
+    return { status, stdout, stderr };
+  };
   const keyDir = join(dir, 'keys');
   const lic = join(dir, 'a.vrxlic');
 
@@ -67,9 +78,7 @@ describe('vrx-license CLI', () => {
     expect(run('verify', '--pub', pub, '--at', '2099-01-01T00:00:00Z', lic).stdout).toMatch(
       /expired/,
     );
-    const shown = JSON.parse(
-      execFileSync(process.execPath, [CLI, 'inspect', lic], { encoding: 'utf8' }),
-    );
+    const shown = JSON.parse(run('inspect', lic).stdout);
     expect(shown).toMatchObject({ licenseId: 'LIC-CLI-1', binding: { serial: 'SER-9' } });
     expect(JSON.stringify(shown)).not.toContain('signature');
     const text = readFileSync(lic, 'utf8');

@@ -40,10 +40,18 @@ export function machineIdHash(id) {
   return createHash('sha256').update(id.trim(), 'utf8').digest('hex');
 }
 
-function fail(msg) {
-  process.stderr.write(`vrx-license: ${msg}\n`);
-  process.exit(2);
+class CliExit extends Error {
+  constructor(code, msg) {
+    super(msg);
+    this.code = code;
+  }
 }
+
+function fail(msg) {
+  throw new CliExit(2, `vrx-license: ${msg}\n`);
+}
+
+let out = (s) => process.stdout.write(s);
 
 function parseArgs(argv) {
   const flags = {};
@@ -86,7 +94,7 @@ function keygen(flags) {
   writeFileSync(priv, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
   chmodSync(priv, 0o600);
   writeFileSync(pub, publicKey.export({ type: 'spki', format: 'pem' }), { mode: 0o644 });
-  process.stdout.write(`signing key: ${resolve(priv)}\npublic key:  ${resolve(pub)}\n`);
+  out(`signing key: ${resolve(priv)}\npublic key:  ${resolve(pub)}\n`);
 }
 
 function isoOr(v, name) {
@@ -140,7 +148,7 @@ function issue(flags) {
     `${JSON.stringify({ format: LICENSE_FORMAT, license, signature }, null, 2)}\n`,
     { mode: 0o644 },
   );
-  process.stdout.write(`issued ${license.licenseId} → ${resolve(flags.out)}\n`);
+  out(`issued ${license.licenseId} → ${resolve(flags.out)}\n`);
 }
 
 function readLicense(file) {
@@ -170,8 +178,8 @@ function verifyCmd(flags, pos) {
     Buffer.from(f.signature, 'base64'),
   );
   if (!ok) {
-    process.stdout.write('INVALID: signature does not verify\n');
-    process.exit(1);
+    out('INVALID: signature does not verify\n');
+    return 1;
   }
   const at = Date.parse(isoOr(flags.at, 'at') ?? new Date().toISOString());
   const exp = Date.parse(f.license.expiresAt);
@@ -179,29 +187,49 @@ function verifyCmd(flags, pos) {
   if (at < Date.parse(f.license.notBefore)) status = 'not-yet-valid';
   else if (at > exp + GRACE_DAYS * 86_400_000) status = 'expired';
   else if (at > exp) status = 'grace';
-  process.stdout.write(
+  out(
     `signature OK; status ${status} (licence ${f.license.licenseId}, expires ${f.license.expiresAt})\n`,
   );
-  process.exit(status === 'valid' || status === 'grace' ? 0 : 1);
+  return status === 'valid' || status === 'grace' ? 0 : 1;
 }
 
 function inspect(pos) {
   if (!pos[0]) fail('inspect needs a file');
   const f = readLicense(pos[0]);
-  process.stdout.write(`${JSON.stringify(f.license, null, 2)}\n`);
+  out(`${JSON.stringify(f.license, null, 2)}\n`);
+}
+
+/**
+ * Run one command; returns the exit code. `io.out` / `io.err` receive the output (default: process streams), so the
+ * API's vitest suite runs the CLI in-process (no child processes in apps/api — tools/ci.sh forbidden patterns).
+ */
+export function main(argv, io = {}) {
+  const prev = out;
+  out = io.out ?? ((s) => process.stdout.write(s));
+  const err = io.err ?? ((s) => process.stderr.write(s));
+  try {
+    const [cmd, ...rest] = argv;
+    const { flags, pos } = parseArgs(rest);
+    if (cmd === 'keygen') keygen(flags);
+    else if (cmd === 'issue') issue(flags);
+    else if (cmd === 'verify') return verifyCmd(flags, pos);
+    else if (cmd === 'inspect') inspect(pos);
+    else
+      fail(
+        'usage: vrx-license keygen|issue|verify|inspect (see the header of tools/license/vrx-license.mjs)',
+      );
+    return 0;
+  } catch (e) {
+    if (e instanceof CliExit) {
+      err(e.message);
+      return e.code;
+    }
+    throw e;
+  } finally {
+    out = prev;
+  }
 }
 
 const isMain =
   process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
-if (isMain) {
-  const [cmd, ...rest] = process.argv.slice(2);
-  const { flags, pos } = parseArgs(rest);
-  if (cmd === 'keygen') keygen(flags);
-  else if (cmd === 'issue') issue(flags);
-  else if (cmd === 'verify') verifyCmd(flags, pos);
-  else if (cmd === 'inspect') inspect(pos);
-  else
-    fail(
-      'usage: vrx-license keygen|issue|verify|inspect (see the header of tools/license/vrx-license.mjs)',
-    );
-}
+if (isMain) process.exitCode = main(process.argv.slice(2));

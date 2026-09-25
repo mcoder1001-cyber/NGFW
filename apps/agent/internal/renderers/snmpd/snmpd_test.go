@@ -17,6 +17,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
@@ -356,7 +357,9 @@ func TestSecretRefRules(t *testing.T) {
 		{"aes256 unsupported", with(base(), "v3Users", map[string]any{"u": map[string]any{"authRef": "password/u1-auth", "privProtocol": "aes256", "privRef": "password/u1-priv"}}), nil, ErrInput},
 		{"vrf", with(base(), "vrf", "mgmt"), nil, ErrInput},
 		{"undefined view", with(base(), "communities", map[string]any{"ro": map[string]any{"secretRef": "password/snmp-ro", "view": "nope"}}), nil, ErrInput},
-		{"unknown stand-in key", with(base(), "monitors", map[string]any{"disks": []any{}, "exec": "/bin/sh"}), nil, ErrInput},
+		{"monitor out of range (typed, D-086)", with(base(), "monitors", map[string]any{"disks": []any{map[string]any{"path": "/", "minPercent": 100}}}), nil, ErrInput},
+		{"load incomplete (typed, D-086)", with(base(), "monitors", map[string]any{"load": map[string]any{"max1": 1}}), nil, ErrInput},
+		{"sysServices out of range (typed, D-086)", with(base(), "sysServices", 128), nil, ErrInput},
 		{"trap unknown community", with(base(), "trapReceivers", []any{map[string]any{"address": "192.0.2.1", "community": "nope"}}), nil, ErrInput},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -758,5 +761,42 @@ func TestDescriptionNeverRendered(t *testing.T) {
 	}
 	if c := files[r.paths.ConfFile].Content; bytes.Contains(c, []byte("rm -rf")) || bytes.Contains(c, []byte("public")) {
 		t.Fatalf("description reached snmpd.conf:\n%s", c)
+	}
+}
+
+// TestTypedStandIns (F-snmp, D-086): the former stand-ins are contract fields now; a typed
+// *vrxv1.DesiredState renders byte-for-byte what the structpb document of the "full" golden renders,
+// and a key the contract does not have (e.g. an `exec` monitor) cannot reach the file.
+func TestTypedStandIns(t *testing.T) {
+	r := newRenderer(t)
+	st := doc(t, goldenCases["full"])
+	raw, err := protojson.Marshal(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ds := &vrxv1.DesiredState{}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, ds); err != nil {
+		t.Fatal(err)
+	}
+	if len(ds.GetServices().GetSnmp().GetViews()) == 0 || ds.GetServices().GetSnmp().GetMonitors() == nil {
+		t.Fatal("typed document lost the views/monitors fields")
+	}
+	a, err := r.Render(context.Background(), st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := r.Render(context.Background(), ds)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(a[r.paths.ConfFile].Content, b[r.paths.ConfFile].Content) {
+		t.Fatalf("typed rendering differs from the structpb rendering")
+	}
+	files, err := r.Render(context.Background(), doc(t, with(base(), "monitors", map[string]any{"disks": []any{}, "exec": "/bin/sh"})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(files[r.paths.ConfFile].Content, []byte("/bin/sh")) {
+		t.Fatal("an unknown monitor key reached snmpd.conf")
 	}
 }

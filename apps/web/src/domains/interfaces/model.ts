@@ -28,6 +28,7 @@ export function interfaceFormSchema(): JsonSchema {
   const item = interfaceItemSchema();
   const props = { ...((item.properties ?? {}) as Record<string, JsonSchema>) };
   delete props['subinterfaces'];
+  delete props['bond']; // F-bonding: edited on the Bonds page; its required `mode` would block every save here (phantom default)
   const required = Array.isArray(item.required) ? item.required.filter((r) => r !== 'subinterfaces') : undefined;
   return { ...item, properties: props, ...(required ? { required } : {}) } as JsonSchema;
 }

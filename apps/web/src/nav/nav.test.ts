@@ -34,6 +34,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(available).toEqual([
       'dashboard',
       'interfaces',
+      // wave-A: F-bonding (a non-domain item in the interfaces group, after the interfaces domain)
+      'bonds',
       // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
@@ -51,7 +53,6 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-object-model (firewall group sorts before the vpn group)
       'objects',
       'vpn',
-      // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-neighbors-ra

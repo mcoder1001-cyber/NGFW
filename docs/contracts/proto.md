@@ -371,6 +371,26 @@ Each wave-A/B feature documents its new RPCs, `ActionRequest` members and `Event
 never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 
 <!-- wave-A: F-bonding -->
+
+### F-bonding: BondState (+ `Interface.bond` 13)
+
+Config (additive): `interfaces.<BondEthernet<id>>.bond` (`Bond`: `mode`, `load_balance`, `members` keyed by the member's
+logical name → `BondMember{passive, long_timeout, weight}`, `numa_only`, `id`). The bond is named `BondEthernet<id>` — VPP's
+name — so the configuration key, the logical name (D-069) and VPP's name coincide; `id` is optional and equals the number in
+the name. The agent realises it with DF-1's `bond.bond` / `bond.member` and F-bonding's `bond.member-weight`. Retrieve
+reports the same message: `mode`, `numa_only`, every member with `passive` / `long_timeout`; `load_balance` for xor/lacp bonds
+when the running document sets it or VPP's value is not l2 (absent ≡ l2); `id` only when the stored document sets it;
+`weight` when VPP reports a non-zero weight (0 is VPP's "never set").
+
+- **`BondState(names, owner)`** — read-only, like `InterfaceState` (§8a): one `BondStatus` per bond interface that carries this
+  agent's owner tag (`names` empty = all), sorted by name: VPP name, sw_if_index, id, `mode` and `load_balance` in the
+  configuration spelling (`load_balance` is VPP's forced value `round-robin|active-backup` for those modes; VPP's `broadcast` mode is not offered, Q1), admin
+  and link state, member and active-member counts, and per member (sorted by interface): logical name, sw_if_index,
+  passive / long-timeout, weight, NUMA locality, admin/link state and — for LACP bonds — `BondLacpState` (rx/tx/mux/ptx state
+  machine names from the lacp plugin, actor and partner system/key/port/state octet + decoded flags). Bounded: bonds and
+  members are few, one message. `UNAVAILABLE` while VPP is disconnected; an agent without the RPC answers `UNIMPLEMENTED`.
+- API: `GET /api/v1/state/interfaces/bonds` (`BondingController`) merges it with the running and candidate configuration.
+
 <!-- wave-A: F-bridge-l2 -->
 <!-- wave-A: F-loopback-bvi-gso-lldp-span -->
 <!-- wave-A: F-vrf-static-ecmp -->

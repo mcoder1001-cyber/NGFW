@@ -1,0 +1,41 @@
+{
+  "interfaces": {
+    "BondEthernet0": {
+      "enabled": true,
+      "description": "LACP uplink",
+      "mtu": 9000,
+      "ipv4": ["192.0.2.1/24"],
+      "ipv6": ["2001:db8::1/64"],
+      "vrf": "default",
+      "bond": {
+        "mode": "lacp",
+        "loadBalance": "l34",
+        "members": {
+          "TenGigabitEthernet0/0/0": { "passive": false, "longTimeout": false },
+          "TenGigabitEthernet0/0/1": { "passive": true, "longTimeout": true }
+        },
+        "numaOnly": false,
+        "id": 0
+      },
+      "subinterfaces": {
+        "100": { "vlanId": 100, "enabled": true, "ipv4": ["198.51.100.1/24"], "vrf": "default" }
+      }
+    },
+    "BondEthernet1": {
+      "enabled": true,
+      "ipv4": ["203.0.113.1/24"],
+      "bond": {
+        "mode": "active-backup",
+        "members": {
+          "TenGigabitEthernet0/0/2": { "passive": false, "longTimeout": false, "weight": 200 },
+          "TenGigabitEthernet0/0/3": { "passive": false, "longTimeout": false, "weight": 100 }
+        },
+        "numaOnly": true
+      }
+    },
+    "TenGigabitEthernet0/0/0": { "enabled": true, "mtu": 9000 },
+    "TenGigabitEthernet0/0/1": { "enabled": true, "mtu": 9000 },
+    "TenGigabitEthernet0/0/2": { "enabled": true },
+    "TenGigabitEthernet0/0/3": { "enabled": true }
+  }
+}

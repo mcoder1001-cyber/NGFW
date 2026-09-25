@@ -67,6 +67,8 @@ import faLicensing from './locales/fa/licensing.json';
 // wave-A: UI-domain-editor
 // wave-A: F-vlan-qinq
 // wave-A: F-bonding
+import enBonding from './locales/en/bonding.json';
+import faBonding from './locales/fa/bonding.json';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -138,6 +140,7 @@ export const NAMESPACES = [
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  'bonding',
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -209,6 +212,7 @@ const en = {
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  bonding: enBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -277,6 +281,7 @@ const fa = {
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
+  bonding: faBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

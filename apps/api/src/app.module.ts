@@ -65,6 +65,7 @@ import { licensingFeature } from './features/licensing/index.js';
 // wave-BC: F-images
 // wave-BC: F-backup-restore
 // wave-A: F-bonding
+import { bondingFeature } from './features/bonding/index.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -155,6 +156,7 @@ export class AppModule {
         // wave-BC: F-images
         // wave-BC: F-backup-restore
         // wave-A: F-bonding
+        ...bondingFeature.controllers,
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
@@ -229,6 +231,7 @@ export class AppModule {
         // wave-BC: F-images
         // wave-BC: F-backup-restore
         // wave-A: F-bonding
+        ...bondingFeature.providers,
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp

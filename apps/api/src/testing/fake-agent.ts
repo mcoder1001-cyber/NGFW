@@ -38,6 +38,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { lispStateFake } from '../features/lisp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -639,6 +640,7 @@ export class FakeAgent {
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
       // wave-BC: F-lisp
+      lispState: lispStateFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn
       // wave-BC: F-mpls-ldp

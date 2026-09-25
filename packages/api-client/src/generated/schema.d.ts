@@ -640,6 +640,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/lisp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** LISP / LISP-GPE: switches, locator sets, local EIDs and map-cache, adjacencies, EID-table maps, resolvers (agent LispState) */
+    get: operations['Lisp_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/license': {
     parameters: {
       query?: never;
@@ -4064,6 +4081,180 @@ export interface components {
           /** Outer DSCP */
           dscp?: number;
         };
+      };
+      /**
+       * LISP
+       * @description LISP / LISP-GPE (advanced): locators, EIDs, mappings, resolvers.
+       */
+      lisp?: {
+        /**
+         * Enable LISP
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Enable LISP-GPE
+         * @default false
+         */
+        gpe: boolean;
+        /**
+         * Locator sets
+         * @default {}
+         */
+        locatorSets: {
+          [key: string]: {
+            /**
+             * Locators
+             * @default []
+             */
+            locators: {
+              /** Interface */
+              interface: string;
+              /**
+               * Priority
+               * @default 1
+               */
+              priority: number;
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+            }[];
+          };
+        };
+        /**
+         * Local EIDs
+         * @default []
+         */
+        localEids: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** EID */
+          eid: string;
+          /** Locator set */
+          locatorSet: string;
+        }[];
+        /**
+         * EID tables
+         * @default {}
+         */
+        eidTables: {
+          [key: string]: {
+            /** VRF */
+            vrf?: string;
+            /** Bridge domain */
+            bridgeDomain?: number;
+          };
+        };
+        /**
+         * Remote mappings
+         * @default []
+         */
+        remoteMappings: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** EID */
+          eid: string;
+          /**
+           * RLOCs
+           * @default []
+           */
+          rlocs: {
+            /** RLOC address */
+            address: string;
+            /**
+             * Priority
+             * @default 1
+             */
+            priority: number;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+          }[];
+          /**
+           * Action
+           * @default no-action
+           * @enum {string}
+           */
+          action: 'no-action' | 'natively-forward' | 'send-map-request' | 'drop';
+        }[];
+        /**
+         * Adjacencies
+         * @default []
+         */
+        adjacencies: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /** Remote EID */
+          reid: string;
+          /** Local EID */
+          leid: string;
+        }[];
+        /**
+         * GPE forwarding entries
+         * @default []
+         */
+        gpeEntries: {
+          /**
+           * VNI
+           * @default 0
+           */
+          vni: number;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** Remote EID */
+          reid: string;
+          /** Local EID */
+          leid: string;
+          /**
+           * Locator pairs
+           * @default []
+           */
+          pairs: {
+            /** Local RLOC */
+            local: string;
+            /** Remote RLOC */
+            remote: string;
+            /**
+             * Weight
+             * @default 1
+             */
+            weight: number;
+          }[];
+          /**
+           * Action
+           * @default no-action
+           * @enum {string}
+           */
+          action: 'no-action' | 'natively-forward' | 'send-map-request' | 'drop';
+        }[];
+        /**
+         * Map resolvers
+         * @default []
+         */
+        mapResolvers: string[];
+        /**
+         * Map servers
+         * @default []
+         */
+        mapServers: string[];
+        /** Proxy-ITR locator set */
+        pitr?: string;
       };
     };
     /**
@@ -8301,6 +8492,112 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Lisp_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description LISP control plane switch (VPP-global) */
+            enabled: boolean;
+            /** @description LISP-GPE data plane switch (VPP-global) */
+            gpeEnabled: boolean;
+            /** @description proxy-ITR locator set, "" when unset */
+            pitr: string;
+            locatorSets: {
+              name: string;
+              locators: {
+                interface: string;
+                swIfIndex: number;
+                priority: number;
+                weight: number;
+              }[];
+            }[];
+            /** @description local EIDs and the map-cache (static and learned remote mappings) */
+            mappings: {
+              vni: number;
+              eid: string;
+              local: boolean;
+              locatorSet: string;
+              rlocs: string[];
+              action: string;
+              authoritative: boolean;
+              ttl: number;
+            }[];
+            adjacencies: {
+              vni: number;
+              reid: string;
+              leid: string;
+            }[];
+            eidTables: {
+              vni: number;
+              dpTable: number;
+              isL2: boolean;
+            }[];
+            mapResolvers: string[];
+            mapServers: string[];
+            /** @description VNIs with LISP-GPE forwarding entries (their pairs cannot be read back, V13) */
+            gpeVnis: number[];
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

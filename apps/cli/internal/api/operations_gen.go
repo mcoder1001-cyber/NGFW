@@ -42,6 +42,7 @@ var Operations = map[string]Operation{
 	"Health_health":       {ID: "Health_health", Method: "GET", Path: "/api/v1/health", Summary: "Liveness of the API process", PathParams: nil, QueryParams: nil, Body: false},
 	"Licensing_put":       {ID: "Licensing_put", Method: "PUT", Path: "/api/v1/system/license", Summary: "Upload a .vrxlic licence file (verified before it is stored)", PathParams: nil, QueryParams: nil, Body: true},
 	"Licensing_state":     {ID: "Licensing_state", Method: "GET", Path: "/api/v1/state/license", Summary: "Licence status, entitlements in force and days left (no signature)", PathParams: nil, QueryParams: nil, Body: false},
+	"Lisp_state":          {ID: "Lisp_state", Method: "GET", Path: "/api/v1/state/lisp", Summary: "LISP / LISP-GPE: switches, locator sets, local EIDs and map-cache, adjacencies, EID-table maps, resolvers (agent LispState)", PathParams: nil, QueryParams: nil, Body: false},
 	"Secrets_delete":      {ID: "Secrets_delete", Method: "DELETE", Path: "/api/v1/secrets/{kind}/{name}", Summary: "Delete a secret that nothing references", PathParams: []string{"kind", "name"}, QueryParams: nil, Body: false},
 	"Secrets_list":        {ID: "Secrets_list", Method: "GET", Path: "/api/v1/secrets", Summary: "Secret references (no values)", PathParams: nil, QueryParams: nil, Body: false},
 	"Secrets_put":         {ID: "Secrets_put", Method: "POST", Path: "/api/v1/secrets", Summary: "Create or replace a secret; returns the reference to put into the configuration", PathParams: nil, QueryParams: []string{"replace"}, Body: true},

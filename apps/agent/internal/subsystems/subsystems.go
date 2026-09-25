@@ -36,6 +36,7 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -51,6 +52,7 @@ const (
 	Routing    = "routing"
 	// New domain constants: one line under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-lisp
+	Tunnels = "tunnels"
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
@@ -113,6 +115,11 @@ var Domains = map[string][]string{
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
 	// wave-BC: F-lisp
+	Tunnels: {
+		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
+		lisp.MapResolverName, lisp.MapServerName, lisp.RemoteMappingName, lisp.AdjacencyName,
+		lisp.EidTableMapName, lisp.PitrName, lisp.GpeFwdEntryName,
+	},
 	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
@@ -237,6 +244,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
+	if err := registerLisp(r, w); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib

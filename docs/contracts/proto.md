@@ -367,3 +367,15 @@ never renumbered; field and enum numbers come from wave-A-hotspots.md §2.
 <!-- wave-A: P12 -->
 <!-- wave-A: F-kea-dhcp-relay -->
 <!-- wave-A: F-unbound-chrony-syslog -->
+
+### F-lisp: LispState
+
+`rpc LispState(LispStateRequest) returns (LispStateResponse)` — additive (F-lisp, WBS D6.8). Read-only snapshot of the live
+LISP / LISP-GPE state from the VPP dumps: the two global switches (`show_lisp_status`), the PITR locator set
+(`show_lisp_pitr`), local locator sets with their locators (`lisp_locator_set_dump` / `lisp_locator_dump`), the EID table
+— local EIDs and the map-cache, static and learned (`lisp_eid_table_dump`), adjacencies per VNI (`lisp_eid_table_vni_dump`
++ `lisp_adjacencies_get`), EID-table maps (`lisp_eid_table_map_dump`, L2 and L3), map-resolvers / map-servers and the VNIs
+that carry LISP-GPE forwarding entries (`gpe_fwd_entry_vnis_get`; the entries' locator pairs cannot be read, V13). LISP
+objects carry no owner tag, so the snapshot is VPP-wide, like `show lisp …`; `owner` echoes the request. Owner mismatch →
+`INVALID_ARGUMENT` (as every RPC), VPP not connected → `UNAVAILABLE`, LISP plugin missing → the response has `enabled: false` and empty
+lists. Config: `DesiredState.tunnels.lisp` (`TunnelsConfig` field **10**, `LispConfig`; docs/status/wave-BC-numbers.md).

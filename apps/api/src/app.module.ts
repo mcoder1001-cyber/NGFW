@@ -46,6 +46,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
@@ -130,6 +131,7 @@ export class AppModule {
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp
+        ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
@@ -199,6 +201,7 @@ export class AppModule {
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
         // wave-BC: F-lisp
+        ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp

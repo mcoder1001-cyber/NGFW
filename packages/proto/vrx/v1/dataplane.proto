@@ -85,6 +85,11 @@ service Dataplane {
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+
+  // LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
+  // adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
+  rpc LispState(LispStateRequest) returns (LispStateResponse);
+
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -1377,6 +1382,9 @@ message TunnelsConfig {
 
   // wave-BC: F-tunnels
   // wave-BC: F-lisp
+
+  // LISP / LISP-GPE (F-lisp); unset = no LISP managed by this document.
+  LispConfig lisp = 10;
 }
 
 // GreTunnel is `tunnels.gre.<name>`.
@@ -3622,6 +3630,169 @@ message RemoteAccessProfile {
 // ----- F-srv6 -----
 
 // ----- F-lisp -----
+
+// LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts).
+message LispConfig {
+  // Global LISP switch (VPP-global: set by the globals owner only).
+  optional bool enabled = 1;
+  // Global LISP-GPE switch (requires enabled).
+  optional bool gpe = 2;
+  // Local locator sets keyed by name.
+  map<string, LispLocatorSet> locator_sets = 3;
+  // Local EIDs.
+  repeated LispLocalEid local_eids = 4;
+  // VNI (decimal string) → VRF (L3) or bridge domain (L2).
+  map<string, LispEidTable> eid_tables = 5;
+  // Static remote mappings.
+  repeated LispRemoteMapping remote_mappings = 6;
+  // Adjacencies (remote EID ↔ local EID).
+  repeated LispAdjacency adjacencies = 7;
+  // Static LISP-GPE forwarding entries (write-only in VPP 26.06, V13).
+  repeated LispGpeEntry gpe_entries = 8;
+  // Map-resolver addresses.
+  repeated string map_resolvers = 9;
+  // Map-server addresses (authentication not modelled).
+  repeated string map_servers = 10;
+  // Proxy-ITR locator set (VPP-global).
+  optional string pitr = 11;
+}
+
+// LispLocatorSet is `tunnels.lisp.locatorSets.<name>`.
+message LispLocatorSet {
+  repeated LispLocator locators = 1;
+}
+
+// LispLocator is one interface of a local locator set.
+message LispLocator {
+  optional string interface = 1;
+  optional uint32 priority = 2;
+  optional uint32 weight = 3;
+}
+
+// LispLocalEid is one local EID.
+message LispLocalEid {
+  optional uint32 vni = 1;
+  optional string eid = 2;
+  optional string locator_set = 3;
+}
+
+// LispEidTable maps one VNI to a VRF (L3) or a bridge domain (L2); exactly one is set.
+message LispEidTable {
+  optional string vrf = 1;
+  optional uint32 bridge_domain = 2;
+}
+
+// LispRloc is one remote locator of a mapping.
+message LispRloc {
+  optional string address = 1;
+  optional uint32 priority = 2;
+  optional uint32 weight = 3;
+}
+
+// LispRemoteMapping is one static remote mapping; action (no-action, natively-forward,
+// send-map-request, drop) applies when rlocs is empty.
+message LispRemoteMapping {
+  optional uint32 vni = 1;
+  optional string eid = 2;
+  repeated LispRloc rlocs = 3;
+  optional string action = 4;
+}
+
+// LispAdjacency binds a remote and a local EID.
+message LispAdjacency {
+  optional uint32 vni = 1;
+  optional string reid = 2;
+  optional string leid = 3;
+}
+
+// LispLocatorPair is one (local, remote) RLOC pair of a GPE forwarding entry.
+message LispLocatorPair {
+  optional string local = 1;
+  optional string remote = 2;
+  optional uint32 weight = 3;
+}
+
+// LispGpeEntry is one static LISP-GPE forwarding entry.
+message LispGpeEntry {
+  optional uint32 vni = 1;
+  optional string vrf = 2;
+  optional string reid = 3;
+  optional string leid = 4;
+  repeated LispLocatorPair pairs = 5;
+  optional string action = 6;
+}
+
+// LispStateRequest asks for the live LISP state.
+message LispStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// LispStateLocator is one locator of a local locator set as VPP reports it.
+message LispStateLocator {
+  // Logical interface name ("" when the interface is not nameable by this agent).
+  string interface = 1;
+  uint32 sw_if_index = 2;
+  uint32 priority = 3;
+  uint32 weight = 4;
+}
+
+// LispStateLocatorSet is one local locator set.
+message LispStateLocatorSet {
+  string name = 1;
+  repeated LispStateLocator locators = 2;
+}
+
+// LispStateMapping is one EID-table entry (local EID or map-cache entry).
+message LispStateMapping {
+  uint32 vni = 1;
+  string eid = 2;
+  // true: a local EID; false: a remote mapping (static or learned, the map-cache).
+  bool local = 3;
+  // Locator set of a local EID.
+  string locator_set = 4;
+  // Remote locators of a remote mapping.
+  repeated string rlocs = 5;
+  // Negative-mapping action (no-action, natively-forward, send-map-request, drop).
+  string action = 6;
+  // The mapping came from an authoritative source (map-reply authoritative bit / static).
+  bool authoritative = 7;
+  // TTL in minutes (learned mappings).
+  uint32 ttl = 8;
+}
+
+// LispStateAdjacency is one adjacency.
+message LispStateAdjacency {
+  uint32 vni = 1;
+  string reid = 2;
+  string leid = 3;
+}
+
+// LispStateEidTable is one VNI → table / bridge-domain map.
+message LispStateEidTable {
+  uint32 vni = 1;
+  uint32 dp_table = 2;
+  bool is_l2 = 3;
+}
+
+// LispStateResponse is one snapshot of the LISP state. LISP objects carry no owner tag; the
+// snapshot is VPP-wide (every owner's objects), like `show lisp …`.
+message LispStateResponse {
+  string owner = 1;
+  bool enabled = 2;
+  bool gpe_enabled = 3;
+  // Proxy-ITR locator set ("" when unset).
+  string pitr = 4;
+  repeated LispStateLocatorSet locator_sets = 5;
+  repeated LispStateMapping mappings = 6;
+  repeated LispStateAdjacency adjacencies = 7;
+  repeated LispStateEidTable eid_tables = 8;
+  repeated string map_resolvers = 9;
+  repeated string map_servers = 10;
+  // VNIs that have LISP-GPE forwarding entries.
+  repeated uint32 gpe_vnis = 11;
+  google.protobuf.Timestamp retrieved_at = 12;
+}
 
 // ----- F-bfd-redistribution -----
 

@@ -137,6 +137,7 @@ func TestSrv6ApplyRetrieveRollback(t *testing.T) {
 		t.Fatalf("vpp has %d sids, %d policies, %d steering", sids, pols, st)
 	}
 	mustEqualSrv6(t, retrieveSrv6(t, s), want.GetRouting().GetSrv6())
+	t.Logf("apply: %s; Retrieve routing.srv6 == desired", protojson.MarshalOptions{}.Format(resp.GetSummary()))
 	noSRDamage(t, v)
 
 	v.Reset()
@@ -156,6 +157,7 @@ func TestSrv6ApplyRetrieveRollback(t *testing.T) {
 	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7::1/64"]}, "loop702": {}}}`), Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	calls := strings.Join(srCalls(v), " ")
+	t.Logf("rollback VPP calls: %s", calls)
 	lastSteer, firstPolicy := strings.LastIndex(calls, "steer-del"), strings.Index(calls, "policy-del")
 	lastSR := max(strings.LastIndex(calls, "policy-del"), strings.LastIndex(calls, "sid-del"))
 	if lastSteer < 0 || firstPolicy < lastSteer || strings.Index(calls, "table-del") < lastSR {

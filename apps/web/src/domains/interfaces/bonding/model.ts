@@ -37,7 +37,7 @@ export function memberSchema(): JsonSchema {
   return members.additionalProperties;
 }
 
-/** A free BondEthernet<id> for "Add bond": the lowest id ≥ base not configured and not on the data plane. */
+/** A free BondEthernet<id> for "Add bond": the lowest id ≥ base not in `taken` (the page passes configured and live bond names). */
 export function nextBondName(taken: Iterable<string>, base = 0): string {
   const used = new Set<number>();
   for (const n of taken) {

@@ -1,5 +1,6 @@
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -28,10 +29,10 @@ import { Link as RouterLink } from 'react-router';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { problemFor } from '../InterfaceDrawer';
-import { createMergePatch, dropPhantomOptionals, localizeSchema } from '../model';
-import { useCandidateInterfaces, useFreshCandidate, useInterfacesState, usePatchInterfaces } from '../queries';
+import { createMergePatch, localizeSchema } from '../model';
+import { useCandidateInterfaces, useFreshCandidate, usePatchInterfaces } from '../queries';
 import { bondFormSchema, bondStatus, eligibleMembers, memberSchema, memberStatus, type BondConfig, type BondMemberConfig, type LiveMember } from './model';
-import { useBondsState } from './queries';
+import { useBondsCache, useInterfacesOnce, useRefreshBonds } from './queries';
 
 const esc = (s: string) => s.replace(/~/g, '~0').replace(/\//g, '~1');
 
@@ -60,8 +61,9 @@ function lacpText(m: LiveMember, t: (k: string, o?: Record<string, unknown>) => 
 function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
   const { t } = useTranslation(['bonding', 'interfaces']);
   const perms = usePermissions();
-  const bonds = useBondsState();
-  const ifState = useInterfacesState();
+  const bonds = useBondsCache(); // the grid's data: no second timer, no fetch on open (D-132)
+  const refresh = useRefreshBonds();
+  const ifState = useInterfacesOnce();
   const candidate = useCandidateInterfaces();
   const fresh = useFreshCandidate();
   const patch = usePatchInterfaces();
@@ -90,7 +92,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
   const saveBond = async (value: unknown) => {
     setSaved(false);
     const base = opened ?? undefined;
-    const cleaned = dropPhantomOptionals(formSchema, base, value);
+    const cleaned = value; // the bond form has no optional object member (review F1: no phantom-default cleanup)
     const body = base === undefined ? cleaned : createMergePatch(base, cleaned);
     try {
       await patch.mutateAsync({ [name]: { bond: body } });
@@ -114,7 +116,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
     setMemberError(null);
     const current = await fresh();
     const prev = current[name]?.bond?.members?.[member];
-    const cleaned = dropPhantomOptionals(mSchema, prev, value);
+    const cleaned = value; // the member form neither (passive, longTimeout, weight)
     const body: Record<string, unknown> = { [name]: { bond: { members: { [member]: prev === undefined ? cleaned : createMergePatch(prev, cleaned) } } } };
     // a member needs its own interfaces entry (interfaces.bonding-member-exists): a NIC not configured yet is added enabled
     if (current[member] === undefined) body[member] = { enabled: true };
@@ -145,12 +147,15 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
           {name}
         </Typography>
         {status && <StatusChip size="small" status={status} label={t(`status.${status}`)} />}
+        <IconButton aria-label={t('refresh')} onClick={() => void refresh()}>
+          <RefreshIcon />
+        </IconButton>
         <IconButton aria-label={t('close')} onClick={onClose}>
           <CloseIcon />
         </IconButton>
       </Stack>
-      {(bonds.isPending || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
-      {!live && bonds.isSuccess && <Alert severity="info">{bonds.data.live ? t('drawer.notInVpp') : t('drawer.noLive')}</Alert>}
+      {(bonds.data === undefined || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
+      {!live && bonds.data && <Alert severity="info">{bonds.data.live ? t('drawer.notInVpp') : t('drawer.noLive')}</Alert>}
       {live && (
         <Table size="small" aria-label={t('drawer.liveTitle')} sx={{ mb: 2 }}>
           <TableBody>

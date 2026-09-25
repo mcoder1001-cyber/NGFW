@@ -8,6 +8,7 @@ import { installFakeApi, resetSession, signIn, type FakeApi } from '../../../tes
 import type { InterfaceItem, InterfacesConfig } from '../model';
 import { pageOfBonds, toBondRow } from './BondsPage';
 import { bondFormSchema, bondStatus, eligibleMembers, memberSchema, memberStatus, nextBondName, type BondItem, type LiveMember } from './model';
+import { BONDS_POLL_MS } from './queries';
 
 /** F-bonding screen in jsdom against a scripted stand-in of the API (unit level; the real stack runs in test/topology/bonding). */
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
@@ -166,6 +167,26 @@ describe('bonds screen', () => {
     fireEvent.change(within(dialog).getByLabelText(/^Bond ID/), { target: { value: '6002' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add bond' }));
     await waitFor(() => expect(patches.at(-1)).toEqual({ BondEthernet6002: { enabled: true, bond: { mode: 'lacp', members: {} } } }));
+  });
+
+  it('D-132: one timer of at least 30 s; the drawer reads the grid cache; Refresh walks once (fix round 1 F2)', { timeout: 60_000 }, async () => {
+    expect(BONDS_POLL_MS).toBeGreaterThanOrEqual(30_000);
+    const api = installFakeApi();
+    withBonds(api);
+    const walks = () => api.calls.filter((c) => c.method === 'GET' && c.path === '/api/v1/state/interfaces/bonds').length;
+    await signIn();
+    render(app('/interfaces/bonds'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    fireEvent.click(await within(grid).findByText('BondEthernet6000'));
+    const before = walks();
+    const drawer = await screen.findByRole('region', { name: 'Bond BondEthernet6000' });
+    expect(await within(drawer).findByText('0 of 2')).toBeInTheDocument(); // live state from the grid's cache
+    await new Promise((r) => setTimeout(r, 400));
+    expect(walks()).toBe(before); // opening the drawer walks nothing
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(walks()).toBe(before + 1));
+    await new Promise((r) => setTimeout(r, 400));
+    expect(walks()).toBe(before + 1); // exactly one walk per click
   });
 
   it('is in the Interfaces navigation group and renders in Persian (RTL)', { timeout: 60_000 }, async () => {

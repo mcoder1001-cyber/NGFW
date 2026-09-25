@@ -50,11 +50,11 @@ const LiveBondOut = z
     vppName: z.string(),
     swIfIndex: z.number().int(),
     id: z.number().int(),
-    mode: z.string().describe('lacp | xor | round-robin | active-backup | broadcast'),
+    mode: z.string().describe('lacp | xor | round-robin | active-backup'),
     loadBalance: z
       .string()
       .describe(
-        'l2 | l23 | l34, or the algorithm VPP forces: round-robin | active-backup | broadcast',
+        'l2 | l23 | l34, or the algorithm VPP forces: round-robin | active-backup',
       ),
     numaOnly: z.boolean(),
     adminUp: z.boolean(),

@@ -29,8 +29,7 @@
     "lacp": "LACP (802.3ad)",
     "xor": "XOR",
     "round-robin": "Round-robin",
-    "active-backup": "Active-backup",
-    "broadcast": "Broadcast"
+    "active-backup": "Active-backup"
   },
   "status": {
     "up": "up",
@@ -96,7 +95,7 @@
   "field": {
     "mode": {
       "title": "Mode",
-      "help": "lacp (802.3ad), xor, round-robin, active-backup or broadcast; changing it re-creates the bond"
+      "help": "lacp (802.3ad), xor, round-robin or active-backup; changing it re-creates the bond"
     },
     "loadBalance": {
       "title": "Load balance",
@@ -128,5 +127,6 @@
     "down": "link down",
     "adminDown": "admin down",
     "degraded": "not aggregated"
-  }
+  },
+  "refresh": "Refresh"
 }

@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -26,7 +27,7 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { useCandidateInterfaces, usePatchInterfaces } from '../queries';
 import { BondDrawer } from './BondDrawer';
 import { bondStatus, memberStatus, nextBondName, type BondItem } from './model';
-import { bondKeys, BONDS_POLL_MS, fetchBondsState } from './queries';
+import { bondKeys, BONDS_POLL_MS, fetchBondsState, useRefreshBonds } from './queries';
 
 /** Grid row: one bond of `/state/interfaces/bonds`. */
 export interface BondRow {
@@ -127,7 +128,7 @@ export function BondsPage() {
       {
         field: 'status',
         headerName: t('col.status'),
-        width: 130,
+        width: 170,
         renderCell: (p) =>
           p.row.item.state ? (
             <StatusChip size="small" status={bondStatus(p.row.item.state)!} label={t(`status.${bondStatus(p.row.item.state)!}`)} />
@@ -171,7 +172,9 @@ export function BondsPage() {
     [t],
   );
 
-  const taken = [...Object.keys(candidate.data ?? {})];
+  const refresh = useRefreshBonds();
+  // configured names and every bond VPP reports to this agent (review F7)
+  const taken = [...Object.keys(candidate.data ?? {}), ...(qc.getQueryData<{ items: BondItem[] }>(bondKeys.state)?.items.map((i) => i.name) ?? [])];
   const openAdd = () => {
     const name = nextBondName(taken);
     setAdding({ id: String(bondIdOf(name) ?? 0), mode: DEFAULT_MODE });
@@ -205,6 +208,10 @@ export function BondsPage() {
             </Button>
           </span>
         </Tooltip>
+        <Box sx={{ flex: 1 }} />
+        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => void refresh()}>
+          {t('refresh')}
+        </Button>
       </Stack>
       {lastError !== null && <ProblemAlert error={lastError} sx={{ mb: 1 }} />}
       <Paper variant="outlined" sx={{ blockSize: 420 }}>

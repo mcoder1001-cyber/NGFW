@@ -22,7 +22,6 @@ export interface BondingFakeOptions {
 const FORCED: Record<string, string> = {
   'round-robin': 'round-robin',
   'active-backup': 'active-backup',
-  broadcast: 'broadcast',
 };
 
 const lacpPort = (key: number, port: number, state: number, flags: string[]): BondLacpPort => ({

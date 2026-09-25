@@ -1,0 +1,111 @@
+{
+  "tab": "Load balancer",
+  "title": "Load balancer (VPP lb)",
+  "tier": "T3 · minimal",
+  "intro": "Virtual IPs spread over application servers by Maglev hashing; GRE, L3DSR or NAT to the server.",
+  "refresh": "Refresh",
+  "notice": {
+    "title": "Write-only in VPP 26.06:",
+    "body": "VPP cannot report load-balancer objects correctly, so the live state below comes from VPP's own lists. A deleted or changed VIP stays in VPP as \"removed\" (with its servers) until the lb garbage collection, which only the globals owner runs (about a minute after the last delete) — or until VPP restarts. There are no health checks and no L7 proxying: a server stays in rotation until you remove it here."
+  },
+  "vips": {
+    "title": "Virtual IPs",
+    "vppTotal": "VPP lists {{count}} lb VIP entries (all owners, removed included)",
+    "add": "Add VIP",
+    "empty": "No VIPs configured.",
+    "expand": "Show the application servers of {{name}}",
+    "detail": "VPP: type {{encap}}, {{entries}} entries, DSCP {{dscp}}, target port {{targetPort}}"
+  },
+  "col": {
+    "name": "Name",
+    "prefix": "VIP",
+    "protocol": "Protocol / port",
+    "encap": "Encapsulation",
+    "servers": "Servers",
+    "state": "State",
+    "removed": "Removed copies",
+    "actions": "Actions"
+  },
+  "servers": {
+    "count": "{{inUse}} in use / {{configured}} configured",
+    "title": "Application servers of {{name}}",
+    "address": "Address",
+    "state": "VPP state",
+    "configured": "Configured",
+    "inUse": "in use",
+    "removed": "removed",
+    "notInVpp": "not in VPP"
+  },
+  "status": {
+    "active": "active",
+    "not-applied": "not applied",
+    "missing": "missing in VPP",
+    "no-servers": "no server in use",
+    "pending": "not committed"
+  },
+  "flush": {
+    "action": "Flush",
+    "done": "Flow table of {{name}} flushed ({{vip}})."
+  },
+  "edit": "Edit",
+  "delete": "Delete",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "yes": "yes",
+  "no": "no",
+  "settings": {
+    "title": "Global settings and NAT interfaces",
+    "intro": "The settings are VPP-wide (lb_conf): only the globals owner applies them. NAT VIPs need the NAT feature on the interface the servers answer on."
+  },
+  "vip": {
+    "name": "Name",
+    "nameHelp": "letters, digits, _ . - (max 63)",
+    "nameInvalid": "Use letters, digits, _ . - (max 63).",
+    "nameTaken": "A VIP with this name exists.",
+    "addTitle": "Add VIP",
+    "editTitle": "Edit VIP {{name}}"
+  },
+  "field": {
+    "prefix": { "title": "VIP prefix", "help": "the virtual address, usually a /32 or /128" },
+    "protocol": {
+      "title": "Protocol",
+      "help": "any = every protocol and port; tcp or udp need a port"
+    },
+    "port": { "title": "Port", "help": "destination port of a tcp/udp VIP" },
+    "encap": {
+      "title": "Encapsulation",
+      "help": "gre4/gre6: GRE to the server; l3dsr: DSCP rewrite (IPv4); nat4/nat6: destination NAT"
+    },
+    "dscp": { "title": "DSCP (l3dsr)", "help": "DSCP the server uses to tell the VIP" },
+    "srvType": {
+      "title": "Service type (nat)",
+      "help": "clusterip: SNAT from the VIP; nodeport: SNAT from the global source"
+    },
+    "targetPort": { "title": "Target port (nat)", "help": "port on the server" },
+    "nodePort": {
+      "title": "Node port (nat nodeport)",
+      "help": "accepted but not used by VPP 26.06"
+    },
+    "newFlowsTableLength": {
+      "title": "New-flows table length",
+      "help": "Maglev table entries, a power of two"
+    },
+    "srcIpSticky": {
+      "title": "Source-IP sticky",
+      "help": "every flow of a client goes to the same server"
+    },
+    "servers": {
+      "title": "Application servers",
+      "help": "IPv4 for gre4/l3dsr/nat4, IPv6 for gre6/nat6"
+    },
+    "settings": {
+      "title": "Settings (global)",
+      "help": "GRE/SNAT source addresses, sticky buckets, flow timeout"
+    },
+    "natInterfaces": {
+      "title": "NAT interfaces",
+      "help": "interface and family of the lb NAT in2out feature"
+    }
+  }
+}

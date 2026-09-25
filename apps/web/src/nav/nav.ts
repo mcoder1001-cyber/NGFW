@@ -62,6 +62,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-wireguard
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
+  'services',
 ]);
 
 export function domainPath(key: RootKey): string {

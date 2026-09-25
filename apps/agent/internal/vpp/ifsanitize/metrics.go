@@ -17,7 +17,10 @@ type Stats struct {
 	Cleared     map[string]int64 // by phase/state: bindings removed (their table existed)
 	Freed       map[string]int64 // by phase/state: bindings to deleted tables removed through a placeholder
 	Unclearable map[string]int64 // by phase/state
-	Capped      map[string]int64 // by phase: runs that reached the placeholder cap (PlaceholderCap; create: failed closed, ErrCapped)
+	Capped      map[string]int64 // by phase: runs that reached MaxPlaceholders before a freed index a binding names came back (create: failed closed, ErrCapped)
+	// Placeholders counts placeholder tables made, by phase: one probe table per run plus the
+	// on-demand pops (TD-25; before, every create popped the whole free list and 8 fresh indices).
+	Placeholders map[string]int64
 	// Quarantined is the number of sw_if_indexes this process holds in quarantine (gauge).
 	Quarantined int64
 	// QuarantineTotal counts quarantines.
@@ -26,7 +29,7 @@ type Stats struct {
 
 func newStats() Stats {
 	return Stats{Runs: map[string]int64{}, Errors: map[string]int64{}, Inherited: map[string]int64{},
-		Cleared: map[string]int64{}, Freed: map[string]int64{}, Unclearable: map[string]int64{}, Capped: map[string]int64{}}
+		Cleared: map[string]int64{}, Freed: map[string]int64{}, Unclearable: map[string]int64{}, Capped: map[string]int64{}, Placeholders: map[string]int64{}}
 }
 
 var (
@@ -53,6 +56,7 @@ func record(r Report, err error) {
 	if r.Capped {
 		stats.Capped[r.Phase]++
 	}
+	stats.Placeholders[r.Phase] += int64(r.Placeholders)
 	for _, e := range r.Cleared {
 		stats.Cleared[r.Phase+"/"+stateOf(e)]++
 	}
@@ -89,7 +93,7 @@ func Snapshot() Stats {
 	mu.Lock()
 	defer mu.Unlock()
 	return Stats{Runs: cp(stats.Runs), Errors: cp(stats.Errors), Inherited: cp(stats.Inherited), Cleared: cp(stats.Cleared),
-		Freed: cp(stats.Freed), Unclearable: cp(stats.Unclearable), Capped: cp(stats.Capped), Quarantined: stats.Quarantined, QuarantineTotal: stats.QuarantineTotal}
+		Freed: cp(stats.Freed), Unclearable: cp(stats.Unclearable), Capped: cp(stats.Capped), Placeholders: cp(stats.Placeholders), Quarantined: stats.Quarantined, QuarantineTotal: stats.QuarantineTotal}
 }
 
 // WriteMetrics renders the counters in the Prometheus text format (vrx_agent_iface_sanitize_*,
@@ -113,7 +117,8 @@ func WriteMetrics(w io.Writer) {
 	byPhase("vrx_agent_iface_sanitize_total", "Interfaces sanitized (create: new sw_if_index; delete: before the interface is deleted), VPP V19/V21.", s.Runs)
 	byPhase("vrx_agent_iface_sanitize_errors_total", "Sanitize runs that failed.", s.Errors)
 	byPhase("vrx_agent_iface_sanitize_inherited_total", "Sanitize runs that found bindings.", s.Inherited)
-	byPhase("vrx_agent_iface_sanitize_capped_total", "Sanitize runs that reached the placeholder cap before every freed classify table index was resurrected (create: the interface create failed closed).", s.Capped)
+	byPhase("vrx_agent_iface_sanitize_capped_total", "Sanitize runs that reached the placeholder cap before a freed classify table index a binding names came back (the binding is unclearable; create: the index is quarantined).", s.Capped)
+	byPhase("vrx_agent_iface_sanitize_placeholders_total", "Placeholder classify tables made: one probe table per run plus the free-list pops that brought back a freed index a binding names.", s.Placeholders)
 	byState("vrx_agent_iface_sanitize_cleared_total", "Bindings removed, by state.", s.Cleared)
 	byState("vrx_agent_iface_sanitize_freed_table_total", "Bindings to deleted classify tables removed through a resurrected placeholder, by state.", s.Freed)
 	byState("vrx_agent_iface_sanitize_unclearable_total", "Bindings to deleted classify tables that could not be removed, by state.", s.Unclearable)

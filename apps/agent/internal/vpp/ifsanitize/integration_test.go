@@ -168,7 +168,10 @@ func (h *host) classifyDPO(addr string) (bool, string) {
 // classify table (and an SPD) everywhere on loopback A, delete A without unbinding, create B on
 // the reused sw_if_index and show B inherited the bindings; Sanitize(B) clears them. Then the
 // product path: the loopback descriptor's Create on a reused index returns only after the
-// bindings are gone. The table is deleted last, when nothing refers to it.
+// bindings are gone. The table is deleted last, when nothing refers to it. The reused index is
+// never 0, so the policer/flow classify entries in Cleared also prove, on the real VPP, the
+// readback Sanitize relies on (policer/flow_classify_dump with sw_if_index 0 lists every index's
+// bindings in VPP 26.06, TD-25): a VPP that changes that dump fails here.
 func TestV19InheritanceClearedOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)

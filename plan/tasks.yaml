@@ -3339,8 +3339,8 @@ tasks:
   worktree: /root/ngfw-wt/TD-25
   owner: ''
   started: 2026-09-25T05:15
-  finished: ''
-  state: review
+  finished: '2026-09-25'
+  state: merged
   wbs: *id003
   prompt: ''
   id: TD-25
@@ -3400,7 +3400,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  state: todo
+  state: ready
   wbs: *id003
   prompt: ''
   id: TD-27

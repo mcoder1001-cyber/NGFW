@@ -2,25 +2,25 @@
 
 Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 41.1% by hours (482/1172.5 h), 43.1% by tasks (56/130)**
+**Overall: 41.4% by hours (486/1172.5 h), 43.8% by tasks (57/130)**
 
 | state | tasks |
 |---|---|
-| merged | 56 |
-| review | 29 |
+| merged | 57 |
+| review | 28 |
 | running | 5 |
-| ready | 2 |
+| ready | 3 |
 | parked | 2 |
 | failed | 0 |
-| todo | 36 |
+| todo | 35 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
 | S0 | 6 / 6 | 100.0% | 1/1 | 0 | 0 | 0 |
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
-| S2 | 260 / 274 | 94.9% | 27/29 | 0 | 0 | 1 |
+| S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 89 / 605.0 | 14.7% | 14/70 | 4 | 1 | 0 |
+| S4 | 89 / 605.0 | 14.7% | 14/70 | 4 | 2 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -59,7 +59,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - TD-23 — Shared test seams: fake-agent action dispatch table + coretest fakevpp extension registry (no feature handlers) (review, unassigned)
 - TD-8b — Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule) (review, unassigned)
 - TD-24 — interface-ip reconcile must not delete a DHCP-leased address (Retrieve skips the dhcp_client_dump lease) (review, unassigned)
-- TD-25 — ifsanitize: stop the classify-pool hole ratchet (resurrect only indices a binding names; never pop fresh indices) (review, unassigned)
 
 ## Parked
 

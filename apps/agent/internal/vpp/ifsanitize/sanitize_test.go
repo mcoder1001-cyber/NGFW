@@ -41,17 +41,30 @@ func TestCleanInterfaceOnlyResets(t *testing.T) {
 	if !slices.Equal(rep.Reset, want) {
 		t.Fatalf("reset %v, want %v", rep.Reset, want)
 	}
-	// holes 0-2 and FreshRun fresh indices resurrected, all deleted again
-	if rep.Placeholders != 3+ifsanitize.FreshRun || len(m.Tables) != 1 {
-		t.Fatalf("placeholders %d, tables left %v", rep.Placeholders, m.Tables)
+	// one placeholder — the probe table of the output ACL check — deleted again; nothing popped beyond it
+	if rep.Placeholders != 1 || len(rep.Pops) != 1 || len(m.Tables) != 1 {
+		t.Fatalf("placeholders %d (pops %v), tables left %v", rep.Placeholders, rep.Pops, m.Tables)
 	}
-	// one probe per table (live + placeholder) and slot: output acl ×3, policer ×3, flow ×2 — all NO_SUCH_TABLE
-	n := 1 + rep.Placeholders
-	for name, n := range map[string]int{"output_acl_set_interface": 3 * n, "policer_classify_set_interface": 3 * n, "flow_classify_set_interface": 2 * n, "input_acl_set_interface": 0, "ipsec_interface_add_del_spd": 0} {
+	// exact readbacks, no probing: output ACL 3 × (unbind P, bind P, unbind P); policer/flow read by dump
+	for name, n := range map[string]int{"output_acl_set_interface": 9, "policer_classify_set_interface": 0, "flow_classify_set_interface": 0,
+		"input_acl_set_interface": 0, "ipsec_interface_add_del_spd": 0, "policer_classify_dump": 3, "flow_classify_dump": 2, "classify_add_del_table": 2} {
 		if got := len(f.CallsNamed(name)); got != n {
 			t.Errorf("%s sent %d times, want %d", name, got, n)
 		}
 	}
+	for _, c := range append(f.CallsNamed("policer_classify_dump"), f.CallsNamed("flow_classify_dump")...) {
+		var idx uint32
+		switch r := c.(type) {
+		case *classifyapi.PolicerClassifyDump:
+			idx = uint32(r.SwIfIndex)
+		case *classifyapi.FlowClassifyDump:
+			idx = uint32(r.SwIfIndex)
+		}
+		if idx != 0 { // any other index reads out of bounds in VPP 26.06
+			t.Fatalf("%s sent with sw_if_index %d", c.GetMessageName(), idx)
+		}
+	}
+	t.Logf("clean create: %d API calls", len(f.Calls()))
 }
 
 // TestInheritedStateIsCleared plants everything VPP keeps on a deleted sw_if_index (V19, V21,
@@ -138,8 +151,12 @@ func TestBindingToDeletedTable(t *testing.T) {
 	if len(m.Tables) != live {
 		t.Fatalf("placeholders left: %d tables, want %d", len(m.Tables), live)
 	}
-	if rep.Placeholders < 3+ifsanitize.FreshRun {
-		t.Fatalf("placeholders %d", rep.Placeholders)
+	// free list [2 6 5]: the probe table is 5 (the output ACL's table), then 6 and 2 on demand
+	if !slices.Equal(rep.Pops, []uint32{5, 6, 2}) || rep.Wanted != 2 {
+		t.Fatalf("pops %v wanted %d", rep.Pops, rep.Wanted)
+	}
+	if n, free := m.Pool(); n != 7 || !slices.Equal(free, []uint32{2, 6, 5}) {
+		t.Fatalf("classify pool after the run: vector %d free %v, want 7 [2 6 5]", n, free)
 	}
 	if m.If(4).L3Resets != 1 {
 		t.Fatal("no L3-mode reset")
@@ -152,7 +169,8 @@ func TestBindingToDeletedTable(t *testing.T) {
 }
 
 // TestFreedInReverseOrder: tables freed in reverse creation order come back ascending, which looks
-// like fresh growth; FreshRun must see past that.
+// like fresh growth (the old FreshRun blind spot, TD-3 re-review L1): an output ACL slot proven
+// bound is resurrected until the unbind through a placeholder succeeds, however long the run.
 func TestFreedInReverseOrder(t *testing.T) {
 	f, m := setup()
 	for id := uint32(0); id < 7; id++ {
@@ -200,7 +218,7 @@ func TestPluginNotLoadedIsSkipped(t *testing.T) {
 	f, m := setup()
 	m.Tables[1] = true
 	f.Fail("sw_interface_set_vxlan_bypass", &adapter.UnknownMsgError{MsgName: "sw_interface_set_vxlan_bypass"})
-	f.Fail("flow_classify_set_interface", &adapter.UnknownMsgError{MsgName: "flow_classify_set_interface"})
+	f.Fail("flow_classify_dump", &adapter.UnknownMsgError{MsgName: "flow_classify_dump"})
 	f.Fail("ipsec_spd_interface_dump", &adapter.UnknownMsgError{MsgName: "ipsec_spd_interface_dump"})
 	rep, err := ifsanitize.Sanitize(context.Background(), f, 2, "loop203")
 	if err != nil {
@@ -246,11 +264,11 @@ func TestMetrics(t *testing.T) {
 	}
 }
 
-// TestHoleTakenBySomeoneElse is TD-3 re-review M1: a hole popped by another client between the
-// snapshot and the loop used to run resurrect to the cap (then 256, ~2850 API calls). Now the
-// run re-reads the table list, drops the hole, stays within 3 holes + FreshRun placeholders, and
-// the input ACL binding that names the stolen index is removed through the foreign table instead
-// of being reported unclearable.
+// TestHoleTakenBySomeoneElse is TD-3 re-review M1: a freed index a binding names, popped by another
+// client between the snapshot and the resurrection, never comes back from the pool. The run pops
+// the free list until it runs dry; the one pop above every index seen (the only fresh index it
+// takes: the race's cost) re-reads the table list, and the input ACL binding that names the stolen
+// index is removed through the foreign table instead of being reported unclearable.
 func TestHoleTakenBySomeoneElse(t *testing.T) {
 	f, m := setup()
 	for id := uint32(0); id < 6; id++ {
@@ -286,8 +304,9 @@ func TestHoleTakenBySomeoneElse(t *testing.T) {
 	if d := m.Dirty(4); d != "" {
 		t.Fatalf("still inherited: %s (report %+v)", d, rep)
 	}
-	if rep.Capped || rep.Rereads < 1 || rep.Placeholders > 2+ifsanitize.FreshRun {
-		t.Fatalf("capped %v rereads %d placeholders %d", rep.Capped, rep.Rereads, rep.Placeholders)
+	// probe table 2 (the output ACL's freed table), 1, then the fresh 6 that triggers the re-read
+	if rep.Capped || rep.Rereads != 1 || !slices.Equal(rep.Pops, []uint32{2, 1, 6}) {
+		t.Fatalf("capped %v rereads %d pops %v", rep.Capped, rep.Rereads, rep.Pops)
 	}
 	if !slices.ContainsFunc(rep.Freed, func(e string) bool {
 		return strings.HasPrefix(e, "input-acl ip4 table 3 (deleted table; its index was taken by another client")
@@ -308,113 +327,93 @@ func TestHoleTakenBySomeoneElse(t *testing.T) {
 	t.Logf("placeholders %d, rereads %d, API calls %d, freed %v", rep.Placeholders, rep.Rereads, calls, rep.Freed)
 }
 
-// TestPlaceholderCap (D-105, TD-3 re-review M1 option b): the cap is holes + 2 × FreshRun, at most 64.
-func TestPlaceholderCap(t *testing.T) {
-	if ifsanitize.MaxPlaceholders != 64 || ifsanitize.FreshRun != 8 {
-		t.Fatalf("MaxPlaceholders %d FreshRun %d", ifsanitize.MaxPlaceholders, ifsanitize.FreshRun)
-	}
-	for holes, want := range map[int]int{0: 16, 1: 17, 12: 28, 47: 63, 48: 64, 49: 64, 1000: 64} {
-		if got := ifsanitize.PlaceholderCap(holes); got != want {
-			t.Errorf("PlaceholderCap(%d) = %d, want %d", holes, got, want)
-		}
+// TestMaxPlaceholders: one run makes at most 64 placeholder tables (the probe table included).
+func TestMaxPlaceholders(t *testing.T) {
+	if ifsanitize.MaxPlaceholders != 64 {
+		t.Fatalf("MaxPlaceholders %d", ifsanitize.MaxPlaceholders)
 	}
 }
 
-// TestTwelveFreedOutOfOrderSucceeds (D-105): a free list of 12 indices that come back out of order
-// (not ascending: the fixed cap of 16 failed it — 12 placeholders + FreshRun is 20) now succeeds,
-// the inherited binding to a freed table is removed through its placeholder, and no placeholder
-// is left.
-func TestTwelveFreedOutOfOrderSucceeds(t *testing.T) {
+// TestOnDemandPopsOnlyDownToTheNamedIndex (TD-25): with twelve freed indices out of order, a run
+// pops exactly the free-list entries above the index a binding names — never the rest, never a
+// fresh index — and puts the free list back in the same order. A clean interface on the same
+// pool pops only the probe table.
+func TestOnDemandPopsOnlyDownToTheNamedIndex(t *testing.T) {
 	freed := []uint32{9, 2, 14, 5, 11, 7, 1, 13, 4, 10, 6, 12} // free list: 12 pops first, then 6, 10, 4, …
-	pool := func() (*fake.Client, *sanitizetest.Model) {
-		f, m := setup()
-		for id := uint32(0); id < 16; id++ {
-			m.Tables[id] = true
-		}
-		m.If(3).OutACL = [3]uint32{9, none, none}
-		for _, id := range freed {
-			m.DeleteTable(id)
-		}
-		return f, m
+	for _, tc := range []struct {
+		name  string
+		plant func(m *sanitizetest.Model)
+		pops  []uint32
+	}{
+		{"clean", func(*sanitizetest.Model) {}, []uint32{12}},
+		{"input ACL names 7", func(m *sanitizetest.Model) { m.If(3).InACL = [3]uint32{7, none, none} }, []uint32{12, 6, 10, 4, 13, 1, 7}},
+		{"policer names 13", func(m *sanitizetest.Model) { m.If(3).Policer = [3]uint32{none, 13, none} }, []uint32{12, 6, 10, 4, 13}},
+		{"output ACL (no readback) bound to 9", func(m *sanitizetest.Model) { m.If(3).OutACL = [3]uint32{9, none, none} }, []uint32{12, 6, 10, 4, 13, 1, 7, 11, 5, 14, 2, 9}},
+		{"flow names the probe table's index", func(m *sanitizetest.Model) { m.If(3).Flow = [2]uint32{12, none} }, []uint32{12}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, m := setup()
+			for id := uint32(0); id < 16; id++ {
+				m.Tables[id] = true
+			}
+			for _, id := range freed {
+				m.DeleteTable(id)
+			}
+			tc.plant(m)
+			n0, free0 := m.Pool()
+			rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop209")
+			if err != nil || rep.Capped {
+				t.Fatalf("err %v report %+v", err, rep)
+			}
+			if !slices.Equal(rep.Pops, tc.pops) {
+				t.Fatalf("pops %v, want %v", rep.Pops, tc.pops)
+			}
+			if d := m.Dirty(3); d != "" || len(m.Tables) != 16-len(freed) {
+				t.Fatalf("dirty %q tables %v", d, m.Tables)
+			}
+			if n, free := m.Pool(); n != n0 || !slices.Equal(free, free0) {
+				t.Fatalf("classify pool changed: vector %d→%d, free %v → %v", n0, n, free0, free)
+			}
+			t.Logf("%s: pops %v, freed %v", tc.name, rep.Pops, rep.Freed)
+		})
 	}
-	// the old fixed cap (16) failed this pool closed
-	old := ifsanitize.MaxPlaceholders
-	ifsanitize.MaxPlaceholders = 16
-	f, _ := pool()
-	_, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop209")
-	ifsanitize.MaxPlaceholders = old
-	if !errors.Is(err, ifsanitize.ErrCapped) {
-		t.Fatalf("with the fixed cap of 16: err %v", err)
-	}
-	f, m := pool()
-	before := ifsanitize.Snapshot()
-	rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop209")
-	if err != nil || rep.Capped {
-		t.Fatalf("err %v report %+v", err, rep)
-	}
-	if rep.Placeholders < len(freed)+ifsanitize.FreshRun || rep.Placeholders <= 16 || rep.Placeholders > rep.Cap {
-		t.Fatalf("placeholders %d, cap %d (holes seen %d)", rep.Placeholders, rep.Cap, rep.Holes)
-	}
-	if d := m.Dirty(3); d != "" || len(rep.Freed) != 1 || len(m.Tables) != 16-len(freed) {
-		t.Fatalf("dirty %q freed %v tables %v", d, rep.Freed, m.Tables)
-	}
-	if after := ifsanitize.Snapshot(); after.Capped["create"] != before.Capped["create"] {
-		t.Fatalf("capped counter moved: %v → %v", before.Capped, after.Capped)
-	}
-	t.Logf("12 out-of-order freed indices: %d placeholders, cap %d (holes seen %d), freed %v", rep.Placeholders, rep.Cap, rep.Holes, rep.Freed)
 }
 
-// TestReplayedAscendingRunsAreCounted (TD-5 host run 14:32): a pool without live tables whose free
-// list pops 7, 8…16, 0…6, 17…21 — a previous run's creation order, replayed because
-// dropPlaceholders frees in reverse creation order — has only 7 gaps. Counting gaps alone gave a
-// cap of 23 and the create failed closed on every run (the same pops replay each time). The
-// ascending run 7…16 that the pop of 0 interrupts is proven freed and counts as seen, so the cap
-// grows and the run finishes; a second run replays the first one's pops and succeeds again.
-func TestReplayedAscendingRunsAreCounted(t *testing.T) {
+// TestLongAscendingRunIsNoBlindSpot is TD-3 re-review L1: 20 tables above every live one, freed
+// in reverse creation order (a test's LIFO Cleanup), pop back ascending like fresh growth. The
+// output ACL binding to the last of them used to be missed silently (FreshRun gave up after 8
+// ascending pops); a slot proven bound is now followed down the free list until it is found — on
+// every run, with the pool unchanged.
+func TestLongAscendingRunIsNoBlindSpot(t *testing.T) {
 	f, m := setup()
-	var pops []uint32
-	for i := uint32(7); i <= 16; i++ {
-		pops = append(pops, i)
+	for id := uint32(0); id < 25; id++ {
+		m.Tables[id] = true
 	}
-	for i := uint32(0); i <= 6; i++ {
-		pops = append(pops, i)
+	for id := uint32(24); id >= 5; id-- {
+		m.DeleteTable(id)
 	}
-	for i := uint32(17); i <= 21; i++ {
-		pops = append(pops, i)
-	}
-	m.Len = 22
-	for i := len(pops) - 1; i >= 0; i-- { // LIFO: the first pop is on top
-		m.Free = append(m.Free, pops[i])
-	}
-	m.If(5).OutACL = [3]uint32{none, 12, none} // a binding to a freed table in the ascending run
+	n0, free0 := m.Pool()
 	for run := 1; run <= 2; run++ {
+		m.If(5).OutACL = [3]uint32{none, 24, none}
 		rep, err := ifsanitize.Sanitize(context.Background(), f, 5, "loop210")
-		if err != nil || rep.Capped {
-			t.Fatalf("run %d: err %v report %+v", run, err, rep)
+		if err != nil || rep.Capped || rep.Placeholders != 20 || m.Dirty(5) != "" || len(rep.Freed) != 1 {
+			t.Fatalf("run %d: err %v dirty %q report %+v", run, err, m.Dirty(5), rep)
 		}
-		// all 22 freed indices, then growth 22–24 completes the fresh run 17…24: 25, more than the
-		// 7 gaps + 2 × FreshRun = 23 a gap-only count allowed
-		if rep.Placeholders != 25 || rep.Placeholders <= 7+2*ifsanitize.FreshRun || rep.Cap < rep.Placeholders {
-			t.Fatalf("run %d: placeholders %d cap %d holes seen %d", run, rep.Placeholders, rep.Cap, rep.Holes)
+		if n, free := m.Pool(); n != n0 || !slices.Equal(free, free0) {
+			t.Fatalf("run %d: classify pool changed: vector %d→%d, free %v → %v", run, n0, n, free0, free)
 		}
-		if d := m.Dirty(5); d != "" || len(m.Tables) != 0 {
-			t.Fatalf("run %d: dirty %q tables %v", run, d, m.Tables)
-		}
-		t.Logf("run %d: %d placeholders, cap %d (freed indices seen %d), freed %v", run, rep.Placeholders, rep.Cap, rep.Holes, rep.Freed)
-		m.If(5).OutACL = [3]uint32{none, 12, none}
+		t.Logf("run %d: %d placeholders, freed %v", run, rep.Placeholders, rep.Freed)
 	}
 }
 
 // TestAscendingRunAboveAHole (TD-5 review M1, the reviewer's probe): live tables {0,1,3,4}, an
-// older hole 2, and above them r tables 5…5+r-1 freed in reverse creation order (a test's LIFO
-// Cleanup), so the free list pops 5, 6, …, 5+r-1 and only then 2; an output-ACL binding names 2.
-// The unbroken ascending run used to be counted only once a gap or a lower pop broke it: holes
-// seen stayed 1, the cap 17, and every r ≥ 17 failed closed — on every run, as dropPlaceholders
-// replays the same pops. A hole still free at the re-read proves the run came from the free list,
-// so it needs exactly r + 1 + FreshRun placeholders, twice in a row; the cap of 64 still holds
-// (r = 55 needs 64 and succeeds, r = 56 needs 65 and fails closed).
+// older hole 2, and above them r tables 5…5+r-1 freed in reverse creation order, so the free list
+// pops 5, 6, …, 5+r-1 and only then 2; an output-ACL binding names 2. The run needs exactly r + 1
+// placeholders (the probe table 5, then 6…5+r-1 and 2), twice in a row with the pool unchanged;
+// the cap of 64 still holds: r = 63 needs 64 and succeeds, r = 64 needs 65 and fails closed
+// (ErrCapped and ErrUnclearable) with the pool unchanged as well.
 func TestAscendingRunAboveAHole(t *testing.T) {
-	for _, r := range []uint32{16, 17, 20, 40, 55, 56} {
+	for _, r := range []uint32{16, 40, 63, 64} {
 		f, m := setup()
 		for _, id := range []uint32{0, 1, 3, 4} {
 			m.Tables[id] = true
@@ -424,30 +423,34 @@ func TestAscendingRunAboveAHole(t *testing.T) {
 		for i := 5 + r - 1; i >= 5; i-- { // LIFO: 5 is on top
 			m.Free = append(m.Free, i)
 		}
-		need := int(r) + 1 + ifsanitize.FreshRun
+		n0, free0 := m.Pool()
+		need := int(r) + 1
 		for run := 1; run <= 2; run++ {
 			m.If(7).OutACL = [3]uint32{2, none, none}
 			before := ifsanitize.Snapshot()
 			rep, err := ifsanitize.Sanitize(context.Background(), f, 7, "loop211")
 			capped := ifsanitize.Snapshot().Capped["create"] != before.Capped["create"]
-			t.Logf("r=%d run %d: needed %d, placeholders %d, cap %d, holes seen %d, rereads %d, capped %v, err %v", r, run, need, rep.Placeholders, rep.Cap, rep.Holes, rep.Rereads, rep.Capped, err)
+			t.Logf("r=%d run %d: needed %d, placeholders %d, capped %v, err %v", r, run, need, rep.Placeholders, rep.Capped, err)
 			if need > ifsanitize.MaxPlaceholders {
-				if !errors.Is(err, ifsanitize.ErrCapped) || !rep.Capped || !capped || rep.Placeholders != ifsanitize.MaxPlaceholders {
+				if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrUnclearable) || !rep.Capped || !capped || rep.Placeholders != ifsanitize.MaxPlaceholders {
 					t.Fatalf("r=%d run %d: want ErrCapped at %d placeholders", r, run, ifsanitize.MaxPlaceholders)
 				}
 			} else if err != nil || rep.Capped || capped || rep.Placeholders != need || m.Dirty(7) != "" {
 				t.Fatalf("r=%d run %d: dirty %q", r, run, m.Dirty(7))
 			}
-			if len(m.Tables) != 4 {
-				t.Fatalf("r=%d run %d: placeholders left: tables %v", r, run, m.Tables)
+			if n, free := m.Pool(); len(m.Tables) != 4 || n != n0 || !slices.Equal(free, free0) {
+				t.Fatalf("r=%d run %d: tables %v, classify pool vector %d→%d free %v → %v", r, run, m.Tables, n0, n, free0, free)
 			}
 		}
 	}
 }
 
-// TestCappedFailsClosed: a free list that needs more than 64 placeholders (70 tables deleted in
-// creation order, never ascending: 70 + FreshRun) is ErrCapped — ErrNoCleanIndex — at exactly 64,
-// the capped counter moves, and every placeholder is deleted again.
+// TestCappedFailsClosed: 70 tables deleted in creation order put table 0 at the bottom of the free
+// list; a binding that names it needs 70 pops, more than MaxPlaceholders: the run is Capped, the
+// binding Unclearable, the create fails closed (ErrCapped, which is ErrNoCleanIndex, and
+// ErrUnclearable), the capped counter moves, and every placeholder is deleted again with the pool
+// unchanged. A clean interface on the same pool — which failed closed before TD-25 — needs only
+// the probe table; the delete phase of the dirty one only logs what it could not remove.
 func TestCappedFailsClosed(t *testing.T) {
 	f, m := setup()
 	for id := uint32(0); id < 70; id++ {
@@ -456,13 +459,22 @@ func TestCappedFailsClosed(t *testing.T) {
 	for id := uint32(0); id < 70; id++ {
 		m.DeleteTable(id)
 	}
+	n0, free0 := m.Pool()
+	rep, err := ifsanitize.Sanitize(context.Background(), f, 2, "loop212")
+	if err != nil || rep.Placeholders != 1 {
+		t.Fatalf("clean interface on a 70-deep free list: err %v, placeholders %d", err, rep.Placeholders)
+	}
+	m.If(3).InACL = [3]uint32{0, none, none}
 	before := ifsanitize.Snapshot()
-	rep, err := ifsanitize.Sanitize(context.Background(), f, 3, "loop208")
-	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrNoCleanIndex) || !rep.Capped {
+	rep, err = ifsanitize.Sanitize(context.Background(), f, 3, "loop208")
+	if !errors.Is(err, ifsanitize.ErrCapped) || !errors.Is(err, ifsanitize.ErrNoCleanIndex) || !errors.Is(err, ifsanitize.ErrUnclearable) || !rep.Capped {
 		t.Fatalf("err %v report %+v", err, rep)
 	}
-	if rep.Placeholders != ifsanitize.MaxPlaceholders || rep.Cap != 64 || len(m.Tables) != 0 {
-		t.Fatalf("placeholders %d cap %d, tables left %v", rep.Placeholders, rep.Cap, m.Tables)
+	if rep.Placeholders != ifsanitize.MaxPlaceholders || rep.Cap != 64 || len(m.Tables) != 0 || !slices.Equal(rep.Unclearable, []string{"input-acl ip4 table 0"}) {
+		t.Fatalf("placeholders %d cap %d unclearable %v, tables left %v", rep.Placeholders, rep.Cap, rep.Unclearable, m.Tables)
+	}
+	if n, free := m.Pool(); n != n0 || !slices.Equal(free, free0) {
+		t.Fatalf("classify pool changed: vector %d→%d", n0, n)
 	}
 	after := ifsanitize.Snapshot()
 	if after.Capped["create"] != before.Capped["create"]+1 {
@@ -470,11 +482,10 @@ func TestCappedFailsClosed(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) {
-		t.Fatalf("metrics lack the capped counter:\n%s", b.String())
+	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) || !strings.Contains(b.String(), `vrx_agent_iface_sanitize_placeholders_total{phase="create"}`) {
+		t.Fatalf("metrics lack the capped / placeholders counters:\n%s", b.String())
 	}
 	t.Logf("capped: %v", err)
-	// the delete phase never resurrects, so it is never capped
 	if err := ifsanitize.BeforeDelete(context.Background(), f, 3, "loop208"); err != nil {
 		t.Fatal(err)
 	}

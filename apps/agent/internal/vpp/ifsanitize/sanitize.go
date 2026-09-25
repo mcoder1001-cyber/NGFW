@@ -1,20 +1,31 @@
 // Package ifsanitize clears the per-interface state VPP 26.06 keeps on a sw_if_index after the
-// interface is deleted (docs/vpp-code-track.md V19, V21; LOG D-095). VPP reuses a freed
+// interface is deleted (docs/vpp-code-track.md V19, V21, V23; LOG D-095). VPP reuses a freed
 // sw_if_index for the next interface of any type, and several per-index vectors are not reset
-// by the sw-interface delete callbacks:
+// by the sw-interface delete callbacks. Per kind, what Sanitize reads back and how it clears it:
 //
 //   - ip4/ip6 "ip classify table" (classify_set_interface_ip_table): read directly when an
 //     address is added — the new interface gets a classify DPO to the old table on its /32.
 //     If that table was deleted, the first packet to the address crashes VPP in
-//     vnet_classify_find_entry (2026-09-24 04:50:27). No readback exists: reset blindly.
+//     vnet_classify_find_entry (2026-09-24 04:50:27). No readback exists: reset blindly to ~0
+//     (a reset names no table, so a deleted one does not matter).
 //   - l2 input/output classify tables (classify_set_interface_l2_tables): no readback: reset
 //     blindly (all three tables ~0 also disables the l2 feature bit).
-//   - input ACL tables: readback with classify_table_by_interface; unbound when the table
-//     still exists (VPP refuses an unbind naming a freed table).
-//   - output ACL, policer classify and flow classify tables: no usable readback
-//     (policer/flow_classify_dump read out of bounds per interface, see policer/attach.go), so
-//     each existing classify table is probed with an unbind: VPP answers NO_SUCH_TABLE unless
-//     that exact table is bound on the interface, and unbinds it otherwise.
+//   - input ACL tables: read back exactly with classify_table_by_interface.
+//   - policer classify and flow classify tables: read back exactly with policer_classify_dump /
+//     flow_classify_dump with sw_if_index 0. In VPP 26.06 the handler walks
+//     vec_len(&vector[sw_if_index]) (classify_api.c): ~0 returns nothing, any other index reads
+//     out of bounds (see descriptors/policer/attach.go, D-063), but for 0 the pointer is the
+//     vector itself, so the reply is every binding of every index — deleted ones included, like
+//     `show classify policer` — and Sanitize keeps the rows of its own index. Never called with
+//     another index.
+//   - output ACL tables: no binary-API readback at all. Detected per slot with the run's own
+//     probe table P (an empty placeholder): an unbind naming P succeeds only when the slot names
+//     P's index; otherwise P is bound — VPP binds only an empty slot, an add on a bound slot
+//     returns 0 and changes nothing (in_out_acl.c) — and unbound again: that unbind fails exactly
+//     when the slot holds another table. Only such a slot is probed: an unbind through each
+//     existing table, then through freed indices brought back one by one (below). P has no
+//     sessions and misses to the node's default next, and it is bound only on an empty slot of
+//     this interface for the two calls in between. This is the only kind that is probed.
 //   - ADL: the adl-input feature on device-input — disabled blindly (a disable of a feature
 //     that is not enabled is a no-op in vnet_feature_enable_disable). Not read back:
 //     feature_is_enabled is unreliable in VPP 26.06 (the handler turns vnet_feature_is_enabled's
@@ -31,21 +42,34 @@
 //     ipsec_spds_dump is used (deleting an SPD clears every binding to it, so a stale binding
 //     always refers to an existing SPD).
 //
-// Every new interface is first put in L3 mode (sw_interface_set_l2_bridge enable=0 →
+// Every interface is first put in L3 mode (sw_interface_set_l2_bridge enable=0 →
 // set_int_l2_mode(MODE_L3)): that zeroes the l2-input/l2-output feature bitmaps, which carry the
 // L2 input ACL, L2 output ACL and L2 policer classify bits — they are not vnet feature arcs, VPP
 // resets them on delete only for interfaces that were bridged/xconnected, and l2-input-acl reads
 // its table unconditionally (TD-3 review H1: a live crash vector once the index is bridged).
 //
 // A binding that names a deleted table cannot be removed while the table is gone (VPP checks
-// pool_is_free_index). The classify table pool hands out the most recently freed index first
-// (vppinfra/pool.h, _pool_get pops free_indices[n_free-1]), so before reading/probing, Sanitize
-// resurrects every free index: it creates throwaway placeholder tables (a signature mask) until
-// the pool's holes are filled and it hands out fresh indices; the bindings are then removed
-// through the placeholders and the placeholders deleted again (identity re-verified by geometry
-// and mask right before each delete). What still cannot be removed is Unclearable: in the create
-// phase that is ErrUnclearable, and Acquire quarantines the index (see acquire.go) instead of
-// reporting the interface created.
+// pool_is_free_index before it compares the slot). The classify table pool is a vppinfra pool:
+// a create pops the most recently freed index (pool.h, _pool_get pops free_indices[n_free-1]) and
+// the vector never shrinks, so a freed index a binding names is on the free list and comes back
+// after the indices freed after it. Sanitize resurrects ON DEMAND only (TD-25): when a binding
+// names a table that is not there, it creates placeholder tables (a signature mask) until that
+// index comes back — for an output ACL slot whose table is unknown, until an unbind through the
+// latest placeholder succeeds — unbinds through it and deletes every placeholder again in reverse
+// creation order (identity re-verified by geometry and mask right before each delete), which
+// restores the free list exactly. It never pops to prove the free list empty: a freed index is
+// on the free list, so a pop never grows the pool — except the probe table on a pool without any
+// freed index (once per VPP instance: the index is then reused by every later run) and one pop
+// after another client took the index being waited for (a pop above every index seen re-reads
+// the table list). Before TD-25 every create-phase run popped 8 fresh indices "to prove the free
+// list empty"; each became a permanent hole, the free list grew by 8 per create and every create
+// failed closed at the 64-placeholder cap (the shared VPP, 2026-09-25 05:05, 122 freed indices).
+//
+// What still cannot be removed is Unclearable: in the create phase that is ErrUnclearable, and
+// Acquire quarantines the index (see acquire.go) instead of reporting the interface created; a
+// binding whose freed index is deeper in the free list than MaxPlaceholders pops is Unclearable
+// as well (Report.Capped, ErrCapped). Before a delete (BeforeDelete) the same readbacks and
+// on-demand resurrection run, and what remains is logged and counted, not an error.
 //
 // Sanitize uses only binapi messages and touches only the given sw_if_index (plus its own
 // placeholder tables). Messages of a plugin that is not loaded are skipped. Every run is logged at
@@ -59,6 +83,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"sort"
 
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/api"
@@ -76,7 +101,7 @@ import (
 const NoIndex = ^uint32(0)
 
 // ErrNoSuchTable is VNET_API_ERROR_NO_SUCH_TABLE (vnet/error.h): the answer to an unbind that
-// names a table which is not the one bound.
+// names a table which is not the one bound, or a table that does not exist.
 const ErrNoSuchTable api.VPPApiError = -65
 
 // ErrUnclearable means a binding of the new interface names a deleted classify table and could not
@@ -89,27 +114,26 @@ const (
 	PhaseDelete = "delete" // right before an interface is deleted, while its tables still exist
 )
 
-// MaxPlaceholders is the ceiling of the placeholder cap (PlaceholderCap): no create-phase run
-// makes more placeholder tables than this, however many freed indices it has seen.
+// MaxPlaceholders bounds the placeholder tables of one run, the probe table included. A binding
+// that names a freed index deeper in the classify pool's free list than that is Unclearable and
+// the run Capped (create: ErrUnclearable and ErrCapped — Acquire quarantines the index). A run
+// without such a binding makes one placeholder (the probe table).
 var MaxPlaceholders = 64
 
-// PlaceholderCap is the number of placeholder tables a create-phase run may make once it has seen
-// holes freed classify table indices: holes + 2 × FreshRun, at most MaxPlaceholders (D-105, TD-3
-// re-review M1 option b). Each freed index needs one placeholder and the proof of an empty free
-// list FreshRun more; the second FreshRun absorbs runs of ascending pops that were not fresh after
-// all. The cap grows as the run discovers holes. A run that reaches it before it has proven the
-// classify pool's free list empty fails closed with ErrCapped (counted as
-// vrx_agent_iface_sanitize_capped_total): Acquire deletes the interface and fails the create.
-func PlaceholderCap(holes int) int { return min(holes+2*FreshRun, MaxPlaceholders) }
-
-// ErrCapped means the placeholder cap was reached before every freed classify table index was
-// resurrected: the new interface may still carry a binding to one of them, so it is not reported
-// created (fail closed). It wraps ErrNoCleanIndex.
-var ErrCapped = fmt.Errorf("%w: placeholder cap reached before every freed classify table index was resurrected", ErrNoCleanIndex)
+// ErrCapped means MaxPlaceholders pops did not bring back the freed classify table index a
+// binding of the new interface names: the binding is unclearable (the error also wraps
+// ErrUnclearable) and the interface is not reported created (fail closed). It wraps
+// ErrNoCleanIndex.
+var ErrCapped = fmt.Errorf("%w: placeholder cap reached before the freed classify table index a binding names came back", ErrNoCleanIndex)
 
 // noResurrect turns resurrection off (tests of the quarantine path only: a binding to a freed
-// table is then unclearable without the run being capped; see export_test.go).
+// table is then unclearable; see export_test.go).
 var noResurrect bool
+
+// dumpEveryIndex is the sw_if_index policer/flow_classify_dump must be sent with in VPP 26.06:
+// the only value for which the handler walks the whole per-index vector instead of nothing (~0)
+// or memory out of bounds (any other index). See the package comment.
+const dumpEveryIndex interface_types.InterfaceIndex = 0
 
 // placeholderMask is the signature of Sanitize's own throwaway classify tables.
 var placeholderMask = []byte("vrx-td3-v19-hold")
@@ -133,15 +157,20 @@ type Report struct {
 	SwIfIndex uint32
 	Name      string
 	Phase     string
-	// Placeholders is how many throwaway tables were created to resurrect freed indices.
+	// Placeholders is how many throwaway tables the run made: the probe table of the output ACL
+	// check, plus one per free-list pop that brought back a freed index a binding names.
 	Placeholders int
-	// Capped reports that the placeholder cap was reached with freed indices possibly left
-	// (create phase: the run fails with ErrCapped).
+	// Pops are the placeholder indices in creation order (they are deleted in reverse order, which
+	// puts the classify pool's free list back as it was).
+	Pops []uint32
+	// Wanted is how many bindings named a table that was not there (a freed index to bring back).
+	Wanted int
+	// Capped reports that Cap (MaxPlaceholders) placeholders did not bring back every freed index
+	// a binding names: those bindings are Unclearable.
 	Capped bool
-	// Holes is how many freed classify table indices the run has seen; Cap the placeholder cap
-	// they gave (PlaceholderCap(Holes)) when resurrect stopped.
-	Holes, Cap int
-	// Rereads counts classify_table_ids re-reads for holes another client took meanwhile.
+	Cap    int
+	// Rereads counts classify_table_ids re-reads (after a pop above every index seen: a table
+	// another client created meanwhile may be the one a binding names).
 	Rereads int
 	// Freed lists removed bindings that named a deleted table (removed through a placeholder).
 	Freed []string
@@ -163,13 +192,19 @@ func (r Report) Inherited() bool {
 type sanitizer struct {
 	ctx   context.Context
 	c     vpp.Client
+	cl    classifyapi.RPCService
 	idx   interface_types.InterfaceIndex
 	phase string
-	live  map[uint32]bool // classify tables that existed before the run
-	taken map[uint32]bool // tables another client created during the run (possibly on a freed index)
-	ids   []uint32        // live + placeholder + taken table indices (every index a binding can name)
-	holds []uint32        // placeholder tables of this run
-	rep   *Report
+	live  map[uint32]bool // classify tables at the snapshot (minus tables found deleted meanwhile)
+	taken map[uint32]bool // tables that appeared during the run (another client's, possibly on a freed index)
+	top   int64           // the highest table index seen (live, named by a binding, popped)
+	holds []uint32        // this run's placeholder tables in creation order; holds[0] is the probe table
+	// pending are bindings whose table is not there (named, freed) or unknown (an output ACL slot
+	// bound to a table no existing one matched): resurrect brings their index back.
+	pending []*bound
+	found   map[string]bool // readback kinds that had a binding: read back again at the end
+	out     []*bound        // output ACL slots that were bound
+	rep     *Report
 }
 
 // Sanitize clears inherited per-interface state on idx, a sw_if_index VPP has just returned for
@@ -181,19 +216,19 @@ func Sanitize(ctx context.Context, c vpp.Client, idx uint32, name string) (Repor
 }
 
 // BeforeDelete clears every per-interface binding of an interface that is about to be deleted —
-// the only moment all its tables are guaranteed to exist (VPP keeps the bindings on the freed
-// index, V19; TD-3 review H3). Every interface descriptor's Delete, the restart simulations and
-// the test fixtures call it right before the VPP delete. A binding that cannot be removed is
-// logged and counted, not an error (the delete must go on; the next creator's Sanitize handles
-// the index).
+// the moment its tables normally all exist (VPP keeps the bindings on the freed index, V19; TD-3
+// review H3). Every interface descriptor's Delete, the restart simulations and the test fixtures
+// call it right before the VPP delete. A binding that cannot be removed is logged and counted,
+// not an error (the delete must go on; the next creator's Sanitize handles the index).
 func BeforeDelete(ctx context.Context, c vpp.Client, idx uint32, name string) error {
 	_, err := run(ctx, c, idx, name, PhaseDelete)
 	return err
 }
 
 func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Report, error) {
-	rep := Report{SwIfIndex: idx, Name: name, Phase: phase}
-	s := &sanitizer{ctx: ctx, c: c, idx: interface_types.InterfaceIndex(idx), phase: phase, rep: &rep}
+	rep := Report{SwIfIndex: idx, Name: name, Phase: phase, Cap: MaxPlaceholders}
+	s := &sanitizer{ctx: ctx, c: c, cl: classifyapi.NewServiceClient(c), idx: interface_types.InterfaceIndex(idx), phase: phase,
+		found: map[string]bool{}, rep: &rep}
 	err := s.run()
 	if derr := s.dropPlaceholders(); derr != nil && err == nil {
 		err = derr
@@ -201,11 +236,11 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 	if err == nil && phase == PhaseCreate {
 		switch {
 		case len(rep.Unclearable) > 0 && rep.Capped:
-			err = fmt.Errorf("%w: %v; %w", ErrUnclearable, rep.Unclearable, ErrCapped)
+			err = fmt.Errorf("%w: %v; %w (%d placeholders)", ErrUnclearable, rep.Unclearable, ErrCapped, rep.Placeholders)
 		case len(rep.Unclearable) > 0:
 			err = fmt.Errorf("%w: %v", ErrUnclearable, rep.Unclearable)
 		case rep.Capped:
-			err = fmt.Errorf("%w (%d placeholders, cap %d for %d freed indices seen)", ErrCapped, rep.Placeholders, rep.Cap, rep.Holes)
+			err = fmt.Errorf("%w (%d placeholders)", ErrCapped, rep.Placeholders)
 		}
 	}
 	record(rep, err)
@@ -213,13 +248,14 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 	switch {
 	case err != nil:
 		log.Error("interface sanitize failed (VPP V19)", "err", err, "cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable,
-			"placeholders", rep.Placeholders, "capped", rep.Capped, "rereads", rep.Rereads)
+			"placeholders", rep.Placeholders, "pops", rep.Pops, "wanted", rep.Wanted, "capped", rep.Capped, "rereads", rep.Rereads)
 	case len(rep.Unclearable) > 0:
 		log.Warn("interface sanitized: bindings to deleted classify tables remain (VPP V19)",
-			"cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable, "reset", rep.Reset, "skipped", rep.Skipped)
+			"cleared", rep.Cleared, "freed", rep.Freed, "unclearable", rep.Unclearable, "placeholders", rep.Placeholders, "pops", rep.Pops,
+			"capped", rep.Capped, "reset", rep.Reset, "skipped", rep.Skipped)
 	default:
 		log.Info("interface sanitized (VPP V19/V21 inherited state)", "cleared", rep.Cleared, "freed", rep.Freed,
-			"placeholders", rep.Placeholders, "rereads", rep.Rereads, "reset", rep.Reset, "skipped", rep.Skipped)
+			"placeholders", rep.Placeholders, "pops", rep.Pops, "rereads", rep.Rereads, "reset", rep.Reset, "skipped", rep.Skipped)
 	}
 	if err != nil {
 		return rep, fmt.Errorf("sanitize %s (sw_if_index %d, %s): %w", name, idx, phase, err)
@@ -228,24 +264,9 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 }
 
 func (s *sanitizer) run() error {
-	if err := s.l3Mode(); err != nil {
-		return err
-	}
-	ids, err := classifyapi.NewServiceClient(s.c).ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
-	if err != nil {
-		return fmt.Errorf("classify_table_ids: %w", err)
-	}
-	s.live, s.taken = map[uint32]bool{}, map[uint32]bool{}
-	for _, id := range ids.Ids {
-		s.live[id] = true
-	}
-	s.ids = append([]uint32(nil), ids.Ids...)
-	if s.phase == PhaseCreate && !noResurrect {
-		if err := s.resurrect(); err != nil {
-			return err
-		}
-	}
-	for _, step := range []func() error{s.ipClassify, s.l2Classify, s.inputACL, s.outputACL, s.policerClassify, s.flowClassify, s.adl, s.vxlanBypass, s.ipsecSPD} {
+	for _, step := range []func() error{s.l3Mode, s.snapshot, s.ipClassify, s.l2Classify, s.probeTable,
+		s.inputACL, s.outputACL, s.policerClassify, s.flowClassify, s.resurrect, s.verify,
+		s.adl, s.vxlanBypass, s.ipsecSPD} {
 		if err := step(); err != nil {
 			return err
 		}
@@ -266,142 +287,68 @@ func (s *sanitizer) l3Mode() error {
 	return nil
 }
 
-// FreshRun is how many consecutive fresh indices (each one above every index seen) resurrect
-// needs before it trusts that the classify pool's free list is empty. The pool pops the most
-// recently freed index first, so a run of ascending pops is also what tables deleted in reverse
-// order look like; FreshRun makes that ambiguity need that many tables freed in exact reverse
-// order above the highest live one. Input ACL bindings are exact (their table is read back and
-// resurrected by name), the write-only kinds rely on this bound.
-var FreshRun = 8
-
-// resurrect fills the classify table pool's free indices with placeholder tables so every index a
-// stale binding can name exists during the run. It stops once no index below the highest index
-// seen is free, every table an input ACL binding of the interface names exists, and FreshRun
-// consecutive creates returned consecutive fresh indices above everything seen (the pool's free
-// list is then empty: VPP grows the vector).
-//
-// A hole another client takes between the classify_table_ids snapshot and the pop never comes
-// back from the pool (TD-3 re-review M1): once the run looks fresh with holes left, the table list
-// is read again, holes that are live now are dropped and every table that appeared meanwhile is
-// probed like a live one. PlaceholderCap(holes seen) bounds the run; reaching it with holes left or
-// without FreshRun sets Report.Capped (the create fails closed, ErrCapped).
-func (s *sanitizer) resurrect() error {
-	maxSeen := int64(-1)
-	for id := range s.live {
-		if int64(id) > maxSeen {
-			maxSeen = int64(id)
-		}
-	}
-	holes := map[uint32]bool{}
-	// seen is every freed index the run has seen, the cap's "holes" (D-105): the gaps below the
-	// highest index seen, the tables input ACL bindings name, and every pop proven to come from the
-	// free list — a pop below the highest index seen, and the ascending run such a pop or a gap
-	// interrupts (growth is consecutive to the end, so a broken run was never growth). Without the
-	// latter, a free list that replays a previous run's ascending pops (dropPlaceholders frees in
-	// reverse creation order, so the next run pops in the same order) stayed capped for good.
-	seen := map[uint32]bool{}
-	hole := func(i uint32) {
-		holes[i] = true
-		seen[i] = true
-	}
-	var run []uint32 // the current run of ascending pops (fresh growth or free-list entries)
-	proven := func() {
-		for _, i := range run {
-			seen[i] = true
-		}
-		run = run[:0]
-	}
-	for i := int64(0); i < maxSeen; i++ {
-		if !s.live[uint32(i)] {
-			hole(uint32(i))
-		}
-	}
-	// the tables input ACL bindings name are known exactly: they must come back
-	cur, err := classifyapi.NewServiceClient(s.c).ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
+func (s *sanitizer) snapshot() error {
+	ids, err := s.cl.ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
 	if err != nil {
-		return fmt.Errorf("classify_table_by_interface: %w", err)
+		return fmt.Errorf("classify_table_ids: %w", err)
 	}
-	for _, t := range []uint32{cur.IP4TableID, cur.IP6TableID, cur.L2TableID} {
-		if t != NoIndex && !s.live[t] {
-			hole(t)
-		}
+	s.live, s.taken, s.top = map[uint32]bool{}, map[uint32]bool{}, -1
+	for _, id := range ids.Ids {
+		s.live[id] = true
+		s.see(id)
 	}
-	consec := 0
-	for {
-		s.rep.Holes, s.rep.Cap = len(seen), PlaceholderCap(len(seen))
-		if len(holes) > 0 && (consec >= FreshRun || len(s.holds) >= s.rep.Cap) {
-			if err := s.reread(holes); err != nil {
-				return err
-			}
-			if len(holes) > 0 {
-				// a hole still free after the re-read proves the free list is not empty, and VPP pops
-				// the free list before it grows the pool: every pop of the current ascending run came
-				// from the free list (TD-5 review M1 — an unbroken run above an older hole was counted
-				// only when a gap or a lower pop broke it, so it met a cap of 1 + 2 × FreshRun first,
-				// on every run). The success condition is unchanged; only the bound grows, ≤ 64.
-				proven()
-				s.rep.Holes, s.rep.Cap = len(seen), PlaceholderCap(len(seen))
-			}
-		}
-		if len(holes) == 0 && consec >= FreshRun {
-			return nil
-		}
-		if len(s.holds) >= s.rep.Cap {
-			s.rep.Capped = true
-			slog.Default().Warn("interface sanitize: placeholder cap reached (VPP V19); the create fails closed",
-				"sw_if_index", uint32(s.idx), "placeholders", len(s.holds), "cap", s.rep.Cap, "holes_seen", s.rep.Holes,
-				"holes_left", len(holes), "fresh_run", consec, "pops", s.holds)
-			return nil
-		}
-		idx, err := s.createPlaceholder()
-		if err != nil {
-			return err
-		}
-		delete(holes, idx)
-		switch {
-		case int64(idx) == maxSeen+1:
-			consec++
-			maxSeen = int64(idx)
-			run = append(run, idx)
-		case int64(idx) > maxSeen:
-			// the indices skipped were not live at the snapshot and not popped by us: freed (or
-			// taken by another client meanwhile — the re-read drops those)
-			for i := maxSeen + 1; i < int64(idx); i++ {
-				if !s.live[uint32(i)] {
-					hole(uint32(i))
-				}
-			}
-			proven()
-			run = append(run, idx)
-			consec = 1
-			maxSeen = int64(idx)
-		default:
-			proven()
-			seen[idx] = true
-			consec = 0
-		}
+	return nil
+}
+
+func (s *sanitizer) see(t uint32) {
+	if int64(t) > s.top {
+		s.top = int64(t)
 	}
 }
 
-// reread reads classify_table_ids again: a hole that is a live table now was taken by another
-// client after the snapshot (it will never come back from the pool) and is dropped; every table
-// that appeared during the run can carry an inherited binding (its index may have been freed) and
-// is probed like a live table.
-func (s *sanitizer) reread(holes map[uint32]bool) error {
-	ids, err := classifyapi.NewServiceClient(s.c).ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
-	if err != nil {
-		return fmt.Errorf("classify_table_ids (re-read): %w", err)
+// probeTable creates the run's probe table (holds[0]) for the output ACL check. It pops the top
+// of the classify pool's free list and goes back there when the run ends.
+func (s *sanitizer) probeTable() error {
+	_, err := s.createPlaceholder()
+	return err
+}
+
+// bound is one per-interface classify binding of the interface.
+type bound struct {
+	state string
+	sl    slot
+	// table is the bound table; NoIndex for an output ACL slot proven bound to a table that no
+	// readback names (found by trying tables).
+	table  uint32
+	unbind func(ip4, ip6, l2 uint32) error
+	done   bool
+}
+
+func (b *bound) String() string {
+	if b.table == NoIndex {
+		return fmt.Sprintf("%s %s table ?", b.state, b.sl.name)
 	}
-	s.rep.Rereads++
-	for _, id := range ids.Ids {
-		delete(holes, id)
-		if s.live[id] || s.taken[id] || s.held(id) {
-			continue
-		}
-		s.taken[id] = true
-		s.ids = append(s.ids, id)
+	return fmt.Sprintf("%s %s table %d", b.state, b.sl.name, b.table)
+}
+
+// try unbinds table t from b's slot: true when t was the bound table (now removed), false on
+// NO_SUCH_TABLE (t is not the bound table, or t does not exist).
+func (b *bound) try(t uint32) (bool, error) {
+	ip4, ip6, l2 := b.sl.set(t)
+	err := b.unbind(ip4, ip6, l2)
+	switch {
+	case err == nil:
+		return true, nil
+	case isRetval(err, ErrNoSuchTable):
+		return false, nil
 	}
-	return nil
+	return false, fmt.Errorf("%s: unbind %s table %d: %w", b.state, b.sl.name, t, err)
+}
+
+// usable reports whether an unbind through table t can work: t exists (live at the snapshot, or
+// taken by another client meanwhile, or brought back by one of this run's placeholders).
+func (s *sanitizer) usable(t uint32) bool {
+	return s.live[t] || s.taken[t] || (!noResurrect && s.held(t))
 }
 
 func (s *sanitizer) held(table uint32) bool {
@@ -413,38 +360,169 @@ func (s *sanitizer) held(table uint32) bool {
 	return false
 }
 
+// clear records b as removed through table t.
+func (s *sanitizer) clear(b *bound, t uint32) {
+	b.table, b.done = t, true
+	s.cleared(b.String(), t)
+}
+
+// named removes a binding a readback named: directly when its table exists, else it waits for
+// resurrect.
+func (s *sanitizer) named(b *bound) error {
+	s.see(b.table)
+	if s.usable(b.table) {
+		ok, err := b.try(b.table)
+		if err != nil {
+			return err
+		}
+		if ok {
+			s.clear(b, b.table)
+			return nil
+		}
+		if s.held(b.table) {
+			return nil // the slot no longer names it: the final readback shows what is left
+		}
+		// the table was deleted by another client after the snapshot: it is on the free list now
+		delete(s.live, b.table)
+		delete(s.taken, b.table)
+	}
+	s.pending = append(s.pending, b)
+	return nil
+}
+
 func (s *sanitizer) createPlaceholder() (uint32, error) {
-	rep, err := classifyapi.NewServiceClient(s.c).ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: NoIndex,
+	rep, err := s.cl.ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: true, TableIndex: NoIndex,
 		Nbuckets: 2, MemorySize: 64 << 10, MatchNVectors: 1, NextTableIndex: NoIndex, MissNextIndex: NoIndex,
 		MaskLen: uint32(len(placeholderMask)), Mask: placeholderMask}) //nolint:gosec // 16
 	if err != nil {
 		return 0, fmt.Errorf("classify_add_del_table (placeholder): %w", err)
 	}
 	s.holds = append(s.holds, rep.NewTableIndex)
-	s.ids = append(s.ids, rep.NewTableIndex)
 	s.rep.Placeholders++
+	s.rep.Pops = append(s.rep.Pops, rep.NewTableIndex)
 	return rep.NewTableIndex, nil
 }
 
-// dropPlaceholders deletes this run's placeholder tables, each only after classify_table_info
-// shows the placeholder's geometry and signature mask at that index (D-071).
+// dropPlaceholders deletes this run's placeholder tables in reverse creation order — the free
+// list gets them back in the order they were popped — each only after classify_table_info shows
+// the placeholder's geometry and signature mask at that index (D-071).
 func (s *sanitizer) dropPlaceholders() error {
-	cl := classifyapi.NewServiceClient(s.c)
 	var errs []error
 	for i := len(s.holds) - 1; i >= 0; i-- {
 		idx := s.holds[i]
-		info, err := cl.ClassifyTableInfo(s.ctx, &classifyapi.ClassifyTableInfo{TableID: idx})
+		info, err := s.cl.ClassifyTableInfo(s.ctx, &classifyapi.ClassifyTableInfo{TableID: idx})
 		if err != nil || info.MatchNVectors != 1 || info.SkipNVectors != 0 || !bytes.Equal(info.Mask, placeholderMask) {
 			errs = append(errs, fmt.Errorf("placeholder table %d is not ours any more (%v): left in VPP", idx, err))
 			continue
 		}
-		if _, err := cl.ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: idx, Nbuckets: 2, MemorySize: 64 << 10,
+		if _, err := s.cl.ClassifyAddDelTable(s.ctx, &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: idx, Nbuckets: 2, MemorySize: 64 << 10,
 			MatchNVectors: 1, MaskLen: uint32(len(placeholderMask)), Mask: placeholderMask, NextTableIndex: NoIndex, MissNextIndex: NoIndex}); err != nil { //nolint:gosec // 16
 			errs = append(errs, fmt.Errorf("delete placeholder table %d: %w", idx, err))
 		}
 	}
 	s.holds = nil
 	return errors.Join(errs...)
+}
+
+// resurrect brings back, on demand, the freed indices pending bindings name: it pops the classify
+// pool's free list (placeholder tables) until each named index came back, and for an output ACL
+// slot bound to an unknown table it tries an unbind through every placeholder it pops. A freed
+// index is on the free list, so this never pops a fresh index — unless another client took the
+// index meanwhile: a pop above every index seen re-reads the table list, and the tables that
+// appeared are tried like the placeholders. At most MaxPlaceholders placeholders (Capped).
+func (s *sanitizer) resurrect() error {
+	if len(s.pending) == 0 || noResurrect {
+		return nil
+	}
+	want := map[uint32][]*bound{}
+	var unknown []*bound
+	for _, b := range s.pending {
+		if b.table == NoIndex {
+			unknown = append(unknown, b)
+		} else {
+			want[b.table] = append(want[b.table], b)
+		}
+	}
+	s.rep.Wanted = len(s.pending)
+	var through []uint32 // tables to try: the latest pop, and tables that appeared meanwhile (the probe table was tried already)
+	for {
+		for _, t := range through {
+			for _, b := range want[t] {
+				ok, err := b.try(t)
+				if err != nil {
+					return err
+				}
+				if ok {
+					s.clear(b, t)
+				}
+			}
+			delete(want, t)
+			rest := unknown[:0]
+			for _, b := range unknown {
+				ok, err := b.try(t)
+				if err != nil {
+					return err
+				}
+				if ok {
+					s.clear(b, t)
+					continue
+				}
+				rest = append(rest, b)
+			}
+			unknown = rest
+		}
+		if len(want) == 0 && len(unknown) == 0 {
+			return nil
+		}
+		if len(s.holds) >= MaxPlaceholders {
+			s.rep.Capped = true
+			left := make([]uint32, 0, len(want))
+			for t := range want {
+				left = append(left, t)
+			}
+			slog.Default().Warn("interface sanitize: placeholder cap reached before a freed classify table index a binding names came back (VPP V19)",
+				"sw_if_index", uint32(s.idx), "phase", s.phase, "placeholders", len(s.holds), "cap", MaxPlaceholders,
+				"waiting_for", left, "unknown_output_acl_slots", len(unknown), "pops", s.rep.Pops)
+			return nil
+		}
+		q, err := s.createPlaceholder()
+		if err != nil {
+			return err
+		}
+		through = append(through[:0], q)
+		if int64(q) > s.top {
+			// above every index seen: a free-list entry never seen before or — only when another
+			// client took the index being waited for — a fresh one; tables that appeared meanwhile
+			// may be the ones the bindings name
+			s.see(q)
+			newly, err := s.reread()
+			if err != nil {
+				return err
+			}
+			through = append(through, newly...)
+		}
+	}
+}
+
+// reread reads classify_table_ids again and returns the tables that appeared during the run
+// (another client's; their index may be a freed one a binding names): they become taken.
+func (s *sanitizer) reread() ([]uint32, error) {
+	ids, err := s.cl.ClassifyTableIds(s.ctx, &classifyapi.ClassifyTableIds{})
+	if err != nil {
+		return nil, fmt.Errorf("classify_table_ids (re-read): %w", err)
+	}
+	s.rep.Rereads++
+	var newly []uint32
+	for _, id := range ids.Ids {
+		if s.live[id] || s.taken[id] || s.held(id) {
+			continue
+		}
+		s.taken[id] = true
+		s.see(id)
+		newly = append(newly, id)
+	}
+	sort.Slice(newly, func(i, j int) bool { return newly[i] < newly[j] })
+	return newly, nil
 }
 
 // freed reports whether table was deleted before this run (it exists only as a placeholder).
@@ -473,13 +551,246 @@ func isRetval(err error, want api.VPPApiError) bool {
 	return errors.As(err, &apiErr) && apiErr == want
 }
 
-func (s *sanitizer) exists(table uint32) bool {
-	for _, id := range s.ids {
-		if id == table {
-			return true
+// slot is one table kind of a three-table binding message.
+type slot struct {
+	name string
+	set  func(table uint32) (ip4, ip6, l2 uint32)
+}
+
+var aclSlots = []slot{
+	{"ip4", func(t uint32) (uint32, uint32, uint32) { return t, NoIndex, NoIndex }},
+	{"ip6", func(t uint32) (uint32, uint32, uint32) { return NoIndex, t, NoIndex }},
+	{"l2", func(t uint32) (uint32, uint32, uint32) { return NoIndex, NoIndex, t }},
+}
+
+func (s *sanitizer) inputUnbind(ip4, ip6, l2 uint32) error {
+	_, err := s.cl.InputACLSetInterface(s.ctx, &classifyapi.InputACLSetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false})
+	return err
+}
+
+func (s *sanitizer) outputSet(add bool) func(ip4, ip6, l2 uint32) error {
+	return func(ip4, ip6, l2 uint32) error {
+		_, err := s.cl.OutputACLSetInterface(s.ctx, &classifyapi.OutputACLSetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: add})
+		return err
+	}
+}
+
+func (s *sanitizer) policerUnbind(ip4, ip6, l2 uint32) error {
+	_, err := s.cl.PolicerClassifySetInterface(s.ctx, &classifyapi.PolicerClassifySetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false})
+	return err
+}
+
+func (s *sanitizer) flowUnbind(ip4, ip6, _ uint32) error {
+	_, err := s.cl.FlowClassifySetInterface(s.ctx, &classifyapi.FlowClassifySetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, IsAdd: false})
+	return err
+}
+
+// inputTables reads the input ACL tables of the interface (classify_table_by_interface).
+func (s *sanitizer) inputTables() ([]uint32, error) {
+	cur, err := s.cl.ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
+	if err != nil {
+		return nil, fmt.Errorf("classify_table_by_interface: %w", err)
+	}
+	return []uint32{cur.IP4TableID, cur.IP6TableID, cur.L2TableID}, nil
+}
+
+// policerTables reads the policer classify tables of the interface, per slot, from
+// policer_classify_dump(sw_if_index 0) — every index's bindings in VPP 26.06 (dumpEveryIndex).
+func (s *sanitizer) policerTables() ([]uint32, error) {
+	out := []uint32{NoIndex, NoIndex, NoIndex}
+	for i := range out {
+		stream, err := s.cl.PolicerClassifyDump(s.ctx, &classifyapi.PolicerClassifyDump{Type: classifyapi.PolicerClassifyTable(i), SwIfIndex: dumpEveryIndex}) //nolint:gosec // 0–2
+		if err != nil {
+			return nil, err
+		}
+		for {
+			d, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+			if d.SwIfIndex == s.idx {
+				out[i] = d.TableIndex
+			}
 		}
 	}
-	return false
+	return out, nil
+}
+
+// flowTables is policerTables for flow_classify_dump (ip4, ip6).
+func (s *sanitizer) flowTables() ([]uint32, error) {
+	out := []uint32{NoIndex, NoIndex}
+	for i := range out {
+		stream, err := s.cl.FlowClassifyDump(s.ctx, &classifyapi.FlowClassifyDump{Type: classifyapi.FlowClassifyTable(i), SwIfIndex: dumpEveryIndex}) //nolint:gosec // 0–1
+		if err != nil {
+			return nil, err
+		}
+		for {
+			d, err := stream.Recv()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+			if d.SwIfIndex == s.idx {
+				out[i] = d.TableIndex
+			}
+		}
+	}
+	return out, nil
+}
+
+// readback is one kind with an exact readback.
+type readback struct {
+	state  string
+	msg    string
+	tables func() ([]uint32, error)
+	unbind func(ip4, ip6, l2 uint32) error
+}
+
+func (s *sanitizer) readbacks() []readback {
+	return []readback{
+		{StateInputACL, "classify_table_by_interface", s.inputTables, s.inputUnbind},
+		{StatePolicerClassify, "policer_classify_dump", s.policerTables, s.policerUnbind},
+		{StateFlowClassify, "flow_classify_dump", s.flowTables, s.flowUnbind},
+	}
+}
+
+// removeRead reads the bindings of one readback kind and removes them (named).
+func (s *sanitizer) removeRead(k readback) error {
+	tables, err := k.tables()
+	if unknownMsg(err) {
+		s.rep.Skipped = append(s.rep.Skipped, k.state)
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", k.msg, err)
+	}
+	for i, t := range tables {
+		if t == NoIndex {
+			continue
+		}
+		s.found[k.state] = true
+		if err := s.named(&bound{state: k.state, sl: aclSlots[i], table: t, unbind: k.unbind}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *sanitizer) inputACL() error        { return s.removeRead(s.readbacks()[0]) }
+func (s *sanitizer) policerClassify() error { return s.removeRead(s.readbacks()[1]) }
+func (s *sanitizer) flowClassify() error    { return s.removeRead(s.readbacks()[2]) }
+
+// outputACL checks the three output ACL slots with the probe table P (no readback exists):
+//  1. an unbind of P succeeds only when the slot names P's index — a freed index the probe
+//     table brought back: removed;
+//  2. otherwise P is bound and unbound again: VPP binds only an empty slot (an add on a bound
+//     slot returns 0 unchanged, in_out_acl.c), so this unbind succeeds exactly when the slot was
+//     empty — and leaves it empty;
+//  3. otherwise the slot holds another table: an unbind through each existing table (the only
+//     probe left), and when none matches, resurrect pops freed indices until one does.
+func (s *sanitizer) outputACL() error {
+	unbind, bind := s.outputSet(false), s.outputSet(true)
+	p := s.holds[0]
+	for _, sl := range aclSlots {
+		b := &bound{state: StateOutputACL, sl: sl, table: NoIndex, unbind: unbind}
+		ok, err := b.try(p)
+		if unknownMsg(err) {
+			s.rep.Skipped = append(s.rep.Skipped, StateOutputACL)
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if ok {
+			s.out = append(s.out, b)
+			s.clear(b, p)
+			continue
+		}
+		if err := bind(sl.set(p)); err != nil {
+			return fmt.Errorf("output_acl_set_interface (probe %s slot with placeholder %d): %w", sl.name, p, err)
+		}
+		if ok, err = b.try(p); err != nil {
+			return err
+		}
+		if ok {
+			continue // the slot was empty and is empty again
+		}
+		s.out = append(s.out, b)
+		for _, t := range s.existing() {
+			if ok, err = b.try(t); err != nil {
+				return err
+			}
+			if ok {
+				s.clear(b, t)
+				break
+			}
+		}
+		if !b.done {
+			s.pending = append(s.pending, b)
+		}
+	}
+	return nil
+}
+
+// existing returns the tables that exist and are not this run's (live at the snapshot or taken),
+// ascending.
+func (s *sanitizer) existing() []uint32 {
+	out := make([]uint32, 0, len(s.live)+len(s.taken))
+	for t := range s.live {
+		out = append(out, t)
+	}
+	for t := range s.taken {
+		out = append(out, t)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	return out
+}
+
+// verify reads back what the run removed: the input ACL always (L2 input ACL is a crash vector),
+// policer and flow classify when they had a binding, and every output ACL slot that was bound
+// (P is bound and unbound again: that works only on an empty slot). What is left is Unclearable.
+func (s *sanitizer) verify() error {
+	for _, k := range s.readbacks() {
+		if k.state != StateInputACL && !s.found[k.state] {
+			continue
+		}
+		tables, err := k.tables()
+		if err != nil {
+			return fmt.Errorf("%s (verify): %w", k.msg, err)
+		}
+		for i, t := range tables {
+			if t != NoIndex {
+				s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s %s table %d", k.state, aclSlots[i].name, t))
+			}
+		}
+	}
+	if len(s.out) == 0 {
+		return nil
+	}
+	bind, p := s.outputSet(true), s.holds[0]
+	for _, b := range s.out {
+		if !b.done {
+			s.rep.Unclearable = append(s.rep.Unclearable, b.String()+" (a deleted table the run did not bring back)")
+			continue
+		}
+		if err := bind(b.sl.set(p)); err != nil {
+			return fmt.Errorf("output_acl_set_interface (verify %s slot): %w", b.sl.name, err)
+		}
+		probe := &bound{state: b.state, sl: b.sl, unbind: b.unbind}
+		ok, err := probe.try(p)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			s.rep.Unclearable = append(s.rep.Unclearable, b.String()+" (still bound after the unbind)")
+		}
+	}
+	return nil
 }
 
 func (s *sanitizer) ipClassify() error {
@@ -517,104 +828,6 @@ func dir(in bool) string {
 		return "input"
 	}
 	return "output"
-}
-
-// slot is one table kind of a three-table binding message.
-type slot struct {
-	name string
-	set  func(table uint32) (ip4, ip6, l2 uint32)
-}
-
-var aclSlots = []slot{
-	{"ip4", func(t uint32) (uint32, uint32, uint32) { return t, NoIndex, NoIndex }},
-	{"ip6", func(t uint32) (uint32, uint32, uint32) { return NoIndex, t, NoIndex }},
-	{"l2", func(t uint32) (uint32, uint32, uint32) { return NoIndex, NoIndex, t }},
-}
-
-func (s *sanitizer) inputACL() error {
-	svc := classifyapi.NewServiceClient(s.c)
-	cur, err := svc.ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
-	if err != nil {
-		return fmt.Errorf("classify_table_by_interface: %w", err)
-	}
-	for i, t := range []uint32{cur.IP4TableID, cur.IP6TableID, cur.L2TableID} {
-		if t == NoIndex {
-			continue
-		}
-		sl := aclSlots[i]
-		what := fmt.Sprintf("%s %s table %d", StateInputACL, sl.name, t)
-		if !s.exists(t) {
-			continue // re-read below: unclearable
-		}
-		ip4, ip6, l2 := sl.set(t)
-		if _, err := svc.InputACLSetInterface(s.ctx, &classifyapi.InputACLSetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false}); err != nil {
-			return fmt.Errorf("input_acl_set_interface (unbind %s): %w", what, err)
-		}
-		s.cleared(what, t)
-	}
-	// verify via the dump
-	after, err := svc.ClassifyTableByInterface(s.ctx, &classifyapi.ClassifyTableByInterface{SwIfIndex: s.idx})
-	if err != nil {
-		return fmt.Errorf("classify_table_by_interface (verify): %w", err)
-	}
-	for i, t := range []uint32{after.IP4TableID, after.IP6TableID, after.L2TableID} {
-		if t != NoIndex {
-			s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s %s table %d", StateInputACL, aclSlots[i].name, t))
-		}
-	}
-	return nil
-}
-
-// probe unbinds every table (live and placeholder) from every slot of one binding kind:
-// NO_SUCH_TABLE means "not this table", success means it was bound and is now removed — which is
-// then verified by the same unbind answering NO_SUCH_TABLE.
-func (s *sanitizer) probe(state string, slots []slot, unbind func(ip4, ip6, l2 uint32) error) error {
-	for _, t := range s.ids {
-		for _, sl := range slots {
-			ip4, ip6, l2 := sl.set(t)
-			err := unbind(ip4, ip6, l2)
-			switch {
-			case err == nil:
-				what := fmt.Sprintf("%s %s table %d", state, sl.name, t)
-				if verr := unbind(ip4, ip6, l2); !isRetval(verr, ErrNoSuchTable) {
-					s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s (still bound after the unbind: %v)", what, verr))
-					continue
-				}
-				s.cleared(what, t)
-			case isRetval(err, ErrNoSuchTable):
-			case unknownMsg(err):
-				s.rep.Skipped = append(s.rep.Skipped, state)
-				return nil
-			default:
-				return fmt.Errorf("%s: probe unbind %s table %d: %w", state, sl.name, t, err)
-			}
-		}
-	}
-	return nil
-}
-
-func (s *sanitizer) outputACL() error {
-	svc := classifyapi.NewServiceClient(s.c)
-	return s.probe(StateOutputACL, aclSlots, func(ip4, ip6, l2 uint32) error {
-		_, err := svc.OutputACLSetInterface(s.ctx, &classifyapi.OutputACLSetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false})
-		return err
-	})
-}
-
-func (s *sanitizer) policerClassify() error {
-	svc := classifyapi.NewServiceClient(s.c)
-	return s.probe(StatePolicerClassify, aclSlots, func(ip4, ip6, l2 uint32) error {
-		_, err := svc.PolicerClassifySetInterface(s.ctx, &classifyapi.PolicerClassifySetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, L2TableIndex: l2, IsAdd: false})
-		return err
-	})
-}
-
-func (s *sanitizer) flowClassify() error {
-	svc := classifyapi.NewServiceClient(s.c)
-	return s.probe(StateFlowClassify, aclSlots[:2], func(ip4, ip6, _ uint32) error {
-		_, err := svc.FlowClassifySetInterface(s.ctx, &classifyapi.FlowClassifySetInterface{SwIfIndex: s.idx, IP4TableIndex: ip4, IP6TableIndex: ip6, IsAdd: false})
-		return err
-	})
 }
 
 func (s *sanitizer) adl() error {

@@ -307,14 +307,15 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 		rules[i] = indexedRule{i, r}
 	}
 	sort.SliceStable(rules, func(a, b int) bool { return rules[a].r.GetSequence() < rules[b].r.GetSequence() })
-	exp := &aclstate.Expansion{Name: name, Config: l}
+	exp := &aclstate.Expansion{Name: name, Config: l, Rules: make([]aclstate.RuleInfo, 0, len(rules))}
+	rulesPtr := Ptr("acl", "lists", name, "rules") + "/" // Ptr builds a replacer per call: once per list
 	var out []descacl.Rule
 	var logs int
 	var logPtr string
 	failed, tooMany := false, false
 	for k, ir := range rules {
 		r := ir.r
-		rp := Ptr("acl", "lists", name, "rules", strconv.Itoa(ir.i))
+		rp := rulesPtr + strconv.Itoa(ir.i)
 		if k > 0 && rules[k-1].r.GetSequence() == r.GetSequence() {
 			x.s.Errorf(rp+"/sequence", "acl.rule-sequences-unique", "sequence %d is used twice", r.GetSequence())
 			failed = true

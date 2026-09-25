@@ -444,3 +444,21 @@ func macipTag(ctx context.Context, svc vppacl.RPCService, idx uint32) string {
 	}
 	return strings.TrimRight(ds[0].Tag, "\x00")
 }
+
+// SetStats replaces the stats segment (tests: a fake StatsSource; nil = connect to StatsSocket).
+func (rt *Runtime) SetStats(s descacl.StatsSource) {
+	rt.statsMu.Lock()
+	defer rt.statsMu.Unlock()
+	if rt.sc != nil {
+		_ = rt.sc.Disconnect()
+		rt.sc = nil
+	}
+	rt.cfg.Stats, rt.stats = s, s
+}
+
+// ForgetCountersFlag drops the cached counters flag (the next State reads it again).
+func (rt *Runtime) ForgetCountersFlag() {
+	rt.flagMu.Lock()
+	defer rt.flagMu.Unlock()
+	rt.flagAt = time.Time{}
+}

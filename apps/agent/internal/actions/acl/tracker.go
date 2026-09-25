@@ -113,22 +113,22 @@ func appliedMacip(obj proto.Message, meta any) (Applied, bool) {
 	return Applied{Name: a.Name, Index: m.ACLIndex, Fingerprint: MacipFingerprint(a.Rules), VPPRules: len(a.Rules)}, true
 }
 
-// ACLDescriptor is DF-4's acl.acl descriptor with the tracker attached (same name, keys, values
+// TrackedACL is DF-4's acl.acl descriptor with the tracker attached (same name, keys, values
 // and behaviour; every method not overridden here is DF-4's).
-type ACLDescriptor struct {
+type TrackedACL struct {
 	*descacl.Descriptor
 	t *Tracker
 }
 
-var _ scheduler.Descriptor = (*ACLDescriptor)(nil)
+var _ scheduler.Descriptor = (*TrackedACL)(nil)
 
 // WrapACL attaches the tracker to d.
-func (t *Tracker) WrapACL(d *descacl.Descriptor) *ACLDescriptor {
-	return &ACLDescriptor{Descriptor: d, t: t}
+func (t *Tracker) WrapACL(d *descacl.Descriptor) *TrackedACL {
+	return &TrackedACL{Descriptor: d, t: t}
 }
 
 // Create implements scheduler.Descriptor.
-func (d *ACLDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+func (d *TrackedACL) Create(ctx context.Context, obj proto.Message) (any, error) {
 	meta, err := d.Descriptor.Create(ctx, obj)
 	if a, ok := appliedACL(obj, meta); err == nil && ok {
 		d.t.set(d.t.acls, a)
@@ -137,7 +137,7 @@ func (d *ACLDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 }
 
 // Update implements scheduler.Descriptor.
-func (d *ACLDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *TrackedACL) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := d.Descriptor.Update(ctx, oldObj, newObj, meta)
 	if a, ok := appliedACL(newObj, m); err == nil && ok {
 		d.t.set(d.t.acls, a)
@@ -146,7 +146,7 @@ func (d *ACLDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *ACLDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+func (d *TrackedACL) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	err := d.Descriptor.Delete(ctx, obj, meta)
 	if a, derr := descacl.FromProto(obj); err == nil && derr == nil {
 		d.t.remove(d.t.acls, a.Name)
@@ -155,7 +155,7 @@ func (d *ACLDescriptor) Delete(ctx context.Context, obj proto.Message, meta any)
 }
 
 // Retrieve implements scheduler.Descriptor.
-func (d *ACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+func (d *TrackedACL) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	kvs, err := d.Descriptor.Retrieve(ctx)
 	if err == nil {
 		all := make([]Applied, 0, len(kvs))
@@ -169,21 +169,21 @@ func (d *ACLDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	return kvs, err
 }
 
-// MacipDescriptor is DF-4's acl.macip-acl descriptor with the tracker attached.
-type MacipDescriptor struct {
+// TrackedMacip is DF-4's acl.macip-acl descriptor with the tracker attached.
+type TrackedMacip struct {
 	*descacl.MacipACLDescriptor
 	t *Tracker
 }
 
-var _ scheduler.Descriptor = (*MacipDescriptor)(nil)
+var _ scheduler.Descriptor = (*TrackedMacip)(nil)
 
 // WrapMacip attaches the tracker to d.
-func (t *Tracker) WrapMacip(d *descacl.MacipACLDescriptor) *MacipDescriptor {
-	return &MacipDescriptor{MacipACLDescriptor: d, t: t}
+func (t *Tracker) WrapMacip(d *descacl.MacipACLDescriptor) *TrackedMacip {
+	return &TrackedMacip{MacipACLDescriptor: d, t: t}
 }
 
 // Create implements scheduler.Descriptor.
-func (d *MacipDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+func (d *TrackedMacip) Create(ctx context.Context, obj proto.Message) (any, error) {
 	meta, err := d.MacipACLDescriptor.Create(ctx, obj)
 	if a, ok := appliedMacip(obj, meta); err == nil && ok {
 		d.t.set(d.t.macip, a)
@@ -192,7 +192,7 @@ func (d *MacipDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 }
 
 // Update implements scheduler.Descriptor.
-func (d *MacipDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
+func (d *TrackedMacip) Update(ctx context.Context, oldObj, newObj proto.Message, meta any) (any, error) {
 	m, err := d.MacipACLDescriptor.Update(ctx, oldObj, newObj, meta)
 	if a, ok := appliedMacip(newObj, m); err == nil && ok {
 		d.t.set(d.t.macip, a)
@@ -201,7 +201,7 @@ func (d *MacipDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 }
 
 // Delete implements scheduler.Descriptor.
-func (d *MacipDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+func (d *TrackedMacip) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	err := d.MacipACLDescriptor.Delete(ctx, obj, meta)
 	if a, derr := descacl.MacipACLFromProto(obj); err == nil && derr == nil {
 		d.t.remove(d.t.macip, a.Name)
@@ -210,7 +210,7 @@ func (d *MacipDescriptor) Delete(ctx context.Context, obj proto.Message, meta an
 }
 
 // Retrieve implements scheduler.Descriptor.
-func (d *MacipDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+func (d *TrackedMacip) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	kvs, err := d.MacipACLDescriptor.Retrieve(ctx)
 	if err == nil {
 		all := make([]Applied, 0, len(kvs))

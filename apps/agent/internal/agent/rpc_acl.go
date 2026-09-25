@@ -18,12 +18,12 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-func (g *server) AclState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) {
-	return g.svc.AclState(ctx, req)
+func (g *server) AclState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) { //nolint:revive // the generated gRPC method name
+	return g.svc.ACLState(ctx, req)
 }
 
-// AclState implements the RPC.
-func (s *Service) AclState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) {
+// ACLState implements the AclState RPC.
+func (s *Service) ACLState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}

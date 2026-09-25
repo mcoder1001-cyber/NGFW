@@ -70,8 +70,10 @@ func (v *VPP) QoSRestart() {
 	m := v.qosModel()
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	*m = qosModel{policers: map[uint32]*QoSPolicer{}, features: map[string]int{}, seen: map[string]bool{},
-		records: map[qosKey]int{}, stores: map[qosKey]int{}, storeVal: map[qosKey]uint8{}, maps: map[uint32]qos.QosEgressMap{}, marks: map[qosKey]uint32{}}
+	m.next, m.unseen = 0, 0
+	m.policers, m.features, m.seen = map[uint32]*QoSPolicer{}, map[string]int{}, map[string]bool{}
+	m.records, m.stores, m.storeVal = map[qosKey]int{}, map[qosKey]int{}, map[qosKey]uint8{}
+	m.maps, m.marks = map[uint32]qos.QosEgressMap{}, map[qosKey]uint32{}
 }
 
 // QoSPolicers returns the policers of the model by VPP name.

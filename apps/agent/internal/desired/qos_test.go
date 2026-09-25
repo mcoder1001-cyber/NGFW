@@ -34,7 +34,7 @@ func (s *qosSink) Add(k scheduler.Key, v proto.Message, pointer string) {
 func (s *qosSink) Errorf(pointer, rule, format string, a ...any) {
 	s.errs = append(s.errs, pointer+" "+rule+": "+fmt.Sprintf(format, a...))
 }
-func (s *qosSink) Warnf(pointer, rule, format string, a ...any) {
+func (s *qosSink) Warnf(pointer, rule, _ string, _ ...any) {
 	s.warns = append(s.warns, pointer+" "+rule)
 }
 

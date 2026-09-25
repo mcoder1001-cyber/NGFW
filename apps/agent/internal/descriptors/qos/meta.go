@@ -294,7 +294,7 @@ func (d *MetaDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return []scheduler.KV{df7.KV(KeyMeta(), *m, nil)}, nil
 }
 
-// CheckPersistent: the record must survive an agent restart (it names the egress maps VPP reports by id).
+// CheckPersistent is the TD-11b check: the record must survive an agent restart (it names the egress maps VPP reports by id).
 func (d *MetaDescriptor) CheckPersistent() error {
 	return persist.Require(NameMeta+": the services.qos document record (pass a FileMetaStore)", d.store)
 }

@@ -17,12 +17,12 @@ func (*Descriptor) RecordsNoOwnership() {}
 // RecordsNoOwnership declares that a bind is addressed by the owner-tagged policer name and records nothing.
 func (*BindDescriptor) RecordsNoOwnership() {}
 
-// CheckPersistent: an attachment on an untagged interface is ours through the owner's DF-1 claim store, and
+// CheckPersistent is the TD-11b check: an attachment on an untagged interface is ours through the owner's DF-1 claim store, and
 // its applied-once record (D-076/D-080: never a second policer_input/output apply, never an un-apply that VPP
 // did not see applied) lives in the owner's DF-7 BootStore — both must survive an agent restart.
 func (d *InterfaceDescriptor) CheckPersistent() error {
 	return errors.Join(dfkit.CheckClaims(NameInterface, d.Owner), dfkit.CheckBoot(NameInterface, df7.BootStoreFor(d.Owner)))
 }
 
-// CheckPersistent: classifier policing on an untagged interface is ours through the owner's DF-1 claim store.
+// CheckPersistent is the TD-11b check: classifier policing on an untagged interface is ours through the owner's DF-1 claim store.
 func (d *ClassifyDescriptor) CheckPersistent() error { return dfkit.CheckClaims(NameClassify, d.Owner) }

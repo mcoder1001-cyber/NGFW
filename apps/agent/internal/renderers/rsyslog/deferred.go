@@ -1,6 +1,7 @@
 package rsyslog
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -24,6 +25,9 @@ type DeferredController struct {
 	PendingFile string
 	// PIDFile is the instance's pidfile ("" = unknown: the instance is treated as not running).
 	PIDFile string
+	// Binary is the executable the pidfile's process must run ("" = RsyslogdBin): a recycled pid is never taken
+	// for the instance.
+	Binary string
 }
 
 var _ rfkit.Controller = (*DeferredController)(nil)
@@ -38,8 +42,17 @@ func (c *DeferredController) PID() int {
 		return 0
 	}
 	exe, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "exe"))
-	if err != nil || exe != RsyslogdBin {
+	if err != nil {
 		return 0
+	}
+	bin := c.Binary
+	if bin == "" {
+		bin = RsyslogdBin
+	}
+	if exe != bin {
+		if resolved, err := filepath.EvalSymlinks(bin); err != nil || resolved != exe {
+			return 0
+		}
 	}
 	return pid
 }
@@ -104,5 +117,9 @@ func (r *Renderer) applyDeferred(files renderers.Files, dc *DeferredController) 
 		return r.red.Error(errors.Join(err, snap.Restore()))
 	}
 	r.pruneTLS(files)
+	if dc.PID() == 0 && !bytes.Contains(files[r.paths.ConfFile].Content, []byte("action(")) {
+		rfkit.ClearPending(dc.PendingFile) // an empty export needs no instance at all
+		return nil
+	}
 	return dc.Restart(context.Background())
 }

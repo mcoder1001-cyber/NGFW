@@ -222,3 +222,8 @@ func (d *Descriptor) Pending(ctx context.Context) []PendingAction {
 	}
 	return out
 }
+
+// RecordsNoOwnership declares (TD-11b, dfkit/persist) that the descriptor records no ownership in any claim or boot
+// store: its object is ours exactly when the rendered file carries our embedded input (Retrieve), a fact the file
+// itself keeps across agent restarts.
+func (d *Descriptor) RecordsNoOwnership() {}

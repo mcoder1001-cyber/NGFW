@@ -97,6 +97,10 @@ func NewDescriptor(r *Renderer, family int, opts ...DescriptorOption) *Descripto
 // Name implements scheduler.Descriptor.
 func (d *Descriptor) Name() string { return DescriptorName(d.family) }
 
+// RecordsNoOwnership declares for the ownership guard (TD-11b, dfkit/persist): a Kea singleton is found by its key and
+// by the render input embedded in the daemon's own configuration — no claim or boot store, no VPP object.
+func (*Descriptor) RecordsNoOwnership() {}
+
 // KeyOf implements scheduler.Descriptor (a singleton).
 func (d *Descriptor) KeyOf(proto.Message) scheduler.Key { return Key(d.family) }
 

@@ -110,3 +110,17 @@ func TestMemRelayStore(t *testing.T) {
 		t.Fatal("default store")
 	}
 }
+
+// TestOwnershipDeclarations: the ownership guard (TD-11b) needs every registered descriptor to declare how it records
+// ownership; the relay families record none (VRF scope, key).
+func TestOwnershipDeclarations(t *testing.T) {
+	type noOwnership interface{ RecordsNoOwnership() }
+	for _, d := range []any{NewProxy(nil), NewProxyVSS(nil), NewRelay(nil, nil)} {
+		if _, ok := d.(noOwnership); !ok {
+			t.Errorf("%T declares no ownership mode", d)
+		}
+	}
+	if !(&FileRelayStore{}).Persistent() {
+		t.Fatal("file store")
+	}
+}

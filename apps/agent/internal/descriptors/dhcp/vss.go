@@ -35,6 +35,10 @@ func NewProxyVSS(client vpp.Client, opts ...Option) *ProxyVSSDescriptor {
 // Name implements scheduler.Descriptor.
 func (*ProxyVSSDescriptor) Name() string { return NameProxyVSS }
 
+// RecordsNoOwnership declares for the ownership guard (TD-11b): a VSS is owned through its VRF (WithVRFScope) and found
+// by key in dhcp_proxy_dump — no claim or boot store.
+func (*ProxyVSSDescriptor) RecordsNoOwnership() {}
+
 // ProxyVSSKey returns the key of the VSS of a VRF.
 func ProxyVSSKey(family string, vrf uint32) scheduler.Key {
 	return scheduler.Join(NameProxyVSS, family, uitoa(vrf))

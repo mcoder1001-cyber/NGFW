@@ -32,6 +32,10 @@ func NewProxy(client vpp.Client, opts ...Option) *ProxyDescriptor {
 // Name implements scheduler.Descriptor.
 func (*ProxyDescriptor) Name() string { return NameProxy }
 
+// RecordsNoOwnership declares for the ownership guard (TD-11b): relay servers are owned through their rx VRF
+// (WithVRFScope) and found by key in dhcp_proxy_dump — no claim or boot store.
+func (*ProxyDescriptor) RecordsNoOwnership() {}
+
 // ProxyKey returns the key of a relay server object.
 func ProxyKey(rxVRF, serverVRF uint32, server string) scheduler.Key {
 	return scheduler.Join(NameProxy, uitoa(rxVRF), uitoa(serverVRF), server)

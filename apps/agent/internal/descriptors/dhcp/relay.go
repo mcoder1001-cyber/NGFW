@@ -110,6 +110,9 @@ type FileRelayStore struct {
 	mu   sync.Mutex
 }
 
+// Persistent reports that the store survives an agent restart (dfkit/persist.Store, TD-11b).
+func (*FileRelayStore) Persistent() bool { return true }
+
 // Load implements RelayStore (a missing file is an empty store).
 func (s *FileRelayStore) Load() (map[string]Relay, error) {
 	s.mu.Lock()
@@ -193,6 +196,11 @@ func NewRelay(client vpp.Client, store RelayStore, opts ...Option) *RelayDescrip
 
 // Name implements scheduler.Descriptor.
 func (*RelayDescriptor) Name() string { return NameRelay }
+
+// RecordsNoOwnership declares for the ownership guard (TD-11b): the record store holds relay metadata (name,
+// description, client interfaces), not ownership — the relay's VPP objects are dhcp.proxy, owned through their rx VRF;
+// a lost store only re-creates the records (no VPP operation). The product store is a file all the same.
+func (*RelayDescriptor) RecordsNoOwnership() {}
 
 // KeyOf implements scheduler.Descriptor.
 func (d *RelayDescriptor) KeyOf(obj proto.Message) scheduler.Key {

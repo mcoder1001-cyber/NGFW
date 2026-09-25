@@ -333,3 +333,10 @@ func TestAddressBindingOff(t *testing.T) {
 		t.Fatal("address binding option")
 	}
 }
+
+func TestOwnershipDeclaration(t *testing.T) {
+	var d any = NewDescriptor(newUnit(), 4)
+	if _, ok := d.(interface{ RecordsNoOwnership() }); !ok {
+		t.Fatal("kea descriptor declares no ownership mode (TD-11b guard)")
+	}
+}

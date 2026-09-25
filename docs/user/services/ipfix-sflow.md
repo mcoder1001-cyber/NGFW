@@ -34,14 +34,18 @@ their stats index when known.
   without packets). The passive timer must not be shorter than the active timer.
 - **Record fields:** L2 (MACs, EtherType), L3 (addresses, protocol), L4 (ports, TCP flags).
 - **Monitored interfaces:** pick an interface, the **variant** and the **direction** (receive, transmit, both). VPP
-  records **one variant per interface** — IPv4, IPv6 or L2. (The configuration schema's default of IPv4 *and* IPv6 is
-  applied as IPv4; the agent reports that IPv6 is not recorded on that interface.)
+  records **one variant per interface** — IPv4, IPv6 or L2.
+  **Under the configuration default (IPv4 and IPv6 both on) IPv6 flows are NOT recorded:** the entry is applied as
+  IPv4 only and the agent reports a warning. To record IPv6 on an interface, turn IPv4 off for it (D-146).
 
 Monitored interfaces need an enabled exporter with an IPv4 collector: a commit without one is refused with
 *"flowprobe records are sent through IPFIX exporter 0 only: enable an exporter with an IPv4 collector"*
 (400, pointer `/services/ipfix/flowprobe/interfaces`).
 
 ## sFlow
+
+> **No sFlow collector receives anything in this release.** VPP only samples; export to collectors needs `hsflowd`,
+> which is not packaged yet (P10 follow-up). The collectors, agent address and VRF are stored for that.
 
 Enable sFlow, set the **sampling rate** (1 in *N* packets), the counter **polling interval** and the **sampled header
 size** (64–256 bytes in steps of 32; VPP would silently round any other value), and pick the **sampled interfaces**.

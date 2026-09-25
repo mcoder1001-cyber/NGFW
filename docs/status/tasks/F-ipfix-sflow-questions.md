@@ -39,10 +39,9 @@ those loggers use is exporter 0, which this task projects.
   extend that entry (e.g. `append(ipfixSflowDescriptors, …)`) — `services` becomes an implemented domain with this task,
   so the other `services.*` sub-trees are reported as `agent.unsupported-field` at `/services/<key>` by this build.
 
-**Q6 — Exporter names in Retrieve.** VPP keeps no exporter names; the agent names retrieved exporters from the last
-projected document (collector → name, process memory; DryRun projections update it too). After an agent restart the
-first resync re-projects the stored document, so names come back. Acceptable, or should the stored desired state be
-consulted (needs a seam in service.go)?
+**Q6 — Exporter names in Retrieve (resolved after review).** Names are derived only from the agent's STORED desired state:
+`desired.SetIpfixExporterNames` is called from `Service.refreshSnapshotLocked` (one line in service.go — outside files_owned,
+please fold in). DryRun, failed and rolled-back transactions do not change them (`TestIpfixExporterNamesOnlyFromAppliedState`).
 
 **Q7 — Environment (this cloud container, not the host):** `buf` is not installed — I built it (and pinned
 protoc-gen-go v1.36.12 / protoc-gen-go-grpc v1.6.2) into my scratch dir; buf's bundled `timestamp.ts` WKT text differs

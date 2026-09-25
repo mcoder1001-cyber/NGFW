@@ -64,3 +64,13 @@ fake-agent.ts import, proto.md. Outside files_owned (Q5): coretest/ipfix_sflow.g
 
 ## Open questions
 `F-ipfix-sflow-questions.md` Q1–Q7 (sFlow shipped with warning; ip4+ip6 default realised as ip4; params skip; NAT44-ED owner; shared edits; exporter names; env).
+
+## Review round 1 (APPROVE with conditions)
+1. Exporter names: derived only from the stored desired state (`desired.SetIpfixExporterNames` from
+   `Service.refreshSnapshotLocked`, one line in service.go — outside files_owned); projections no longer write them.
+   Test `TestIpfixExporterNamesOnlyFromAppliedState` (DryRun, rolled-back apply → unchanged; applied rename → seen).
+2. ip4+ip6 default: behaviour kept; user guide states IPv6 flows are not recorded under the default; LOG.md D-146.
+3. User guide sFlow section starts with "no collector receives anything until hsflowd is packaged (P10 follow-up)".
+5. coretest: `dfkit.IdentitySource` set once per test binary (`sync.Once`), not on every `coretest.New()`.
+Reruns: gofmt clean; go vet + `go test -race` ok for internal/{agent,desired,subsystems,descriptors/core/...,ipfix,flowprobe,sflow};
+web vitest (services, nav): 7 passed; schema vitest: 1219 passed.

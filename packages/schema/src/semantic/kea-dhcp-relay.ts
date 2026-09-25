@@ -4,8 +4,9 @@ import { compareIp, ipFamily } from './tunnels-common.js';
 
 /**
  * Cross-field rules of F-kea-dhcp-relay (Kea DHCP servers, VPP DHCP relay, VPP DHCPv4 client) that the P02c rules in
- * `services.ts` / `interfaces.ts` do not cover. The agent re-checks each of them before anything is applied
- * (defence in depth, D-049):
+ * `services.ts` / `interfaces.ts` do not cover. The agent re-checks the VRF rule (the Kea renderer at apply) and the
+ * relay-source rule (its projection) before anything is applied (defence in depth, D-049); the reservation and
+ * DHCP-client rules are enforced by this API tier only:
  *
  * - `services.kea-dhcp-relay-reservation-outside-pools`: a reserved address lies outside every pool of its subnet
  *   (Kea hands out pool addresses dynamically; an in-pool reservation can be leased to another client first).

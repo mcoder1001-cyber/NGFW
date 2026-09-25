@@ -725,9 +725,16 @@ func scaleStep(t *testing.T, st *stack, conn vppapi.Connection, s slot, n int) {
 		t.Fatalf("import: %s", trunc(imp.raw, 1000))
 	}
 	t0 = time.Now()
+	logFrom := fileSize(st.agentLog)
 	c := a.call("POST", "/api/v1/config/commit?comment=acl-scale", nil)
 	commitTook := time.Since(t0)
 	t.Logf("scale %d: commit → %d in %.2f s: %s", n, c.status, commitTook.Seconds(), trunc(c.raw, 1500))
+	_, raw := readAgentLog(t, st.agentLog, logFrom)
+	for _, l := range raw {
+		if strings.Contains(l, "reconcile done") || strings.Contains(l, "reconcile start") {
+			t.Logf("scale %d: agent: %s", n, trunc(l, 400))
+		}
+	}
 	committed := c.status == 200 && c.body["status"] == "applied"
 	if committed {
 		if e, ok := ownACLs(t, conn, s.prefix)["scale"]; !ok || e.rules != n {

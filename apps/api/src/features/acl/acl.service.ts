@@ -106,8 +106,16 @@ export class AclService implements OnModuleInit {
     }
   }
 
+  /** The running document, reused while the latest revision id is unchanged (revisions are immutable). */
+  private runningCache: { id: number | null; doc: Json } | undefined;
+
   async doc(source: Source): Promise<Json> {
-    return source === 'running' ? (await this.ds.getRunning()).doc : await this.ds.getCandidate();
+    if (source === 'candidate') return await this.ds.getCandidate();
+    const latest = (await this.ds.listRevisions(1, 0)).items[0]?.id ?? null;
+    if (this.runningCache !== undefined && this.runningCache.id === latest) return this.runningCache.doc;
+    const r = await this.ds.getRunning();
+    this.runningCache = { id: r.revision?.id ?? null, doc: r.doc };
+    return r.doc;
   }
 
   private async live<T>(f: () => Promise<T>): Promise<AgentView<T>> {

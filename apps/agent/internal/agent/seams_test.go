@@ -9,6 +9,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -216,6 +217,7 @@ type memDesc struct {
 	mu       sync.Mutex
 	objs     map[string]bool
 	fail     map[string]error // Create of these names fails (VPP rejects the object)
+	failDel  map[string]error // Delete of these names fails (VPP refuses to delete it; TD-8b)
 	onCreate func()           // called by Create outside mu (a descriptor that calls sync)
 }
 
@@ -260,8 +262,24 @@ func (d *memDesc) Update(_ context.Context, _, _ proto.Message, meta any) (any, 
 func (d *memDesc) Delete(_ context.Context, o proto.Message, _ any) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	delete(d.objs, o.(*wrapperspb.StringValue).GetValue())
+	name := o.(*wrapperspb.StringValue).GetValue()
+	if err := d.failDel[name]; err != nil {
+		return err
+	}
+	delete(d.objs, name)
 	return nil
+}
+func (d *memDesc) failDeleteOn(name string, err error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.failDel == nil {
+		d.failDel = map[string]error{}
+	}
+	if err == nil {
+		delete(d.failDel, name)
+		return
+	}
+	d.failDel[name] = err
 }
 func (d *memDesc) Retrieve(context.Context) ([]scheduler.KV, error) {
 	d.mu.Lock()
@@ -698,17 +716,25 @@ func TestDynamicSourceFailureDoesNotFailTheCommit(t *testing.T) {
 		t.Fatalf("health after the fallback: %v", s.Health())
 	}
 
-	// The source's own sync retries its objects, where a failure touches only them.
+	// TD-8b (V1): only the key is quarantined; the source stays in sync. Its sync applies the rest
+	// and says which object is held back; the agent's key retry (backoff) brings it in.
+	if !s.source("test-sync").inSync.Load() || strings.Join(quarantinedKeys(s, "test-sync"), ",") != dynDesc+"/loop703" {
+		t.Fatalf("after the commit: in sync %v, quarantined %v (want the source in sync, loop703 quarantined)", s.source("test-sync").inSync.Load(), quarantinedKeys(s, "test-sync"))
+	}
 	sync := s.sourceSync("test-sync")
-	if err := sync(context.Background()); err == nil || !strings.Contains(err.Error(), errLabelInUse) {
-		t.Fatalf("sync while VPP still rejects loop703: %v", err)
+	if err := sync(context.Background()); !isQuarantinedErr(err) || !strings.Contains(err.Error(), errLabelInUse) {
+		t.Fatalf("sync while loop703 is quarantined: %v", err)
 	}
 	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
-		t.Fatalf("a failed sync touched more than its own objects: loop703 %v, dynamic %q", ok, md.list())
+		t.Fatalf("the sync touched more than its own objects: loop703 %v, dynamic %q", ok, md.list())
 	}
 	md.failOn("loop703", nil)
-	if err := sync(context.Background()); err != nil || md.list() != "loop701,loop703" {
-		t.Fatalf("sync once VPP accepts loop703: %v, dynamic %q", err, md.list())
+	retryQuarantinedNow(t, s, "test-sync")
+	if md.list() != "loop701,loop703" || len(quarantinedKeys(s, "test-sync")) != 0 {
+		t.Fatalf("key retry once VPP accepts loop703: dynamic %q, quarantined %v", md.list(), quarantinedKeys(s, "test-sync"))
+	}
+	if err := sync(context.Background()); err != nil {
+		t.Fatalf("sync with nothing quarantined: %v", err)
 	}
 	// In sync again, the source rides in config transactions: removing loop703 deletes both at once.
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -718,7 +744,8 @@ func TestDynamicSourceFailureDoesNotFailTheCommit(t *testing.T) {
 }
 
 // Probe B (R2): the resync after a VPP restart rebuilds the configuration even when VPP rejects a
-// dynamic object; the data plane is never left empty and DEGRADED because of a source.
+// dynamic object; the data plane is never left empty and DEGRADED because of a source. Since TD-8b
+// (V1) the rejected object alone is quarantined: the rest of the source is rebuilt too (probe G).
 func TestDynamicSourceFailureDoesNotRollBackTheResync(t *testing.T) {
 	v := coretest.New()
 	s, md, _ := syncedSrcSvc(t, v, "loop701", "loop702")
@@ -739,12 +766,13 @@ func TestDynamicSourceFailureDoesNotRollBackTheResync(t *testing.T) {
 	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
 		t.Fatalf("the configuration was not rebuilt: %v", err)
 	}
-	if md.list() != "" {
-		t.Fatalf("dynamic objects %q (the source was left out of the resync)", md.list())
+	if md.list() != "loop701" {
+		t.Fatalf("dynamic objects %q (want loop701 rebuilt, only loop702 quarantined)", md.list())
 	}
 	md.failOn("loop702", nil)
+	retryQuarantinedNow(t, s, "test-sync")
 	if err := s.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop702" {
-		t.Fatalf("sync after the resync: %v, dynamic %q", err, md.list())
+		t.Fatalf("sync after the key retry: %v, dynamic %q", err, md.list())
 	}
 }
 
@@ -890,7 +918,9 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 	}
 }
 
-// A source left out of a transaction rejoins on its own: the agent retries its sync with backoff.
+// A key or a source left out of a transaction rejoins on its own: the agent retries it with backoff
+// (TD-8b: a rejected object is quarantined alone, its source stays in sync; a source whose output is
+// invalid is left out as a whole).
 func TestDynamicSourceLeftOutRejoinsThroughTheRetry(t *testing.T) {
 	v := coretest.New()
 	s, md, src := syncedSrcSvc(t, v, "loop701")
@@ -898,18 +928,42 @@ func TestDynamicSourceLeftOutRejoinsThroughTheRetry(t *testing.T) {
 	md.failOn("loop703", errors.New(errLabelInUse))
 	src.set("loop701", "loop703")
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if s.source("test-sync").inSync.Load() {
-		t.Fatal("a left-out source is still in sync")
+	if !s.source("test-sync").inSync.Load() || len(quarantinedKeys(s, "test-sync")) != 1 {
+		t.Fatalf("after the commit: in sync %v, quarantined %v (want in sync, loop703 quarantined)", s.source("test-sync").inSync.Load(), quarantinedKeys(s, "test-sync"))
 	}
-	time.Sleep(150 * time.Millisecond) // a few retries that VPP still rejects
+	time.Sleep(150 * time.Millisecond) // a few key retries that VPP still rejects
 	if md.list() != "loop701" {
 		t.Fatalf("dynamic objects while VPP rejects loop703: %q", md.list())
 	}
 	md.failOn("loop703", nil)
+	eventually(t, func() bool { return md.list() == "loop701,loop703" && len(quarantinedKeys(s, "test-sync")) == 0 }, func() string {
+		return fmt.Sprintf("the key did not rejoin: dynamic %q, quarantined %v", md.list(), quarantinedKeys(s, "test-sync"))
+	})
+
+	// A source whose output is invalid is left out as a whole, and its own retry rejoins it.
+	bad := scheduler.Join(core.LoopbackName, "loop777")
+	src.mu.Lock()
+	src.extra = []scheduler.KV{{Key: bad, Value: wrapperspb.String("x")}}
+	src.mu.Unlock()
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if s.source("test-sync").inSync.Load() || md.list() != "loop701,loop703" {
+		t.Fatalf("an invalid source: in sync %v, dynamic %q (want out of sync, objects left as they are)", s.source("test-sync").inSync.Load(), md.list())
+	}
+	src.mu.Lock()
+	src.extra = nil
+	src.mu.Unlock()
+	eventually(t, func() bool { return md.list() == "loop701,loop703" && s.source("test-sync").inSync.Load() }, func() string {
+		return fmt.Sprintf("the source did not rejoin: dynamic %q", md.list())
+	})
+}
+
+// eventually polls ok for up to 5 s (a loaded host) and fails with why.
+func eventually(t *testing.T, ok func() bool, why func() string) {
+	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
-	for md.list() != "loop701,loop703" || !s.source("test-sync").inSync.Load() {
+	for !ok() {
 		if time.Now().After(deadline) {
-			t.Fatalf("the source did not rejoin: dynamic %q", md.list())
+			t.Fatal(why())
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

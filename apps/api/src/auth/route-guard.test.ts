@@ -34,6 +34,7 @@ const ADMIN_ONLY = new Set([
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
   // wave-BC: F-backup-restore
+  'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
 ]);
 
 function concrete(url: string): string {

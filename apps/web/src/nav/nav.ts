@@ -128,6 +128,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-ab-upgrade
     // wave-BC: F-images
     // wave-BC: F-hardening-lite
+    // wave-BC: F-licensing (unanchored)
+    { id: 'licensing', path: '/system/licensing', labelKey: 'licensing:nav', fallbackLabel: 'Licence', available: true },
   );
   groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);

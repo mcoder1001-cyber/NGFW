@@ -75,6 +75,12 @@ type Renderer struct {
 
 	mu  sync.Mutex
 	ids map[int]map[string]uint32 // family → "<server>/<subnet>" → subnet id Kea runs (ids.go)
+
+	// lease reads for the DhcpLeases RPC (status.go, review M2): one full read per family at a time, cached briefly
+	leaseMu      sync.Mutex
+	leaseCache   map[int]leaseRead
+	leaseFlights map[int]*leaseFlight
+	now          func() time.Time
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -106,7 +112,8 @@ func WithLeaseCmdsHook(path string) Option {
 // Unless WithLeaseCmdsHook is given, libdhcp_lease_cmds.so is looked up under
 // Paths.HooksDir once, here, so Render stays free of I/O.
 func New(runner renderers.Runner, opts ...Option) *Renderer {
-	r := &Renderer{runner: runner, paths: ProductPaths(), mapIf: NoMapper}
+	r := &Renderer{runner: runner, paths: ProductPaths(), mapIf: NoMapper, now: time.Now,
+		leaseCache: map[int]leaseRead{}, leaseFlights: map[int]*leaseFlight{}}
 	for _, o := range opts {
 		o(r)
 	}
@@ -300,6 +307,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 		return err
 	}
 	defer r.loadIDs()
+	defer r.dropLeaseCache() // subnets may have changed: the next lease read is fresh
 	if err := renderers.WriteFiles(files); err != nil {
 		return errors.Join(err, snap.Restore())
 	}

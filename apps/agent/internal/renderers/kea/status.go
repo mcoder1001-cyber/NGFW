@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Read-only DHCP status for the agent's DhcpLeases RPC (F-kea-dhcp-relay): daemon state, per-subnet pool usage and
@@ -197,6 +198,71 @@ type rawLease struct {
 	PrefixLen uint32 `json:"prefix-len"`
 }
 
+// LeaseCacheTTL is how long a family's full lease list, read for DhcpLeases, is reused (review M2): the status poll and
+// the lease grid of every viewer share one read per family per TTL, and concurrent calls share one read in flight.
+// Each read still pages Kea (lease4/6-get-page, LeasePageSize per message, at most MaxLeases).
+const LeaseCacheTTL = 10 * time.Second
+
+// leaseReadTimeout bounds one shared full read (it runs detached from the caller that started it).
+const leaseReadTimeout = 60 * time.Second
+
+type leaseRead struct {
+	at        time.Time
+	leases    []json.RawMessage
+	truncated bool
+	err       error
+}
+
+type leaseFlight struct {
+	done chan struct{}
+	res  leaseRead
+}
+
+// cachedLeases returns the lease list of a family: from the cache while it is younger than LeaseCacheTTL, else from
+// the read in flight, else from a new read (singleflight). Errors are not cached.
+func (r *Renderer) cachedLeases(ctx context.Context, fam int) ([]json.RawMessage, bool, error) {
+	r.leaseMu.Lock()
+	if c, ok := r.leaseCache[fam]; ok && r.now().Sub(c.at) < LeaseCacheTTL {
+		r.leaseMu.Unlock()
+		return c.leases, c.truncated, nil
+	}
+	f, inFlight := r.leaseFlights[fam]
+	if !inFlight {
+		f = &leaseFlight{done: make(chan struct{})}
+		r.leaseFlights[fam] = f
+	}
+	r.leaseMu.Unlock()
+	if !inFlight {
+		go func() {
+			rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), leaseReadTimeout)
+			defer cancel()
+			leases, truncated, err := r.Leases(rctx, fam, MaxLeases)
+			res := leaseRead{at: r.now(), leases: leases, truncated: truncated, err: err}
+			r.leaseMu.Lock()
+			delete(r.leaseFlights, fam)
+			if err == nil {
+				r.leaseCache[fam] = res
+			}
+			f.res = res
+			r.leaseMu.Unlock()
+			close(f.done)
+		}()
+	}
+	select {
+	case <-f.done:
+		return f.res.leases, f.res.truncated, f.res.err
+	case <-ctx.Done():
+		return nil, false, ctx.Err()
+	}
+}
+
+// dropLeaseCache forgets the cached lease lists (after an Apply).
+func (r *Renderer) dropLeaseCache() {
+	r.leaseMu.Lock()
+	r.leaseCache = map[int]leaseRead{}
+	r.leaseMu.Unlock()
+}
+
 // LeaseQuery selects leases.
 type LeaseQuery struct {
 	// Families to read (4, 6); empty = both.
@@ -209,7 +275,8 @@ type LeaseQuery struct {
 	Offset, Limit int
 }
 
-// LeasePage reads the leases of the selected families (paged from Kea, at most MaxLeases each), filters and sorts
+// LeasePage reads the leases of the selected families (paged from Kea, at most MaxLeases each, shared and cached for
+// LeaseCacheTTL — cachedLeases), filters and sorts
 // them (family, then address) and returns one page, the number of matching leases and whether a family had more
 // leases than were read. A family whose daemon is not running contributes nothing (Status reports it).
 func (r *Renderer) LeasePage(ctx context.Context, q LeaseQuery) ([]Lease, int, bool, error) {
@@ -221,7 +288,7 @@ func (r *Renderer) LeasePage(ctx context.Context, q LeaseQuery) ([]Lease, int, b
 	var all []Lease
 	truncated := false
 	for _, fam := range fams {
-		raw, more, err := r.Leases(ctx, fam, MaxLeases)
+		raw, more, err := r.cachedLeases(ctx, fam)
 		switch {
 		case errors.Is(err, ErrNotRunning):
 			continue

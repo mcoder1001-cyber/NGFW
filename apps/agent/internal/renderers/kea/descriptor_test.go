@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -368,5 +370,81 @@ func TestStatusForeignConfigNotConfigured(t *testing.T) {
 	// no file at all (kea-dhcp6 here): not configured either
 	if st6 := r.Status(ctx, 6); st6.Running || st6.Active || st6.ActionRequired != "" || st6.Err != "" {
 		t.Fatalf("no file: %+v", st6)
+	}
+}
+
+// Review M2: DhcpLeases (status poll every 30 s + lease grid, per viewer) read up to MaxLeases per family from Kea on
+// every call. Now one full read per family is shared by concurrent calls (singleflight) and reused for LeaseCacheTTL;
+// each read still pages Kea with LeasePageSize per message; an Apply drops the cache.
+func TestLeaseReadsSharedAndCached(t *testing.T) {
+	ctx := context.Background()
+	m := newModel(4)
+	r, _ := descRenderer(t, m)
+	for i := 0; i < 2500; i++ {
+		m.leases[4] = append(m.leases[4], map[string]any{"ip-address": fmt.Sprintf("10.6.%d.%d", 10+i/250, i%250), "subnet-id": 1, "valid-lft": 3600, "cltt": 1000})
+	}
+	pages := func() int {
+		n := 0
+		for _, c := range m.calls {
+			if c == "lease4-get-page/4" {
+				n++
+			}
+		}
+		return n
+	}
+	clock := time.Unix(1_800_000_000, 0)
+	r.now = func() time.Time { return clock }
+
+	// concurrent callers share one read (3 pages of 1000 = one full read)
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			if _, total, _, err := r.LeasePage(ctx, LeaseQuery{Families: []int{4}, Limit: 1}); err != nil || total != 2500 {
+				t.Errorf("concurrent page: total=%d err=%v", total, err)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	if n := pages(); n != 3 {
+		t.Fatalf("8 concurrent calls made %d lease4-get-page requests, want 3 (one shared read)", n)
+	}
+	// within the TTL: served from the cache
+	for i := 0; i < 5; i++ {
+		if _, _, _, err := r.LeasePage(ctx, LeaseQuery{Families: []int{4}, Offset: 100, Limit: 50}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := pages(); n != 3 {
+		t.Fatalf("calls within %v made %d requests, want still 3", LeaseCacheTTL, n)
+	}
+	// after the TTL: one new read
+	clock = clock.Add(LeaseCacheTTL + time.Second)
+	if _, _, _, err := r.LeasePage(ctx, LeaseQuery{Families: []int{4}}); err != nil {
+		t.Fatal(err)
+	}
+	if n := pages(); n != 6 {
+		t.Fatalf("after the TTL: %d requests, want 6", n)
+	}
+	// an Apply drops the cache
+	if err := NewDescriptor(r, 4).apply(ctx, Input(doc(map[string]*vrxv1.DhcpServer{"lan": v4Server()}), 4)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := r.LeasePage(ctx, LeaseQuery{Families: []int{4}}); err != nil {
+		t.Fatal(err)
+	}
+	if n := pages(); n != 9 {
+		t.Fatalf("after an Apply: %d requests, want 9", n)
+	}
+	// a cancelled caller returns at once with ctx.Err() (the shared read runs detached for the others)
+	cctx, cancel := context.WithCancel(ctx)
+	cancel()
+	clock = clock.Add(LeaseCacheTTL + time.Second)
+	if _, _, _, err := r.LeasePage(cctx, LeaseQuery{Families: []int{4}}); err == nil {
+		t.Fatal("a cancelled caller gets ctx.Err()")
 	}
 }

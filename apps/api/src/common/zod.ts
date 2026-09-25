@@ -34,6 +34,8 @@ export class ZodPipe<T extends z.ZodType> implements PipeTransform<unknown, z.ou
 export function EnvZodPipe<T extends z.ZodType>(build: (env: Env) => T): Type<PipeTransform<unknown, z.output<T>>> {
   @Injectable()
   class EnvPipe implements PipeTransform<unknown, z.output<T>> {
+    /** Marks the class for tests that read a route's pipes from Nest metadata (mixin() renames it). */
+    static readonly envZodPipe = true;
     private readonly pipe: ZodPipe<T>;
     constructor(@Inject(ENV) env: Env) {
       this.pipe = new ZodPipe(build(env));

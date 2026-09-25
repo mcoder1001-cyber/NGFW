@@ -1,0 +1,47 @@
+{
+  "breadcrumb": {
+    "label": "Configuration path"
+  },
+  "actions": {
+    "refresh": "Refresh",
+    "add": "Add",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "remove": "Remove this node",
+    "back": "Back"
+  },
+  "readOnly": "Your role cannot change the configuration.",
+  "loading": "Loading…",
+  "saved": "Saved to the candidate.",
+  "notFound": {
+    "title": "No such configuration path",
+    "badDomain": "\"{{path}}\" is not a configuration domain.",
+    "badPath": "\"{{path}}\" is not part of the schema."
+  },
+  "children": {
+    "title": "Contains"
+  },
+  "record": {
+    "empty": "No entries yet.",
+    "remove": "Remove {{key}}"
+  },
+  "addChild": {
+    "label": "New key",
+    "placeholder": "e.g. eth1"
+  },
+  "diff": {
+    "title": "Compared with the running configuration",
+    "none": "Matches the running configuration.",
+    "redacted": "value not shown",
+    "op": {
+      "add": "added",
+      "remove": "removed",
+      "replace": "changed"
+    }
+  },
+  "warnings": {
+    "title": "Not enforced by the data-plane agent",
+    "notAppliedDomain": "{{domain}} is not implemented by the data-plane agent yet; changes here are stored but not applied."
+  },
+  "openInAdvanced": "Open in the advanced editor"
+}

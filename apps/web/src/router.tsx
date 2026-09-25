@@ -68,6 +68,11 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
             return { element: <DomainPlaceholderPage domainKey={d.key} /> };
           },
         })),
+        // wave-A: UI-domain-editor — no anchor was seeded for this task by W-seed (see
+        // UI-domain-editor-questions.md); the generic advanced editor for any domain path (D-125), reached from
+        // each `DomainPlaceholderPage` and usable for a built domain too (`/interfaces` and `/config/interfaces`
+        // both work). A splat route ranks below every static path above, so it never shadows them.
+        { path: 'config/*', lazy: async () => ({ Component: (await import('./domains/advanced/AdvancedEditorPage')).AdvancedEditorPage }) },
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
         // wave-A: F-bonding
         // wave-A: F-bridge-l2

@@ -22,6 +22,11 @@ import enServices from './locales/en/services.json';
 import faServices from './locales/fa/services.json';
 import enVpn from './locales/en/vpn.json';
 import faVpn from './locales/fa/vpn.json';
+// wave-A: UI-domain-editor (no anchor was seeded for this task by W-seed; added directly, see
+// UI-domain-editor-questions.md — the same top-level style as `interfaces`/`services`/`vpn` above, not the
+// per-feature anchor list below, since `advanced` is a standing namespace of this task, not a future feature).
+import enAdvanced from './locales/en/advanced.json';
+import faAdvanced from './locales/fa/advanced.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
 // wave-A: F-vlan-qinq
 // wave-A: F-bonding
@@ -52,6 +57,7 @@ export const NAMESPACES = [
   'interfaces',
   'services',
   'vpn',
+  'advanced',
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
@@ -84,6 +90,7 @@ const en = {
   interfaces: enInterfaces,
   services: enServices,
   vpn: enVpn,
+  advanced: enAdvanced,
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding
@@ -113,6 +120,7 @@ const fa = {
   interfaces: faInterfaces,
   services: faServices,
   vpn: faVpn,
+  advanced: faAdvanced,
   // Feature namespaces: one line under the feature's anchor.
   // wave-A: F-vlan-qinq
   // wave-A: F-bonding

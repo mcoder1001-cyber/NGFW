@@ -69,7 +69,8 @@ user page. No agent change.
 at ~04:20:40 (end of `TestNatEI6466Screenshots`, log `…-shots-2.log`: NRestarts 1 before and after); from 04:22 on this
 task ran only CI in unit mode (no VPP connection) and, at 04:36, read-only `vppctl show` commands. None of this task's
 code calls `ip4_sas`-reaching messages (npt66 add/del, nat44-ei/nat64/nat66 config, dumps). Every topology run of this
-task logged NRestarts 1 → 1.
+task logged NRestarts 1 → 1. The manager traced it to a dns_plugin crash from another branch; no host run of this task
+overlapped 04:27:21–04:27:36, so none is rerun (the next "before" value is NRestarts 2).
 
 ## Q9 (CI, manager): main's ci.sh vs this branch's inherited P08 test file
 Main's gate (D-128 packet-trace ban) fails on `test/topology/interfaces/interfaces_test.go` lines 291–302 (`trace add`,

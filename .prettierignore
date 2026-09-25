@@ -1,0 +1,7 @@
+dist
+node_modules
+gen
+pnpm-lock.yaml
+*.md
+wbs
+apps/agent

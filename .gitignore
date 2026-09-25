@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.turbo/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+apps/agent/bin/
+packages/api-client/openapi.json
+/.pnpm-store/
+
+# F-vpp-debs: VPP source/build scratch and built packages are never committed
+deploy/vpp/.build/
+*.deb

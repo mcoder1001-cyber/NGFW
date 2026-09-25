@@ -216,3 +216,48 @@ ids only), interface addressing.
 `docs/status/tasks/F-kea-dhcp-relay-questions.md` (Q1–Q11), notably Q3 (P02c example vs the new VRF rule), Q5 (P08/core:
 a DHCP-leased address would be deleted by the interface-ip reconcile), Q6 (Kea needs linux-cp in the product), Q7
 (test-mode `ip netns exec` trampoline in the product binary).
+
+## Fix round 1 (review `bfedc2b8`, APPROVE WITH CHANGES; time box 90 min)
+
+| finding | fix | commit | test that fails on the old code |
+|---|---|---|---|
+| **M1** packaged `/etc/kea` file shown as active + "start" + error | `Status` reports a config without the agent's embedded render input (no file, idle, foreign or commented) as **not configured**: only `running`; the UI shows a "Not configured" chip instead of Stopped/Start required | `50dcd8a7` | `TestStatusForeignConfigNotConfigured` (old: `Active:true ActionRequired:start Err:"kea: configuration: invalid character '/'…"`); `DhcpPage.test.tsx` ("Unable to find … Not configured" on the old chip) |
+| **M2** every DhcpLeases call read up to 100 000 leases per family | per family one shared read in flight (singleflight) reused for `LeaseCacheTTL` = 10 s; an Apply drops the cache; errors not cached; each read still pages Kea with `LeasePageSize` (1000) per message | `00aa76d0` | `TestLeaseReadsSharedAndCached`: 8 concurrent calls → 3 `lease4-get-page` (one read), 5 calls in the TTL → 0, after the TTL / an Apply → one read each (it uses the new cache clock and TTL, so it cannot build against the old code; its request counts assert one shared read) |
+| **M3** no tests for `subsystems/kea.go` | `kea_test.go`: `TestRegisterKeaRelayScope` (zero `IDs` → a relay in table 5000 or 0 is neither retrieved nor created, nothing written; slot range inside/outside; `All`), `TestRegisterKeaModes` (default/product/off/test, bad mode, bad map pair, over-long Linux name, bad netns), `TestKeaTestModeMapper` | `4263af96` | mutation: with `rng = nil` on the IDRange error the two fail-closed cases fail ("retrieved 1 relays of table 5000, owns=false") |
+| **Q7** test mode reachable in the product binary | `VRX_KEA_MODE=test` refused when the owner is `vrx` or `IDs.All`; `ALLOWLIST.md` row for the lab-mode runner | `4263af96` | mutation: without the check the three refusal cases fail ("want error … refused for the product agent, got <nil>") |
+| tools/app | `VRX_KEA_MODE=off` on the agent's env line (that one line; tools/app not run) | `f63ef731` | — |
+| L1 | rule-file comment names what the agent re-checks | `3202aff2` (`contract(schema)`, comment only) | — |
+| L3 | relay store: fsync of file and directory; an unreadable file is treated as empty (re-creatable metadata) instead of failing every `services` transaction | `74b57889` | `TestFileRelayStoreCorruptFile` (old: Load returned the unmarshal error) |
+| L7 | user guide: known issue for a DHCP lease on a sub-interface / af_packet / loopback until the Q5 core row lands | `74b57889` | — |
+| TD-13 gate | not added (manager: Kea becomes TD-13's first Validator adopter at its rebase) | — | — |
+| Q5 | not here: a new core row (manager) | — | — |
+| L2, L4, L5, L6, L8, L9 | not in this round: L2 needs a schema rule (contract), L4 changes the host test order (a host rerun), L5/L6 accepted/TD-9, L8 when a secret field arrives, L9 at the TD-23 rebase | — | — |
+
+M1 does not change a host path for the agent's own configuration (a rendered file carries its input, so "start"
+before Kea runs is reported as before); no host rerun (manager).
+
+```
+$ cd apps/agent && go test -race -count=1 ./internal/renderers/kea/... ./internal/descriptors/dhcp/... ./internal/subsystems/... ./internal/agent/... ./internal/desired/...
+ok  	ngfw/agent/internal/renderers/kea	6.671s
+ok  	ngfw/agent/internal/descriptors/dhcp	1.354s
+ok  	ngfw/agent/internal/subsystems	7.296s
+ok  	ngfw/agent/internal/agent	15.107s
+ok  	ngfw/agent/internal/desired	1.295s
+$ apps/web: vitest run            Tests  107 passed (107)
+$ apps/api: vitest run (unit)     Tests  96 passed (96)
+```
+
+`TMPDIR=/tmp/g-w2 tools/ci.sh --base main` on `74b57889` (fix round 1):
+```
+  contract guard: HEAD vs main                       0m00s
+  generate + generated-output gate                   2m06s
+  forbidden patterns (+ gitleaks)                    0m06s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  lint · typecheck · unit tests · build (turbo)   4m06s
+  apps/agent: make lint test build                   1m03s
+  apps/cli: make lint test build                     0m09s
+  test/ Go modules, unit mode (test/integration/smoke test/topology/interfaces test/topology/kea-dhcp-relay)   0m08s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   0m11s
+  mode quick · wall time 7m55s · logs /root/ngfw-wt/logs/ci/F-kea-dhcp-relay-20260925-050626-4046120
+CI GATE PASSED
+```

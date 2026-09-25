@@ -63,9 +63,11 @@ interface Annotatable {
 }
 
 /**
- * Sets `origin: 'frr'` on the linux-nl routes of items and, when the page is small enough (or a proto filter asks for
- * it), their FRR protocol from FRR's RIB; with `proto` it returns only that protocol's routes. FRR not answering leaves
- * the protocol unset (and, with `proto`, an empty page).
+ * Sets `origin: 'frr'` on the linux-nl routes of items. Only with `proto` does it ask FRR's RIB (RoutingState, one scoped
+ * lookup per prefix of the page, bounded by PROTO_PAGE_MAX) for each FRR route's protocol and keep that protocol's routes
+ * (review M3: a plain FIB page never costs a RoutingState walk, and its failure can never fail F-vrf's page). With `proto`
+ * a RoutingState error is the answer's error (the filter the caller asked for cannot be computed; the agent answers
+ * UNAVAILABLE while another walk is in flight).
  */
 export async function annotateFrr<T extends Annotatable>(
   agent: AgentClient,
@@ -74,9 +76,8 @@ export async function annotateFrr<T extends Annotatable>(
 ): Promise<T[]> {
   const frrItems = items.filter((i) => (LCP_SOURCES as readonly string[]).includes(i.source));
   for (const i of frrItems) i.origin = 'frr';
-  if (frrItems.length === 0 || (proto === undefined && frrItems.length > PROTO_PAGE_MAX)) {
-    return proto === undefined ? items : [];
-  }
+  if (proto === undefined) return items;
+  if (frrItems.length === 0) return [];
   const byVrf = new Map<string, T[]>();
   for (const i of frrItems) byVrf.set(i.vrf, [...(byVrf.get(i.vrf) ?? []), i]);
   for (const [vrf, list] of byVrf) {
@@ -93,5 +94,5 @@ export async function annotateFrr<T extends Annotatable>(
       if (p !== undefined) i.proto = p;
     }
   }
-  return proto === undefined ? items : items.filter((i) => i.proto === proto);
+  return items.filter((i) => i.proto === proto);
 }

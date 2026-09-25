@@ -189,3 +189,11 @@ export function toggleRedistribute(
   else delete next[source];
   return next;
 }
+
+/** Minimum time between two event-driven refetches of `/state/bgp` (D-132: nothing that walks VPP below 30 s). */
+export const EVENT_REFETCH_MIN_MS = 30_000;
+
+/** Whether a routing event may refetch `/state/bgp` now, given when it was last fetched (0 = never). */
+export function eventRefetchDue(now: number, lastUpdatedAt: number): boolean {
+  return lastUpdatedAt === 0 || now - lastUpdatedAt >= EVENT_REFETCH_MIN_MS;
+}

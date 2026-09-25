@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../../api';
 import { call } from '../../../api-problem';
 import { invalidateConfig, qk } from '../../../config/queries';
+import { eventRefetchDue } from './model';
 
 type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } }
   ? T
@@ -29,12 +30,17 @@ export function useBgpState() {
   });
 }
 
-/** Refetches the BGP state on every routing event (neighbour state, FRR RIB counts). */
+/**
+ * Refetches the BGP state on a routing event (neighbour state, FRR RIB counts) — at most once per BGP_POLL_MS (review M3,
+ * D-132): under route churn events arrive every second, and each refetch is a RoutingState walk of FRR and VPP. An event
+ * inside the window is picked up by the next poll; Refresh stays immediate.
+ */
 export function useRoutingEvents() {
   const qc = useQueryClient();
   useTopic('routing.events', {
     onBatch: () => {
-      void qc.invalidateQueries({ queryKey: bgpKeys.state });
+      const last = qc.getQueryState(bgpKeys.state)?.dataUpdatedAt ?? 0;
+      if (eventRefetchDue(Date.now(), last)) void qc.invalidateQueries({ queryKey: bgpKeys.state });
     },
   });
 }

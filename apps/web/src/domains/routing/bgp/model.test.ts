@@ -4,6 +4,7 @@ import fa from '../../../locales/fa/bgp.json';
 import {
   bgpGlobalSchema,
   bgpRecordItemSchema,
+  eventRefetchDue,
   formatUptime,
   isAddress,
   lcpSchema,
@@ -20,6 +21,14 @@ const keys = (o: object, p = ''): string[] =>
   );
 
 describe('bgp model', () => {
+  it('lets routing events refetch the state at most every 30 s (D-132, review M3)', () => {
+    const t0 = 1_000_000;
+    expect(eventRefetchDue(t0, 0)).toBe(true);
+    expect(eventRefetchDue(t0 + 1_000, t0)).toBe(false);
+    expect(eventRefetchDue(t0 + 29_999, t0)).toBe(false);
+    expect(eventRefetchDue(t0 + 30_000, t0)).toBe(true);
+  });
+
   it('takes every form from the one schema', () => {
     const g = bgpGlobalSchema().properties as Record<string, unknown>;
     expect(Object.keys(g)).toEqual(

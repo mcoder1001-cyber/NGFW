@@ -133,7 +133,7 @@ func ValidID(s string) error {
 		return dfkit.Specf("id %q: must not contain ..", s)
 	}
 	for _, r := range s {
-		if !(r == '.' || r == '-' || r == '_' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+		if r != '.' && r != '-' && r != '_' && (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') {
 			return dfkit.Specf("id %q: invalid character %q", s, r)
 		}
 	}

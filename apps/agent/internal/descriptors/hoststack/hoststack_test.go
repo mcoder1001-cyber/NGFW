@@ -3,6 +3,7 @@ package hoststack
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"go.fd.io/govpp/api"
@@ -30,7 +31,7 @@ type model struct {
 func matchKey(r *session.SessionRuleAddDel) string {
 	c := *r
 	c.IsAdd, c.Tag, c.ActionIndex = false, "", 0
-	return c.Lcl.String() + "|" + c.Rmt.String() + "|" + string(rune(c.LclPort)) + "|" + string(rune(c.RmtPort)) + "|" + c.TransportProto.String() + "|" + c.Scope.String() + "|" + string(rune(c.AppnsIndex))
+	return fmt.Sprintf("%s|%s|%d|%d|%s|%s|%d", c.Lcl, c.Rmt, c.LclPort, c.RmtPort, c.TransportProto, c.Scope, c.AppnsIndex)
 }
 
 func newFake(on bool) (*dfkittest.FakeVPP, *model) {

@@ -155,7 +155,9 @@ type ConfigOption func(*ConfigDescriptor)
 
 // WithPollMainThread tells the descriptor that VPP runs with `nsim { poll-main-thread }` in startup.conf (the operator
 // asserts it; VPP has no getter): then the main thread has a wheel and a VPP with worker threads is safe.
-func WithPollMainThread(on bool) ConfigOption { return func(d *ConfigDescriptor) { d.pollMainThread = on } }
+func WithPollMainThread(on bool) ConfigOption {
+	return func(d *ConfigDescriptor) { d.pollMainThread = on }
+}
 
 // NewConfig returns the nsim.config descriptor.
 func NewConfig(c vpp.Client, store dfkit.BootStore, opts ...ConfigOption) *ConfigDescriptor {

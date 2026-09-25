@@ -52,3 +52,11 @@ Proposed VPP fix (for `docs/vpp-code-track.md`): add `sw_if_index` to `sflow_int
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## F-ipfix-sflow additions (gap-only, D-104)
+- TD-11b declarations (`ownership.go`): `GlobalDescriptor.RecordsNoOwnership()` (VPP-global singleton);
+  `InterfaceDescriptor.CheckPersistent()` = `dfkit.CheckClaims`. The learned hw→sw map is not ownership (re-learned in
+  Create, V17). Found by `subsystems.TestRequirePersistentPerFamily`.
+- Product wiring: `RegisterGlobals` only for the globals owner, `NewGlobal(c)` (requirement only) otherwise. The agent's
+  restart test (`internal/agent` `TestIpfixSflowGlobalsOwnerLifecycle`) shows exactly one `sflow.interface` re-create
+  on the first resync after a restart, then an empty plan.

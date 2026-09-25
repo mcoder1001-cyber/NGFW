@@ -300,3 +300,37 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("registered %v", r.Names())
 	}
 }
+
+// TestExporterStatIndexRemembered (F-ipfix-sflow gap: IpfixState reports the stats index "when
+// known"; Retrieve cannot learn it, so the descriptor remembers what create returned).
+func TestExporterStatIndexRemembered(t *testing.T) {
+	f, _ := newFake()
+	d := NewExporter(f, WithCollectorScope(slotPool.Contains))
+	ctx := context.Background()
+	v := Exporter{Collector: "10.5.0.9", CollectorPort: 4739, Src: "10.5.0.10", PathMTU: 1400, TemplateInterval: 20}.Proto()
+	if _, ok := d.StatIndex("10.5.0.9"); ok {
+		t.Fatal("known before create")
+	}
+	if _, err := d.Create(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	if i, ok := d.StatIndex("10.5.0.9"); !ok || i != 3 {
+		t.Fatalf("stat index %d %v", i, ok)
+	}
+	if fresh := NewExporter(f, WithCollectorScope(slotPool.Contains)); len(dfkittest.MustRetrieve(t, fresh)) != 1 {
+		t.Fatal("not retrieved")
+	} else if _, ok := fresh.StatIndex("10.5.0.9"); ok {
+		t.Fatal("a fresh descriptor cannot know the stat index")
+	}
+	if err := d.Delete(ctx, v, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := d.StatIndex("10.5.0.9"); ok {
+		t.Fatal("stat index kept after delete")
+	}
+	if _, err := d.Create(ctx, Exporter{Collector: "10.6.0.9", CollectorPort: 4739, Src: "10.6.0.1", PathMTU: 1400, TemplateInterval: 20}.Proto()); err == nil {
+		t.Fatal("out of scope accepted")
+	} else if _, ok := d.StatIndex("10.6.0.9"); ok {
+		t.Fatal("failed create remembered")
+	}
+}

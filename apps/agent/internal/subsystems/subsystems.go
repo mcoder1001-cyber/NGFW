@@ -37,6 +37,7 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -52,6 +53,7 @@ const (
 	Routing    = "routing"
 	// New domain constants: one line under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-lisp
+	Tunnels = "tunnels"
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
@@ -111,10 +113,16 @@ var Domains = map[string][]string{
 	// wave-BC: F-lb
 	// wave-BC: F-qos-flat
 	// wave-BC: F-host-stack
-	"services": {hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic},
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
+	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
+		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic), // F-host-stack
 	// wave-BC: F-lisp
+	Tunnels: {
+		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
+		lisp.MapResolverName, lisp.MapServerName, lisp.RemoteMappingName, lisp.AdjacencyName,
+		lisp.EidTableMapName, lisp.PitrName, lisp.GpeFwdEntryName,
+	},
 	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
@@ -239,6 +247,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
 	// wave-BC: F-lisp
+	if err := registerLisp(r, w); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib
@@ -262,6 +273,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {
 		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static
+	}
+	// wave-BC: F-ipfix-sflow (unanchored)
+	if err := registerIpfixSflow(r, w); err != nil {
+		return nil, err
 	}
 	return w, nil
 }

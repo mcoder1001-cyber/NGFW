@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ngfw/agent/internal/descriptors/kit"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"ngfw/agent/internal/descriptors/dfkit/persist"
@@ -103,14 +103,7 @@ func (s *FileClaimStore) save() error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
-		return err
-	}
-	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, s.path)
+	return kit.WriteFileAtomic(s.path, b, 0o600) // file + dir fsync (TD-16)
 }
 
 // Claim implements ClaimStore. Memory changes only when the file was written (TD-11b; re-review

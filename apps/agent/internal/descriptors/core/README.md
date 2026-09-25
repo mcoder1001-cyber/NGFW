@@ -60,12 +60,12 @@ Deleting a FIB table (`ip_table_add_del` is_add=0) while it still holds API **dr
 next table that reuses the FIB index (any owner's!) starts with them. The reconciler always deletes routes before their
 table; test helpers that simulate loss flush the table (`ip_table_flush`) before deleting it.
 
-## Handoff to P08 (review M5)
+## Handoff to P08 (review M5) — done
 
-`interface-ip` and `interface-ip.table` work only on interfaces this owner tagged (loopbacks today). Addresses on
-physical/pre-existing NICs (untagged, e.g. `lan`) fail validation (`interface/<name>` has no provider) until DF-1's
-alias descriptor is wired (D-065/D-073a) **and** a claim path exists for untagged interfaces (D-071 ClaimStore or the
-alias' "physical interface" resolution with a claim record per address). P08 owns both.
+P08 registers DF-1's `interface/<name>` alias and passes `IfRef: AliasInterfaceRef` (internal/subsystems), so
+`interface-ip` and `interface-ip.table` reach any interface the alias resolves, not only loopbacks this owner tagged
+(review 3.1, fixed; doc updated by TD-11a). Still open: addresses on physical/pre-existing NICs (untagged, e.g. DPDK
+`lan`) need a claim record per address before the VPP write (review 3.1b, TD-11c).
 
 Limitations: VRF and route descriptions are not VPP state; the agent service returns them from its stored desired state
 (D-073b). Routes in the shared table 0 are attributed by the owner table only.

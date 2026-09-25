@@ -54,6 +54,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  'vpn',
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-object-model
   // wave-A: F-acl
@@ -62,7 +63,8 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-wireguard
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
-  'services', // F-host-stack (unanchored; first services tab)
+  // wave-BC: F-ipfix-sflow (unanchored)
+  'services',
 ]);
 
 export function domainPath(key: RootKey): string {
@@ -129,6 +131,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-ab-upgrade
     // wave-BC: F-images
     // wave-BC: F-hardening-lite
+    // wave-BC: F-licensing (unanchored)
+    { id: 'licensing', path: '/system/licensing', labelKey: 'licensing:nav', fallbackLabel: 'Licence', available: true },
   );
   groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);

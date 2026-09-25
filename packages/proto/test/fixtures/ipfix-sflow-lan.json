@@ -1,0 +1,41 @@
+{
+  "vrfs": { "default": { "id": 0 } },
+  "interfaces": {
+    "host-w1a": { "ipv4": ["10.1.1.1/24"] },
+    "host-w1b": { "ipv4": ["10.1.2.1/24"] }
+  },
+  "services": {
+    "ipfix": {
+      "exporters": {
+        "lan-collector": {
+          "description": "flows of the LAN side",
+          "collector": { "address": "10.1.1.9", "port": 3171 },
+          "sourceAddress": "10.1.1.1",
+          "vrf": "default",
+          "pathMtu": 1400,
+          "templateIntervalSec": 10
+        }
+      },
+      "flowprobe": {
+        "activeTimerSec": 5,
+        "passiveTimerSec": 10,
+        "recordL2": false,
+        "recordL3": true,
+        "recordL4": true,
+        "interfaces": [
+          { "interface": "host-w1a", "direction": "rx", "l2": false, "ip4": true, "ip6": false }
+        ]
+      },
+      "sflow": {
+        "enabled": true,
+        "samplingN": 1000,
+        "pollingIntervalSec": 20,
+        "headerBytes": 128,
+        "collectors": [{ "address": "10.1.1.9", "port": 3172 }],
+        "agentAddress": "10.1.1.1",
+        "vrf": "default",
+        "interfaces": ["host-w1b"]
+      }
+    }
+  }
+}

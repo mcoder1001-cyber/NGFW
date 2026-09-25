@@ -40,9 +40,13 @@ import enHostStack from './locales/en/host-stack.json';
 import faHostStack from './locales/fa/host-stack.json';
 // wave-BC: F-snmp
 // wave-BC: F-ipfix-sflow
+import enIpfixSflow from './locales/en/ipfix-sflow.json';
+import faIpfixSflow from './locales/fa/ipfix-sflow.json';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
 // wave-BC: F-lisp
+import enLisp from './locales/en/lisp.json';
+import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
@@ -51,6 +55,8 @@ import faHostStack from './locales/fa/host-stack.json';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
+import enLicensing from './locales/en/licensing.json';
+import faLicensing from './locales/fa/licensing.json';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
@@ -103,9 +109,11 @@ export const NAMESPACES = [
   'host-stack',
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+  'ipfix-sflow',
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  'lisp',
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -114,6 +122,7 @@ export const NAMESPACES = [
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  'licensing',
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
@@ -168,9 +177,11 @@ const en = {
   'host-stack': enHostStack,
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+  'ipfix-sflow': enIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  lisp: enLisp,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -179,6 +190,7 @@ const en = {
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  licensing: enLicensing,
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
@@ -230,9 +242,11 @@ const fa = {
   'host-stack': faHostStack,
   // wave-BC: F-snmp
   // wave-BC: F-ipfix-sflow
+  'ipfix-sflow': faIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
   // wave-BC: F-lisp
+  lisp: faLisp,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -241,6 +255,7 @@ const fa = {
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
+  licensing: faLicensing,
   // wave-BC: F-restconf-yang
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade

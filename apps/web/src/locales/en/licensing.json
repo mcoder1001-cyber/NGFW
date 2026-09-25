@@ -1,0 +1,57 @@
+{
+  "title": "Licence",
+  "nav": "Licence",
+  "loading": "Loading licence status",
+  "status": {
+    "heading": "Status",
+    "community": "Community (no licence)",
+    "valid": "Valid",
+    "grace": "Grace period",
+    "expired": "Expired",
+    "invalid": "Invalid",
+    "communityHelp": "No licence is installed: the community feature set applies.",
+    "expiredHelp": "The licence and its grace period have expired. The running configuration stays applied; new configuration that needs a licensed feature is rejected at commit."
+  },
+  "field": {
+    "customer": "Customer",
+    "licenseId": "Licence ID",
+    "expiresAt": "Expires",
+    "daysLeft": "Days left",
+    "graceLeft": "Grace days left",
+    "binding": "Bound to"
+  },
+  "binding": { "machineId": "machine ID", "serial": "serial number" },
+  "entitlements": {
+    "heading": "Entitlements in force",
+    "feature": "Feature",
+    "licensed": "Licensed",
+    "yes": "Yes",
+    "no": "No",
+    "max": "up to {{n}}"
+  },
+  "feature": {
+    "ipsec": "IPsec tunnels",
+    "wireguard": "WireGuard",
+    "bgp": "BGP",
+    "ospf": "OSPF",
+    "isis": "IS-IS",
+    "ha": "High availability (VRRP, cluster)"
+  },
+  "limit": {
+    "ipsecTunnels": "IPsec tunnels (maximum)",
+    "wireguardInterfaces": "WireGuard interfaces (maximum)"
+  },
+  "upload": {
+    "heading": "Install a licence",
+    "help": "Choose the .vrxlic file you received from support. It is verified before it is stored.",
+    "button": "Upload licence file",
+    "done": "Licence installed.",
+    "notJson": "This file is not a VRX licence file."
+  },
+  "banner": {
+    "grace": "The licence has expired. Grace period: {{days}} day(s) left.",
+    "expired": "The licence has expired. New licensed features cannot be committed.",
+    "invalid": "The installed licence is not valid for this system.",
+    "link": "Licence details"
+  }
+}

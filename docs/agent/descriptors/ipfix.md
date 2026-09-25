@@ -53,3 +53,14 @@ Retrieve — the dump does not carry it).
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## F-ipfix-sflow additions (gap-only, D-104)
+- TD-11b declarations (`ownership.go`): all four types `RecordsNoOwnership()` — exporter 0 and the classify stream are
+  VPP-global singletons, additional exporters are ours by collector scope, classify tables are ours through DF-2's store,
+  which this package only reads. Found by `subsystems.TestRequirePersistentPerFamily` once the family was registered.
+- `ExporterDescriptor.StatIndex(collector)`: the stats index VPP returned on create/update, remembered in the process
+  (forgotten on delete; unknown after an agent restart — Retrieve cannot learn it). Used by the `IpfixState` RPC.
+  Test: `TestExporterStatIndexRemembered`.
+- Product wiring (`internal/subsystems/ipfix_sflow.go`): `RegisterGlobals` only when `Env.GlobalsOwner`; otherwise
+  `NewDefaultExporter(c)` without the role (requirement only). `ipfix.classify-*` are registered with
+  `Wiring.ClassifyStore()` but belong to no domain (no configuration leaf; write-only, V16).

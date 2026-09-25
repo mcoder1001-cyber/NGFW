@@ -1,4 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { clientKey, requestProtocol, sourceIp } from '../common/principal.js';
 import { loadEnv } from '../config.js';
@@ -144,6 +146,25 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
         'x-forwarded-proto': 'https',
       }),
     ).toEqual({ ip: '127.0.0.1', proto: 'http', secure: true });
+  });
+
+  it('review C1: tools/app runs the API with VRX_TRUST_PROXY=none — its vite hop (xfwd) relaying a remote plain-HTTP browser is accepted as on main', async () => {
+    // what vite 7 (xfwd) sends for a browser at 198.51.100.7 on plain http://host:8080 (it appends to client headers)
+    expect(
+      await probe(none, '127.0.0.1', {
+        'x-forwarded-for': '198.51.100.7',
+        'x-forwarded-proto': 'http',
+        'x-forwarded-port': '8080',
+      }),
+    ).toEqual({ ip: '127.0.0.1', proto: 'http', secure: true });
+    // and tools/app really starts its API that way (unset would mean the default, loopback)
+    const app = readFileSync(
+      fileURLToPath(new URL('../../../../tools/app', import.meta.url)),
+      'utf8',
+    );
+    const apiLine = /start_svc api env ((?:.*\\\n)*.*)/.exec(app)?.[1] ?? '';
+    expect(apiLine).toMatch(/(^|\s)VRX_TRUST_PROXY=none(\s|\\|$)/);
+    expect(app).toContain('PENDING-tools-app-transport');
   });
 
   it('VRX_TRUST_PROXY: loopback by default; addresses, ranges and names; never "everyone"', () => {

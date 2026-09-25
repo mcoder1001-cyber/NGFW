@@ -38,6 +38,10 @@ const stateFile = "agent-state.json"
 // non-nil error aborts save at that point, simulating a crash there.
 var saveHook func(stage string) error
 
+// errMirror wraps a failure to write the desired.pb mirror: agent-state.json — the state — was written
+// already, so the transaction is durable (TD-9, ARCH-01: only a failed state write answers DEGRADED).
+var errMirror = errors.New("state: desired.pb mirror")
+
 // txnRecord is one remembered Apply.
 type txnRecord struct {
 	TxnID       string `json:"txn_id"`
@@ -153,15 +157,15 @@ func (s *state) save() error {
 	}
 	if saveHook != nil {
 		if err := saveHook("mirror"); err != nil {
-			return err
+			return fmt.Errorf("%w: %w", errMirror, err)
 		}
 	}
 	pb, err := proto.MarshalOptions{Deterministic: true}.Marshal(s.desired)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errMirror, err)
 	}
 	if err := ownertable.WriteAtomic(filepath.Join(s.dir, "desired.pb"), pb, 0o640); err != nil {
-		return fmt.Errorf("state: desired.pb mirror: %w", err)
+		return fmt.Errorf("%w: %w", errMirror, err)
 	}
 	_ = os.Remove(filepath.Join(s.dir, "confirmed.pb")) // pre-review layout
 	return nil

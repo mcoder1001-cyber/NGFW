@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 
 	"google.golang.org/grpc"
@@ -17,6 +18,37 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 )
+
+// newGRPCServer is the agent's gRPC server with panic recovery on every unary and streaming handler
+// (TD-9, review 1.1d): a handler panic answers INTERNAL, is logged with its stack and counted in
+// vrx_agent_panics_total{where="grpc"}, and never takes the agent down. A panic inside a transaction is
+// contained by the service itself (it also reloads the state and owes a resync, Service.containLocked),
+// and a descriptor's by the scheduler (ErrDescriptorPanic): the transaction rolls back.
+func newGRPCServer(log *slog.Logger, m *metrics) *grpc.Server {
+	recovered := func(method string, r any) error {
+		log.Error("gRPC handler panicked", "method", method, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+		m.panicked("grpc")
+		return status.Errorf(codes.Internal, "agent bug: %s panicked (logged)", method)
+	}
+	return grpc.NewServer(
+		grpc.ChainUnaryInterceptor(func(ctx context.Context, req any, info *grpc.UnaryServerInfo, h grpc.UnaryHandler) (resp any, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					resp, err = nil, recovered(info.FullMethod, r)
+				}
+			}()
+			return h(ctx, req)
+		}),
+		grpc.ChainStreamInterceptor(func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, h grpc.StreamHandler) (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = recovered(info.FullMethod, r)
+				}
+			}()
+			return h(srv, ss)
+		}),
+	)
+}
 
 // server adapts Service to the generated vrx.v1.Dataplane gRPC service.
 type server struct {

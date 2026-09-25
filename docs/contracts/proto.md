@@ -120,7 +120,8 @@ validate (every selected KV has a descriptor; mandatory dependencies present)
 
 Request forms: **apply** (`txn_id` + `desired_state` [+ `subsystems`, `confirm_timeout_sec`]), **confirm**
 (`confirm_txn_id` only), **confirm-and-apply** (both: the pending transaction is confirmed first, then the new one is
-applied). Any other combination is `INVALID_ARGUMENT`.
+applied). Any other combination is `INVALID_ARGUMENT`. A confirm-and-apply while VPP is disconnected answers
+`UNAVAILABLE` before its confirm half runs: nothing is confirmed (TD-9).
 
 ### Idempotency
 
@@ -132,7 +133,15 @@ applied). Any other combination is `INVALID_ARGUMENT`.
    stored `ApplyResponse` without touching the data plane; a repeated `txn_id` with different content fails with
    `ABORTED`. The API therefore retries a lost response safely with the same id.
 3. Transactions are serialised: one at a time per agent. A second `Apply` while one is running blocks until it finishes
-   (bounded by the caller's deadline), it is never interleaved.
+   (bounded by the caller's deadline), it is never interleaved. **The caller's deadline and cancel bound only that wait
+   (TD-9).** Once a transaction holds the lock it runs to its end on the agent's own clock, whether or not the caller is
+   still there: every VPP reply is bounded by `VRX_AGENT_VPP_REPLY_TIMEOUT` (default 30 s, at least 15 s — govpp's
+   health-check window; one request/reply, or one message of a dump), the transaction by 5 min and its rollback by 2 min. A caller that gave up retries with the same
+   `txn_id`: it waits for the lock and gets the stored response (item 2). **An outcome in which a timeout took part is
+   never stored** — a VPP call that did not answer in time, in the plan, an operation (the request may have been
+   applied), verify or the rollback, or the transaction's own deadline — and neither is an answer turned `DEGRADED` because the agent could not save its state: a retry with the
+   same `txn_id` runs the transaction again, which is safe because it is declarative (item 1). A caller that gives up
+   while still waiting for the lock gets `DEADLINE_EXCEEDED`/`CANCELLED` and nothing is stored.
 
 ### Subsystems and authority (D-041)
 
@@ -162,12 +171,17 @@ extension). `DryRun` applies the same table when planning.
 | `APPLIED` | converged and verified (unconfirmed if a timer runs) | OK |
 | `FAILED` | untouched — validation/planning failed; `validation` explains | OK |
 | `ROLLED_BACK` | back at the previous state; `results` lists what failed and what was reverted | OK |
-| `DEGRADED` | intermediate — an operation and its rollback both failed; `Health.degraded = true`, Event `DEGRADED` (AD-4) | OK |
+| `DEGRADED` | intermediate — an operation and its rollback both failed; **or the failed operation's outcome is unknown** (its VPP call timed out or was cut off after the request was sent, or its descriptor panicked: no rollback can undo what was never journaled; `message` says so); **or the data plane was changed but the agent could not save its state** (ARCH-01). `Health.degraded = true`, Event `DEGRADED` (AD-4). The agent owes a resync of the stored desired state and retries it with backoff (5 s doubling to 60 s) until one succeeds; a resync, a confirm revert or an `Apply` over every managed domain that ends `APPLIED` clears it; a narrower `Apply` leaves it, and the owed resync keeps retrying (TD-9) | OK |
 | `CONFIRMED` | unchanged — pure confirm | OK |
 | — | malformed request, owner mismatch, unknown subsystem | `INVALID_ARGUMENT` |
 | — | confirm of a txn that is not pending; new apply while another txn is pending confirmation (§4) | `FAILED_PRECONDITION` |
 | — | `txn_id` reused with different content | `ABORTED` |
 | — | VPP disconnected | `UNAVAILABLE` |
+| — | an agent bug: a handler panicked (logged with its stack, `vrx_agent_panics_total`); a panic inside a transaction also reloads the agent's state from disk and leaves it `DEGRADED` with a resync owed | `INTERNAL` |
+
+`validation` carries the errors of a `FAILED` answer; an `APPLIED` or `ROLLED_BACK` answer carries the projection's
+warnings in it (`ok = true`: `agent.unimplemented-domain`, `agent.unsupported-field`, …) when there are any, the same
+ones `DryRun` reports (TD-9, review 1.2); without warnings it is unset.
 
 `results` has one `ObjectResult` per object touched or failed: scheduler `key` (`<descriptor>/<id>`), `op`, `code`,
 `message` (never secrets), RFC 6901 `pointer` into the document (`/` in interface names escaped as `~1`) and

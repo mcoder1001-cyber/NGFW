@@ -11,8 +11,10 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,10 +43,17 @@ type Config struct {
 	// Owner stamped on every object (VRX_OWNER; tests: their VRX_TEST_PREFIX).
 	Owner string
 	// MetricsAddr is the Prometheus listen address (VRX_METRICS_ADDR, or 127.0.0.1:$VRX_METRICS_PORT);
-	// "" or "off" disables it.
+	// "" or "off" disables it. /metrics is unauthenticated: a non-loopback address needs MetricsAllowRemote.
 	MetricsAddr string
-	// LogLevel: debug, info, warn, error (VRX_LOG_LEVEL).
+	// MetricsAllowRemote (VRX_METRICS_ALLOW_REMOTE=1) permits a non-loopback MetricsAddr (TD-9, review 1.5e).
+	MetricsAllowRemote bool
+	// LogLevel: debug, info, warn, error (VRX_LOG_LEVEL); anything else refuses to start (TD-9, review 1.5c).
 	LogLevel string
+	// VPPReplyTimeout bounds each VPP reply (VRX_AGENT_VPP_REPLY_TIMEOUT: seconds or a Go duration;
+	// 0 = vpp.DefaultReplyTimeout, 30 s; TD-9, review 1.1).
+	VPPReplyTimeout time.Duration
+	// replyErr is a malformed VRX_AGENT_VPP_REPLY_TIMEOUT (Validate refuses to start).
+	replyErr error
 	// GlobalsOwner (VRX_GLOBALS_OWNER, D-071): true only for the product agent on a real box (the
 	// default for the production owner "vrx"); test slots on the shared host are never the owner.
 	GlobalsOwner bool
@@ -79,18 +88,25 @@ func ConfigFromEnv() Config {
 		globals = false
 	}
 	ids, idsErr := subsystems.ResolveIDScope() // none set: ErrNoIDRange, start-up refused (TD-8b, D-129 Q3)
+	reply, replyErr := parseTimeout(os.Getenv("VRX_AGENT_VPP_REPLY_TIMEOUT"))
+	if replyErr != nil {
+		replyErr = fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT: %w", replyErr)
+	}
 	return Config{
-		IDs:            ids,
-		idsErr:         idsErr,
-		GlobalsOwner:   globals,
-		Socket:         env("VRX_AGENT_SOCKET", "/run/vrx/agent.sock"),
-		SocketGroup:    env("VRX_SOCKET_GROUP", "vrx"),
-		VPPAPISocket:   env("VRX_AGENT_VPP_API_SOCKET", "/run/vpp/api.sock"),
-		VPPStatsSocket: env("VRX_AGENT_VPP_STATS_SOCKET", "/run/vpp/stats.sock"),
-		StateDir:       env("VRX_AGENT_STATE_DIR", "/var/lib/vrx/agent"),
-		Owner:          owner,
-		MetricsAddr:    metrics,
-		LogLevel:       env("VRX_LOG_LEVEL", "info"),
+		IDs:                ids,
+		idsErr:             idsErr,
+		VPPReplyTimeout:    reply,
+		replyErr:           replyErr,
+		MetricsAllowRemote: os.Getenv("VRX_METRICS_ALLOW_REMOTE") == "1",
+		GlobalsOwner:       globals,
+		Socket:             env("VRX_AGENT_SOCKET", "/run/vrx/agent.sock"),
+		SocketGroup:        env("VRX_SOCKET_GROUP", "vrx"),
+		VPPAPISocket:       env("VRX_AGENT_VPP_API_SOCKET", "/run/vpp/api.sock"),
+		VPPStatsSocket:     env("VRX_AGENT_VPP_STATS_SOCKET", "/run/vpp/stats.sock"),
+		StateDir:           env("VRX_AGENT_STATE_DIR", "/var/lib/vrx/agent"),
+		Owner:              owner,
+		MetricsAddr:        metrics,
+		LogLevel:           env("VRX_LOG_LEVEL", "info"),
 	}
 }
 
@@ -105,8 +121,74 @@ func (c Config) Validate() error {
 		return errors.New("VRX_AGENT_STATE_DIR is empty")
 	case c.idsErr != nil:
 		return c.idsErr
+	case c.replyErr != nil:
+		return c.replyErr
+	case c.VPPReplyTimeout < 0 || (c.VPPReplyTimeout > 0 && c.VPPReplyTimeout < MinVPPReplyTimeout):
+		return fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT %s: at least %s (govpp's health-check window)", c.VPPReplyTimeout, MinVPPReplyTimeout)
 	}
-	return nil
+	if _, err := ParseLogLevel(c.LogLevel); err != nil {
+		return err
+	}
+	return c.checkMetricsAddr()
+}
+
+// MinVPPReplyTimeout is the least VRX_AGENT_VPP_REPLY_TIMEOUT (review L6): govpp's health check (a probe
+// every 1 s, 2 s reply timeout, 5 misses — vpp/conn.go) reconnects a dead or hung VPP within about 15 s,
+// which drops late replies. A shorter reply timeout would return a channel id to govpp's pool while VPP may
+// still answer on it, and govpp's Invoke does not check which message a reply answers.
+const MinVPPReplyTimeout = 15 * time.Second
+
+// ParseLogLevel parses VRX_LOG_LEVEL (debug, info, warn, error; "" = info). An unknown level is an
+// error: the agent refuses to start rather than run at a level nobody asked for (TD-9, review 1.5c).
+func ParseLogLevel(s string) (slog.Level, error) {
+	level := slog.LevelInfo
+	if s == "" {
+		return level, nil
+	}
+	if err := level.UnmarshalText([]byte(s)); err != nil {
+		return slog.LevelInfo, fmt.Errorf("invalid VRX_LOG_LEVEL %q (debug, info, warn or error)", s)
+	}
+	return level, nil
+}
+
+// checkMetricsAddr refuses a /metrics address other than loopback — the endpoint has no
+// authentication — unless VRX_METRICS_ALLOW_REMOTE=1 says it is meant (TD-9, review 1.5e).
+func (c Config) checkMetricsAddr() error {
+	if c.MetricsAddr == "" || c.MetricsAddr == "off" {
+		return nil
+	}
+	host, _, err := net.SplitHostPort(c.MetricsAddr)
+	if err != nil {
+		return fmt.Errorf("invalid VRX_METRICS_ADDR %q: %w", c.MetricsAddr, err)
+	}
+	if c.MetricsAllowRemote || host == "localhost" {
+		return nil
+	}
+	if ip, err := netip.ParseAddr(host); err == nil && ip.IsLoopback() {
+		return nil
+	}
+	return fmt.Errorf("VRX_METRICS_ADDR %q is not a loopback address: /metrics is unauthenticated, set VRX_METRICS_ALLOW_REMOTE=1 to serve it there anyway", c.MetricsAddr)
+}
+
+// parseTimeout parses seconds ("30") or a Go duration ("1m30s"); "" = 0 (the default).
+func parseTimeout(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, nil
+	}
+	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+		if n == 0 {
+			return 0, errors.New("must be positive")
+		}
+		return time.Duration(n) * time.Second, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, err
+	}
+	if d <= 0 {
+		return 0, errors.New("must be positive")
+	}
+	return d, nil
 }
 
 // vppConn is what the agent needs from the VPP connection manager (vpp.Conn; fakes in tests).
@@ -152,7 +234,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, err
 	}
 	m := newMetrics()
-	conn := dialVPP(cfg.VPPAPISocket, vpp.ConnOptions{Logger: log})
+	conn := dialVPP(cfg.VPPAPISocket, vpp.ConnOptions{Logger: log, ReplyTimeout: cfg.VPPReplyTimeout})
 	reg := scheduler.NewRegistry()
 	// A5 seams (TD-8): the features' events reach the service's bus, their resync requests watchVPP.
 	events, resyncs := newBus(), make(chan struct{}, 1)
@@ -169,7 +251,8 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
 	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
-		Events: events, Sources: wiring.DynamicSources()})
+		Events: events, Sources: wiring.DynamicSources(),
+		RequestResync: func() { requestResync(resyncs) }}) // TD-9: the owed resync takes the Env.Resync path
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -182,7 +265,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, fmt.Errorf("listen %s: %w", cfg.Socket, err)
 	}
-	a.grpc = grpc.NewServer()
+	a.grpc = newGRPCServer(log, m) // TD-9: panic recovery interceptors
 	vrxv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log})
 
 	if cfg.MetricsAddr != "" && cfg.MetricsAddr != "off" {
@@ -204,7 +287,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 
 	rctx, cancel := context.WithCancel(ctx)
 	a.cancel = cancel
-	a.wg.Add(2)
+	a.wg.Add(3)
 	go func() {
 		defer a.wg.Done()
 		if err := a.grpc.Serve(l); err != nil {
@@ -214,6 +297,10 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	go func() {
 		defer a.wg.Done()
 		a.watchVPP(rctx)
+	}()
+	go func() {
+		defer a.wg.Done()
+		a.watchDrift(rctx)
 	}()
 	log.Info("vrx-agent listening", "socket", cfg.Socket, "metrics", cfg.MetricsAddr, "state_dir", cfg.StateDir, "vpp_api", cfg.VPPAPISocket)
 	return a, nil
@@ -282,7 +369,13 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			a.svc.SetVPPVersion(v)
 			a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
 			if a.wiring != nil {
-				a.wiring.Connected(ctx) // P08: D-080 boot identity for the stores, DF-8 Reconnected()
+				// P08: D-080 boot identity for the stores, DF-8 Reconnected(); its ControlPing gets a
+				// deadline of its own (TD-9)
+				a.safely("wiring connect hook", func() {
+					cctx, ccancel := context.WithTimeout(ctx, connectHookTimeout)
+					defer ccancel()
+					a.wiring.Connected(cctx)
+				})
 			}
 			a.fullResync(ctx, "connect")
 			if !sourcesStarted {
@@ -292,10 +385,10 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			stopLinks()
 			lctx, cancelLinks := context.WithCancel(ctx)
 			linkCancel = cancelLinks
+			a.wg.Add(1)
 			go func() {
-				if err := watchLinks(lctx, a.conn, a.svc.events(), a.log); err != nil && lctx.Err() == nil {
-					a.log.Warn("link events stopped", "err", err)
-				}
+				defer a.wg.Done()
+				a.runLinks(lctx)
 			}()
 		}
 	}
@@ -309,7 +402,75 @@ func (a *Agent) fullResync(ctx context.Context, why string) {
 		a.log.Info("resync finished", "why", why, "status", resp.GetStatus().String(), "summary", resp.GetSummary().String())
 	}
 	if a.wiring != nil {
-		a.wiring.AfterResync(ctx) // TD-3 Q2: release clean quarantine holders (ifsanitize.Release)
+		a.safely("wiring after-resync hook", func() { a.wiring.AfterResync(ctx) }) // TD-3 Q2: release clean quarantine holders (ifsanitize.Release)
+	}
+}
+
+// connectHookTimeout bounds the wiring's connect hook (its boot-identity ControlPing, TD-9; a var for
+// the tests).
+var connectHookTimeout = 30 * time.Second
+
+// safely runs a wiring hook or the link watcher on a goroutine of the agent's own: a panic there is
+// logged and counted instead of taking the agent down (TD-9, review 1.1d).
+func (a *Agent) safely(what string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			a.log.Error("panic recovered", "in", what, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			if a.metrics != nil {
+				a.metrics.panicked("hook") // review L2: not a transaction panic
+			}
+		}
+	}()
+	fn()
+}
+
+// Link-event watcher restart backoff (TD-9, review 1.1c; vars for the tests).
+var (
+	linkRetryFloor = time.Second
+	linkRetryMax   = 30 * time.Second
+)
+
+// runLinks keeps the link-event watcher running while VPP stays connected (review 1.1c): after an
+// error it restarts with backoff (linkRetryFloor doubling to linkRetryMax, reset after a watch that
+// lasted longer than linkRetryMax). It ends with ctx (a disconnect or the agent's stop).
+func (a *Agent) runLinks(ctx context.Context) {
+	delay := linkRetryFloor
+	for {
+		start := time.Now()
+		var err error
+		a.safely("link events", func() { err = watchLinks(ctx, a.conn, a.svc.events(), a.log) })
+		if ctx.Err() != nil {
+			return
+		}
+		if time.Since(start) > linkRetryMax {
+			delay = linkRetryFloor
+		}
+		a.log.Warn("link events stopped; restarting", "err", err, "in", delay)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+		if delay *= 2; delay > linkRetryMax {
+			delay = linkRetryMax
+		}
+	}
+}
+
+// driftInterval is the period of the drift check (TD-9, review 1.1b; a var for the tests).
+var driftInterval = 5 * time.Minute
+
+// watchDrift runs the Plan-only drift check every driftInterval until ctx ends.
+func (a *Agent) watchDrift(ctx context.Context) {
+	t := time.NewTicker(driftInterval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			a.svc.CheckDrift(ctx)
+		}
 	}
 }
 

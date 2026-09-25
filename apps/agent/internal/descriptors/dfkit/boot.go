@@ -9,7 +9,7 @@ import (
 	"sort"
 	"sync"
 
-	"ngfw/agent/internal/descriptors/kit"
+	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
@@ -148,8 +148,8 @@ func (s *FileBootStore) flush(m map[string]BootRecord) error {
 	if err != nil {
 		return err
 	}
-	// temp file, fsync, rename, then fsync the directory so the rename survives a host crash (TD-16b)
-	if err := kit.WriteFileAtomic(s.path, raw, 0o600); err != nil {
+	// temp file + fsync + rename + directory fsync (TD-16b; TD-9 review 1.5a: the shared helper)
+	if err := ownertable.WriteAtomic(s.path, raw, 0o600); err != nil {
 		return fmt.Errorf("boot store: %w", err)
 	}
 	return nil

@@ -2745,7 +2745,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 14.5
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.7
@@ -2760,7 +2760,7 @@ tasks:
   worktree: /root/ngfw-wt/TD-9
   owner: ''
   started: 2026-09-25T00:14
-  finished: ''
+  finished: '2026-09-25'
   notes: 'D-125 | est 13 h review plan (10 h must-have) + 1.5 h audit ARCH-01 agent half | merge after TD-8 (preferred: one slot does TD-8 then TD-9), TD-12 (owns service_test.go) | not a wave-A gate; hard
     dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases |
     done df4e4340 (quick gate green; --base main guard = main''s files); review running | fix round 1 4409d1e8; verify APPROVE c850cbe4 with X1 (after TD-11c: claimsErr retryable, drop dead FlushClaims
@@ -3359,7 +3359,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  state: todo
+  state: ready
   wbs: *id003
   prompt: ''
   id: TD-8c

@@ -944,11 +944,14 @@ func TestLateConfirmRejectedAfterRestart(t *testing.T) {
 }
 
 // M3: crash injection between the write stages never leaves a pending transaction confirmed.
+// ARCH-01 (TD-9): a failed write of the state file answers DEGRADED — the data plane has the new
+// state, the agent's record of it is not durable — and is not stored under the txn_id; a failed
+// write of the desired.pb mirror (the state file is durable) still answers APPLIED.
 func TestStateCrashInjection(t *testing.T) {
-	defer func() { saveHook = nil }()
 	crash := errors.New("injected crash")
 	for _, stage := range []string{"state", "mirror"} {
 		t.Run(stage, func(t *testing.T) {
+			t.Cleanup(func() { saveHook = nil })
 			v := coretest.New()
 			dir := t.TempDir()
 			s := newSvc(t, v, dir)
@@ -959,8 +962,20 @@ func TestStateCrashInjection(t *testing.T) {
 				}
 				return nil
 			}
-			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 60}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 60})
 			saveHook = nil
+			switch stage {
+			case "state":
+				mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+				if !strings.Contains(resp.GetMessage(), "could not save its state") || !s.Health().GetDegraded() {
+					t.Fatalf("state not saved: message %q, health %v", resp.GetMessage(), s.Health())
+				}
+				if _, _, ok := s.st.recall("p1"); ok {
+					t.Fatal("a DEGRADED-by-save answer was stored under its txn_id")
+				}
+			case "mirror":
+				mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			}
 			s.Close()
 			s2 := newSvc(t, v, dir)
 			switch stage {

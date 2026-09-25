@@ -168,13 +168,14 @@ func (rt *Runtime) dropStats() {
 }
 
 // CountersFlag reads the acl plugin's counters flag (VPP has no API getter, V7; the read-only CLI
-// prints it). The value is reused for flagTTL.
+// prints it). An "on" answer is reused for flagTTL.
 func (rt *Runtime) CountersFlag(ctx context.Context) (bool, error) {
 	rt.flagMu.Lock()
 	defer rt.flagMu.Unlock()
 	now := rt.cfg.Now()
-	if !rt.flagAt.IsZero() && now.Sub(rt.flagAt) < flagTTL && rt.flagErr == nil {
-		return rt.flagOn, nil
+	// only "on" is reused: agents never switch the counters off (V7), while "off" can turn "on" any moment
+	if !rt.flagAt.IsZero() && now.Sub(rt.flagAt) < flagTTL && rt.flagErr == nil && rt.flagOn {
+		return true, nil
 	}
 	on, err := ReadCountersFlag(ctx, rt.cfg.Client)
 	rt.flagAt, rt.flagOn, rt.flagErr = now, on, err

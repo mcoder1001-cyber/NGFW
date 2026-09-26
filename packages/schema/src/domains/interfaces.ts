@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { interfaceBondField } from './ext/bonding.js'; // wave-A: F-bonding
 import {
   descriptionText,
   hostname,
@@ -206,6 +207,7 @@ export const InterfaceSchema = z
     }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-A: F-bonding
+    bond: interfaceBondField,
     // wave-A: F-bridge-l2
     // wave-A: F-loopback-bvi-gso-lldp-span
     // wave-A: F-neighbors-ra

@@ -31,6 +31,7 @@ import { lispValidators } from './lisp.js';
 // wave-BC: F-igmp-mfib
 // wave-BC: F-ha-state-sync
 // wave-A: F-bonding
+import { bondingValidators } from './bonding.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -89,6 +90,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-igmp-mfib
   // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
+  ...bondingValidators,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

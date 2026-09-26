@@ -796,6 +796,9 @@ export class FakeAgent {
       // wave-BC: F-dashboard-prom-alarms
       // wave-BC: F-ha-state-sync
       // wave-A: F-bonding
+      bondState: (call, cb) =>
+        this.checkCommon('BondState', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method BondState' }),
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp

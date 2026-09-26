@@ -114,6 +114,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-BC: F-igmp-mfib
   // wave-BC: F-capture-trace
   // wave-A: F-bonding
+  groups.get('interfaces')!.push({ id: 'bonds', path: '/interfaces/bonds', labelKey: 'bonding:nav', fallbackLabel: 'Bonds', available: true });
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-neighbors-ra

@@ -71,6 +71,8 @@ import faLicensing from './locales/fa/licensing.json';
 import enVlanQinq from './locales/en/vlan-qinq.json';
 import faVlanQinq from './locales/fa/vlan-qinq.json';
 // wave-A: F-bonding
+import enBonding from './locales/en/bonding.json';
+import faBonding from './locales/fa/bonding.json';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
@@ -140,6 +142,7 @@ export const NAMESPACES = [
   // wave-A: F-vlan-qinq
   'vlan-qinq',
   // wave-A: F-bonding
+  'bonding',
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -211,6 +214,7 @@ const en = {
   // wave-A: F-vlan-qinq
   'vlan-qinq': enVlanQinq,
   // wave-A: F-bonding
+  bonding: enBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -279,6 +283,7 @@ const fa = {
   // wave-A: F-vlan-qinq
   'vlan-qinq': faVlanQinq,
   // wave-A: F-bonding
+  bonding: faBonding,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

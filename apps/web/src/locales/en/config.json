@@ -149,5 +149,80 @@
     "title": "Break the lock of {{owner}}?",
     "body": "{{owner}} locked the candidate {{since}} (last change {{activity}}). Breaking the lock discards all of their uncommitted changes. This cannot be undone.",
     "confirm": "Discard {{owner}}’s changes and break the lock"
+  },
+  "kit": {
+    "close": "Close",
+    "open": "Open {{key}}",
+    "newTitle": "New entry",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "reload": "Reload",
+    "saved": "Saved to the candidate. Commit to apply it.",
+    "changedElsewhere": "This entry changed in the candidate since you opened the form (another session). Only your own edits were saved; reload to see the combined result.",
+    "remove": "Remove from configuration",
+    "removeTitle": "Remove {{key}}?",
+    "removeBody": "The entry is removed from the candidate. The running configuration keeps it until the change is committed.",
+    "removeConfirm": "Remove from candidate",
+    "keyTaken": "{{key}} already exists in the candidate",
+    "key": {
+      "help": "The name identifies the entry and cannot be changed later.",
+      "empty": "Required",
+      "invalid": "Not a valid name here",
+      "taken": "{{key}} already exists in the candidate"
+    },
+    "notInDataplane": "not in the data plane",
+    "live": "Live: {{status}}",
+    "col": {
+      "pending": "Uncommitted",
+      "actions": "Actions"
+    },
+    "state": {
+      "new": "new",
+      "changed": "changed",
+      "removed": "to be removed"
+    },
+    "secrets": {
+      "title": "Secrets",
+      "intro": "Pre-shared keys, private keys, certificates, passwords and tokens used by the configuration. The configuration only holds a reference such as psk/branch-1; the value is encrypted on the device, can be written but never read back. Changes here are stored at once, outside the candidate/commit flow: services that use the value switch to it the next time their configuration is applied (next commit).",
+      "add": "Add secret",
+      "adminOnly": "Only administrators can add, rotate or delete secrets.",
+      "details": "Secret details",
+      "drawerLabel": "Secret {{ref}}",
+      "usage": "Use the reference {{ref}} in configuration fields that ask for a secret. The value itself is never shown again.",
+      "col": {
+        "ref": "Reference",
+        "kind": "Kind",
+        "name": "Name",
+        "created": "Created"
+      },
+      "kind": {
+        "psk": "Pre-shared key",
+        "key": "Private key",
+        "cert": "Certificate",
+        "password": "Password",
+        "token": "Token"
+      },
+      "addTitle": "Add a secret",
+      "addSubmit": "Store secret",
+      "valueNote": "The value is sent to the device once and stored encrypted. It cannot be displayed or downloaded afterwards.",
+      "nameHelp": "Reference: {{ref}} (letters, digits, . _ -)",
+      "exists": "{{ref}} already exists. Use Rotate to store a new value for it.",
+      "value": "Secret value",
+      "valueHelp": "Write-only: never shown again.",
+      "valueHelpPem": "Paste the PEM block. Write-only: never shown again.",
+      "rotate": "Rotate",
+      "rotateRef": "Rotate {{ref}}",
+      "rotateTitle": "Rotate {{ref}}",
+      "rotateNote": "Stored at once, outside the candidate/commit flow. Services that use it switch to the new value the next time their configuration is applied (next commit). Revisions that used the old version keep it for rollback.",
+      "rotateSubmit": "Store new version",
+      "created": "Stored {{ref}} (version {{version}}).",
+      "rotated": "Stored a new version of {{ref}} (version {{version}}).",
+      "delete": "Delete",
+      "deleteRef": "Delete {{ref}}",
+      "deleteTitle": "Delete {{ref}}?",
+      "deleteBody": "The secret and all its versions are deleted. The device refuses while the running configuration, the candidate or a pending commit still references it.",
+      "deleteConfirm": "Delete secret",
+      "deleted": "Deleted {{ref}}."
+    }
   }
 }

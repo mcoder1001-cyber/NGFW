@@ -1150,7 +1150,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.14
@@ -1175,7 +1175,7 @@ tasks:
   - F-startup-apply
   priority: 4
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.6
@@ -1201,7 +1201,7 @@ tasks:
   - F-unbound-chrony-syslog
   priority: 4
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.9
@@ -2738,7 +2738,7 @@ tasks:
   notes: 'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3) | verify APPROVE + C1 follow-up 55b2f8fa (deprecated no-op); squashed c2e3eabb; queued after WEB-2'
 - template: ''
   parked_on: ''
-  finished: ''
+  finished: '2026-09-26'
   wbs: *id001
   id: WEB-2
   title: Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page
@@ -2748,7 +2748,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 9
-  state: review
+  state: merged
   scope: web-ahead (D-123); SPECULATIVE on task/P08
   files_owned: apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.*) docs/status/tasks/WEB-2*
   branch: task/WEB-2
@@ -2789,7 +2789,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: todo
+  state: ready
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
   branch: ''
@@ -2810,7 +2810,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: todo
+  state: ready
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
   branch: ''

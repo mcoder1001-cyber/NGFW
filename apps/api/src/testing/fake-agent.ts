@@ -45,6 +45,7 @@ import { dirname } from 'node:path';
 import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack (P5)
 import { lispStateFake } from '../features/lisp/fake.js';
 import { qosFlatFake } from '../features/qos-flat/fake.js';
+import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -88,11 +89,13 @@ const actionHandlers: Partial<Record<ActionKind, ActionHandler>> = {};
 
 /**
  * Registers fn as the fake agent's handler for ActionRequest's `kind` oneof case (e.g. 'ping'). Call
- * it once per kind — module load time is fine (features/<slug>/fake.ts). Registering a kind that is
- * already registered throws: two features claiming the same case is a bug to resolve explicitly at
+ * it from the feature's fake factory (features/<slug>/fake.ts; module load time would run before this module's
+ * registry exists, since this module imports the feature fakes). Registering the same function again is a no-op;
+ * registering a different handler for a kind that is already registered throws: two features claiming the same case is a bug to resolve explicitly at
  * rebase, not a silent last-registration-wins.
  */
 export function registerActionHandler(kind: ActionKind, fn: ActionHandler): void {
+  if (actionHandlers[kind] === fn) return; // the same handler again (every FakeAgent a feature fake is built for)
   if (actionHandlers[kind] !== undefined) {
     throw new Error(`fake-agent: an action handler for '${kind}' is already registered`);
   }
@@ -811,6 +814,7 @@ export class FakeAgent {
         this.checkCommon('LldpNeighbors', call.request, cb) &&
         cb({ code: status.UNIMPLEMENTED, details: 'unknown method LldpNeighbors' }),
       // wave-A: F-vrf-static-ecmp
+      ...vrfStaticEcmpFake(this), // listRoutes + action (ping/traceroute; other actions stay UNIMPLEMENTED)
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model

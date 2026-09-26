@@ -37,6 +37,7 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/descriptors/policer"
 	"ngfw/agent/internal/descriptors/qos"
@@ -153,18 +154,19 @@ var Domains = map[string][]string{
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
-	// wave-BC: F-lb
+	// wave-BC: F-lb (services: lb.* are in the one services entry below)
 	// wave-BC: F-qos-flat
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
-	"services": append(append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
+	"services": append(append(append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
 		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
 		desired.SnmpDescriptorName,                 // F-snmp
 		policer.NamePolicer, policer.NameInterface, // F-qos-flat
 		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta, // F-qos-flat
 		kea.NameDhcp4, kea.NameDhcp6, dhcp.NameProxy, dhcp.NameProxyVSS, dhcp.NameRelay), // F-kea-dhcp-relay
 		servicesDescriptors...), // F-unbound-chrony-syslog (unbound, chrony, dns.*: unbound.go)
+		lb.NameConf, lb.NameVIP, lb.NameAS, lb.NameIntfNat), // F-lb
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -227,6 +229,10 @@ type Env struct {
 	// Resync asks the agent for a full resync of its stored desired state (A5 seam, F-acl);
 	// Wiring.RequestResync calls it. nil = no-op (the default).
 	Resync func()
+	// Exclusive runs fn while no transaction runs (the agent's transaction lock; F-lb review M2): background work
+	// that reads VPP state and then acts on it (lb garbage collection) must not interleave with a transaction.
+	// nil = fn runs directly (tests, the wiring before the service exists).
+	Exclusive func(ctx context.Context, fn func(context.Context) error) error
 	// IDs is this agent's VPP numeric id range (TD-8; the agent resolves it once with ResolveIDScope).
 	// Families read it through Wiring.IDRange, which fails closed: the zero value owns no id.
 	IDs IDScope
@@ -379,6 +385,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := w.registerQoS(r); err != nil {
 		return nil, err
 	}
+	w.registerLb(r)
 	return w, nil
 }
 

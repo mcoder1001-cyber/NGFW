@@ -1678,7 +1678,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.9
@@ -1690,7 +1690,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-26'
   notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25 | ported to main a8a506bf (cloud session) before a server review: review still owed'
 - id: F-qos-flat
   title: 'Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded)'
@@ -3559,3 +3559,23 @@ tasks:
   started: ''
   finished: ''
   notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26)
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-lb-host
+  title: 'F-lb host runs: TestLbOnHost on a slot, GC on host (manager window), UI screenshot against the real endpoint'
+  stage: S4
+  deps:
+  - F-lb
+  priority: 3
+  est_hours: 2
+  scope: 'F-lb review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-lb.md'
+  files_owned: docs/status/tasks/F-lb-host*
+  notes: 'steps 1-3 of F-lb.md Pending host steps; NRestarts before/after'

@@ -382,6 +382,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (F-kea-dhcp-relay registers "dhcp" in desired/kea.go)
 	}
 	desired.HostServices(p, ds, in["services"], in["management"])
+	if in["services"] {
+		desired.Lb(p, ds.GetServices(), subsystems.LbEnv()) // F-lb: services.lb (write-only, V20)
+	}
 	return p
 }
 

@@ -40,6 +40,7 @@ import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
 import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { unboundChronySyslogFake } from '../features/unbound-chrony-syslog/fake.js';
+import { lbFake } from '../features/lb/fake.js';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -787,6 +788,7 @@ export class FakeAgent {
       // wave-BC: F-isis-rip
       // wave-BC: F-mpls-srmpls
       // wave-BC: F-lb
+      ...lbFake(this).handlers(),
       // wave-BC: F-qos-flat
       ...qosFlatFake(this),
       // wave-BC: F-host-stack

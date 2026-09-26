@@ -226,3 +226,21 @@ the UDP ports on disable.
   says to block UDP 53 on untrusted interfaces with an ACL.
 - The DF-8 host test is opt-in twice (`VRX_DNS_VPP_HOST=1` and `VRX_DF8_GLOBALS=1`, D-064); do not run `show dns
   servers` on the shared VPP.
+
+### V20 follow-up (F-lb, 2026-09-25) — lb cleanup command, flush encoding, NAT SNAT key
+
+Source reading of VPP 26.06 `src/plugins/lb/{cli.c,api.c,lb.c}` (not reproduced on the shared VPP — host runs were
+closed; the NAT case would risk a crash): (a) the documented fallback "`lb conf` runs the cleanup" is wrong without
+arguments — `lb_conf_command_fn` returns before `lb_garbage_collection()` when the line is empty, and every argument
+overwrites a global; F-lb uses the constant `lb vip 0.0.0.0/32 del` (GC, then a failed lookup of a never-configured
+VIP; 0.0.0.0/8 refused as a VIP). The collection frees only ASes removed > 10 s ago and visits each VIP at most every
+60 s (`LB_CONCURRENCY_TIMEOUT`, `LB_GARBAGE_RUN`). (b) `vl_api_lb_flush_vip_t_handler` memcpy's `pfx.address.un.ip6`
+regardless of the family and ignores the lookup result: an IPv4 VIP sent in the normal address encoding never matches
+and an uninitialised `vip_index` is flushed (`~0` would flush and free every worker's sticky table). (c) The SNAT mapping
+of NAT port VIPs is keyed by (AS address, target port) only (`lb_vip_add_ass`): a second VIP entry with the same pair —
+e.g. a changed NAT VIP (delete + add) and its removed predecessor — overwrites the bihash entry; collecting the removed
+one frees the live mapping, and the next collection finds none and calls `pool_put` with a NULL/stale pointer
+(`lb_vip_garbage_collection`, ASSERT compiled out) — a likely crash. Fallbacks in the agent: the constant GC line,
+the ip46 flush encoding plus an in-use guard, and the GC skipped while such a pair exists (`lb.GCSafe`); the schema
+forbids two NAT VIPs sharing a (server, target port). VPP fix: ntohl/encoding fixes of V20 plus family-aware flush
+decoding, a checked lookup, and a per-VIP SNAT key.

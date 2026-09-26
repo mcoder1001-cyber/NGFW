@@ -31,6 +31,7 @@ import {
 } from './_shared/primitives.js';
 import { servicesNsimField } from './ext/loopback-bvi-gso-lldp-span.js'; // wave-A: F-loopback-bvi-gso-lldp-span
 import { autoSdlField } from './ext/rpf-adl-pbr.js';
+import { servicesLbField } from './ext/lb.js';
 
 /**
  * `services` — DHCP server (Kea) and relay (VPP dhcp proxy), DNS (Unbound resolver + VPP caching plugin), SNMP
@@ -1260,6 +1261,7 @@ export const ServicesSchema = withUi(
     // wave-A: F-rpf-adl-pbr
     hostStack: HostStackSchema.optional(), // F-host-stack (unanchored)
     autoSdl: autoSdlField,
+    lb: servicesLbField,
   }),
   {
     title: 'Services',

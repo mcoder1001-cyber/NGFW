@@ -2,14 +2,14 @@
 
 Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 62.5% by hours (764.0/1222.5 h), 63.7% by tasks (86/135)**
+**Overall: 63.2% by hours (774.0/1224.5 h), 64.0% by tasks (87/136)**
 
 | state | tasks |
 |---|---|
-| merged | 86 |
+| merged | 87 |
 | review | 0 |
-| running | 4 |
-| ready | 23 |
+| running | 3 |
+| ready | 24 |
 | parked | 2 |
 | failed | 0 |
 | todo | 20 |
@@ -20,7 +20,7 @@ Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 367.0 / 655.0 | 56.0% | 43/75 | 3 | 22 | 0 |
+| S4 | 377.0 / 657.0 | 57.4% | 44/76 | 2 | 23 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -28,7 +28,6 @@ Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 - F-mpls-srmpls — Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109) (running, unassigned)
 - F-srv6 — Wave C (day 13-15): SRv6 policies, network programming, service chaining proxies, SRv6-mobile (running, unassigned)
-- F-lb — Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev) (running, unassigned)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 
 ## Parked

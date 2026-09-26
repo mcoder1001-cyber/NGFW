@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/grpc"
@@ -238,8 +239,15 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	reg := scheduler.NewRegistry()
 	// A5 seams (TD-8): the features' events reach the service's bus, their resync requests watchVPP.
 	events, resyncs := newBus(), make(chan struct{}, 1)
+	var svcRef atomic.Pointer[Service] // set below: the wiring is built before the service (Env.Exclusive)
+	exclusive := func(ctx context.Context, fn func(context.Context) error) error {
+		if s := svcRef.Load(); s != nil {
+			return s.exclusive(ctx, fn)
+		}
+		return fn(ctx)
+	}
 	wiring, err := subsystems.Register(reg, subsystems.Env{Client: conn, Owner: cfg.Owner, StateDir: cfg.StateDir, Owned: owned, GlobalsOwner: cfg.GlobalsOwner, Log: log.With("component", "subsystems"),
-		Publish: events.publishFeature, Resync: func() { requestResync(resyncs) }, IDs: cfg.IDs})
+		Publish: events.publishFeature, Resync: func() { requestResync(resyncs) }, IDs: cfg.IDs, Exclusive: exclusive})
 	if err != nil {
 		conn.Close()
 		return nil, err
@@ -257,6 +265,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	svcRef.Store(svc)
 	a := &Agent{cfg: cfg, log: log, conn: conn, svc: svc, metrics: m, stats: newStatsReader(cfg.VPPStatsSocket, log), wiring: wiring, resyncs: resyncs}
 
 	svc.claimsTxn = wiring.ClaimsTxn // TD-11c (review 3.2): keyed claim stores write once per transaction

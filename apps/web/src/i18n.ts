@@ -39,6 +39,8 @@ import faAdvanced from './locales/fa/advanced.json';
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-lb
+import enLb from './locales/en/lb.json';
+import faLb from './locales/fa/lb.json';
 // wave-BC: F-qos-flat
 import enQosFlat from './locales/en/qos-flat.json';
 import faQosFlat from './locales/fa/qos-flat.json';
@@ -148,6 +150,7 @@ export const NAMESPACES = [
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  'lb',
   // wave-BC: F-qos-flat
   'qos-flat',
   // wave-BC: F-host-stack
@@ -235,6 +238,7 @@ const en = {
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  lb: enLb,
   // wave-BC: F-qos-flat
   'qos-flat': enQosFlat,
   // wave-BC: F-host-stack
@@ -319,6 +323,7 @@ const fa = {
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  lb: faLb,
   // wave-BC: F-qos-flat
   'qos-flat': faQosFlat,
   // wave-BC: F-host-stack

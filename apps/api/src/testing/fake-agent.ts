@@ -48,6 +48,7 @@ import { qosFlatFake } from '../features/qos-flat/fake.js';
 import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
 import { neighborsRaFake } from '../features/neighbors-ra/fake.js';
 import { nat44EdSessionsFake } from '../features/nat44-ed-sessions/fake.js';
+import { nat44Ei6466Nptv6Fake } from '../features/nat44-ei-64-66-nptv6/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -829,6 +830,7 @@ export class FakeAgent {
       // wave-A: F-nat44-ed-sessions
       ...nat44EdSessionsFake(this),
       // wave-A: F-nat44-ei-64-66-nptv6
+      ...nat44Ei6466Nptv6Fake(this),
       // wave-A: P11
       // wave-A: F-wireguard
       // wave-A: P12

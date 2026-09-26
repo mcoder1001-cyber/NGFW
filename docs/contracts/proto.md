@@ -593,6 +593,36 @@ The API serves them as `GET /api/v1/state/nat/sessions`, `GET /api/v1/state/nat/
 `POST /api/v1/actions/nat/sessions/kill` (`apps/api/src/features/nat44-ed-sessions`). F-nat44-ei-64-66-nptv6 appends
 its EI variant to these messages (new field numbers only).
 <!-- wave-A: F-nat44-ei-64-66-nptv6 -->
+### F-nat44-ei-64-66-nptv6: NAT session variants
+
+Additive fields on F-nat44-ed-sessions' messages (after their maxima, nothing renamed) and one new enum in the
+`// ----- F-nat44-ei-64-66-nptv6 -----` section. No new RPC, no new `ActionRequest` member, no `NatConfig` number.
+
+- `enum NatSessionVariant { UNSPECIFIED = 0, ED = 1, EI = 2, NAT64 = 3 }`. UNSPECIFIED keeps the F-nat44-ed-sessions
+  behaviour (NAT44-ED), so existing clients are unchanged.
+- `NatSessionsRequest.variant = 5`, `NatSessionsResponse.variant = 8` (the table the page comes from: EI or NAT64;
+  unset on NAT44-ED pages, whose handler is F-nat44-ed-sessions' and unchanged), `NatSessionKillAction.variant = 7`.
+  All three are `optional`.
+- **EI** (`nat44_ei_user_dump` + `nat44_ei_user_session_v2_dump`): the same user-first paging, filter, order, caps and
+  ownership as ED. `external_nat_*` is "0.0.0.0"/0 (EI has no twice-NAT; the same as an ED row without twice-NAT),
+  `twice_nat` and `timed_out` are false (the EI details carry neither). nat44-ei keeps each user's sessions on a
+  per-user list, so a per-user dump walks only that user's sessions. The kill is `nat44_ei_del_session` with `NAT44_EI_IF_INSIDE`: VPP looks the session up
+  by the inside endpoint (address, port, protocol, VRF) only, so `external_*` is optional and ignored; exit codes as ED.
+- **NAT64** (`nat64_st_dump`, one stream per protocol, 255 = all): read-only, paged in the agent (offset/limit, same
+  0 = 100 / > 1000 rules, `next_offset`), counted up to the scan cap (`truncated`). Only `filter.protocol` is accepted;
+  any other filter field is `INVALID_ARGUMENT`. Field mapping: `inside_*` = the IPv6 client (`il_addr`/`il_port`),
+  `outside_*` = the IPv4 pool endpoint (`ol_addr`/`ol_port`), `external_*` = the IPv4 remote (`or_addr`/`r_port`),
+  `external_nat_*` = the remote as the IPv6 client addresses it (`ir_addr` = NAT64 prefix + IPv4, `r_port`),
+  `vrf`/`table_id` = the session's VRF; `total_users` = distinct IPv6 clients. Ownership: a slot sees a session when
+  its IPv6 client is in `fd00:<N>::/32`, its pool address in 10.N.0.0/16 or its table in the slot range; the product
+  agent sees all. A NAT64 kill is `INVALID_ARGUMENT` (VPP 26.06 has no NAT64 session delete). VPP 26.06's
+  `nat64_st_details` carry the remote port in `il_port` and no `r_port` (nat64_api.c sets `il_port` twice): the agent
+  corrects a row whose `r_port` is 0 from the BIB (`nat64_bib_dump`: the inside port by the outside endpoint).
+- EI and NAT64 walks are serialised in the agent (D-132: one walk at a time).
+
+The API serves them as `GET /api/v1/state/nat/ei/sessions`, `POST /api/v1/actions/nat/ei/sessions/kill` and
+`GET /api/v1/state/nat/nat64/sessions` (`apps/api/src/features/nat44-ei-64-66-nptv6`), plus
+`GET /api/v1/state/nat/nptv6` (the running bindings with a write-only marker; no agent RPC: npt66 has no dump).
 <!-- wave-A: P11 -->
 <!-- wave-A: F-wireguard -->
 <!-- wave-A: P12 -->

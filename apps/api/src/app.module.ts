@@ -86,6 +86,7 @@ import { hostAclNftablesFeature } from './features/host-acl-nftables/index.js';
 // wave-A: F-nat44-ed-sessions
 import { nat44EdSessionsFeature } from './features/nat44-ed-sessions/index.js';
 // wave-A: F-nat44-ei-64-66-nptv6
+import { nat44Ei6466Nptv6Feature } from './features/nat44-ei-64-66-nptv6/index.js';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
@@ -185,6 +186,7 @@ export class AppModule {
         // wave-A: F-nat44-ed-sessions
         ...nat44EdSessionsFeature.controllers,
         // wave-A: F-nat44-ei-64-66-nptv6
+        ...nat44Ei6466Nptv6Feature.controllers,
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12
@@ -268,6 +270,7 @@ export class AppModule {
         // wave-A: F-nat44-ed-sessions
         ...nat44EdSessionsFeature.providers,
         // wave-A: F-nat44-ei-64-66-nptv6
+        ...nat44Ei6466Nptv6Feature.providers,
         // wave-A: P11
         // wave-A: F-wireguard
         // wave-A: P12

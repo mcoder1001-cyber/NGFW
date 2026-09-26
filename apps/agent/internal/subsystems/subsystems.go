@@ -176,6 +176,7 @@ var Domains = map[string][]string{
 	Nat: natDomain(
 		nat44EDDescriptors,
 		// wave-A: F-nat44-ei-64-66-nptv6
+		nat44EI6466NptDescriptors,
 		// wave-BC: F-det44-map-dslite-cnat
 	),
 	// wave-A: P11
@@ -339,6 +340,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-nat44-ei-64-66-nptv6
+	if err := w.registerNat44EI6466Nptv6(r); err != nil {
+		return nil, err
+	}
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: P12

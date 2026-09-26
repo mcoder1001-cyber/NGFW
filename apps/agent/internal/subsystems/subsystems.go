@@ -66,6 +66,7 @@ const (
 	ACL = "acl" // shared with F-host-acl-nftables (one key, both families)
 	// wave-A: F-host-acl-nftables (shares the ACL key/const above)
 	// wave-A: F-nat44-ed-sessions
+	Nat = "nat"
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
@@ -172,6 +173,11 @@ var Domains = map[string][]string{
 	// wave-A: F-acl + F-host-acl-nftables (one ACL entry, both families)
 	ACL: append(append([]string{}, aclDescriptors()...), hostACLDescriptors()...), // DF-4 acl plugin (acl.go) + host-acl.nftables (host_acl.go)
 	// wave-A: F-nat44-ed-sessions
+	Nat: natDomain(
+		nat44EDDescriptors,
+		// wave-A: F-nat44-ei-64-66-nptv6
+		// wave-BC: F-det44-map-dslite-cnat
+	),
 	// wave-A: P11
 	// wave-A: F-wireguard
 	// wave-A: F-kea-dhcp-relay
@@ -329,6 +335,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-nat44-ed-sessions
+	if err := w.registerNat44ED(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard

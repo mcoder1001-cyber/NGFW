@@ -64,6 +64,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-acl
   'acl',
   // wave-A: F-nat44-ed-sessions
+  'nat',
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: F-kea-dhcp-relay

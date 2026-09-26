@@ -65,6 +65,8 @@ func NeighborsRaSettings() NeighborsRaOptions {
 	return NeighborsRaOptions{}
 }
 
+// ruleUnsupported is the DryRun warning rule of a leaf this build does not apply (the API's drift view skips it;
+// shared by neighbors_ra.go and nat.go).
 const ruleUnsupported = "agent.unsupported-field"
 
 // raNode is one (sub-)interface with its F-neighbors-ra leaves.

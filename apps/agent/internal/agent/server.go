@@ -131,6 +131,8 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 	case *vrxv1.ActionRequest_ArpFlush:
 		return g.arpFlush(req.GetArpFlush(), stream)
 	// wave-A: F-nat44-ed-sessions
+	case *vrxv1.ActionRequest_NatSessionKill:
+		return g.natSessionKill(req, stream)
 	// wave-A: F-unbound-chrony-syslog
 	default:
 		return status.Error(codes.Unimplemented, "actions (ping, traceroute, capture) are implemented by P08/F-*")

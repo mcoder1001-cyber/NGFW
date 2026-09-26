@@ -158,7 +158,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "feature_is_enabled" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "feature_is_enabled" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
 			t.Fatalf("idempotent apply sent %s", n)
 		}
 	}
@@ -180,7 +180,7 @@ func TestApplyRequestValidation(t *testing.T) {
 		{&vrxv1.ApplyRequest{TxnId: "x", Owner: "w3"}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"bogus"}}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"routing.bgp"}}, codes.InvalidArgument},
-		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"nat"}}, codes.Unimplemented},
+		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"system"}}, codes.Unimplemented}, // F-nat44-ed-sessions implements "nat"
 		{&vrxv1.ApplyRequest{ConfirmTxnId: "nope"}, codes.FailedPrecondition},
 		{&vrxv1.ApplyRequest{TxnId: "same", ConfirmTxnId: "same"}, codes.InvalidArgument},
 	}
@@ -499,7 +499,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
 			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
 		}
-		if !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" && n != "feature_is_enabled" { // read-only getters (F-ipfix-sflow, F-rpf-adl-pbr)
+		if !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "ipfix_all_exporter_get" && n != "feature_is_enabled" { // read-only getters (F-ipfix-sflow, F-rpf-adl-pbr)
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}
@@ -552,7 +552,7 @@ func TestDryRun(t *testing.T) {
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "nat44_ed_output_interface_get" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
 			t.Fatalf("dry run sent %s", n)
 		}
 	}

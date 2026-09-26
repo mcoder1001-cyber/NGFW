@@ -176,3 +176,134 @@ tasks:
   state: icebox
   deps: []
   est_hours: 12
+# --- More ideas (brainstorm 2026-09-26, round 2) ---
+- id: BL-NET-01
+  title: 'PPPoE client for WAN (ISP dial-up), with reconnect and MTU/MSS clamping'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'VPP pppoe plugin is the access-concentrator side; the WAN client needs a different path (pppd + linux-cp or a new plugin).'
+- id: BL-NET-02
+  title: 'DHCPv6 prefix-delegation client on WAN, auto-assign delegated /64s to LAN and RA'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Most ISPs deliver IPv6 this way; ties into Kea and the RA feature.'
+- id: BL-NET-03
+  title: 'Multi-WAN failover and load sharing with link health monitors (ping/HTTP probes)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 20
+  notes: 'Simpler first step than SD-WAN (BL-OPS-02); uses PBR/ECMP and route tracking.'
+- id: BL-NET-04
+  title: 'Dynamic DNS client (common providers + RFC 2136)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 6
+- id: BL-NET-05
+  title: 'Traffic shaping with queues (HQoS): per-interface/per-class bandwidth guarantees and limits'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: 'Excluded today as V3 (D-052); needs a VPP-code decision.'
+- id: BL-NET-06
+  title: 'Per-user / per-IP bandwidth limits and data quotas'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Builds on the policer and on User-ID (BL-SEC-06) for per-user.'
+- id: BL-NET-07
+  title: 'LTE/5G modem WAN (USB/M.2) as backup link'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'ModemManager + linux-cp; pairs with BL-NET-03.'
+- id: BL-NET-08
+  title: 'BGP EVPN / VXLAN overlays'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'FRR EVPN + VPP VXLAN; data-centre use case.'
+- id: BL-NET-09
+  title: 'PTP (IEEE 1588) time sync'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 8
+  notes: 'Only if a customer needs sub-microsecond time; chrony covers NTP.'
+- id: BL-SEC-11
+  title: 'SSL VPN / OpenVPN-compatible remote access for clients without IKEv2'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'OpenVPN is currently rejected by the vpn schema; needs a scope decision.'
+- id: BL-SEC-12
+  title: '802.1X port authentication and DHCP snooping / ARP inspection on L2 ports'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 20
+- id: BL-SEC-13
+  title: 'Reverse proxy / basic WAF for publishing internal web servers'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 30
+- id: BL-SEC-14
+  title: 'Platform trust: secure boot, TPM-sealed secrets, signed config and images'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 24
+  notes: 'Extends the CIS-lite hardening and package signing tasks.'
+- id: BL-SEC-15
+  title: 'FIPS 140-3 mode (approved crypto only for IPsec, TLS, SSH)'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'Needed for some government/enterprise tenders.'
+- id: BL-SEC-16
+  title: 'Brute-force and scan detection on management services (auto-block via Global Blocking)'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 8
+  notes: 'Feeds F-global-blocking with a local dynamic list.'
+- id: BL-OPS-06
+  title: 'Notifications: email, Telegram and webhook for alarms, commits and link/VPN state'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Builds on the alarms/events feature.'
+- id: BL-OPS-07
+  title: 'Zero-touch provisioning: first boot fetches config from a server (DHCP option / URL)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Pairs with central management (BL-OPS-04).'
+- id: BL-OPS-08
+  title: 'Scheduled reports (traffic, top talkers, blocked hits) by email/PDF'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Needs session logging (BL-SEC-05).'
+- id: BL-OPS-09
+  title: 'Config audit trail diff viewer and approval workflow (two-person commit)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Revisions exist; this adds approve-before-commit for regulated customers.'

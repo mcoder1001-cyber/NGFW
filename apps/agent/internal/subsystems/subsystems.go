@@ -72,7 +72,8 @@ const (
 	// wave-A: F-wireguard
 	VPN = "vpn"
 	// wave-A: F-kea-dhcp-relay (shares F-rpf-adl-pbr's Services key/const above)
-	// wave-A: F-unbound-chrony-syslog
+	// wave-A: F-unbound-chrony-syslog (shares F-rpf-adl-pbr's Services key/const above)
+	Management = "management"
 )
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
@@ -157,12 +158,13 @@ var Domains = map[string][]string{
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
-	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
+	"services": append(append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
 		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
 		desired.SnmpDescriptorName,                 // F-snmp
 		policer.NamePolicer, policer.NameInterface, // F-qos-flat
 		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta, // F-qos-flat
 		kea.NameDhcp4, kea.NameDhcp6, dhcp.NameProxy, dhcp.NameProxyVSS, dhcp.NameRelay), // F-kea-dhcp-relay
+		servicesDescriptors...), // F-unbound-chrony-syslog (unbound, chrony, dns.*: unbound.go)
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -188,7 +190,8 @@ var Domains = map[string][]string{
 	// wave-A: F-wireguard
 	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
 	// wave-A: F-kea-dhcp-relay (services: kea.dhcp4/6, dhcp.proxy/proxy-vss/relay are in the one services entry above)
-	// wave-A: F-unbound-chrony-syslog
+	// wave-A: F-unbound-chrony-syslog (services: unbound, chrony, dns.* are in the one services entry above)
+	Management: managementDescriptors,
 }
 
 // DomainOf returns the domain a descriptor belongs to ("" when none).
@@ -361,6 +364,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-unbound-chrony-syslog
+	if err := registerUnboundChronySyslog(r, env); err != nil {
+		return nil, err
+	}
 	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {
 		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static

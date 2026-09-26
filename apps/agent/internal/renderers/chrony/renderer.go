@@ -33,6 +33,7 @@ var tmpl = template.Must(renderers.NewTemplate("chrony").Funcs(template.FuncMap{
 	"path":   safePath,
 	"host":   safeHost,
 	"hexkey": hexKey,
+	"b64":    b64,
 }).ParseFS(templateFS, "templates/*.tmpl"))
 
 const (
@@ -131,7 +132,11 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	src, err := renderers.ExecuteTemplate(tmpl, "vrx.sources.tmpl", rd.sources)
+	input, err := encodeInput(Input(in.ntp))
+	if err != nil {
+		return nil, err
+	}
+	src, err := renderers.ExecuteTemplate(tmpl, "vrx.sources.tmpl", sourcesData{Input: input, Sources: rd.sources})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}

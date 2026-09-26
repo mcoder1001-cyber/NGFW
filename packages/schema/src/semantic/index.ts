@@ -61,6 +61,7 @@ import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchor
 import { ipfixSflowValidators } from './ipfix-sflow.js';
 // F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor was seeded here)
 import { qosFlatValidators } from './qos-flat.js';
+import { unboundChronySyslogValidators } from './unbound-chrony-syslog.js';
 
 export * from './registry.js';
 
@@ -130,6 +131,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...ipfixSflowValidators,
   // F-qos-flat (unanchored)
   ...qosFlatValidators,
+  ...unboundChronySyslogValidators,
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

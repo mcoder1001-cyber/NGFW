@@ -29,3 +29,23 @@ Every string is RainerScript-quoted (`"`/`\` escaped, control characters rejecte
 
 Retrieve per action: `reported`, `processed`, `failed`, `suspended`, `suspendedDuration`, `resumed`, queue
 `size`/`enqueued`/`full`/`discardedFull`/`discardedNf`/`maxQueueSize`; `inputs`; `error`.
+
+## In the agent (F-unbound-chrony-syslog)
+
+Singleton descriptor `rsyslog.config/vrx` (`renderers/rsyslog/descriptor.go`), domain `management` (first user of the domain;
+its other leaves are `agent.unsupported-field`):
+
+| | |
+|---|---|
+| Value | `*vrxv1.ManagementConfig{syslog}` (`rsyslog.Input`); no object without a target |
+| D-086 keys | `facilities`, `format`, `queue_size`, `tls` are read from the typed proto (SyslogTarget 6–9); a `*structpb.Struct` input keeps the strict RF-4 stand-in checks |
+| Create / Update | Render → Validate (`rsyslogd -N1`) → Apply (product: restart + impstats convergence; unchanged files: nothing) |
+| Delete | the empty export |
+| Retrieve | embedded input in the export file → re-rendered → the file (and TLS files) byte-equal |
+| Refused at DryRun | `tls` (`agent.secret-channel-pending`); a non-default `vrf` is noted (`agent.unsupported-field`) and not applied |
+| Ownership | `RecordsNoOwnership()` (TD-11b) |
+
+Non-owner agents render a standalone configuration under `<base>/rsyslog` (imuxsock on `log.sock`, never `/dev/log`) driven by a
+`DeferredController`: Apply writes the files and records a restart request (a start when no instance runs); the pidfile
+`<base>/rsyslog/rsyslogd.pid` (`rsyslogd -i`, verified to run `/usr/sbin/rsyslogd`) tells when it was acted on. The agent never
+restarts or signals an rsyslogd it did not start, and never the host's.

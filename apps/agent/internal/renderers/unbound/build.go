@@ -158,6 +158,8 @@ func u16(path, s string) (string, error) {
 // ----- the template model ---------------------------------------------------------------
 
 type confData struct {
+	// Input is the base64 render input embedded as `# vrx-input:` ("" = none: idle).
+	Input        string
 	Paths        Paths
 	Resolvers    []resolverNote // comment lines: the resolvers merged into this instance
 	Interfaces   []string

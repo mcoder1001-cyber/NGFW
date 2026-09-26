@@ -54,8 +54,7 @@ const lbgsDoc = `{
   "services": {
     "lldp": {"enabled": true, "systemName": "vrx-w7", "txHold": 4, "txIntervalSec": 30, "interfaces": [{"interface": "loop7101", "portDescription": "w7 bvi", "mgmtIpv4": "10.7.101.1"}]},
     "nsim": {"delayMs": 20, "bandwidthMbps": 100, "packetSize": 1500, "dropFraction": 0.01,
-      "crossConnect": {"a": "loop7103", "b": "loop7104"}, "outputInterfaces": ["loop7102"]},
-    "dns": {"vppCache": {"enabled": true}}
+      "crossConnect": {"a": "loop7103", "b": "loop7104"}, "outputInterfaces": ["loop7102"]}
   }
 }`
 
@@ -183,7 +182,7 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 	s := newSvcOwner(t, v, dir, false)
 	ds := doc(t, lbgsDoc)
 
-	// DryRun notes: write-only LLDP, VPP-global LLDP fields and nsim unsupported on a slot agent, dns unsupported (snmp is implemented on main)
+	// DryRun notes: write-only LLDP, VPP-global LLDP fields and nsim unsupported on a slot agent (every other services member has a builder since F-unbound-chrony-syslog)
 	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: ds, Subsystems: lbgsDomains})
 	if err != nil {
 		t.Fatal(err)
@@ -195,7 +194,6 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 		"/services/lldp/txHold":        "agent.unsupported-field",
 		"/services/lldp/txIntervalSec": "agent.unsupported-field",
 		"/services/nsim":               "agent.unsupported-field",
-		"/services/dns":                "agent.unsupported-field",
 	} {
 		if rules[p] != want {
 			t.Errorf("DryRun %s: rule %q, want %q (all: %v)", p, rules[p], want, rules)

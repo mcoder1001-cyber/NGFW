@@ -28,6 +28,8 @@ const MaxTargets = 16
 
 // Model is the validated, resolved view of management.syslog.
 type Model struct {
+	// Input is the base64 render input embedded as `# vrx-input:` ("" = empty export).
+	Input      string
 	Standalone *Standalone
 	StatsFile  string
 	// LoadStats is false when the host's rsyslog already loads impstats (the export then reads
@@ -118,6 +120,76 @@ func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Pa
 	return m, files, nil
 }
 
+// standIns are the D-055 keys of one target, read from the typed proto fields (typed input; the contract since
+// D-086) or from the raw document (a *structpb.Struct input: strict key and type checks, RF-4 behaviour).
+type standIns struct {
+	facilities []string
+	format     *string
+	queueSize  *uint32
+	tls        *tlsIn
+}
+
+type tlsIn struct {
+	caRef, certRef, keyRef, authMode *string
+	peers                            []string
+}
+
+func standInsFromProto(s *vrxv1.SyslogTarget) standIns {
+	si := standIns{facilities: s.GetFacilities(), format: s.Format, queueSize: s.QueueSize}
+	if t := s.GetTls(); t != nil {
+		si.tls = &tlsIn{caRef: t.CaRef, certRef: t.CertRef, keyRef: t.KeyRef, authMode: t.AuthMode, peers: t.GetPermittedPeers()}
+	}
+	return si
+}
+
+func optString(x *rfkit.Ext) (*string, error) {
+	v, ok, err := x.String()
+	if err != nil || !ok {
+		return nil, err
+	}
+	return &v, nil
+}
+
+func standInsFromExt(x *rfkit.Ext) (standIns, error) {
+	var si standIns
+	if err := checkExtKeys(x); err != nil {
+		return si, err
+	}
+	var err error
+	if si.facilities, err = x.Get("facilities").Strings(); err != nil {
+		return si, fmt.Errorf("%w: %w", ErrInput, err)
+	}
+	if si.format, err = optString(x.Get("format")); err != nil {
+		return si, fmt.Errorf("%w: %w", ErrInput, err)
+	}
+	if q, ok, err := x.Get("queueSize").Uint(100, 1000000); err != nil {
+		return si, fmt.Errorf("%w: %w", ErrInput, err)
+	} else if ok {
+		si.queueSize = &q
+	}
+	tx := x.Get("tls")
+	if tx == nil {
+		return si, nil
+	}
+	if err := tx.OnlyKeys("caRef", "certRef", "keyRef", "authMode", "permittedPeers"); err != nil {
+		return si, fmt.Errorf("%w: %w", ErrInput, err)
+	}
+	t := &tlsIn{}
+	for _, f := range []struct {
+		key string
+		dst **string
+	}{{"caRef", &t.caRef}, {"certRef", &t.certRef}, {"keyRef", &t.keyRef}, {"authMode", &t.authMode}} {
+		if *f.dst, err = optString(tx.Get(f.key)); err != nil {
+			return si, fmt.Errorf("%w: %w", ErrInput, err)
+		}
+	}
+	if t.peers, err = tx.Get("permittedPeers").Strings(); err != nil {
+		return si, fmt.Errorf("%w: %w", ErrInput, err)
+	}
+	si.tls = t
+	return si, nil
+}
+
 func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
 	if vrf := s.GetVrf(); vrf != "" && vrf != "default" {
 		return nil, nil, fmt.Errorf("%w: %s.vrf %q: syslog export runs in the default VRF only (F-logging)", ErrInput, path, vrf)
@@ -156,15 +228,14 @@ func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets,
 	if !ok {
 		return nil, nil, fmt.Errorf("%w: %s.severity %q", ErrInput, path, sev)
 	}
+	si := standInsFromProto(s)
 	if x != nil {
-		if err := checkExtKeys(x); err != nil {
+		var err error
+		if si, err = standInsFromExt(x); err != nil {
 			return nil, nil, err
 		}
 	}
-	facs, err := x.Get("facilities").Strings()
-	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	}
+	facs := slices.Clone(si.facilities)
 	for _, f := range facs {
 		if !slices.Contains(facilities, f) {
 			return nil, nil, fmt.Errorf("%w: %s.facilities: %q is not a syslog facility (%s)", ErrInput, path, f, strings.Join(facilities, ", "))
@@ -177,30 +248,31 @@ func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets,
 		sel = strings.Join(facs, ",")
 	}
 	t.Filter = sel + "." + rsSev
-	if f, ok, err := x.Get("format").String(); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	} else if ok {
-		switch f {
+	if si.format != nil {
+		switch *si.format {
 		case "rfc5424":
 		case "rfc3164":
 			t.Template, t.Framing = TemplateRFC3164, "traditional"
 		default:
-			return nil, nil, fmt.Errorf("%w: %s.format %q must be rfc5424 or rfc3164", ErrInput, path, f)
+			return nil, nil, fmt.Errorf("%w: %s.format %q must be rfc5424 or rfc3164", ErrInput, path, *si.format)
 		}
 	}
-	if q, ok, err := x.Get("queueSize").Uint(100, 1000000); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	} else if ok {
-		t.QueueSize = q
+	if q := si.queueSize; q != nil {
+		if *q < 100 || *q > 1000000 {
+			return nil, nil, fmt.Errorf("%w: %s.queueSize %d must be 100..1000000", ErrInput, path, *q)
+		}
+		t.QueueSize = *q
 	}
-	tx := x.Get("tls")
 	if proto != "tls" {
-		if tx != nil {
+		if si.tls != nil {
 			return nil, nil, fmt.Errorf("%w: %s.tls needs protocol tls", ErrInput, path)
 		}
 		return t, nil, nil
 	}
-	return buildTLS(t, i, tx, sec, p, path)
+	if si.tls == nil {
+		si.tls = &tlsIn{}
+	}
+	return buildTLS(t, i, si.tls, sec, p, path)
 }
 
 // actionName is vrx_export_<i>_<fnv32a of the rendered settings> (TLS material is not part of
@@ -230,24 +302,15 @@ func checkExtKeys(x *rfkit.Ext) error {
 	return nil
 }
 
-func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
-	if err := tx.OnlyKeys("caRef", "certRef", "keyRef", "authMode", "permittedPeers"); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	}
+func buildTLS(t *Target, i int, tx *tlsIn, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
 	tls := &TLS{AuthMode: "x509/name"}
-	if m, ok, err := tx.Get("authMode").String(); err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	} else if ok {
-		if m != "x509/name" && m != "x509/certvalid" {
-			return nil, nil, fmt.Errorf("%w: %s.tls.authMode %q must be x509/name or x509/certvalid (anonymous TLS is refused)", ErrInput, path, m)
+	if m := tx.authMode; m != nil {
+		if *m != "x509/name" && *m != "x509/certvalid" {
+			return nil, nil, fmt.Errorf("%w: %s.tls.authMode %q must be x509/name or x509/certvalid (anonymous TLS is refused)", ErrInput, path, *m)
 		}
-		tls.AuthMode = m
+		tls.AuthMode = *m
 	}
-	peers, err := tx.Get("permittedPeers").Strings()
-	if err != nil {
-		return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-	}
-	for _, pe := range peers {
+	for _, pe := range tx.peers {
 		if len(pe) > 253 || !hostnameRe.MatchString(pe) {
 			return nil, nil, fmt.Errorf("%w: %s.tls.permittedPeers: %q is not a host name", ErrInput, path, pe)
 		}
@@ -259,24 +322,21 @@ func buildTLS(t *Target, i int, tx *rfkit.Ext, sec *rfkit.Secrets, p Paths, path
 	var files []TLSFile
 	for _, f := range []struct {
 		key, kind, suffix string
+		ref               *string
 		dst               *string
 		secret, required  bool
 	}{
-		{"caRef", "cert", "ca.pem", &tls.CAFile, false, true},
-		{"certRef", "cert", "cert.pem", &tls.CertFile, false, false},
-		{"keyRef", "key", "key.pem", &tls.KeyFile, true, false},
+		{"caRef", "cert", "ca.pem", tx.caRef, &tls.CAFile, false, true},
+		{"certRef", "cert", "cert.pem", tx.certRef, &tls.CertFile, false, false},
+		{"keyRef", "key", "key.pem", tx.keyRef, &tls.KeyFile, true, false},
 	} {
-		ref, ok, err := tx.Get(f.key).String()
-		if err != nil {
-			return nil, nil, fmt.Errorf("%w: %w", ErrInput, err)
-		}
-		if !ok {
+		if f.ref == nil {
 			if f.required {
 				return nil, nil, fmt.Errorf("%w: %s.tls.%s is required", ErrInput, path, f.key)
 			}
 			continue
 		}
-		v, err := sec.Resolve(ref, checkPEM, f.kind)
+		v, err := sec.Resolve(*f.ref, checkPEM, f.kind)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: %s.tls.%s: %w", ErrInput, path, f.key, err)
 		}

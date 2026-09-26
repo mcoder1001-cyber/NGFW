@@ -168,11 +168,12 @@ func TestServicesMembers(t *testing.T) {
 	if !ServicesImplemented["lldp"] || !ServicesImplemented["nsim"] {
 		t.Fatalf("members %v", ServicesImplemented)
 	}
+	withServiceUnimplemented(t, "ntp") // every member has a builder since F-unbound-chrony-syslog
 	s := newLbgsSink()
 	ds := lbgsParse(t, `{"services": {"lldp": {"enabled": false}, "snmp": {"enabled": true}, "ntp": {"enabled": true}, "dhcp": {}}}`)
 	LoopbackBviGsoLldpSpan(s, ds, map[string]bool{"services": true}, LoopbackBviGsoLldpSpanEnv{})
 	ServicesUnsupported(s, ds.GetServices()) // the one services reporter (project() calls it once)
-	// snmp is implemented on main (F-snmp); ntp has no builder; an empty dhcp is not reported
+	// snmp is implemented on main (F-snmp); ntp is unregistered above; an empty dhcp is not reported
 	if s.warnings["/services/ntp"] != lbgsUnsupported || s.warnings["/services/snmp"] != "" || s.warnings["/services/lldp"] != lbgsWriteOnly || s.warnings["/services/dhcp"] != "" {
 		t.Fatalf("warnings %v", s.warnings)
 	}

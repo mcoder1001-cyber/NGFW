@@ -95,6 +95,7 @@ import { bgpFeature } from './features/bgp/index.js';
 // wave-A: F-kea-dhcp-relay
 import { keaDhcpRelayFeature } from './features/kea-dhcp-relay/index.js';
 // wave-A: F-unbound-chrony-syslog
+import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/index.js';
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
@@ -198,6 +199,7 @@ export class AppModule {
         // wave-A: F-kea-dhcp-relay
         ...keaDhcpRelayFeature.controllers,
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.controllers,
       ],
       providers: [
         { provide: ENV, useValue: env },
@@ -285,6 +287,7 @@ export class AppModule {
         // wave-A: F-kea-dhcp-relay
         ...keaDhcpRelayFeature.providers,
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.providers,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ProblemFilter },

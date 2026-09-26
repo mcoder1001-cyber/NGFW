@@ -23,4 +23,7 @@ export const servicesTabs: readonly DomainTab[] = [
     Component: lazy(() => import('./kea-dhcp-relay/DhcpPage')),
   },
   // wave-A: F-unbound-chrony-syslog
+  { id: 'dns', labelKey: 'unbound-chrony-syslog:tab.dns', Component: lazy(() => import('./unbound-chrony-syslog/DnsTab')) },
+  { id: 'ntp', labelKey: 'unbound-chrony-syslog:tab.ntp', Component: lazy(() => import('./unbound-chrony-syslog/NtpTab')) },
+  { id: 'logging', labelKey: 'unbound-chrony-syslog:tab.logging', Component: lazy(() => import('./unbound-chrony-syslog/LoggingTab')) },
 ];

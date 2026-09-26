@@ -173,3 +173,56 @@ NO_SUCH_ENTRY for an address outside the pool (unlike nat44-ed); an identity map
 | item | raised by | why VPP code seems needed | fallback implemented | est. VPP effort |
 |---|---|---|---|---|
 | WireGuard peer telemetry: `wireguard_peers_details` (v1/v2) carries only the flags (DEAD/ESTABLISHED) and the current endpoint — no per-peer rx/tx byte or packet counters and no last-handshake time, although `wg_peer_t` keeps `last_sent_handshake`/`last_received_packet` (`wireguard_peer.h`); no stats-segment entry per peer either | F-wireguard | API gap (the kernel `wg show` reports all three) | `WireguardState` reports the wg interface's stats-segment counters and the time the agent last saw the peer become established (peer event); documented in docs/user/vpn/wireguard.md | 1–2 days (add fields to `wireguard_peer_v2` or per-peer stats-segment counters) |
+
+### V-new (F-unbound-chrony-syslog) — the merger moves it into the table as the next free V-number (review L8)
+
+**CRASH VECTOR: the dns plugin sends to a NULL IPv4 name-server vector (2026-09-25 04:27:21, NRestarts 1 → 2, slot 10;
+D-137).** Backtrace `ip4_sas + 0x31 ← dns_plugin.so ×4 ← vl_msg_api_socket_handler`; core
+`/var/lib/systemd/coredump/core.vpp_main.0.a93c0e7a….2006833.1790297841000000.zst`. The call that fired it was a
+`dns_resolve_name` from this task's DF-8 host test, on a VPP where no name server had been added since it started.
+
+- **Trigger: no IPv4 name server added since VPP started.** `vnet_send_dns_request` (`plugins/dns/dns.c:576-624`)
+  starts every cache entry with `server_af = 0` (IPv4); with no IPv4 server it falls through to
+  `vnet_dns_send_dns4_request (dm->ip4_name_servers + rotor)` (`:621-623`). Until the first IPv4 add that vector is NULL,
+  and `ip4_sas` dereferences it. `is_enabled` plays no part on the API path: `vnet_dns_resolve_name` (`:780`) never
+  checks it. A vector that deletes emptied is still allocated: no crash, but the request goes to stale memory (a
+  deleted server's address).
+- **Paths that crash:** `dns_resolve_name`; `dns_resolve_ip` (`:1515`, same `vnet_dns_resolve_name`); any IPv4 UDP-53
+  request from a client to a VPP address while enabled (`request_node.c:160,234` check only `is_enabled`), which needs no
+  API caller at all; **IPv6-only name servers** — the enable succeeds (`:79-81` refuses only when both vectors are
+  empty), and every request still takes the IPv4 branch; `vppctl show dns servers` with IPv6-only servers
+  (`:2244-2246` formats `ip4_name_servers + i` in the IPv6 loop; the CLI half of V17).
+- **Messages that do not crash:** `dns_name_server_add_del` in any state (vector operations only, `:131-217`);
+  `dns_enable_disable` — disabling a never-enabled plugin returns early in `dns_cache_clear` (`:49`), enabling without
+  servers returns `NO_NAME_SERVERS` (`:79-81`).
+- **Defects next to it (no crash):** IPv6 upstreams never work — `vnet_dns_send_dns6_request` builds the frame (`:351`)
+  and never calls `vlib_put_frame_to_node`; after the first enable UDP 53 stays registered to the dns nodes for good
+  (`:84-97`), so after a disable port-53 packets to VPP addresses are punted and no test can restore the previous state
+  (D-082); a lookup while disabled but with servers sends a real query whose reply is punted (`reply_node.c:148`), so the
+  caller waits until its deadline. Enabling the cache opens a resolver on every VPP address in every FIB (the ports are
+  registered globally; the plugin has no client ACL or per-interface switch).
+
+**Upstream fix (0.5 day):** in `vnet_send_dns_request` choose the family by which vectors are non-empty and return
+`NO_NAME_SERVERS` from `vnet_dns_resolve_name` (and drop the request in `request_node.c`) when both are empty; put the
+IPv6 frame (`vlib_put_frame_to_node` after `:351`); format `ip6_name_servers + i` in `show dns servers`; unregister
+the UDP ports on disable.
+
+**Fallback implemented (agent, no VPP code; F-unbound-chrony-syslog fix round 1):**
+- The schema (`services.dns.vppCache`, Zod refinement → 400 at `/services/dns/vppCache/upstreams`) and the projection
+  (`services.dns-vpp-cache-upstream`, `internal/desired/dns.go`) refuse an enabled cache without an IPv4 upstream; DF-8's
+  `dns.enable` refuses `dns_enable_disable(1)` unless an IPv4 server was added on the running VPP (`ErrNoIPv4Upstream`,
+  `TestIPv6OnlyUpstreamsAreNeverEnabled`).
+- `dns.Readiness` (`descriptors/dns/readiness.go`) is a live, boot-identity-scoped fact: set only when an IPv4
+  `dns_name_server_add_del` and then `dns_enable_disable(1)` succeeded on the running VPP instance, cleared on disable,
+  delete and any change of VPP identity (restart, crash, reconnect) until the resync applies both again
+  (`TestReadinessDoesNotSurviveAVPPRestart`). `ActionRequest.dns_lookup` needs the globals owner, a non-DEGRADED agent
+  and `Readiness.Ready` (`internal/agent/rpc_dns.go`, `TestDNSLookupReadinessIsLiveNotStored`), and DF-8's
+  `dns.ResolveName` / `ResolveIP` take a `Ready` precondition and send nothing without it
+  (`TestResolveHelpersRefuseWithoutReady`; docs/agent/descriptors/dns.md).
+- The descriptors never leave the resolver enabled without an IPv4 server (the data-plane path): a name-server delete
+  disables the switch first, and `dns.enable` carries the upstream set so the transaction re-enables it after the new
+  servers exist (`TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers`, fake VPP with separate v4/v6 vectors).
+- The DryRun warns that the cache answers UDP 53 on every VPP address (`services.dns-vpp-cache-exposure`); the user page
+  says to block UDP 53 on untrusted interfaces with an ACL.
+- The DF-8 host test is opt-in twice (`VRX_DNS_VPP_HOST=1` and `VRX_DF8_GLOBALS=1`, D-064); do not run `show dns
+  servers` on the shared VPP.

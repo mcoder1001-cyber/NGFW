@@ -121,6 +121,8 @@ import faBgp from './locales/fa/bgp.json';
 import enKeaDhcpRelay from './locales/en/kea-dhcp-relay.json';
 import faKeaDhcpRelay from './locales/fa/kea-dhcp-relay.json';
 // wave-A: F-unbound-chrony-syslog
+import enUcs from './locales/en/unbound-chrony-syslog.json';
+import faUcs from './locales/fa/unbound-chrony-syslog.json';
 import { loadSettings } from './settings/storage';
 
 export const NAMESPACES = [
@@ -205,6 +207,7 @@ export const NAMESPACES = [
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay',
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog',
   'dev',
   UI_KIT_NS,
 ] as const;
@@ -291,6 +294,7 @@ const en = {
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay': enKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog': enUcs,
 };
 const fa = {
   common: faCommon,
@@ -374,6 +378,7 @@ const fa = {
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay': faKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog': faUcs,
 };
 
 /** The `dev` namespace (developer demo pages) is loaded only when the demo routes are built in (review P07a M1). */

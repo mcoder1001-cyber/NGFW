@@ -41,6 +41,7 @@ import { vrfStaticEcmpValidators } from './vrf-static-ecmp.js';
 // wave-A: F-neighbors-ra
 import { neighborsRaValidators } from './neighbors-ra.js';
 // wave-A: F-rpf-adl-pbr
+import { rpfAdlPbrValidators } from './rpf-adl-pbr.js';
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
@@ -104,6 +105,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-neighbors-ra
   ...neighborsRaValidators,
   // wave-A: F-rpf-adl-pbr
+  ...rpfAdlPbrValidators,
   // wave-A: F-object-model
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions

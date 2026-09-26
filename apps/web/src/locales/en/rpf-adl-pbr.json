@@ -1,0 +1,213 @@
+{
+  "nav": {
+    "pbr": "Policy routing",
+    "adl": "ADL / Auto-SDL"
+  },
+  "saveToCandidate": "Save to candidate",
+  "off": "off",
+  "mode": {
+    "loose": "loose",
+    "strict": "strict"
+  },
+  "direction": {
+    "rx": "rx",
+    "tx": "tx"
+  },
+  "family": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6"
+  },
+  "status": {
+    "in-sync": "in sync",
+    "drift": "drift",
+    "missing": "not applied",
+    "unmanaged": "unmanaged"
+  },
+  "pending": {
+    "new": "new",
+    "changed": "changed",
+    "removed": "removed"
+  },
+  "path": {
+    "via": "via {{interface}}",
+    "lookup": "lookup in {{vrf}}",
+    "inVrf": "in {{vrf}}"
+  },
+  "col": {
+    "name": "Name",
+    "acl": "ACL",
+    "priority": "Priority",
+    "paths": "Paths",
+    "attachments": "Attachments",
+    "status": "Status",
+    "actions": "Actions",
+    "policy": "Policy",
+    "interface": "Interface",
+    "family": "Family",
+    "urpf": "uRPF",
+    "adl": "ADL",
+    "pending": "Pending"
+  },
+  "pbr": {
+    "title": "Policy routing",
+    "intro": "Policy-based routing (VPP ABF): packets permitted by a policy's ACL are forwarded over its paths instead of the routing table. Attach a policy to the interface the packets arrive on.",
+    "pending": "The candidate changes policy routing: commit it with the pending-change bar.",
+    "noAcl": "No access list exists yet: a policy matches packets with an ACL of Firewall › ACL.",
+    "policies": "Policies",
+    "retrievedAt": "retrieved {{time}}",
+    "addPolicy": "Add policy",
+    "none": "No policies.",
+    "edit": "Edit policy {{name}}",
+    "delete": "Delete policy {{name}} and its attachments",
+    "attachments": "Attachments",
+    "addAttachment": "Attach policy",
+    "noAttachments": "No attachments.",
+    "detach": "Detach {{policy}} from {{interface}}",
+    "noCounters": "ACL hit counters per policy are not available in this release.",
+    "editTitle": "Policy {{name}}",
+    "addTitle": "New policy"
+  },
+  "adl": {
+    "title": "ADL / Auto-SDL",
+    "intro": "Anti-spoofing per interface: uRPF checks that a packet's source is routable (loose) or routable back through the receiving interface (strict); the allow/deny list (ADL) drops packets whose source is not in the allow-list VRF.",
+    "interfaces": "Interfaces",
+    "noInterfaces": "No interfaces are configured.",
+    "edit": "Edit uRPF and ADL of {{name}}",
+    "editTitle": "Anti-spoofing on {{name}}",
+    "note": "The same settings are in the interface drawer (Interfaces › interface › Security). The allow-list binding cannot be read back from VPP: Retrieve shows only whether ADL is on.",
+    "physicalOnly": "ADL works on physical ports (DPDK) only; the allow-list VRF must hold the allowed source prefixes as local entries. Non-IP frames always pass.",
+    "summary": "{{families}} → {{vrf}}"
+  },
+  "autoSdl": {
+    "title": "Auto-SDL",
+    "globals": "Automatic source deny list of VPP's host stack (TCP towards the router itself). It is a VPP-global setting: only the agent that owns the globals applies it, and it needs the session layer's SDL backend."
+  },
+  "form": {
+    "name": {
+      "title": "Name",
+      "help": "letters, digits, _, . and -; at most 63 characters",
+      "invalid": "letters, digits, _, . and - only (no #), at most 63"
+    },
+    "policy": {
+      "acl": {
+        "title": "ACL",
+        "help": "the access list whose permitted packets this policy forwards"
+      },
+      "priority": {
+        "title": "Priority",
+        "help": "order among the policies attached to one interface (lower first)"
+      },
+      "paths": {
+        "title": "Paths",
+        "help": "where matching packets go; weighted when more than one",
+        "address": {
+          "title": "Next-hop address",
+          "help": "the gateway matching packets are sent to; empty for an interface or VRF path"
+        },
+        "interface": {
+          "title": "Egress interface",
+          "help": "send out of this interface; empty for a next hop resolved in the lookup VRF"
+        },
+        "vrf": {
+          "title": "Lookup VRF",
+          "help": "the VRF the next hop is resolved in, or — without address and interface — the VRF the packet is looked up in"
+        },
+        "weight": {
+          "title": "Weight",
+          "help": "relative share among the paths (1–255)"
+        }
+      }
+    },
+    "attachment": {
+      "policy": {
+        "title": "Policy",
+        "help": "a policy of this page"
+      },
+      "interface": {
+        "title": "Interface",
+        "help": "where the packets are received"
+      },
+      "family": {
+        "title": "Address family",
+        "help": "the policy acts on packets of this address family",
+        "enum": {
+          "ipv4": "IPv4",
+          "ipv6": "IPv6"
+        }
+      }
+    },
+    "urpf": {
+      "title": "Unicast RPF",
+      "help": "reverse-path check of the source address; no mode = off",
+      "ipv4": {
+        "title": "IPv4 check",
+        "help": "loose: the source must be routable; strict: routable through this interface",
+        "enum": {
+          "loose": "loose",
+          "strict": "strict"
+        }
+      },
+      "ipv6": {
+        "title": "IPv6 check",
+        "help": "loose: the source must be routable; strict: routable through this interface",
+        "enum": {
+          "loose": "loose",
+          "strict": "strict"
+        }
+      },
+      "direction": {
+        "title": "Direction",
+        "help": "rx checks packets received on the interface, tx packets sent out of it",
+        "enum": {
+          "rx": "received (rx)",
+          "tx": "sent (tx)"
+        }
+      }
+    },
+    "adl": {
+      "title": "Allow/deny list (ADL)",
+      "help": "off unless IPv4 or IPv6 sources are checked",
+      "ipv4": {
+        "title": "Check IPv4 sources",
+        "help": "drop IPv4 packets whose source is not in the allow-list VRF"
+      },
+      "ipv6": {
+        "title": "Check IPv6 sources",
+        "help": "drop IPv6 packets whose source is not in the allow-list VRF"
+      },
+      "allowVrf": {
+        "title": "Allow-list VRF",
+        "help": "VRF whose table holds the allowed sources as local entries"
+      },
+      "defaultAllow": {
+        "title": "Pass non-IP frames",
+        "help": "VPP 26.06 cannot filter non-IP frames: keep it on"
+      }
+    },
+    "autoSdl": {
+      "enabled": {
+        "title": "Enabled",
+        "help": "deny new host-stack TCP sessions from a source that exceeds the threshold"
+      },
+      "threshold": {
+        "title": "Threshold",
+        "help": "hits from one source before its deny entry is created"
+      },
+      "removeTimeoutSec": {
+        "title": "Remove timeout (s)",
+        "help": "lifetime of an automatic deny entry"
+      }
+    }
+  },
+  "drawer": {
+    "group": "Security",
+    "urpf": {
+      "title": "Unicast RPF",
+      "help": "reverse-path check of the source address; absent = off"
+    },
+    "adl": {
+      "title": "Allow/deny list (ADL)",
+      "help": "source allow-list on physical ports; off unless IPv4 or IPv6 is checked"
+    }
+  }
+}

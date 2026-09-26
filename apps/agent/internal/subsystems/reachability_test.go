@@ -44,13 +44,14 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 42
+const maxPending = 39
 
 var descriptorReach = map[string]reachEntry{
-	"abf":                 {pending, "F-rpf-adl-pbr"},
+	"abf":                 {wired, "F-rpf-adl-pbr"},
 	"acl":                 {pending, "F-acl"},
-	"adl":                 {pending, "F-rpf-adl-pbr"},
+	"adl":                 {wired, "F-rpf-adl-pbr"},
 	"af_packet":           {wired, "P08"},
+	"auto_sdl":            {wired, "F-rpf-adl-pbr"},
 	"arp":                 {wired, "F-neighbors-ra"},
 	"bfd":                 {pending, "F-bfd-redistribution"},
 	"bond":                {wired, "F-bonding"},
@@ -108,7 +109,7 @@ var descriptorReach = map[string]reachEntry{
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
 	"trace":               {pending, "F-capture-trace"},
-	"urpf":                {pending, "F-rpf-adl-pbr"},
+	"urpf":                {wired, "F-rpf-adl-pbr"},
 	"vpn":                 {library, "DF-5 shared types, secret contract, keyer"},
 	"vrrp":                {pending, "F-vrrp-config-sync"},
 	"vxlan":               {pending, "F-tunnels"},

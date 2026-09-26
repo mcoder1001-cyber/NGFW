@@ -76,6 +76,7 @@ import { vrfStaticEcmpFeature } from './features/vrf-static-ecmp/index.js';
 // wave-A: F-neighbors-ra
 import { neighborsRaFeature } from './features/neighbors-ra/index.js';
 // wave-A: F-rpf-adl-pbr
+import { rpfAdlPbrFeature } from './features/rpf-adl-pbr/index.js';
 // wave-A: F-object-model
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
@@ -170,6 +171,7 @@ export class AppModule {
         // wave-A: F-neighbors-ra
         ...neighborsRaFeature.controllers,
         // wave-A: F-rpf-adl-pbr
+        ...rpfAdlPbrFeature.controllers,
         // wave-A: F-object-model
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
@@ -248,6 +250,7 @@ export class AppModule {
         // wave-A: F-neighbors-ra
         ...neighborsRaFeature.providers,
         // wave-A: F-rpf-adl-pbr
+        ...rpfAdlPbrFeature.providers,
         // wave-A: F-object-model
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables

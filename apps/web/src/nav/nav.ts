@@ -125,6 +125,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-neighbors-ra
   groups.get('routing')!.push({ id: 'neighbors', path: '/routing/neighbors', labelKey: 'neighbors-ra:nav', fallbackLabel: 'Neighbours', available: true });
   // wave-A: F-rpf-adl-pbr
+  groups.get('routing')!.push({ id: 'pbr', path: '/routing/pbr', labelKey: 'rpf-adl-pbr:nav.pbr', fallbackLabel: 'Policy routing', available: true });
+  groups.get('firewall')!.push({ id: 'adl', path: '/firewall/adl', labelKey: 'rpf-adl-pbr:nav.adl', fallbackLabel: 'ADL / Auto-SDL', available: true });
   // wave-A: F-host-acl-nftables
   // wave-A: P12
   // web: WEB-2

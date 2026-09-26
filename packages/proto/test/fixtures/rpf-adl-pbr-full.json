@@ -1,0 +1,56 @@
+{
+  "vrfs": { "wan2": { "id": 10 }, "allow": { "id": 11 } },
+  "interfaces": {
+    "GigabitEthernet0/8/0": {
+      "enabled": true,
+      "description": "uplink 1 (strict uRPF, ADL)",
+      "ipv4": ["198.51.100.2/30"],
+      "urpf": { "ipv4": "strict", "ipv6": "loose", "direction": "rx" },
+      "adl": { "ipv4": true, "ipv6": false, "allowVrf": "allow", "defaultAllow": true }
+    },
+    "GigabitEthernet0/9/0": { "enabled": true, "vrf": "wan2", "ipv4": ["203.0.113.2/30"] },
+    "loop0": {
+      "enabled": true,
+      "ipv4": ["10.0.0.1/24"],
+      "urpf": { "ipv4": "loose", "direction": "tx" }
+    }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "vrf": "wan2",
+        "nextHops": [{ "address": "203.0.113.1", "interface": "GigabitEthernet0/9/0" }]
+      }
+    ],
+    "pbr": {
+      "policies": {
+        "via-wan2": {
+          "acl": "from-lan-b",
+          "priority": 10,
+          "paths": [{ "address": "203.0.113.1", "interface": "GigabitEthernet0/9/0", "weight": 1 }]
+        },
+        "lookup-wan2": { "acl": "from-lan-b", "paths": [{ "vrf": "wan2" }] }
+      },
+      "attachments": [
+        { "policy": "via-wan2", "interface": "loop0", "family": "ipv4" },
+        { "policy": "lookup-wan2", "interface": "loop0", "family": "ipv6" }
+      ]
+    }
+  },
+  "acl": {
+    "lists": {
+      "from-lan-b": {
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": { "kind": "prefix", "prefix": "10.0.1.0/24" }
+          }
+        ]
+      }
+    }
+  },
+  "services": { "autoSdl": { "enabled": true, "threshold": 10, "removeTimeoutSec": 600 } }
+}

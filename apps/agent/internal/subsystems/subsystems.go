@@ -59,6 +59,7 @@ const (
 	Tunnels = "tunnels"
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-rpf-adl-pbr
+	Services = "services"
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
@@ -107,6 +108,9 @@ var Domains = map[string][]string{
 		neighborsRaProxyNd,
 		neighborsRaProxyArpIf,
 		// wave-A: F-rpf-adl-pbr
+		rpfAdlPbrURPF,
+		rpfAdlPbrADL,
+		rpfAdlPbrADLAllow,
 		// wave-A: P12
 	},
 	VRFs: {
@@ -130,6 +134,9 @@ var Domains = map[string][]string{
 		neighborsRaConfig,
 		neighborsRaDad,
 		// wave-A: F-rpf-adl-pbr
+		rpfAdlPbrABFPolicy,
+		rpfAdlPbrABFAttach,
+		rpfAdlPbrPolicyName,
 		// wave-A: P12
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
@@ -157,7 +164,7 @@ var Domains = map[string][]string{
 	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// (services: lldp.* / nsim.* are appended to F-rpf-adl-pbr's Services entry by loopback_bvi_gso_lldp_span.go init)
-	// wave-A: F-rpf-adl-pbr
+	// wave-A: F-rpf-adl-pbr (services: autosdl is appended to the services entry by rpf_adl_pbr.go init)
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
@@ -303,6 +310,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-rpf-adl-pbr
+	if err := w.registerRpfAdlPbr(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-object-model
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables

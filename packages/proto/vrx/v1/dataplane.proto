@@ -973,6 +973,12 @@ message Interface {
   repeated string proxy_nd = 17;
 
   // wave-A: F-rpf-adl-pbr
+
+  // Unicast RPF check (F-rpf-adl-pbr, urpf_update_v2); unset = no check.
+  UrpfConfig urpf = 18;
+  // Allow/deny list (F-rpf-adl-pbr, adl plugin); unset = off.
+  AdlConfig adl = 19;
+
   // wave-A: F-loopback-bvi-gso-lldp-span
 
   // Software GSO on output (feature_gso_enable_disable; F-loopback-bvi-gso-lldp-span); unset = off.
@@ -1096,6 +1102,9 @@ message RoutingConfig {
   NeighborsConfig neighbors = 10;
 
   // wave-A: F-rpf-adl-pbr
+
+  // Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none.
+  PbrConfig pbr = 11;
 }
 
 // StaticRoute mirrors one entry of `routing.static`.
@@ -1644,6 +1653,10 @@ message ServicesConfig {
 
   // wave-BC: F-lb
   // wave-A: F-rpf-adl-pbr
+
+  // Automatic source deny list of the host stack (F-rpf-adl-pbr, auto_sdl plugin, a VPP-global); unset = off.
+  AutoSdlConfig auto_sdl = 8;
+
   // wave-A: F-loopback-bvi-gso-lldp-span
 
   // Network delay simulator, a lab tool (VPP nsim; applied by the globals owner only, D-071; F-loopback-bvi-gso-lldp-span).
@@ -4337,6 +4350,80 @@ message ArpFlushAction {
 }
 
 // ----- F-rpf-adl-pbr -----
+
+// UrpfConfig mirrors `interfaces.<name>.urpf` (packages/schema/src/domains/ext/rpf-adl-pbr.ts): one uRPF check per
+// address family (urpf_update_v2), in one direction.
+message UrpfConfig {
+  // "loose" | "strict"; unset = no IPv4 check.
+  optional string ipv4 = 1;
+  // "loose" | "strict"; unset = no IPv6 check.
+  optional string ipv6 = 2;
+  // "rx" | "tx"; Zod default "rx".
+  optional string direction = 3;
+}
+
+// AdlConfig mirrors `interfaces.<name>.adl`: the adl-input feature plus its allow-list binding
+// (adl_interface_enable_disable, adl_allowlist_enable_disable). Off unless ipv4 or ipv6 is checked.
+message AdlConfig {
+  // Check IPv4 sources; Zod default false.
+  optional bool ipv4 = 1;
+  // Check IPv6 sources; Zod default false.
+  optional bool ipv6 = 2;
+  // VRF whose table holds the allowed sources (local entries); required when a family is checked.
+  optional string allow_vrf = 3;
+  // Non-IP frames pass unchecked; Zod default true (false is refused on VPP 26.06).
+  optional bool default_allow = 4;
+}
+
+// PbrConfig mirrors `routing.pbr`: ABF policies keyed by name and their interface attachments.
+message PbrConfig {
+  // Policies keyed by name (objectName, no "#").
+  map<string, PbrPolicy> policies = 1;
+  // Attachments, unique by (policy, interface, family).
+  repeated PbrAttachment attachments = 2;
+}
+
+// PbrPolicy is one ABF policy: packets its ACL permits are forwarded over the paths (abf_policy_add_del).
+message PbrPolicy {
+  // Name of an entry of `acl.lists`.
+  optional string acl = 1;
+  // Order among the policies attached to one interface, lower first (abf_itf_attach priority); Zod default 100.
+  optional uint32 priority = 2;
+  // Forwarding paths, 1–255.
+  repeated PbrPath paths = 3;
+}
+
+// PbrPath is one forwarding path of a PbrPolicy (fib_path).
+message PbrPath {
+  // Next-hop address; unset = none.
+  optional string address = 1;
+  // Egress interface; unset = none.
+  optional string interface = 2;
+  // Table the next hop is resolved in (or the packet looked up in, without address and interface); Zod default "default".
+  optional string vrf = 3;
+  // Weight 1–255; Zod default 1.
+  optional uint32 weight = 4;
+}
+
+// PbrAttachment binds a policy to an interface for one address family (abf_itf_attach_add_del).
+message PbrAttachment {
+  // Name of an entry of `routing.pbr.policies`.
+  optional string policy = 1;
+  // Interface the packets are received on.
+  optional string interface = 2;
+  // "ipv4" | "ipv6"; Zod default "ipv4".
+  optional string family = 3;
+}
+
+// AutoSdlConfig mirrors `services.autoSdl` (auto_sdl_config, VPP-global; no getter).
+message AutoSdlConfig {
+  // Enable automatic deny entries; Zod default false.
+  optional bool enabled = 1;
+  // Hits from one source before its deny entry is created; Zod default 5.
+  optional uint32 threshold = 2;
+  // Lifetime of an automatic entry in seconds (auto_sdl_config.remove_timeout); Zod default 300.
+  optional uint32 remove_timeout_sec = 3;
+}
 
 // ----- F-object-model -----
 

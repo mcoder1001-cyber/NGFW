@@ -24,3 +24,15 @@ sent to VPP — our object went with the interface, or the index now belongs to 
 
 `abf.policy` Delete re-verifies right before removing the paths: the policy id must still exist, be in the agent's id range,
 carry the ACL index the policy was created with, and that ACL must still carry this owner's tag; otherwise it is left alone.
+
+## Product wiring (F-rpf-adl-pbr)
+- Registered by `subsystems/rpf_adl_pbr.go` with the persisted "acl" claim store and the policy-id range `SlotIDRange()`
+  (the slot's `VRX_VPP_TABLE_BASE … +999` on the shared host, nil = every id in the product agent).
+- `routing.pbr.policies.<name>` → `abf.policy/<id>`: the id is FNV-1a of the name into the range, linear probing in name
+  order (`desired.PolicyIDs`). VPP keeps no name, so the agent-local `pbr.policy/<name>` record (persisted
+  `<state dir>/pbr-<owner>.json`, depends on its `abf.policy`) maps names back to ids for Retrieve and keeps the policy's
+  priority (VPP has priorities only on attachments: `abf.attach` gets the policy's priority).
+- Until F-acl registers DF-4's `acl.acl`, the observe-only `pbr.acl-ref` descriptor resolves the policy's mandatory
+  `acl.acl/<name>` dependency from the owner-tagged ACLs in VPP (KeyProvider aliases); it switches itself off once
+  `acl.acl` is registered.
+- V23 (b): ABF attachments are not sanitized on interface delete (no crash path known) — left as is.

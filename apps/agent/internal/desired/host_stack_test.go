@@ -118,9 +118,10 @@ func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
 		Lldp:      &vrxv1.LldpService{Interfaces: []*vrxv1.LldpService_Interface{{Interface: proto.String("loop0")}}},
 		HostStack: &vrxv1.HostStackService{Enabled: proto.Bool(true)},
 		Ipfix:     &vrxv1.IpfixService{Exporters: map[string]*vrxv1.IpfixService_Exporter{"x": {}}},
-		Dhcp:      &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"x": {}}}, // no builder in this build
+		Dhcp:      &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"x": {}}}, // projected since F-kea-dhcp-relay: not reported
+		Ntp:       &vrxv1.NtpService{Enabled: proto.Bool(true)},                       // no builder in this build
 	})
-	if got := strings.Join(s.warns, ","); got != "/services/dhcp agent.unsupported-field" {
+	if got := strings.Join(s.warns, ","); got != "/services/ntp agent.unsupported-field" {
 		t.Fatalf("got %q", got)
 	}
 }

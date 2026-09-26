@@ -165,6 +165,14 @@
         ],
         "severity": "INFO"
       }
-    ]
+    ],
+    "user-context": {
+      "vrx": {
+        "input": "WrcDCrQDCrEDCgNsYW4SqQMIARILTEFOIGNsaWVudHMaBGlwdjQiB2RlZmF1bHQqBHcwLWEwoDg4iA5AkBxIAVJOCgVndWVzdBJFEgwxMC42LjExLjAvMjQaGAoKMTAuNi4xMS4xMBIKMTAuNi4xMS41MBoYCgoxMC42LjExLjYwEgoxMC42LjExLjcwSNgEUpACCgNsYW4SiAIKCG1haW4gTEFOEgwxMC42LjEwLjAvMjQaGgoLMTAuNi4xMC4xMDASCzEwLjYuMTAuMTk5IgkxMC42LjEwLjEqCTEwLjYuMTAuMSoJMTAuNi4wLjUzMgkxMC42LjEwLjE6EGxhbi5leGFtcGxlLnRlc3RCEGxhbi5leGFtcGxlLnRlc3RCDGV4YW1wbGUudGVzdFIVCOABEhB2cnggcHJpdmF0ZSB0ZXh0Ug8I4QESCDB4MGEwYjBjGAFaTAoHcHJpbnRlchJBChFBQS1CQi1DQy0wMC0xMS0yMhoKMTAuNi4xMC4yMCIIUHJpbnRlcjEqFggPEhJwcmludC5leGFtcGxlLnRlc3RaFQhCEhF0ZnRwLmV4YW1wbGUudGVzdA==",
+        "servers": [
+          "lan"
+        ]
+      }
+    }
   }
 }

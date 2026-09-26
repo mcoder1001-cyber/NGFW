@@ -43,6 +43,7 @@ import (
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
+	"ngfw/agent/internal/renderers/kea"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/bootid"
@@ -70,7 +71,7 @@ const (
 	// wave-A: P11
 	// wave-A: F-wireguard
 	VPN = "vpn"
-	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-kea-dhcp-relay (shares F-rpf-adl-pbr's Services key/const above)
 	// wave-A: F-unbound-chrony-syslog
 )
 
@@ -160,7 +161,8 @@ var Domains = map[string][]string{
 		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
 		desired.SnmpDescriptorName,                 // F-snmp
 		policer.NamePolicer, policer.NameInterface, // F-qos-flat
-		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta), // F-qos-flat
+		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta, // F-qos-flat
+		kea.NameDhcp4, kea.NameDhcp6, dhcp.NameProxy, dhcp.NameProxyVSS, dhcp.NameRelay), // F-kea-dhcp-relay
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -185,7 +187,7 @@ var Domains = map[string][]string{
 	// wave-A: P11
 	// wave-A: F-wireguard
 	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
-	// wave-A: F-kea-dhcp-relay
+	// wave-A: F-kea-dhcp-relay (services: kea.dhcp4/6, dhcp.proxy/proxy-vss/relay are in the one services entry above)
 	// wave-A: F-unbound-chrony-syslog
 }
 
@@ -355,6 +357,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: P12
 	registerP12(r, w)
 	// wave-A: F-kea-dhcp-relay
+	if err := w.registerKea(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-unbound-chrony-syslog
 	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {

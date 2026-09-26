@@ -84,7 +84,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-host-acl-nftables
       // wave-A: P11
       // wave-A: F-wireguard (its tab lives in the vpn group listed above: F-lisp)
-      // wave-A: F-kea-dhcp-relay
+      // wave-A: F-kea-dhcp-relay ('services' is already built: F-snmp / F-qos-flat; its DHCP tab lives there)
       // wave-A: F-unbound-chrony-syslog
       // wave-BC: F-ipfix-sflow (unanchored)
       // F-qos-flat (unanchored)

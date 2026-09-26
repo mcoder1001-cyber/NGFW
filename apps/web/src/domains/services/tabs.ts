@@ -17,5 +17,10 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-ipfix-sflow
   { id: 'flow-export', labelKey: 'ipfix-sflow:tab', Component: lazy(() => import('./ipfix-sflow/FlowExportTab')) },
   // wave-A: F-kea-dhcp-relay
+  {
+    id: 'dhcp',
+    labelKey: 'kea-dhcp-relay:tab',
+    Component: lazy(() => import('./kea-dhcp-relay/DhcpPage')),
+  },
   // wave-A: F-unbound-chrony-syslog
 ];

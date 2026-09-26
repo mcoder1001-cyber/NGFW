@@ -97,7 +97,7 @@ const sampleDoc = `{
 // owned; distance only when set; every implemented domain present — `services` since F-rpf-adl-pbr).
 const canonicalDoc = `{
   "vrfs": {"red": {"id": 7001}},
-  "services": {"qos": {}},
+  "services": {"qos": {}, "dhcp": {}},
   "interfaces": {
     "loop701": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.1.1/24"], "ipv6": ["2001:db8:7::1/64"]},
     "loop702": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.2.1/24"]}

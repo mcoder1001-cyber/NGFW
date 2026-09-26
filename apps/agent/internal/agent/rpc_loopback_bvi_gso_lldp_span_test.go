@@ -148,8 +148,9 @@ func checkLbgsApplied(t *testing.T, v *coretest.VPP, s *Service, owner bool) {
 	if len(itf.GetMirror()) != 2 || !proto.Equal(itf.GetMirror()[0], want[0]) || !proto.Equal(itf.GetMirror()[1], want[1]) {
 		t.Fatalf("retrieve mirror (document order) %v", itf.GetMirror())
 	}
-	// F-qos-flat: the services Retrieve always carries the (here empty) qos family; nothing else (lldp is write-only)
-	if !proto.Equal(got.GetServices(), &vrxv1.ServicesConfig{Qos: &vrxv1.QosService{}}) {
+	// F-qos-flat / F-kea-dhcp-relay: the services Retrieve always carries the (here empty) qos and dhcp families;
+	// nothing else (lldp is write-only)
+	if !proto.Equal(got.GetServices(), &vrxv1.ServicesConfig{Qos: &vrxv1.QosService{}, Dhcp: &vrxv1.DhcpService{}}) {
 		t.Fatalf("services must be present and empty (write-only): %v", got.GetServices())
 	}
 	// Retrieve reproduces every retrievable object of the document

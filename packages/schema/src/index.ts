@@ -90,6 +90,7 @@ export * from './domains/ext/vrf-static-ecmp.js';
 // wave-A: F-neighbors-ra
 export * from './domains/ext/neighbors-ra.js';
 // wave-A: F-rpf-adl-pbr
+export * from './domains/ext/rpf-adl-pbr.js';
 // wave-A: F-object-model
 // wave-A: F-host-acl-nftables
 // wave-A: P12

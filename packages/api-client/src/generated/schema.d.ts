@@ -867,6 +867,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/pbr': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Policy-based routing: running policies and attachments vs what the agent retrieves from VPP (attachments paged) */
+    get: operations['RpfAdlPbr_pbr'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1379,6 +1396,45 @@ export interface components {
         proxyArp?: boolean;
         /** Proxy ND addresses (experimental) */
         proxyNd?: string[];
+        /** Unicast RPF */
+        urpf?: {
+          /**
+           * IPv4 check
+           * @enum {string}
+           */
+          ipv4?: 'loose' | 'strict';
+          /**
+           * IPv6 check
+           * @enum {string}
+           */
+          ipv6?: 'loose' | 'strict';
+          /**
+           * Direction
+           * @default rx
+           * @enum {string}
+           */
+          direction: 'rx' | 'tx';
+        };
+        /** Allow/deny list (ADL) */
+        adl?: {
+          /**
+           * Check IPv4 sources
+           * @default false
+           */
+          ipv4: boolean;
+          /**
+           * Check IPv6 sources
+           * @default false
+           */
+          ipv6: boolean;
+          /** Allow-list VRF */
+          allowVrf?: string;
+          /**
+           * Pass non-IP frames
+           * @default true
+           */
+          defaultAllow: boolean;
+        };
       };
     };
     /**
@@ -2382,6 +2438,57 @@ export interface components {
            */
           delayMs: number;
         };
+      };
+      /** Policy-based routing */
+      pbr?: {
+        /**
+         * Policies
+         * @default {}
+         */
+        policies: {
+          [key: string]: {
+            /** ACL */
+            acl: string;
+            /**
+             * Priority
+             * @default 100
+             */
+            priority: number;
+            /** Paths */
+            paths: {
+              /** Next-hop address */
+              address?: string;
+              /** Egress interface */
+              interface?: string;
+              /**
+               * Lookup VRF
+               * @default default
+               */
+              vrf: string;
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+            }[];
+          };
+        };
+        /**
+         * Attachments
+         * @default []
+         */
+        attachments: {
+          /** Policy */
+          policy: string;
+          /** Interface */
+          interface: string;
+          /**
+           * Address family
+           * @default ipv4
+           * @enum {string}
+           */
+          family: 'ipv4' | 'ipv6';
+        }[];
       };
     };
     /**
@@ -6200,6 +6307,24 @@ export interface components {
            */
           cacheSizeMb: number;
         };
+      };
+      /** Auto-SDL */
+      autoSdl?: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Threshold
+         * @default 5
+         */
+        threshold: number;
+        /**
+         * Remove timeout (s)
+         * @default 300
+         */
+        removeTimeoutSec: number;
       };
     };
     /**
@@ -10858,6 +10983,102 @@ export interface operations {
       };
       /** @description Not implemented */
       501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  RpfAdlPbr_pbr: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description the candidate differs from running in routing.pbr */
+            pendingChange: boolean;
+            policies: {
+              name: string;
+              acl: string;
+              priority: number;
+              paths: {
+                address?: string;
+                interface?: string;
+                vrf: string;
+                weight: number;
+              }[];
+              /** @enum {string} */
+              status: 'in-sync' | 'drift' | 'missing' | 'unmanaged';
+              /** @description attachments of this policy in the running configuration */
+              attachments: number;
+            }[];
+            attachments: {
+              page: number;
+              pageSize: number;
+              total: number;
+              items: {
+                policy: string;
+                interface: string;
+                /** @enum {string} */
+                family: 'ipv4' | 'ipv6';
+                /** @enum {string} */
+                status: 'in-sync' | 'drift' | 'missing' | 'unmanaged';
+              }[];
+            };
+            /** @description per-policy ACL hit counters: not available in this build */
+            counters: {
+              /** @constant */
+              available: false;
+              reason: string;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

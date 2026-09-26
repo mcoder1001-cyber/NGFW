@@ -703,6 +703,17 @@ func (g *guardRegistry) Register(d scheduler.Descriptor) {
 	g.ds = append(g.ds, d)
 }
 
+// Get forwards a name lookup to the wrapped registry when it supports one (the product's *MapRegistry does), so a
+// descriptor that queries the registry — the F-rpf-adl-pbr ACL bridge — still sees it through this TD-11b wrapper.
+func (g *guardRegistry) Get(name string) (scheduler.Descriptor, bool) {
+	if l, ok := g.Registry.(interface {
+		Get(string) (scheduler.Descriptor, bool)
+	}); ok {
+		return l.Get(name)
+	}
+	return nil, false
+}
+
 // ErrVolatileStores is returned (wrapping every persist.ErrVolatile / df6.ErrClaimStoreKind finding)
 // when the product wiring registered a descriptor with an in-memory ownership store.
 var ErrVolatileStores = errors.New("subsystems: refusing to start: a descriptor records ownership in a store that does not survive an agent restart")

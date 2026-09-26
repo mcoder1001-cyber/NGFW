@@ -342,6 +342,7 @@ const COVERAGE_RULES = new Set([
   'agent.unsupported-field',
   'agent.unimplemented-domain',
   'agent.write-only-field', // D-147 (F-host-stack): applied, but VPP has no dump/getter
+  'agent.write-only',
 ]);
 
 function isEmptyContainer(v: unknown): boolean {

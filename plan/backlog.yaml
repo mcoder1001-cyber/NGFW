@@ -1,6 +1,6 @@
 # Long-term ideas backlog (brainstorm output). NOT part of the plan of record.
 # Nothing here is scheduled: tools/board.py and tools/manager/prep.py read only plan/tasks.yaml,
-# and every row carries label "backlog-idea" and state "icebox".
+# and every row carries label "backlog-idea" and state "icebox" ("promoted" = moved to plan/tasks.yaml).
 # To adopt an idea: record a decision in docs/decisions/, then move the row to plan/tasks.yaml
 # with state "todo", a stage and deps on real board rows.
 version: 1
@@ -180,7 +180,7 @@ tasks:
 - id: BL-NET-01
   title: 'PPPoE client for WAN (ISP dial-up), with reconnect and MTU/MSS clamping'
   labels: [backlog-idea, net]
-  state: icebox
+  state: promoted  # now F-pppoe-client in plan/tasks.yaml
   deps: []
   est_hours: 16
   notes: 'VPP pppoe plugin is the access-concentrator side; the WAN client needs a different path (pppd + linux-cp or a new plugin).'
@@ -194,7 +194,7 @@ tasks:
 - id: BL-NET-03
   title: 'Multi-WAN failover and load sharing with link health monitors (ping/HTTP probes)'
   labels: [backlog-idea, net]
-  state: icebox
+  state: promoted  # now F-multiwan in plan/tasks.yaml
   deps: []
   est_hours: 20
   notes: 'Simpler first step than SD-WAN (BL-OPS-02); uses PBR/ECMP and route tracking.'
@@ -282,7 +282,7 @@ tasks:
 - id: BL-OPS-06
   title: 'Notifications: email, Telegram and webhook for alarms, commits and link/VPN state'
   labels: [backlog-idea, ops]
-  state: icebox
+  state: promoted  # now F-notifications in plan/tasks.yaml
   deps: []
   est_hours: 10
   notes: 'Builds on the alarms/events feature.'
@@ -307,3 +307,113 @@ tasks:
   deps: []
   est_hours: 12
   notes: 'Revisions exist; this adds approve-before-commit for regulated customers.'
+# --- More ideas (brainstorm 2026-09-26, round 3) ---
+- id: BL-NET-10
+  title: 'Protocol helpers (ALG) for FTP, SIP, PPTP, TFTP through NAT and firewall'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Common source of support tickets on NAT boxes.'
+- id: BL-NET-11
+  title: 'Explicit / transparent web proxy with authentication and caching (Squid-style)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 24
+- id: BL-NET-12
+  title: 'Cloud HA: AWS/Azure/GCP failover by updating route tables and elastic IPs via cloud APIs'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 20
+  notes: 'Complements the VM/cloud image builds; VRRP does not work in most clouds.'
+- id: BL-NET-13
+  title: 'Hardware flow offload (NIC rte_flow / SmartNIC) for established flows'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: 'VPP-code track; performance wedge.'
+- id: BL-SEC-17
+  title: 'Device fingerprinting and inventory (DHCP/HTTP/mDNS fingerprints, IoT detection) usable in rules'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 20
+- id: BL-SEC-18
+  title: 'Zero-trust access (ZTNA): per-app access for remote users with device posture checks'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 60
+  notes: 'Builds on remote-access VPN, AAA and User-ID.'
+- id: BL-SEC-19
+  title: 'Deception: honeypot IPs/ports that alert and auto-block scanners'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Feeds Global Blocking like BL-SEC-16.'
+- id: BL-SEC-20
+  title: 'Temporary rules with expiry (TTL) and rule owner/ticket fields'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 6
+  notes: 'Cheap; helps rule hygiene with the policy analyzer (BL-SEC-04).'
+- id: BL-OPS-10
+  title: 'First-boot setup wizard (WAN, LAN, admin password, time zone, updates)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Big win for small-office buyers.'
+- id: BL-OPS-11
+  title: 'Migration tool: import configs from FortiGate, pfSense/OPNsense, MikroTik, Cisco ASA'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: 'Sales enabler; start with objects + rules + NAT.'
+- id: BL-OPS-12
+  title: 'Bulk import/export of objects and rules via CSV/Excel'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 8
+- id: BL-OPS-13
+  title: 'Live traffic view: top talkers, per-IP bandwidth, per-interface realtime charts'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Uses flowprobe/IPFIX data already exported.'
+- id: BL-OPS-14
+  title: 'Built-in diagnostics: speed test, iperf server/client, DNS/HTTP check, MTU path discovery from the UI'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 8
+  notes: 'Extends the ping/traceroute actions.'
+- id: BL-OPS-15
+  title: 'Guest vouchers and self-registration on the captive portal'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Depends on BL-OPS-01.'
+- id: BL-OPS-16
+  title: 'AI assistant in the UI: explain rules, troubleshoot "why is this blocked?", draft config from plain language'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'Uses the policy analyzer lookup and session logs; commits still go through the normal review/commit flow.'
+- id: BL-OPS-17
+  title: 'Mobile app / mobile-friendly dashboard with push alerts'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'Pairs with F-notifications.'

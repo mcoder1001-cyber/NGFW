@@ -46,7 +46,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 | libvirt not purged (virbr0) | manager | P14 |
 | DF-2 N3/N5 and DF-6 N4/N6/N7 claim hygiene | TD-11b if it touches those files, else a row | F-tunnels / F-lisp / F-srv6 merge |
 | DF-4 stats-busy flake | F-acl | F-acl merge |
-| Stray `fail.out` in /root/ngfw and its `.git/info/exclude` line | manager | now, 0.1 h |
+| Stray `fail.out` in /root/ngfw and its `.git/info/exclude` line — **done: removed from the repo root (6f43d91)**; the `.git/info/exclude` line on the dev host is local and can be dropped there | manager | now, 0.1 h |
 | Remote mirror stale (origin/main 3364aca is 758 commits behind); contributing.md:3/:194 say "no remote" | product owner via PENDING-remote-mirror | — |
 | New `docs/status/have-not.md` register: D-059 six, Ansible, NETCONF, host-stack VCL/TLS/QUIC, bulk provisioning, SRv6 proxies/mobile, air-gapped bundle, marketplace, secure boot/image signing, hsflowd, dedicated system/dataplane/management screens; STATUS-FINAL notes point at it | manager | STATUS-FINAL |
 | Audit ARCH-06, TD-16 full scope: fsync first (`df2.WriteFileAtomic` and the df6 claims save lose data on a host crash), then one `descriptors/kit` with one ParsePrefix policy (reject host bits; df2/df6 mask them today; copies in dfkit/df2/df6/df7/vpn), one `ErrRetrieveUnsupported`, `Register(r, Env)`; DF-8 L4 (merge the df2 and dfkit helpers) belongs here | TD-16 | wave B spawn |

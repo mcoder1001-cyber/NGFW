@@ -894,7 +894,14 @@ export interface ActionRequest {
     | CaptureAction
     | undefined;
   /** Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay. */
-  arpFlush?: ArpFlushAction | undefined;
+  arpFlush?:
+    | ArpFlushAction
+    | undefined;
+  /**
+   * Delete one NAT44-ED session (F-nat44-ed-sessions); one `done` line, exit_code 1 when VPP has no
+   * such session.
+   */
+  natSessionKill?: NatSessionKillAction | undefined;
 }
 
 /** PingAction sends ICMP echo requests from the data plane. */
@@ -6648,6 +6655,190 @@ export interface HostAclRuleState {
   bytes: string;
 }
 
+/** NatSessionFilter narrows NatSessions. Every set field must match (AND); an unset field matches all. */
+export interface NatSessionFilter {
+  /** Inside (pre-translation) IPv4 address. It selects one user, so the agent dumps only that user. */
+  insideAddress?:
+    | string
+    | undefined;
+  /** Outside (translated) IPv4 address. */
+  outsideAddress?:
+    | string
+    | undefined;
+  /** External (remote) host IPv4 address. */
+  externalAddress?:
+    | string
+    | undefined;
+  /** L4 port (ICMP: the identifier); matches the inside, outside or external port. */
+  port?:
+    | number
+    | undefined;
+  /** "tcp" | "udp" | "icmp" | an IP protocol number in decimal. */
+  protocol?:
+    | string
+    | undefined;
+  /** Inside VRF name ("default" = table 0; a decimal string is a raw table id). */
+  vrf?: string | undefined;
+}
+
+/** NatSessionsRequest selects one page of the session table. */
+export interface NatSessionsRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /**
+   * Index of the first session of the page in the (filtered) table order: users by (VRF, address),
+   * then VPP's order of that user's sessions.
+   */
+  offset: number;
+  /** Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT. */
+  limit: number;
+  /** Filter; unset = every session of this owner. */
+  filter: NatSessionFilter | undefined;
+}
+
+/** NatSession is one NAT44-ED translation as VPP reports it (state, not configuration). */
+export interface NatSession {
+  /** Inside endpoint (the user). */
+  insideAddress: string;
+  /** Inside L4 port (ICMP: identifier). */
+  insidePort: number;
+  /** Outside (translated) endpoint. */
+  outsideAddress: string;
+  /** Outside L4 port. */
+  outsidePort: number;
+  /** External (remote) host. */
+  externalAddress: string;
+  /** External host port. */
+  externalPort: number;
+  /**
+   * External host after twice-NAT (as the inside host addresses it). VPP reports it only for twice-NAT
+   * sessions: "0.0.0.0" without twice-NAT.
+   */
+  externalNatAddress: string;
+  /** External host port after twice-NAT; 0 without twice-NAT. */
+  externalNatPort: number;
+  /** "tcp" | "udp" | "icmp" | the IP protocol number in decimal. */
+  protocol: string;
+  /** Inside VRF name: "default" for table 0, the configured VRF name, else the table id in decimal. */
+  vrf: string;
+  /** Inside FIB table id. */
+  tableId: number;
+  /** Created by a static mapping. */
+  static: boolean;
+  /** Twice-NAT session. */
+  twiceNat: boolean;
+  /** VPP considers the session timed out (not yet reclaimed). */
+  timedOut: boolean;
+  /** Seconds since the last packet (VPP-relative). */
+  idleSeconds: string;
+  /** Bytes in both directions. */
+  bytes: string;
+  /** Packets in both directions. */
+  packets: string;
+}
+
+/** NatSessionsResponse is one page. It never carries more than the requested limit. */
+export interface NatSessionsResponse {
+  /** The page, in table order. */
+  sessions: NatSession[];
+  /** Offset of the next page; unset on the last page. */
+  nextOffset?:
+    | number
+    | undefined;
+  /** Users (inside hosts) of this owner with sessions that the filter's inside_address / vrf select. */
+  totalUsers: string;
+  /** Sessions that match the filter (a lower bound when `truncated`). */
+  totalSessions: string;
+  /**
+   * A per-call cap stopped the agent (users dumped, sessions looked at): with a filter on outside/external
+   * address, port or protocol total_sessions is then a lower bound; either way the page may be
+   * short — continue at next_offset.
+   */
+  truncated: boolean;
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** NatSummaryRequest has only the owner. */
+export interface NatSummaryRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** NatPoolUsage is the use of one owned NAT44-ED pool. */
+export interface NatPoolUsage {
+  /** First address of a range pool; for an interface pool the interface's first IPv4 address ("" if none). */
+  firstAddress: string;
+  /** Last address of a range pool (equal to first_address for one address and for interface pools). */
+  lastAddress: string;
+  /** Logical interface name of an interface pool; "" for a range pool. */
+  interface: string;
+  /** Tenant VRF name of a range pool ("default" for table 0); "" for an interface pool. */
+  vrf: string;
+  /** Twice-NAT pool. */
+  twiceNat: boolean;
+  /** Number of addresses in the pool. */
+  addresses: number;
+  /** Sessions whose outside address is in this pool (a lower bound when the response is truncated). */
+  sessions: string;
+}
+
+/** NatSummaryResponse is one snapshot of this owner's NAT44-ED use. */
+export interface NatSummaryResponse {
+  /** nat44-ed is enabled on VPP. */
+  enabled: boolean;
+  /** VPP's session limit per worker thread (running config); 0 when disabled. */
+  sessionLimit: number;
+  /** Users (inside hosts) of this owner with sessions. */
+  totalUsers: string;
+  /** Sessions of those users. */
+  totalSessions: string;
+  /** Of which created by static mappings. */
+  staticSessions: string;
+  /** Owned pools (range pools, then interface pools). */
+  pools: NatPoolUsage[];
+  /** Session count per protocol name ("tcp", "udp", "icmp", or the number in decimal). */
+  sessionsByProtocol: { [key: string]: string };
+  /**
+   * The per-pool and per-protocol counts stopped at the agent's per-call caps (users dumped, sessions
+   * looked at): they are lower bounds. The user / session / static totals are always complete.
+   */
+  truncated: boolean;
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the summary was computed (agent clock); the agent serves one computation for up to 30 s. */
+  retrievedAt: Date | undefined;
+}
+
+export interface NatSummaryResponse_SessionsByProtocolEntry {
+  key: string;
+  value: string;
+}
+
+/**
+ * NatSessionKillAction deletes one NAT44-ED session (nat44_del_session). An ED session is keyed by the
+ * full 5-tuple, so the external endpoint is required. The inside address must belong to this owner.
+ */
+export interface NatSessionKillAction {
+  /** "tcp" | "udp" | "icmp". */
+  protocol: string;
+  /** Inside IPv4 address. */
+  insideAddress: string;
+  /** Inside L4 port (ICMP: identifier). */
+  insidePort: number;
+  /**
+   * External (remote) host IPv4 address as the inside host addresses it: the session's i2o flow, which
+   * nat44_del_session looks up — external_nat_address of a twice-NAT session, external_address otherwise.
+   */
+  externalAddress: string;
+  /** External host port as the inside host addresses it (external_nat_port of a twice-NAT session). */
+  externalPort: number;
+  /** Inside VRF name; "" = "default" (a decimal string is a raw table id). */
+  vrf: string;
+}
+
 /** QosPolicerStateRequest selects policers of this agent. */
 export interface QosPolicerStateRequest {
   /** Must be empty or equal to the agent's owner (§6). */
@@ -9625,7 +9816,7 @@ export const Event_AttributesEntry: MessageFns<Event_AttributesEntry> = {
 };
 
 function createBaseActionRequest(): ActionRequest {
-  return { ping: undefined, traceroute: undefined, capture: undefined, arpFlush: undefined };
+  return { ping: undefined, traceroute: undefined, capture: undefined, arpFlush: undefined, natSessionKill: undefined };
 }
 
 export const ActionRequest: MessageFns<ActionRequest> = {
@@ -9641,6 +9832,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.arpFlush !== undefined) {
       ArpFlushAction.encode(message.arpFlush, writer.uint32(34).fork()).join();
+    }
+    if (message.natSessionKill !== undefined) {
+      NatSessionKillAction.encode(message.natSessionKill, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -9690,6 +9884,14 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.arpFlush = ArpFlushAction.decode(reader, reader.uint32());
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.natSessionKill = NatSessionKillAction.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -9712,6 +9914,11 @@ export const ActionRequest: MessageFns<ActionRequest> = {
         : isSet(object.arp_flush)
         ? ArpFlushAction.fromJSON(object.arp_flush)
         : undefined,
+      natSessionKill: isSet(object.natSessionKill)
+        ? NatSessionKillAction.fromJSON(object.natSessionKill)
+        : isSet(object.nat_session_kill)
+        ? NatSessionKillAction.fromJSON(object.nat_session_kill)
+        : undefined,
     };
   },
 
@@ -9728,6 +9935,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.arpFlush !== undefined) {
       obj.arpFlush = ArpFlushAction.toJSON(message.arpFlush);
+    }
+    if (message.natSessionKill !== undefined) {
+      obj.natSessionKill = NatSessionKillAction.toJSON(message.natSessionKill);
     }
     return obj;
   },
@@ -9748,6 +9958,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.arpFlush = (object.arpFlush !== undefined && object.arpFlush !== null)
       ? ArpFlushAction.fromPartial(object.arpFlush)
+      : undefined;
+    message.natSessionKill = (object.natSessionKill !== undefined && object.natSessionKill !== null)
+      ? NatSessionKillAction.fromPartial(object.natSessionKill)
       : undefined;
     return message;
   },
@@ -55982,6 +56195,1658 @@ export const HostAclRuleState: MessageFns<HostAclRuleState> = {
   },
 };
 
+function createBaseNatSessionFilter(): NatSessionFilter {
+  return {
+    insideAddress: undefined,
+    outsideAddress: undefined,
+    externalAddress: undefined,
+    port: undefined,
+    protocol: undefined,
+    vrf: undefined,
+  };
+}
+
+export const NatSessionFilter: MessageFns<NatSessionFilter> = {
+  encode(message: NatSessionFilter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.insideAddress !== undefined) {
+      writer.uint32(10).string(message.insideAddress);
+    }
+    if (message.outsideAddress !== undefined) {
+      writer.uint32(18).string(message.outsideAddress);
+    }
+    if (message.externalAddress !== undefined) {
+      writer.uint32(26).string(message.externalAddress);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(32).uint32(message.port);
+    }
+    if (message.protocol !== undefined) {
+      writer.uint32(42).string(message.protocol);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(50).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSessionFilter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSessionFilter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.insideAddress = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.outsideAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.externalAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSessionFilter {
+    return {
+      insideAddress: isSet(object.insideAddress)
+        ? globalThis.String(object.insideAddress)
+        : isSet(object.inside_address)
+        ? globalThis.String(object.inside_address)
+        : undefined,
+      outsideAddress: isSet(object.outsideAddress)
+        ? globalThis.String(object.outsideAddress)
+        : isSet(object.outside_address)
+        ? globalThis.String(object.outside_address)
+        : undefined,
+      externalAddress: isSet(object.externalAddress)
+        ? globalThis.String(object.externalAddress)
+        : isSet(object.external_address)
+        ? globalThis.String(object.external_address)
+        : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+    };
+  },
+
+  toJSON(message: NatSessionFilter): unknown {
+    const obj: any = {};
+    if (message.insideAddress !== undefined) {
+      obj.insideAddress = message.insideAddress;
+    }
+    if (message.outsideAddress !== undefined) {
+      obj.outsideAddress = message.outsideAddress;
+    }
+    if (message.externalAddress !== undefined) {
+      obj.externalAddress = message.externalAddress;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.protocol !== undefined) {
+      obj.protocol = message.protocol;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSessionFilter>): NatSessionFilter {
+    return NatSessionFilter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSessionFilter>): NatSessionFilter {
+    const message = createBaseNatSessionFilter();
+    message.insideAddress = object.insideAddress ?? undefined;
+    message.outsideAddress = object.outsideAddress ?? undefined;
+    message.externalAddress = object.externalAddress ?? undefined;
+    message.port = object.port ?? undefined;
+    message.protocol = object.protocol ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNatSessionsRequest(): NatSessionsRequest {
+  return { owner: "", offset: 0, limit: 0, filter: undefined };
+}
+
+export const NatSessionsRequest: MessageFns<NatSessionsRequest> = {
+  encode(message: NatSessionsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(16).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(24).uint32(message.limit);
+    }
+    if (message.filter !== undefined) {
+      NatSessionFilter.encode(message.filter, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSessionsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSessionsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.filter = NatSessionFilter.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSessionsRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      filter: isSet(object.filter) ? NatSessionFilter.fromJSON(object.filter) : undefined,
+    };
+  },
+
+  toJSON(message: NatSessionsRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    if (message.filter !== undefined) {
+      obj.filter = NatSessionFilter.toJSON(message.filter);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSessionsRequest>): NatSessionsRequest {
+    return NatSessionsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSessionsRequest>): NatSessionsRequest {
+    const message = createBaseNatSessionsRequest();
+    message.owner = object.owner ?? "";
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    message.filter = (object.filter !== undefined && object.filter !== null)
+      ? NatSessionFilter.fromPartial(object.filter)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseNatSession(): NatSession {
+  return {
+    insideAddress: "",
+    insidePort: 0,
+    outsideAddress: "",
+    outsidePort: 0,
+    externalAddress: "",
+    externalPort: 0,
+    externalNatAddress: "",
+    externalNatPort: 0,
+    protocol: "",
+    vrf: "",
+    tableId: 0,
+    static: false,
+    twiceNat: false,
+    timedOut: false,
+    idleSeconds: "0",
+    bytes: "0",
+    packets: "0",
+  };
+}
+
+export const NatSession: MessageFns<NatSession> = {
+  encode(message: NatSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.insideAddress !== "") {
+      writer.uint32(10).string(message.insideAddress);
+    }
+    if (message.insidePort !== 0) {
+      writer.uint32(16).uint32(message.insidePort);
+    }
+    if (message.outsideAddress !== "") {
+      writer.uint32(26).string(message.outsideAddress);
+    }
+    if (message.outsidePort !== 0) {
+      writer.uint32(32).uint32(message.outsidePort);
+    }
+    if (message.externalAddress !== "") {
+      writer.uint32(42).string(message.externalAddress);
+    }
+    if (message.externalPort !== 0) {
+      writer.uint32(48).uint32(message.externalPort);
+    }
+    if (message.externalNatAddress !== "") {
+      writer.uint32(58).string(message.externalNatAddress);
+    }
+    if (message.externalNatPort !== 0) {
+      writer.uint32(64).uint32(message.externalNatPort);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(74).string(message.protocol);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(82).string(message.vrf);
+    }
+    if (message.tableId !== 0) {
+      writer.uint32(88).uint32(message.tableId);
+    }
+    if (message.static !== false) {
+      writer.uint32(96).bool(message.static);
+    }
+    if (message.twiceNat !== false) {
+      writer.uint32(104).bool(message.twiceNat);
+    }
+    if (message.timedOut !== false) {
+      writer.uint32(112).bool(message.timedOut);
+    }
+    if (message.idleSeconds !== "0") {
+      writer.uint32(120).uint64(message.idleSeconds);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(128).uint64(message.bytes);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(136).uint64(message.packets);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSession();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.insideAddress = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.insidePort = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.outsideAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.outsidePort = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.externalAddress = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.externalPort = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.externalNatAddress = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.externalNatPort = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.tableId = reader.uint32();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.static = reader.bool();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.twiceNat = reader.bool();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.timedOut = reader.bool();
+            continue;
+          }
+          case 15: {
+            if (tag !== 120) {
+              break;
+            }
+
+            message.idleSeconds = reader.uint64().toString();
+            continue;
+          }
+          case 16: {
+            if (tag !== 128) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+          case 17: {
+            if (tag !== 136) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSession {
+    return {
+      insideAddress: isSet(object.insideAddress)
+        ? globalThis.String(object.insideAddress)
+        : isSet(object.inside_address)
+        ? globalThis.String(object.inside_address)
+        : "",
+      insidePort: isSet(object.insidePort)
+        ? globalThis.Number(object.insidePort)
+        : isSet(object.inside_port)
+        ? globalThis.Number(object.inside_port)
+        : 0,
+      outsideAddress: isSet(object.outsideAddress)
+        ? globalThis.String(object.outsideAddress)
+        : isSet(object.outside_address)
+        ? globalThis.String(object.outside_address)
+        : "",
+      outsidePort: isSet(object.outsidePort)
+        ? globalThis.Number(object.outsidePort)
+        : isSet(object.outside_port)
+        ? globalThis.Number(object.outside_port)
+        : 0,
+      externalAddress: isSet(object.externalAddress)
+        ? globalThis.String(object.externalAddress)
+        : isSet(object.external_address)
+        ? globalThis.String(object.external_address)
+        : "",
+      externalPort: isSet(object.externalPort)
+        ? globalThis.Number(object.externalPort)
+        : isSet(object.external_port)
+        ? globalThis.Number(object.external_port)
+        : 0,
+      externalNatAddress: isSet(object.externalNatAddress)
+        ? globalThis.String(object.externalNatAddress)
+        : isSet(object.external_nat_address)
+        ? globalThis.String(object.external_nat_address)
+        : "",
+      externalNatPort: isSet(object.externalNatPort)
+        ? globalThis.Number(object.externalNatPort)
+        : isSet(object.external_nat_port)
+        ? globalThis.Number(object.external_nat_port)
+        : 0,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      tableId: isSet(object.tableId)
+        ? globalThis.Number(object.tableId)
+        : isSet(object.table_id)
+        ? globalThis.Number(object.table_id)
+        : 0,
+      static: isSet(object.static) ? globalThis.Boolean(object.static) : false,
+      twiceNat: isSet(object.twiceNat)
+        ? globalThis.Boolean(object.twiceNat)
+        : isSet(object.twice_nat)
+        ? globalThis.Boolean(object.twice_nat)
+        : false,
+      timedOut: isSet(object.timedOut)
+        ? globalThis.Boolean(object.timedOut)
+        : isSet(object.timed_out)
+        ? globalThis.Boolean(object.timed_out)
+        : false,
+      idleSeconds: isSet(object.idleSeconds)
+        ? globalThis.String(object.idleSeconds)
+        : isSet(object.idle_seconds)
+        ? globalThis.String(object.idle_seconds)
+        : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+    };
+  },
+
+  toJSON(message: NatSession): unknown {
+    const obj: any = {};
+    if (message.insideAddress !== "") {
+      obj.insideAddress = message.insideAddress;
+    }
+    if (message.insidePort !== 0) {
+      obj.insidePort = Math.round(message.insidePort);
+    }
+    if (message.outsideAddress !== "") {
+      obj.outsideAddress = message.outsideAddress;
+    }
+    if (message.outsidePort !== 0) {
+      obj.outsidePort = Math.round(message.outsidePort);
+    }
+    if (message.externalAddress !== "") {
+      obj.externalAddress = message.externalAddress;
+    }
+    if (message.externalPort !== 0) {
+      obj.externalPort = Math.round(message.externalPort);
+    }
+    if (message.externalNatAddress !== "") {
+      obj.externalNatAddress = message.externalNatAddress;
+    }
+    if (message.externalNatPort !== 0) {
+      obj.externalNatPort = Math.round(message.externalNatPort);
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.tableId !== 0) {
+      obj.tableId = Math.round(message.tableId);
+    }
+    if (message.static !== false) {
+      obj.static = message.static;
+    }
+    if (message.twiceNat !== false) {
+      obj.twiceNat = message.twiceNat;
+    }
+    if (message.timedOut !== false) {
+      obj.timedOut = message.timedOut;
+    }
+    if (message.idleSeconds !== "0") {
+      obj.idleSeconds = message.idleSeconds;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSession>): NatSession {
+    return NatSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSession>): NatSession {
+    const message = createBaseNatSession();
+    message.insideAddress = object.insideAddress ?? "";
+    message.insidePort = object.insidePort ?? 0;
+    message.outsideAddress = object.outsideAddress ?? "";
+    message.outsidePort = object.outsidePort ?? 0;
+    message.externalAddress = object.externalAddress ?? "";
+    message.externalPort = object.externalPort ?? 0;
+    message.externalNatAddress = object.externalNatAddress ?? "";
+    message.externalNatPort = object.externalNatPort ?? 0;
+    message.protocol = object.protocol ?? "";
+    message.vrf = object.vrf ?? "";
+    message.tableId = object.tableId ?? 0;
+    message.static = object.static ?? false;
+    message.twiceNat = object.twiceNat ?? false;
+    message.timedOut = object.timedOut ?? false;
+    message.idleSeconds = object.idleSeconds ?? "0";
+    message.bytes = object.bytes ?? "0";
+    message.packets = object.packets ?? "0";
+    return message;
+  },
+};
+
+function createBaseNatSessionsResponse(): NatSessionsResponse {
+  return {
+    sessions: [],
+    nextOffset: undefined,
+    totalUsers: "0",
+    totalSessions: "0",
+    truncated: false,
+    owner: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const NatSessionsResponse: MessageFns<NatSessionsResponse> = {
+  encode(message: NatSessionsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sessions) {
+      NatSession.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextOffset !== undefined) {
+      writer.uint32(16).uint32(message.nextOffset);
+    }
+    if (message.totalUsers !== "0") {
+      writer.uint32(24).uint64(message.totalUsers);
+    }
+    if (message.totalSessions !== "0") {
+      writer.uint32(32).uint64(message.totalSessions);
+    }
+    if (message.truncated !== false) {
+      writer.uint32(40).bool(message.truncated);
+    }
+    if (message.owner !== "") {
+      writer.uint32(50).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(58).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSessionsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSessionsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sessions.push(NatSession.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.nextOffset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.totalUsers = reader.uint64().toString();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.totalSessions = reader.uint64().toString();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSessionsResponse {
+    return {
+      sessions: globalThis.Array.isArray(object?.sessions)
+        ? object.sessions.map((e: any) => NatSession.fromJSON(e))
+        : [],
+      nextOffset: isSet(object.nextOffset)
+        ? globalThis.Number(object.nextOffset)
+        : isSet(object.next_offset)
+        ? globalThis.Number(object.next_offset)
+        : undefined,
+      totalUsers: isSet(object.totalUsers)
+        ? globalThis.String(object.totalUsers)
+        : isSet(object.total_users)
+        ? globalThis.String(object.total_users)
+        : "0",
+      totalSessions: isSet(object.totalSessions)
+        ? globalThis.String(object.totalSessions)
+        : isSet(object.total_sessions)
+        ? globalThis.String(object.total_sessions)
+        : "0",
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: NatSessionsResponse): unknown {
+    const obj: any = {};
+    if (message.sessions?.length) {
+      obj.sessions = message.sessions.map((e) => NatSession.toJSON(e));
+    }
+    if (message.nextOffset !== undefined) {
+      obj.nextOffset = Math.round(message.nextOffset);
+    }
+    if (message.totalUsers !== "0") {
+      obj.totalUsers = message.totalUsers;
+    }
+    if (message.totalSessions !== "0") {
+      obj.totalSessions = message.totalSessions;
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSessionsResponse>): NatSessionsResponse {
+    return NatSessionsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSessionsResponse>): NatSessionsResponse {
+    const message = createBaseNatSessionsResponse();
+    message.sessions = object.sessions?.map((e) => NatSession.fromPartial(e)) || [];
+    message.nextOffset = object.nextOffset ?? undefined;
+    message.totalUsers = object.totalUsers ?? "0";
+    message.totalSessions = object.totalSessions ?? "0";
+    message.truncated = object.truncated ?? false;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNatSummaryRequest(): NatSummaryRequest {
+  return { owner: "" };
+}
+
+export const NatSummaryRequest: MessageFns<NatSummaryRequest> = {
+  encode(message: NatSummaryRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSummaryRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSummaryRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSummaryRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: NatSummaryRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSummaryRequest>): NatSummaryRequest {
+    return NatSummaryRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSummaryRequest>): NatSummaryRequest {
+    const message = createBaseNatSummaryRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseNatPoolUsage(): NatPoolUsage {
+  return { firstAddress: "", lastAddress: "", interface: "", vrf: "", twiceNat: false, addresses: 0, sessions: "0" };
+}
+
+export const NatPoolUsage: MessageFns<NatPoolUsage> = {
+  encode(message: NatPoolUsage, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.firstAddress !== "") {
+      writer.uint32(10).string(message.firstAddress);
+    }
+    if (message.lastAddress !== "") {
+      writer.uint32(18).string(message.lastAddress);
+    }
+    if (message.interface !== "") {
+      writer.uint32(26).string(message.interface);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(34).string(message.vrf);
+    }
+    if (message.twiceNat !== false) {
+      writer.uint32(40).bool(message.twiceNat);
+    }
+    if (message.addresses !== 0) {
+      writer.uint32(48).uint32(message.addresses);
+    }
+    if (message.sessions !== "0") {
+      writer.uint32(56).uint64(message.sessions);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatPoolUsage {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatPoolUsage();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.firstAddress = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.lastAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.twiceNat = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.addresses = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.sessions = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatPoolUsage {
+    return {
+      firstAddress: isSet(object.firstAddress)
+        ? globalThis.String(object.firstAddress)
+        : isSet(object.first_address)
+        ? globalThis.String(object.first_address)
+        : "",
+      lastAddress: isSet(object.lastAddress)
+        ? globalThis.String(object.lastAddress)
+        : isSet(object.last_address)
+        ? globalThis.String(object.last_address)
+        : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      twiceNat: isSet(object.twiceNat)
+        ? globalThis.Boolean(object.twiceNat)
+        : isSet(object.twice_nat)
+        ? globalThis.Boolean(object.twice_nat)
+        : false,
+      addresses: isSet(object.addresses) ? globalThis.Number(object.addresses) : 0,
+      sessions: isSet(object.sessions) ? globalThis.String(object.sessions) : "0",
+    };
+  },
+
+  toJSON(message: NatPoolUsage): unknown {
+    const obj: any = {};
+    if (message.firstAddress !== "") {
+      obj.firstAddress = message.firstAddress;
+    }
+    if (message.lastAddress !== "") {
+      obj.lastAddress = message.lastAddress;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.twiceNat !== false) {
+      obj.twiceNat = message.twiceNat;
+    }
+    if (message.addresses !== 0) {
+      obj.addresses = Math.round(message.addresses);
+    }
+    if (message.sessions !== "0") {
+      obj.sessions = message.sessions;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatPoolUsage>): NatPoolUsage {
+    return NatPoolUsage.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatPoolUsage>): NatPoolUsage {
+    const message = createBaseNatPoolUsage();
+    message.firstAddress = object.firstAddress ?? "";
+    message.lastAddress = object.lastAddress ?? "";
+    message.interface = object.interface ?? "";
+    message.vrf = object.vrf ?? "";
+    message.twiceNat = object.twiceNat ?? false;
+    message.addresses = object.addresses ?? 0;
+    message.sessions = object.sessions ?? "0";
+    return message;
+  },
+};
+
+function createBaseNatSummaryResponse(): NatSummaryResponse {
+  return {
+    enabled: false,
+    sessionLimit: 0,
+    totalUsers: "0",
+    totalSessions: "0",
+    staticSessions: "0",
+    pools: [],
+    sessionsByProtocol: {},
+    truncated: false,
+    owner: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const NatSummaryResponse: MessageFns<NatSummaryResponse> = {
+  encode(message: NatSummaryResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== false) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.sessionLimit !== 0) {
+      writer.uint32(16).uint32(message.sessionLimit);
+    }
+    if (message.totalUsers !== "0") {
+      writer.uint32(24).uint64(message.totalUsers);
+    }
+    if (message.totalSessions !== "0") {
+      writer.uint32(32).uint64(message.totalSessions);
+    }
+    if (message.staticSessions !== "0") {
+      writer.uint32(40).uint64(message.staticSessions);
+    }
+    for (const v of message.pools) {
+      NatPoolUsage.encode(v!, writer.uint32(50).fork()).join();
+    }
+    globalThis.Object.entries(message.sessionsByProtocol).forEach(([key, value]: [string, string]) => {
+      NatSummaryResponse_SessionsByProtocolEntry.encode({ key: key as any, value }, writer.uint32(58).fork()).join();
+    });
+    if (message.truncated !== false) {
+      writer.uint32(64).bool(message.truncated);
+    }
+    if (message.owner !== "") {
+      writer.uint32(74).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(82).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSummaryResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSummaryResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.sessionLimit = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.totalUsers = reader.uint64().toString();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.totalSessions = reader.uint64().toString();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.staticSessions = reader.uint64().toString();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.pools.push(NatPoolUsage.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            const entry7 = NatSummaryResponse_SessionsByProtocolEntry.decode(reader, reader.uint32());
+            if (entry7.value !== undefined) {
+              message.sessionsByProtocol[entry7.key] = entry7.value;
+            }
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSummaryResponse {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : false,
+      sessionLimit: isSet(object.sessionLimit)
+        ? globalThis.Number(object.sessionLimit)
+        : isSet(object.session_limit)
+        ? globalThis.Number(object.session_limit)
+        : 0,
+      totalUsers: isSet(object.totalUsers)
+        ? globalThis.String(object.totalUsers)
+        : isSet(object.total_users)
+        ? globalThis.String(object.total_users)
+        : "0",
+      totalSessions: isSet(object.totalSessions)
+        ? globalThis.String(object.totalSessions)
+        : isSet(object.total_sessions)
+        ? globalThis.String(object.total_sessions)
+        : "0",
+      staticSessions: isSet(object.staticSessions)
+        ? globalThis.String(object.staticSessions)
+        : isSet(object.static_sessions)
+        ? globalThis.String(object.static_sessions)
+        : "0",
+      pools: globalThis.Array.isArray(object?.pools)
+        ? object.pools.map((e: any) => NatPoolUsage.fromJSON(e))
+        : [],
+      sessionsByProtocol: isObject(object.sessionsByProtocol)
+        ? (globalThis.Object.entries(object.sessionsByProtocol) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.sessions_by_protocol)
+        ? (globalThis.Object.entries(object.sessions_by_protocol) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: NatSummaryResponse): unknown {
+    const obj: any = {};
+    if (message.enabled !== false) {
+      obj.enabled = message.enabled;
+    }
+    if (message.sessionLimit !== 0) {
+      obj.sessionLimit = Math.round(message.sessionLimit);
+    }
+    if (message.totalUsers !== "0") {
+      obj.totalUsers = message.totalUsers;
+    }
+    if (message.totalSessions !== "0") {
+      obj.totalSessions = message.totalSessions;
+    }
+    if (message.staticSessions !== "0") {
+      obj.staticSessions = message.staticSessions;
+    }
+    if (message.pools?.length) {
+      obj.pools = message.pools.map((e) => NatPoolUsage.toJSON(e));
+    }
+    if (message.sessionsByProtocol) {
+      const entries = globalThis.Object.entries(message.sessionsByProtocol) as [string, string][];
+      if (entries.length > 0) {
+        obj.sessionsByProtocol = {};
+        entries.forEach(([k, v]) => {
+          obj.sessionsByProtocol[k] = v;
+        });
+      }
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSummaryResponse>): NatSummaryResponse {
+    return NatSummaryResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSummaryResponse>): NatSummaryResponse {
+    const message = createBaseNatSummaryResponse();
+    message.enabled = object.enabled ?? false;
+    message.sessionLimit = object.sessionLimit ?? 0;
+    message.totalUsers = object.totalUsers ?? "0";
+    message.totalSessions = object.totalSessions ?? "0";
+    message.staticSessions = object.staticSessions ?? "0";
+    message.pools = object.pools?.map((e) => NatPoolUsage.fromPartial(e)) || [];
+    message.sessionsByProtocol = (globalThis.Object.entries(object.sessionsByProtocol ?? {}) as [string, string][])
+      .reduce((acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      }, {});
+    message.truncated = object.truncated ?? false;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNatSummaryResponse_SessionsByProtocolEntry(): NatSummaryResponse_SessionsByProtocolEntry {
+  return { key: "", value: "0" };
+}
+
+export const NatSummaryResponse_SessionsByProtocolEntry: MessageFns<NatSummaryResponse_SessionsByProtocolEntry> = {
+  encode(message: NatSummaryResponse_SessionsByProtocolEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "0") {
+      writer.uint32(16).uint64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSummaryResponse_SessionsByProtocolEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSummaryResponse_SessionsByProtocolEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSummaryResponse_SessionsByProtocolEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "0",
+    };
+  },
+
+  toJSON(message: NatSummaryResponse_SessionsByProtocolEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "0") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSummaryResponse_SessionsByProtocolEntry>): NatSummaryResponse_SessionsByProtocolEntry {
+    return NatSummaryResponse_SessionsByProtocolEntry.fromPartial(base ?? {});
+  },
+  fromPartial(
+    object: DeepPartial<NatSummaryResponse_SessionsByProtocolEntry>,
+  ): NatSummaryResponse_SessionsByProtocolEntry {
+    const message = createBaseNatSummaryResponse_SessionsByProtocolEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "0";
+    return message;
+  },
+};
+
+function createBaseNatSessionKillAction(): NatSessionKillAction {
+  return { protocol: "", insideAddress: "", insidePort: 0, externalAddress: "", externalPort: 0, vrf: "" };
+}
+
+export const NatSessionKillAction: MessageFns<NatSessionKillAction> = {
+  encode(message: NatSessionKillAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.protocol !== "") {
+      writer.uint32(10).string(message.protocol);
+    }
+    if (message.insideAddress !== "") {
+      writer.uint32(18).string(message.insideAddress);
+    }
+    if (message.insidePort !== 0) {
+      writer.uint32(24).uint32(message.insidePort);
+    }
+    if (message.externalAddress !== "") {
+      writer.uint32(34).string(message.externalAddress);
+    }
+    if (message.externalPort !== 0) {
+      writer.uint32(40).uint32(message.externalPort);
+    }
+    if (message.vrf !== "") {
+      writer.uint32(50).string(message.vrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NatSessionKillAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNatSessionKillAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.insideAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.insidePort = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.externalAddress = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.externalPort = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NatSessionKillAction {
+    return {
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      insideAddress: isSet(object.insideAddress)
+        ? globalThis.String(object.insideAddress)
+        : isSet(object.inside_address)
+        ? globalThis.String(object.inside_address)
+        : "",
+      insidePort: isSet(object.insidePort)
+        ? globalThis.Number(object.insidePort)
+        : isSet(object.inside_port)
+        ? globalThis.Number(object.inside_port)
+        : 0,
+      externalAddress: isSet(object.externalAddress)
+        ? globalThis.String(object.externalAddress)
+        : isSet(object.external_address)
+        ? globalThis.String(object.external_address)
+        : "",
+      externalPort: isSet(object.externalPort)
+        ? globalThis.Number(object.externalPort)
+        : isSet(object.external_port)
+        ? globalThis.Number(object.external_port)
+        : 0,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+    };
+  },
+
+  toJSON(message: NatSessionKillAction): unknown {
+    const obj: any = {};
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.insideAddress !== "") {
+      obj.insideAddress = message.insideAddress;
+    }
+    if (message.insidePort !== 0) {
+      obj.insidePort = Math.round(message.insidePort);
+    }
+    if (message.externalAddress !== "") {
+      obj.externalAddress = message.externalAddress;
+    }
+    if (message.externalPort !== 0) {
+      obj.externalPort = Math.round(message.externalPort);
+    }
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NatSessionKillAction>): NatSessionKillAction {
+    return NatSessionKillAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NatSessionKillAction>): NatSessionKillAction {
+    const message = createBaseNatSessionKillAction();
+    message.protocol = object.protocol ?? "";
+    message.insideAddress = object.insideAddress ?? "";
+    message.insidePort = object.insidePort ?? 0;
+    message.externalAddress = object.externalAddress ?? "";
+    message.externalPort = object.externalPort ?? 0;
+    message.vrf = object.vrf ?? "";
+    return message;
+  },
+};
+
 function createBaseQosPolicerStateRequest(): QosPolicerStateRequest {
   return { owner: "", names: [] };
 }
@@ -62924,6 +64789,34 @@ export const DataplaneService = {
       Buffer.from(HostAclStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): HostAclStateResponse => HostAclStateResponse.decode(value),
   },
+  /**
+   * NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+   * dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+   * the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+   * sessions, never the whole table (docs/contracts/proto.md §11).
+   */
+  natSessions: {
+    path: "/vrx.v1.Dataplane/NatSessions" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: NatSessionsRequest): Buffer => Buffer.from(NatSessionsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): NatSessionsRequest => NatSessionsRequest.decode(value),
+    responseSerialize: (value: NatSessionsResponse): Buffer => Buffer.from(NatSessionsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): NatSessionsResponse => NatSessionsResponse.decode(value),
+  },
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
+  natSummary: {
+    path: "/vrx.v1.Dataplane/NatSummary" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: NatSummaryRequest): Buffer => Buffer.from(NatSummaryRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): NatSummaryRequest => NatSummaryRequest.decode(value),
+    responseSerialize: (value: NatSummaryResponse): Buffer => Buffer.from(NatSummaryResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): NatSummaryResponse => NatSummaryResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -63063,6 +64956,18 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
    */
   hostAclState: handleUnaryCall<HostAclStateRequest, HostAclStateResponse>;
+  /**
+   * NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+   * dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+   * the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+   * sessions, never the whole table (docs/contracts/proto.md §11).
+   */
+  natSessions: handleUnaryCall<NatSessionsRequest, NatSessionsResponse>;
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
+  natSummary: handleUnaryCall<NatSummaryRequest, NatSummaryResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -63496,6 +65401,46 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: HostAclStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * NatSessions pages the live NAT44-ED session table of this owner (read-only, never mutates). VPP
+   * dumps sessions per user (inside host), so the agent pages over the users first and dumps only
+   * the users that cover the requested page: one response carries at most `limit` (≤ 1000)
+   * sessions, never the whole table (docs/contracts/proto.md §11).
+   */
+  natSessions(
+    request: NatSessionsRequest,
+    callback: (error: ServiceError | null, response: NatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  natSessions(
+    request: NatSessionsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: NatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  natSessions(
+    request: NatSessionsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: NatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
+   * cache of up to 30 s, see retrieved_at).
+   */
+  natSummary(
+    request: NatSummaryRequest,
+    callback: (error: ServiceError | null, response: NatSummaryResponse) => void,
+  ): ClientUnaryCall;
+  natSummary(
+    request: NatSummaryRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: NatSummaryResponse) => void,
+  ): ClientUnaryCall;
+  natSummary(
+    request: NatSummaryRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: NatSummaryResponse) => void,
   ): ClientUnaryCall;
 }
 

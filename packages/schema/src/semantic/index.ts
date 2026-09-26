@@ -46,6 +46,7 @@ import { rpfAdlPbrValidators } from './rpf-adl-pbr.js';
 // wave-A: F-host-acl-nftables
 import { hostAclNftablesValidators } from './host-acl-nftables.js';
 // wave-A: F-nat44-ed-sessions
+import { nat44EdSessionsValidators } from './nat44-ed-sessions.js';
 // wave-A: P11
 // wave-A: F-wireguard
 // wave-A: P12
@@ -111,6 +112,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-host-acl-nftables
   ...hostAclNftablesValidators,
   // wave-A: F-nat44-ed-sessions
+  ...nat44EdSessionsValidators,
   // wave-A: P11
   // wave-A: F-wireguard
   // wave-A: P12

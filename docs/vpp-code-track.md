@@ -104,3 +104,30 @@ Also (review L4): allow-list instances survive an interface delete (`adl_sw_inte
 `*-input` features), so an out-of-band delete leaves instances the next interface on that index inherits. They are inert
 while ifsanitize keeps adl-input off; a blind reset is impossible (no dump, and a blind remove would itself store `~0`).
 The applied-once record covers reuse of the same index for this owner's own key.
+
+### V-new (F-nat44-ed-sessions)
+**NAT44-ED ignores partial checksums from af_packet (lab path).** A TCP/UDP segment that a Linux netns sends through a
+veth with tx checksum offload on arrives in VPP with a *partial* checksum: the af_packet input marks it
+`VNET_BUFFER_OFFLOAD_F_TCP_CKSUM` (`plugins/af_packet/node.c` `fill_cksum_offload`, when the interface has cksum/gso
+enabled). `nat44-ed-in2out` / `-out2in` update the L4 checksum incrementally without looking at the offload flags
+(`plugins/nat/nat44-ed/nat44_ed_in2out.c` has no `oflags` check), so the translated segment leaves with a wrong
+checksum and the far host drops it silently; ICMP (checksummed in software) passes. Seen 2026-09-24 19:03 on slot 4:
+SYNs through a PAT pool and a port forward reached the far netns and were never answered; with `ethtool -K <veth> tx off`
+in the namespaces the same connections succeed. Product path (DPDK NICs) delivers complete checksums; af_packet is
+lab-only. Fallback implemented: the F-nat44-ed-sessions topology test turns tx checksum offload off on the rig's netns
+veths (test side; `tools/lab rig up` could do the same for every slot — manager's call). VPP fix: resolve the partial
+checksum before NAT (or make NAT offload-aware) — est. 0.5–1 day.
+
+### V-new (F-nat44-ed-sessions, review L2)
+**`nat44_user_session_v3_dump` ignores the user's VRF and reads one worker.** `vl_api_nat44_user_session_v3_dump_t_handler`
+(`plugins/nat/nat44-ed/nat44_ed_api.c` ~1659-1690) computes `ukey.fib_index` but then matches sessions by
+`s->in2out.addr` only, and its details carry no FIB; it also walks only the in2out worker of the address, while
+`nat44_user_dump` reports one row per (worker, user). Effects: the same inside address in two VRFs (overlapping tenant
+address space, the main multi-VRF NAT case) lists both VRFs' sessions under each user, and the VRF of a row cannot be
+told; on a multi-worker VPP, sessions of load-balanced mappings on other workers are counted but never listed. Every
+call also walks the worker's whole session pool under the barrier (the plugin's API handlers are not mp-safe), which
+is why the agent caps per-user dumps per call (review H1). Fallback implemented (agent): users merged by (VRF,
+address) with summed counts; users that share an address partition that address's dump (no session listed twice); one
+dump per address in scans; per-call caps; the user page documents the possible VRF mislabel. VPP fix: also match
+`s->in2out.fib_index == ukey.fib_index`, walk every worker, and add the FIB to the details (or add a paged,
+cursor-based session dump) — est. 0.5–1 day.

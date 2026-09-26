@@ -347,6 +347,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 		desired.HostACL(p, ds.GetAcl(), ds.GetObjects(), in["objects"]) // host firewall (internal/desired/hostacl.go)
 	}
 	// wave-A: F-nat44-ed-sessions
+	if in["nat"] {
+		desired.Nat(p, ds.GetNat(), vrfID)
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -512,6 +515,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		ds.Acl = desired.AssembleHostACL(kvs, ds.Acl) // applied acl.host* (nil when no host firewall)
 	}
 	// wave-A: F-nat44-ed-sessions
+	if n := desired.AssembleNat(kvs, nameOf); in["nat"] && proto.Size(n) > 0 {
+		ds.Nat = n
+	}
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard

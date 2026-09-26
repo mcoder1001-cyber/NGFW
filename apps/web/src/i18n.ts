@@ -100,6 +100,8 @@ import faAcl from './locales/fa/acl.json';
 import enHostAclNftables from './locales/en/host-acl-nftables.json';
 import faHostAclNftables from './locales/fa/host-acl-nftables.json';
 // wave-A: F-nat44-ed-sessions
+import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
+import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
 // wave-A: F-nat44-ei-64-66-nptv6
 // wave-A: P11
 // wave-A: F-wireguard
@@ -178,6 +180,7 @@ export const NAMESPACES = [
   // wave-A: F-host-acl-nftables
   'host-acl-nftables',
   // wave-A: F-nat44-ed-sessions
+  'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
@@ -258,6 +261,7 @@ const en = {
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': enHostAclNftables,
   // wave-A: F-nat44-ed-sessions
+  'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard
@@ -335,6 +339,7 @@ const fa = {
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': faHostAclNftables,
   // wave-A: F-nat44-ed-sessions
+  'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
   // wave-A: F-wireguard

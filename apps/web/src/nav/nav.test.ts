@@ -49,6 +49,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'neighbors',
       // wave-A: F-rpf-adl-pbr
       'pbr',
+      'nat', // F-nat44-ed-sessions (firewall group, before objects per schema order)
       'objects', // F-object-model (firewall group, after pbr/adl per schema order)
       'acl', // F-acl (firewall group, after objects)
       'adl',
@@ -76,7 +77,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12
-      // wave-A: F-nat44-ed-sessions
+      // wave-A: F-nat44-ed-sessions (rendered at 'nat' in the firewall group, after pbr)
       // wave-A: F-object-model
       // wave-A: F-acl
       // wave-A: F-host-acl-nftables

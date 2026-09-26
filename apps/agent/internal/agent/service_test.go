@@ -97,6 +97,7 @@ const sampleDoc = `{
 // owned; distance only when set).
 const canonicalDoc = `{
   "vrfs": {"red": {"id": 7001}},
+  "services": {"qos": {}},
   "interfaces": {
     "loop701": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.1.1/24"], "ipv6": ["2001:db8:7::1/64"]},
     "loop702": {"enabled": false, "promiscuous": false, "vrf": "red", "ipv4": ["10.7.2.1/24"]}
@@ -157,7 +158,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
 			t.Fatalf("idempotent apply sent %s", n)
 		}
 	}
@@ -498,7 +499,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		if t4, ok := c.(*ip.IPTableAddDel); ok && t4.IsAdd {
 			continue // resync re-asserts the VRF's API lock (idempotent, scheduler.Reapplier)
 		}
-		if !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
+		if !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
 			t.Fatalf("converged resync sent %s", n)
 		}
 	}
@@ -551,7 +552,7 @@ func TestDryRun(t *testing.T) {
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && n != "ipfix_all_exporter_get" { // F-ipfix-sflow: a read-only getter
 			t.Fatalf("dry run sent %s", n)
 		}
 	}

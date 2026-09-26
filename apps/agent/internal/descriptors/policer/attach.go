@@ -2,7 +2,10 @@ package policer
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -11,8 +14,10 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/policer"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // AttachMeta is the runtime handle of the write-only attachment objects: the interface index.
@@ -65,11 +70,48 @@ func (d *InterfaceDescriptor) apply(ctx context.Context, swIfIndex uint32, a Att
 	return d.Wrap(fmt.Sprintf("policer_input %s %s apply=%v", name, a.Interface, apply), err)
 }
 
+// appliedHere reports whether this owner applied key to exactly this interface (base =
+// "<sw_if_index>/<logical name>", D-080) on the running VPP instance, and the policer pool index that
+// apply bound (-1 for a record without one). The record value is "<sw_if_index>/<name>@<pool index>".
+func (d *InterfaceDescriptor) appliedHere(ctx context.Context, key, base string) (bool, int64, error) {
+	r, ok := df7.BootStoreFor(d.Owner).Get(key)
+	if !ok {
+		return false, 0, nil
+	}
+	id, err := dfkit.IdentitySource(ctx, d.Client)
+	if err != nil {
+		return false, 0, err
+	}
+	if !bootid.Matches(r.Identity, id) {
+		return false, 0, nil
+	}
+	v, pool, hasPool := strings.Cut(r.Value, "@")
+	if v != base {
+		return false, 0, nil
+	}
+	n, err := strconv.ParseUint(pool, 10, 32)
+	if !hasPool || err != nil {
+		return true, -1, nil
+	}
+	return true, int64(n), nil
+}
+
 // Create implements scheduler.Descriptor: apply once per VPP instance and interface (D-076,
 // D-080). VPP's apply is not idempotent — every policer_input(apply=1) enables the policer-input
 // feature again, which stacks a second instance of the node — so a re-application is skipped
-// while a record for (boot identity, sw_if_index, logical name) exists. The interface claim is
-// recorded only after VPP accepted the apply (review M1).
+// while a record for (boot identity, sw_if_index, logical name) exists.
+//
+// VPP binds the attachment to the policer's POOL INDEX (policer_index_by_sw_if_index, policer_op.c),
+// and policer_del leaves that binding dangling. The record therefore also holds the pool index the
+// apply bound: when the policer was deleted and re-created behind the agent's back (simulated loss,
+// a VPP-side delete) the record is found with another index, and the attachment is re-pointed —
+// un-applied (safe: applied in this VPP lifetime) and applied again, never a second instance
+// (F-qos-flat, TestAttachmentRepointsAfterPolicerLoss).
+//
+// The interface claim is recorded BEFORE a first apply and released when VPP refuses it (TD-11b
+// claim-first, F-qos-flat): a claim that cannot be recorded fails the Create with nothing written.
+// When the applied-once record cannot be written after VPP applied, the apply is taken back at once
+// (it was applied in this VPP lifetime, so apply=0 is safe) — a later resync would otherwise stack it.
 func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	a, err := df7.DecodeValid[Attachment](obj)
 	if err != nil {
@@ -80,16 +122,50 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	skipped, err := d.ApplyOnce(ctx, key, df7.IfaceValue(tg.Index, a.Interface), func() error { return d.apply(ctx, tg.Index, a, true) })
+	pool, found, err := LookupIndex(ctx, d.Client, d.Owner, a.Policer)
+	if err != nil {
+		return nil, d.Wrap("policer lookup "+a.Policer, err)
+	}
+	if !found {
+		return nil, fmt.Errorf("%s: policer %q does not exist", NameInterface, a.Policer)
+	}
+	base := df7.IfaceValue(tg.Index, a.Interface)
+	value := fmt.Sprintf("%s@%d", base, pool)
+	meta := AttachMeta{SwIfIndex: tg.Index}
+	here, bound, err := d.appliedHere(ctx, key, base)
+	switch {
+	case err != nil:
+		return nil, err
+	case here && bound == int64(pool):
+		return meta, nil // applied on this VPP instance to this policer already: never a second apply (D-076)
+	case here:
+		// re-point: our one instance is bound to another pool index (the policer was re-created)
+		if err := d.apply(ctx, tg.Index, a, false); err != nil {
+			return nil, err
+		}
+		if err := d.apply(ctx, tg.Index, a, true); err != nil {
+			return nil, errors.Join(err, d.ForgetApplied(key)) // un-applied: a later Create applies afresh
+		}
+		if err := d.RecordNow(ctx, key, value); err != nil {
+			return nil, errors.Join(err, d.apply(ctx, tg.Index, a, false), d.ForgetApplied(key))
+		}
+		return meta, nil
+	}
+	c, err := tg.ClaimFirst(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if !skipped {
-		if err := tg.Claim(); err != nil {
-			return nil, err
-		}
+	if err := d.apply(ctx, tg.Index, a, true); err != nil {
+		return nil, c.Undo(err)
 	}
-	return AttachMeta{SwIfIndex: tg.Index}, nil
+	if err := d.RecordNow(ctx, key, value); err != nil {
+		if uerr := d.apply(ctx, tg.Index, a, false); uerr != nil {
+			// still applied and unrecorded: journal it (the claim stays for the rollback's Delete)
+			return meta, scheduler.PartialCreate(errors.Join(err, uerr))
+		}
+		return nil, c.Undo(err)
+	}
+	return meta, nil
 }
 
 // Update implements scheduler.Descriptor: another policer on the same interface/direction —
@@ -130,12 +206,14 @@ func (d *InterfaceDescriptor) Delete(ctx context.Context, obj proto.Message, _ a
 		return err
 	}
 	if found {
-		applied, err := d.AppliedNow(ctx, key, df7.IfaceValue(tg.Index, a.Interface))
+		applied, _, err := d.appliedHere(ctx, key, df7.IfaceValue(tg.Index, a.Interface))
 		if err != nil {
 			return err
 		}
 		if applied {
-			if err := d.apply(ctx, tg.Index, a, false); err != nil {
+			// NO_SUCH_ENTRY: the policer is gone from VPP (deleted behind our back); VPP's un-apply resolves it by
+			// name and cannot run — nothing of ours can be removed any more (vpp-code-track V-new F-qos-flat)
+			if err := d.apply(ctx, tg.Index, a, false); err != nil && !df7.IsVPPError(err, api.NO_SUCH_ENTRY) {
 				return err
 			}
 		}
@@ -306,10 +384,14 @@ func (d *ClassifyDescriptor) Create(ctx context.Context, obj proto.Message) (any
 	if err != nil {
 		return nil, err
 	}
-	if err := d.set(ctx, tg.Index, c, true); err != nil {
+	cl, err := tg.ClaimFirst(ctx) // TD-11b: the claim before the VPP write
+	if err != nil {
 		return nil, err
 	}
-	return AttachMeta{SwIfIndex: tg.Index}, tg.Claim()
+	if err := d.set(ctx, tg.Index, c, true); err != nil {
+		return nil, cl.Undo(err)
+	}
+	return AttachMeta{SwIfIndex: tg.Index}, nil
 }
 
 // Update implements scheduler.Descriptor: VPP keeps the first table of a kind while the feature

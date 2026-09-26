@@ -333,6 +333,11 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	if in["services"] {
 		desired.IpfixSflow(p, ds.GetServices(), vrfID)
 	}
+	// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor in this block)
+	if in["services"] {
+		desired.QoS(p, ds.GetServices().GetQos())
+		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (merge note: F-kea-dhcp-relay calls it too)
+	}
 	return p
 }
 
@@ -468,6 +473,10 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if in["services"] {
 		desired.AssembleIpfixSflow(ds, kvs, nameOf)
+	}
+	// F-qos-flat (unanchored)
+	if in["services"] {
+		desired.AssembleQoS(ds, kvs)
 	}
 	return ds
 }

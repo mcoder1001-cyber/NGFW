@@ -48,6 +48,8 @@ import { snmpValidators } from './snmp.js'; // F-snmp (unanchored)
 import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchored)
 // wave-BC: F-ipfix-sflow (unanchored)
 import { ipfixSflowValidators } from './ipfix-sflow.js';
+// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor was seeded here)
+import { qosFlatValidators } from './qos-flat.js';
 
 export * from './registry.js';
 
@@ -104,6 +106,8 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...hostStackValidators, // F-host-stack (unanchored)
   // wave-BC: F-ipfix-sflow (unanchored)
   ...ipfixSflowValidators,
+  // F-qos-flat (unanchored)
+  ...qosFlatValidators,
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

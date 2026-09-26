@@ -40,6 +40,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-lb
 // wave-BC: F-qos-flat
+import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
 import { hostStackFeature } from './features/host-stack/index.js';
 // wave-BC: F-snmp
@@ -128,6 +129,7 @@ export class AppModule {
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
+        ...qosFlatFeature.controllers,
         // wave-BC: F-host-stack
         ...hostStackFeature.controllers,
         // wave-BC: F-snmp
@@ -201,6 +203,7 @@ export class AppModule {
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
         // wave-BC: F-qos-flat
+        ...qosFlatFeature.providers,
         // wave-BC: F-host-stack
         // wave-BC: F-snmp
         ...snmpFeature.providers,

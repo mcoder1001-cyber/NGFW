@@ -1,0 +1,198 @@
+{
+  "tab": "QoS",
+  "intro": "Flat QoS on VPP: policers, egress rate limits, DSCP / 802.1p / MPLS EXP marking maps and their interface attachments. Changes go to the candidate; commit them from the pending-change bar. Hierarchical QoS and queues are not available (VPP 26.06 has no HQoS scheduler).",
+  "refresh": "Refresh",
+  "sections": "QoS sections",
+  "loading": "Loading",
+  "none": "—",
+  "listSeparator": ", ",
+  "tabs": {
+    "policers": "Policers",
+    "shapers": "Rate limits (egress)",
+    "maps": "Marking maps",
+    "interfaces": "Interface attachments"
+  },
+  "state": {
+    "unavailable": "Live policer state is unavailable (agent unreachable or too old); the configuration is still shown.",
+    "countersError": "Counters could not be read from the VPP stats segment: {{error}}"
+  },
+  "status": {
+    "applied": "Applied",
+    "missing": "Not in VPP",
+    "unmanaged": "Not configured",
+    "pending": "Not committed"
+  },
+  "counters": {
+    "conform": "Conforming packets",
+    "exceed": "Exceeding packets",
+    "violate": "Violating packets"
+  },
+  "actions": {
+    "edit": "Edit {{name}}",
+    "remove": "Remove {{name}}",
+    "reset": "Reset {{name}}"
+  },
+  "reset": {
+    "title": "Reset {{name}}?",
+    "body": "Refills the token buckets of the policer in VPP (policer_reset). Counters are kept; they restart only when the policer is re-created or changed.",
+    "done": "Token buckets of {{name}} refilled.",
+    "confirm": "Reset"
+  },
+  "dialog": {
+    "name": "Name",
+    "nameTaken": "{{name}} already exists",
+    "nameHelp": "Letters, digits, _ . - (up to 63 characters)",
+    "save": "Save to candidate",
+    "reset": "Reset form",
+    "cancel": "Cancel",
+    "close": "Close"
+  },
+  "helper": {
+    "title": "Rate / burst helper",
+    "unit": "Unit",
+    "rate": "Rate",
+    "window": "Burst window (ms)",
+    "resultBytes": "Burst ≈ {{n}} bytes",
+    "resultPackets": "Burst ≈ {{n}} packets",
+    "use": "Use rate and burst",
+    "note": "Burst = rate × window (bytes for kbit/s, packets for packets/s). “Use” restarts the form below with this rate and burst; a burst below one packet (≈ 1500 bytes) drops every full-size packet."
+  },
+  "unit": {
+    "kbps": "kbit/s",
+    "pps": "packets/s"
+  },
+  "rates": {
+    "one": "{{cir}} {{unit}}",
+    "two": "{{cir}} / {{eir}} {{unit}}"
+  },
+  "bursts": {
+    "one": "{{cb}}",
+    "two": "{{cb}} / {{eb}}",
+    "bytes": "{{n}} B"
+  },
+  "col": {
+    "name": "Name",
+    "algorithm": "Algorithm",
+    "rates": "CIR / EIR",
+    "bursts": "CB / EB",
+    "counters": "Conform / exceed / violate (packets)",
+    "status": "Status",
+    "actions": "Actions",
+    "rate": "Rate",
+    "burst": "Burst",
+    "mapId": "Map id",
+    "rows": "Rows",
+    "usedBy": "Marking on",
+    "interface": "Interface",
+    "ingress": "Ingress policer",
+    "egress": "Egress policer / rate limit",
+    "record": "Record",
+    "store": "Store",
+    "mark": "Mark"
+  },
+  "policers": {
+    "title": "Policers",
+    "add": "Add policer",
+    "none": "No policers configured.",
+    "addTitle": "Add policer",
+    "editTitle": "Edit policer {{name}}"
+  },
+  "shapers": {
+    "title": "Rate limits (egress)",
+    "add": "Add rate limit",
+    "none": "No rate limits configured.",
+    "caveat": "VPP 26.06 has no queueing shaper outside the excluded HQoS scheduler. A rate limit is realised as an egress policer (single rate, two colours): traffic above the rate is DROPPED, not delayed. It appears in VPP as the policer shaper:<name>.",
+    "autoBurst": "auto ({{n}} B: ≈ 10 ms, ≥ 3000 B)",
+    "addTitle": "Add rate limit",
+    "editTitle": "Edit rate limit {{name}}"
+  },
+  "maps": {
+    "title": "Marking maps",
+    "add": "Add marking map",
+    "none": "No marking maps configured.",
+    "autoId": "auto",
+    "rowSummary": "{{source}}: {{n}}",
+    "addTitle": "Add marking map",
+    "editTitle": "Edit marking map {{name}}",
+    "id": "Map id (optional)",
+    "idHelp": "VPP egress map id; empty = allocated by the agent",
+    "description": "Description",
+    "gridHelp": "Each cell is a recorded value; type the value to write on egress. Empty cells are not listed (VPP writes 0).",
+    "sources": "Recorded source",
+    "sourceTab": "{{source}} ({{n}})",
+    "sourceRange": "{{source}}: recorded values 0–{{max}}; output values 0–255 (they must fit the marked header)",
+    "gridLabel": "Translation grid for {{source}}",
+    "cellLabel": "Output for {{source}} {{value}}",
+    "cellInvalid": "Some cells are not a number between 0 and 255.",
+    "listed": "{{n}} values listed"
+  },
+  "source": {
+    "ext": "ext (opaque, 0–255)",
+    "vlan": "802.1p PCP",
+    "mpls": "MPLS EXP",
+    "ip": "IP DSCP"
+  },
+  "interfaces": {
+    "title": "Interface attachments",
+    "add": "Attach to an interface",
+    "nothing": "No interface has QoS attached.",
+    "addTitle": "Attach QoS to an interface",
+    "editTitle": "QoS on {{name}}",
+    "interface": "Interface",
+    "interfaceHelp": "A configured interface or sub-interface",
+    "description": "Description",
+    "ingress": "Ingress",
+    "inputPolicer": "Ingress policer",
+    "record": "Record QoS bits from",
+    "recordHelp": "Copies the header's DSCP / PCP / EXP into the packet's QoS record",
+    "store": "Store a fixed QoS value",
+    "storeSource": "Source slot",
+    "storeHelp": "VPP 26.06 stores for the IP source only",
+    "storeValue": "Value",
+    "egress": "Egress",
+    "egressKind": "Egress limiter",
+    "egressPolicer": "Policer",
+    "egressShaper": "Rate limit",
+    "outputPolicer": "Egress policer",
+    "shaper": "Rate limit",
+    "mark": "Mark on egress",
+    "markMap": "Marking map",
+    "markOutput": "Header written",
+    "none": "None",
+    "writeOnlyNote": "Ingress / egress policer and rate-limit attachments are applied once per VPP start and VPP cannot report them back (write-only, D-063): they are not part of the retrieved state. Record, store and mark are read back from VPP.",
+    "egressShaperValue": "rate limit {{name}}",
+    "storeValueText": "{{source}} = {{value}}",
+    "markValueText": "{{map}} → {{output}}"
+  },
+  "label": {
+    "policer_description": "Description",
+    "policer_type": "Algorithm",
+    "policer_rateUnit": "Rate unit",
+    "policer_cir": "Committed information rate (CIR)",
+    "policer_eir": "Excess / peak information rate (EIR)",
+    "policer_cb": "Committed burst (CB)",
+    "policer_eb": "Excess burst (EB)",
+    "policer_round": "Rate rounding",
+    "policer_colorAware": "Colour aware",
+    "policer_conformAction": "Conform action",
+    "policer_conformAction_action": "Action",
+    "policer_conformAction_dscp": "DSCP",
+    "policer_exceedAction": "Exceed action",
+    "policer_exceedAction_action": "Action",
+    "policer_exceedAction_dscp": "DSCP",
+    "policer_violateAction": "Violate action",
+    "policer_violateAction_action": "Action",
+    "policer_violateAction_dscp": "DSCP",
+    "shaper_description": "Description",
+    "shaper_rateKbps": "Rate (kbit/s)",
+    "shaper_burstBytes": "Burst (bytes)"
+  },
+  "help": {
+    "policer_type": "1r2c = single rate, two colours; 1r3c = RFC 2697; 2r3c = RFC 2698 / RFC 4115 / MEF 5 CF1 (two rates)",
+    "policer_rateUnit": "Rates in kbit/s (bursts in bytes) or packets/s (bursts in packets)",
+    "policer_cb": "Bytes (kbit/s) or packets (packets/s)",
+    "policer_eir": "Two-rate policers only (RFC 2698: peak rate ≥ CIR; RFC 4115 / MEF: excess rate)",
+    "policer_eb": "Three-colour policers only",
+    "shaper_burstBytes": "Empty = derived by the agent: ≈ 10 ms of traffic at the rate, at least 3000 bytes"
+  }
+}

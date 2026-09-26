@@ -51,3 +51,23 @@ None.
   re-created, after a VPP restart (also with a repeated PID) or after a failed apply (review H1).
 - `policer.policer` Update re-verifies the stored pool index by name before `policer_update` (review M5); `Reset`
   takes the policer name and looks the index up.
+
+## F-qos-flat additions (2026-09-25)
+
+- **Registered by F-qos-flat** (`subsystems/qos.go`: `policer.Register` with `df7.WithInterfaceKey(dfkit.DefaultInterfaceKey)`,
+  the agent's id range and `df7.WithClassifyTables` over DF-2's persisted classify store). `policer.policer` and
+  `policer.interface` belong to `Domains["services"]`; `policer.bind` and `policer.classify` are registered but in no
+  domain (no configuration leaf: no worker threads on the host, classifier tables are F-rpf-adl-pbr's).
+- **TD-11b ownership declarations** (`ownership.go`): `policer.policer` and `policer.bind` `RecordsNoOwnership()` (the
+  owner-tagged VPP name is the ownership); `policer.interface` `CheckPersistent()` = DF-1 claim store + DF-7 BootStore
+  (applied-once records); `policer.classify` `CheckPersistent()` = DF-1 claim store.
+- **Claim-first Creates** (TD-11b review 3.3): `policer.interface` checks the applied-once record first (applied on
+  this VPP instance → nothing is sent, no claim), then claims, applies, and records; a refused claim fails with nothing
+  sent, a refused apply releases the claim, and when the record cannot be written after the apply the apply is taken
+  back at once (it was applied in this VPP lifetime, so `apply=0` is safe). `policer.classify` claims before
+  `policer_classify_set_interface`.
+- **Helpers for the QosPolicerState / QosPolicerReset RPCs:** `States(ctx, c, owner)` (the Retrieve walk, with the pool
+  index and the token buckets of `policer_details`), `ResetIndex(ctx, c, owner, name)` (`policer_reset`, returns the
+  index; `ErrNoPolicer` for an unknown name). Tests: `qosflat_test.go` (TestOwnershipDeclared,
+  TestAttachmentClaimFirst, TestStatesAndResetIndex).
+- **Shapers (V3):** F-qos-flat realises `services.qos.shapers.<n>` as the policer `shaper:<n>` (1r2c, exceed → drop).

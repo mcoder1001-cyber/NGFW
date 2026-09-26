@@ -36,6 +36,8 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+func init() { ServicesImplemented["ipfix"] = true }
+
 // Schema defaults of services.ipfix (packages/schema/src/domains/services.ts), applied when a leaf
 // is unset in the message (the API sends parsed documents, so this is belt and braces).
 const (

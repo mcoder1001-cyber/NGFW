@@ -44,6 +44,7 @@ import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack (P5)
 import { lispStateFake } from '../features/lisp/fake.js';
+import { qosFlatFake } from '../features/qos-flat/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -777,6 +778,7 @@ export class FakeAgent {
       // wave-BC: F-mpls-srmpls
       // wave-BC: F-lb
       // wave-BC: F-qos-flat
+      ...qosFlatFake(this),
       // wave-BC: F-host-stack
       hostStackState: hostStackFake(this.owner, () => this.current),
       // wave-BC: F-snmp

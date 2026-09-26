@@ -23,6 +23,8 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+func init() { ServicesImplemented["hostStack"] = true }
+
 // RuleWriteOnly marks a leaf the agent applies but VPP cannot report (D-147); the API's drift view
 // ignores it like agent.unsupported-field.
 const RuleWriteOnly = "agent.write-only-field"

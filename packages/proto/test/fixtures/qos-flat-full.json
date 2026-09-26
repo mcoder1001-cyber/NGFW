@@ -1,0 +1,49 @@
+{
+  "interfaces": {
+    "loop1001": { "enabled": true, "ipv4": ["10.1.1.1/24"] },
+    "loop1002": { "enabled": true, "ipv4": ["10.1.2.1/24"] }
+  },
+  "services": {
+    "qos": {
+      "policers": {
+        "w1-gold": {
+          "description": "ingress policing of the customer port",
+          "type": "2r3c-rfc2698",
+          "rateUnit": "kbps",
+          "cir": 20000,
+          "eir": 40000,
+          "cb": "25000",
+          "eb": "50000",
+          "round": "closest",
+          "colorAware": false,
+          "conformAction": { "action": "transmit" },
+          "exceedAction": { "action": "mark-and-transmit", "dscp": 10 },
+          "violateAction": { "action": "drop" }
+        },
+        "w1-pps": { "type": "1r2c", "rateUnit": "pps", "cir": 1000, "cb": "100" }
+      },
+      "shapers": {
+        "w1-uplink": { "description": "drop-based rate limit (V3)", "rateKbps": 50000 },
+        "w1-backup": { "rateKbps": 2000, "burstBytes": "4000" }
+      },
+      "maps": {
+        "w1-remark": {
+          "description": "EF → AF41, CS1 → CS0",
+          "id": 1001,
+          "rows": { "ip": [{ "from": 46, "to": 34 }, { "from": 8, "to": 0 }], "vlan": [{ "from": 5, "to": 34 }] }
+        },
+        "w1-pcp": { "rows": { "ip": [{ "from": 46, "to": 5 }] } }
+      },
+      "interfaces": {
+        "loop1001": {
+          "description": "customer",
+          "policer": { "input": "w1-gold" },
+          "shaper": "w1-uplink",
+          "record": "vlan",
+          "store": { "source": "ip", "value": 0 }
+        },
+        "loop1002": { "policer": { "output": "w1-pps" }, "record": "ip", "mark": { "map": "w1-remark", "output": "ip" } }
+      }
+    }
+  }
+}

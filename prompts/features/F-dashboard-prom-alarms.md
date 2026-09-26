@@ -17,8 +17,8 @@ Reference: TNSR "Dashboard", "Prometheus exporter"; VPP plugin `prom` and the st
 - `apps/api/src/telemetry/{relay.service,stream.route}.ts`, `apps/api/src/infra/bus.ts` (`TOPICS`), `apps/api/src/state/state.controller.ts`
   (`/state/system`, `/state/events`), `apps/api/src/audit/system-events.service.ts` (`system_event` table) — P06, merged: the WS fan-out and
   state routes this builds on. The relay opens `StreamStats` only while a WS client wants counters → the alarm engine takes its **own**
-  upstream subscription through `AgentClient` (no relay edit). `apps/web/src/pages/DashboardPage.tsx` (P07a placeholder, only you touch it) —
-  replace its content
+  upstream subscription through `AgentClient` (no relay edit). `apps/web/src/pages/DashboardPage.tsx` — **owned by WEB-dashboard since 2026-09-26
+  (D-153)**: do not replace it; add your alarms card as one entry in `apps/web/src/domains/dashboard/overview/cards.ts`
 - host facts (checked 2026-09-24): no Prometheus, promtool, Grafana, SMTP relay/`sendmail` installed (no package installs) — validate the
   exposition format with a Go/TS parser test, Grafana JSON stays import-ready only; `prometheus-node-exporter` is the **host's own** service
   on :9100 (active) — never touch it; vrx-a has **no VPP worker threads** (main core only), so worker CPU shows `vpp_main` only

@@ -537,6 +537,22 @@ and never appear in `Retrieve`. Read-only; never mutates.
 - Errors: unknown `list` → `NOT_FOUND`; `limit` > 1000 or more than 1000 `sequences` → `INVALID_ARGUMENT`; VPP not
   connected → `UNAVAILABLE`; an older agent → `UNIMPLEMENTED` (the API answers 501).
 <!-- wave-A: F-host-acl-nftables -->
+
+### F-host-acl-nftables: HostAclState
+
+`HostAclState(HostAclStateRequest{owner}) → HostAclStateResponse{owner, retrieved_at, table, mode, present, in_sync, sets[],
+chains[]}` is the **state RPC** §5 points to for the host firewall the agent renders from `acl.host`, `acl.hostAttachments`
+and `acl.hostSettings` into one nftables table (`inet vrx`; test slots `inet vrx_<owner>` inside their own network namespace).
+It reads the kernel (`nft -j list table inet <table>`, no VPP round trip) and annotates each rule with what the agent rendered:
+`kind` (`established` | `loopback` | `icmp` | `anti-lockout` | `rule` | `unknown`), `list` + `sequence` + `pointer` (into the
+applied document) for `rule`, `text` (the rendered nftables rule without its counter), `verdict`, `comment` (the rule's identity
+`vrx:<list>:<sequence>/<n>:<hash>`) and the counter's `packets`/`bytes`. `present` = the table exists; `in_sync` = the kernel
+table equals the applied rendering (false = drift, re-rendered by the next Apply or resync); `mode` = `apply` (root netns),
+`netns` (a slot namespace) or `check` (validated with `nft -c` only, never loaded). Sets are the expanded address objects
+(`a4_<object>` / `a6_<object>`, elements as canonical prefixes). Counters never appear in `Retrieve` (§5): the `acl` domain it
+returns carries the applied host lists/attachments/settings only. Config gap filled in the same change: `AclConfig.host_settings`
+(field 8, `HostAclSettings{default_input, allow_icmp, anti_lockout{enabled, sources[], interfaces[], ports[]}}`, mirrors the
+schema's `acl.hostSettings`). Renderer mapping, anti-lockout semantics and modes: `docs/agent/renderers/nftables.md`.
 <!-- wave-A: F-nat44-ed-sessions -->
 <!-- wave-A: F-nat44-ei-64-66-nptv6 -->
 <!-- wave-A: P11 -->

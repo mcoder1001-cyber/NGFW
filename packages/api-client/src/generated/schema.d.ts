@@ -1020,6 +1020,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/host-acl': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Host firewall (nftables table inet vrx): sets, chains and rules with packet/byte counters, mode and in-sync flag */
+    get: operations['HostAclNftables_hostAcl'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4221,6 +4238,49 @@ export interface components {
         /** Description */
         description?: string;
       }[];
+      /** Host firewall settings */
+      hostSettings?: {
+        /**
+         * Default input policy
+         * @default accept
+         * @enum {string}
+         */
+        defaultInput: 'accept' | 'drop';
+        /**
+         * Allow ICMP
+         * @default true
+         */
+        allowIcmp: boolean;
+        /**
+         * Anti-lockout
+         * @default {}
+         */
+        antiLockout: {
+          /**
+           * Anti-lockout rule
+           * @default true
+           */
+          enabled: boolean;
+          /**
+           * Management sources
+           * @default []
+           */
+          sources: string[];
+          /**
+           * Management interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Management TCP ports
+           * @default [
+           *       22,
+           *       443
+           *     ]
+           */
+          ports: number[];
+        };
+      };
     };
     /**
      * VPN
@@ -11922,6 +11982,138 @@ export interface operations {
       };
       /** @description Conflict (candidate locked by another user, commit pending, …) */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HostAclNftables_hostAcl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description nftables table in family inet: vrx (product) or vrx_<owner> (test slots) */
+            table: string;
+            /**
+             * @description apply = root netns; netns = a test slot namespace; check = validated with nft -c only, never loaded
+             * @enum {string}
+             */
+            mode: 'apply' | 'netns' | 'check';
+            /** @description the table exists in the kernel */
+            present: boolean;
+            /** @description the kernel table equals the last applied rendering (false = drift) */
+            inSync: boolean;
+            sets: {
+              /** @description a4_<object> / a6_<object> */
+              name: string;
+              /** @description ipv4_addr | ipv6_addr */
+              type: string;
+              /** @description address object or group it was expanded from; "" when unknown */
+              object: string;
+              /** @description canonical prefixes, sorted */
+              elements: string[];
+            }[];
+            chains: {
+              name: string;
+              /** @description input | output | forward */
+              hook: string;
+              priority: number;
+              /** @description accept | drop */
+              policy: string;
+              /** @description the attached host list; "" when unknown */
+              list: string;
+              rules: {
+                /**
+                 * @description what rendered the rule; unknown = not rendered by this agent (or its rendering is unknown)
+                 * @enum {string}
+                 */
+                kind: 'established' | 'loopback' | 'icmp' | 'anti-lockout' | 'rule' | 'unknown';
+                /** @description kind=rule: the host list (acl.host.<list>) */
+                list: string;
+                /** @description kind=rule: the rule sequence; 0 otherwise */
+                sequence: number;
+                /** @description kind=rule: JSON pointer of the rule in the applied document */
+                pointer: string;
+                /** @description the rule as rendered (nftables syntax, without the counter); "" when unknown */
+                text: string;
+                /** @description accept | drop | reject */
+                verdict: string;
+                /** @description nftables comment, the rule identity vrx:<list>:<sequence>/<n>:<hash> */
+                comment: string;
+                /** @description uint64 counter as a decimal string */
+                packets: string;
+                /** @description uint64 counter as a decimal string */
+                bytes: string;
+              }[];
+            }[];
+            /** @description per configuration rule (list + sequence), sorted */
+            rules: {
+              list: string;
+              sequence: number;
+              pointer: string;
+              /** @description sum over the kernel rules this configuration rule rendered to */
+              packets: string;
+              /** @description uint64 counter as a decimal string */
+              bytes: string;
+              /** @description how many kernel rules (families × protocols) it rendered to */
+              nftRules: number;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

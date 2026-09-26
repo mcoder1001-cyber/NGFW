@@ -635,8 +635,16 @@ func TestRetrieveSubsystems(t *testing.T) {
 	if len(got.GetDesiredState().GetVrfs()) != 0 || got.GetDesiredState().GetRouting() != nil || got.GetDesiredState().GetInterfaces()["loop701"].GetVrf() != "red" {
 		t.Fatalf("interfaces only: %s", protojson.Format(got.GetDesiredState()))
 	}
-	if _, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"management"}}); grpcCode(err) != codes.Unimplemented {
-		t.Fatalf("management: %v", err)
+	// An unimplemented subsystem is UNIMPLEMENTED. The example comes from the registry (D-129 F5, F-host-acl-nftables
+	// review M3), so a feature that implements one more domain never breaks this line; none left → nothing to check.
+	for _, k := range rootKeys {
+		if _, impl := subsystems.Domains[k]; impl {
+			continue
+		}
+		if _, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{k}}); grpcCode(err) != codes.Unimplemented {
+			t.Fatalf("%s: %v", k, err)
+		}
+		break
 	}
 	if _, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"x"}}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("x: %v", err)

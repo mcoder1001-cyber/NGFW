@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-host-acl-nftables
-id: F-host-acl-nftables   branch: task/F-host-acl-nftables   worktree: /root/ngfw-wt/F-host-acl-nftables   base: main@<BASE>   started: <STARTED>
+id: F-host-acl-nftables   branch: task/F-host-acl-nftables   worktree: /root/ngfw-wt/F-host-acl-nftables   base: main@task/F-object-model@31249d3 (SPECULATIVE D-114: F-object-model done, under review)   started: 2026-09-24T19:52
 title: Wave A (day 7-9): local-in ACL + nftables host policy renderer
 prompt: prompts/features/F-host-acl-nftables.md   (template: prompts/FEATURE-TEMPLATE.md; updated on task/prep-waveA for P08's layout)   wbs: D5.3
 scope: the local-in / management-plane ACL (acl.host*, acl.hostAttachments), rendered by a new agent renderer to ONE nftables table `inet vrx`. This renderer is the single owner of the host firewall (D-057). Includes the anti-lockout rule and per-rule counters.
@@ -10,16 +10,16 @@ merged deps you can rely on: P08, DF-4, F-object-model
   - renderer framework (merged): internal/renderers/{renderer.go,helpers_*,ALLOWLIST.md}, renderers/frr (+frrtest netns harness), renderers/strongswan/swantest (setns on a locked thread), renderers/chrony
   - also on main: TD-3, TD-2
 read first: prompts/features/F-host-acl-nftables.md · docs/status/wave-A-hotspots.md (§0 rules, A1 A2 A4 A5 C5–C7 P1 P4 P5 W1–W3) · apps/agent/internal/renderers/README.md + ALLOWLIST.md · docs/agent/renderers/frr.md, strongswan.md · docs/status/vertical-slice.md · docs/status/tasks/F-object-model.md · prompts/P10-packaging-deb.md item 5 · prompts/features/F-hardening-lite.md · docs/decisions/LOG.md D-057, D-079, D-089, D-094
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - your test netns / veths / nft table carry the prefix: ns-w<SLOT>-…, table inet vrx_w<SLOT>
+slot: 9 → VRX_SLOT=9 VRX_TEST_PREFIX=w9 VRX_HTTP_PORT=3000+100·9 VRX_WEB_PORT=5000+100·9 VRX_METRICS_PORT=9100+10·9+1 VRX_AGENT_SOCKET=/run/vrx-test/w9/agent.sock VRX_PG_DATABASE=vrx_w9 VRX_VALKEY_DB=9 VRX_VPP_TABLE_BASE=9000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 9)"`
+  - your test netns / veths / nft table carry the prefix: ns-w9-…, table inet vrx_w9
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none. nftables is a kernel ruleset, not a daemon: `nftables.service` is inactive and disabled on this host and stays that way (never start, enable or restart it)
 HOST FIREWALL SAFETY: every worker and the manager reach this host over SSH on ens192.
   - NEVER load, flush or delete anything in the ROOT netns ruleset: no `nft -f`, `nft flush`, `nft delete`, no iptables
   - only `nft -c` (check) and `nft list` may run in the root netns
-  - every apply goes to `table inet vrx_w<SLOT>` inside your own netns: the unit harness, the integration tests AND the slot agent in stack/topology runs
+  - every apply goes to `table inet vrx_w9` inside your own netns: the unit harness, the integration tests AND the slot agent in stack/topology runs
   - paste `nft list tables` of the root netns before and after every host run; the two must be identical
 decision you must log: the agent runs no renderer in its Apply path yet (prompt "Inputs").
   - (a) a singleton scheduler descriptor that wraps the renderer, registered under Domains["acl"] — the default; needs no core change
@@ -70,8 +70,10 @@ coordination: F-acl runs in parallel on the same `acl` root key; each reports th
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-host-acl-nftables.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-host-acl-nftables-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w9 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-host-acl-nftables.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · test netns/veths deleted · root-netns `nft list tables` unchanged (pasted) · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w9 dropped · test netns/veths deleted · root-netns `nft list tables` unchanged (pasted) · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-host-acl-nftables-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
+
+MANAGER ADDENDA: D-128 — never run `show trace` / `trace add` / `clear trace` on the shared VPP. The ROOT-netns nftables rule above is absolute: the management NIC (ens192, 172.30.126.195) must stay reachable. GIT RULE: git only inside your own worktree, NEVER in /root/ngfw. CI: if your branch copy of tools/ci.sh fails in the contract guard with SIGPIPE, run main's copy (`git show main:tools/ci.sh > /tmp/g-w9/ci.sh`, D-127).

@@ -1,0 +1,74 @@
+// Value of the host-acl.nftables descriptor (scheduler.KV.Value), agent-internal (F-host-acl-nftables).
+// The builder (Build) produces it from acl.host* + the expanded objects; Retrieve produces it from the
+// kernel (`nft -j list table inet <table>`) plus the agent's store of the last applied value. proto.Equal
+// on it is the scheduler's diff. Regenerate: see README.md ("Generated code").
+syntax = "proto3";
+
+package vrx.agent.nftables;
+
+import "vrx/v1/dataplane.proto";
+
+option go_package = "ngfw/agent/internal/renderers/nftables;nftables";
+
+// HostTable is the whole host firewall table of one owner: the configuration it was rendered from and
+// the rendered sets and chains.
+message HostTable {
+  // The applied configuration: only acl.host, acl.host_attachments and acl.host_settings are set.
+  // Desired: from the document. Retrieve: from the agent's store (the value last applied).
+  vrx.v1.AclConfig config = 1;
+  // Named sets referenced by the rules, sorted by name. Retrieve: from the kernel.
+  repeated Set sets = 2;
+  // Base chains in evaluation order (hook input, output, forward; then priority; then name).
+  // Retrieve: from the kernel, in the same order.
+  repeated Chain chains = 3;
+  // Retrieve only: the kernel table carries `flags dormant` (it exists but filters nothing). Desired: false.
+  bool dormant = 4;
+  // Store only (never desired, never retrieved): the kernel's own rule bodies right after the last `nft -f`,
+  // "<chain>/<comment>" → sha256 of the rule's `expr` JSON with counter values stripped. Retrieve pairs a
+  // kernel rule with its stored annotations only while its body still hashes the same (fix round 1, M1).
+  map<string, string> kernel_hashes = 5;
+}
+
+// Set is one named interval set of addresses (an expanded address object or group).
+message Set {
+  // "a4_<object>" (ipv4_addr) or "a6_<object>" (ipv6_addr).
+  string name = 1;
+  // "ipv4_addr" | "ipv6_addr".
+  string type = 2;
+  // Elements as canonical (masked) prefixes, sorted in address order.
+  repeated string elements = 3;
+}
+
+// Chain is one base chain (one per enabled attachment).
+message Chain {
+  // "in_<list>" | "out_<list>" | "fwd_<list>".
+  string name = 1;
+  // "input" | "output" | "forward".
+  string hook = 2;
+  // -500..500.
+  int32 priority = 3;
+  // "accept" | "drop".
+  string policy = 4;
+  // Rules in order.
+  repeated Rule rules = 5;
+}
+
+// Rule is one nftables rule. Its identity is the comment, which ends in a hash of `text`, so the kernel's
+// own re-printing of the rule never matters: Retrieve reads the comment from the kernel and takes the
+// annotations (text, kind, list, sequence, pointer, verdict) from the store entry with the same comment.
+message Rule {
+  // "vrx:<id>/<n>:<hash8>"; <id> = "<list>:<sequence>" or "@established" | "@loopback" | "@icmp" |
+  // "@anti-lockout"; <n> = index of the nft rule within that id; <hash8> = sha256(text)[:8].
+  string comment = 1;
+  // The rule as rendered, without counter and comment.
+  string text = 2;
+  // "established" | "loopback" | "icmp" | "anti-lockout" | "rule" ("unknown" only on Retrieve).
+  string kind = 3;
+  // kind=rule: the host list and the rule's sequence.
+  string list = 4;
+  uint32 sequence = 5;
+  // kind=rule: JSON pointer of the rule in the document (/acl/host/<list>/rules/<i>).
+  string pointer = 6;
+  // "accept" | "drop" | "reject".
+  string verdict = 7;
+}

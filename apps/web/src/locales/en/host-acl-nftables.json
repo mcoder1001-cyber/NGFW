@@ -1,0 +1,267 @@
+{
+  "nav": "Host ACL",
+  "title": "Host ACL",
+  "intro": "Access lists that protect the appliance itself (SSH, the web UI and API, SNMP, routing sessions, DNS and NTP served by the box). The agent renders them into the nftables table inet vrx: one chain per attachment, established connections first, then the anti-lockout rule, then your rules, each with a counter.",
+  "tabsLabel": "Host ACL sections",
+  "tabs": {
+    "lists": "Lists",
+    "attachments": "Attachments",
+    "settings": "Settings",
+    "rendered": "Rendered table"
+  },
+  "loading": "Loading",
+  "refresh": "Refresh",
+  "readonly": "Your role cannot change the configuration",
+  "pending": "pending",
+  "yes": "yes",
+  "no": "no",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "banner": {
+    "enabledSourcesIfaces": "Anti-lockout: management TCP {{ports}} from {{sources}} on {{interfaces}} is always accepted.",
+    "enabledSourcesAnyIface": "Anti-lockout: management TCP {{ports}} from {{sources}} on any interface is always accepted.",
+    "enabledAnySourceIfaces": "Anti-lockout: management TCP {{ports}} from any source on {{interfaces}} is always accepted.",
+    "enabledAnySourceAnyIface": "Anti-lockout: management TCP {{ports}} from any source on any interface is always accepted. Narrow the sources in Settings.",
+    "disabled": "The anti-lockout rule is off: a commit is refused if your own rules would drop management TCP {{ports}}.",
+    "drift": "The kernel table {{table}} no longer matches the applied configuration; the agent re-renders it on the next commit or resync.",
+    "missing": "The kernel table {{table}} is missing although host lists are attached.",
+    "checkMode": "Check mode: the agent validates the table {{table}} with nft -c but never loads it."
+  },
+  "lists": {
+    "add": "Add list",
+    "empty": "No host lists yet.",
+    "editNamed": "Edit list {{name}}",
+    "deleteNamed": "Delete list {{name}}",
+    "editTitle": "Edit host list {{name}}",
+    "addTitle": "Add host list",
+    "name": "Name",
+    "nameHelp": "Letters, digits, _ . - (up to 63)",
+    "exists": "A host list with this name exists"
+  },
+  "rules": {
+    "add": "Add rule",
+    "tableLabel": "Rules of {{name}}",
+    "empty": "No rules.",
+    "editTitle": "Edit rule {{sequence}} of {{list}}",
+    "addTitle": "Add a rule to {{list}}",
+    "deleteNamed": "Delete rule {{sequence}}",
+    "nftRules_one": "{{count}} kernel rule",
+    "nftRules_other": "{{count}} kernel rules (address families × protocols)"
+  },
+  "col": {
+    "sequence": "Seq",
+    "action": "Action",
+    "ipVersion": "IP",
+    "source": "Source",
+    "destination": "Destination",
+    "service": "Service",
+    "interface": "Interface",
+    "log": "Log",
+    "enabled": "Enabled",
+    "description": "Description",
+    "packets": "Packets",
+    "bytes": "Bytes",
+    "actions": "Actions",
+    "list": "List",
+    "chain": "Hook",
+    "priority": "Priority"
+  },
+  "action": {
+    "accept": "accept",
+    "drop": "drop",
+    "reject": "reject"
+  },
+  "ipVersion": {
+    "ipv4": "IPv4",
+    "ipv6": "IPv6",
+    "any": "any"
+  },
+  "hook": {
+    "input": "input",
+    "output": "output",
+    "forward": "forward"
+  },
+  "attachments": {
+    "add": "Attach a list",
+    "empty": "No list is attached; nothing is rendered.",
+    "deleteNamed": "Detach {{list}} from {{chain}}",
+    "editTitle": "Edit attachment of {{list}}",
+    "addTitle": "Attach a host list"
+  },
+  "settings": {
+    "intro": "How the input chains are rendered. The anti-lockout rule accepts management traffic before every rule; switched off, a commit is refused if the rules would drop it.",
+    "saved": "Saved to the candidate. Commit to apply."
+  },
+  "rendered": {
+    "unavailable": "The agent does not report the host firewall.",
+    "present": "loaded",
+    "absent": "not loaded",
+    "inSync": "in sync",
+    "drift": "drift",
+    "retrievedAt": "read {{at}}",
+    "noChains": "No chains: no host list is attached.",
+    "priority": "priority {{priority}}",
+    "policy": "policy {{policy}}",
+    "list": "list {{list}}",
+    "chainLabel": "Rules of chain {{name}}",
+    "col": {
+      "kind": "Kind",
+      "rule": "Rule",
+      "verdict": "Verdict",
+      "packets": "Packets",
+      "bytes": "Bytes"
+    },
+    "sets": "Sets",
+    "setCol": {
+      "name": "Set",
+      "object": "Object",
+      "type": "Family",
+      "elements": "Elements"
+    },
+    "emptySet": "(empty)",
+    "family": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6"
+    }
+  },
+  "mode": {
+    "apply": "applied",
+    "netns": "slot namespace",
+    "check": "check only"
+  },
+  "kind": {
+    "established": "established",
+    "loopback": "loopback",
+    "icmp": "ICMP",
+    "anti-lockout": "anti-lockout",
+    "rule": "rule",
+    "unknown": "unknown"
+  },
+  "match": {
+    "any": "Any",
+    "prefix": "Prefix",
+    "object": "Object",
+    "inline": "Inline"
+  },
+  "field": {
+    "sequence": {
+      "title": "Sequence",
+      "help": "Rules run in this order"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "enabled": {
+      "title": "Enabled"
+    },
+    "action": {
+      "title": "Action"
+    },
+    "ipVersion": {
+      "title": "IP version"
+    },
+    "source": {
+      "title": "Source"
+    },
+    "destination": {
+      "title": "Destination"
+    },
+    "service": {
+      "title": "Service"
+    },
+    "interface": {
+      "title": "Interface",
+      "help": "Linux interface the packet arrives on (input) or leaves by (output); empty = any"
+    },
+    "log": {
+      "title": "Log",
+      "help": "Log matches with the prefix vrx:<list>:<sequence>"
+    },
+    "tags": {
+      "title": "Tags",
+      "help": "Names of entries in objects.tags"
+    },
+    "list": {
+      "title": "Host list"
+    },
+    "chain": {
+      "title": "Hook",
+      "help": "input = traffic to the box, output = from the box, forward = routed by the Linux host stack"
+    },
+    "priority": {
+      "title": "Priority",
+      "help": "nftables chain priority; lower runs first"
+    },
+    "defaultInput": {
+      "title": "Default input policy",
+      "help": "drop = only traffic a rule (or the anti-lockout rule) accepts reaches the host"
+    },
+    "allowIcmp": {
+      "title": "Allow ICMP",
+      "help": "Accept ICMP and ICMPv6 in input chains before the rules (IPv6 neighbour discovery is always accepted)"
+    },
+    "antiLockout": {
+      "title": "Anti-lockout",
+      "enabled": {
+        "title": "Anti-lockout rule",
+        "help": "Accept management SSH/HTTPS at the top of every input chain. Off: the rules themselves must accept it (checked on commit)"
+      }
+    },
+    "sources": {
+      "title": "Management sources",
+      "help": "Prefixes management connections come from; empty = any source"
+    },
+    "interfaces": {
+      "title": "Management interfaces",
+      "help": "Linux interfaces management connections arrive on; empty = any interface"
+    },
+    "ports": {
+      "title": "Management TCP ports",
+      "help": "SSH and HTTPS by default"
+    },
+    "prefix": {
+      "title": "Prefix"
+    },
+    "name": {
+      "title": "Object",
+      "help": "Name of an address object or group (source, destination) or of a service object or group (service)"
+    },
+    "spec": {
+      "title": "Service"
+    },
+    "protocol": {
+      "title": "Protocol"
+    },
+    "destinationPorts": {
+      "title": "Destination ports",
+      "help": "empty = any port"
+    },
+    "sourcePorts": {
+      "title": "Source ports",
+      "help": "empty = any port"
+    },
+    "tcpFlags": {
+      "title": "TCP flags"
+    },
+    "mask": {
+      "title": "Mask",
+      "help": "bitmask over FIN…CWR"
+    },
+    "value": {
+      "title": "Value"
+    },
+    "type": {
+      "title": "ICMP type",
+      "help": "omit = any type"
+    },
+    "code": {
+      "title": "ICMP code",
+      "help": "requires type; omit = any code"
+    },
+    "number": {
+      "title": "IP protocol number",
+      "help": "e.g. 47 = GRE, 50 = ESP, 89 = OSPF"
+    }
+  }
+}

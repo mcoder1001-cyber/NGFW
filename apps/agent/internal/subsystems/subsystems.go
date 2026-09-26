@@ -64,7 +64,7 @@ const (
 	Objects = "objects"
 	// wave-A: F-acl
 	ACL = "acl" // shared with F-host-acl-nftables (one key, both families)
-	// wave-A: F-host-acl-nftables
+	// wave-A: F-host-acl-nftables (shares the ACL key/const above)
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -169,9 +169,8 @@ var Domains = map[string][]string{
 	// wave-A: F-rpf-adl-pbr (services: autosdl is appended to the services entry by rpf_adl_pbr.go init)
 	// wave-A: F-object-model
 	Objects: objectModelDescriptors(), // agent-local objects.* family (object_model.go)
-	// wave-A: F-acl
-	ACL: aclDescriptors(), // DF-4 acl plugin family (acl.go); F-host-acl-nftables appends its own
-	// wave-A: F-host-acl-nftables
+	// wave-A: F-acl + F-host-acl-nftables (one ACL entry, both families)
+	ACL: append(append([]string{}, aclDescriptors()...), hostACLDescriptors()...), // DF-4 acl plugin (acl.go) + host-acl.nftables (host_acl.go)
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -326,6 +325,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-host-acl-nftables
+	if err := w.registerHostACL(r); err != nil { // host firewall: nftables renderer as one descriptor (host_acl.go)
+		return nil, err
+	}
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11

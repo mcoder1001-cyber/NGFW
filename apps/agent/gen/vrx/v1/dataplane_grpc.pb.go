@@ -68,6 +68,7 @@ const (
 	Dataplane_ListNeighbors_FullMethodName     = "/vrx.v1.Dataplane/ListNeighbors"
 	Dataplane_FqdnObjectState_FullMethodName   = "/vrx.v1.Dataplane/FqdnObjectState"
 	Dataplane_AclState_FullMethodName          = "/vrx.v1.Dataplane/AclState"
+	Dataplane_HostAclState_FullMethodName      = "/vrx.v1.Dataplane/HostAclState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -165,6 +166,11 @@ type DataplaneClient interface {
 	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
 	// from the stats segment, never a whole list in one message. Never mutates.
 	AclState(ctx context.Context, in *AclStateRequest, opts ...grpc.CallOption) (*AclStateResponse, error)
+	// HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+	// `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+	// `nft -j list table`, and whether the kernel table still matches the applied rendering.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+	HostAclState(ctx context.Context, in *HostAclStateRequest, opts ...grpc.CallOption) (*HostAclStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -422,6 +428,16 @@ func (c *dataplaneClient) AclState(ctx context.Context, in *AclStateRequest, opt
 	return out, nil
 }
 
+func (c *dataplaneClient) HostAclState(ctx context.Context, in *HostAclStateRequest, opts ...grpc.CallOption) (*HostAclStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostAclStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_HostAclState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -517,6 +533,11 @@ type DataplaneServer interface {
 	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
 	// from the stats segment, never a whole list in one message. Never mutates.
 	AclState(context.Context, *AclStateRequest) (*AclStateResponse, error)
+	// HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+	// `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+	// `nft -j list table`, and whether the kernel table still matches the applied rendering.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+	HostAclState(context.Context, *HostAclStateRequest) (*HostAclStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -592,6 +613,9 @@ func (UnimplementedDataplaneServer) FqdnObjectState(context.Context, *FqdnObject
 }
 func (UnimplementedDataplaneServer) AclState(context.Context, *AclStateRequest) (*AclStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AclState not implemented")
+}
+func (UnimplementedDataplaneServer) HostAclState(context.Context, *HostAclStateRequest) (*HostAclStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HostAclState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -989,6 +1013,24 @@ func _Dataplane_AclState_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_HostAclState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostAclStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).HostAclState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_HostAclState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).HostAclState(ctx, req.(*HostAclStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1071,6 +1113,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AclState",
 			Handler:    _Dataplane_AclState_Handler,
+		},
+		{
+			MethodName: "HostAclState",
+			Handler:    _Dataplane_HostAclState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

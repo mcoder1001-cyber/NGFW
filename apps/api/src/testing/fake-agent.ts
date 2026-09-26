@@ -50,6 +50,7 @@ import { neighborsRaFake } from '../features/neighbors-ra/fake.js';
 import { nat44EdSessionsFake } from '../features/nat44-ed-sessions/fake.js';
 import { nat44Ei6466Nptv6Fake } from '../features/nat44-ei-64-66-nptv6/fake.js';
 import { wireguardFakeState } from '../features/wireguard/fake.js'; // F-wireguard (P5)
+import { bgpFake } from '../features/bgp/fake.js'; // P12
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -836,6 +837,7 @@ export class FakeAgent {
       // wave-A: F-wireguard
       wireguardState: wireguardFakeState(this), // features/wireguard/fake.ts
       // wave-A: P12
+      ...bgpFake(this), // routingState + listRoutes of FRR routes (source lcp-rt-dynamic; the rest → F-vrf's fake)
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
     };

@@ -35,7 +35,8 @@ sets its share of the traffic (3 and 1 → 75 % / 25 % of the flows). A weight o
 refused (`routing.vrf-static-ecmp-single-path-weight`). A **blackhole** route has no next hop and drops what matches.
 A next hop may be **resolved in another VRF** (`nextHops[].vrf`, e.g. a route in `red` towards a gateway of `default`) —
 only for a next hop given by address, without an egress interface. **Program via FRR** (`viaFrr`) hands the route to FRR
-(staticd) instead (D-072: one programmer per route; the agent then does not program it, FRR rendering arrives with P12).
+(staticd) instead (D-072: one programmer per route; the agent then does not program it, FRR renders it — see [BGP](bgp.md) —
+and an agent that drives no FRR reports the route as a warning).
 
 The grid shows each route, its paths with weights, and whether the route is **installed** in its VRF's FIB right now. Click
 a route to edit it: the next-hop list is the ECMP path editor (one row per path, with its weight and optional VRF).

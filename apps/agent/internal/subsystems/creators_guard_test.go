@@ -101,7 +101,6 @@ var knownAliasCreatorGaps = map[string]string{
 	gtpu.ForwardName:     "F-tunnels (shares the GTPU class with gtpu.tunnel: needs a KeyProvider)",
 	l2tp.TunnelName:      "F-tunnels",
 	pppoe.SessionName:    "F-tunnels",
-	lcp.NameItfPair:      "P12 (untagged VPP-side host tap: needs a KeyProvider)",
 }
 
 func TestEveryInterfaceCreatorNamesItsAlias(t *testing.T) {

@@ -36,7 +36,8 @@ type Renderer struct {
 	paths    Paths
 	version  string
 	mapIf    InterfaceMapper
-	sections []Section // nil: framework + RegisteredSections() at Render time
+	sections []Section             // nil: framework + RegisteredSections() at Render time
+	ifLines  []NamedInterfaceLines // nil: registeredInterfaceLines() at Render time (seam S2)
 	readers  []StateReader
 	resolver SecretResolver
 	secrets  secretSet
@@ -127,6 +128,13 @@ func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers
 		return nil, err
 	}
 	rc := &RenderContext{Ctx: ctx, Input: desired, Desired: ds, Ext: ext, mapIf: r.mapIf, resolver: r.resolver, model: model}
+	ifLines := r.ifLines
+	if ifLines == nil {
+		ifLines = registeredInterfaceLines()
+	}
+	if err := mergeInterfaceLines(model, ifLines, rc); err != nil {
+		return nil, redactErr(err, &r.secrets)
+	}
 	conf, err := assemble(r.allSections(), rc)
 	if err != nil {
 		return nil, redactErr(err, &r.secrets)

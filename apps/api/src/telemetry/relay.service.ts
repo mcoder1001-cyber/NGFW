@@ -42,6 +42,9 @@ export function eventTopic(kind: EventKind): Topic {
     case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
       return 'wireguard.events';
     // wave-A: P12
+    case EventKind.EVENT_KIND_ROUTING_CHANGED:
+    case EventKind.EVENT_KIND_BGP_NEIGHBOR_CHANGED:
+      return 'routing.events';
     default:
       return 'agent.events';
   }

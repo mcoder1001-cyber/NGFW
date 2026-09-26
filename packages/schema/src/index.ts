@@ -95,6 +95,7 @@ export * from './domains/ext/rpf-adl-pbr.js';
 // wave-A: F-host-acl-nftables
 export * from './domains/ext/host-acl-nftables.js';
 // wave-A: P12
+export * from './domains/ext/frr-linuxcp.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 export * from './domains/ext/snmp.js'; // F-snmp (unanchored)

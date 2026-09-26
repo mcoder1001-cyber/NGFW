@@ -116,6 +116,7 @@ var Domains = map[string][]string{
 		rpfAdlPbrADL,
 		rpfAdlPbrADLAllow,
 		// wave-A: P12
+		lcpItfPairName,
 	},
 	VRFs: {
 		core.VRFName,
@@ -142,6 +143,7 @@ var Domains = map[string][]string{
 		rpfAdlPbrABFAttach,
 		rpfAdlPbrPolicyName,
 		// wave-A: P12
+		frrConfigName,
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
@@ -351,6 +353,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: P12
+	registerP12(r, w)
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)

@@ -1,0 +1,76 @@
+ip prefix-list pl-low description peer low half
+ip prefix-list pl-low seq 5 permit 10.8.64.0/18 le 25
+ipv6 prefix-list pl-v6 seq 5 deny 2001:db8::/32 ge 48 le 64
+ipv6 prefix-list pl-v6 seq 10 permit ::/0 le 128
+bgp community-list standard vrx-rm-all-5 seq 5 permit 65000:100
+bgp as-path access-list vrx-rm-all-5 seq 5 permit ^65081_
+route-map rm-all permit 5
+ match ip next-hop prefix-list pl-low
+ match interface w8-l0
+ match community vrx-rm-all-5
+ match as-path vrx-rm-all-5
+ match metric 7
+ match tag 9
+ set as-path prepend 65080 65080
+ set ip next-hop 10.8.9.1
+ set metric 20
+ set tag 5
+ set weight 100
+exit
+route-map rm-all permit 6
+ match ipv6 address prefix-list pl-v6
+ set ipv6 next-hop global 2001:db8::1
+exit
+route-map rm-in deny 10
+ description drop the low half
+ match ip address prefix-list pl-low
+exit
+route-map rm-in permit 20
+ set community 65080:20 additive
+ set local-preference 150
+exit
+router bgp 65080
+ bgp router-id 10.8.9.1
+ no bgp ebgp-requires-policy
+ no bgp default ipv4-unicast
+ bgp graceful-restart
+ neighbor pg peer-group
+ neighbor pg remote-as 65081
+ neighbor pg description p12 peers
+ neighbor pg timers 3 9
+ neighbor 10.8.9.2 peer-group pg
+ neighbor 10.8.9.2 description peer one
+ neighbor 10.8.9.2 password VRX_TEST_PSK_P12_1
+ neighbor 10.8.9.2 update-source w8-l0
+ neighbor 10.8.9.77 remote-as 65099
+ neighbor 10.8.9.77 ebgp-multihop
+ neighbor 10.8.9.77 timers 3 9
+ neighbor 10.8.9.77 shutdown
+ neighbor 2001:db8::2 remote-as 65082
+ neighbor 2001:db8::2 ebgp-multihop 2
+ !
+ address-family ipv4 unicast
+  network 10.8.3.0/24
+  network 10.8.250.0/24 route-map rm-all
+  redistribute connected metric 10
+  redistribute static route-map rm-all
+  neighbor pg activate
+  neighbor pg soft-reconfiguration inbound
+  neighbor pg route-map rm-in in
+  neighbor pg route-map rm-all out
+  neighbor 10.8.9.77 activate
+  neighbor 10.8.9.77 next-hop-self
+  neighbor 10.8.9.77 default-originate
+  neighbor 10.8.9.77 prefix-list pl-low in
+  neighbor 10.8.9.77 maximum-prefix 1000
+ exit-address-family
+ !
+ address-family ipv6 unicast
+  network 2001:db8:8::/48
+  redistribute connected metric 10
+  redistribute static route-map rm-all
+  neighbor 10.8.9.77 activate
+  neighbor 10.8.9.77 prefix-list pl-v6 in
+  neighbor 2001:db8::2 activate
+ exit-address-family
+exit

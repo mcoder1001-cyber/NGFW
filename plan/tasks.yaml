@@ -1137,6 +1137,78 @@ tasks:
   started: ''
   finished: ''
   notes: 'Added 2026-09-26 at the user''s request. VPP 26.06 has no NAT46 plugin (binapi: nat44_ed, nat44_ei, nat64, nat66, map, cnat, pnat). Design spike first: (a) stateless SIIT (RFC 7915) — can the map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
+- id: F-system-identity
+  title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
+  prompt: prompts/features/F-system-identity.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - P08
+  - W-seed-BC
+  - WEB-2
+  priority: 3
+  est_hours: 8
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.14
+  scope: apply the `system` schema domain on the box (renderer) and build its screen
+  files_owned: apps/agent/internal/renderers/sysident/** docs/agent/renderers/sysident.md apps/agent/internal/desired/system*.go apps/agent/internal/subsystems/system*.go apps/web/src/domains/system/identity/** apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry.'
+- id: F-dataplane-ui
+  title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
+  prompt: prompts/features/F-dataplane-ui.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - P08
+  - WEB-2
+  - F-startup-gen
+  - F-startup-apply
+  priority: 4
+  est_hours: 6
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.6
+  scope: UI + API state/preview for the `dataplane` domain; the apply button stays disabled until TD-17 merges
+  files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav entry.'
+- id: F-management-ui
+  title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
+  prompt: prompts/features/F-management-ui.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - P08
+  - WEB-2
+  - TD-10b
+  - F-unbound-chrony-syslog
+  priority: 4
+  est_hours: 6
+  state: todo
+  parked_on: ''
+  wbs:
+  - D0.9
+  - D0.10
+  scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
+  files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md

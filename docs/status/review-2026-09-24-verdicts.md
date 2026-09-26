@@ -123,5 +123,5 @@ The report's §2 line numbers predate the TD-2 merge; the substance was re-verif
 | ARCH-06 (descriptors/kit, fsync, ParsePrefix) | TD-16 |
 | ARCH-07, ARCH-09, ARCH-13, ARCH-14 (LOW) | tech-debt (ARCH-07 with PENDING-secret-channel) |
 | ARCH-08, ARCH-10 | WEB-1 / WEB-2 (D-123) |
-| always-PENDING: TD-4 Q2, TD-4 Q3, PLAN-1 | PENDING-tools-app-transport, PENDING-session-revocation, PENDING-system-identity |
+| always-PENDING: TD-4 Q2, TD-4 Q3, PLAN-1 | PENDING-tools-app-transport, PENDING-session-revocation, DEC-system-identity |
 | refuted | ARCH-12, ARCH-15, A5 |

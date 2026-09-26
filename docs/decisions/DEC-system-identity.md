@@ -1,8 +1,8 @@
-# PENDING: system-identity
+# DEC: system-identity (resolved)
 
 - raised: 2026-09-24 by the manager (ngfw-46), from the architecture audit (PLAN-1, D-125)
-- decision: **<empty until the product owner fills it>**
-- parked tasks: none. No System screen is built until this is answered.
+- decision: **2026-09-26, product owner: option 1, plus rows for the other two unowned screens.** New WBS item D0.14 and row `F-system-identity` (~8 h, wave B). The same request adds `F-dataplane-ui` (Dataplane screen, ~6 h) and `F-management-ui` (Management screen + `management.tls` apply, ~6 h), so no schema domain is left without an owner (D-152).
+- parked tasks: none
 
 ## Context
 - The `system` schema domain (`packages/schema/src/domains/system.ts`, docs/04) models the router's own identity: `hostname`, `timezone`, `banner.login`/`banner.motd` (rendered into /etc/issue, /etc/motd and the web login page), and the DNS client (`dns` upstream resolvers and `searchDomains`).

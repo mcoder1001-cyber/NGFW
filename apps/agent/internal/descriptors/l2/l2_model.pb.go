@@ -140,17 +140,20 @@ func (VtrOp) EnumDescriptor() ([]byte, []int) {
 	return file_l2_model_proto_rawDescGZIP(), []int{1}
 }
 
-// BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>".
+// BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>" or "<owner>:<id>/<name>".
 type BridgeDomain struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Flood         bool                   `protobuf:"varint,2,opt,name=flood,proto3" json:"flood,omitempty"`
-	UuFlood       bool                   `protobuf:"varint,3,opt,name=uu_flood,json=uuFlood,proto3" json:"uu_flood,omitempty"`
-	Forward       bool                   `protobuf:"varint,4,opt,name=forward,proto3" json:"forward,omitempty"`
-	Learn         bool                   `protobuf:"varint,5,opt,name=learn,proto3" json:"learn,omitempty"`
-	ArpTerm       bool                   `protobuf:"varint,6,opt,name=arp_term,json=arpTerm,proto3" json:"arp_term,omitempty"`
-	ArpUfwd       bool                   `protobuf:"varint,7,opt,name=arp_ufwd,json=arpUfwd,proto3" json:"arp_ufwd,omitempty"`
-	MacAge        uint32                 `protobuf:"varint,8,opt,name=mac_age,json=macAge,proto3" json:"mac_age,omitempty"` // minutes, 0 = disabled
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      uint32                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Flood   bool                   `protobuf:"varint,2,opt,name=flood,proto3" json:"flood,omitempty"`
+	UuFlood bool                   `protobuf:"varint,3,opt,name=uu_flood,json=uuFlood,proto3" json:"uu_flood,omitempty"`
+	Forward bool                   `protobuf:"varint,4,opt,name=forward,proto3" json:"forward,omitempty"`
+	Learn   bool                   `protobuf:"varint,5,opt,name=learn,proto3" json:"learn,omitempty"`
+	ArpTerm bool                   `protobuf:"varint,6,opt,name=arp_term,json=arpTerm,proto3" json:"arp_term,omitempty"`
+	ArpUfwd bool                   `protobuf:"varint,7,opt,name=arp_ufwd,json=arpUfwd,proto3" json:"arp_ufwd,omitempty"`
+	MacAge  uint32                 `protobuf:"varint,8,opt,name=mac_age,json=macAge,proto3" json:"mac_age,omitempty"` // minutes, 0 = disabled
+	// Record name of the bridge domain in the configuration (F-bridge-l2): stored in the tag as
+	// "<owner>:<id>/<name>" so Retrieve can name the domain again; empty = tag "<owner>:<id>".
+	Name          string `protobuf:"bytes,9,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -239,6 +242,13 @@ func (x *BridgeDomain) GetMacAge() uint32 {
 		return x.MacAge
 	}
 	return 0
+}
+
+func (x *BridgeDomain) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 // BridgeDomainMember binds an interface to a bridge domain (sw_interface_set_l2_bridge).
@@ -655,7 +665,7 @@ var File_l2_model_proto protoreflect.FileDescriptor
 
 const file_l2_model_proto_rawDesc = "" +
 	"\n" +
-	"\x0el2_model.proto\x12\fvrx.agent.l2\"\xce\x01\n" +
+	"\x0el2_model.proto\x12\fvrx.agent.l2\"\xe2\x01\n" +
 	"\fBridgeDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
 	"\x05flood\x18\x02 \x01(\bR\x05flood\x12\x19\n" +
@@ -664,7 +674,8 @@ const file_l2_model_proto_rawDesc = "" +
 	"\x05learn\x18\x05 \x01(\bR\x05learn\x12\x19\n" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
 	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12\x17\n" +
-	"\amac_age\x18\b \x01(\rR\x06macAge\"\x9e\x01\n" +
+	"\amac_age\x18\b \x01(\rR\x06macAge\x12\x12\n" +
+	"\x04name\x18\t \x01(\tR\x04name\"\x9e\x01\n" +
 	"\x12BridgeDomainMember\x12#\n" +
 	"\rbridge_domain\x18\x01 \x01(\rR\fbridgeDomain\x12\x1c\n" +
 	"\tinterface\x18\x02 \x01(\tR\tinterface\x123\n" +

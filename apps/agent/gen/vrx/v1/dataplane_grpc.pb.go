@@ -46,21 +46,23 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_Apply_FullMethodName           = "/vrx.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName        = "/vrx.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName          = "/vrx.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName     = "/vrx.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName    = "/vrx.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName          = "/vrx.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName          = "/vrx.v1.Dataplane/Health"
-	Dataplane_InterfaceState_FullMethodName  = "/vrx.v1.Dataplane/InterfaceState"
-	Dataplane_QosPolicerState_FullMethodName = "/vrx.v1.Dataplane/QosPolicerState"
-	Dataplane_QosPolicerReset_FullMethodName = "/vrx.v1.Dataplane/QosPolicerReset"
-	Dataplane_HostStackState_FullMethodName  = "/vrx.v1.Dataplane/HostStackState"
-	Dataplane_SnmpState_FullMethodName       = "/vrx.v1.Dataplane/SnmpState"
-	Dataplane_IpfixState_FullMethodName      = "/vrx.v1.Dataplane/IpfixState"
-	Dataplane_LispState_FullMethodName       = "/vrx.v1.Dataplane/LispState"
-	Dataplane_BondState_FullMethodName       = "/vrx.v1.Dataplane/BondState"
+	Dataplane_Apply_FullMethodName             = "/vrx.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName          = "/vrx.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName            = "/vrx.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName       = "/vrx.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName      = "/vrx.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName            = "/vrx.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName            = "/vrx.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName    = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_QosPolicerState_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerState"
+	Dataplane_QosPolicerReset_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerReset"
+	Dataplane_HostStackState_FullMethodName    = "/vrx.v1.Dataplane/HostStackState"
+	Dataplane_SnmpState_FullMethodName         = "/vrx.v1.Dataplane/SnmpState"
+	Dataplane_IpfixState_FullMethodName        = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_LispState_FullMethodName         = "/vrx.v1.Dataplane/LispState"
+	Dataplane_BondState_FullMethodName         = "/vrx.v1.Dataplane/BondState"
+	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
+	Dataplane_BridgeDomainMacs_FullMethodName  = "/vrx.v1.Dataplane/BridgeDomainMacs"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -126,6 +128,13 @@ type DataplaneClient interface {
 	// actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
 	// Read-only; bounded (bonds and their members are few, one message).
 	BondState(ctx context.Context, in *BondStateRequest, opts ...grpc.CallOption) (*BondStateResponse, error)
+	// BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+	// MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+	// and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+	BridgeDomainState(ctx context.Context, in *BridgeDomainStateRequest, opts ...grpc.CallOption) (*BridgeDomainStateResponse, error)
+	// BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+	// at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+	BridgeDomainMacs(ctx context.Context, in *BridgeDomainMacsRequest, opts ...grpc.CallOption) (*BridgeDomainMacsResponse, error)
 }
 
 type dataplaneClient struct {
@@ -313,6 +322,26 @@ func (c *dataplaneClient) BondState(ctx context.Context, in *BondStateRequest, o
 	return out, nil
 }
 
+func (c *dataplaneClient) BridgeDomainState(ctx context.Context, in *BridgeDomainStateRequest, opts ...grpc.CallOption) (*BridgeDomainStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BridgeDomainStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_BridgeDomainState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) BridgeDomainMacs(ctx context.Context, in *BridgeDomainMacsRequest, opts ...grpc.CallOption) (*BridgeDomainMacsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BridgeDomainMacsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_BridgeDomainMacs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -376,6 +405,13 @@ type DataplaneServer interface {
 	// actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
 	// Read-only; bounded (bonds and their members are few, one message).
 	BondState(context.Context, *BondStateRequest) (*BondStateResponse, error)
+	// BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+	// MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+	// and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+	BridgeDomainState(context.Context, *BridgeDomainStateRequest) (*BridgeDomainStateResponse, error)
+	// BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+	// at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+	BridgeDomainMacs(context.Context, *BridgeDomainMacsRequest) (*BridgeDomainMacsResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -430,6 +466,12 @@ func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest
 }
 func (UnimplementedDataplaneServer) BondState(context.Context, *BondStateRequest) (*BondStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BondState not implemented")
+}
+func (UnimplementedDataplaneServer) BridgeDomainState(context.Context, *BridgeDomainStateRequest) (*BridgeDomainStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BridgeDomainState not implemented")
+}
+func (UnimplementedDataplaneServer) BridgeDomainMacs(context.Context, *BridgeDomainMacsRequest) (*BridgeDomainMacsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BridgeDomainMacs not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -701,6 +743,42 @@ func _Dataplane_BondState_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_BridgeDomainState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BridgeDomainStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).BridgeDomainState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_BridgeDomainState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).BridgeDomainState(ctx, req.(*BridgeDomainStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_BridgeDomainMacs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BridgeDomainMacsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).BridgeDomainMacs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_BridgeDomainMacs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).BridgeDomainMacs(ctx, req.(*BridgeDomainMacsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -755,6 +833,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BondState",
 			Handler:    _Dataplane_BondState_Handler,
+		},
+		{
+			MethodName: "BridgeDomainState",
+			Handler:    _Dataplane_BridgeDomainState_Handler,
+		},
+		{
+			MethodName: "BridgeDomainMacs",
+			Handler:    _Dataplane_BridgeDomainMacs_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

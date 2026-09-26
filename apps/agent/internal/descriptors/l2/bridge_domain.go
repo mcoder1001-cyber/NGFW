@@ -7,6 +7,7 @@ import (
 	"io"
 	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -44,9 +45,16 @@ func bdID(id uint32) string { return strconv.FormatUint(uint64(id), 10) }
 func BridgeDomainKey(id uint32) scheduler.Key { return scheduler.Join(BridgeDomainName, bdID(id)) }
 
 // bridgeDomains dumps every bridge domain and returns the ones owned by this agent (bd_tag =
-// "<owner>:<id>"), in ascending id order.
+// "<owner>:<id>" or "<owner>:<id>/<name>", ParseBDTag), in ascending id order.
 func (b base) bridgeDomains(ctx context.Context) ([]*l2api.BridgeDomainDetails, error) {
-	stream, err := b.svc().BridgeDomainDump(ctx, &l2api.BridgeDomainDump{BdID: ^uint32(0), SwIfIndex: interface_types.InterfaceIndex(iface.AllInterfaces)})
+	return OwnedBridgeDomains(ctx, b.client, b.owner)
+}
+
+// OwnedBridgeDomains dumps every bridge domain and returns the ones owned by owner (bd_tag
+// "<owner>:<id>[/<name>]" with <id> = the bridge-domain id), in ascending id order. The live-state
+// RPCs (F-bridge-l2) use it with the descriptors' ownership rule.
+func OwnedBridgeDomains(ctx context.Context, c vpp.Client, owner string) ([]*l2api.BridgeDomainDetails, error) {
+	stream, err := l2api.NewServiceClient(c).BridgeDomainDump(ctx, &l2api.BridgeDomainDump{BdID: ^uint32(0), SwIfIndex: interface_types.InterfaceIndex(iface.AllInterfaces)})
 	if err != nil {
 		return nil, fmt.Errorf("bridge_domain_dump: %w", err)
 	}
@@ -59,12 +67,38 @@ func (b base) bridgeDomains(ctx context.Context) ([]*l2api.BridgeDomainDetails, 
 		if err != nil {
 			return nil, fmt.Errorf("bridge_domain_dump: %w", err)
 		}
-		if id, ok := vpp.ParseOwnerTag(d.BdTag, b.owner); ok && id == bdID(d.BdID) {
+		if _, ok := ParseBDTag(d.BdTag, owner, d.BdID); ok {
 			out = append(out, d)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].BdID < out[j].BdID })
 	return out, nil
+}
+
+// ParseBDTag reports whether tag is owner's tag of bridge domain id and returns the record name it
+// carries ("" for the plain "<owner>:<id>" form).
+func ParseBDTag(tag, owner string, id uint32) (name string, ok bool) {
+	rest, ok := vpp.ParseOwnerTag(tag, owner)
+	if !ok {
+		return "", false
+	}
+	idPart, name, _ := strings.Cut(rest, "/")
+	if idPart != bdID(id) {
+		return "", false
+	}
+	return name, true
+}
+
+// bdTag is the owner tag of o: "<owner>:<id>" or "<owner>:<id>/<name>".
+func bdTag(owner string, o *BridgeDomain) (string, error) {
+	id := bdID(o.GetId())
+	if n := o.GetName(); n != "" {
+		if strings.ContainsAny(n, "/\x00\r\n") {
+			return "", fmt.Errorf("l2: bridge-domain name %q contains a reserved character", n)
+		}
+		id += "/" + n
+	}
+	return vpp.OwnerTag(owner, id)
 }
 
 // flagsOf converts the model booleans into the bd_flags bitmap.
@@ -91,8 +125,9 @@ func flagsOf(o *BridgeDomain) l2api.BdFlags {
 	return f
 }
 
-func decodeBD(d *l2api.BridgeDomainDetails) *BridgeDomain {
-	return &BridgeDomain{Id: d.BdID, Flood: d.Flood, UuFlood: d.UuFlood, Forward: d.Forward, Learn: d.Learn, ArpTerm: d.ArpTerm, ArpUfwd: d.ArpUfwd, MacAge: uint32(d.MacAge)}
+func decodeBD(d *l2api.BridgeDomainDetails, owner string) *BridgeDomain {
+	name, _ := ParseBDTag(d.BdTag, owner, d.BdID)
+	return &BridgeDomain{Id: d.BdID, Flood: d.Flood, UuFlood: d.UuFlood, Forward: d.Forward, Learn: d.Learn, ArpTerm: d.ArpTerm, ArpUfwd: d.ArpUfwd, MacAge: uint32(d.MacAge), Name: name}
 }
 
 // BridgeDomainDescriptor implements l2.bridge-domain (bridge_domain_add_del_v2, bridge_flags,
@@ -131,7 +166,7 @@ func (d *BridgeDomainDescriptor) Create(ctx context.Context, obj proto.Message) 
 	if o.GetMacAge() > 255 {
 		return nil, fmt.Errorf("l2: mac_age %d out of range (0-255 minutes)", o.GetMacAge())
 	}
-	tag, err := vpp.OwnerTag(d.owner, bdID(o.GetId()))
+	tag, err := bdTag(d.owner, o)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +187,8 @@ func (d *BridgeDomainDescriptor) Update(ctx context.Context, oldObj, newObj prot
 		return nil, fmt.Errorf("l2: unexpected meta %T", meta)
 	}
 	o, n := oldObj.(*BridgeDomain), newObj.(*BridgeDomain)
-	if o.GetId() != n.GetId() {
-		return nil, scheduler.ErrRecreate
+	if o.GetId() != n.GetId() || o.GetName() != n.GetName() {
+		return nil, scheduler.ErrRecreate // the name lives in the tag, which VPP cannot change in place
 	}
 	oldF, newF := flagsOf(o), flagsOf(n)
 	if set := newF &^ oldF; set != 0 {
@@ -197,7 +232,7 @@ func (d *BridgeDomainDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, 
 	}
 	out := make([]scheduler.KV, 0, len(bds))
 	for _, bd := range bds {
-		out = append(out, scheduler.KV{Key: BridgeDomainKey(bd.BdID), Value: decodeBD(bd), Meta: BDMeta{bd.BdID}})
+		out = append(out, scheduler.KV{Key: BridgeDomainKey(bd.BdID), Value: decodeBD(bd, d.owner), Meta: BDMeta{bd.BdID}})
 	}
 	return out, nil
 }

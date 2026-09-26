@@ -33,6 +33,7 @@ import { lispValidators } from './lisp.js';
 // wave-A: F-bonding
 import { bondingValidators } from './bonding.js';
 // wave-A: F-bridge-l2
+import { bridgeL2Validators } from './bridge-l2.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
@@ -92,6 +93,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-bonding
   ...bondingValidators,
   // wave-A: F-bridge-l2
+  ...bridgeL2Validators,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra

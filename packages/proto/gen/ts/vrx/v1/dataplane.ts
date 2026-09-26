@@ -1253,7 +1253,11 @@ export interface Interface {
     | DhcpClient
     | undefined;
   /** Link aggregation (F-bonding): the interface (named BondEthernet<id>) is a VPP bond of the member interfaces; unset = not a bond. */
-  bond: Bond | undefined;
+  bond:
+    | Bond
+    | undefined;
+  /** L2 role of the interface (F-bridge-l2, D-109 c): bridge membership, VLAN tag rewrite, MAC filter; unset = L3 only. */
+  l2: BridgeL2Port | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -1314,7 +1318,11 @@ export interface Subinterface {
     | boolean
     | undefined;
   /** DHCPv4 client; present = enabled (D-050). */
-  dhcpClient: DhcpClient | undefined;
+  dhcpClient:
+    | DhcpClient
+    | undefined;
+  /** L2 role of the sub-interface (F-bridge-l2, D-109 c): bridge membership, VLAN tag rewrite; unset = L3 only. */
+  l2: BridgeL2Port | undefined;
 }
 
 /** Vrf mirrors one entry of the `vrfs` record (ip_table_add_del for IPv4 and IPv6). */
@@ -1356,7 +1364,11 @@ export interface RoutingConfig {
     | BfdConfig
     | undefined;
   /** Routing policy: prefix lists and route maps (FRR). */
-  policy: RoutingPolicy | undefined;
+  policy:
+    | RoutingPolicy
+    | undefined;
+  /** L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none. */
+  l2: BridgeL2Config | undefined;
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -5445,6 +5457,278 @@ export interface BondLacpPort {
    * defaulted, expired.
    */
   stateFlags: string[];
+}
+
+/**
+ * BridgeL2Port mirrors `interfaces.<if>.l2` and `interfaces.<if>.subinterfaces.<id>.l2`
+ * (packages/schema/src/domains/ext/bridge-l2.ts).
+ */
+export interface BridgeL2Port {
+  /** Name of the bridge domain (a key of routing.l2.bridge_domains) the interface is a member of; unset = not bridged. */
+  bridgeDomain?:
+    | string
+    | undefined;
+  /** Split-horizon group 0–255, 0 = none (sw_interface_set_l2_bridge.shg); Zod default 0. */
+  shg?:
+    | number
+    | undefined;
+  /** Bridge virtual interface (port_type BVI; a loopback, one per bridge domain); Zod default false. */
+  bvi?:
+    | boolean
+    | undefined;
+  /** Unknown-unicast forwarder (port_type UU_FWD); Zod default false. */
+  uuFwd?:
+    | boolean
+    | undefined;
+  /** VLAN tag rewrite on the L2 port (l2_interface_vlan_tag_rewrite); unset = none. */
+  tagRewrite:
+    | BridgeL2TagRewrite
+    | undefined;
+  /** mactime filter enabled on this parent interface (mactime_enable_disable); Zod default false. */
+  macFilter?: boolean | undefined;
+}
+
+/** BridgeL2TagRewrite mirrors `….l2.tagRewrite`. */
+export interface BridgeL2TagRewrite {
+  /** "push-1" | "push-2" | "pop-1" | "pop-2" | "translate-1-1" | "translate-1-2" | "translate-2-1" | "translate-2-2". */
+  op?:
+    | string
+    | undefined;
+  /** Outer VLAN id 1–4094 written by push / translate; unset for pop. */
+  tag1?:
+    | number
+    | undefined;
+  /** Inner VLAN id 1–4094 written by push-2 / translate-1-2 / translate-2-2. */
+  tag2?:
+    | number
+    | undefined;
+  /** Pushed outer tag is 802.1ad (0x88a8) instead of 802.1Q; Zod default false. */
+  dot1ad?: boolean | undefined;
+}
+
+/** BridgeL2Config mirrors `routing.l2`. */
+export interface BridgeL2Config {
+  /** Bridge domains keyed by name. */
+  bridgeDomains: { [key: string]: BridgeL2Domain };
+  /** L2 cross-connects keyed by the receiving interface (one direction each). */
+  xconnects: { [key: string]: BridgeL2Xconnect };
+  /** L3 cross-connects keyed by the receiving interface. */
+  l3xc: { [key: string]: BridgeL2L3xc };
+  /** Time-range MAC filter devices keyed by name. */
+  macFilters: { [key: string]: BridgeL2MacFilter };
+}
+
+export interface BridgeL2Config_BridgeDomainsEntry {
+  key: string;
+  value: BridgeL2Domain | undefined;
+}
+
+export interface BridgeL2Config_XconnectsEntry {
+  key: string;
+  value: BridgeL2Xconnect | undefined;
+}
+
+export interface BridgeL2Config_L3xcEntry {
+  key: string;
+  value: BridgeL2L3xc | undefined;
+}
+
+export interface BridgeL2Config_MacFiltersEntry {
+  key: string;
+  value: BridgeL2MacFilter | undefined;
+}
+
+/** BridgeL2Domain mirrors `routing.l2.bridgeDomains.<name>` (bridge_domain_add_del_v2). */
+export interface BridgeL2Domain {
+  /** VPP bridge-domain id 1–16777215 (tunnels.*.bridge_domain references it). */
+  id?:
+    | number
+    | undefined;
+  /** Flood broadcast / multicast; Zod default true. */
+  flood?:
+    | boolean
+    | undefined;
+  /** Flood unknown unicast; Zod default true. */
+  uuFlood?:
+    | boolean
+    | undefined;
+  /** Forward by the L2 FIB; Zod default true. */
+  forward?:
+    | boolean
+    | undefined;
+  /** Learn source MACs; Zod default true. */
+  learn?:
+    | boolean
+    | undefined;
+  /** ARP termination; Zod default false. */
+  arpTerm?:
+    | boolean
+    | undefined;
+  /** MAC aging in minutes 0–255, 0 = off; Zod default 0. */
+  macAgeMin?:
+    | number
+    | undefined;
+  /** Static L2 FIB entries. */
+  staticMacs: BridgeL2StaticMac[];
+}
+
+/** BridgeL2StaticMac mirrors one entry of `….staticMacs` (l2fib_add_del, static). */
+export interface BridgeL2StaticMac {
+  /** MAC address "aa:bb:cc:dd:ee:ff". */
+  mac?:
+    | string
+    | undefined;
+  /** Member interface the MAC is reached through. */
+  interface?: string | undefined;
+}
+
+/** BridgeL2Xconnect mirrors `routing.l2.xconnects.<rx>` (sw_interface_set_l2_xconnect). */
+export interface BridgeL2Xconnect {
+  /** Transmit interface. */
+  tx?: string | undefined;
+}
+
+/** BridgeL2L3xc mirrors `routing.l2.l3xc.<rx>` (l3xc_update). */
+export interface BridgeL2L3xc {
+  /** IPv4 paths (one l3xc object per family). */
+  ipv4Paths: BridgeL2L3xcPath[];
+  /** IPv6 paths. */
+  ipv6Paths: BridgeL2L3xcPath[];
+}
+
+/** BridgeL2L3xcPath mirrors one path of an L3 cross-connect (a fib_path). */
+export interface BridgeL2L3xcPath {
+  /** Next-hop address; unset = interface-only path or table lookup. */
+  nextHop?:
+    | string
+    | undefined;
+  /** Egress interface; unset = resolve / look up in the VRF. */
+  interface?:
+    | string
+    | undefined;
+  /** VRF name of the path's table; Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Weight 1–255; Zod default 1. */
+  weight?:
+    | number
+    | undefined;
+  /** Preference 0–255; Zod default 0. */
+  preference?: number | undefined;
+}
+
+/** BridgeL2MacFilter mirrors `routing.l2.macFilters.<name>` (mactime_add_del_range). */
+export interface BridgeL2MacFilter {
+  /** Source MAC "aa:bb:cc:dd:ee:ff" of the device. */
+  mac?:
+    | string
+    | undefined;
+  /** "allow" | "drop"; Zod default "allow". */
+  action?:
+    | string
+    | undefined;
+  /** Weekly ranges; empty = the action applies always (static allow / drop). */
+  ranges: BridgeL2MacFilterRange[];
+}
+
+/** BridgeL2MacFilterRange mirrors one entry of `….ranges`. */
+export interface BridgeL2MacFilterRange {
+  /** Days "mon" … "sun". */
+  days: string[];
+  /** Start "HH:MM". */
+  start?:
+    | string
+    | undefined;
+  /** End "HH:MM" (after start; "24:00" = midnight). */
+  end?: string | undefined;
+}
+
+/** BridgeDomainStateRequest selects bridge domains by VPP id; empty = every bridge domain of this agent. */
+export interface BridgeDomainStateRequest {
+  ids: number[];
+  /** Expected agent owner (as ApplyRequest.owner); empty = the agent's owner. */
+  owner: string;
+}
+
+/** BridgeDomainStateResponse is the live bridge-domain table of this agent (bd_tag "<owner>:…"). */
+export interface BridgeDomainStateResponse {
+  bridgeDomains: BridgeDomainStatus[];
+  owner: string;
+  retrievedAt: Date | undefined;
+}
+
+/** BridgeDomainStatus is one bridge domain as VPP reports it (bridge_domain_dump + l2_fib_table_dump). */
+export interface BridgeDomainStatus {
+  id: number;
+  /** Record name from the bridge-domain tag ("" when VPP holds none, e.g. created by an older agent). */
+  name: string;
+  flood: boolean;
+  uuFlood: boolean;
+  forward: boolean;
+  learn: boolean;
+  arpTerm: boolean;
+  arpUfwd: boolean;
+  /** MAC aging in minutes, 0 = off. */
+  macAgeMin: number;
+  /** Logical name of the BVI member ("" = none). */
+  bvi: string;
+  /** Logical name of the uu-fwd member ("" = none). */
+  uuFwd: string;
+  members: BridgeDomainMember[];
+  /** Learned (dynamic) L2 FIB entries. */
+  learnedMacs: number;
+  /** Static, filter and BVI L2 FIB entries. */
+  staticMacs: number;
+}
+
+/** BridgeDomainMember is one member of a bridge domain. */
+export interface BridgeDomainMember {
+  /** Logical interface name (D-069); VPP's name for an interface this agent cannot name by tag. */
+  interface: string;
+  swIfIndex: number;
+  /** "normal" | "bvi" | "uu-fwd". */
+  portType: string;
+  /** Split-horizon group, 0 = none. */
+  shg: number;
+  /** VLAN tag rewrite in the configuration spelling ("pop-1", …; "" = none). */
+  tagRewrite: string;
+}
+
+/** BridgeDomainMacsRequest pages through one bridge domain's L2 FIB. */
+export interface BridgeDomainMacsRequest {
+  /** VPP bridge-domain id; must be one of this agent's. */
+  bdId: number;
+  /** Index of the first entry (entries are ordered by MAC). */
+  offset: number;
+  /** Page size 1–1000; 0 = 100. More than 1000 fails with INVALID_ARGUMENT. */
+  limit: number;
+  /** Expected agent owner; empty = the agent's owner. */
+  owner: string;
+}
+
+/** BridgeDomainMacsResponse is one page of an L2 FIB. */
+export interface BridgeDomainMacsResponse {
+  macs: BridgeDomainMac[];
+  /** Number of entries in the whole table (for paging). */
+  total: number;
+  owner: string;
+  retrievedAt: Date | undefined;
+}
+
+/** BridgeDomainMac is one L2 FIB entry. */
+export interface BridgeDomainMac {
+  /** "aa:bb:cc:dd:ee:ff". */
+  mac: string;
+  /** Logical interface name ("" for a filter entry). */
+  interface: string;
+  swIfIndex: number;
+  /** Static entry (configured); false = learned. */
+  static: boolean;
+  /** Filter (drop) entry. */
+  filter: boolean;
+  /** BVI entry. */
+  bvi: boolean;
 }
 
 /** QosPolicerStateRequest selects policers of this agent. */
@@ -11877,6 +12161,7 @@ function createBaseInterface(): Interface {
     promiscuous: undefined,
     dhcpClient: undefined,
     bond: undefined,
+    l2: undefined,
   };
 }
 
@@ -11920,6 +12205,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.bond !== undefined) {
       Bond.encode(message.bond, writer.uint32(106).fork()).join();
+    }
+    if (message.l2 !== undefined) {
+      BridgeL2Port.encode(message.l2, writer.uint32(114).fork()).join();
     }
     return writer;
   },
@@ -12044,6 +12332,14 @@ export const Interface: MessageFns<Interface> = {
             message.bond = Bond.decode(reader, reader.uint32());
             continue;
           }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.l2 = BridgeL2Port.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12092,6 +12388,7 @@ export const Interface: MessageFns<Interface> = {
         ? DhcpClient.fromJSON(object.dhcp_client)
         : undefined,
       bond: isSet(object.bond) ? Bond.fromJSON(object.bond) : undefined,
+      l2: isSet(object.l2) ? BridgeL2Port.fromJSON(object.l2) : undefined,
     };
   },
 
@@ -12142,6 +12439,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.bond !== undefined) {
       obj.bond = Bond.toJSON(message.bond);
     }
+    if (message.l2 !== undefined) {
+      obj.l2 = BridgeL2Port.toJSON(message.l2);
+    }
     return obj;
   },
 
@@ -12173,6 +12473,7 @@ export const Interface: MessageFns<Interface> = {
       ? DhcpClient.fromPartial(object.dhcpClient)
       : undefined;
     message.bond = (object.bond !== undefined && object.bond !== null) ? Bond.fromPartial(object.bond) : undefined;
+    message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Port.fromPartial(object.l2) : undefined;
     return message;
   },
 };
@@ -12386,6 +12687,7 @@ function createBaseSubinterface(): Subinterface {
     unnumbered: undefined,
     dot1ad: undefined,
     dhcpClient: undefined,
+    l2: undefined,
   };
 }
 
@@ -12423,6 +12725,9 @@ export const Subinterface: MessageFns<Subinterface> = {
     }
     if (message.dhcpClient !== undefined) {
       DhcpClient.encode(message.dhcpClient, writer.uint32(90).fork()).join();
+    }
+    if (message.l2 !== undefined) {
+      BridgeL2Port.encode(message.l2, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -12528,6 +12833,14 @@ export const Subinterface: MessageFns<Subinterface> = {
             message.dhcpClient = DhcpClient.decode(reader, reader.uint32());
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.l2 = BridgeL2Port.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12565,6 +12878,7 @@ export const Subinterface: MessageFns<Subinterface> = {
         : isSet(object.dhcp_client)
         ? DhcpClient.fromJSON(object.dhcp_client)
         : undefined,
+      l2: isSet(object.l2) ? BridgeL2Port.fromJSON(object.l2) : undefined,
     };
   },
 
@@ -12603,6 +12917,9 @@ export const Subinterface: MessageFns<Subinterface> = {
     if (message.dhcpClient !== undefined) {
       obj.dhcpClient = DhcpClient.toJSON(message.dhcpClient);
     }
+    if (message.l2 !== undefined) {
+      obj.l2 = BridgeL2Port.toJSON(message.l2);
+    }
     return obj;
   },
 
@@ -12624,6 +12941,7 @@ export const Subinterface: MessageFns<Subinterface> = {
     message.dhcpClient = (object.dhcpClient !== undefined && object.dhcpClient !== null)
       ? DhcpClient.fromPartial(object.dhcpClient)
       : undefined;
+    message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Port.fromPartial(object.l2) : undefined;
     return message;
   },
 };
@@ -12722,6 +13040,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     rip: undefined,
     bfd: undefined,
     policy: undefined,
+    l2: undefined,
   };
 }
 
@@ -12747,6 +13066,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
+    }
+    if (message.l2 !== undefined) {
+      BridgeL2Config.encode(message.l2, writer.uint32(162).fork()).join();
     }
     return writer;
   },
@@ -12820,6 +13142,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.policy = RoutingPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 20: {
+            if (tag !== 162) {
+              break;
+            }
+
+            message.l2 = BridgeL2Config.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12841,6 +13171,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
+      l2: isSet(object.l2) ? BridgeL2Config.fromJSON(object.l2) : undefined,
     };
   },
 
@@ -12867,6 +13198,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.policy !== undefined) {
       obj.policy = RoutingPolicy.toJSON(message.policy);
     }
+    if (message.l2 !== undefined) {
+      obj.l2 = BridgeL2Config.toJSON(message.l2);
+    }
     return obj;
   },
 
@@ -12888,6 +13222,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.policy = (object.policy !== undefined && object.policy !== null)
       ? RoutingPolicy.fromPartial(object.policy)
       : undefined;
+    message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Config.fromPartial(object.l2) : undefined;
     return message;
   },
 };
@@ -45123,6 +45458,2766 @@ export const BondLacpPort: MessageFns<BondLacpPort> = {
   },
 };
 
+function createBaseBridgeL2Port(): BridgeL2Port {
+  return {
+    bridgeDomain: undefined,
+    shg: undefined,
+    bvi: undefined,
+    uuFwd: undefined,
+    tagRewrite: undefined,
+    macFilter: undefined,
+  };
+}
+
+export const BridgeL2Port: MessageFns<BridgeL2Port> = {
+  encode(message: BridgeL2Port, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bridgeDomain !== undefined) {
+      writer.uint32(10).string(message.bridgeDomain);
+    }
+    if (message.shg !== undefined) {
+      writer.uint32(16).uint32(message.shg);
+    }
+    if (message.bvi !== undefined) {
+      writer.uint32(24).bool(message.bvi);
+    }
+    if (message.uuFwd !== undefined) {
+      writer.uint32(32).bool(message.uuFwd);
+    }
+    if (message.tagRewrite !== undefined) {
+      BridgeL2TagRewrite.encode(message.tagRewrite, writer.uint32(42).fork()).join();
+    }
+    if (message.macFilter !== undefined) {
+      writer.uint32(48).bool(message.macFilter);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Port {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Port();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bridgeDomain = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.shg = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.bvi = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.uuFwd = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.tagRewrite = BridgeL2TagRewrite.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.macFilter = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Port {
+    return {
+      bridgeDomain: isSet(object.bridgeDomain)
+        ? globalThis.String(object.bridgeDomain)
+        : isSet(object.bridge_domain)
+        ? globalThis.String(object.bridge_domain)
+        : undefined,
+      shg: isSet(object.shg) ? globalThis.Number(object.shg) : undefined,
+      bvi: isSet(object.bvi) ? globalThis.Boolean(object.bvi) : undefined,
+      uuFwd: isSet(object.uuFwd)
+        ? globalThis.Boolean(object.uuFwd)
+        : isSet(object.uu_fwd)
+        ? globalThis.Boolean(object.uu_fwd)
+        : undefined,
+      tagRewrite: isSet(object.tagRewrite)
+        ? BridgeL2TagRewrite.fromJSON(object.tagRewrite)
+        : isSet(object.tag_rewrite)
+        ? BridgeL2TagRewrite.fromJSON(object.tag_rewrite)
+        : undefined,
+      macFilter: isSet(object.macFilter)
+        ? globalThis.Boolean(object.macFilter)
+        : isSet(object.mac_filter)
+        ? globalThis.Boolean(object.mac_filter)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2Port): unknown {
+    const obj: any = {};
+    if (message.bridgeDomain !== undefined) {
+      obj.bridgeDomain = message.bridgeDomain;
+    }
+    if (message.shg !== undefined) {
+      obj.shg = Math.round(message.shg);
+    }
+    if (message.bvi !== undefined) {
+      obj.bvi = message.bvi;
+    }
+    if (message.uuFwd !== undefined) {
+      obj.uuFwd = message.uuFwd;
+    }
+    if (message.tagRewrite !== undefined) {
+      obj.tagRewrite = BridgeL2TagRewrite.toJSON(message.tagRewrite);
+    }
+    if (message.macFilter !== undefined) {
+      obj.macFilter = message.macFilter;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Port>): BridgeL2Port {
+    return BridgeL2Port.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Port>): BridgeL2Port {
+    const message = createBaseBridgeL2Port();
+    message.bridgeDomain = object.bridgeDomain ?? undefined;
+    message.shg = object.shg ?? undefined;
+    message.bvi = object.bvi ?? undefined;
+    message.uuFwd = object.uuFwd ?? undefined;
+    message.tagRewrite = (object.tagRewrite !== undefined && object.tagRewrite !== null)
+      ? BridgeL2TagRewrite.fromPartial(object.tagRewrite)
+      : undefined;
+    message.macFilter = object.macFilter ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2TagRewrite(): BridgeL2TagRewrite {
+  return { op: undefined, tag1: undefined, tag2: undefined, dot1ad: undefined };
+}
+
+export const BridgeL2TagRewrite: MessageFns<BridgeL2TagRewrite> = {
+  encode(message: BridgeL2TagRewrite, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.op !== undefined) {
+      writer.uint32(10).string(message.op);
+    }
+    if (message.tag1 !== undefined) {
+      writer.uint32(16).uint32(message.tag1);
+    }
+    if (message.tag2 !== undefined) {
+      writer.uint32(24).uint32(message.tag2);
+    }
+    if (message.dot1ad !== undefined) {
+      writer.uint32(32).bool(message.dot1ad);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2TagRewrite {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2TagRewrite();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.op = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.tag1 = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.tag2 = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.dot1ad = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2TagRewrite {
+    return {
+      op: isSet(object.op) ? globalThis.String(object.op) : undefined,
+      tag1: isSet(object.tag1) ? globalThis.Number(object.tag1) : undefined,
+      tag2: isSet(object.tag2) ? globalThis.Number(object.tag2) : undefined,
+      dot1ad: isSet(object.dot1ad) ? globalThis.Boolean(object.dot1ad) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2TagRewrite): unknown {
+    const obj: any = {};
+    if (message.op !== undefined) {
+      obj.op = message.op;
+    }
+    if (message.tag1 !== undefined) {
+      obj.tag1 = Math.round(message.tag1);
+    }
+    if (message.tag2 !== undefined) {
+      obj.tag2 = Math.round(message.tag2);
+    }
+    if (message.dot1ad !== undefined) {
+      obj.dot1ad = message.dot1ad;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2TagRewrite>): BridgeL2TagRewrite {
+    return BridgeL2TagRewrite.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2TagRewrite>): BridgeL2TagRewrite {
+    const message = createBaseBridgeL2TagRewrite();
+    message.op = object.op ?? undefined;
+    message.tag1 = object.tag1 ?? undefined;
+    message.tag2 = object.tag2 ?? undefined;
+    message.dot1ad = object.dot1ad ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Config(): BridgeL2Config {
+  return { bridgeDomains: {}, xconnects: {}, l3xc: {}, macFilters: {} };
+}
+
+export const BridgeL2Config: MessageFns<BridgeL2Config> = {
+  encode(message: BridgeL2Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.bridgeDomains).forEach(([key, value]: [string, BridgeL2Domain]) => {
+      BridgeL2Config_BridgeDomainsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    globalThis.Object.entries(message.xconnects).forEach(([key, value]: [string, BridgeL2Xconnect]) => {
+      BridgeL2Config_XconnectsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    globalThis.Object.entries(message.l3xc).forEach(([key, value]: [string, BridgeL2L3xc]) => {
+      BridgeL2Config_L3xcEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    globalThis.Object.entries(message.macFilters).forEach(([key, value]: [string, BridgeL2MacFilter]) => {
+      BridgeL2Config_MacFiltersEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Config {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Config();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = BridgeL2Config_BridgeDomainsEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.bridgeDomains[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = BridgeL2Config_XconnectsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.xconnects[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = BridgeL2Config_L3xcEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.l3xc[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = BridgeL2Config_MacFiltersEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.macFilters[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Config {
+    return {
+      bridgeDomains: isObject(object.bridgeDomains)
+        ? (globalThis.Object.entries(object.bridgeDomains) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2Domain }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2Domain.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.bridge_domains)
+        ? (globalThis.Object.entries(object.bridge_domains) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2Domain }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2Domain.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      xconnects: isObject(object.xconnects)
+        ? (globalThis.Object.entries(object.xconnects) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2Xconnect }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2Xconnect.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      l3xc: isObject(object.l3xc)
+        ? (globalThis.Object.entries(object.l3xc) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2L3xc }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2L3xc.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      macFilters: isObject(object.macFilters)
+        ? (globalThis.Object.entries(object.macFilters) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2MacFilter }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2MacFilter.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.mac_filters)
+        ? (globalThis.Object.entries(object.mac_filters) as [string, any][]).reduce(
+          (acc: { [key: string]: BridgeL2MacFilter }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: BridgeL2MacFilter.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: BridgeL2Config): unknown {
+    const obj: any = {};
+    if (message.bridgeDomains) {
+      const entries = globalThis.Object.entries(message.bridgeDomains) as [string, BridgeL2Domain][];
+      if (entries.length > 0) {
+        obj.bridgeDomains = {};
+        entries.forEach(([k, v]) => {
+          obj.bridgeDomains[k] = BridgeL2Domain.toJSON(v);
+        });
+      }
+    }
+    if (message.xconnects) {
+      const entries = globalThis.Object.entries(message.xconnects) as [string, BridgeL2Xconnect][];
+      if (entries.length > 0) {
+        obj.xconnects = {};
+        entries.forEach(([k, v]) => {
+          obj.xconnects[k] = BridgeL2Xconnect.toJSON(v);
+        });
+      }
+    }
+    if (message.l3xc) {
+      const entries = globalThis.Object.entries(message.l3xc) as [string, BridgeL2L3xc][];
+      if (entries.length > 0) {
+        obj.l3xc = {};
+        entries.forEach(([k, v]) => {
+          obj.l3xc[k] = BridgeL2L3xc.toJSON(v);
+        });
+      }
+    }
+    if (message.macFilters) {
+      const entries = globalThis.Object.entries(message.macFilters) as [string, BridgeL2MacFilter][];
+      if (entries.length > 0) {
+        obj.macFilters = {};
+        entries.forEach(([k, v]) => {
+          obj.macFilters[k] = BridgeL2MacFilter.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Config>): BridgeL2Config {
+    return BridgeL2Config.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Config>): BridgeL2Config {
+    const message = createBaseBridgeL2Config();
+    message.bridgeDomains = (globalThis.Object.entries(object.bridgeDomains ?? {}) as [string, BridgeL2Domain][])
+      .reduce((acc: { [key: string]: BridgeL2Domain }, [key, value]: [string, BridgeL2Domain]) => {
+        if (value !== undefined) {
+          acc[key] = BridgeL2Domain.fromPartial(value);
+        }
+        return acc;
+      }, {});
+    message.xconnects = (globalThis.Object.entries(object.xconnects ?? {}) as [string, BridgeL2Xconnect][]).reduce(
+      (acc: { [key: string]: BridgeL2Xconnect }, [key, value]: [string, BridgeL2Xconnect]) => {
+        if (value !== undefined) {
+          acc[key] = BridgeL2Xconnect.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.l3xc = (globalThis.Object.entries(object.l3xc ?? {}) as [string, BridgeL2L3xc][]).reduce(
+      (acc: { [key: string]: BridgeL2L3xc }, [key, value]: [string, BridgeL2L3xc]) => {
+        if (value !== undefined) {
+          acc[key] = BridgeL2L3xc.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.macFilters = (globalThis.Object.entries(object.macFilters ?? {}) as [string, BridgeL2MacFilter][]).reduce(
+      (acc: { [key: string]: BridgeL2MacFilter }, [key, value]: [string, BridgeL2MacFilter]) => {
+        if (value !== undefined) {
+          acc[key] = BridgeL2MacFilter.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseBridgeL2Config_BridgeDomainsEntry(): BridgeL2Config_BridgeDomainsEntry {
+  return { key: "", value: undefined };
+}
+
+export const BridgeL2Config_BridgeDomainsEntry: MessageFns<BridgeL2Config_BridgeDomainsEntry> = {
+  encode(message: BridgeL2Config_BridgeDomainsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BridgeL2Domain.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Config_BridgeDomainsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Config_BridgeDomainsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BridgeL2Domain.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Config_BridgeDomainsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BridgeL2Domain.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2Config_BridgeDomainsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BridgeL2Domain.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Config_BridgeDomainsEntry>): BridgeL2Config_BridgeDomainsEntry {
+    return BridgeL2Config_BridgeDomainsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Config_BridgeDomainsEntry>): BridgeL2Config_BridgeDomainsEntry {
+    const message = createBaseBridgeL2Config_BridgeDomainsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BridgeL2Domain.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Config_XconnectsEntry(): BridgeL2Config_XconnectsEntry {
+  return { key: "", value: undefined };
+}
+
+export const BridgeL2Config_XconnectsEntry: MessageFns<BridgeL2Config_XconnectsEntry> = {
+  encode(message: BridgeL2Config_XconnectsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BridgeL2Xconnect.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Config_XconnectsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Config_XconnectsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BridgeL2Xconnect.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Config_XconnectsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BridgeL2Xconnect.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2Config_XconnectsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BridgeL2Xconnect.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Config_XconnectsEntry>): BridgeL2Config_XconnectsEntry {
+    return BridgeL2Config_XconnectsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Config_XconnectsEntry>): BridgeL2Config_XconnectsEntry {
+    const message = createBaseBridgeL2Config_XconnectsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BridgeL2Xconnect.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Config_L3xcEntry(): BridgeL2Config_L3xcEntry {
+  return { key: "", value: undefined };
+}
+
+export const BridgeL2Config_L3xcEntry: MessageFns<BridgeL2Config_L3xcEntry> = {
+  encode(message: BridgeL2Config_L3xcEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BridgeL2L3xc.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Config_L3xcEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Config_L3xcEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BridgeL2L3xc.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Config_L3xcEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BridgeL2L3xc.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2Config_L3xcEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BridgeL2L3xc.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Config_L3xcEntry>): BridgeL2Config_L3xcEntry {
+    return BridgeL2Config_L3xcEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Config_L3xcEntry>): BridgeL2Config_L3xcEntry {
+    const message = createBaseBridgeL2Config_L3xcEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BridgeL2L3xc.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Config_MacFiltersEntry(): BridgeL2Config_MacFiltersEntry {
+  return { key: "", value: undefined };
+}
+
+export const BridgeL2Config_MacFiltersEntry: MessageFns<BridgeL2Config_MacFiltersEntry> = {
+  encode(message: BridgeL2Config_MacFiltersEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      BridgeL2MacFilter.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Config_MacFiltersEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Config_MacFiltersEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = BridgeL2MacFilter.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Config_MacFiltersEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? BridgeL2MacFilter.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2Config_MacFiltersEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = BridgeL2MacFilter.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Config_MacFiltersEntry>): BridgeL2Config_MacFiltersEntry {
+    return BridgeL2Config_MacFiltersEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Config_MacFiltersEntry>): BridgeL2Config_MacFiltersEntry {
+    const message = createBaseBridgeL2Config_MacFiltersEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? BridgeL2MacFilter.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Domain(): BridgeL2Domain {
+  return {
+    id: undefined,
+    flood: undefined,
+    uuFlood: undefined,
+    forward: undefined,
+    learn: undefined,
+    arpTerm: undefined,
+    macAgeMin: undefined,
+    staticMacs: [],
+  };
+}
+
+export const BridgeL2Domain: MessageFns<BridgeL2Domain> = {
+  encode(message: BridgeL2Domain, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== undefined) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.flood !== undefined) {
+      writer.uint32(16).bool(message.flood);
+    }
+    if (message.uuFlood !== undefined) {
+      writer.uint32(24).bool(message.uuFlood);
+    }
+    if (message.forward !== undefined) {
+      writer.uint32(32).bool(message.forward);
+    }
+    if (message.learn !== undefined) {
+      writer.uint32(40).bool(message.learn);
+    }
+    if (message.arpTerm !== undefined) {
+      writer.uint32(48).bool(message.arpTerm);
+    }
+    if (message.macAgeMin !== undefined) {
+      writer.uint32(56).uint32(message.macAgeMin);
+    }
+    for (const v of message.staticMacs) {
+      BridgeL2StaticMac.encode(v!, writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Domain {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Domain();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.id = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.flood = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.uuFlood = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.forward = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.learn = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.arpTerm = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.macAgeMin = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.staticMacs.push(BridgeL2StaticMac.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Domain {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : undefined,
+      flood: isSet(object.flood) ? globalThis.Boolean(object.flood) : undefined,
+      uuFlood: isSet(object.uuFlood)
+        ? globalThis.Boolean(object.uuFlood)
+        : isSet(object.uu_flood)
+        ? globalThis.Boolean(object.uu_flood)
+        : undefined,
+      forward: isSet(object.forward) ? globalThis.Boolean(object.forward) : undefined,
+      learn: isSet(object.learn) ? globalThis.Boolean(object.learn) : undefined,
+      arpTerm: isSet(object.arpTerm)
+        ? globalThis.Boolean(object.arpTerm)
+        : isSet(object.arp_term)
+        ? globalThis.Boolean(object.arp_term)
+        : undefined,
+      macAgeMin: isSet(object.macAgeMin)
+        ? globalThis.Number(object.macAgeMin)
+        : isSet(object.mac_age_min)
+        ? globalThis.Number(object.mac_age_min)
+        : undefined,
+      staticMacs: globalThis.Array.isArray(object?.staticMacs)
+        ? object.staticMacs.map((e: any) => BridgeL2StaticMac.fromJSON(e))
+        : globalThis.Array.isArray(object?.static_macs)
+        ? object.static_macs.map((e: any) => BridgeL2StaticMac.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: BridgeL2Domain): unknown {
+    const obj: any = {};
+    if (message.id !== undefined) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.flood !== undefined) {
+      obj.flood = message.flood;
+    }
+    if (message.uuFlood !== undefined) {
+      obj.uuFlood = message.uuFlood;
+    }
+    if (message.forward !== undefined) {
+      obj.forward = message.forward;
+    }
+    if (message.learn !== undefined) {
+      obj.learn = message.learn;
+    }
+    if (message.arpTerm !== undefined) {
+      obj.arpTerm = message.arpTerm;
+    }
+    if (message.macAgeMin !== undefined) {
+      obj.macAgeMin = Math.round(message.macAgeMin);
+    }
+    if (message.staticMacs?.length) {
+      obj.staticMacs = message.staticMacs.map((e) => BridgeL2StaticMac.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Domain>): BridgeL2Domain {
+    return BridgeL2Domain.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Domain>): BridgeL2Domain {
+    const message = createBaseBridgeL2Domain();
+    message.id = object.id ?? undefined;
+    message.flood = object.flood ?? undefined;
+    message.uuFlood = object.uuFlood ?? undefined;
+    message.forward = object.forward ?? undefined;
+    message.learn = object.learn ?? undefined;
+    message.arpTerm = object.arpTerm ?? undefined;
+    message.macAgeMin = object.macAgeMin ?? undefined;
+    message.staticMacs = object.staticMacs?.map((e) => BridgeL2StaticMac.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBridgeL2StaticMac(): BridgeL2StaticMac {
+  return { mac: undefined, interface: undefined };
+}
+
+export const BridgeL2StaticMac: MessageFns<BridgeL2StaticMac> = {
+  encode(message: BridgeL2StaticMac, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mac !== undefined) {
+      writer.uint32(10).string(message.mac);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2StaticMac {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2StaticMac();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2StaticMac {
+    return {
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2StaticMac): unknown {
+    const obj: any = {};
+    if (message.mac !== undefined) {
+      obj.mac = message.mac;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2StaticMac>): BridgeL2StaticMac {
+    return BridgeL2StaticMac.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2StaticMac>): BridgeL2StaticMac {
+    const message = createBaseBridgeL2StaticMac();
+    message.mac = object.mac ?? undefined;
+    message.interface = object.interface ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2Xconnect(): BridgeL2Xconnect {
+  return { tx: undefined };
+}
+
+export const BridgeL2Xconnect: MessageFns<BridgeL2Xconnect> = {
+  encode(message: BridgeL2Xconnect, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.tx !== undefined) {
+      writer.uint32(10).string(message.tx);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2Xconnect {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2Xconnect();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.tx = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2Xconnect {
+    return { tx: isSet(object.tx) ? globalThis.String(object.tx) : undefined };
+  },
+
+  toJSON(message: BridgeL2Xconnect): unknown {
+    const obj: any = {};
+    if (message.tx !== undefined) {
+      obj.tx = message.tx;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2Xconnect>): BridgeL2Xconnect {
+    return BridgeL2Xconnect.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2Xconnect>): BridgeL2Xconnect {
+    const message = createBaseBridgeL2Xconnect();
+    message.tx = object.tx ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2L3xc(): BridgeL2L3xc {
+  return { ipv4Paths: [], ipv6Paths: [] };
+}
+
+export const BridgeL2L3xc: MessageFns<BridgeL2L3xc> = {
+  encode(message: BridgeL2L3xc, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.ipv4Paths) {
+      BridgeL2L3xcPath.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.ipv6Paths) {
+      BridgeL2L3xcPath.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2L3xc {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2L3xc();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ipv4Paths.push(BridgeL2L3xcPath.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ipv6Paths.push(BridgeL2L3xcPath.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2L3xc {
+    return {
+      ipv4Paths: globalThis.Array.isArray(object?.ipv4Paths)
+        ? object.ipv4Paths.map((e: any) => BridgeL2L3xcPath.fromJSON(e))
+        : globalThis.Array.isArray(object?.ipv4_paths)
+        ? object.ipv4_paths.map((e: any) => BridgeL2L3xcPath.fromJSON(e))
+        : [],
+      ipv6Paths: globalThis.Array.isArray(object?.ipv6Paths)
+        ? object.ipv6Paths.map((e: any) => BridgeL2L3xcPath.fromJSON(e))
+        : globalThis.Array.isArray(object?.ipv6_paths)
+        ? object.ipv6_paths.map((e: any) => BridgeL2L3xcPath.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: BridgeL2L3xc): unknown {
+    const obj: any = {};
+    if (message.ipv4Paths?.length) {
+      obj.ipv4Paths = message.ipv4Paths.map((e) => BridgeL2L3xcPath.toJSON(e));
+    }
+    if (message.ipv6Paths?.length) {
+      obj.ipv6Paths = message.ipv6Paths.map((e) => BridgeL2L3xcPath.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2L3xc>): BridgeL2L3xc {
+    return BridgeL2L3xc.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2L3xc>): BridgeL2L3xc {
+    const message = createBaseBridgeL2L3xc();
+    message.ipv4Paths = object.ipv4Paths?.map((e) => BridgeL2L3xcPath.fromPartial(e)) || [];
+    message.ipv6Paths = object.ipv6Paths?.map((e) => BridgeL2L3xcPath.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBridgeL2L3xcPath(): BridgeL2L3xcPath {
+  return { nextHop: undefined, interface: undefined, vrf: undefined, weight: undefined, preference: undefined };
+}
+
+export const BridgeL2L3xcPath: MessageFns<BridgeL2L3xcPath> = {
+  encode(message: BridgeL2L3xcPath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.nextHop !== undefined) {
+      writer.uint32(10).string(message.nextHop);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    if (message.preference !== undefined) {
+      writer.uint32(40).uint32(message.preference);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2L3xcPath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2L3xcPath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.preference = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2L3xcPath {
+    return {
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      preference: isSet(object.preference) ? globalThis.Number(object.preference) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2L3xcPath): unknown {
+    const obj: any = {};
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.preference !== undefined) {
+      obj.preference = Math.round(message.preference);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2L3xcPath>): BridgeL2L3xcPath {
+    return BridgeL2L3xcPath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2L3xcPath>): BridgeL2L3xcPath {
+    const message = createBaseBridgeL2L3xcPath();
+    message.nextHop = object.nextHop ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.weight = object.weight ?? undefined;
+    message.preference = object.preference ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeL2MacFilter(): BridgeL2MacFilter {
+  return { mac: undefined, action: undefined, ranges: [] };
+}
+
+export const BridgeL2MacFilter: MessageFns<BridgeL2MacFilter> = {
+  encode(message: BridgeL2MacFilter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mac !== undefined) {
+      writer.uint32(10).string(message.mac);
+    }
+    if (message.action !== undefined) {
+      writer.uint32(18).string(message.action);
+    }
+    for (const v of message.ranges) {
+      BridgeL2MacFilterRange.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2MacFilter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2MacFilter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.ranges.push(BridgeL2MacFilterRange.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2MacFilter {
+    return {
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : undefined,
+      action: isSet(object.action) ? globalThis.String(object.action) : undefined,
+      ranges: globalThis.Array.isArray(object?.ranges)
+        ? object.ranges.map((e: any) => BridgeL2MacFilterRange.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: BridgeL2MacFilter): unknown {
+    const obj: any = {};
+    if (message.mac !== undefined) {
+      obj.mac = message.mac;
+    }
+    if (message.action !== undefined) {
+      obj.action = message.action;
+    }
+    if (message.ranges?.length) {
+      obj.ranges = message.ranges.map((e) => BridgeL2MacFilterRange.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2MacFilter>): BridgeL2MacFilter {
+    return BridgeL2MacFilter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2MacFilter>): BridgeL2MacFilter {
+    const message = createBaseBridgeL2MacFilter();
+    message.mac = object.mac ?? undefined;
+    message.action = object.action ?? undefined;
+    message.ranges = object.ranges?.map((e) => BridgeL2MacFilterRange.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBridgeL2MacFilterRange(): BridgeL2MacFilterRange {
+  return { days: [], start: undefined, end: undefined };
+}
+
+export const BridgeL2MacFilterRange: MessageFns<BridgeL2MacFilterRange> = {
+  encode(message: BridgeL2MacFilterRange, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.days) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.start !== undefined) {
+      writer.uint32(18).string(message.start);
+    }
+    if (message.end !== undefined) {
+      writer.uint32(26).string(message.end);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeL2MacFilterRange {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeL2MacFilterRange();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.days.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.start = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.end = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeL2MacFilterRange {
+    return {
+      days: globalThis.Array.isArray(object?.days) ? object.days.map((e: any) => globalThis.String(e)) : [],
+      start: isSet(object.start) ? globalThis.String(object.start) : undefined,
+      end: isSet(object.end) ? globalThis.String(object.end) : undefined,
+    };
+  },
+
+  toJSON(message: BridgeL2MacFilterRange): unknown {
+    const obj: any = {};
+    if (message.days?.length) {
+      obj.days = message.days;
+    }
+    if (message.start !== undefined) {
+      obj.start = message.start;
+    }
+    if (message.end !== undefined) {
+      obj.end = message.end;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeL2MacFilterRange>): BridgeL2MacFilterRange {
+    return BridgeL2MacFilterRange.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeL2MacFilterRange>): BridgeL2MacFilterRange {
+    const message = createBaseBridgeL2MacFilterRange();
+    message.days = object.days?.map((e) => e) || [];
+    message.start = object.start ?? undefined;
+    message.end = object.end ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeDomainStateRequest(): BridgeDomainStateRequest {
+  return { ids: [], owner: "" };
+}
+
+export const BridgeDomainStateRequest: MessageFns<BridgeDomainStateRequest> = {
+  encode(message: BridgeDomainStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    writer.uint32(10).fork();
+    for (const v of message.ids) {
+      writer.uint32(v);
+    }
+    writer.join();
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag === 8) {
+              message.ids.push(reader.uint32());
+
+              continue;
+            }
+
+            if (tag === 10) {
+              const end2 = reader.uint32() + reader.pos;
+              while (reader.pos < end2) {
+                message.ids.push(reader.uint32());
+              }
+
+              continue;
+            }
+
+            break;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainStateRequest {
+    return {
+      ids: globalThis.Array.isArray(object?.ids) ? object.ids.map((e: any) => globalThis.Number(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: BridgeDomainStateRequest): unknown {
+    const obj: any = {};
+    if (message.ids?.length) {
+      obj.ids = message.ids.map((e) => Math.round(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainStateRequest>): BridgeDomainStateRequest {
+    return BridgeDomainStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainStateRequest>): BridgeDomainStateRequest {
+    const message = createBaseBridgeDomainStateRequest();
+    message.ids = object.ids?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeDomainStateResponse(): BridgeDomainStateResponse {
+  return { bridgeDomains: [], owner: "", retrievedAt: undefined };
+}
+
+export const BridgeDomainStateResponse: MessageFns<BridgeDomainStateResponse> = {
+  encode(message: BridgeDomainStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.bridgeDomains) {
+      BridgeDomainStatus.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bridgeDomains.push(BridgeDomainStatus.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainStateResponse {
+    return {
+      bridgeDomains: globalThis.Array.isArray(object?.bridgeDomains)
+        ? object.bridgeDomains.map((e: any) => BridgeDomainStatus.fromJSON(e))
+        : globalThis.Array.isArray(object?.bridge_domains)
+        ? object.bridge_domains.map((e: any) => BridgeDomainStatus.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BridgeDomainStateResponse): unknown {
+    const obj: any = {};
+    if (message.bridgeDomains?.length) {
+      obj.bridgeDomains = message.bridgeDomains.map((e) => BridgeDomainStatus.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainStateResponse>): BridgeDomainStateResponse {
+    return BridgeDomainStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainStateResponse>): BridgeDomainStateResponse {
+    const message = createBaseBridgeDomainStateResponse();
+    message.bridgeDomains = object.bridgeDomains?.map((e) => BridgeDomainStatus.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeDomainStatus(): BridgeDomainStatus {
+  return {
+    id: 0,
+    name: "",
+    flood: false,
+    uuFlood: false,
+    forward: false,
+    learn: false,
+    arpTerm: false,
+    arpUfwd: false,
+    macAgeMin: 0,
+    bvi: "",
+    uuFwd: "",
+    members: [],
+    learnedMacs: 0,
+    staticMacs: 0,
+  };
+}
+
+export const BridgeDomainStatus: MessageFns<BridgeDomainStatus> = {
+  encode(message: BridgeDomainStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.flood !== false) {
+      writer.uint32(24).bool(message.flood);
+    }
+    if (message.uuFlood !== false) {
+      writer.uint32(32).bool(message.uuFlood);
+    }
+    if (message.forward !== false) {
+      writer.uint32(40).bool(message.forward);
+    }
+    if (message.learn !== false) {
+      writer.uint32(48).bool(message.learn);
+    }
+    if (message.arpTerm !== false) {
+      writer.uint32(56).bool(message.arpTerm);
+    }
+    if (message.arpUfwd !== false) {
+      writer.uint32(64).bool(message.arpUfwd);
+    }
+    if (message.macAgeMin !== 0) {
+      writer.uint32(72).uint32(message.macAgeMin);
+    }
+    if (message.bvi !== "") {
+      writer.uint32(82).string(message.bvi);
+    }
+    if (message.uuFwd !== "") {
+      writer.uint32(90).string(message.uuFwd);
+    }
+    for (const v of message.members) {
+      BridgeDomainMember.encode(v!, writer.uint32(98).fork()).join();
+    }
+    if (message.learnedMacs !== 0) {
+      writer.uint32(104).uint32(message.learnedMacs);
+    }
+    if (message.staticMacs !== 0) {
+      writer.uint32(112).uint32(message.staticMacs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainStatus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.id = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.flood = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.uuFlood = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.forward = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.learn = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.arpTerm = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.arpUfwd = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.macAgeMin = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.bvi = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.uuFwd = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.members.push(BridgeDomainMember.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.learnedMacs = reader.uint32();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.staticMacs = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainStatus {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      flood: isSet(object.flood) ? globalThis.Boolean(object.flood) : false,
+      uuFlood: isSet(object.uuFlood)
+        ? globalThis.Boolean(object.uuFlood)
+        : isSet(object.uu_flood)
+        ? globalThis.Boolean(object.uu_flood)
+        : false,
+      forward: isSet(object.forward) ? globalThis.Boolean(object.forward) : false,
+      learn: isSet(object.learn) ? globalThis.Boolean(object.learn) : false,
+      arpTerm: isSet(object.arpTerm)
+        ? globalThis.Boolean(object.arpTerm)
+        : isSet(object.arp_term)
+        ? globalThis.Boolean(object.arp_term)
+        : false,
+      arpUfwd: isSet(object.arpUfwd)
+        ? globalThis.Boolean(object.arpUfwd)
+        : isSet(object.arp_ufwd)
+        ? globalThis.Boolean(object.arp_ufwd)
+        : false,
+      macAgeMin: isSet(object.macAgeMin)
+        ? globalThis.Number(object.macAgeMin)
+        : isSet(object.mac_age_min)
+        ? globalThis.Number(object.mac_age_min)
+        : 0,
+      bvi: isSet(object.bvi) ? globalThis.String(object.bvi) : "",
+      uuFwd: isSet(object.uuFwd)
+        ? globalThis.String(object.uuFwd)
+        : isSet(object.uu_fwd)
+        ? globalThis.String(object.uu_fwd)
+        : "",
+      members: globalThis.Array.isArray(object?.members)
+        ? object.members.map((e: any) => BridgeDomainMember.fromJSON(e))
+        : [],
+      learnedMacs: isSet(object.learnedMacs)
+        ? globalThis.Number(object.learnedMacs)
+        : isSet(object.learned_macs)
+        ? globalThis.Number(object.learned_macs)
+        : 0,
+      staticMacs: isSet(object.staticMacs)
+        ? globalThis.Number(object.staticMacs)
+        : isSet(object.static_macs)
+        ? globalThis.Number(object.static_macs)
+        : 0,
+    };
+  },
+
+  toJSON(message: BridgeDomainStatus): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.flood !== false) {
+      obj.flood = message.flood;
+    }
+    if (message.uuFlood !== false) {
+      obj.uuFlood = message.uuFlood;
+    }
+    if (message.forward !== false) {
+      obj.forward = message.forward;
+    }
+    if (message.learn !== false) {
+      obj.learn = message.learn;
+    }
+    if (message.arpTerm !== false) {
+      obj.arpTerm = message.arpTerm;
+    }
+    if (message.arpUfwd !== false) {
+      obj.arpUfwd = message.arpUfwd;
+    }
+    if (message.macAgeMin !== 0) {
+      obj.macAgeMin = Math.round(message.macAgeMin);
+    }
+    if (message.bvi !== "") {
+      obj.bvi = message.bvi;
+    }
+    if (message.uuFwd !== "") {
+      obj.uuFwd = message.uuFwd;
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => BridgeDomainMember.toJSON(e));
+    }
+    if (message.learnedMacs !== 0) {
+      obj.learnedMacs = Math.round(message.learnedMacs);
+    }
+    if (message.staticMacs !== 0) {
+      obj.staticMacs = Math.round(message.staticMacs);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainStatus>): BridgeDomainStatus {
+    return BridgeDomainStatus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainStatus>): BridgeDomainStatus {
+    const message = createBaseBridgeDomainStatus();
+    message.id = object.id ?? 0;
+    message.name = object.name ?? "";
+    message.flood = object.flood ?? false;
+    message.uuFlood = object.uuFlood ?? false;
+    message.forward = object.forward ?? false;
+    message.learn = object.learn ?? false;
+    message.arpTerm = object.arpTerm ?? false;
+    message.arpUfwd = object.arpUfwd ?? false;
+    message.macAgeMin = object.macAgeMin ?? 0;
+    message.bvi = object.bvi ?? "";
+    message.uuFwd = object.uuFwd ?? "";
+    message.members = object.members?.map((e) => BridgeDomainMember.fromPartial(e)) || [];
+    message.learnedMacs = object.learnedMacs ?? 0;
+    message.staticMacs = object.staticMacs ?? 0;
+    return message;
+  },
+};
+
+function createBaseBridgeDomainMember(): BridgeDomainMember {
+  return { interface: "", swIfIndex: 0, portType: "", shg: 0, tagRewrite: "" };
+}
+
+export const BridgeDomainMember: MessageFns<BridgeDomainMember> = {
+  encode(message: BridgeDomainMember, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(16).uint32(message.swIfIndex);
+    }
+    if (message.portType !== "") {
+      writer.uint32(26).string(message.portType);
+    }
+    if (message.shg !== 0) {
+      writer.uint32(32).uint32(message.shg);
+    }
+    if (message.tagRewrite !== "") {
+      writer.uint32(42).string(message.tagRewrite);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainMember {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainMember();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.portType = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.shg = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.tagRewrite = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainMember {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      portType: isSet(object.portType)
+        ? globalThis.String(object.portType)
+        : isSet(object.port_type)
+        ? globalThis.String(object.port_type)
+        : "",
+      shg: isSet(object.shg) ? globalThis.Number(object.shg) : 0,
+      tagRewrite: isSet(object.tagRewrite)
+        ? globalThis.String(object.tagRewrite)
+        : isSet(object.tag_rewrite)
+        ? globalThis.String(object.tag_rewrite)
+        : "",
+    };
+  },
+
+  toJSON(message: BridgeDomainMember): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.portType !== "") {
+      obj.portType = message.portType;
+    }
+    if (message.shg !== 0) {
+      obj.shg = Math.round(message.shg);
+    }
+    if (message.tagRewrite !== "") {
+      obj.tagRewrite = message.tagRewrite;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainMember>): BridgeDomainMember {
+    return BridgeDomainMember.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainMember>): BridgeDomainMember {
+    const message = createBaseBridgeDomainMember();
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.portType = object.portType ?? "";
+    message.shg = object.shg ?? 0;
+    message.tagRewrite = object.tagRewrite ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeDomainMacsRequest(): BridgeDomainMacsRequest {
+  return { bdId: 0, offset: 0, limit: 0, owner: "" };
+}
+
+export const BridgeDomainMacsRequest: MessageFns<BridgeDomainMacsRequest> = {
+  encode(message: BridgeDomainMacsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bdId !== 0) {
+      writer.uint32(8).uint32(message.bdId);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(16).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(24).uint32(message.limit);
+    }
+    if (message.owner !== "") {
+      writer.uint32(34).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainMacsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainMacsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.bdId = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainMacsRequest {
+    return {
+      bdId: isSet(object.bdId)
+        ? globalThis.Number(object.bdId)
+        : isSet(object.bd_id)
+        ? globalThis.Number(object.bd_id)
+        : 0,
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: BridgeDomainMacsRequest): unknown {
+    const obj: any = {};
+    if (message.bdId !== 0) {
+      obj.bdId = Math.round(message.bdId);
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainMacsRequest>): BridgeDomainMacsRequest {
+    return BridgeDomainMacsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainMacsRequest>): BridgeDomainMacsRequest {
+    const message = createBaseBridgeDomainMacsRequest();
+    message.bdId = object.bdId ?? 0;
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseBridgeDomainMacsResponse(): BridgeDomainMacsResponse {
+  return { macs: [], total: 0, owner: "", retrievedAt: undefined };
+}
+
+export const BridgeDomainMacsResponse: MessageFns<BridgeDomainMacsResponse> = {
+  encode(message: BridgeDomainMacsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.macs) {
+      BridgeDomainMac.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.total !== 0) {
+      writer.uint32(16).uint32(message.total);
+    }
+    if (message.owner !== "") {
+      writer.uint32(26).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainMacsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainMacsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.macs.push(BridgeDomainMac.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainMacsResponse {
+    return {
+      macs: globalThis.Array.isArray(object?.macs) ? object.macs.map((e: any) => BridgeDomainMac.fromJSON(e)) : [],
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BridgeDomainMacsResponse): unknown {
+    const obj: any = {};
+    if (message.macs?.length) {
+      obj.macs = message.macs.map((e) => BridgeDomainMac.toJSON(e));
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainMacsResponse>): BridgeDomainMacsResponse {
+    return BridgeDomainMacsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainMacsResponse>): BridgeDomainMacsResponse {
+    const message = createBaseBridgeDomainMacsResponse();
+    message.macs = object.macs?.map((e) => BridgeDomainMac.fromPartial(e)) || [];
+    message.total = object.total ?? 0;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBridgeDomainMac(): BridgeDomainMac {
+  return { mac: "", interface: "", swIfIndex: 0, static: false, filter: false, bvi: false };
+}
+
+export const BridgeDomainMac: MessageFns<BridgeDomainMac> = {
+  encode(message: BridgeDomainMac, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mac !== "") {
+      writer.uint32(10).string(message.mac);
+    }
+    if (message.interface !== "") {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.swIfIndex !== 0) {
+      writer.uint32(24).uint32(message.swIfIndex);
+    }
+    if (message.static !== false) {
+      writer.uint32(32).bool(message.static);
+    }
+    if (message.filter !== false) {
+      writer.uint32(40).bool(message.filter);
+    }
+    if (message.bvi !== false) {
+      writer.uint32(48).bool(message.bvi);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BridgeDomainMac {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBridgeDomainMac();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.swIfIndex = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.static = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.filter = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.bvi = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BridgeDomainMac {
+    return {
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      swIfIndex: isSet(object.swIfIndex)
+        ? globalThis.Number(object.swIfIndex)
+        : isSet(object.sw_if_index)
+        ? globalThis.Number(object.sw_if_index)
+        : 0,
+      static: isSet(object.static) ? globalThis.Boolean(object.static) : false,
+      filter: isSet(object.filter) ? globalThis.Boolean(object.filter) : false,
+      bvi: isSet(object.bvi) ? globalThis.Boolean(object.bvi) : false,
+    };
+  },
+
+  toJSON(message: BridgeDomainMac): unknown {
+    const obj: any = {};
+    if (message.mac !== "") {
+      obj.mac = message.mac;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.swIfIndex !== 0) {
+      obj.swIfIndex = Math.round(message.swIfIndex);
+    }
+    if (message.static !== false) {
+      obj.static = message.static;
+    }
+    if (message.filter !== false) {
+      obj.filter = message.filter;
+    }
+    if (message.bvi !== false) {
+      obj.bvi = message.bvi;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BridgeDomainMac>): BridgeDomainMac {
+    return BridgeDomainMac.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BridgeDomainMac>): BridgeDomainMac {
+    const message = createBaseBridgeDomainMac();
+    message.mac = object.mac ?? "";
+    message.interface = object.interface ?? "";
+    message.swIfIndex = object.swIfIndex ?? 0;
+    message.static = object.static ?? false;
+    message.filter = object.filter ?? false;
+    message.bvi = object.bvi ?? false;
+    return message;
+  },
+};
+
 function createBaseQosPolicerStateRequest(): QosPolicerStateRequest {
   return { owner: "", names: [] };
 }
@@ -51939,6 +55034,37 @@ export const DataplaneService = {
     responseSerialize: (value: BondStateResponse): Buffer => Buffer.from(BondStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): BondStateResponse => BondStateResponse.decode(value),
   },
+  /**
+   * BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+   * MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+   * and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+   */
+  bridgeDomainState: {
+    path: "/vrx.v1.Dataplane/BridgeDomainState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: BridgeDomainStateRequest): Buffer =>
+      Buffer.from(BridgeDomainStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): BridgeDomainStateRequest => BridgeDomainStateRequest.decode(value),
+    responseSerialize: (value: BridgeDomainStateResponse): Buffer =>
+      Buffer.from(BridgeDomainStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): BridgeDomainStateResponse => BridgeDomainStateResponse.decode(value),
+  },
+  /**
+   * BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+   * at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+   */
+  bridgeDomainMacs: {
+    path: "/vrx.v1.Dataplane/BridgeDomainMacs" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: BridgeDomainMacsRequest): Buffer =>
+      Buffer.from(BridgeDomainMacsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): BridgeDomainMacsRequest => BridgeDomainMacsRequest.decode(value),
+    responseSerialize: (value: BridgeDomainMacsResponse): Buffer =>
+      Buffer.from(BridgeDomainMacsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): BridgeDomainMacsResponse => BridgeDomainMacsResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -52025,6 +55151,17 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * Read-only; bounded (bonds and their members are few, one message).
    */
   bondState: handleUnaryCall<BondStateRequest, BondStateResponse>;
+  /**
+   * BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+   * MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+   * and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+   */
+  bridgeDomainState: handleUnaryCall<BridgeDomainStateRequest, BridgeDomainStateResponse>;
+  /**
+   * BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+   * at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+   */
+  bridgeDomainMacs: handleUnaryCall<BridgeDomainMacsRequest, BridgeDomainMacsResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -52293,6 +55430,45 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: BondStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * BridgeDomainState dumps the live state of this agent's bridge domains (bd_tag "<owner>:…"): flags,
+   * MAC aging, members with their port role and split-horizon group, the BVI and the number of learned
+   * and static L2 FIB entries (docs/contracts/proto.md "F-bridge-l2"). Read-only.
+   */
+  bridgeDomainState(
+    request: BridgeDomainStateRequest,
+    callback: (error: ServiceError | null, response: BridgeDomainStateResponse) => void,
+  ): ClientUnaryCall;
+  bridgeDomainState(
+    request: BridgeDomainStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: BridgeDomainStateResponse) => void,
+  ): ClientUnaryCall;
+  bridgeDomainState(
+    request: BridgeDomainStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: BridgeDomainStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
+   * at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
+   */
+  bridgeDomainMacs(
+    request: BridgeDomainMacsRequest,
+    callback: (error: ServiceError | null, response: BridgeDomainMacsResponse) => void,
+  ): ClientUnaryCall;
+  bridgeDomainMacs(
+    request: BridgeDomainMacsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: BridgeDomainMacsResponse) => void,
+  ): ClientUnaryCall;
+  bridgeDomainMacs(
+    request: BridgeDomainMacsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: BridgeDomainMacsResponse) => void,
   ): ClientUnaryCall;
 }
 

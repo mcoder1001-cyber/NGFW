@@ -3,6 +3,7 @@ import type { InterfaceConfig, SubinterfaceConfig } from '@ngfw/schema';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import type { VrxStatus } from '@ngfw/ui-kit';
 import { domainSchemas } from '../../schema/registry';
+import { drawerSafeL2 } from './bridge-l2/model'; // wave-A: F-bridge-l2
 
 type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } } ? T : never;
 
@@ -20,7 +21,7 @@ export type { InterfaceConfig, SubinterfaceConfig };
 export function interfaceItemSchema(): JsonSchema {
   const s = domainSchemas.interfaces as { additionalProperties?: JsonSchema };
   if (!s.additionalProperties || typeof s.additionalProperties !== 'object') throw new Error('interfaces item schema not found');
-  return s.additionalProperties;
+  return drawerSafeL2(s.additionalProperties); // wave-A: F-bridge-l2: `l2` is an opaque JSON field here (bridge-l2/model.ts)
 }
 
 /** The interface form edits everything but `subinterfaces` (they have their own table in the drawer). */

@@ -1,0 +1,65 @@
+{
+  "interfaces": {
+    "loop10": {
+      "enabled": true,
+      "ipv4": ["192.168.10.1/24"],
+      "l2": { "bridgeDomain": "lan", "bvi": true }
+    },
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "l2": { "bridgeDomain": "lan", "macFilter": true },
+      "subinterfaces": {
+        "100": {
+          "vlanId": 100,
+          "enabled": true,
+          "l2": { "bridgeDomain": "lan", "shg": 1, "tagRewrite": { "op": "pop-1" } }
+        }
+      }
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "l2": { "bridgeDomain": "lan", "shg": 1 },
+      "subinterfaces": {
+        "200": {
+          "vlanId": 200,
+          "enabled": true,
+          "l2": { "tagRewrite": { "op": "translate-1-1", "tag1": 300, "dot1ad": true } }
+        }
+      }
+    },
+    "TenGigabitEthernet0/0/2": { "enabled": true },
+    "TenGigabitEthernet0/0/3": { "enabled": true, "ipv4": ["10.0.3.1/24"] }
+  },
+  "routing": {
+    "l2": {
+      "bridgeDomains": {
+        "lan": {
+          "id": 10,
+          "arpTerm": false,
+          "macAgeMin": 5,
+          "staticMacs": [{ "mac": "02:00:00:00:10:01", "interface": "TenGigabitEthernet0/0/1" }]
+        }
+      },
+      "xconnects": {
+        "TenGigabitEthernet0/0/1.200": { "tx": "TenGigabitEthernet0/0/2" },
+        "TenGigabitEthernet0/0/2": { "tx": "TenGigabitEthernet0/0/1.200" }
+      },
+      "l3xc": {
+        "TenGigabitEthernet0/0/3": {
+          "ipv4Paths": [{ "nextHop": "10.0.3.254", "interface": "TenGigabitEthernet0/0/3" }]
+        }
+      },
+      "macFilters": {
+        "kids-tablet": {
+          "mac": "02:00:00:00:99:01",
+          "action": "allow",
+          "ranges": [
+            { "days": ["mon", "tue", "wed", "thu", "fri"], "start": "16:00", "end": "20:00" },
+            { "days": ["sat", "sun"], "start": "09:00", "end": "21:00" }
+          ]
+        },
+        "old-camera": { "mac": "02:00:00:00:99:02", "action": "drop" }
+      }
+    }
+  }
+}

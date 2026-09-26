@@ -110,12 +110,14 @@ func TestOnSameExtensionReplacesItsOwnRegistration(t *testing.T) {
 // the other the way two v.On("feature_is_enabled", ...) extension calls would — and an unregistered
 // feature name still gets VPP's own unknown-feature default (true).
 func TestFeatureIsEnabledCompose(t *testing.T) {
-	adlEnabled := map[uint32]bool{3: true} // stub of rpf-adl-pbr's model: per-sw_if_index, "adl-input" only
-	RegisterFeatureIsEnabled("adl-input", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+	// Synthetic names: the real "adl-input"/"mactime" answers are registered by the features themselves
+	// (the registry panics on a duplicate, and its doc forbids reusing a real FeatureName in a test).
+	adlEnabled := map[uint32]bool{3: true} // stub of rpf-adl-pbr's model: per-sw_if_index, "td23-test-adl-input" only
+	RegisterFeatureIsEnabled("td23-test-adl-input", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
 		return &featureapi.FeatureIsEnabledReply{IsEnabled: adlEnabled[uint32(req.SwIfIndex)]}
 	})
 	mactimeEnabled := map[uint32]bool{7: true} // stub of bridge-l2's model: per-sw_if_index, ArcName ignored
-	RegisterFeatureIsEnabled("mactime", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
+	RegisterFeatureIsEnabled("td23-test-mactime", func(_ *VPP, req *featureapi.FeatureIsEnabled) *featureapi.FeatureIsEnabledReply {
 		return &featureapi.FeatureIsEnabledReply{IsEnabled: mactimeEnabled[uint32(req.SwIfIndex)]}
 	})
 
@@ -135,10 +137,10 @@ func TestFeatureIsEnabledCompose(t *testing.T) {
 		}
 	}
 
-	check("adl-input", 3, true)            // rpf-adl-pbr's own model
-	check("adl-input", 4, false)           // rpf-adl-pbr's own model, unset index
-	check("mactime", 7, true)              // bridge-l2's own model — composes, doesn't clobber adl-input's
-	check("mactime", 3, false)             // bridge-l2's own model at adl-input's *enabled* index: proves no bleed-through
+	check("td23-test-adl-input", 3, true)  // rpf-adl-pbr's own model
+	check("td23-test-adl-input", 4, false) // rpf-adl-pbr's own model, unset index
+	check("td23-test-mactime", 7, true)    // bridge-l2's own model — composes, doesn't clobber adl-input's
+	check("td23-test-mactime", 3, false)   // bridge-l2's own model at adl-input's *enabled* index: proves no bleed-through
 	check("unregistered-feature", 3, true) // VPP's own unknown-feature cast (F-rpf-adl-pbr's V23(a))
 }
 

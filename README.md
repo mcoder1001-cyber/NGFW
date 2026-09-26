@@ -25,6 +25,7 @@ VPP bring-up is owned by a separate agent — do not modify `/root/vpp`, `/etc/v
 | [docs/13-handoff-fa.md](docs/13-handoff-fa.md) | **راهنمای تحویل به ایجنت مدیر (فارسی)** — چطور شروع کنید، کجا نگاه کنید، چه چیزی از شما لازم است |
 | [prompts/MANAGER-PROMPT.md](prompts/MANAGER-PROMPT.md) | The manager agent that runs everything; prompts/README.md explains the flow |
 | [plan/tasks.yaml](plan/tasks.yaml) | Task board — 74 tasks, deps, priorities, states |
+| [plan/backlog.yaml](plan/backlog.yaml) | Long-term ideas backlog (label `backlog-idea`, state `icebox`) — not scheduled, not part of the plan |
 | [docs/12-execution-stages.md](docs/12-execution-stages.md) | Stage DAG, gates, parallelism rules |
 | [docs/11-compressed-plan-fa.md](docs/11-compressed-plan-fa.md) | Plan of record: 21 days, status of all 102 WBS items, VPP-code track |
 | [docs/decisions/](docs/decisions/) | Decision policy (2x rule), LOG, PENDING files, OS and VDOM decisions |

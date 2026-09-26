@@ -1,0 +1,76 @@
+# Long-term ideas backlog (brainstorm output). NOT part of the plan of record.
+# Nothing here is scheduled: tools/board.py and tools/manager/prep.py read only plan/tasks.yaml,
+# and every row carries label "backlog-idea" and state "icebox".
+# To adopt an idea: record a decision in docs/decisions/, then move the row to plan/tasks.yaml
+# with state "todo", a stage and deps on real board rows.
+version: 1
+updated: '2026-09-26'
+tasks:
+- id: BL-APP-00
+  title: 'Decision: bring L7 application control into scope (currently a v1 non-goal)'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: []
+  est_hours: 2
+  notes: >-
+    docs/00-MASTER-PROMPT.md lists L7 IPS/AV/URL filtering as non-goals (v1). Record a decision in
+    docs/decisions/ choosing the approach (SNI/DNS first, nDPI plugin later; Suricata/Snort inline rejected
+    for throughput vs the >=20 Gbps goal) and check nDPI's LGPL licence against docs/02-oss-stack.md.
+- id: BL-APP-01
+  title: 'Schema: app-control domain (applications, categories, per-zone/source allow/deny/shape policies)'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-00]
+  est_hours: 8
+  notes: packages/schema/src/domains/app-control.ts + semantic/app-control.ts with tests; pnpm gen regenerates api-client.
+- id: BL-APP-02
+  title: 'Lightweight app ID: classify by TLS/QUIC SNI and Unbound DNS answers, enforce via IP/domain sets'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-01]
+  est_hours: 16
+  notes: >-
+    No VPP changes. Use the existing Unbound service for DNS->IP mapping and program the resulting sets into
+    the existing ACL/objects machinery. Weak against DoH/ECH; documents that limitation.
+- id: BL-APP-03
+  title: 'Signature/app list feed: versioned app+category database with scheduled updates'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-01]
+  est_hours: 8
+  notes: Shared by BL-APP-02 (domain lists) and BL-APP-04 (nDPI protocol ids).
+- id: BL-APP-04
+  title: 'VPP plugin: nDPI per-flow classification on the first packets, app id stored per flow'
+  labels: [backlog-idea, app-control, vpp-code]
+  state: icebox
+  deps: [BL-APP-00]
+  est_hours: 40
+  notes: VPP-code track (docs/vpp-code-track.md). Must keep line rate by inspecting only flow starts.
+- id: BL-APP-05
+  title: 'Agent: app-control subsystem and renderers (program the plugin, drop/tag flows, hook into ACL, QoS and PBR)'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-01, BL-APP-04]
+  est_hours: 16
+  notes: apps/agent/internal/subsystems + renderers; per-app shaping and policy routing via existing QoS/PBR.
+- id: BL-APP-06
+  title: 'API + UI: app-control policy pages, per-app traffic stats and logs in the log explorer'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-01]
+  est_hours: 12
+  notes: Schema-driven editor covers most forms; add stats views and log fields.
+- id: BL-APP-07
+  title: 'Topology tests for app control (SNI/DNS path and nDPI path)'
+  labels: [backlog-idea, app-control]
+  state: icebox
+  deps: [BL-APP-02, BL-APP-05]
+  est_hours: 10
+  notes: test/topology/app-control/, same style as the existing topology tests.
+- id: BL-APP-08
+  title: 'Evaluate Suricata/Snort 3 inline (via punt or memif) for IPS + app ID'
+  labels: [backlog-idea, app-control, research]
+  state: icebox
+  deps: [BL-APP-00]
+  est_hours: 12
+  notes: Research only - measure throughput cost of the extra hop before any commitment.

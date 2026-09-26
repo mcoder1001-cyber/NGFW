@@ -1,4 +1,3 @@
-import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Alert from '@mui/material/Alert';
@@ -15,7 +14,6 @@ import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -40,6 +38,7 @@ import {
 import { useCandidateInterfaces, useFreshCandidate, useInterfacesState, usePatchInterfaces } from './queries';
 import type { Rate } from './rates';
 import { Sparkline } from './Sparkline';
+import { SubinterfaceTable } from './subinterfaces/SubinterfaceTable';
 
 /** Server pointers `/interfaces/<name>[/subinterfaces/<id>]/…` → pointers relative to the edited form. */
 export function problemFor(error: unknown, prefix: string): ProblemDetails | null {
@@ -269,61 +268,18 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
           )}
 
           <Divider sx={{ my: 2 }} />
-          <Stack direction="row" alignItems="center" sx={{ mb: 1 }}>
-            <Typography component="h4" variant="subtitle1" sx={{ flex: 1 }}>
-              {t('sub.title')}
-            </Typography>
-            <Button size="small" startIcon={<AddIcon />} disabled={readOnly || !config} onClick={() => setSubDialog({ id: '', value: undefined })}>
-              {t('sub.add')}
-            </Button>
-          </Stack>
-          {subError !== null && !subDialog && <ProblemAlert error={subError} sx={{ mb: 1 }} />}
-          <Table size="small" aria-label={t('sub.title')}>
-            <TableHead>
-              <TableRow>
-                <TableCell>{t('sub.id')}</TableCell>
-                <TableCell>{t('sub.vlan')}</TableCell>
-                <TableCell>{t('col.admin')}</TableCell>
-                <TableCell>{t('col.addresses')}</TableCell>
-                <TableCell sx={{ textAlign: 'end' }}>{t('sub.actions')}</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {subs.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5}>
-                    <Typography color="text.secondary">{t('sub.none')}</Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-              {subs.map(([id, sub]) => {
-                const subLive = state.data?.items.find((i) => i.name === `${name}.${id}`)?.state;
-                return (
-                  <TableRow key={id} hover sx={{ cursor: readOnly ? 'default' : 'pointer' }} onClick={() => !readOnly && setSubDialog({ id, value: sub })}>
-                    <TableCell dir="ltr">{`${name}.${id}`}</TableCell>
-                    <TableCell>{sub.vlanId}</TableCell>
-                    <TableCell>{subLive ? <StatusChip size="small" status={adminStatus(subLive)!} /> : t('notInVpp')}</TableCell>
-                    <TableCell dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12 }}>
-                      {[...(sub.ipv4 ?? []), ...(sub.ipv6 ?? [])].join(' ')}
-                    </TableCell>
-                    <TableCell sx={{ textAlign: 'end' }}>
-                      <IconButton
-                        size="small"
-                        aria-label={t('sub.remove', { id })}
-                        disabled={readOnly || patch.isPending}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void removeSub(id);
-                        }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <SubinterfaceTable
+            parent={name}
+            subs={subs}
+            items={state.data?.items}
+            readOnly={readOnly}
+            canAdd={config !== undefined}
+            busy={patch.isPending}
+            error={subDialog ? null : subError}
+            onAdd={() => setSubDialog({ id: '', value: undefined })}
+            onEdit={(id, value) => setSubDialog({ id, value })}
+            onRemove={(id) => void removeSub(id)}
+          />
         </>
       )}
 

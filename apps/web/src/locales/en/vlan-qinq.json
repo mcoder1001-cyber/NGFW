@@ -1,0 +1,19 @@
+{
+  "tableLabel": "Sub-interfaces of {{parent}}",
+  "col": {
+    "name": "Sub-interface",
+    "encapsulation": "Encapsulation",
+    "innerVlan": "Inner VLAN",
+    "admin": "Admin",
+    "link": "Link",
+    "addresses": "Addresses"
+  },
+  "proto": {
+    "dot1q": "IEEE 802.1Q tag (TPID 0x8100)",
+    "dot1ad": "IEEE 802.1ad service tag (TPID 0x88a8)"
+  },
+  "encapTitle": "Tag stack, outer tag first: {{stack}}",
+  "inVpp": "in VPP:",
+  "noInner": "none (single tag)",
+  "exactMatch": "Sub-interfaces are routed and match their tag stack exactly (exact-match). QinQ: an 802.1ad or 802.1Q outer tag with an 802.1Q inner tag."
+}

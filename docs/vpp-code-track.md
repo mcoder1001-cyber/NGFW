@@ -58,3 +58,9 @@ attachments before their policer; the applied-once record of `policer.interface`
 a policer deleted and re-created behind the agent's back gets its attachments re-pointed (un-apply + apply, one
 instance) on the next resync; a Delete after the policer vanished tolerates NO_SUCH_ENTRY. Upstream fix: `policer_del`
 refuses (or unbinds) a policer that is still bound (0.5–1 day).
+
+### V-new (F-vlan-qinq)
+
+| id | item | raised by | why VPP code seems needed | fallback implemented | est. VPP effort |
+|---|---|---|---|---|---|
+| V-new | af_packet input loses the 802.1ad TPID: the kernel strips the outer tag of a received frame into the packet-socket header (`tp_vlan_tci`, `tp_vlan_tpid` 0x88a8 = 34984), and `af_packet` input re-inserts it **always as 802.1Q** (`plugins/af_packet/node.c:367-383` writes `ETHERNET_TYPE_VLAN`, ignores `tp_vlan_tpid`; the same at `:623-634` for TPACKET_V2). A dot1ad sub-interface therefore never receives on the af_packet path. Host evidence 2026-09-24 18:21 (slot 5, `test/topology/vlan-qinq`, NRestarts 0 → 0): an ARP request from a Linux 802.1ad 200 + 802.1Q 100 device shows `vlan 200 vlan_tpid 34984` in `af-packet-input`, then `ethernet-input … 802.1q vlan 200 802.1q vlan 100` → `ethernet-input: unknown vlan` (drop), while dot1q 100 and dot1q 300 + dot1q 30 on the same parent answer pings | F-vlan-qinq | upstream af_packet bug (the TPID is available in the ring header, `TP_STATUS_VLAN_TPID_VALID`) | none needed in the agent: VPP is configured correctly (`sw_interface_dump`: `TWO_TAGS\|DOT1AD\|EXACT_MATCH`, outer 200, inner 100) and the product data path is DPDK; af_packet is lab-only. The topology test proves dot1ad through the API/agent/Retrieve and at packet level only dot1q and dot1q-in-dot1q; the user doc says dot1ad cannot be packet-tested on the af_packet lab path | 0.5 day (use `tp_vlan_tpid` when `TP_STATUS_VLAN_TPID_VALID` is set, in both input paths) |

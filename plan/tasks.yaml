@@ -3165,7 +3165,7 @@ tasks:
   - W-seed
   priority: 3
   est_hours: 8
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.10
@@ -3177,7 +3177,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-26'
   notes: 'D-125 | merge after the ui-nav-collapse branch | the `// wave-A: UI-domain-editor` anchor goes into W-seed-BC''s scope (manager) | started 2026-09-25 04:15 slot 11, speculative base task/WEB-1
     c2e3eabb (D-114) | review APPROVE WITH CHANGES 3ac4825e; screenshots + api-client multi-segment path helper | fix round 1 ed1e28ce; verify APPROVE c95bafe0; after WEB-1'
 - id: TEST-traffic-A

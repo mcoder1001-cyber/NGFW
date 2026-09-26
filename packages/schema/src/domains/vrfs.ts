@@ -16,7 +16,7 @@ import { proxyArpRangesField } from './ext/neighbors-ra.js';
 export const VrfSchema = z.strictObject({
   id: withUi(uint32, {
     title: 'Table ID',
-    help: 'VPP FIB table id (0 is the default VRF)',
+    help: 'Engine FIB table id (0 is the default VRF)',
     order: 1,
   }),
   description: withUi(descriptionText.optional(), { title: 'Description', order: 2 }),

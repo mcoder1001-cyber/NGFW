@@ -245,7 +245,7 @@ export const IpsecTunnelSchema = z
     engine: withUi(z.enum(['strongswan', 'vpp-ikev2']).default('strongswan'), {
       title: 'IKE engine',
       widget: 'select',
-      help: 'strongSwan (kernel-vpp) or the native VPP IKEv2 plugin (D6.3, IKEv2 only)',
+      help: 'strongSwan (kernel-vpp) or the native engine IKEv2 plugin (D6.3, IKEv2 only)',
     }),
     ikeVersion: withUi(z.union([z.literal(1), z.literal(2)]).default(2), {
       title: 'IKE version',
@@ -351,7 +351,7 @@ export const IpsecTunnelSchema = z
 
 export const IpsecSettingsSchema = z.strictObject({
   cryptoEngine: withUi(z.enum(['auto', 'native', 'ipsecmb', 'openssl']).default('auto'), {
-    title: 'VPP crypto engine',
+    title: 'Crypto engine',
     widget: 'select',
   }),
   asyncCrypto: withUi(z.boolean().default(false), {
@@ -408,7 +408,7 @@ export const WireguardInterfaceSchema = z.strictObject({
   instance: withUi(u32Int, {
     title: 'Instance',
     widget: 'number',
-    help: 'VPP interface name is wg<instance>',
+    help: 'Engine interface name is wg<instance>',
   }),
   vrf: vrfRef,
   underlayVrf: withUi(underlayVrfRef, {

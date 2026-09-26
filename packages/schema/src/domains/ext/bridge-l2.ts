@@ -26,7 +26,7 @@ const UI_GROUP = 'bridge-l2';
 /** VPP bridge-domain id: 1–16777215 (`L2_BD_ID_MAX`; 0 is VPP's default domain, ~0 is reserved). */
 export const bridgeDomainId = withUi(z.number().int().min(1).max(16777215), {
   title: 'Bridge-domain ID',
-  help: 'VPP bridge-domain id (1–16777215); tunnels reference the bridge domain by this number',
+  help: 'Engine bridge-domain id (1–16777215); tunnels reference the bridge domain by this number',
   widget: 'number',
 });
 

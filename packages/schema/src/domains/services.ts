@@ -313,7 +313,7 @@ export const DhcpRelaySchema = z
     vrf: withUi(vrfRef, {
       title: 'Client VRF',
       widget: 'vrf-picker',
-      help: 'VRF of the client-facing interfaces (VPP rx VRF)',
+      help: 'VRF of the client-facing interfaces (engine rx VRF)',
     }),
     serverVrf: withUi(objectName, {
       title: 'Server VRF',
@@ -520,10 +520,10 @@ export const DnsResolverSchema = z
   });
 
 export const DnsVppCacheSchema = z.strictObject({
-  enabled: withUi(z.boolean().default(false), { title: 'VPP DNS cache', widget: 'switch' }),
+  enabled: withUi(z.boolean().default(false), { title: 'Engine DNS cache', widget: 'switch' }),
   upstreams: withUi(z.array(ipAddress).min(1).max(8), {
     title: 'Upstream name servers',
-    help: 'Servers the VPP dns plugin resolves through',
+    help: 'Servers the engine dns plugin resolves through',
   }),
 });
 
@@ -532,7 +532,7 @@ export const ServicesDnsSchema = z.strictObject({
     title: 'Resolvers (Unbound instances)',
     widget: 'record',
   }),
-  vppCache: withUi(DnsVppCacheSchema, { title: 'VPP caching DNS plugin' }).optional(),
+  vppCache: withUi(DnsVppCacheSchema, { title: 'Engine caching DNS plugin' }).optional(),
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -695,7 +695,7 @@ export const LldpSchema = z
     enabled: withUi(z.boolean().default(false), { title: 'Enabled', widget: 'switch' }),
     systemName: withUi(hostname, {
       title: 'System name',
-      help: "Empty keeps VPP's current system name (VPP starts without one)",
+      help: "Empty keeps the engine's current system name (the engine starts without one)",
     }).optional(),
     txHold: withUi(z.int().min(1).max(10).default(4), {
       title: 'TX hold multiplier',
@@ -1034,7 +1034,7 @@ export const QosPolicerSchema = z
     round: withUi(z.enum(['closest', 'up', 'down']).default('closest'), {
       title: 'Rate rounding',
       widget: 'select',
-      help: 'How VPP rounds the configured rate onto its token-bucket parameters',
+      help: 'How the engine rounds the configured rate onto its token-bucket parameters',
     }),
     colorAware: withUi(z.boolean().default(false), {
       title: 'Colour aware',
@@ -1103,7 +1103,7 @@ export const QosMapSchema = z
     id: withUi(u32Int, {
       title: 'Map id',
       widget: 'number',
-      help: 'VPP qos egress map id; fix it so the renderer never renumbers (unique across maps)',
+      help: 'Engine qos egress map id; fix it so the renderer never renumbers (unique across maps)',
     }).optional(),
     rows: withUi(
       z.strictObject({
@@ -1225,7 +1225,7 @@ export const QosSchema = z.strictObject({
   interfaces: withUi(z.record(vppInterfaceName, QosInterfaceSchema).default({}), {
     title: 'Interface attachments',
     widget: 'record',
-    help: 'Keyed by VPP interface name',
+    help: 'Keyed by engine interface name',
   }),
 });
 

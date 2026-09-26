@@ -91,7 +91,7 @@ export type NsimCrossConnectConfig = z.infer<typeof NsimCrossConnectSchema>;
 export const NsimSchema = z.strictObject({
   delayMs: withUi(z.number().min(0.001).max(NSIM_DELAY_MS_MAX), {
     title: 'Delay (ms)',
-    help: 'one-way delay added to every frame (VPP delay_in_usec; microsecond resolution)',
+    help: 'one-way delay added to every frame (engine delay_in_usec; microsecond resolution)',
     widget: 'number',
     order: 1,
   }),
@@ -112,13 +112,13 @@ export const NsimSchema = z.strictObject({
   ),
   dropFraction: withUi(z.number().min(0).max(1).default(0), {
     title: 'Drop fraction',
-    help: '0 = no random loss; 0.01 = one frame in 100 (VPP packets_per_drop = 1 / fraction)',
+    help: '0 = no random loss; 0.01 = one frame in 100 (engine packets_per_drop = 1 / fraction)',
     widget: 'number',
     order: 4,
   }),
   crossConnect: withUi(NsimCrossConnectSchema.optional(), {
     title: 'Cross-connect',
-    help: 'two interfaces joined through the simulator (VPP keeps one pair)',
+    help: 'two interfaces joined through the simulator (the engine keeps one pair)',
     order: 5,
   }),
   outputInterfaces: withUi(z.array(vppInterfaceName).max(64).default([]), {
@@ -132,7 +132,7 @@ export type NsimConfig = z.infer<typeof NsimSchema>;
 /** The `interfaces.<if>.gso` key line (`Interface` field 20). */
 export const interfaceGsoField = withUi(z.boolean().optional(), {
   title: 'GSO',
-  help: 'software generic segmentation offload on output (VPP gso feature); absent = off',
+  help: 'software generic segmentation offload on output (engine gso feature); absent = off',
   widget: 'switch',
   group: UI_GROUP,
   order: 40,

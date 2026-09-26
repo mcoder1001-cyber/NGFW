@@ -82,7 +82,7 @@ export const AdlSchema = z
     }),
     defaultAllow: withUi(z.boolean().default(true), {
       title: 'Pass non-IP frames',
-      help: 'ARP and other non-IP frames are not checked (VPP 26.06 cannot filter them)',
+      help: 'ARP and other non-IP frames are not checked (the engine cannot filter them)',
       order: 4,
     }),
   })
@@ -191,7 +191,7 @@ export type PbrConfig = z.infer<typeof PbrSchema>;
 /** `routing.pbr` — the key line of `domains/routing.ts`. */
 export const pbrField = withUi(PbrSchema.optional(), {
   title: 'Policy-based routing',
-  help: 'ACL-based forwarding (VPP abf); absent = no policy',
+  help: 'ACL-based forwarding (engine abf); absent = no policy',
   group: RPF_ADL_PBR_GROUP,
   order: 8,
 });
@@ -222,7 +222,7 @@ export type AutoSdlConfig = z.infer<typeof AutoSdlSchema>;
 /** `services.autoSdl` — the key line of `domains/services.ts`. */
 export const autoSdlField = withUi(AutoSdlSchema.optional(), {
   title: 'Auto-SDL',
-  help: 'automatic source deny list of the VPP host stack (a VPP-global setting); absent = off',
+  help: 'automatic source deny list of the engine host stack (an engine-global setting); absent = off',
   group: RPF_ADL_PBR_GROUP,
   order: 8,
 });

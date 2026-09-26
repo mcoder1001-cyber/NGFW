@@ -136,7 +136,7 @@ export const HostStackSchema = withUi(
     .strictObject({
       enabled: withUi(z.boolean().default(false), {
         title: 'Session layer',
-        help: 'Required state of the VPP session layer (rule-table engine); set only by the globals owner',
+        help: 'Required state of the engine session layer (rule-table engine); set only by the globals owner',
       }),
       namespaces: withUi(z.record(hostStackId, HostStackNamespaceSchema).default({}), {
         title: 'App namespaces',

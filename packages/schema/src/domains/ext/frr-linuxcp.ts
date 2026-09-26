@@ -50,7 +50,7 @@ export const lcpNetnsName = withUi(
 export const InterfaceLcpSchema = z.strictObject({
   hostIfName: withUi(lcpHostIfName.optional(), {
     title: 'Linux interface name',
-    help: 'name of the host tap; default: the VPP name when it is a valid Linux name (max 15 characters)',
+    help: 'name of the host tap; default: the engine name when it is a valid Linux name (max 15 characters)',
     order: 1,
   }),
   hostIfType: withUi(z.enum(['tap', 'tun']).default('tap'), {

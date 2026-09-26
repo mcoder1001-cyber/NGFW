@@ -132,7 +132,7 @@ export const LispSchema = withUi(
   z.strictObject({
     enabled: withUi(z.boolean().default(false), {
       title: 'Enable LISP',
-      help: 'VPP-global switch, set by the globals owner only; other agents require it',
+      help: 'Engine-global switch, set by the globals owner only; other agents require it',
       order: 1,
     }),
     gpe: withUi(z.boolean().default(false), {
@@ -172,7 +172,7 @@ export const LispSchema = withUi(
     }),
     gpeEntries: withUi(z.array(LispGpeEntrySchema).max(1024).default([]), {
       title: 'GPE forwarding entries',
-      help: 'Static LISP-GPE entries; write-only in VPP 26.06 (V13)',
+      help: 'Static LISP-GPE entries; write-only in the engine (V13)',
       group: 'mappings',
       order: 8,
     }),
@@ -189,7 +189,7 @@ export const LispSchema = withUi(
     }),
     pitr: withUi(locatorSetName, {
       title: 'Proxy-ITR locator set',
-      help: 'VPP-global (globals owner only)',
+      help: 'Engine-global (globals owner only)',
       group: 'resolvers',
       order: 11,
     }).optional(),

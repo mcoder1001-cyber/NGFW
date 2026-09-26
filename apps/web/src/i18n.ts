@@ -55,6 +55,8 @@ import enIpfixSflow from './locales/en/ipfix-sflow.json';
 import faIpfixSflow from './locales/fa/ipfix-sflow.json';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
+import enSrv6 from './locales/en/srv6.json';
+import faSrv6 from './locales/fa/srv6.json';
 // wave-BC: F-lisp
 import enLisp from './locales/en/lisp.json';
 import faLisp from './locales/fa/lisp.json';
@@ -161,6 +163,7 @@ export const NAMESPACES = [
   'ipfix-sflow',
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  'srv6',
   // wave-BC: F-lisp
   'lisp',
   // wave-BC: F-bfd-redistribution
@@ -249,6 +252,7 @@ const en = {
   'ipfix-sflow': enIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  srv6: enSrv6,
   // wave-BC: F-lisp
   lisp: enLisp,
   // wave-BC: F-bfd-redistribution
@@ -334,6 +338,7 @@ const fa = {
   'ipfix-sflow': faIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  srv6: faSrv6,
   // wave-BC: F-lisp
   lisp: faLisp,
   // wave-BC: F-bfd-redistribution

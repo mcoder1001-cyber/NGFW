@@ -23,6 +23,7 @@ import { managementValidators } from './management.js';
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-srv6
+import { srv6Validators } from './srv6.js';
 // wave-BC: F-lisp
 import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
@@ -94,6 +95,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-srv6
+  ...srv6Validators,
   // wave-BC: F-lisp
   ...lispValidators,
   // wave-BC: F-bfd-redistribution

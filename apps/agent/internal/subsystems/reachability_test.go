@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 26
+const maxPending = 25
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -106,7 +106,7 @@ var descriptorReach = map[string]reachEntry{
 	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"svs":                 {wired, "F-vrf-static-ecmp"},
-	"sr":                  {pending, "F-srv6"},
+	"sr":                  {wired, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
 	"trace":               {pending, "F-capture-trace"},

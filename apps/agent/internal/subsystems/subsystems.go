@@ -136,6 +136,11 @@ var Domains = map[string][]string{
 		// wave-BC: F-mpls-srmpls
 		// wave-BC: F-igmp-mfib
 		// wave-BC: F-srv6
+		srLocalSidName,      // F-srv6: sr.localsid (srv6.go)
+		srPolicyName,        // F-srv6: sr.policy
+		srSteeringName,      // F-srv6: sr.steering
+		srEncapSourceName,   // F-srv6: sr.encap-source (VPP global, globals owner only)
+		srEncapHopLimitName, // F-srv6: sr.encap-hop-limit (VPP global, globals owner only)
 		// wave-A: F-vrf-static-ecmp
 		// wave-A: F-neighbors-ra
 		neighborsRaNeighbor,
@@ -311,6 +316,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-isis-rip
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
+	if err := w.registerSrv6(r); err != nil { // DF-6 sr family, df6 claims in PairClaims("df6") (srv6.go)
+		return nil, err
+	}
 	// wave-BC: F-lisp
 	if err := registerLisp(r, w); err != nil {
 		return nil, err

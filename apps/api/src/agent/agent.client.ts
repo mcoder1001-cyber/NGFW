@@ -79,6 +79,7 @@ import {
   type AclStateRequest,
   type AclStateResponse,
   // wave-A: F-host-acl-nftables
+  type HostAclStateResponse,
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
@@ -344,6 +345,10 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.aclState, { ...req, owner: this.owner });
   }
   // wave-A: F-host-acl-nftables
+  /** Host firewall table rendered from acl.host* with per-rule counters (F-host-acl-nftables); an older agent answers 501. */
+  hostAclState(): Promise<HostAclStateResponse> {
+    return this.unary(this.c.hostAclState, { owner: this.owner });
+  }
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11

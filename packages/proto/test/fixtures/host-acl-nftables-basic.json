@@ -1,0 +1,66 @@
+{
+  "objects": {
+    "addresses": {
+      "mgmt-net": { "type": "network", "prefix": "10.0.0.0/24" },
+      "noc": { "type": "host", "address": "2001:db8:100::10" }
+    },
+    "addressGroups": { "admins": { "members": ["mgmt-net", "noc"] } },
+    "services": {
+      "ssh": { "protocol": "tcp", "destinationPorts": ["22"] },
+      "https": { "protocol": "tcp", "destinationPorts": ["443"] },
+      "snmp": { "protocol": "udp", "destinationPorts": ["161"] }
+    },
+    "serviceGroups": { "mgmt": { "members": ["ssh", "https"] } }
+  },
+  "acl": {
+    "host": {
+      "mgmt-in": {
+        "description": "management plane: SSH/HTTPS only from the admins",
+        "rules": [
+          {
+            "sequence": 10,
+            "action": "accept",
+            "source": { "kind": "object", "name": "admins" },
+            "service": { "kind": "object", "name": "mgmt" },
+            "log": true
+          },
+          {
+            "sequence": 20,
+            "action": "accept",
+            "ipVersion": "ipv4",
+            "source": { "kind": "prefix", "prefix": "10.0.0.0/24" },
+            "service": { "kind": "object", "name": "snmp" },
+            "interface": "ens192"
+          },
+          {
+            "sequence": 30,
+            "action": "drop",
+            "service": {
+              "kind": "inline",
+              "spec": { "protocol": "tcp", "destinationPorts": ["22", "443"] }
+            }
+          },
+          {
+            "sequence": 40,
+            "enabled": false,
+            "action": "reject",
+            "ipVersion": "ipv6"
+          }
+        ]
+      }
+    },
+    "hostAttachments": [
+      { "list": "mgmt-in", "chain": "input", "priority": 0, "description": "local-in" }
+    ],
+    "hostSettings": {
+      "defaultInput": "accept",
+      "allowIcmp": true,
+      "antiLockout": {
+        "enabled": true,
+        "sources": ["10.0.0.0/24"],
+        "interfaces": ["ens192"],
+        "ports": [22, 443]
+      }
+    }
+  }
+}

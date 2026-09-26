@@ -19,6 +19,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
   });
 }
 import { ipPrefix, ServiceSpecSchema } from './objects.js';
+import { HostAclSettingsSchema } from './ext/host-acl-nftables.js'; // F-host-acl-nftables (C1)
 
 /**
  * `acl` — access control (WBS D5.2, D5.3; TNSR "ACL", "MACIP ACL" and "host ACL" are the reference).
@@ -292,6 +293,11 @@ export const AclSchema = withUi(
       group: 'Attachments',
       order: 6,
     }),
+    hostSettings: withUi(HostAclSettingsSchema.optional(), {
+      title: 'Host firewall settings',
+      group: 'Attachments',
+      order: 7,
+    }), // F-host-acl-nftables (C1)
   }),
   {
     title: 'ACL',

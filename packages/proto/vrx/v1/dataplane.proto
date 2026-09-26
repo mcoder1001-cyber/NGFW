@@ -183,6 +183,13 @@ service Dataplane {
   rpc AclState(AclStateRequest) returns (AclStateResponse);
 
   // wave-A: F-host-acl-nftables
+
+  // HostAclState reports the host firewall the agent rendered from `acl.host*` (the nftables table
+  // `inet vrx`): its sets, chains and rules with per-rule packet/byte counters read from
+  // `nft -j list table`, and whether the kernel table still matches the applied rendering.
+  // Read-only runtime state (docs/contracts/proto.md §5 keeps counters out of Retrieve). Never mutates.
+  rpc HostAclState(HostAclStateRequest) returns (HostAclStateResponse);
+
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
   // wave-A: P11
@@ -3204,6 +3211,9 @@ message AclConfig {
 
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
+
+  // Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults.
+  HostAclSettings host_settings = 8;
 }
 
 // AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened.
@@ -4605,6 +4615,111 @@ message AclBoundAcl {
 }
 
 // ----- F-host-acl-nftables -----
+
+// HostAclSettings mirrors `acl.hostSettings` (packages/schema/src/domains/ext/host-acl-nftables.ts):
+// how the agent renders the input chains of the host firewall (table `inet vrx`).
+message HostAclSettings {
+  // Policy of every input chain the agent renders: "accept" | "drop"; unset = "accept".
+  optional string default_input = 1;
+  // Accept ICMP and ICMPv6 in input chains before the rules; unset = true. IPv6 neighbour and
+  // router discovery is accepted either way.
+  optional bool allow_icmp = 2;
+  // The anti-lockout rule protecting management SSH/HTTPS.
+  HostAclAntiLockout anti_lockout = 3;
+}
+
+// HostAclAntiLockout mirrors `acl.hostSettings.antiLockout`: management TCP ports from these sources
+// on these interfaces are accepted at the top of every input chain; with `enabled` false a commit
+// whose own rules would drop that traffic fails validation (rule acl.host-anti-lockout).
+message HostAclAntiLockout {
+  // Render the anti-lockout rule; unset = true.
+  optional bool enabled = 1;
+  // Management source prefixes (CIDR); empty = any source.
+  repeated string sources = 2;
+  // Linux interfaces management traffic arrives on (≤ 15 chars each); empty = any interface.
+  repeated string interfaces = 3;
+  // Management TCP ports 1–65535; empty = 22 and 443.
+  repeated uint32 ports = 4;
+}
+
+// HostAclStateRequest asks for the rendered host firewall.
+message HostAclStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// HostAclStateResponse is one snapshot of the host firewall table as the kernel reports it
+// (`nft -j list table inet <table>`), annotated with what the agent rendered.
+message HostAclStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // nftables table name in family inet: "vrx" for the product agent, "vrx_<owner>" for test slots.
+  string table = 3;
+  // How the agent drives the table: "apply" (root network namespace), "netns" (a test slot's
+  // namespace) or "check" (validated with `nft -c` only, never loaded).
+  string mode = 4;
+  // The table exists in the kernel.
+  bool present = 5;
+  // The kernel table equals the last rendering the agent applied (false = drift; the next
+  // Apply or resync re-renders it).
+  bool in_sync = 6;
+  // Named sets (expanded address objects), sorted by name.
+  repeated HostAclSetState sets = 7;
+  // Base chains in evaluation order (hook, then priority, then name).
+  repeated HostAclChainState chains = 8;
+}
+
+// HostAclSetState is one named set of the table.
+message HostAclSetState {
+  // nftables set name ("a4_<object>" / "a6_<object>").
+  string name = 1;
+  // "ipv4_addr" | "ipv6_addr".
+  string type = 2;
+  // The address object or group it was expanded from ("" when unknown).
+  string object = 3;
+  // Elements as canonical prefixes, sorted.
+  repeated string elements = 4;
+}
+
+// HostAclChainState is one base chain of the table (one per enabled attachment).
+message HostAclChainState {
+  // nftables chain name.
+  string name = 1;
+  // "input" | "output" | "forward".
+  string hook = 2;
+  // Chain priority -500..500.
+  int32 priority = 3;
+  // "accept" | "drop".
+  string policy = 4;
+  // The host list attached (acl.hostAttachments[].list); "" when unknown.
+  string list = 5;
+  // Rules in evaluation order.
+  repeated HostAclRuleState rules = 6;
+}
+
+// HostAclRuleState is one nftables rule with its counters.
+message HostAclRuleState {
+  // "established" | "loopback" | "icmp" | "anti-lockout" | "rule" | "unknown" (not rendered by
+  // this agent, or its rendering is unknown).
+  string kind = 1;
+  // kind=rule: the host list (acl.host.<list>).
+  string list = 2;
+  // kind=rule: the rule's sequence number.
+  uint32 sequence = 3;
+  // kind=rule: JSON pointer of the rule in the applied document (/acl/host/<list>/rules/<i>).
+  string pointer = 4;
+  // The rule as rendered (nftables syntax, without the counter); "" when unknown.
+  string text = 5;
+  // "accept" | "drop" | "reject".
+  string verdict = 6;
+  // The rule's nftables comment (its identity: "vrx:<list>:<sequence>/<n>:<hash>").
+  string comment = 7;
+  // Counter values.
+  uint64 packets = 8;
+  uint64 bytes = 9;
+}
 
 // ----- F-nat44-ed-sessions -----
 

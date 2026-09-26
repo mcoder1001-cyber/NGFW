@@ -824,6 +824,7 @@ export class FakeAgent {
       // wave-A: F-acl
       aclState: (call, cb) => void import('../features/acl/fake.js').then((m) => m.aclState(this)(call, cb)).catch((e: unknown) => cb(e as Error)),
       // wave-A: F-host-acl-nftables
+      hostAclState: (call, cb) => void import('../features/host-acl-nftables/fake.js').then((m) => m.hostAclState(this)(call, cb)),
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-nat44-ei-64-66-nptv6
       // wave-A: P11

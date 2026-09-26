@@ -124,6 +124,7 @@ var rendererReach = map[string]reachEntry{
 	"keepalived": {pending, "F-vrrp-config-sync"},
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},
 	"rsyslog":    {pending, "F-unbound-chrony-syslog"},
+	"nftables":   {wired, "F-host-acl-nftables"},
 	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},
 	"unbound":    {pending, "F-unbound-chrony-syslog"},

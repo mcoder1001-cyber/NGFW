@@ -1,0 +1,4 @@
+# vrx-agent host firewall (F-host-acl-nftables): table inet vrx_w9, rendered from acl.host*.
+# One nft -f transaction replaces the whole table; hand edits are overwritten by the next apply.
+add table inet vrx_w9
+delete table inet vrx_w9

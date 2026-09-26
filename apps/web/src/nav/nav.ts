@@ -130,6 +130,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   groups.get('routing')!.push({ id: 'pbr', path: '/routing/pbr', labelKey: 'rpf-adl-pbr:nav.pbr', fallbackLabel: 'Policy routing', available: true });
   groups.get('firewall')!.push({ id: 'adl', path: '/firewall/adl', labelKey: 'rpf-adl-pbr:nav.adl', fallbackLabel: 'ADL / Auto-SDL', available: true });
   // wave-A: F-host-acl-nftables
+  groups.get('firewall')!.push({ id: 'host-acl', path: '/firewall/host-acl', labelKey: 'host-acl-nftables:nav', fallbackLabel: 'Host ACL', available: true });
   // wave-A: P12
   // web: WEB-2
   groups.get('system')!.push(

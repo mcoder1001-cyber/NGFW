@@ -1,0 +1,67 @@
+# vrx-agent host firewall (F-host-acl-nftables): table inet vrx_w9, rendered from acl.host*.
+# One nft -f transaction replaces the whole table; hand edits are overwritten by the next apply.
+add table inet vrx_w9
+delete table inet vrx_w9
+table inet vrx_w9 {
+	comment "vrx-agent host firewall"
+	set a4_backup {
+		type ipv4_addr
+		flags interval
+		elements = { 198.51.100.10/31, 198.51.100.12/30, 198.51.100.16/30, 198.51.100.20/32 }
+	}
+	set a4_noc {
+		type ipv4_addr
+		flags interval
+		elements = { 192.0.2.10/32 }
+	}
+	set a4_portal {
+		type ipv4_addr
+		flags interval
+		elements = { 203.0.113.80/32 }
+	}
+	set a6_noc {
+		type ipv6_addr
+		flags interval
+		elements = { 2001:db8:10::/48 }
+	}
+	set a6_portal {
+		type ipv6_addr
+		flags interval
+		elements = { 2001:db8::80/128 }
+	}
+	chain in_local-in {
+		type filter hook input priority 10; policy drop;
+		ct state established,related counter accept comment "vrx:@established/0:c77fde03"
+		iif "lo" counter accept comment "vrx:@loopback/0:ad72b3be"
+		icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } counter accept comment "vrx:@icmp/0:1057fca7"
+		iifname { "ens192", "ens224" } ip saddr 10.9.0.0/16 tcp dport { 22, 443, 8443 } counter accept comment "vrx:@anti-lockout/0:31a9d399"
+		iifname { "ens192", "ens224" } ip6 saddr 2001:db8:10::/48 tcp dport { 22, 443, 8443 } counter accept comment "vrx:@anti-lockout/1:88f67901"
+		ip saddr @a4_noc icmp type 8 icmp code 0 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/0:9826da00"
+		ip saddr @a4_noc tcp dport 53 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/1:71519531"
+		ip saddr @a4_noc udp dport 53 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/2:7c9f2573"
+		ip saddr @a4_noc meta l4proto 47 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/3:4ee860bc"
+		ip saddr @a4_noc sctp dport 2905 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/4:2e932782"
+		ip6 saddr @a6_noc tcp dport 53 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/5:c54e11e6"
+		ip6 saddr @a6_noc udp dport 53 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/6:0591bb0a"
+		ip6 saddr @a6_noc meta l4proto 47 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/7:86eb8a54"
+		ip6 saddr @a6_noc icmpv6 type 128 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/8:811015cc"
+		ip6 saddr @a6_noc sctp dport 2905 counter log prefix "vrx:local-in:5 " accept comment "vrx:local-in:5/9:9a5e7f69"
+		iifname "ens224" ip saddr @a4_backup tcp sport 1024-65535 tcp dport { 8000-8080, 8443 } counter accept comment "vrx:local-in:10/0:b763eec9"
+		ip saddr @a4_portal tcp dport 179 tcp flags & 0x12 == 0x02 counter accept comment "vrx:local-in:15/0:d5a7dfc0"
+		ip6 saddr @a6_portal tcp dport 179 tcp flags & 0x12 == 0x02 counter accept comment "vrx:local-in:15/1:89d1f9a6"
+		meta nfproto ipv6 udp dport 161-162 counter reject comment "vrx:local-in:20/0:60a0256c"
+		ip daddr 10.9.77.1/32 tcp dport 22 counter accept comment "vrx:local-in:30/0:79fa0217"
+		counter log prefix "vrx:local-in:1000 " drop comment "vrx:local-in:1000/0:54750c03"
+	}
+	chain out_egress {
+		type filter hook output priority 0; policy accept;
+		ct state established,related counter accept comment "vrx:@established/0:c77fde03"
+		oif "lo" counter accept comment "vrx:@loopback/0:c07eaa46"
+		ip daddr 203.0.113.0/24 counter drop comment "vrx:egress:10/0:eec9200f"
+	}
+	chain fwd_transit {
+		type filter hook forward priority -100; policy accept;
+		ct state established,related counter accept comment "vrx:@established/0:c77fde03"
+		iifname "ens256" counter drop comment "vrx:transit:10/0:49aa56b7"
+	}
+}

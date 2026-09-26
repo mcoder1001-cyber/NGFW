@@ -54,6 +54,7 @@ const (
 	Dataplane_Action_FullMethodName            = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName            = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName    = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_MplsState_FullMethodName         = "/vrx.v1.Dataplane/MplsState"
 	Dataplane_LbState_FullMethodName           = "/vrx.v1.Dataplane/LbState"
 	Dataplane_LbFlushVip_FullMethodName        = "/vrx.v1.Dataplane/LbFlushVip"
 	Dataplane_QosPolicerState_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerState"
@@ -119,6 +120,10 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+	MplsState(ctx context.Context, in *MplsStateRequest, opts ...grpc.CallOption) (*MplsStateResponse, error)
 	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
 	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
 	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
@@ -342,6 +347,16 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InterfaceStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_InterfaceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) MplsState(ctx context.Context, in *MplsStateRequest, opts ...grpc.CallOption) (*MplsStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MplsStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_MplsState_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -654,6 +669,10 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
+	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
+	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
+	MplsState(context.Context, *MplsStateRequest) (*MplsStateResponse, error)
 	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
 	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
 	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
@@ -799,6 +818,9 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) MplsState(context.Context, *MplsStateRequest) (*MplsStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MplsState not implemented")
 }
 func (UnimplementedDataplaneServer) LbState(context.Context, *LbStateRequest) (*LbStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LbState not implemented")
@@ -1021,6 +1043,24 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).InterfaceState(ctx, req.(*InterfaceStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_MplsState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MplsStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).MplsState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_MplsState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).MplsState(ctx, req.(*MplsStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1537,6 +1577,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "MplsState",
+			Handler:    _Dataplane_MplsState_Handler,
 		},
 		{
 			MethodName: "LbState",

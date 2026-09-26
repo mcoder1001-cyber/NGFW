@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 25
+const maxPending = 23
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -90,7 +90,7 @@ var descriptorReach = map[string]reachEntry{
 	"mactime":             {wired, "F-bridge-l2"},
 	"mapnat":              {pending, "F-det44-map-dslite-cnat"},
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
-	"mpls":                {pending, "F-mpls-srmpls"},
+	"mpls":                {wired, "F-mpls-srmpls"},
 	"nat44ed":             {wired, "F-nat44-ed-sessions"},
 	"nat44ei":             {wired, "F-nat44-ei-64-66-nptv6"},
 	"nat64":               {wired, "F-nat44-ei-64-66-nptv6"},
@@ -107,7 +107,7 @@ var descriptorReach = map[string]reachEntry{
 	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"svs":                 {wired, "F-vrf-static-ecmp"},
 	"sr":                  {wired, "F-srv6"},
-	"sr_mpls":             {pending, "F-mpls-srmpls"},
+	"sr_mpls":             {wired, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
 	"trace":               {pending, "F-capture-trace"},
 	"urpf":                {wired, "F-rpf-adl-pbr"},

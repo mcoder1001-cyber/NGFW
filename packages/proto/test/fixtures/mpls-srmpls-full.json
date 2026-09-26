@@ -1,0 +1,67 @@
+{
+  "interfaces": {
+    "loop5001": {},
+    "host-w5l0": {}
+  },
+  "vrfs": {
+    "red": { "id": 5010 }
+  },
+  "routing": {
+    "mpls": {
+      "interfaces": ["host-w5l0", "loop5001"],
+      "tables": { "5001": {} },
+      "labelRoutes": [
+        {
+          "table": 0,
+          "label": 50020,
+          "eos": false,
+          "paths": [{ "interface": "t1", "outLabels": [50021], "weight": 2 }]
+        },
+        {
+          "table": 0,
+          "label": 50030,
+          "eos": true,
+          "payload": "ip6",
+          "paths": [{ "weight": 1, "vrf": "red" }]
+        },
+        {
+          "table": 5001,
+          "label": 50016,
+          "eos": true,
+          "paths": [
+            {
+              "nextHop": "10.5.1.2",
+              "interface": "loop5001",
+              "outLabels": [50017, 50018],
+              "weight": 1
+            },
+            { "nextHop": "10.5.1.3", "interface": "loop5001", "weight": 3 }
+          ]
+        }
+      ],
+      "ipBindings": [{ "label": 50040, "vrf": "red", "prefix": "10.5.40.0/24" }],
+      "tunnels": {
+        "t1": {
+          "paths": [
+            { "nextHop": "10.5.1.2", "interface": "loop5001", "outLabels": [50050], "weight": 1 }
+          ],
+          "l2Only": false
+        }
+      },
+      "sr": {
+        "policies": {
+          "50100": {
+            "segmentLists": [
+              { "labels": [50101, 50102], "weight": 1 },
+              { "labels": [50103], "weight": 2 }
+            ],
+            "spray": false
+          }
+        },
+        "steering": [
+          { "vrf": "default", "prefix": "10.5.60.0/24", "bsid": 50100, "vpnLabel": 50061 }
+        ]
+      }
+    }
+  }
+}

@@ -27,7 +27,10 @@ type TunnelMeta struct {
 // TunnelDescriptor manages mpls-tunnel objects.
 type TunnelDescriptor struct{ df7.Base }
 
-var _ scheduler.Descriptor = (*TunnelDescriptor)(nil)
+var (
+	_ scheduler.Descriptor  = (*TunnelDescriptor)(nil)
+	_ scheduler.KeyProvider = (*TunnelDescriptor)(nil)
+)
 
 // NewTunnel returns the mpls-tunnel descriptor.
 func NewTunnel(c vpp.Client, owner string, opts ...df7.Option) *TunnelDescriptor {
@@ -40,14 +43,27 @@ func (d *TunnelDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return KeyTunnel(t.Name)
 }
 
-// Dependencies implements scheduler.Descriptor: the next-hop interfaces (optional).
+// Dependencies implements scheduler.Descriptor: the next-hop interfaces (optional) and the IP
+// tables recursive paths resolve in.
 func (d *TunnelDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	t, _ := df7.Decode[Tunnel](obj)
 	var deps []scheduler.Dependency
 	for _, n := range df7.PathInterfaces(t.Paths) {
 		deps = append(deps, scheduler.Dependency{Key: d.Opts.InterfaceKey(n), Optional: true})
 	}
-	return deps
+	return append(deps, lookupTableDeps(t.Paths)...)
+}
+
+// ProvidedKeys implements the scheduler's KeyProvider: the tunnel interface is the generic
+// interface "interface/<name>" (D-065; its logical name is the tunnel name, D-069), so objects
+// that name it — a label route or another tunnel with a path through it, an interface attribute —
+// are created after it and deleted before it (TD-11c creator obligation, F-mpls-srmpls).
+func (d *TunnelDescriptor) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	t, err := df7.Decode[Tunnel](obj)
+	if err != nil || t.Name == "" {
+		return nil
+	}
+	return []scheduler.Key{d.Opts.InterfaceKey(t.Name)}
 }
 
 // ownedTunnel is one tunnel of this owner as dumped.

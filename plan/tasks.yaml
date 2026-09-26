@@ -1531,7 +1531,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D2.8
@@ -1541,7 +1541,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-26'
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed | prompts-s4: suggested deps consider splitting: static MPLS/SR-MPLS vs LDP sync (V5) — docs/status/tasks/prompts-s4.md
     | D-125 envelope: checkPaths ≤ 255 paths (review 1.5d) | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - branch: ''
@@ -1563,7 +1563,7 @@ tasks:
   scope: LDP only; split from F-mpls-srmpls (D-085); prompt generated from F-mpls-srmpls.md LDP part when it becomes ready
   stage: S4
   started: ''
-  state: todo
+  state: ready
   template: prompts/FEATURE-TEMPLATE.md
   title: 'Wave C: LDP via FRR ldpd + agent-side FRR→VPP label sync (V5 fallback)'
   wbs:
@@ -3664,4 +3664,24 @@ tasks:
   est_hours: 2
   scope: 'F-srv6 review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-srv6.md'
   files_owned: docs/status/tasks/F-srv6-host*
-  notes: 'steps of F-srv6.md Pending host steps; NRestarts before/after'
+  notes: steps of F-srv6.md Pending host steps; NRestarts before/after
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-mpls-srmpls-host
+  title: 'F-mpls-srmpls host runs: TestMplsOnHost on a slot, table-0/SR-MPLS half in a manager window, real-stack screenshots'
+  stage: S4
+  deps:
+  - F-mpls-srmpls
+  priority: 3
+  est_hours: 2
+  scope: 'F-mpls-srmpls review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-mpls-srmpls.md'
+  files_owned: docs/status/tasks/F-mpls-srmpls-host*
+  notes: vppctl show mpls fib / show sr mpls policies before and after rollback; NRestarts before/after

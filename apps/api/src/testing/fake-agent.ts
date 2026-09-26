@@ -55,6 +55,7 @@ import { wireguardFakeState } from '../features/wireguard/fake.js'; // F-wiregua
 import { bgpFake } from '../features/bgp/fake.js'; // P12
 import { dhcpLeases } from '../features/kea-dhcp-relay/fake.js';
 import { srv6FakeState } from '../features/srv6/fake.js'; // F-srv6 (P5)
+import { mplsSrmplsFake } from '../features/mpls-srmpls/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -788,6 +789,7 @@ export class FakeAgent {
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
       // wave-BC: F-mpls-srmpls
+      ...mplsSrmplsFake(this), // MplsState over the applied document (features/mpls-srmpls/fake.ts)
       // wave-BC: F-lb
       ...lbFake(this).handlers(),
       // wave-BC: F-qos-flat

@@ -91,7 +91,6 @@ func interfaceCreators(t *testing.T) []creatorCase {
 // interface/<name> today (TD-11c fix round 1), with the row that fixes them. Shrink-only: a fixed
 // creator must be removed from this list (the test says so).
 var knownAliasCreatorGaps = map[string]string{
-	mpls.NameTunnel:      "F-mpls-srmpls",
 	gre.TunnelName:       "F-tunnels",
 	ipip.TunnelName:      "F-tunnels",
 	ipip.SixrdName:       "F-tunnels",

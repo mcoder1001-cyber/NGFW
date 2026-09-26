@@ -29,6 +29,8 @@ import {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+  type MplsStateRequest,
+  type MplsStateResponse,
   // wave-BC: F-lb
   type LbFlushVipResponse,
   type LbStateResponse,
@@ -237,6 +239,10 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
+  /** Live MPLS state (F-mpls-srmpls; proto.md "F-mpls-srmpls: MplsState"): the FIB paged in the agent, or the tunnels. */
+  mplsState(req: Omit<MplsStateRequest, 'owner'>): Promise<MplsStateResponse> {
+    return this.unary(this.c.mplsState, { ...req, owner: this.owner });
+  }
   // wave-BC: F-lb
   /** F-lb: live lb state of the configured VIPs (proto.md "F-lb"); an agent without the RPC answers 501. */
   lbState(names: string[] = []): Promise<LbStateResponse> {

@@ -14,6 +14,7 @@ import {
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { interfaceL2Field, subinterfaceL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
+import { interfaceGsoField, interfaceMirrorField } from './ext/loopback-bvi-gso-lldp-span.js'; // wave-A: F-loopback-bvi-gso-lldp-span
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -213,6 +214,8 @@ export const InterfaceSchema = z
     // wave-A: F-bridge-l2
     l2: interfaceL2Field,
     // wave-A: F-loopback-bvi-gso-lldp-span
+    gso: interfaceGsoField,
+    mirror: interfaceMirrorField,
     // wave-A: F-neighbors-ra
     // wave-A: F-rpf-adl-pbr
     // wave-A: P12

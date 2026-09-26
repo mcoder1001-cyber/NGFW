@@ -66,7 +66,8 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
 	  ]}
 	}`, vrf, table, l1, l2, slot)
-	// Retrieve (desired.Assemble, P08) always reports admin state and promiscuous mode
+	// Retrieve (desired.Assemble, P08) always reports admin state and promiscuous mode; every implemented domain is
+	// present (services since F-rpf-adl-pbr)
 	canon := fmt.Sprintf(`{
 	  "vrfs": {%[1]q: {"id": %[2]d}},
 	  "interfaces": {
@@ -76,7 +77,8 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 	  "routing": {"static": [
 	    {"prefix": "10.%[5]d.100.0/24", "vrf": %[1]q, "distance": 1, "blackhole": false, "nextHops": [{"address": "10.%[5]d.1.254", "weight": 1}]},
 	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "blackhole": false, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
-	  ]}
+	  ]},
+	  "services": {}
 	}`, vrf, table, l1, l2, slot)
 	return doc(t, js), doc(t, canon)
 }

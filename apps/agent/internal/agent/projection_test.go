@@ -57,7 +57,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 			}
 		}
 		again := project(out, implementedDomains(), nil, nil)
-		if !sameKVs(pj.kvs, again.kvs) {
+		if !sameKVs(withoutWriteOnly(pj.kvs), again.kvs) { // write-only objects cannot round-trip (F-loopback-bvi-gso-lldp-span)
 			t.Errorf("%s: project(assemble(project(doc))) != project(doc)", base)
 		}
 	}

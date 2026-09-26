@@ -118,6 +118,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-bridge-l2
   groups.get('interfaces')!.push({ id: 'bridging', path: '/interfaces/bridging', labelKey: 'bridge-l2:nav.bridging', fallbackLabel: 'Bridging', available: true });
   // wave-A: F-loopback-bvi-gso-lldp-span
+  groups.get('interfaces')!.push({ id: 'lldp', path: '/interfaces/lldp', labelKey: 'loopback-bvi-gso-lldp-span:nav.lldp', fallbackLabel: 'LLDP', available: true }, { id: 'mirroring', path: '/interfaces/mirroring', labelKey: 'loopback-bvi-gso-lldp-span:nav.mirroring', fallbackLabel: 'Port mirroring', available: true });
+  groups.get('tools')!.push({ id: 'nsim', path: '/tools/nsim', labelKey: 'loopback-bvi-gso-lldp-span:nav.nsim', fallbackLabel: 'Delay simulator (lab)', available: true });
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables

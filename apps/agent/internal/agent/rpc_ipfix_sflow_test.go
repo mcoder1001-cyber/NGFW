@@ -251,7 +251,9 @@ func TestIpfixSflowProjection(t *testing.T) {
 	vrf := func(n string) (uint32, bool) { return 0, n == "default" }
 	run := func(js string) *projected {
 		p := &projected{pointers: map[scheduler.Key]string{}}
-		desired.IpfixSflow(p, services(t, js), vrf)
+		svc := services(t, js)
+		desired.IpfixSflow(p, svc, vrf)
+		desired.ServicesUnsupported(p, svc) // the one services reporter, called next to it by project()
 		return p
 	}
 	find := func(p *projected, ptr string, sev vrxv1.IssueSeverity) bool {

@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 47
+const maxPending = 45
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {pending, "F-rpf-adl-pbr"},
@@ -62,6 +62,7 @@ var descriptorReach = map[string]reachEntry{
 	"df6":                 {library, "DF-6 shared helpers"},
 	"df7":                 {library, "DF-7 shared helpers (codec, boot store, registry)"},
 	"dfkit":               {library, "DF-8 / descriptor kit (D-077)"},
+	"gso":                 {wired, "F-loopback-bvi-gso-lldp-span"},
 	"kit":                 {library, "TD-16 shared helpers (atomic write, ParsePrefix, Register) — no descriptors"},
 	"dhcp":                {wired, "P08"},
 	"dns":                 {pending, "F-unbound-chrony-syslog"},
@@ -84,7 +85,7 @@ var descriptorReach = map[string]reachEntry{
 	"lb":                  {pending, "F-lb"},
 	"lcp":                 {pending, "P12"},
 	"lisp":                {wired, "F-lisp"},
-	"lldp":                {pending, "F-loopback-bvi-gso-lldp-span"},
+	"lldp":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"mactime":             {wired, "F-bridge-l2"},
 	"mapnat":              {pending, "F-det44-map-dslite-cnat"},
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
@@ -94,13 +95,14 @@ var descriptorReach = map[string]reachEntry{
 	"nat64":               {pending, "F-nat44-ei-64-66-nptv6"},
 	"nat66":               {pending, "F-nat44-ei-64-66-nptv6"},
 	"natcommon":           {library, "DF-3 shared NAT helpers"},
+	"nsim":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"pcap":                {pending, "F-capture-trace"},
 	"pnat":                {pending, "F-nat44-ei-64-66-nptv6"},
 	"policer":             {wired, "F-qos-flat"},
 	"pppoe":               {pending, "F-tunnels"},
 	"qos":                 {wired, "F-qos-flat"},
 	"sflow":               {wired, "F-ipfix-sflow"},
-	"span":                {pending, "F-loopback-bvi-gso-lldp-span"},
+	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"sr":                  {pending, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
@@ -287,7 +289,7 @@ func wiringCall(call *ast.CallExpr, imps map[string]string) string {
 	if !ok || imps[id.Name] == "" {
 		return ""
 	}
-	if se.Sel.Name == "Register" || strings.HasPrefix(se.Sel.Name, "New") {
+	if strings.HasPrefix(se.Sel.Name, "Register") || strings.HasPrefix(se.Sel.Name, "New") { // Register, RegisterGlobals, New*
 		return imps[id.Name]
 	}
 	return ""

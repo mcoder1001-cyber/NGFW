@@ -92,6 +92,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-bridge-l2
         { path: 'interfaces/bridging', lazy: async () => ({ Component: (await import('./domains/interfaces/bridge-l2/BridgingPage')).BridgingPage }) },
         // wave-A: F-loopback-bvi-gso-lldp-span
+        { path: 'interfaces/lldp', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/LldpPage')).LldpPage }) },
+        { path: 'interfaces/mirroring', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/MirroringPage')).MirroringPage }) },
+        { path: 'tools/nsim', lazy: async () => ({ Component: (await import('./domains/interfaces/loopback-bvi-gso-lldp-span/NsimPage')).NsimPage }) },
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr

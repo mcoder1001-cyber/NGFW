@@ -28,3 +28,14 @@ entry stays until a VPP restart (DF-7-questions Q8, V-item candidate). Delete is
 dump showed our own sw_if_index, i.e. hw(X).sw_if_index = X; the host test
 finds an aligned loopback via `df7test.AlignedLoopback` (test-only `show hardware-interfaces` read through
 `cli_inband`) or skips. FIB entries: none.
+
+F-loopback-bvi-gso-lldp-span wiring: `services.lldp` (enabled) → `lldp.interface/<if>` on every agent and
+`lldp.global/global` on the globals owner only (a slot agent reports systemName / txHold / txIntervalSec as
+`agent.unsupported-field`); both write-only, noted `agent.write-only` for the drift view (`internal/desired/lldp.go`). An
+unset systemName leaves VPP's name (VPP's default is none). Live state: the `LldpNeighbors` RPC (`lldp.Neighbours` +
+the logical names this owner can see; one walk at a time, D-132) → `GET /api/v1/state/lldp/neighbors`. VPP keeps LLDP
+state of a deleted hardware interface (no delete hook in the plugin; V-new (F-loopback-bvi-gso-lldp-span)): the
+scheduler disables LLDP before the interface goes (D-095c). Ownership declarations (TD-11b): `lldp.global`
+RecordsNoOwnership, `lldp.interface` CheckPersistent (claim store). Create records the claim on an untagged interface
+**before** `sw_interface_set_lldp` (TD-11b claim first, review M3); an index mismatch (V20) releases it — the stray
+enable itself cannot be undone (see above), so LLDP belongs on interfaces created at start-up only.

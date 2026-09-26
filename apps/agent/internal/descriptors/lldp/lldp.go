@@ -25,6 +25,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/lldp"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -224,25 +225,31 @@ func (d *InterfaceDescriptor) Create(ctx context.Context, obj proto.Message) (an
 		}
 		return Meta{SwIfIndex: idx}, nil
 	}
-	if err := d.set(ctx, idx, i, true); err != nil {
-		return nil, err
-	}
-	after, err := Neighbours(ctx, d.Client)
+	undo, err := claimFirst(tg) // TD-11b, review M3: the claim before the VPP write
 	if err != nil {
 		return nil, err
 	}
+	if err := d.set(ctx, idx, i, true); err != nil {
+		return nil, undo(err)
+	}
+	after, err := Neighbours(ctx, d.Client)
+	if err != nil {
+		// the enable happened; the claim stays, so the next Create finds it on and adopts it. No disable: with a
+		// sw/hw index mismatch (V20) a disable by idx would remove another interface's LLDP
+		return Meta{SwIfIndex: idx}, err
+	}
 	if _, ok := after[idx]; ok {
-		return Meta{SwIfIndex: idx}, tg.Claim()
+		return Meta{SwIfIndex: idx}, nil
 	}
 	// Not undone, on purpose (review M6 investigated): the enable created the entry of hw
 	// interface idx, which lldp_dump reports as that hw interface's sw_if_index (stray); VPP's
 	// disable (lldp_cli.c lldp_cfg_intf_set) looks the entry up by hw(arg).sw_if_index, so a
 	// disable with idx would remove the entry keyed <stray> — another interface's LLDP, never
 	// the stray one — and the argument that would hit the stray entry (the hw index of our
-	// interface) is not available through the API. Nothing is claimed; the error is loud.
-	return nil, fmt.Errorf("%s: %w: asked for %s (sw_if_index %d), VPP enabled LLDP on sw_if_index %v — NOT undone: "+
+	// interface) is not available through the API. The claim made above is released; the error is loud.
+	return nil, undo(fmt.Errorf("%s: %w: asked for %s (sw_if_index %d), VPP enabled LLDP on sw_if_index %v — NOT undone: "+
 		"VPP 26.06 cannot address that entry through the API (DF-7-questions Q8); it stays until a VPP restart",
-		NameInterface, ErrIndexMismatch, i.Interface, idx, newEntries(before, after))
+		NameInterface, ErrIndexMismatch, i.Interface, idx, newEntries(before, after)))
 }
 
 // newEntries lists the interfaces present in after but not in before.
@@ -370,4 +377,23 @@ func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Opti
 // (agent config globalsOwner: true, never a test slot on the shared host) calls it (D-071).
 func RegisterGlobals(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(NewGlobal(c, owner, opts...))
+}
+
+// claimFirst records the claim on an untagged target before the VPP write and returns undo, which releases the claim
+// again when this Create made it (TD-11b's dfkit.Target.ClaimFirst, which this branch's base predates; the swap is
+// mechanical at the rebase — review M3). Our tagged interfaces need no claim.
+func claimFirst(tg dfkit.Target) (undo func(error) error, err error) {
+	had := tg.Claimed()
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return func(err error) error {
+		if had {
+			return err
+		}
+		if rerr := tg.Release(); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		return err
+	}, nil
 }

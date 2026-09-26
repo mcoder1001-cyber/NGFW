@@ -58,6 +58,8 @@ import {
   type BridgeDomainMacsResponse,
   type BridgeDomainStateResponse,
   // wave-A: F-loopback-bvi-gso-lldp-span
+  type LldpNeighborsRequest,
+  type LldpNeighborsResponse,
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
@@ -256,6 +258,11 @@ export class AgentClient implements OnModuleDestroy {
   }
 
   // wave-A: F-loopback-bvi-gso-lldp-span
+  /** F-loopback-bvi-gso-lldp-span: one page (≤ 1000) of the LLDP table (proto.md §11); no RPC → 501. */
+  lldpNeighbors(req: Omit<LldpNeighborsRequest, 'owner'>): Promise<LldpNeighborsResponse> {
+    return this.unary(this.c.lldpNeighbors, { ...req, owner: this.owner });
+  }
+
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr

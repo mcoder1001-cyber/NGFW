@@ -15,6 +15,8 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -139,10 +141,14 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 			}
 		}
 	}
-	if err := d.set(ctx, meta, states[m.State], m.L2); err != nil {
+	undo, err := claimFirst(tg) // TD-11b, review M3: the claim before the VPP write
+	if err != nil {
 		return nil, err
 	}
-	return meta, tg.Claim()
+	if err := d.set(ctx, meta, states[m.State], m.L2); err != nil {
+		return nil, undo(err)
+	}
+	return meta, nil
 }
 
 // exists reports whether VPP mirrors meta.From to meta.To at the level.
@@ -176,12 +182,28 @@ func (d *Descriptor) reresolve(ctx context.Context, m Mirror) (Meta, dfkit.Targe
 	}
 	to, err := ifs.Resolve(m.Destination)
 	if errors.Is(err, df7.ErrNoSuchInterface) {
+		// F-loopback-bvi-gso-lldp-span: a destination deleted behind the agent's back leaves the session in
+		// VPP's span bookkeeping of OUR source (span.c has no interface-delete hook; V-new), which Retrieve
+		// reports under the index spelling "#<sw_if_index>". Clearing that bit touches only our source's state.
+		if idx, ok := staleIndex(m.Destination); ok {
+			return Meta{From: tg.Index, To: idx}, tg, true, nil
+		}
 		return Meta{}, tg, false, nil
 	}
 	if err != nil {
 		return Meta{}, tg, false, err
 	}
 	return Meta{From: tg.Index, To: to}, tg, true, nil
+}
+
+// staleIndex parses the "#<sw_if_index>" spelling df7.Interfaces.Name gives an index VPP no longer names.
+func staleIndex(name string) (uint32, bool) {
+	rest, ok := strings.CutPrefix(name, "#")
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.ParseUint(rest, 10, 32)
+	return uint32(n), err == nil
 }
 
 // Update implements scheduler.Descriptor: a new direction set is applied in place.
@@ -265,4 +287,23 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 // Not on kit.Register: takes per-family options or extra dependencies beyond kit.Env (TD-16).
 func Register(r scheduler.Registry, c vpp.Client, owner string, opts ...df7.Option) {
 	r.Register(New(c, owner, opts...))
+}
+
+// claimFirst records the claim on an untagged target before the VPP write and returns undo, which releases the claim
+// again when this Create made it (TD-11b's dfkit.Target.ClaimFirst, which this branch's base predates; the swap is
+// mechanical at the rebase — review M3). Our tagged interfaces need no claim.
+func claimFirst(tg dfkit.Target) (undo func(error) error, err error) {
+	had := tg.Claimed()
+	if err := tg.Claim(); err != nil {
+		return nil, err
+	}
+	return func(err error) error {
+		if had {
+			return err
+		}
+		if rerr := tg.Release(); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		return err
+	}, nil
 }

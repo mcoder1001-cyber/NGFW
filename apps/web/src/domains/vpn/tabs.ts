@@ -15,4 +15,11 @@ export const vpnTabs: readonly DomainTab[] = [
   // wave-BC: F-ra-vpn
   // wave-A: P11
   // wave-A: F-wireguard
+  {
+    id: 'wireguard',
+    labelKey: 'wireguard:tab',
+    Component: lazy(() =>
+      import('./wireguard/WireguardPage').then((m) => ({ default: m.WireguardPage })),
+    ),
+  },
 ];

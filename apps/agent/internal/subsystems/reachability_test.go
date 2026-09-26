@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 34
+const maxPending = 33
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -115,7 +115,7 @@ var descriptorReach = map[string]reachEntry{
 	"vrrp":                {pending, "F-vrrp-config-sync"},
 	"vxlan":               {pending, "F-tunnels"},
 	"vxlan_gpe":           {pending, "F-tunnels"},
-	"wireguard":           {pending, "F-wireguard"},
+	"wireguard":           {wired, "F-wireguard"},
 }
 
 var rendererReach = map[string]reachEntry{

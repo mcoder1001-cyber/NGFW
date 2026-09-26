@@ -431,6 +431,7 @@ export const WireguardInterfaceSchema = z.strictObject({
     title: 'Peers',
     widget: 'record',
   }),
+  routeAllowedIps: withUi(z.boolean().default(false), { title: 'Route allowed IPs', widget: 'switch', help: 'Install a route via this interface for every allowed IP of its peers (TNSR does not; F-wireguard)' }), // prettier-ignore
 });
 
 export const WireguardSchema = z.strictObject({

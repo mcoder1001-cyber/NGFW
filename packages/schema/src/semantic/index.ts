@@ -49,6 +49,7 @@ import { hostAclNftablesValidators } from './host-acl-nftables.js';
 import { nat44EdSessionsValidators } from './nat44-ed-sessions.js';
 // wave-A: P11
 // wave-A: F-wireguard
+import { wireguardValidators } from './wireguard.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
@@ -115,6 +116,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...nat44EdSessionsValidators,
   // wave-A: P11
   // wave-A: F-wireguard
+  ...wireguardValidators,
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog

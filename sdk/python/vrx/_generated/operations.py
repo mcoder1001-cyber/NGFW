@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 
 # operationId → (HTTP method, path template, path params, query params, has JSON body)
 OPERATIONS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] = {
+    "Wireguard_keypair": ("POST", "/api/v1/actions/vpn/wireguard/keypair", (), (), True),
     "Actions_run": ("POST", "/api/v1/actions/{action}", ('action',), (), False),
     "Audit_list": ("GET", "/api/v1/audit", (), ('offset', 'limit'), False),
     "Auth_apiKeys": ("GET", "/api/v1/auth/api-keys", (), (), False),
@@ -47,9 +48,11 @@ OPERATIONS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] =
     "State_drift": ("GET", "/api/v1/state/drift", (), (), False),
     "State_events": ("GET", "/api/v1/state/events", (), ('offset', 'limit'), False),
     "State_interfaces": ("GET", "/api/v1/state/interfaces", (), (), False),
+    "State_counters": ("GET", "/api/v1/state/interfaces/{name}/counters", ('name',), (), False),
     "State_neighbors": ("GET", "/api/v1/state/neighbors", (), (), False),
     "State_routes": ("GET", "/api/v1/state/routes", (), ('pageSize', 'page', 'vrf'), False),
     "State_system": ("GET", "/api/v1/state/system", (), (), False),
+    "Wireguard_state": ("GET", "/api/v1/state/vpn/wireguard", (), ('interface',), False),
     "Users_setPassword": ("POST", "/api/v1/users/{name}/password", ('name',), (), True),
 }
 
@@ -59,6 +62,10 @@ class Operations:
 
     def _call(self, operation_id: str, path_params: dict[str, Any], query: dict[str, Any], body: Any = ...) -> Any:
         raise NotImplementedError
+
+    def wireguard_keypair(self, body: "WireguardKeypairBody") -> "WireguardKeypairResponse":
+        'POST /api/v1/actions/vpn/wireguard/keypair — Generate a WireGuard key pair: the private key is stored as secret key/<name> (never returned); returns the reference and the public key'
+        return self._call("Wireguard_keypair", {}, {}, body)  # type: ignore[no-any-return]
 
     def actions_run(self, action: str) -> Any:
         'POST /api/v1/actions/{action} — Run an action (all 501 until the agent implements Action)'
@@ -213,8 +220,12 @@ class Operations:
         return self._call("State_events", {}, {"offset": offset, "limit": limit})  # type: ignore[no-any-return]
 
     def state_interfaces(self) -> "StateInterfacesResponse":
-        'GET /api/v1/state/interfaces — Interfaces as retrieved from VPP by the agent, with the latest counters'
+        'GET /api/v1/state/interfaces — Interfaces: live state from VPP (agent InterfaceState), what the agent retrieved (config), the running configuration, the latest counters and pending candidate changes'
         return self._call("State_interfaces", {}, {})  # type: ignore[no-any-return]
+
+    def state_counters(self, name: str) -> "StateCountersResponse":
+        'GET /api/v1/state/interfaces/{name}/counters — Latest counters of one interface (absolute; rates come from consecutive samples or the WS iface.counters topic)'
+        return self._call("State_counters", {"name": name}, {})  # type: ignore[no-any-return]
 
     def state_neighbors(self) -> Any:
         'GET /api/v1/state/neighbors — IP neighbours — needs an agent state RPC that the v1 contract does not have (501)'
@@ -227,6 +238,10 @@ class Operations:
     def state_system(self) -> "StateSystemResponse":
         'GET /api/v1/state/system — API + agent health, pending commit, running revision'
         return self._call("State_system", {}, {})  # type: ignore[no-any-return]
+
+    def wireguard_state(self, *, interface: str | None = None) -> "WireguardStateResponse":
+        'GET /api/v1/state/vpn/wireguard — WireGuard interfaces and peers: handshake state, learnt endpoint, last handshake, interface counters (no keys but public ones)'
+        return self._call("Wireguard_state", {}, {"interface": interface})  # type: ignore[no-any-return]
 
     def users_set_password(self, name: str, body: "UsersSetPasswordBody") -> "UsersSetPasswordResponse":
         "POST /api/v1/users/{name}/password — Set a user's password (admin: any user; everyone: their own, with `current`). TLS only; argon2id server-side; ends the user's other sessions; an admin reset also revokes the user's API keys unless keepApiKeys"

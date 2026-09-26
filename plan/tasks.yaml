@@ -3537,3 +3537,25 @@ tasks:
   scope: 'P12 review H3; manager decision: no global lcp default-netns window on the shared VPP'
   files_owned: test/topology/frr-linuxcp/** docs/status/tasks/P12-fib-proof*
   notes: test design in docs/status/tasks/P12.md (fix round 1)
+- id: F-global-blocking
+  title: 'Global Blocking: upload an IP list file (IPv4/IPv6, CIDR) and drop it on every interface and local-in'
+  prompt: prompts/features/F-global-blocking.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-object-model
+  - F-acl
+  - F-host-acl-nftables
+  priority: 3
+  est_hours: 14
+  state: ready
+  parked_on: ''
+  wbs: []
+  scope: IP-only block lists from an uploaded file; domains/feeds/Geo-IP stay in plan/backlog.yaml
+  files_owned: '- packages/schema/src/domains/ext/global-blocking.ts, apps/agent/internal/descriptors/globalblock/**, apps/api/src/features/global-blocking/**, apps/web/src/domains/security/global-blocking/**'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26)

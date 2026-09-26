@@ -74,3 +74,105 @@ tasks:
   deps: [BL-APP-00]
   est_hours: 12
   notes: Research only - measure throughput cost of the extra hop before any commitment.
+# --- Security / NGFW ideas (brainstorm 2026-09-26) ---
+- id: BL-SEC-01
+  title: 'DoS/flood protection: SYN cookies, per-source/destination session limits, new-connection rate limits, control-plane policing'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 20
+  notes: VPP policer + ACL/NAT session limits; CoPP for punted traffic.
+- id: BL-SEC-02
+  title: 'Geo-IP objects: country-based address objects usable in ACL and NAT rules'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: New object type in objects; periodic database refresh (licence of the Geo-IP DB to check). Could reuse the F-global-blocking list engine.
+- id: BL-SEC-03
+  title: 'Global Blocking phase 2: domain lists, remote feed URLs with scheduled refresh (Spamhaus DROP, abuse.ch), DNS sinkhole in Unbound'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 14
+  notes: Extends F-global-blocking (plan/tasks.yaml), which is IP-only from an uploaded file.
+- id: BL-SEC-04
+  title: 'Policy analyzer: shadowed/redundant/unused rules (zero hits) and "which rule matches this packet?" lookup'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: Works on the 100k-rule ACL model and hit counters.
+- id: BL-SEC-05
+  title: 'Session logging: start/end records with rule, NAT and bytes; export to SIEM as CEF/JSON'
+  labels: [backlog-idea, security, logging]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: Base for User-ID, reports and analytics. Builds on IPFIX/flowprobe and the syslog export.
+- id: BL-SEC-06
+  title: 'User-ID: map IP to user from AD/LDAP logs or RADIUS accounting; rules by user and group'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 24
+  notes: Reuses the AAA backends (F-aaa).
+- id: BL-SEC-07
+  title: 'URL/web filtering by category (SNI/DNS path)'
+  labels: [backlog-idea, security, app-control]
+  state: icebox
+  deps: [BL-APP-02, BL-APP-03]
+  est_hours: 16
+  notes: Needs a category database (licence/feed to choose).
+- id: BL-SEC-08
+  title: 'IPS: turn the Suricata/Snort evaluation into a supported inline path with rule updates'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: [BL-APP-08]
+  est_hours: 40
+- id: BL-SEC-09
+  title: 'TLS inspection (decryption) with CA management, bypass lists and privacy categories'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: Heavy, has legal/privacy implications; without it IPS/AV/URL filtering see only part of the traffic.
+- id: BL-SEC-10
+  title: 'Antivirus / sandbox for files in transit'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: [BL-SEC-09]
+  est_hours: 60
+  notes: Lowest priority.
+- id: BL-OPS-01
+  title: 'Captive portal for guest networks'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 16
+- id: BL-OPS-02
+  title: 'SD-WAN: link selection by SLA probes (latency/loss/jitter) on top of PBR and BFD'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: Listed as a v1 non-goal (docs/00-MASTER-PROMPT.md); needs a scope decision first.
+- id: BL-OPS-03
+  title: 'Multi-tenancy / VDOM'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: Check the existing VDOM decision in docs/decisions/ before any work.
+- id: BL-OPS-04
+  title: 'Central management of multiple devices (config push, templates, fleet view)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 60
+- id: BL-OPS-05
+  title: 'Compliance reports: check config against CIS / PCI-style benchmarks'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12

@@ -1,18 +1,18 @@
 # Progress
 
-Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
+Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 47.9% by hours (562.0/1172.5 h), 50.8% by tasks (66/130)**
+**Overall: 47.6% by hours (566.0/1188.5 h), 51.1% by tasks (67/131)**
 
 | state | tasks |
 |---|---|
-| merged | 66 |
-| review | 19 |
+| merged | 67 |
+| review | 18 |
 | running | 5 |
 | ready | 7 |
 | parked | 2 |
 | failed | 0 |
-| todo | 31 |
+| todo | 32 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 165.0 / 605.0 | 27.3% | 23/70 | 4 | 6 | 0 |
+| S4 | 169.0 / 621.0 | 27.2% | 24/71 | 4 | 6 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -48,7 +48,6 @@ Updated 2026-09-25 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-qos-flat — Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded) (running, unassigned)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
-- WEB-3 — Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6) (review, unassigned)
 - UI-domain-editor — Advanced configuration editor: generic schema-driven page for any domain path (review, unassigned)
 
 ## Parked

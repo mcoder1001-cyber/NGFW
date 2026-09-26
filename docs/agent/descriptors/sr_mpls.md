@@ -25,3 +25,14 @@ Guards: empty segment lists are rejected (VPP reads `segments[0]` of an empty ve
 exist (VPP leaves a half-created steering entry otherwise) and the table to exist (unchecked `fib_table_find` on add
 and delete). Color-based automated steering (bsid `~0`, next-hop + color) is not modelled. The endpoint-color host
 test is skipped (global TE MPLS table + internal labels, no un-assign); unit-tested on the fake.
+
+## F-mpls-srmpls
+
+- `sr-mpls.endpoint-color` declares `CheckPersistent` (TD-11b, `ownership.go`): its per-boot claims are keyed by BSID and
+  need a persisted store keyed by id — `df6.WithClaims(Wiring.PairClaims("df6"))`; policy and steering are
+  `df6.KeyedDescriptor`s and declare the same check. Test: `f_mpls_srmpls_test.go/TestOwnershipDeclarations`.
+- Product wiring (`subsystems/mpls_srmpls.go`): `sr_mpls.Register(r, c, owner, df6.WithClaims(PairClaims("df6")),
+  df6.WithGlobalsOwner(...))`. Policy and steering are in `Domains[routing]`; endpoint-color is registered but in no
+  domain (SR-TE color steering is not configurable), so it is never planned.
+- `sr-mpls.policy` depends on `mpls-table/0`; the projection declares it (the D-071 role decides create vs require).
+  Segment lists are sorted ascending by the projection (D-074).

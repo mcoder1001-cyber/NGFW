@@ -14,6 +14,7 @@ import {
   vrfName,
 } from '../primitives.js';
 import { withUi } from '../ui.js';
+import { routingMpls } from './ext/mpls-srmpls.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { routingL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
@@ -720,6 +721,7 @@ export const RoutingSchema = withUi(
     // wave-BC: F-ospf
     // wave-BC: F-isis-rip
     // wave-BC: F-mpls-srmpls
+    mpls: routingMpls,
     // wave-BC: F-igmp-mfib
     // wave-BC: F-srv6
     // wave-A: F-bridge-l2

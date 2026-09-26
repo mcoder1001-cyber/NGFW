@@ -45,6 +45,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-vrf-static-ecmp
       'vrfs',
       'routing',
+      'mpls', // F-mpls-srmpls (routing group, pushed before neighbors/pbr/bgp)
       // wave-A: F-neighbors-ra
       'neighbors',
       // wave-A: F-rpf-adl-pbr
@@ -63,7 +64,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
       // wave-BC: F-bfd-redistribution
-      // wave-BC: F-mpls-srmpls
+      // wave-BC: F-mpls-srmpls ('mpls' is listed after 'routing' above: nav.ts pushes it before the wave-A routing items)
       // wave-BC: F-igmp-mfib
       // wave-BC: F-capture-trace
       // wave-BC: F-tunnels

@@ -38,6 +38,8 @@ import faAdvanced from './locales/fa/advanced.json';
 // wave-BC: F-isis-rip
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
+import enMplsSrmpls from './locales/en/mpls-srmpls.json';
+import faMplsSrmpls from './locales/fa/mpls-srmpls.json';
 // wave-BC: F-lb
 import enLb from './locales/en/lb.json';
 import faLb from './locales/fa/lb.json';
@@ -154,6 +156,7 @@ export const NAMESPACES = [
   // wave-BC: F-isis-rip
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
+  'mpls-srmpls',
   // wave-BC: F-lb
   'lb',
   // wave-BC: F-qos-flat
@@ -245,6 +248,7 @@ const en = {
   // wave-BC: F-isis-rip
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
+  'mpls-srmpls': enMplsSrmpls,
   // wave-BC: F-lb
   lb: enLb,
   // wave-BC: F-qos-flat
@@ -333,6 +337,7 @@ const fa = {
   // wave-BC: F-isis-rip
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
+  'mpls-srmpls': faMplsSrmpls,
   // wave-BC: F-lb
   lb: faLb,
   // wave-BC: F-qos-flat

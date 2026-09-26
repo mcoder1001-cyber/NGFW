@@ -134,6 +134,13 @@ var Domains = map[string][]string{
 		core.RouteName,
 		// wave-BC: F-bfd-redistribution
 		// wave-BC: F-mpls-srmpls
+		mplsTableName,
+		mplsInterfaceName,
+		mplsRouteName,
+		mplsIPBindName,
+		mplsTunnelName,
+		srMplsPolicyName,
+		srMplsSteeringName,
 		// wave-BC: F-igmp-mfib
 		// wave-BC: F-srv6
 		srLocalSidName,      // F-srv6: sr.localsid (srv6.go)
@@ -315,6 +322,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-ospf
 	// wave-BC: F-isis-rip
 	// wave-BC: F-mpls-srmpls
+	if err := registerMplsSrmpls(r, w); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-srv6
 	if err := w.registerSrv6(r); err != nil { // DF-6 sr family, df6 claims in PairClaims("df6") (srv6.go)
 		return nil, err

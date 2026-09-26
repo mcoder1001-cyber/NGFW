@@ -376,6 +376,7 @@ do_forbidden() {
   hits=$(git grep -nIE --untracked -e "$pat" -- . ':(exclude)pnpm-lock.yaml' 2>/dev/null | grep -vE 'VRX_TEST_PSK_|<redacted>' || true)
   [[ -z $hits ]] || fail "secret-shaped content in committed/working files (private key block, cloud/API token, JWT, URL with embedded password). Secrets never go into the repository — redact as <redacted>, fixtures use VRX_TEST_PSK_<id>:\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no secret-shaped strings"
+  hits=$(git grep -nIw --untracked -e vrxtestsecrets -- . ':(exclude)*_test.go' ':(exclude)apps/agent/internal/subsystems/wireguard_fixture.go' ':(exclude)test' ':(exclude)docs' ':(exclude)*.md' ':(exclude)tools/ci.sh' 2>/dev/null || true); [[ -z $hits ]] || fail "the WireGuard test-secret build tag vrxtestsecrets outside its tagged file, tests, test/ and docs (F-wireguard review F2: product code must never use the fixture channel):\n$(sed 's/^/    /' <<<"$hits")"; say "ok: vrxtestsecrets only in test code"  # 4b (F-wireguard review F2)
 
   # 5. gitleaks over the commit history: the branch's commits with --base, otherwise HEAD's history (last 500 commits).
   #    Scoped explicitly — gitleaks' default is every ref, and a leak on some unmerged branch must not fail main.

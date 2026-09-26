@@ -107,6 +107,8 @@ import enNat44Ei6466Nptv6 from './locales/en/nat44-ei-64-66-nptv6.json';
 import faNat44Ei6466Nptv6 from './locales/fa/nat44-ei-64-66-nptv6.json';
 // wave-A: P11
 // wave-A: F-wireguard
+import enWireguard from './locales/en/wireguard.json';
+import faWireguard from './locales/fa/wireguard.json';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
@@ -187,6 +189,7 @@ export const NAMESPACES = [
   'nat44-ei-64-66-nptv6',
   // wave-A: P11
   // wave-A: F-wireguard
+  'wireguard',
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
@@ -269,6 +272,7 @@ const en = {
   'nat44-ei-64-66-nptv6': enNat44Ei6466Nptv6,
   // wave-A: P11
   // wave-A: F-wireguard
+  wireguard: enWireguard,
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
@@ -348,6 +352,7 @@ const fa = {
   'nat44-ei-64-66-nptv6': faNat44Ei6466Nptv6,
   // wave-A: P11
   // wave-A: F-wireguard
+  wireguard: faWireguard,
   // wave-A: P12
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog

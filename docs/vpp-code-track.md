@@ -168,3 +168,8 @@ the external port on a pool address (`nat44_ei_reserve_port`) unless static-mapp
 NO_SUCH_ENTRY for an address outside the pool (unlike nat44-ed); an identity mapping with a port takes the same path
 (its external address is its own, `nat44_ei.c` ~2487-2497). The builder refuses both with a pointer
 (`nat.ei-port-forward-pool`).
+
+### V-new (F-wireguard)
+| item | raised by | why VPP code seems needed | fallback implemented | est. VPP effort |
+|---|---|---|---|---|
+| WireGuard peer telemetry: `wireguard_peers_details` (v1/v2) carries only the flags (DEAD/ESTABLISHED) and the current endpoint — no per-peer rx/tx byte or packet counters and no last-handshake time, although `wg_peer_t` keeps `last_sent_handshake`/`last_received_packet` (`wireguard_peer.h`); no stats-segment entry per peer either | F-wireguard | API gap (the kernel `wg show` reports all three) | `WireguardState` reports the wg interface's stats-segment counters and the time the agent last saw the peer become established (peer event); documented in docs/user/vpn/wireguard.md | 1–2 days (add fields to `wireguard_peer_v2` or per-peer stats-segment counters) |

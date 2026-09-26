@@ -71,6 +71,7 @@ const (
 	Dataplane_HostAclState_FullMethodName      = "/vrx.v1.Dataplane/HostAclState"
 	Dataplane_NatSessions_FullMethodName       = "/vrx.v1.Dataplane/NatSessions"
 	Dataplane_NatSummary_FullMethodName        = "/vrx.v1.Dataplane/NatSummary"
+	Dataplane_WireguardState_FullMethodName    = "/vrx.v1.Dataplane/WireguardState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -181,6 +182,10 @@ type DataplaneClient interface {
 	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
 	// cache of up to 30 s, see retrieved_at).
 	NatSummary(ctx context.Context, in *NatSummaryRequest, opts ...grpc.CallOption) (*NatSummaryResponse, error)
+	// WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+	WireguardState(ctx context.Context, in *WireguardStateRequest, opts ...grpc.CallOption) (*WireguardStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -468,6 +473,16 @@ func (c *dataplaneClient) NatSummary(ctx context.Context, in *NatSummaryRequest,
 	return out, nil
 }
 
+func (c *dataplaneClient) WireguardState(ctx context.Context, in *WireguardStateRequest, opts ...grpc.CallOption) (*WireguardStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WireguardStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_WireguardState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -576,6 +591,10 @@ type DataplaneServer interface {
 	// NatSummary reports this owner's NAT44-ED totals and per-pool usage (read-only; served from a
 	// cache of up to 30 s, see retrieved_at).
 	NatSummary(context.Context, *NatSummaryRequest) (*NatSummaryResponse, error)
+	// WireguardState dumps the live, read-only WireGuard state of this agent's own wg<N> interfaces and
+	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
+	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
+	WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -660,6 +679,9 @@ func (UnimplementedDataplaneServer) NatSessions(context.Context, *NatSessionsReq
 }
 func (UnimplementedDataplaneServer) NatSummary(context.Context, *NatSummaryRequest) (*NatSummaryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method NatSummary not implemented")
+}
+func (UnimplementedDataplaneServer) WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WireguardState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1111,6 +1133,24 @@ func _Dataplane_NatSummary_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_WireguardState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WireguardStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).WireguardState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_WireguardState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).WireguardState(ctx, req.(*WireguardStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1205,6 +1245,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NatSummary",
 			Handler:    _Dataplane_NatSummary_Handler,
+		},
+		{
+			MethodName: "WireguardState",
+			Handler:    _Dataplane_WireguardState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

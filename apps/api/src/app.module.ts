@@ -89,6 +89,7 @@ import { nat44EdSessionsFeature } from './features/nat44-ed-sessions/index.js';
 import { nat44Ei6466Nptv6Feature } from './features/nat44-ei-64-66-nptv6/index.js';
 // wave-A: P11
 // wave-A: F-wireguard
+import { wireguardFeature } from './features/wireguard/index.js';
 // wave-A: P12
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
@@ -189,6 +190,7 @@ export class AppModule {
         ...nat44Ei6466Nptv6Feature.controllers,
         // wave-A: P11
         // wave-A: F-wireguard
+        ...wireguardFeature.controllers,
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
@@ -273,6 +275,7 @@ export class AppModule {
         ...nat44Ei6466Nptv6Feature.providers,
         // wave-A: P11
         // wave-A: F-wireguard
+        ...wireguardFeature.providers,
         // wave-A: P12
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog

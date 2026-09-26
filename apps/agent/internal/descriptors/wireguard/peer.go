@@ -21,8 +21,8 @@ import (
 
 // Peer manages WireGuard peers (wireguard_peer_add_v2 / wireguard_peer_remove; dump
 // wireguard_peers_v2_dump). VPP has no peer update message, so every change is ErrRecreate.
-// The preshared key is a "sha256:<hex>" reference; wireguard_peers_v2_dump returns the key in
-// clear, Retrieve hashes it into the reference and zeroes the buffer. The peer's status flags
+// The preshared key is an "hmac:<hex>" reference (keyed, D-096); wireguard_peers_v2_dump returns
+// the key in clear, Retrieve fingerprints it into the reference and zeroes the buffer. The peer's status flags
 // (dead / established) are state, not configuration: they are reported through Events, never in
 // the Value.
 //
@@ -59,6 +59,10 @@ func NewPeer(cfg Config) *Peer { return &Peer{cfg: cfg} }
 
 // Name implements scheduler.Descriptor.
 func (*Peer) Name() string { return PeerName }
+
+// RecordsNoOwnership declares the TD-11b ownership protocol: a peer is ours when it sits on one of
+// our tagged WireGuard interfaces (the tag VPP carries); nothing is recorded in a store.
+func (*Peer) RecordsNoOwnership() {}
 
 // KeyOf implements scheduler.Descriptor: wireguard.peer/<interface>/<public_key> (std base64, may
 // contain "/"; Key.ID() is everything after the descriptor name).
@@ -99,6 +103,9 @@ func (d *Peer) Create(ctx context.Context, obj proto.Message) (any, error) {
 	}
 	peer.SwIfIndex = idx
 	if ref := o.GetPresharedKey(); ref != "" {
+		if d051, ok := unavailable(ref); ok {
+			return nil, fmt.Errorf("wireguard: peer %s preshared key %s: %w", d.KeyOf(o), d051, ErrSecretUnavailable)
+		}
 		if err := vpn.CheckRef(ref); err != nil {
 			return nil, fmt.Errorf("wireguard: peer preshared_key: %w", err) // never echoes the value (review M1)
 		}
@@ -126,7 +133,9 @@ func (d *Peer) Create(ctx context.Context, obj proto.Message) (any, error) {
 		if _, err := svc.WantWireguardPeerEvents(ctx, &wireguard.WantWireguardPeerEvents{
 			SwIfIndex: interface_types.InterfaceIndex(noInterface), PeerIndex: rep.PeerIndex, EnableDisable: 1, PID: pid,
 		}); err != nil {
-			return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, fmt.Errorf("want_wireguard_peer_events (%s): %w", d.KeyOf(o), err)
+			// the peer exists in VPP: a partial Create (TD-11b, D-133) — the reconciler journals it with this
+			// Meta and the rollback deletes it; a bare error would leave it in VPP, unjournaled
+			return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, scheduler.PartialCreate(fmt.Errorf("want_wireguard_peer_events (%s): %w", d.KeyOf(o), err))
 		}
 	}
 	return PeerMeta{PeerIndex: rep.PeerIndex, SwIfIndex: uint32(idx)}, nil

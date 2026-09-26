@@ -66,7 +66,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-A: F-nat44-ed-sessions
   'nat',
   // wave-A: P11
-  // wave-A: F-wireguard
+  // wave-A: F-wireguard ('vpn' is already built: F-lisp's entry above)
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
   // wave-BC: F-ipfix-sflow (unanchored)

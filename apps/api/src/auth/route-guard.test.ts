@@ -36,6 +36,7 @@ const ADMIN_ONLY = new Set([
   // wave-BC: F-aaa
   // wave-BC: F-backup-restore
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
+  'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
 ]);
 
 function concrete(url: string): string {

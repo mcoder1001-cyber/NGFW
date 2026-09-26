@@ -69,6 +69,7 @@ const (
 	Nat = "nat"
 	// wave-A: P11
 	// wave-A: F-wireguard
+	VPN = "vpn"
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 )
@@ -181,6 +182,7 @@ var Domains = map[string][]string{
 	),
 	// wave-A: P11
 	// wave-A: F-wireguard
+	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
 }
@@ -345,6 +347,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-A: P11
 	// wave-A: F-wireguard
+	if err := w.registerWireguard(r); err != nil { // DF-5 wireguard family + wireguard.meta + secret store (wireguard.go)
+		return nil, err
+	}
 	// wave-A: P12
 	// wave-A: F-kea-dhcp-relay
 	// wave-A: F-unbound-chrony-syslog
@@ -411,6 +416,7 @@ func (w *Wiring) Connected(ctx context.Context) {
 	w.dhcpClient.Reconnected() // DF-8 (obligation): re-subscribe lease events on the new connection
 	// F-neighbors-ra (W-seed seeded no anchor in Connected, questions Q2): restart the neighbour-event watcher
 	w.neighborsRaConnected(ctx)
+	w.wireguardConnected(ctx) // F-wireguard: (re)start the peer-event watcher (wireguard.go; no anchor here, questions Q4)
 }
 
 // KeyedClaims opens (once per family) the persisted single-key claim store of a descriptor family

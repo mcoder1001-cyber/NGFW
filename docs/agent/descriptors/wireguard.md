@@ -11,6 +11,7 @@ the plugin's event source. Message names come from `apps/agent/binapi/wireguard`
 |---|---|---|---|---|---|
 | `wireguard.interface` | `wireguard.interface/wg<instance>` | `wireguard_interface_create` (explicit private key, `generate_key`=false) + `sw_interface_tag_add_del`; Update = ErrRecreate; `wireguard_interface_delete` | `wireguard_interface_dump` with `show_private_key=false` (never true) + `sw_interface_dump` (owner tag) | — (see src_ip below) | VPP names it `wg<user_instance>`; provides the alias `interface/wg<instance>` (`ProvidedKeys`) |
 | `wireguard.peer` | `wireguard.peer/<interface>/<public key, std base64>` | `wireguard_peer_add_v2`; Update = ErrRecreate (VPP has no peer update); `wireguard_peer_remove` (peer_index from Meta) | `wireguard_peers_v2_dump` | `interface/wg<N>` (D-065 alias), `vrf/<table_id>` (Optional) when ≠ 0 | public keys are unique **VPP-wide** |
+| `wireguard.meta` (F-wireguard) | `wireguard.meta/wg<instance>`, `wireguard.meta/wg<instance>/<public key>` | agent-local table (no VPP call): `MetaSpec{id, name, description, secret_ref, underlay_vrf, route_allowed_ips}` as `structpb`; file store `<state dir>/wireguard-meta-<owner>.json` (0600, temp + fsync + rename + dir fsync) | the whole table | — | what VPP cannot hold (D-073b style): configuration names, descriptions, D-051 references. Never material. `CheckPersistent` refuses an in-memory store in the product agent (TD-11b) |
 | `wireguard.async-mode` | `wireguard.async-mode/global` | owner: `wg_set_async_mode` (idempotent, D-076: sets/clears a flag); Delete = no-op | **write-only**: `ErrRetrieveUnsupported` (no getter, D-063) | — | **VPP-global** (D-071): setter only with `WithGlobalsOwner(true)`, otherwise a requirement that always fails (`ErrNotGlobalsOwner`) |
 
 Meta: `InterfaceMeta{SwIfIndex}`, `PeerMeta{PeerIndex, SwIfIndex}` — Retrieve fills both exactly as
@@ -92,3 +93,40 @@ after the descriptor name.
   `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show wireguard interface` / `show wireguard
   peer` — the former prints the private key in base64 **and** hex plus the mac-key: evidence goes
   through a redaction filter.
+
+## Product wiring (F-wireguard)
+
+* **Registration** (`internal/subsystems/wireguard.go`, one line in `subsystems.Register`): `wireguard.Register` with
+  `WireguardOptions` — `WithKeyer(Wiring.VPNKeyer())` (D-096), `WithGlobalsOwner(env.GlobalsOwner)` (D-071), `WithSecrets`
+  (the family's `subsystems.WireguardSecrets`) — plus `wireguard.meta`. `Domains["vpn"]` = `wireguard.interface`,
+  `wireguard.peer`, `wireguard.meta` (the async-mode global has no configuration leaf and is in no domain).
+* **TD-11b declarations:** `Interface`, `Peer`, `AsyncMode` declare `RecordsNoOwnership` (ownership is the owner tag VPP
+  carries); `Meta` declares `CheckPersistent`. DF-5's non-owner `vpn.Require` has no declaration (read-only package): the
+  wiring registers it through `wgRegistry`, which adds `RecordsNoOwnership` (F-wireguard-questions Q8).
+* **Builder** (`internal/desired/wireguard.go`): `vpn.wireguard.interfaces.<name>` → `wireguard.interface/wg<instance>`,
+  `wireguard.meta/…`, DF-1/core objects on `interface/wg<instance>` (`interface.admin-state` when enabled, `interface.mtu`,
+  `interface-ip.table` for a non-default VRF, `interface-ip` per address; only when the transaction includes
+  `interfaces`), `wireguard.peer/wg<instance>/<public key>` (`table_id` = the underlay VRF's table) and, with
+  `routeAllowedIps`, `ip.route/<overlay table>/<prefix>` via `<first address of the prefix>` `wg<instance>` (VPP's wg
+  interface is NBMA: an attached route through it is a drop, the adjacency binds to the peer whose allowed IP covers the
+  next hop — `wireguard_if.c wg_if_update_adj`; only when the transaction includes `routing`). The assembler moves all of
+  it back under `vpn.wireguard` (names and references from `wireguard.meta`) and out of `interfaces` / `routing.static`.
+* **Secrets:** the builder maps `key/<name>` → `x25519:<public key>` and `psk/<name>` → `hmac:<hex>` through the family's
+  secret store; the descriptors resolve the DF-5 references through the same store. Without material (the product agent
+  until PENDING-secret-channel) the projection warns `agent.secret-unavailable` and emits `unavailable:<D-051 ref>`, which
+  `Interface.Create` / `Peer.Create` refuse with `wireguard.ErrSecretUnavailable` — the transaction fails loudly; a peer is
+  never created without its preshared key. Test builds only (`-tags vrxtestsecrets`) can fill the store from a slot-local
+  0600 fixture file (`VRX_TEST_WG_SECRETS`).
+* **Events (DF-5 Q8):** `Wiring.Connected` (re)starts a watcher on every VPP connect that runs `peer.Events` and publishes
+  each `PeerEvent` through TD-8's `Env.Publish` as `EVENT_KIND_WIREGUARD_PEER_CHANGED` (13; `interface` = `wg<N>`,
+  attributes `public_key`, `peer_index`, `established`, `dead`). It re-subscribes with backoff; without an event sink
+  nothing starts. The observer keeps the time each peer was last seen becoming established (`WireguardState.last_handshake`).
+* **Partial Create (TD-11b, D-133):** when `want_wireguard_peer_events` fails for a new peer while a subscription is
+  active, `Peer.Create` returns its Meta with `scheduler.PartialCreate(err)`: the reconciler journals the peer and the
+  rollback deletes it.
+* **State** (`DumpState`, the `WireguardState` RPC): `sw_interface_dump`, `wireguard_interface_dump`
+  (`show_private_key=false`), `wireguard_peers_dump` (v1: no preshared key), one walk at a time (D-132).
+* **Host checks** (`internal/agent/rpc_wireguard_integration_test.go`): owner `<prefix>wg`, instances/tables
+  `base+51…60`, ports `20000+100·slot+10/+11`. `TestWireguardHandshakeOnHost` (`VRX_WG_HANDSHAKE=1`) peers `wg<base+60>` with
+  a kernel WireGuard interface in `ns-<prefix>wh` through a tap (no af_packet). Two VPP wg interfaces cannot peer over
+  local addresses: `ip4-local` drops the handshake as a spoofed local-address packet.

@@ -335,6 +335,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-A: F-rpf-adl-pbr
 	desired.RpfAdlPbr(p, ds, in, vrfID, subsystems.RpfAdlPbrEnv())
 	// wave-A: F-object-model
+	if in["objects"] {
+		desired.ObjectModel(p, ds.GetObjects()) // agent-local objects.* store (internal/desired/object_model.go)
+	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
@@ -491,6 +494,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-rpf-adl-pbr
 	desired.RpfAdlPbrAssemble(ds, kvs, in, nameOf, stored)
 	// wave-A: F-object-model
+	if in["objects"] {
+		ds.Objects = desired.AssembleObjectModel(kvs) // the applied objects document (nil when empty)
+	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions

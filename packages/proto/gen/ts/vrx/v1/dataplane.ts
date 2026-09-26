@@ -6306,6 +6306,49 @@ export interface AutoSdlConfig {
   removeTimeoutSec?: number | undefined;
 }
 
+/** FqdnObjectStateRequest selects FQDN address objects by name. */
+export interface FqdnObjectStateRequest {
+  /** Object names (keys of objects.addresses); empty = every FQDN object the agent holds. */
+  names: string[];
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** FqdnObjectStateResponse is one snapshot of the agent's FQDN resolver. */
+export interface FqdnObjectStateResponse {
+  /** One entry per FQDN address object the agent holds (applied configuration), sorted by name. */
+  objects: FqdnObjectState[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** FqdnObjectState is the resolver's runtime view of one FQDN address object (not configuration). */
+export interface FqdnObjectState {
+  /** Object name (key of objects.addresses). */
+  name: string;
+  /** The hostname that is resolved (objects.addresses.<name>.fqdn). */
+  fqdn: string;
+  /**
+   * A and AAAA answers in use, canonical text (net/netip), IPv4 before IPv6, each family sorted.
+   * After a failed refresh these are the last good answers; empty = the object expands to nothing.
+   */
+  addresses: string[];
+  /** Last successful resolution (at least one address family answered); unset = never resolved. */
+  lastResolved:
+    | Date
+    | undefined;
+  /** Next scheduled query. */
+  nextRefresh:
+    | Date
+    | undefined;
+  /** The latest attempt's failure ("no such host", a timeout, …); empty = it succeeded. */
+  error: string;
+  /** Consecutive failed attempts since the last success (0 after a success). */
+  failures: number;
+}
+
 /** QosPolicerStateRequest selects policers of this agent. */
 export interface QosPolicerStateRequest {
   /** Must be empty or equal to the agent's owner (§6). */
@@ -53182,6 +53225,373 @@ export const AutoSdlConfig: MessageFns<AutoSdlConfig> = {
   },
 };
 
+function createBaseFqdnObjectStateRequest(): FqdnObjectStateRequest {
+  return { names: [], owner: "" };
+}
+
+export const FqdnObjectStateRequest: MessageFns<FqdnObjectStateRequest> = {
+  encode(message: FqdnObjectStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.names) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FqdnObjectStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseFqdnObjectStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): FqdnObjectStateRequest {
+    return {
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+    };
+  },
+
+  toJSON(message: FqdnObjectStateRequest): unknown {
+    const obj: any = {};
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<FqdnObjectStateRequest>): FqdnObjectStateRequest {
+    return FqdnObjectStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<FqdnObjectStateRequest>): FqdnObjectStateRequest {
+    const message = createBaseFqdnObjectStateRequest();
+    message.names = object.names?.map((e) => e) || [];
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseFqdnObjectStateResponse(): FqdnObjectStateResponse {
+  return { objects: [], owner: "", retrievedAt: undefined };
+}
+
+export const FqdnObjectStateResponse: MessageFns<FqdnObjectStateResponse> = {
+  encode(message: FqdnObjectStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.objects) {
+      FqdnObjectState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FqdnObjectStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseFqdnObjectStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.objects.push(FqdnObjectState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): FqdnObjectStateResponse {
+    return {
+      objects: globalThis.Array.isArray(object?.objects)
+        ? object.objects.map((e: any) => FqdnObjectState.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: FqdnObjectStateResponse): unknown {
+    const obj: any = {};
+    if (message.objects?.length) {
+      obj.objects = message.objects.map((e) => FqdnObjectState.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<FqdnObjectStateResponse>): FqdnObjectStateResponse {
+    return FqdnObjectStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<FqdnObjectStateResponse>): FqdnObjectStateResponse {
+    const message = createBaseFqdnObjectStateResponse();
+    message.objects = object.objects?.map((e) => FqdnObjectState.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseFqdnObjectState(): FqdnObjectState {
+  return { name: "", fqdn: "", addresses: [], lastResolved: undefined, nextRefresh: undefined, error: "", failures: 0 };
+}
+
+export const FqdnObjectState: MessageFns<FqdnObjectState> = {
+  encode(message: FqdnObjectState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.fqdn !== "") {
+      writer.uint32(18).string(message.fqdn);
+    }
+    for (const v of message.addresses) {
+      writer.uint32(26).string(v!);
+    }
+    if (message.lastResolved !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastResolved), writer.uint32(34).fork()).join();
+    }
+    if (message.nextRefresh !== undefined) {
+      Timestamp.encode(toTimestamp(message.nextRefresh), writer.uint32(42).fork()).join();
+    }
+    if (message.error !== "") {
+      writer.uint32(50).string(message.error);
+    }
+    if (message.failures !== 0) {
+      writer.uint32(56).uint32(message.failures);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): FqdnObjectState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseFqdnObjectState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.fqdn = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.addresses.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.lastResolved = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.nextRefresh = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.failures = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): FqdnObjectState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      fqdn: isSet(object.fqdn) ? globalThis.String(object.fqdn) : "",
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+      lastResolved: isSet(object.lastResolved)
+        ? fromJsonTimestamp(object.lastResolved)
+        : isSet(object.last_resolved)
+        ? fromJsonTimestamp(object.last_resolved)
+        : undefined,
+      nextRefresh: isSet(object.nextRefresh)
+        ? fromJsonTimestamp(object.nextRefresh)
+        : isSet(object.next_refresh)
+        ? fromJsonTimestamp(object.next_refresh)
+        : undefined,
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      failures: isSet(object.failures) ? globalThis.Number(object.failures) : 0,
+    };
+  },
+
+  toJSON(message: FqdnObjectState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.fqdn !== "") {
+      obj.fqdn = message.fqdn;
+    }
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.lastResolved !== undefined) {
+      obj.lastResolved = message.lastResolved.toISOString();
+    }
+    if (message.nextRefresh !== undefined) {
+      obj.nextRefresh = message.nextRefresh.toISOString();
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.failures !== 0) {
+      obj.failures = Math.round(message.failures);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<FqdnObjectState>): FqdnObjectState {
+    return FqdnObjectState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<FqdnObjectState>): FqdnObjectState {
+    const message = createBaseFqdnObjectState();
+    message.name = object.name ?? "";
+    message.fqdn = object.fqdn ?? "";
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.lastResolved = object.lastResolved ?? undefined;
+    message.nextRefresh = object.nextRefresh ?? undefined;
+    message.error = object.error ?? "";
+    message.failures = object.failures ?? 0;
+    return message;
+  },
+};
+
 function createBaseQosPolicerStateRequest(): QosPolicerStateRequest {
   return { owner: "", names: [] };
 }
@@ -60073,6 +60483,23 @@ export const DataplaneService = {
       Buffer.from(ListNeighborsResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): ListNeighborsResponse => ListNeighborsResponse.decode(value),
   },
+  /**
+   * FqdnObjectState reports the agent's resolver state of every FQDN address object
+   * (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+   * failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+   */
+  fqdnObjectState: {
+    path: "/vrx.v1.Dataplane/FqdnObjectState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: FqdnObjectStateRequest): Buffer =>
+      Buffer.from(FqdnObjectStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): FqdnObjectStateRequest => FqdnObjectStateRequest.decode(value),
+    responseSerialize: (value: FqdnObjectStateResponse): Buffer =>
+      Buffer.from(FqdnObjectStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): FqdnObjectStateResponse => FqdnObjectStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -60188,6 +60615,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * by the agent. Read-only; learned (dynamic) and static entries alike.
    */
   listNeighbors: handleUnaryCall<ListNeighborsRequest, ListNeighborsResponse>;
+  /**
+   * FqdnObjectState reports the agent's resolver state of every FQDN address object
+   * (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+   * failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+   */
+  fqdnObjectState: handleUnaryCall<FqdnObjectStateRequest, FqdnObjectStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -60555,6 +60989,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: ListNeighborsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * FqdnObjectState reports the agent's resolver state of every FQDN address object
+   * (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+   * failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+   * Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+   */
+  fqdnObjectState(
+    request: FqdnObjectStateRequest,
+    callback: (error: ServiceError | null, response: FqdnObjectStateResponse) => void,
+  ): ClientUnaryCall;
+  fqdnObjectState(
+    request: FqdnObjectStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: FqdnObjectStateResponse) => void,
+  ): ClientUnaryCall;
+  fqdnObjectState(
+    request: FqdnObjectStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: FqdnObjectStateResponse) => void,
   ): ClientUnaryCall;
 }
 

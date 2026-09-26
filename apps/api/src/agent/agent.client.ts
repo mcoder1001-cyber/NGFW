@@ -74,6 +74,7 @@ import {
   type ListNeighborsResponse,
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
+  type FqdnObjectStateResponse,
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
@@ -331,6 +332,10 @@ export class AgentClient implements OnModuleDestroy {
   }
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
+  /** FQDN resolver state of the agent's FQDN address objects (F-object-model); an older agent answers 501. */
+  fqdnObjectState(names: string[] = []): Promise<FqdnObjectStateResponse> {
+    return this.unary(this.c.fqdnObjectState, { names, owner: this.owner });
+  }
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions

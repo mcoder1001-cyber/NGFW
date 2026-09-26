@@ -104,6 +104,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'routing/pbr', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/PbrPage')).PbrPage }) },
         { path: 'firewall/adl', lazy: async () => ({ Component: (await import('./domains/routing/rpf-adl-pbr/AdlPage')).AdlPage }) },
         // wave-A: F-object-model
+        { path: domainPath('objects').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/object-model/ObjectsPage')).ObjectsPage }) },
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions

@@ -28,3 +28,17 @@ Notes / limitations / guards
 - uSID behaviours (`un`, `ua`, `sr_localsid_add_del_v2` locator lengths) and plugin behaviours (srv6-ad/am/as: **no
   binapi generated**) are not modelled; their SIDs are ignored by Retrieve. `srv6-mobile` (binapi `sr_mobile`) is not
   built — see DF-6-questions Q6. Path tracing (`sr_pt`) out of scope.
+
+Product wiring and additions (F-srv6)
+- `routing.srv6` is projected onto these descriptors by `apps/agent/internal/desired/srv6.go` (docs/contracts/proto.md
+  "F-srv6: Srv6State"); the family is registered by `subsystems/srv6.go` with `df6.WithClaims(Wiring.PairClaims("df6"))`
+  (claims persisted in `claims-df6-<owner>.json`, TD-11b) and `df6.WithGlobalsOwner(Env.GlobalsOwner)` (D-071).
+- `sr.Register` registers the two globals wrapped in `sr.Global`: the df6 setter / require descriptor plus the TD-11b
+  declaration `RecordsNoOwnership` (a VPP-wide setting records nothing; `sr_set_encap_source` /
+  `sr_set_encap_hop_limit` overwrite one variable, so no D-076 applied-once record is needed) and its `Unwrap` /
+  `DeleteOnAbsence` forwarded. On a non-owner the require variant of a write-only global always fails
+  (`df6.ErrNotGlobalsOwner`): a slot agent gives each encapsulating policy its own `encap_src` instead.
+- `sr.LocalSidCounters` reads `sr_localsids_with_packet_stats_dump` (good/bad packets and bytes per SID, keyed by
+  canonical SID) for the `Srv6State` RPC; status only, never part of Retrieve.
+- Delete order in the product: the scheduler removes steering (depends on `sr.policy/<bsid>` and the table) before
+  its policy, and every SR object before its VRF (`vrf/<id>`), so no SR FIB entry stays in a deleted table (V15).

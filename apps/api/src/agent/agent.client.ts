@@ -45,6 +45,7 @@ import {
   type IpfixStateResponse,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  type Srv6StateResponse,
   // wave-BC: F-lisp
   type LispStateResponse,
   // wave-BC: F-bfd-redistribution
@@ -268,6 +269,10 @@ export class AgentClient implements OnModuleDestroy {
   }
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  /** F-srv6: live SRv6 state (proto.md §11); callers do not poll faster than every 30 s (D-132). */
+  srv6State(): Promise<Srv6StateResponse> {
+    return this.unary(this.c.srv6State, { owner: this.owner });
+  }
   // wave-BC: F-lisp
   /** Live LISP state (F-lisp); an agent without the RPC answers 501. */
   lispState(): Promise<LispStateResponse> {

@@ -20,6 +20,7 @@ import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
 import { neighborsField } from './ext/neighbors-ra.js';
 import { pbrField } from './ext/rpf-adl-pbr.js';
 import { staticRouteTag } from './ext/frr-linuxcp.js'; // wave-A: P12
+import { srv6Field } from './ext/srv6.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -723,6 +724,7 @@ export const RoutingSchema = withUi(
     // wave-BC: F-srv6
     // wave-A: F-bridge-l2
     l2: routingL2Field,
+    srv6: srv6Field,
     // wave-A: F-neighbors-ra
     neighbors: neighborsField,
     // wave-A: F-rpf-adl-pbr

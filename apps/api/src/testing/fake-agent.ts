@@ -54,6 +54,7 @@ import { nat44Ei6466Nptv6Fake } from '../features/nat44-ei-64-66-nptv6/fake.js';
 import { wireguardFakeState } from '../features/wireguard/fake.js'; // F-wireguard (P5)
 import { bgpFake } from '../features/bgp/fake.js'; // P12
 import { dhcpLeases } from '../features/kea-dhcp-relay/fake.js';
+import { srv6FakeState } from '../features/srv6/fake.js'; // F-srv6 (P5)
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -799,6 +800,7 @@ export class FakeAgent {
       ipfixState: ipfixStateFake(this),
       // wave-BC: F-capture-trace
       // wave-BC: F-srv6
+      srv6State: srv6FakeState(this), // features/srv6/fake.ts
       // wave-BC: F-lisp
       lispState: lispStateFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
       // wave-BC: F-bfd-redistribution

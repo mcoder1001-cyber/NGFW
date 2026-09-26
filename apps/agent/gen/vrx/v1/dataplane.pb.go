@@ -4211,6 +4211,8 @@ type RoutingConfig struct {
 	Policy *RoutingPolicy `protobuf:"bytes,9,opt,name=policy,proto3" json:"policy,omitempty"`
 	// L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none.
 	L2 *BridgeL2Config `protobuf:"bytes,20,opt,name=l2,proto3" json:"l2,omitempty"`
+	// SRv6 local SIDs, policies and steering (F-srv6, VPP sr); unset = not configured.
+	Srv6 *Srv6Config `protobuf:"bytes,17,opt,name=srv6,proto3" json:"srv6,omitempty"`
 	// Static neighbours, neighbour-table limits and DAD (F-neighbors-ra); unset = none configured.
 	Neighbors *NeighborsConfig `protobuf:"bytes,10,opt,name=neighbors,proto3" json:"neighbors,omitempty"`
 	// Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none.
@@ -4301,6 +4303,13 @@ func (x *RoutingConfig) GetPolicy() *RoutingPolicy {
 func (x *RoutingConfig) GetL2() *BridgeL2Config {
 	if x != nil {
 		return x.L2
+	}
+	return nil
+}
+
+func (x *RoutingConfig) GetSrv6() *Srv6Config {
+	if x != nil {
+		return x.Srv6
 	}
 	return nil
 }
@@ -29071,6 +29080,885 @@ func (x *IpfixCounter) GetValue() uint64 {
 	return 0
 }
 
+// Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`.
+type Srv6Config struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Outer IPv6 source of encapsulating policies that set none, and VPP's global default
+	// (sr_set_encap_source; applied by the globals owner only, D-071; write-only, never retrieved).
+	EncapSource *string `protobuf:"bytes,1,opt,name=encap_source,json=encapSource,proto3,oneof" json:"encap_source,omitempty"`
+	// Hop limit of the outer IPv6 header, 1–255 (sr_set_encap_hop_limit; VPP-wide, globals owner only,
+	// write-only). Unset = VPP's default (64).
+	EncapHopLimit *uint32 `protobuf:"varint,2,opt,name=encap_hop_limit,json=encapHopLimit,proto3,oneof" json:"encap_hop_limit,omitempty"`
+	// Local SIDs keyed by SID (canonical IPv6 address).
+	LocalSids map[string]*Srv6LocalSid `protobuf:"bytes,3,rep,name=local_sids,json=localSids,proto3" json:"local_sids,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// SR policies keyed by binding SID (canonical IPv6 address).
+	Policies map[string]*Srv6Policy `protobuf:"bytes,4,rep,name=policies,proto3" json:"policies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Steering entries: a prefix of a VRF or an L2 interface into a policy's binding SID.
+	Steering      []*Srv6Steering `protobuf:"bytes,5,rep,name=steering,proto3" json:"steering,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6Config) Reset() {
+	*x = Srv6Config{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[324]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6Config) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6Config) ProtoMessage() {}
+
+func (x *Srv6Config) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[324]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6Config.ProtoReflect.Descriptor instead.
+func (*Srv6Config) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{324}
+}
+
+func (x *Srv6Config) GetEncapSource() string {
+	if x != nil && x.EncapSource != nil {
+		return *x.EncapSource
+	}
+	return ""
+}
+
+func (x *Srv6Config) GetEncapHopLimit() uint32 {
+	if x != nil && x.EncapHopLimit != nil {
+		return *x.EncapHopLimit
+	}
+	return 0
+}
+
+func (x *Srv6Config) GetLocalSids() map[string]*Srv6LocalSid {
+	if x != nil {
+		return x.LocalSids
+	}
+	return nil
+}
+
+func (x *Srv6Config) GetPolicies() map[string]*Srv6Policy {
+	if x != nil {
+		return x.Policies
+	}
+	return nil
+}
+
+func (x *Srv6Config) GetSteering() []*Srv6Steering {
+	if x != nil {
+		return x.Steering
+	}
+	return nil
+}
+
+// Srv6LocalSid mirrors `routing.srv6.localSids.<sid>` (sr_localsid_add_del).
+type Srv6LocalSid struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "end" | "end.x" | "end.t" | "end.dx2" | "end.dx4" | "end.dx6" | "end.dt4" | "end.dt6".
+	Behavior *string `protobuf:"bytes,1,opt,name=behavior,proto3,oneof" json:"behavior,omitempty"`
+	// Penultimate segment pop (end, end.x, end.t). Zod default false.
+	Psp *bool `protobuf:"varint,2,opt,name=psp,proto3,oneof" json:"psp,omitempty"`
+	// VRF (IPv6 table) the SID is installed in. Zod default "default".
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Cross-connect interface (end.x, end.dx2, end.dx4, end.dx6).
+	Interface *string `protobuf:"bytes,4,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Next hop: IPv6 for end.x / end.dx6, IPv4 for end.dx4.
+	NextHop *string `protobuf:"bytes,5,opt,name=next_hop,json=nextHop,proto3,oneof" json:"next_hop,omitempty"`
+	// Lookup VRF: IPv6 table for end.t / end.dt6, IPv4 table for end.dt4.
+	LookupVrf     *string `protobuf:"bytes,6,opt,name=lookup_vrf,json=lookupVrf,proto3,oneof" json:"lookup_vrf,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6LocalSid) Reset() {
+	*x = Srv6LocalSid{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[325]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6LocalSid) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6LocalSid) ProtoMessage() {}
+
+func (x *Srv6LocalSid) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[325]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6LocalSid.ProtoReflect.Descriptor instead.
+func (*Srv6LocalSid) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{325}
+}
+
+func (x *Srv6LocalSid) GetBehavior() string {
+	if x != nil && x.Behavior != nil {
+		return *x.Behavior
+	}
+	return ""
+}
+
+func (x *Srv6LocalSid) GetPsp() bool {
+	if x != nil && x.Psp != nil {
+		return *x.Psp
+	}
+	return false
+}
+
+func (x *Srv6LocalSid) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *Srv6LocalSid) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *Srv6LocalSid) GetNextHop() string {
+	if x != nil && x.NextHop != nil {
+		return *x.NextHop
+	}
+	return ""
+}
+
+func (x *Srv6LocalSid) GetLookupVrf() string {
+	if x != nil && x.LookupVrf != nil {
+		return *x.LookupVrf
+	}
+	return ""
+}
+
+// Srv6Policy mirrors `routing.srv6.policies.<bsid>` (sr_policy_add_v2 / sr_policy_mod_v2 / sr_policy_del).
+type Srv6Policy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "default" | "spray" | "tef". Zod default "default".
+	Type *string `protobuf:"bytes,1,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// true = H.Encaps (outer IPv6 header + SRH), false = H.Insert. Zod default true.
+	Encap *bool `protobuf:"varint,2,opt,name=encap,proto3,oneof" json:"encap,omitempty"`
+	// VRF (IPv6 table) of the binding SID. Zod default "default".
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// Outer source of this encapsulating policy; unset = Srv6Config.encap_source (D-074).
+	EncapSource *string `protobuf:"bytes,4,opt,name=encap_source,json=encapSource,proto3,oneof" json:"encap_source,omitempty"`
+	// Segment lists (at least one).
+	SidLists      []*Srv6SidList `protobuf:"bytes,5,rep,name=sid_lists,json=sidLists,proto3" json:"sid_lists,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6Policy) Reset() {
+	*x = Srv6Policy{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[326]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6Policy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6Policy) ProtoMessage() {}
+
+func (x *Srv6Policy) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[326]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6Policy.ProtoReflect.Descriptor instead.
+func (*Srv6Policy) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{326}
+}
+
+func (x *Srv6Policy) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *Srv6Policy) GetEncap() bool {
+	if x != nil && x.Encap != nil {
+		return *x.Encap
+	}
+	return false
+}
+
+func (x *Srv6Policy) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *Srv6Policy) GetEncapSource() string {
+	if x != nil && x.EncapSource != nil {
+		return *x.EncapSource
+	}
+	return ""
+}
+
+func (x *Srv6Policy) GetSidLists() []*Srv6SidList {
+	if x != nil {
+		return x.SidLists
+	}
+	return nil
+}
+
+// Srv6SidList mirrors one entry of `routing.srv6.policies.<bsid>.sidLists`.
+type Srv6SidList struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Segment IDs in order (1–16 IPv6 addresses).
+	Sids []string `protobuf:"bytes,1,rep,name=sids,proto3" json:"sids,omitempty"`
+	// Load-balancing weight 1–65535. Zod default 1.
+	Weight        *uint32 `protobuf:"varint,2,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6SidList) Reset() {
+	*x = Srv6SidList{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[327]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6SidList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6SidList) ProtoMessage() {}
+
+func (x *Srv6SidList) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[327]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6SidList.ProtoReflect.Descriptor instead.
+func (*Srv6SidList) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{327}
+}
+
+func (x *Srv6SidList) GetSids() []string {
+	if x != nil {
+		return x.Sids
+	}
+	return nil
+}
+
+func (x *Srv6SidList) GetWeight() uint32 {
+	if x != nil && x.Weight != nil {
+		return *x.Weight
+	}
+	return 0
+}
+
+// Srv6Steering mirrors one entry of `routing.srv6.steering` (sr_steering_add_del): a discriminated
+// union on `type`; the fields of the other variant are unset.
+type Srv6Steering struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "l3" (prefix + vrf) | "l2" (interface).
+	Type *string `protobuf:"bytes,1,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// l3: IPv4 or IPv6 network prefix.
+	Prefix *string `protobuf:"bytes,2,opt,name=prefix,proto3,oneof" json:"prefix,omitempty"`
+	// l3: VRF of the prefix. Zod default "default".
+	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	// l2: the interface whose received frames are steered.
+	Interface *string `protobuf:"bytes,4,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
+	// Binding SID of the policy (routing.srv6.policies key).
+	Bsid          *string `protobuf:"bytes,5,opt,name=bsid,proto3,oneof" json:"bsid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6Steering) Reset() {
+	*x = Srv6Steering{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[328]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6Steering) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6Steering) ProtoMessage() {}
+
+func (x *Srv6Steering) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[328]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6Steering.ProtoReflect.Descriptor instead.
+func (*Srv6Steering) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{328}
+}
+
+func (x *Srv6Steering) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *Srv6Steering) GetPrefix() string {
+	if x != nil && x.Prefix != nil {
+		return *x.Prefix
+	}
+	return ""
+}
+
+func (x *Srv6Steering) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *Srv6Steering) GetInterface() string {
+	if x != nil && x.Interface != nil {
+		return *x.Interface
+	}
+	return ""
+}
+
+func (x *Srv6Steering) GetBsid() string {
+	if x != nil && x.Bsid != nil {
+		return *x.Bsid
+	}
+	return ""
+}
+
+// Srv6StateRequest asks for the live SRv6 state of this owner.
+type Srv6StateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Same rules as ApplyRequest.owner.
+	Owner         string `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StateRequest) Reset() {
+	*x = Srv6StateRequest{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[329]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StateRequest) ProtoMessage() {}
+
+func (x *Srv6StateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[329]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StateRequest.ProtoReflect.Descriptor instead.
+func (*Srv6StateRequest) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{329}
+}
+
+func (x *Srv6StateRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+// Srv6StateResponse is one snapshot of this owner's SRv6 objects (status, not configuration).
+type Srv6StateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Local SIDs, sorted by SID.
+	LocalSids []*Srv6StateLocalSid `protobuf:"bytes,1,rep,name=local_sids,json=localSids,proto3" json:"local_sids,omitempty"`
+	// Policies, sorted by binding SID.
+	Policies []*Srv6StatePolicy `protobuf:"bytes,2,rep,name=policies,proto3" json:"policies,omitempty"`
+	// Steering entries, sorted: L3 by table and prefix, then L2 by interface.
+	Steering []*Srv6StateSteering `protobuf:"bytes,3,rep,name=steering,proto3" json:"steering,omitempty"`
+	// The owner whose view was returned.
+	Owner string `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
+	// When the dumps were taken (agent clock).
+	RetrievedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=retrieved_at,json=retrievedAt,proto3" json:"retrieved_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StateResponse) Reset() {
+	*x = Srv6StateResponse{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[330]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StateResponse) ProtoMessage() {}
+
+func (x *Srv6StateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[330]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StateResponse.ProtoReflect.Descriptor instead.
+func (*Srv6StateResponse) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{330}
+}
+
+func (x *Srv6StateResponse) GetLocalSids() []*Srv6StateLocalSid {
+	if x != nil {
+		return x.LocalSids
+	}
+	return nil
+}
+
+func (x *Srv6StateResponse) GetPolicies() []*Srv6StatePolicy {
+	if x != nil {
+		return x.Policies
+	}
+	return nil
+}
+
+func (x *Srv6StateResponse) GetSteering() []*Srv6StateSteering {
+	if x != nil {
+		return x.Steering
+	}
+	return nil
+}
+
+func (x *Srv6StateResponse) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *Srv6StateResponse) GetRetrievedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetrievedAt
+	}
+	return nil
+}
+
+// Srv6StateLocalSid is one local SID as VPP has it, with its counters.
+type Srv6StateLocalSid struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The SID (canonical IPv6 address).
+	Sid string `protobuf:"bytes,1,opt,name=sid,proto3" json:"sid,omitempty"`
+	// Behaviour, as in Srv6LocalSid.behavior ("end", "end.x", …).
+	Behavior string `protobuf:"bytes,2,opt,name=behavior,proto3" json:"behavior,omitempty"`
+	Psp      bool   `protobuf:"varint,3,opt,name=psp,proto3" json:"psp,omitempty"`
+	// IPv6 table id the SID is installed in.
+	FibTable uint32 `protobuf:"varint,4,opt,name=fib_table,json=fibTable,proto3" json:"fib_table,omitempty"`
+	// Cross-connect interface (logical name; "" when none).
+	Interface string `protobuf:"bytes,5,opt,name=interface,proto3" json:"interface,omitempty"`
+	// Next hop ("" when none).
+	NextHop string `protobuf:"bytes,6,opt,name=next_hop,json=nextHop,proto3" json:"next_hop,omitempty"`
+	// Lookup table id (end.t / end.dt4 / end.dt6; 0 otherwise).
+	LookupTable uint32 `protobuf:"varint,7,opt,name=lookup_table,json=lookupTable,proto3" json:"lookup_table,omitempty"`
+	// sr_localsids_with_packet_stats_details: traffic processed by the SID ("good") and dropped ("bad").
+	GoodPackets   uint64 `protobuf:"varint,8,opt,name=good_packets,json=goodPackets,proto3" json:"good_packets,omitempty"`
+	GoodBytes     uint64 `protobuf:"varint,9,opt,name=good_bytes,json=goodBytes,proto3" json:"good_bytes,omitempty"`
+	BadPackets    uint64 `protobuf:"varint,10,opt,name=bad_packets,json=badPackets,proto3" json:"bad_packets,omitempty"`
+	BadBytes      uint64 `protobuf:"varint,11,opt,name=bad_bytes,json=badBytes,proto3" json:"bad_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StateLocalSid) Reset() {
+	*x = Srv6StateLocalSid{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[331]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StateLocalSid) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StateLocalSid) ProtoMessage() {}
+
+func (x *Srv6StateLocalSid) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[331]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StateLocalSid.ProtoReflect.Descriptor instead.
+func (*Srv6StateLocalSid) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{331}
+}
+
+func (x *Srv6StateLocalSid) GetSid() string {
+	if x != nil {
+		return x.Sid
+	}
+	return ""
+}
+
+func (x *Srv6StateLocalSid) GetBehavior() string {
+	if x != nil {
+		return x.Behavior
+	}
+	return ""
+}
+
+func (x *Srv6StateLocalSid) GetPsp() bool {
+	if x != nil {
+		return x.Psp
+	}
+	return false
+}
+
+func (x *Srv6StateLocalSid) GetFibTable() uint32 {
+	if x != nil {
+		return x.FibTable
+	}
+	return 0
+}
+
+func (x *Srv6StateLocalSid) GetInterface() string {
+	if x != nil {
+		return x.Interface
+	}
+	return ""
+}
+
+func (x *Srv6StateLocalSid) GetNextHop() string {
+	if x != nil {
+		return x.NextHop
+	}
+	return ""
+}
+
+func (x *Srv6StateLocalSid) GetLookupTable() uint32 {
+	if x != nil {
+		return x.LookupTable
+	}
+	return 0
+}
+
+func (x *Srv6StateLocalSid) GetGoodPackets() uint64 {
+	if x != nil {
+		return x.GoodPackets
+	}
+	return 0
+}
+
+func (x *Srv6StateLocalSid) GetGoodBytes() uint64 {
+	if x != nil {
+		return x.GoodBytes
+	}
+	return 0
+}
+
+func (x *Srv6StateLocalSid) GetBadPackets() uint64 {
+	if x != nil {
+		return x.BadPackets
+	}
+	return 0
+}
+
+func (x *Srv6StateLocalSid) GetBadBytes() uint64 {
+	if x != nil {
+		return x.BadBytes
+	}
+	return 0
+}
+
+// Srv6StatePolicy is one SR policy as VPP has it.
+type Srv6StatePolicy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Binding SID (canonical IPv6 address).
+	Bsid string `protobuf:"bytes,1,opt,name=bsid,proto3" json:"bsid,omitempty"`
+	// "default" | "spray" | "tef".
+	Type  string `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Encap bool   `protobuf:"varint,3,opt,name=encap,proto3" json:"encap,omitempty"`
+	// IPv6 table id of the binding SID.
+	FibTable uint32 `protobuf:"varint,4,opt,name=fib_table,json=fibTable,proto3" json:"fib_table,omitempty"`
+	// Outer source address (encapsulating policies; "" otherwise).
+	EncapSource string `protobuf:"bytes,5,opt,name=encap_source,json=encapSource,proto3" json:"encap_source,omitempty"`
+	// Segment lists in VPP's order.
+	SidLists      []*Srv6StateSidList `protobuf:"bytes,6,rep,name=sid_lists,json=sidLists,proto3" json:"sid_lists,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StatePolicy) Reset() {
+	*x = Srv6StatePolicy{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[332]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StatePolicy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StatePolicy) ProtoMessage() {}
+
+func (x *Srv6StatePolicy) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[332]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StatePolicy.ProtoReflect.Descriptor instead.
+func (*Srv6StatePolicy) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{332}
+}
+
+func (x *Srv6StatePolicy) GetBsid() string {
+	if x != nil {
+		return x.Bsid
+	}
+	return ""
+}
+
+func (x *Srv6StatePolicy) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *Srv6StatePolicy) GetEncap() bool {
+	if x != nil {
+		return x.Encap
+	}
+	return false
+}
+
+func (x *Srv6StatePolicy) GetFibTable() uint32 {
+	if x != nil {
+		return x.FibTable
+	}
+	return 0
+}
+
+func (x *Srv6StatePolicy) GetEncapSource() string {
+	if x != nil {
+		return x.EncapSource
+	}
+	return ""
+}
+
+func (x *Srv6StatePolicy) GetSidLists() []*Srv6StateSidList {
+	if x != nil {
+		return x.SidLists
+	}
+	return nil
+}
+
+// Srv6StateSidList is one segment list of a policy.
+type Srv6StateSidList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sids          []string               `protobuf:"bytes,1,rep,name=sids,proto3" json:"sids,omitempty"`
+	Weight        uint32                 `protobuf:"varint,2,opt,name=weight,proto3" json:"weight,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StateSidList) Reset() {
+	*x = Srv6StateSidList{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[333]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StateSidList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StateSidList) ProtoMessage() {}
+
+func (x *Srv6StateSidList) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[333]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StateSidList.ProtoReflect.Descriptor instead.
+func (*Srv6StateSidList) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{333}
+}
+
+func (x *Srv6StateSidList) GetSids() []string {
+	if x != nil {
+		return x.Sids
+	}
+	return nil
+}
+
+func (x *Srv6StateSidList) GetWeight() uint32 {
+	if x != nil {
+		return x.Weight
+	}
+	return 0
+}
+
+// Srv6StateSteering is one steering entry as VPP has it.
+type Srv6StateSteering struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// "ipv4" | "ipv6" | "l2".
+	TrafficType string `protobuf:"bytes,1,opt,name=traffic_type,json=trafficType,proto3" json:"traffic_type,omitempty"`
+	// L3: the steered prefix and its table id.
+	Prefix   string `protobuf:"bytes,2,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	FibTable uint32 `protobuf:"varint,3,opt,name=fib_table,json=fibTable,proto3" json:"fib_table,omitempty"`
+	// L2: the interface (logical name).
+	Interface string `protobuf:"bytes,4,opt,name=interface,proto3" json:"interface,omitempty"`
+	// Binding SID of the policy the traffic is steered into.
+	Bsid          string `protobuf:"bytes,5,opt,name=bsid,proto3" json:"bsid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Srv6StateSteering) Reset() {
+	*x = Srv6StateSteering{}
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[334]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Srv6StateSteering) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Srv6StateSteering) ProtoMessage() {}
+
+func (x *Srv6StateSteering) ProtoReflect() protoreflect.Message {
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[334]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Srv6StateSteering.ProtoReflect.Descriptor instead.
+func (*Srv6StateSteering) Descriptor() ([]byte, []int) {
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{334}
+}
+
+func (x *Srv6StateSteering) GetTrafficType() string {
+	if x != nil {
+		return x.TrafficType
+	}
+	return ""
+}
+
+func (x *Srv6StateSteering) GetPrefix() string {
+	if x != nil {
+		return x.Prefix
+	}
+	return ""
+}
+
+func (x *Srv6StateSteering) GetFibTable() uint32 {
+	if x != nil {
+		return x.FibTable
+	}
+	return 0
+}
+
+func (x *Srv6StateSteering) GetInterface() string {
+	if x != nil {
+		return x.Interface
+	}
+	return ""
+}
+
+func (x *Srv6StateSteering) GetBsid() string {
+	if x != nil {
+		return x.Bsid
+	}
+	return ""
+}
+
 // LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts).
 type LispConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -29102,7 +29990,7 @@ type LispConfig struct {
 
 func (x *LispConfig) Reset() {
 	*x = LispConfig{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[324]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[335]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29114,7 +30002,7 @@ func (x *LispConfig) String() string {
 func (*LispConfig) ProtoMessage() {}
 
 func (x *LispConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[324]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[335]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29127,7 +30015,7 @@ func (x *LispConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispConfig.ProtoReflect.Descriptor instead.
 func (*LispConfig) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{324}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{335}
 }
 
 func (x *LispConfig) GetEnabled() bool {
@@ -29217,7 +30105,7 @@ type LispLocatorSet struct {
 
 func (x *LispLocatorSet) Reset() {
 	*x = LispLocatorSet{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[325]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[336]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29229,7 +30117,7 @@ func (x *LispLocatorSet) String() string {
 func (*LispLocatorSet) ProtoMessage() {}
 
 func (x *LispLocatorSet) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[325]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[336]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29242,7 +30130,7 @@ func (x *LispLocatorSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocatorSet.ProtoReflect.Descriptor instead.
 func (*LispLocatorSet) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{325}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{336}
 }
 
 func (x *LispLocatorSet) GetLocators() []*LispLocator {
@@ -29264,7 +30152,7 @@ type LispLocator struct {
 
 func (x *LispLocator) Reset() {
 	*x = LispLocator{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[326]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[337]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29276,7 +30164,7 @@ func (x *LispLocator) String() string {
 func (*LispLocator) ProtoMessage() {}
 
 func (x *LispLocator) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[326]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[337]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29289,7 +30177,7 @@ func (x *LispLocator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocator.ProtoReflect.Descriptor instead.
 func (*LispLocator) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{326}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{337}
 }
 
 func (x *LispLocator) GetInterface() string {
@@ -29325,7 +30213,7 @@ type LispLocalEid struct {
 
 func (x *LispLocalEid) Reset() {
 	*x = LispLocalEid{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[327]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[338]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29337,7 +30225,7 @@ func (x *LispLocalEid) String() string {
 func (*LispLocalEid) ProtoMessage() {}
 
 func (x *LispLocalEid) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[327]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[338]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29350,7 +30238,7 @@ func (x *LispLocalEid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocalEid.ProtoReflect.Descriptor instead.
 func (*LispLocalEid) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{327}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{338}
 }
 
 func (x *LispLocalEid) GetVni() uint32 {
@@ -29385,7 +30273,7 @@ type LispEidTable struct {
 
 func (x *LispEidTable) Reset() {
 	*x = LispEidTable{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[328]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[339]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29397,7 +30285,7 @@ func (x *LispEidTable) String() string {
 func (*LispEidTable) ProtoMessage() {}
 
 func (x *LispEidTable) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[328]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[339]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29410,7 +30298,7 @@ func (x *LispEidTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispEidTable.ProtoReflect.Descriptor instead.
 func (*LispEidTable) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{328}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{339}
 }
 
 func (x *LispEidTable) GetVrf() string {
@@ -29439,7 +30327,7 @@ type LispRloc struct {
 
 func (x *LispRloc) Reset() {
 	*x = LispRloc{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[329]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[340]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29451,7 +30339,7 @@ func (x *LispRloc) String() string {
 func (*LispRloc) ProtoMessage() {}
 
 func (x *LispRloc) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[329]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[340]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29464,7 +30352,7 @@ func (x *LispRloc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispRloc.ProtoReflect.Descriptor instead.
 func (*LispRloc) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{329}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{340}
 }
 
 func (x *LispRloc) GetAddress() string {
@@ -29502,7 +30390,7 @@ type LispRemoteMapping struct {
 
 func (x *LispRemoteMapping) Reset() {
 	*x = LispRemoteMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[330]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[341]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29514,7 +30402,7 @@ func (x *LispRemoteMapping) String() string {
 func (*LispRemoteMapping) ProtoMessage() {}
 
 func (x *LispRemoteMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[330]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[341]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29527,7 +30415,7 @@ func (x *LispRemoteMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispRemoteMapping.ProtoReflect.Descriptor instead.
 func (*LispRemoteMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{330}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{341}
 }
 
 func (x *LispRemoteMapping) GetVni() uint32 {
@@ -29570,7 +30458,7 @@ type LispAdjacency struct {
 
 func (x *LispAdjacency) Reset() {
 	*x = LispAdjacency{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[331]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[342]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29582,7 +30470,7 @@ func (x *LispAdjacency) String() string {
 func (*LispAdjacency) ProtoMessage() {}
 
 func (x *LispAdjacency) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[331]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[342]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29595,7 +30483,7 @@ func (x *LispAdjacency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispAdjacency.ProtoReflect.Descriptor instead.
 func (*LispAdjacency) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{331}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{342}
 }
 
 func (x *LispAdjacency) GetVni() uint32 {
@@ -29631,7 +30519,7 @@ type LispLocatorPair struct {
 
 func (x *LispLocatorPair) Reset() {
 	*x = LispLocatorPair{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[332]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[343]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29643,7 +30531,7 @@ func (x *LispLocatorPair) String() string {
 func (*LispLocatorPair) ProtoMessage() {}
 
 func (x *LispLocatorPair) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[332]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[343]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29656,7 +30544,7 @@ func (x *LispLocatorPair) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocatorPair.ProtoReflect.Descriptor instead.
 func (*LispLocatorPair) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{332}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{343}
 }
 
 func (x *LispLocatorPair) GetLocal() string {
@@ -29695,7 +30583,7 @@ type LispGpeEntry struct {
 
 func (x *LispGpeEntry) Reset() {
 	*x = LispGpeEntry{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[333]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[344]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29707,7 +30595,7 @@ func (x *LispGpeEntry) String() string {
 func (*LispGpeEntry) ProtoMessage() {}
 
 func (x *LispGpeEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[333]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[344]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29720,7 +30608,7 @@ func (x *LispGpeEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispGpeEntry.ProtoReflect.Descriptor instead.
 func (*LispGpeEntry) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{333}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{344}
 }
 
 func (x *LispGpeEntry) GetVni() uint32 {
@@ -29776,7 +30664,7 @@ type LispStateRequest struct {
 
 func (x *LispStateRequest) Reset() {
 	*x = LispStateRequest{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[334]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[345]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29788,7 +30676,7 @@ func (x *LispStateRequest) String() string {
 func (*LispStateRequest) ProtoMessage() {}
 
 func (x *LispStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[334]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[345]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29801,7 +30689,7 @@ func (x *LispStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateRequest.ProtoReflect.Descriptor instead.
 func (*LispStateRequest) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{334}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{345}
 }
 
 func (x *LispStateRequest) GetOwner() string {
@@ -29825,7 +30713,7 @@ type LispStateLocator struct {
 
 func (x *LispStateLocator) Reset() {
 	*x = LispStateLocator{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[335]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[346]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29837,7 +30725,7 @@ func (x *LispStateLocator) String() string {
 func (*LispStateLocator) ProtoMessage() {}
 
 func (x *LispStateLocator) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[335]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[346]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29850,7 +30738,7 @@ func (x *LispStateLocator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateLocator.ProtoReflect.Descriptor instead.
 func (*LispStateLocator) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{335}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{346}
 }
 
 func (x *LispStateLocator) GetInterface() string {
@@ -29892,7 +30780,7 @@ type LispStateLocatorSet struct {
 
 func (x *LispStateLocatorSet) Reset() {
 	*x = LispStateLocatorSet{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[336]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[347]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29904,7 +30792,7 @@ func (x *LispStateLocatorSet) String() string {
 func (*LispStateLocatorSet) ProtoMessage() {}
 
 func (x *LispStateLocatorSet) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[336]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[347]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29917,7 +30805,7 @@ func (x *LispStateLocatorSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateLocatorSet.ProtoReflect.Descriptor instead.
 func (*LispStateLocatorSet) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{336}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{347}
 }
 
 func (x *LispStateLocatorSet) GetName() string {
@@ -29957,7 +30845,7 @@ type LispStateMapping struct {
 
 func (x *LispStateMapping) Reset() {
 	*x = LispStateMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[337]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[348]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29969,7 +30857,7 @@ func (x *LispStateMapping) String() string {
 func (*LispStateMapping) ProtoMessage() {}
 
 func (x *LispStateMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[337]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[348]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29982,7 +30870,7 @@ func (x *LispStateMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateMapping.ProtoReflect.Descriptor instead.
 func (*LispStateMapping) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{337}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{348}
 }
 
 func (x *LispStateMapping) GetVni() uint32 {
@@ -30053,7 +30941,7 @@ type LispStateAdjacency struct {
 
 func (x *LispStateAdjacency) Reset() {
 	*x = LispStateAdjacency{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[338]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[349]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30065,7 +30953,7 @@ func (x *LispStateAdjacency) String() string {
 func (*LispStateAdjacency) ProtoMessage() {}
 
 func (x *LispStateAdjacency) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[338]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[349]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30078,7 +30966,7 @@ func (x *LispStateAdjacency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateAdjacency.ProtoReflect.Descriptor instead.
 func (*LispStateAdjacency) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{338}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{349}
 }
 
 func (x *LispStateAdjacency) GetVni() uint32 {
@@ -30114,7 +31002,7 @@ type LispStateEidTable struct {
 
 func (x *LispStateEidTable) Reset() {
 	*x = LispStateEidTable{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[339]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[350]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30126,7 +31014,7 @@ func (x *LispStateEidTable) String() string {
 func (*LispStateEidTable) ProtoMessage() {}
 
 func (x *LispStateEidTable) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[339]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[350]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30139,7 +31027,7 @@ func (x *LispStateEidTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateEidTable.ProtoReflect.Descriptor instead.
 func (*LispStateEidTable) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{339}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{350}
 }
 
 func (x *LispStateEidTable) GetVni() uint32 {
@@ -30187,7 +31075,7 @@ type LispStateResponse struct {
 
 func (x *LispStateResponse) Reset() {
 	*x = LispStateResponse{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[340]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[351]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30199,7 +31087,7 @@ func (x *LispStateResponse) String() string {
 func (*LispStateResponse) ProtoMessage() {}
 
 func (x *LispStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[340]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[351]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30212,7 +31100,7 @@ func (x *LispStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateResponse.ProtoReflect.Descriptor instead.
 func (*LispStateResponse) Descriptor() ([]byte, []int) {
-	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{340}
+	return file_vrx_v1_dataplane_proto_rawDescGZIP(), []int{351}
 }
 
 func (x *LispStateResponse) GetOwner() string {
@@ -30312,7 +31200,7 @@ type DnsService_VppCache struct {
 
 func (x *DnsService_VppCache) Reset() {
 	*x = DnsService_VppCache{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[363]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[374]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30324,7 +31212,7 @@ func (x *DnsService_VppCache) String() string {
 func (*DnsService_VppCache) ProtoMessage() {}
 
 func (x *DnsService_VppCache) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[363]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[374]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30367,7 +31255,7 @@ type DnsResolver_Dnssec struct {
 
 func (x *DnsResolver_Dnssec) Reset() {
 	*x = DnsResolver_Dnssec{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[365]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[376]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30379,7 +31267,7 @@ func (x *DnsResolver_Dnssec) String() string {
 func (*DnsResolver_Dnssec) ProtoMessage() {}
 
 func (x *DnsResolver_Dnssec) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[365]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[376]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30428,7 +31316,7 @@ type DnsResolver_Cache struct {
 
 func (x *DnsResolver_Cache) Reset() {
 	*x = DnsResolver_Cache{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[366]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[377]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30440,7 +31328,7 @@ func (x *DnsResolver_Cache) String() string {
 func (*DnsResolver_Cache) ProtoMessage() {}
 
 func (x *DnsResolver_Cache) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[366]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[377]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30509,7 +31397,7 @@ type SnmpService_Community struct {
 
 func (x *SnmpService_Community) Reset() {
 	*x = SnmpService_Community{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[367]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[378]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30521,7 +31409,7 @@ func (x *SnmpService_Community) String() string {
 func (*SnmpService_Community) ProtoMessage() {}
 
 func (x *SnmpService_Community) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[367]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[378]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30589,7 +31477,7 @@ type SnmpService_V3User struct {
 
 func (x *SnmpService_V3User) Reset() {
 	*x = SnmpService_V3User{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[368]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[379]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30601,7 +31489,7 @@ func (x *SnmpService_V3User) String() string {
 func (*SnmpService_V3User) ProtoMessage() {}
 
 func (x *SnmpService_V3User) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[368]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[379]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30687,7 +31575,7 @@ type SnmpService_TrapReceiver struct {
 
 func (x *SnmpService_TrapReceiver) Reset() {
 	*x = SnmpService_TrapReceiver{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[369]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[380]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30699,7 +31587,7 @@ func (x *SnmpService_TrapReceiver) String() string {
 func (*SnmpService_TrapReceiver) ProtoMessage() {}
 
 func (x *SnmpService_TrapReceiver) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[369]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[380]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30776,7 +31664,7 @@ type LldpService_Interface struct {
 
 func (x *LldpService_Interface) Reset() {
 	*x = LldpService_Interface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[373]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[384]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30788,7 +31676,7 @@ func (x *LldpService_Interface) String() string {
 func (*LldpService_Interface) ProtoMessage() {}
 
 func (x *LldpService_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[373]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[384]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30864,7 +31752,7 @@ type IpfixService_Exporter struct {
 
 func (x *IpfixService_Exporter) Reset() {
 	*x = IpfixService_Exporter{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[374]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[385]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30876,7 +31764,7 @@ func (x *IpfixService_Exporter) String() string {
 func (*IpfixService_Exporter) ProtoMessage() {}
 
 func (x *IpfixService_Exporter) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[374]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[385]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30969,7 +31857,7 @@ type IpfixService_Flowprobe struct {
 
 func (x *IpfixService_Flowprobe) Reset() {
 	*x = IpfixService_Flowprobe{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[375]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[386]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30981,7 +31869,7 @@ func (x *IpfixService_Flowprobe) String() string {
 func (*IpfixService_Flowprobe) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[375]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[386]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31064,7 +31952,7 @@ type IpfixService_Sflow struct {
 
 func (x *IpfixService_Sflow) Reset() {
 	*x = IpfixService_Sflow{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[376]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[387]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31076,7 +31964,7 @@ func (x *IpfixService_Sflow) String() string {
 func (*IpfixService_Sflow) ProtoMessage() {}
 
 func (x *IpfixService_Sflow) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[376]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[387]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31167,7 +32055,7 @@ type IpfixService_Flowprobe_Interface struct {
 
 func (x *IpfixService_Flowprobe_Interface) Reset() {
 	*x = IpfixService_Flowprobe_Interface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[378]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[389]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31179,7 +32067,7 @@ func (x *IpfixService_Flowprobe_Interface) String() string {
 func (*IpfixService_Flowprobe_Interface) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[378]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[389]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31253,7 +32141,7 @@ type NtpService_Server struct {
 
 func (x *NtpService_Server) Reset() {
 	*x = NtpService_Server{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[379]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[390]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31265,7 +32153,7 @@ func (x *NtpService_Server) String() string {
 func (*NtpService_Server) ProtoMessage() {}
 
 func (x *NtpService_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[379]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[390]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31345,7 +32233,7 @@ type NtpService_RateLimit struct {
 
 func (x *NtpService_RateLimit) Reset() {
 	*x = NtpService_RateLimit{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[380]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[391]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31357,7 +32245,7 @@ func (x *NtpService_RateLimit) String() string {
 func (*NtpService_RateLimit) ProtoMessage() {}
 
 func (x *NtpService_RateLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[380]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[391]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31409,7 +32297,7 @@ type NtpService_NtsServer struct {
 
 func (x *NtpService_NtsServer) Reset() {
 	*x = NtpService_NtsServer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[381]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[392]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31421,7 +32309,7 @@ func (x *NtpService_NtsServer) String() string {
 func (*NtpService_NtsServer) ProtoMessage() {}
 
 func (x *NtpService_NtsServer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[381]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[392]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31471,7 +32359,7 @@ type NtpService_Makestep struct {
 
 func (x *NtpService_Makestep) Reset() {
 	*x = NtpService_Makestep{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[382]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[393]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31483,7 +32371,7 @@ func (x *NtpService_Makestep) String() string {
 func (*NtpService_Makestep) ProtoMessage() {}
 
 func (x *NtpService_Makestep) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[382]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[393]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31530,7 +32418,7 @@ type QosMap_Rows struct {
 
 func (x *QosMap_Rows) Reset() {
 	*x = QosMap_Rows{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[387]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[398]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31542,7 +32430,7 @@ func (x *QosMap_Rows) String() string {
 func (*QosMap_Rows) ProtoMessage() {}
 
 func (x *QosMap_Rows) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[387]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[398]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31599,7 +32487,7 @@ type QosInterface_Policer struct {
 
 func (x *QosInterface_Policer) Reset() {
 	*x = QosInterface_Policer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[388]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[399]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31611,7 +32499,7 @@ func (x *QosInterface_Policer) String() string {
 func (*QosInterface_Policer) ProtoMessage() {}
 
 func (x *QosInterface_Policer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[388]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[399]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31654,7 +32542,7 @@ type QosInterface_Store struct {
 
 func (x *QosInterface_Store) Reset() {
 	*x = QosInterface_Store{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[389]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[400]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31666,7 +32554,7 @@ func (x *QosInterface_Store) String() string {
 func (*QosInterface_Store) ProtoMessage() {}
 
 func (x *QosInterface_Store) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[389]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[400]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31709,7 +32597,7 @@ type QosInterface_Mark struct {
 
 func (x *QosInterface_Mark) Reset() {
 	*x = QosInterface_Mark{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[390]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[401]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31721,7 +32609,7 @@ func (x *QosInterface_Mark) String() string {
 func (*QosInterface_Mark) ProtoMessage() {}
 
 func (x *QosInterface_Mark) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[390]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[401]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31762,7 +32650,7 @@ type VrrpInstance_Unicast struct {
 
 func (x *VrrpInstance_Unicast) Reset() {
 	*x = VrrpInstance_Unicast{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[392]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[403]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31774,7 +32662,7 @@ func (x *VrrpInstance_Unicast) String() string {
 func (*VrrpInstance_Unicast) ProtoMessage() {}
 
 func (x *VrrpInstance_Unicast) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[392]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[403]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31810,7 +32698,7 @@ type VrrpInstance_Track struct {
 
 func (x *VrrpInstance_Track) Reset() {
 	*x = VrrpInstance_Track{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[393]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[404]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31822,7 +32710,7 @@ func (x *VrrpInstance_Track) String() string {
 func (*VrrpInstance_Track) ProtoMessage() {}
 
 func (x *VrrpInstance_Track) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[393]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[404]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31865,7 +32753,7 @@ type HaCluster_Peer struct {
 
 func (x *HaCluster_Peer) Reset() {
 	*x = HaCluster_Peer{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[394]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[405]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31877,7 +32765,7 @@ func (x *HaCluster_Peer) String() string {
 func (*HaCluster_Peer) ProtoMessage() {}
 
 func (x *HaCluster_Peer) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[394]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[405]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31922,7 +32810,7 @@ type HaCluster_StateSync struct {
 
 func (x *HaCluster_StateSync) Reset() {
 	*x = HaCluster_StateSync{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[395]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[406]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31934,7 +32822,7 @@ func (x *HaCluster_StateSync) String() string {
 func (*HaCluster_StateSync) ProtoMessage() {}
 
 func (x *HaCluster_StateSync) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[395]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[406]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31984,7 +32872,7 @@ type NatStaticMapping_Local struct {
 
 func (x *NatStaticMapping_Local) Reset() {
 	*x = NatStaticMapping_Local{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[396]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[407]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31996,7 +32884,7 @@ func (x *NatStaticMapping_Local) String() string {
 func (*NatStaticMapping_Local) ProtoMessage() {}
 
 func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[396]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[407]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32043,7 +32931,7 @@ type NatStaticMapping_External struct {
 
 func (x *NatStaticMapping_External) Reset() {
 	*x = NatStaticMapping_External{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[397]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[408]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32055,7 +32943,7 @@ func (x *NatStaticMapping_External) String() string {
 func (*NatStaticMapping_External) ProtoMessage() {}
 
 func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[397]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[408]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32112,7 +33000,7 @@ type NatLoadBalancedMapping_External struct {
 
 func (x *NatLoadBalancedMapping_External) Reset() {
 	*x = NatLoadBalancedMapping_External{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[398]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[409]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32124,7 +33012,7 @@ func (x *NatLoadBalancedMapping_External) String() string {
 func (*NatLoadBalancedMapping_External) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[398]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[409]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32171,7 +33059,7 @@ type NatLoadBalancedMapping_Local struct {
 
 func (x *NatLoadBalancedMapping_Local) Reset() {
 	*x = NatLoadBalancedMapping_Local{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[399]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[410]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32183,7 +33071,7 @@ func (x *NatLoadBalancedMapping_Local) String() string {
 func (*NatLoadBalancedMapping_Local) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[399]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[410]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32240,7 +33128,7 @@ type Nat64Config_Prefix struct {
 
 func (x *Nat64Config_Prefix) Reset() {
 	*x = Nat64Config_Prefix{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[400]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[411]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32252,7 +33140,7 @@ func (x *Nat64Config_Prefix) String() string {
 func (*Nat64Config_Prefix) ProtoMessage() {}
 
 func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[400]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[411]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32295,7 +33183,7 @@ type Nat64Config_Pool struct {
 
 func (x *Nat64Config_Pool) Reset() {
 	*x = Nat64Config_Pool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[401]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[412]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32307,7 +33195,7 @@ func (x *Nat64Config_Pool) String() string {
 func (*Nat64Config_Pool) ProtoMessage() {}
 
 func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[401]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[412]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32356,7 +33244,7 @@ type Nat64Config_StaticBib struct {
 
 func (x *Nat64Config_StaticBib) Reset() {
 	*x = Nat64Config_StaticBib{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[402]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[413]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32368,7 +33256,7 @@ func (x *Nat64Config_StaticBib) String() string {
 func (*Nat64Config_StaticBib) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[402]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[413]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32432,7 +33320,7 @@ type Nat64Config_StaticBib_Endpoint struct {
 
 func (x *Nat64Config_StaticBib_Endpoint) Reset() {
 	*x = Nat64Config_StaticBib_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[403]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[414]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32444,7 +33332,7 @@ func (x *Nat64Config_StaticBib_Endpoint) String() string {
 func (*Nat64Config_StaticBib_Endpoint) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[403]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[414]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32491,7 +33379,7 @@ type Nat66Config_StaticMapping struct {
 
 func (x *Nat66Config_StaticMapping) Reset() {
 	*x = Nat66Config_StaticMapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[404]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[415]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32503,7 +33391,7 @@ func (x *Nat66Config_StaticMapping) String() string {
 func (*Nat66Config_StaticMapping) ProtoMessage() {}
 
 func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[404]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[415]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32564,7 +33452,7 @@ type Nptv6Config_Binding struct {
 
 func (x *Nptv6Config_Binding) Reset() {
 	*x = Nptv6Config_Binding{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[405]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[416]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32576,7 +33464,7 @@ func (x *Nptv6Config_Binding) String() string {
 func (*Nptv6Config_Binding) ProtoMessage() {}
 
 func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[405]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[416]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32635,7 +33523,7 @@ type Det44Config_Mapping struct {
 
 func (x *Det44Config_Mapping) Reset() {
 	*x = Det44Config_Mapping{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[406]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[417]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32647,7 +33535,7 @@ func (x *Det44Config_Mapping) String() string {
 func (*Det44Config_Mapping) ProtoMessage() {}
 
 func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[406]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[417]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32697,7 +33585,7 @@ type DsliteConfig_Endpoint struct {
 
 func (x *DsliteConfig_Endpoint) Reset() {
 	*x = DsliteConfig_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[407]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[418]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32709,7 +33597,7 @@ func (x *DsliteConfig_Endpoint) String() string {
 func (*DsliteConfig_Endpoint) ProtoMessage() {}
 
 func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[407]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[418]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32750,7 +33638,7 @@ type DsliteConfig_Pool struct {
 
 func (x *DsliteConfig_Pool) Reset() {
 	*x = DsliteConfig_Pool{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[408]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[419]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32762,7 +33650,7 @@ func (x *DsliteConfig_Pool) String() string {
 func (*DsliteConfig_Pool) ProtoMessage() {}
 
 func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[408]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[419]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32798,7 +33686,7 @@ type MapDomain_Rule struct {
 
 func (x *MapDomain_Rule) Reset() {
 	*x = MapDomain_Rule{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[409]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[420]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32810,7 +33698,7 @@ func (x *MapDomain_Rule) String() string {
 func (*MapDomain_Rule) ProtoMessage() {}
 
 func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[409]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[420]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32853,7 +33741,7 @@ type MapParameters_Fragmentation struct {
 
 func (x *MapParameters_Fragmentation) Reset() {
 	*x = MapParameters_Fragmentation{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[410]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[421]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32865,7 +33753,7 @@ func (x *MapParameters_Fragmentation) String() string {
 func (*MapParameters_Fragmentation) ProtoMessage() {}
 
 func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[410]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[421]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32908,7 +33796,7 @@ type MapParameters_SecurityCheck struct {
 
 func (x *MapParameters_SecurityCheck) Reset() {
 	*x = MapParameters_SecurityCheck{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[411]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[422]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32920,7 +33808,7 @@ func (x *MapParameters_SecurityCheck) String() string {
 func (*MapParameters_SecurityCheck) ProtoMessage() {}
 
 func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[411]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[422]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32963,7 +33851,7 @@ type MapParameters_TrafficClass struct {
 
 func (x *MapParameters_TrafficClass) Reset() {
 	*x = MapParameters_TrafficClass{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[412]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[423]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32975,7 +33863,7 @@ func (x *MapParameters_TrafficClass) String() string {
 func (*MapParameters_TrafficClass) ProtoMessage() {}
 
 func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[412]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[423]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33018,7 +33906,7 @@ type MapParameters_PreResolve struct {
 
 func (x *MapParameters_PreResolve) Reset() {
 	*x = MapParameters_PreResolve{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[413]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[424]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33030,7 +33918,7 @@ func (x *MapParameters_PreResolve) String() string {
 func (*MapParameters_PreResolve) ProtoMessage() {}
 
 func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[413]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[424]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33077,7 +33965,7 @@ type CnatConfig_Snat struct {
 
 func (x *CnatConfig_Snat) Reset() {
 	*x = CnatConfig_Snat{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[414]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[425]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33089,7 +33977,7 @@ func (x *CnatConfig_Snat) String() string {
 func (*CnatConfig_Snat) ProtoMessage() {}
 
 func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[414]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[425]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33148,7 +34036,7 @@ type CnatConfig_Snat_Addresses struct {
 
 func (x *CnatConfig_Snat_Addresses) Reset() {
 	*x = CnatConfig_Snat_Addresses{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[415]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[426]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33160,7 +34048,7 @@ func (x *CnatConfig_Snat_Addresses) String() string {
 func (*CnatConfig_Snat_Addresses) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[415]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[426]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33210,7 +34098,7 @@ type CnatConfig_Snat_PolicyInterface struct {
 
 func (x *CnatConfig_Snat_PolicyInterface) Reset() {
 	*x = CnatConfig_Snat_PolicyInterface{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[416]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[427]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33222,7 +34110,7 @@ func (x *CnatConfig_Snat_PolicyInterface) String() string {
 func (*CnatConfig_Snat_PolicyInterface) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[416]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[427]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33264,7 +34152,7 @@ type IpsecTunnel_RouteBased struct {
 
 func (x *IpsecTunnel_RouteBased) Reset() {
 	*x = IpsecTunnel_RouteBased{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[428]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[439]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33276,7 +34164,7 @@ func (x *IpsecTunnel_RouteBased) String() string {
 func (*IpsecTunnel_RouteBased) ProtoMessage() {}
 
 func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[428]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[439]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33312,7 +34200,7 @@ type WireguardPeer_Endpoint struct {
 
 func (x *WireguardPeer_Endpoint) Reset() {
 	*x = WireguardPeer_Endpoint{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[431]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[442]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33324,7 +34212,7 @@ func (x *WireguardPeer_Endpoint) String() string {
 func (*WireguardPeer_Endpoint) ProtoMessage() {}
 
 func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[431]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[442]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33367,7 +34255,7 @@ type PkiCa_Crl struct {
 
 func (x *PkiCa_Crl) Reset() {
 	*x = PkiCa_Crl{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[434]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[445]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33379,7 +34267,7 @@ func (x *PkiCa_Crl) String() string {
 func (*PkiCa_Crl) ProtoMessage() {}
 
 func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[434]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[445]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33426,7 +34314,7 @@ type PkiCertificate_Acme struct {
 
 func (x *PkiCertificate_Acme) Reset() {
 	*x = PkiCertificate_Acme{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[435]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[446]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33438,7 +34326,7 @@ func (x *PkiCertificate_Acme) String() string {
 func (*PkiCertificate_Acme) ProtoMessage() {}
 
 func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[435]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[446]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33499,7 +34387,7 @@ type PkiConfig_Hsm struct {
 
 func (x *PkiConfig_Hsm) Reset() {
 	*x = PkiConfig_Hsm{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[436]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[447]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33511,7 +34399,7 @@ func (x *PkiConfig_Hsm) String() string {
 func (*PkiConfig_Hsm) ProtoMessage() {}
 
 func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[436]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[447]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33566,7 +34454,7 @@ type RemoteAccessProfile_Radius struct {
 
 func (x *RemoteAccessProfile_Radius) Reset() {
 	*x = RemoteAccessProfile_Radius{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[439]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[450]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33578,7 +34466,7 @@ func (x *RemoteAccessProfile_Radius) String() string {
 func (*RemoteAccessProfile_Radius) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[439]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[450]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33616,7 +34504,7 @@ type RemoteAccessProfile_Radius_Server struct {
 
 func (x *RemoteAccessProfile_Radius_Server) Reset() {
 	*x = RemoteAccessProfile_Radius_Server{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[440]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[451]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33628,7 +34516,7 @@ func (x *RemoteAccessProfile_Radius_Server) String() string {
 func (*RemoteAccessProfile_Radius_Server) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[440]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[451]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33676,7 +34564,7 @@ type NsimService_CrossConnect struct {
 
 func (x *NsimService_CrossConnect) Reset() {
 	*x = NsimService_CrossConnect{}
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[446]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[457]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33688,7 +34576,7 @@ func (x *NsimService_CrossConnect) String() string {
 func (*NsimService_CrossConnect) ProtoMessage() {}
 
 func (x *NsimService_CrossConnect) ProtoReflect() protoreflect.Message {
-	mi := &file_vrx_v1_dataplane_proto_msgTypes[446]
+	mi := &file_vrx_v1_dataplane_proto_msgTypes[457]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34127,7 +35015,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\rsource_select\x18\x03 \x03(\v2\x17.vrx.v1.VrfSourceSelectR\fsourceSelect\x12?\n" +
 	"\x10proxy_arp_ranges\x18\x04 \x03(\v2\x15.vrx.v1.ProxyArpRangeR\x0eproxyArpRangesB\x05\n" +
 	"\x03_idB\x0e\n" +
-	"\f_description\"\xd4\x03\n" +
+	"\f_description\"\xfc\x03\n" +
 	"\rRoutingConfig\x12+\n" +
 	"\x06static\x18\x01 \x03(\v2\x13.vrx.v1.StaticRouteR\x06static\x12#\n" +
 	"\x03bgp\x18\x04 \x01(\v2\x11.vrx.v1.BgpConfigR\x03bgp\x12&\n" +
@@ -34136,7 +35024,8 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x03rip\x18\a \x01(\v2\x11.vrx.v1.RipConfigR\x03rip\x12#\n" +
 	"\x03bfd\x18\b \x01(\v2\x11.vrx.v1.BfdConfigR\x03bfd\x12-\n" +
 	"\x06policy\x18\t \x01(\v2\x15.vrx.v1.RoutingPolicyR\x06policy\x12&\n" +
-	"\x02l2\x18\x14 \x01(\v2\x16.vrx.v1.BridgeL2ConfigR\x02l2\x125\n" +
+	"\x02l2\x18\x14 \x01(\v2\x16.vrx.v1.BridgeL2ConfigR\x02l2\x12&\n" +
+	"\x04srv6\x18\x11 \x01(\v2\x12.vrx.v1.Srv6ConfigR\x04srv6\x125\n" +
 	"\tneighbors\x18\n" +
 	" \x01(\v2\x17.vrx.v1.NeighborsConfigR\tneighbors\x12#\n" +
 	"\x03pbr\x18\v \x01(\v2\x11.vrx.v1.PbrConfigR\x03pbrJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\fprefix_listsR\n" +
@@ -37625,7 +38514,105 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\vhw_if_index\x18\x02 \x01(\rR\thwIfIndex\"8\n" +
 	"\fIpfixCounter\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x04R\x05value\"\xdd\x05\n" +
+	"\x05value\x18\x02 \x01(\x04R\x05value\"\xdd\x03\n" +
+	"\n" +
+	"Srv6Config\x12&\n" +
+	"\fencap_source\x18\x01 \x01(\tH\x00R\vencapSource\x88\x01\x01\x12+\n" +
+	"\x0fencap_hop_limit\x18\x02 \x01(\rH\x01R\rencapHopLimit\x88\x01\x01\x12@\n" +
+	"\n" +
+	"local_sids\x18\x03 \x03(\v2!.vrx.v1.Srv6Config.LocalSidsEntryR\tlocalSids\x12<\n" +
+	"\bpolicies\x18\x04 \x03(\v2 .vrx.v1.Srv6Config.PoliciesEntryR\bpolicies\x120\n" +
+	"\bsteering\x18\x05 \x03(\v2\x14.vrx.v1.Srv6SteeringR\bsteering\x1aR\n" +
+	"\x0eLocalSidsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.vrx.v1.Srv6LocalSidR\x05value:\x028\x01\x1aO\n" +
+	"\rPoliciesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.vrx.v1.Srv6PolicyR\x05value:\x028\x01B\x0f\n" +
+	"\r_encap_sourceB\x12\n" +
+	"\x10_encap_hop_limit\"\x8b\x02\n" +
+	"\fSrv6LocalSid\x12\x1f\n" +
+	"\bbehavior\x18\x01 \x01(\tH\x00R\bbehavior\x88\x01\x01\x12\x15\n" +
+	"\x03psp\x18\x02 \x01(\bH\x01R\x03psp\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12!\n" +
+	"\tinterface\x18\x04 \x01(\tH\x03R\tinterface\x88\x01\x01\x12\x1e\n" +
+	"\bnext_hop\x18\x05 \x01(\tH\x04R\anextHop\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"lookup_vrf\x18\x06 \x01(\tH\x05R\tlookupVrf\x88\x01\x01B\v\n" +
+	"\t_behaviorB\x06\n" +
+	"\x04_pspB\x06\n" +
+	"\x04_vrfB\f\n" +
+	"\n" +
+	"_interfaceB\v\n" +
+	"\t_next_hopB\r\n" +
+	"\v_lookup_vrf\"\xdd\x01\n" +
+	"\n" +
+	"Srv6Policy\x12\x17\n" +
+	"\x04type\x18\x01 \x01(\tH\x00R\x04type\x88\x01\x01\x12\x19\n" +
+	"\x05encap\x18\x02 \x01(\bH\x01R\x05encap\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12&\n" +
+	"\fencap_source\x18\x04 \x01(\tH\x03R\vencapSource\x88\x01\x01\x120\n" +
+	"\tsid_lists\x18\x05 \x03(\v2\x13.vrx.v1.Srv6SidListR\bsidListsB\a\n" +
+	"\x05_typeB\b\n" +
+	"\x06_encapB\x06\n" +
+	"\x04_vrfB\x0f\n" +
+	"\r_encap_source\"I\n" +
+	"\vSrv6SidList\x12\x12\n" +
+	"\x04sids\x18\x01 \x03(\tR\x04sids\x12\x1b\n" +
+	"\x06weight\x18\x02 \x01(\rH\x00R\x06weight\x88\x01\x01B\t\n" +
+	"\a_weight\"\xca\x01\n" +
+	"\fSrv6Steering\x12\x17\n" +
+	"\x04type\x18\x01 \x01(\tH\x00R\x04type\x88\x01\x01\x12\x1b\n" +
+	"\x06prefix\x18\x02 \x01(\tH\x01R\x06prefix\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12!\n" +
+	"\tinterface\x18\x04 \x01(\tH\x03R\tinterface\x88\x01\x01\x12\x17\n" +
+	"\x04bsid\x18\x05 \x01(\tH\x04R\x04bsid\x88\x01\x01B\a\n" +
+	"\x05_typeB\t\n" +
+	"\a_prefixB\x06\n" +
+	"\x04_vrfB\f\n" +
+	"\n" +
+	"_interfaceB\a\n" +
+	"\x05_bsid\"(\n" +
+	"\x10Srv6StateRequest\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\"\x8e\x02\n" +
+	"\x11Srv6StateResponse\x128\n" +
+	"\n" +
+	"local_sids\x18\x01 \x03(\v2\x19.vrx.v1.Srv6StateLocalSidR\tlocalSids\x123\n" +
+	"\bpolicies\x18\x02 \x03(\v2\x17.vrx.v1.Srv6StatePolicyR\bpolicies\x125\n" +
+	"\bsteering\x18\x03 \x03(\v2\x19.vrx.v1.Srv6StateSteeringR\bsteering\x12\x14\n" +
+	"\x05owner\x18\x04 \x01(\tR\x05owner\x12=\n" +
+	"\fretrieved_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vretrievedAt\"\xcc\x02\n" +
+	"\x11Srv6StateLocalSid\x12\x10\n" +
+	"\x03sid\x18\x01 \x01(\tR\x03sid\x12\x1a\n" +
+	"\bbehavior\x18\x02 \x01(\tR\bbehavior\x12\x10\n" +
+	"\x03psp\x18\x03 \x01(\bR\x03psp\x12\x1b\n" +
+	"\tfib_table\x18\x04 \x01(\rR\bfibTable\x12\x1c\n" +
+	"\tinterface\x18\x05 \x01(\tR\tinterface\x12\x19\n" +
+	"\bnext_hop\x18\x06 \x01(\tR\anextHop\x12!\n" +
+	"\flookup_table\x18\a \x01(\rR\vlookupTable\x12!\n" +
+	"\fgood_packets\x18\b \x01(\x04R\vgoodPackets\x12\x1d\n" +
+	"\n" +
+	"good_bytes\x18\t \x01(\x04R\tgoodBytes\x12\x1f\n" +
+	"\vbad_packets\x18\n" +
+	" \x01(\x04R\n" +
+	"badPackets\x12\x1b\n" +
+	"\tbad_bytes\x18\v \x01(\x04R\bbadBytes\"\xc6\x01\n" +
+	"\x0fSrv6StatePolicy\x12\x12\n" +
+	"\x04bsid\x18\x01 \x01(\tR\x04bsid\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
+	"\x05encap\x18\x03 \x01(\bR\x05encap\x12\x1b\n" +
+	"\tfib_table\x18\x04 \x01(\rR\bfibTable\x12!\n" +
+	"\fencap_source\x18\x05 \x01(\tR\vencapSource\x125\n" +
+	"\tsid_lists\x18\x06 \x03(\v2\x18.vrx.v1.Srv6StateSidListR\bsidLists\">\n" +
+	"\x10Srv6StateSidList\x12\x12\n" +
+	"\x04sids\x18\x01 \x03(\tR\x04sids\x12\x16\n" +
+	"\x06weight\x18\x02 \x01(\rR\x06weight\"\x9d\x01\n" +
+	"\x11Srv6StateSteering\x12!\n" +
+	"\ftraffic_type\x18\x01 \x01(\tR\vtrafficType\x12\x16\n" +
+	"\x06prefix\x18\x02 \x01(\tR\x06prefix\x12\x1b\n" +
+	"\tfib_table\x18\x03 \x01(\rR\bfibTable\x12\x1c\n" +
+	"\tinterface\x18\x04 \x01(\tR\tinterface\x12\x12\n" +
+	"\x04bsid\x18\x05 \x01(\tR\x04bsid\"\xdd\x05\n" +
 	"\n" +
 	"LispConfig\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12\x15\n" +
@@ -37823,7 +38810,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x1fNAT_SESSION_VARIANT_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16NAT_SESSION_VARIANT_ED\x10\x01\x12\x1a\n" +
 	"\x16NAT_SESSION_VARIANT_EI\x10\x02\x12\x1d\n" +
-	"\x19NAT_SESSION_VARIANT_NAT64\x10\x032\xf4\x12\n" +
+	"\x19NAT_SESSION_VARIANT_NAT64\x10\x032\xb6\x13\n" +
 	"\tDataplane\x124\n" +
 	"\x05Apply\x12\x14.vrx.v1.ApplyRequest\x1a\x15.vrx.v1.ApplyResponse\x12=\n" +
 	"\bRetrieve\x12\x17.vrx.v1.RetrieveRequest\x1a\x18.vrx.v1.RetrieveResponse\x129\n" +
@@ -37842,6 +38829,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\tSnmpState\x12\x18.vrx.v1.SnmpStateRequest\x1a\x19.vrx.v1.SnmpStateResponse\x12C\n" +
 	"\n" +
 	"IpfixState\x12\x19.vrx.v1.IpfixStateRequest\x1a\x1a.vrx.v1.IpfixStateResponse\x12@\n" +
+	"\tSrv6State\x12\x18.vrx.v1.Srv6StateRequest\x1a\x19.vrx.v1.Srv6StateResponse\x12@\n" +
 	"\tLispState\x12\x18.vrx.v1.LispStateRequest\x1a\x19.vrx.v1.LispStateResponse\x12@\n" +
 	"\tBondState\x12\x18.vrx.v1.BondStateRequest\x1a\x19.vrx.v1.BondStateResponse\x12X\n" +
 	"\x11BridgeDomainState\x12 .vrx.v1.BridgeDomainStateRequest\x1a!.vrx.v1.BridgeDomainStateResponse\x12U\n" +
@@ -37878,7 +38866,7 @@ func file_vrx_v1_dataplane_proto_rawDescGZIP() []byte {
 }
 
 var file_vrx_v1_dataplane_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_vrx_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 460)
+var file_vrx_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 473)
 var file_vrx_v1_dataplane_proto_goTypes = []any{
 	(ApplyStatus)(0),                          // 0: vrx.v1.ApplyStatus
 	(ApplyOperation)(0),                       // 1: vrx.v1.ApplyOperation
@@ -38212,143 +39200,156 @@ var file_vrx_v1_dataplane_proto_goTypes = []any{
 	(*IpfixSflowGlobalState)(nil),             // 329: vrx.v1.IpfixSflowGlobalState
 	(*IpfixSflowInterfaceState)(nil),          // 330: vrx.v1.IpfixSflowInterfaceState
 	(*IpfixCounter)(nil),                      // 331: vrx.v1.IpfixCounter
-	(*LispConfig)(nil),                        // 332: vrx.v1.LispConfig
-	(*LispLocatorSet)(nil),                    // 333: vrx.v1.LispLocatorSet
-	(*LispLocator)(nil),                       // 334: vrx.v1.LispLocator
-	(*LispLocalEid)(nil),                      // 335: vrx.v1.LispLocalEid
-	(*LispEidTable)(nil),                      // 336: vrx.v1.LispEidTable
-	(*LispRloc)(nil),                          // 337: vrx.v1.LispRloc
-	(*LispRemoteMapping)(nil),                 // 338: vrx.v1.LispRemoteMapping
-	(*LispAdjacency)(nil),                     // 339: vrx.v1.LispAdjacency
-	(*LispLocatorPair)(nil),                   // 340: vrx.v1.LispLocatorPair
-	(*LispGpeEntry)(nil),                      // 341: vrx.v1.LispGpeEntry
-	(*LispStateRequest)(nil),                  // 342: vrx.v1.LispStateRequest
-	(*LispStateLocator)(nil),                  // 343: vrx.v1.LispStateLocator
-	(*LispStateLocatorSet)(nil),               // 344: vrx.v1.LispStateLocatorSet
-	(*LispStateMapping)(nil),                  // 345: vrx.v1.LispStateMapping
-	(*LispStateAdjacency)(nil),                // 346: vrx.v1.LispStateAdjacency
-	(*LispStateEidTable)(nil),                 // 347: vrx.v1.LispStateEidTable
-	(*LispStateResponse)(nil),                 // 348: vrx.v1.LispStateResponse
-	nil,                                       // 349: vrx.v1.Event.AttributesEntry
-	nil,                                       // 350: vrx.v1.ActionDone.StatsEntry
-	nil,                                       // 351: vrx.v1.DesiredState.InterfacesEntry
-	nil,                                       // 352: vrx.v1.DesiredState.VrfsEntry
-	nil,                                       // 353: vrx.v1.DataplaneConfig.DevicesEntry
-	nil,                                       // 354: vrx.v1.PluginSet.SwitchesEntry
-	nil,                                       // 355: vrx.v1.Interface.SubinterfacesEntry
-	nil,                                       // 356: vrx.v1.RoutingPolicy.PrefixListsEntry
-	nil,                                       // 357: vrx.v1.RoutingPolicy.RouteMapsEntry
-	nil,                                       // 358: vrx.v1.BgpConfig.PeerGroupsEntry
-	nil,                                       // 359: vrx.v1.BgpConfig.NeighborsEntry
-	nil,                                       // 360: vrx.v1.OspfConfig.AreasEntry
-	nil,                                       // 361: vrx.v1.OspfConfig.InterfacesEntry
-	nil,                                       // 362: vrx.v1.IsisConfig.InterfacesEntry
-	nil,                                       // 363: vrx.v1.RipConfig.InterfacesEntry
-	nil,                                       // 364: vrx.v1.TunnelsConfig.GreEntry
-	nil,                                       // 365: vrx.v1.TunnelsConfig.VxlanEntry
-	nil,                                       // 366: vrx.v1.TunnelsConfig.IpipEntry
-	nil,                                       // 367: vrx.v1.DhcpService.ServersEntry
-	nil,                                       // 368: vrx.v1.DhcpService.RelaysEntry
-	nil,                                       // 369: vrx.v1.DhcpSubnet.ReservationsEntry
-	nil,                                       // 370: vrx.v1.DhcpServer.SubnetsEntry
-	(*DnsService_VppCache)(nil),               // 371: vrx.v1.DnsService.VppCache
-	nil,                                       // 372: vrx.v1.DnsService.ResolversEntry
-	(*DnsResolver_Dnssec)(nil),                // 373: vrx.v1.DnsResolver.Dnssec
-	(*DnsResolver_Cache)(nil),                 // 374: vrx.v1.DnsResolver.Cache
-	(*SnmpService_Community)(nil),             // 375: vrx.v1.SnmpService.Community
-	(*SnmpService_V3User)(nil),                // 376: vrx.v1.SnmpService.V3User
-	(*SnmpService_TrapReceiver)(nil),          // 377: vrx.v1.SnmpService.TrapReceiver
-	nil,                                       // 378: vrx.v1.SnmpService.CommunitiesEntry
-	nil,                                       // 379: vrx.v1.SnmpService.V3UsersEntry
-	nil,                                       // 380: vrx.v1.SnmpService.ViewsEntry
-	(*LldpService_Interface)(nil),             // 381: vrx.v1.LldpService.Interface
-	(*IpfixService_Exporter)(nil),             // 382: vrx.v1.IpfixService.Exporter
-	(*IpfixService_Flowprobe)(nil),            // 383: vrx.v1.IpfixService.Flowprobe
-	(*IpfixService_Sflow)(nil),                // 384: vrx.v1.IpfixService.Sflow
-	nil,                                       // 385: vrx.v1.IpfixService.ExportersEntry
-	(*IpfixService_Flowprobe_Interface)(nil),  // 386: vrx.v1.IpfixService.Flowprobe.Interface
-	(*NtpService_Server)(nil),                 // 387: vrx.v1.NtpService.Server
-	(*NtpService_RateLimit)(nil),              // 388: vrx.v1.NtpService.RateLimit
-	(*NtpService_NtsServer)(nil),              // 389: vrx.v1.NtpService.NtsServer
-	(*NtpService_Makestep)(nil),               // 390: vrx.v1.NtpService.Makestep
-	nil,                                       // 391: vrx.v1.QosService.PolicersEntry
-	nil,                                       // 392: vrx.v1.QosService.ShapersEntry
-	nil,                                       // 393: vrx.v1.QosService.MapsEntry
-	nil,                                       // 394: vrx.v1.QosService.InterfacesEntry
-	(*QosMap_Rows)(nil),                       // 395: vrx.v1.QosMap.Rows
-	(*QosInterface_Policer)(nil),              // 396: vrx.v1.QosInterface.Policer
-	(*QosInterface_Store)(nil),                // 397: vrx.v1.QosInterface.Store
-	(*QosInterface_Mark)(nil),                 // 398: vrx.v1.QosInterface.Mark
-	nil,                                       // 399: vrx.v1.HaConfig.VrrpEntry
-	(*VrrpInstance_Unicast)(nil),              // 400: vrx.v1.VrrpInstance.Unicast
-	(*VrrpInstance_Track)(nil),                // 401: vrx.v1.VrrpInstance.Track
-	(*HaCluster_Peer)(nil),                    // 402: vrx.v1.HaCluster.Peer
-	(*HaCluster_StateSync)(nil),               // 403: vrx.v1.HaCluster.StateSync
-	(*NatStaticMapping_Local)(nil),            // 404: vrx.v1.NatStaticMapping.Local
-	(*NatStaticMapping_External)(nil),         // 405: vrx.v1.NatStaticMapping.External
-	(*NatLoadBalancedMapping_External)(nil),   // 406: vrx.v1.NatLoadBalancedMapping.External
-	(*NatLoadBalancedMapping_Local)(nil),      // 407: vrx.v1.NatLoadBalancedMapping.Local
-	(*Nat64Config_Prefix)(nil),                // 408: vrx.v1.Nat64Config.Prefix
-	(*Nat64Config_Pool)(nil),                  // 409: vrx.v1.Nat64Config.Pool
-	(*Nat64Config_StaticBib)(nil),             // 410: vrx.v1.Nat64Config.StaticBib
-	(*Nat64Config_StaticBib_Endpoint)(nil),    // 411: vrx.v1.Nat64Config.StaticBib.Endpoint
-	(*Nat66Config_StaticMapping)(nil),         // 412: vrx.v1.Nat66Config.StaticMapping
-	(*Nptv6Config_Binding)(nil),               // 413: vrx.v1.Nptv6Config.Binding
-	(*Det44Config_Mapping)(nil),               // 414: vrx.v1.Det44Config.Mapping
-	(*DsliteConfig_Endpoint)(nil),             // 415: vrx.v1.DsliteConfig.Endpoint
-	(*DsliteConfig_Pool)(nil),                 // 416: vrx.v1.DsliteConfig.Pool
-	(*MapDomain_Rule)(nil),                    // 417: vrx.v1.MapDomain.Rule
-	(*MapParameters_Fragmentation)(nil),       // 418: vrx.v1.MapParameters.Fragmentation
-	(*MapParameters_SecurityCheck)(nil),       // 419: vrx.v1.MapParameters.SecurityCheck
-	(*MapParameters_TrafficClass)(nil),        // 420: vrx.v1.MapParameters.TrafficClass
-	(*MapParameters_PreResolve)(nil),          // 421: vrx.v1.MapParameters.PreResolve
-	(*CnatConfig_Snat)(nil),                   // 422: vrx.v1.CnatConfig.Snat
-	(*CnatConfig_Snat_Addresses)(nil),         // 423: vrx.v1.CnatConfig.Snat.Addresses
-	(*CnatConfig_Snat_PolicyInterface)(nil),   // 424: vrx.v1.CnatConfig.Snat.PolicyInterface
-	nil,                                       // 425: vrx.v1.ObjectsConfig.AddressesEntry
-	nil,                                       // 426: vrx.v1.ObjectsConfig.AddressGroupsEntry
-	nil,                                       // 427: vrx.v1.ObjectsConfig.ServicesEntry
-	nil,                                       // 428: vrx.v1.ObjectsConfig.ServiceGroupsEntry
-	nil,                                       // 429: vrx.v1.ObjectsConfig.SchedulesEntry
-	nil,                                       // 430: vrx.v1.ObjectsConfig.ZonesEntry
-	nil,                                       // 431: vrx.v1.ObjectsConfig.TagsEntry
-	nil,                                       // 432: vrx.v1.AclConfig.ListsEntry
-	nil,                                       // 433: vrx.v1.AclConfig.MacipEntry
-	nil,                                       // 434: vrx.v1.AclConfig.HostEntry
-	nil,                                       // 435: vrx.v1.VpnConfig.RemoteAccessEntry
-	(*IpsecTunnel_RouteBased)(nil),            // 436: vrx.v1.IpsecTunnel.RouteBased
-	nil,                                       // 437: vrx.v1.IpsecConfig.ProposalsEntry
-	nil,                                       // 438: vrx.v1.IpsecConfig.TunnelsEntry
-	(*WireguardPeer_Endpoint)(nil),            // 439: vrx.v1.WireguardPeer.Endpoint
-	nil,                                       // 440: vrx.v1.WireguardInterface.PeersEntry
-	nil,                                       // 441: vrx.v1.WireguardConfig.InterfacesEntry
-	(*PkiCa_Crl)(nil),                         // 442: vrx.v1.PkiCa.Crl
-	(*PkiCertificate_Acme)(nil),               // 443: vrx.v1.PkiCertificate.Acme
-	(*PkiConfig_Hsm)(nil),                     // 444: vrx.v1.PkiConfig.Hsm
-	nil,                                       // 445: vrx.v1.PkiConfig.CasEntry
-	nil,                                       // 446: vrx.v1.PkiConfig.CertificatesEntry
-	(*RemoteAccessProfile_Radius)(nil),        // 447: vrx.v1.RemoteAccessProfile.Radius
-	(*RemoteAccessProfile_Radius_Server)(nil), // 448: vrx.v1.RemoteAccessProfile.Radius.Server
-	nil,                              // 449: vrx.v1.Bond.MembersEntry
-	nil,                              // 450: vrx.v1.BridgeL2Config.BridgeDomainsEntry
-	nil,                              // 451: vrx.v1.BridgeL2Config.XconnectsEntry
-	nil,                              // 452: vrx.v1.BridgeL2Config.L3xcEntry
-	nil,                              // 453: vrx.v1.BridgeL2Config.MacFiltersEntry
-	(*NsimService_CrossConnect)(nil), // 454: vrx.v1.NsimService.CrossConnect
-	nil,                              // 455: vrx.v1.Ipv6Ra.PrefixesEntry
-	nil,                              // 456: vrx.v1.PbrConfig.PoliciesEntry
-	nil,                              // 457: vrx.v1.NatSummaryResponse.SessionsByProtocolEntry
-	nil,                              // 458: vrx.v1.RoutingStateResponse.RibCountsEntry
-	nil,                              // 459: vrx.v1.RoutingStateResponse.ReadersEntry
-	nil,                              // 460: vrx.v1.DnsStateResponse.StatusEntry
-	nil,                              // 461: vrx.v1.DnsStateResponse.StatsEntry
-	nil,                              // 462: vrx.v1.NtpStateResponse.ServerStatsEntry
-	nil,                              // 463: vrx.v1.SyslogStateResponse.InputsEntry
-	nil,                              // 464: vrx.v1.LbService.VipsEntry
-	nil,                              // 465: vrx.v1.HostStackService.NamespacesEntry
-	nil,                              // 466: vrx.v1.LispConfig.LocatorSetsEntry
-	nil,                              // 467: vrx.v1.LispConfig.EidTablesEntry
-	(*timestamppb.Timestamp)(nil),    // 468: google.protobuf.Timestamp
+	(*Srv6Config)(nil),                        // 332: vrx.v1.Srv6Config
+	(*Srv6LocalSid)(nil),                      // 333: vrx.v1.Srv6LocalSid
+	(*Srv6Policy)(nil),                        // 334: vrx.v1.Srv6Policy
+	(*Srv6SidList)(nil),                       // 335: vrx.v1.Srv6SidList
+	(*Srv6Steering)(nil),                      // 336: vrx.v1.Srv6Steering
+	(*Srv6StateRequest)(nil),                  // 337: vrx.v1.Srv6StateRequest
+	(*Srv6StateResponse)(nil),                 // 338: vrx.v1.Srv6StateResponse
+	(*Srv6StateLocalSid)(nil),                 // 339: vrx.v1.Srv6StateLocalSid
+	(*Srv6StatePolicy)(nil),                   // 340: vrx.v1.Srv6StatePolicy
+	(*Srv6StateSidList)(nil),                  // 341: vrx.v1.Srv6StateSidList
+	(*Srv6StateSteering)(nil),                 // 342: vrx.v1.Srv6StateSteering
+	(*LispConfig)(nil),                        // 343: vrx.v1.LispConfig
+	(*LispLocatorSet)(nil),                    // 344: vrx.v1.LispLocatorSet
+	(*LispLocator)(nil),                       // 345: vrx.v1.LispLocator
+	(*LispLocalEid)(nil),                      // 346: vrx.v1.LispLocalEid
+	(*LispEidTable)(nil),                      // 347: vrx.v1.LispEidTable
+	(*LispRloc)(nil),                          // 348: vrx.v1.LispRloc
+	(*LispRemoteMapping)(nil),                 // 349: vrx.v1.LispRemoteMapping
+	(*LispAdjacency)(nil),                     // 350: vrx.v1.LispAdjacency
+	(*LispLocatorPair)(nil),                   // 351: vrx.v1.LispLocatorPair
+	(*LispGpeEntry)(nil),                      // 352: vrx.v1.LispGpeEntry
+	(*LispStateRequest)(nil),                  // 353: vrx.v1.LispStateRequest
+	(*LispStateLocator)(nil),                  // 354: vrx.v1.LispStateLocator
+	(*LispStateLocatorSet)(nil),               // 355: vrx.v1.LispStateLocatorSet
+	(*LispStateMapping)(nil),                  // 356: vrx.v1.LispStateMapping
+	(*LispStateAdjacency)(nil),                // 357: vrx.v1.LispStateAdjacency
+	(*LispStateEidTable)(nil),                 // 358: vrx.v1.LispStateEidTable
+	(*LispStateResponse)(nil),                 // 359: vrx.v1.LispStateResponse
+	nil,                                       // 360: vrx.v1.Event.AttributesEntry
+	nil,                                       // 361: vrx.v1.ActionDone.StatsEntry
+	nil,                                       // 362: vrx.v1.DesiredState.InterfacesEntry
+	nil,                                       // 363: vrx.v1.DesiredState.VrfsEntry
+	nil,                                       // 364: vrx.v1.DataplaneConfig.DevicesEntry
+	nil,                                       // 365: vrx.v1.PluginSet.SwitchesEntry
+	nil,                                       // 366: vrx.v1.Interface.SubinterfacesEntry
+	nil,                                       // 367: vrx.v1.RoutingPolicy.PrefixListsEntry
+	nil,                                       // 368: vrx.v1.RoutingPolicy.RouteMapsEntry
+	nil,                                       // 369: vrx.v1.BgpConfig.PeerGroupsEntry
+	nil,                                       // 370: vrx.v1.BgpConfig.NeighborsEntry
+	nil,                                       // 371: vrx.v1.OspfConfig.AreasEntry
+	nil,                                       // 372: vrx.v1.OspfConfig.InterfacesEntry
+	nil,                                       // 373: vrx.v1.IsisConfig.InterfacesEntry
+	nil,                                       // 374: vrx.v1.RipConfig.InterfacesEntry
+	nil,                                       // 375: vrx.v1.TunnelsConfig.GreEntry
+	nil,                                       // 376: vrx.v1.TunnelsConfig.VxlanEntry
+	nil,                                       // 377: vrx.v1.TunnelsConfig.IpipEntry
+	nil,                                       // 378: vrx.v1.DhcpService.ServersEntry
+	nil,                                       // 379: vrx.v1.DhcpService.RelaysEntry
+	nil,                                       // 380: vrx.v1.DhcpSubnet.ReservationsEntry
+	nil,                                       // 381: vrx.v1.DhcpServer.SubnetsEntry
+	(*DnsService_VppCache)(nil),               // 382: vrx.v1.DnsService.VppCache
+	nil,                                       // 383: vrx.v1.DnsService.ResolversEntry
+	(*DnsResolver_Dnssec)(nil),                // 384: vrx.v1.DnsResolver.Dnssec
+	(*DnsResolver_Cache)(nil),                 // 385: vrx.v1.DnsResolver.Cache
+	(*SnmpService_Community)(nil),             // 386: vrx.v1.SnmpService.Community
+	(*SnmpService_V3User)(nil),                // 387: vrx.v1.SnmpService.V3User
+	(*SnmpService_TrapReceiver)(nil),          // 388: vrx.v1.SnmpService.TrapReceiver
+	nil,                                       // 389: vrx.v1.SnmpService.CommunitiesEntry
+	nil,                                       // 390: vrx.v1.SnmpService.V3UsersEntry
+	nil,                                       // 391: vrx.v1.SnmpService.ViewsEntry
+	(*LldpService_Interface)(nil),             // 392: vrx.v1.LldpService.Interface
+	(*IpfixService_Exporter)(nil),             // 393: vrx.v1.IpfixService.Exporter
+	(*IpfixService_Flowprobe)(nil),            // 394: vrx.v1.IpfixService.Flowprobe
+	(*IpfixService_Sflow)(nil),                // 395: vrx.v1.IpfixService.Sflow
+	nil,                                       // 396: vrx.v1.IpfixService.ExportersEntry
+	(*IpfixService_Flowprobe_Interface)(nil),  // 397: vrx.v1.IpfixService.Flowprobe.Interface
+	(*NtpService_Server)(nil),                 // 398: vrx.v1.NtpService.Server
+	(*NtpService_RateLimit)(nil),              // 399: vrx.v1.NtpService.RateLimit
+	(*NtpService_NtsServer)(nil),              // 400: vrx.v1.NtpService.NtsServer
+	(*NtpService_Makestep)(nil),               // 401: vrx.v1.NtpService.Makestep
+	nil,                                       // 402: vrx.v1.QosService.PolicersEntry
+	nil,                                       // 403: vrx.v1.QosService.ShapersEntry
+	nil,                                       // 404: vrx.v1.QosService.MapsEntry
+	nil,                                       // 405: vrx.v1.QosService.InterfacesEntry
+	(*QosMap_Rows)(nil),                       // 406: vrx.v1.QosMap.Rows
+	(*QosInterface_Policer)(nil),              // 407: vrx.v1.QosInterface.Policer
+	(*QosInterface_Store)(nil),                // 408: vrx.v1.QosInterface.Store
+	(*QosInterface_Mark)(nil),                 // 409: vrx.v1.QosInterface.Mark
+	nil,                                       // 410: vrx.v1.HaConfig.VrrpEntry
+	(*VrrpInstance_Unicast)(nil),              // 411: vrx.v1.VrrpInstance.Unicast
+	(*VrrpInstance_Track)(nil),                // 412: vrx.v1.VrrpInstance.Track
+	(*HaCluster_Peer)(nil),                    // 413: vrx.v1.HaCluster.Peer
+	(*HaCluster_StateSync)(nil),               // 414: vrx.v1.HaCluster.StateSync
+	(*NatStaticMapping_Local)(nil),            // 415: vrx.v1.NatStaticMapping.Local
+	(*NatStaticMapping_External)(nil),         // 416: vrx.v1.NatStaticMapping.External
+	(*NatLoadBalancedMapping_External)(nil),   // 417: vrx.v1.NatLoadBalancedMapping.External
+	(*NatLoadBalancedMapping_Local)(nil),      // 418: vrx.v1.NatLoadBalancedMapping.Local
+	(*Nat64Config_Prefix)(nil),                // 419: vrx.v1.Nat64Config.Prefix
+	(*Nat64Config_Pool)(nil),                  // 420: vrx.v1.Nat64Config.Pool
+	(*Nat64Config_StaticBib)(nil),             // 421: vrx.v1.Nat64Config.StaticBib
+	(*Nat64Config_StaticBib_Endpoint)(nil),    // 422: vrx.v1.Nat64Config.StaticBib.Endpoint
+	(*Nat66Config_StaticMapping)(nil),         // 423: vrx.v1.Nat66Config.StaticMapping
+	(*Nptv6Config_Binding)(nil),               // 424: vrx.v1.Nptv6Config.Binding
+	(*Det44Config_Mapping)(nil),               // 425: vrx.v1.Det44Config.Mapping
+	(*DsliteConfig_Endpoint)(nil),             // 426: vrx.v1.DsliteConfig.Endpoint
+	(*DsliteConfig_Pool)(nil),                 // 427: vrx.v1.DsliteConfig.Pool
+	(*MapDomain_Rule)(nil),                    // 428: vrx.v1.MapDomain.Rule
+	(*MapParameters_Fragmentation)(nil),       // 429: vrx.v1.MapParameters.Fragmentation
+	(*MapParameters_SecurityCheck)(nil),       // 430: vrx.v1.MapParameters.SecurityCheck
+	(*MapParameters_TrafficClass)(nil),        // 431: vrx.v1.MapParameters.TrafficClass
+	(*MapParameters_PreResolve)(nil),          // 432: vrx.v1.MapParameters.PreResolve
+	(*CnatConfig_Snat)(nil),                   // 433: vrx.v1.CnatConfig.Snat
+	(*CnatConfig_Snat_Addresses)(nil),         // 434: vrx.v1.CnatConfig.Snat.Addresses
+	(*CnatConfig_Snat_PolicyInterface)(nil),   // 435: vrx.v1.CnatConfig.Snat.PolicyInterface
+	nil,                                       // 436: vrx.v1.ObjectsConfig.AddressesEntry
+	nil,                                       // 437: vrx.v1.ObjectsConfig.AddressGroupsEntry
+	nil,                                       // 438: vrx.v1.ObjectsConfig.ServicesEntry
+	nil,                                       // 439: vrx.v1.ObjectsConfig.ServiceGroupsEntry
+	nil,                                       // 440: vrx.v1.ObjectsConfig.SchedulesEntry
+	nil,                                       // 441: vrx.v1.ObjectsConfig.ZonesEntry
+	nil,                                       // 442: vrx.v1.ObjectsConfig.TagsEntry
+	nil,                                       // 443: vrx.v1.AclConfig.ListsEntry
+	nil,                                       // 444: vrx.v1.AclConfig.MacipEntry
+	nil,                                       // 445: vrx.v1.AclConfig.HostEntry
+	nil,                                       // 446: vrx.v1.VpnConfig.RemoteAccessEntry
+	(*IpsecTunnel_RouteBased)(nil),            // 447: vrx.v1.IpsecTunnel.RouteBased
+	nil,                                       // 448: vrx.v1.IpsecConfig.ProposalsEntry
+	nil,                                       // 449: vrx.v1.IpsecConfig.TunnelsEntry
+	(*WireguardPeer_Endpoint)(nil),            // 450: vrx.v1.WireguardPeer.Endpoint
+	nil,                                       // 451: vrx.v1.WireguardInterface.PeersEntry
+	nil,                                       // 452: vrx.v1.WireguardConfig.InterfacesEntry
+	(*PkiCa_Crl)(nil),                         // 453: vrx.v1.PkiCa.Crl
+	(*PkiCertificate_Acme)(nil),               // 454: vrx.v1.PkiCertificate.Acme
+	(*PkiConfig_Hsm)(nil),                     // 455: vrx.v1.PkiConfig.Hsm
+	nil,                                       // 456: vrx.v1.PkiConfig.CasEntry
+	nil,                                       // 457: vrx.v1.PkiConfig.CertificatesEntry
+	(*RemoteAccessProfile_Radius)(nil),        // 458: vrx.v1.RemoteAccessProfile.Radius
+	(*RemoteAccessProfile_Radius_Server)(nil), // 459: vrx.v1.RemoteAccessProfile.Radius.Server
+	nil,                              // 460: vrx.v1.Bond.MembersEntry
+	nil,                              // 461: vrx.v1.BridgeL2Config.BridgeDomainsEntry
+	nil,                              // 462: vrx.v1.BridgeL2Config.XconnectsEntry
+	nil,                              // 463: vrx.v1.BridgeL2Config.L3xcEntry
+	nil,                              // 464: vrx.v1.BridgeL2Config.MacFiltersEntry
+	(*NsimService_CrossConnect)(nil), // 465: vrx.v1.NsimService.CrossConnect
+	nil,                              // 466: vrx.v1.Ipv6Ra.PrefixesEntry
+	nil,                              // 467: vrx.v1.PbrConfig.PoliciesEntry
+	nil,                              // 468: vrx.v1.NatSummaryResponse.SessionsByProtocolEntry
+	nil,                              // 469: vrx.v1.RoutingStateResponse.RibCountsEntry
+	nil,                              // 470: vrx.v1.RoutingStateResponse.ReadersEntry
+	nil,                              // 471: vrx.v1.DnsStateResponse.StatusEntry
+	nil,                              // 472: vrx.v1.DnsStateResponse.StatsEntry
+	nil,                              // 473: vrx.v1.NtpStateResponse.ServerStatsEntry
+	nil,                              // 474: vrx.v1.SyslogStateResponse.InputsEntry
+	nil,                              // 475: vrx.v1.LbService.VipsEntry
+	nil,                              // 476: vrx.v1.HostStackService.NamespacesEntry
+	nil,                              // 477: vrx.v1.Srv6Config.LocalSidsEntry
+	nil,                              // 478: vrx.v1.Srv6Config.PoliciesEntry
+	nil,                              // 479: vrx.v1.LispConfig.LocatorSetsEntry
+	nil,                              // 480: vrx.v1.LispConfig.EidTablesEntry
+	(*timestamppb.Timestamp)(nil),    // 481: google.protobuf.Timestamp
 }
 var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	34,  // 0: vrx.v1.ApplyRequest.desired_state:type_name -> vrx.v1.DesiredState
@@ -38356,8 +39357,8 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	10,  // 2: vrx.v1.ApplyResponse.results:type_name -> vrx.v1.ObjectResult
 	11,  // 3: vrx.v1.ApplyResponse.summary:type_name -> vrx.v1.ApplySummary
 	14,  // 4: vrx.v1.ApplyResponse.validation:type_name -> vrx.v1.ValidationReport
-	468, // 5: vrx.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
-	468, // 6: vrx.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	481, // 5: vrx.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
+	481, // 6: vrx.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
 	1,   // 7: vrx.v1.ObjectResult.op:type_name -> vrx.v1.ApplyOperation
 	2,   // 8: vrx.v1.ObjectResult.code:type_name -> vrx.v1.ObjectResultCode
 	34,  // 9: vrx.v1.DryRunRequest.desired_state:type_name -> vrx.v1.DesiredState
@@ -38366,15 +39367,15 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	10,  // 12: vrx.v1.ValidationReport.plan:type_name -> vrx.v1.ObjectResult
 	11,  // 13: vrx.v1.ValidationReport.summary:type_name -> vrx.v1.ApplySummary
 	34,  // 14: vrx.v1.RetrieveResponse.desired_state:type_name -> vrx.v1.DesiredState
-	468, // 15: vrx.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	468, // 16: vrx.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
+	481, // 15: vrx.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	481, // 16: vrx.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
 	19,  // 17: vrx.v1.StatsBatch.interface_counters:type_name -> vrx.v1.InterfaceCounters
 	20,  // 18: vrx.v1.StatsBatch.worker_cpu:type_name -> vrx.v1.WorkerCpu
 	4,   // 19: vrx.v1.StreamEventsRequest.kinds:type_name -> vrx.v1.EventKind
-	468, // 20: vrx.v1.Event.ts:type_name -> google.protobuf.Timestamp
+	481, // 20: vrx.v1.Event.ts:type_name -> google.protobuf.Timestamp
 	4,   // 21: vrx.v1.Event.kind:type_name -> vrx.v1.EventKind
 	11,  // 22: vrx.v1.Event.summary:type_name -> vrx.v1.ApplySummary
-	349, // 23: vrx.v1.Event.attributes:type_name -> vrx.v1.Event.AttributesEntry
+	360, // 23: vrx.v1.Event.attributes:type_name -> vrx.v1.Event.AttributesEntry
 	24,  // 24: vrx.v1.ActionRequest.ping:type_name -> vrx.v1.PingAction
 	25,  // 25: vrx.v1.ActionRequest.traceroute:type_name -> vrx.v1.TracerouteAction
 	26,  // 26: vrx.v1.ActionRequest.capture:type_name -> vrx.v1.CaptureAction
@@ -38383,15 +39384,15 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	274, // 29: vrx.v1.ActionRequest.dns_lookup:type_name -> vrx.v1.DnsLookupAction
 	5,   // 30: vrx.v1.CaptureAction.direction:type_name -> vrx.v1.CaptureDirection
 	28,  // 31: vrx.v1.ActionOutput.done:type_name -> vrx.v1.ActionDone
-	350, // 32: vrx.v1.ActionDone.stats:type_name -> vrx.v1.ActionDone.StatsEntry
-	468, // 33: vrx.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
-	468, // 34: vrx.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
+	361, // 32: vrx.v1.ActionDone.stats:type_name -> vrx.v1.ActionDone.StatsEntry
+	481, // 33: vrx.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	481, // 34: vrx.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
 	33,  // 35: vrx.v1.InterfaceStateResponse.interfaces:type_name -> vrx.v1.InterfaceState
-	468, // 36: vrx.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	481, // 36: vrx.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	35,  // 37: vrx.v1.DesiredState.system:type_name -> vrx.v1.SystemConfig
 	38,  // 38: vrx.v1.DesiredState.dataplane:type_name -> vrx.v1.DataplaneConfig
-	351, // 39: vrx.v1.DesiredState.interfaces:type_name -> vrx.v1.DesiredState.InterfacesEntry
-	352, // 40: vrx.v1.DesiredState.vrfs:type_name -> vrx.v1.DesiredState.VrfsEntry
+	362, // 39: vrx.v1.DesiredState.interfaces:type_name -> vrx.v1.DesiredState.InterfacesEntry
+	363, // 40: vrx.v1.DesiredState.vrfs:type_name -> vrx.v1.DesiredState.VrfsEntry
 	45,  // 41: vrx.v1.DesiredState.routing:type_name -> vrx.v1.RoutingConfig
 	115, // 42: vrx.v1.DesiredState.nat:type_name -> vrx.v1.NatConfig
 	134, // 43: vrx.v1.DesiredState.objects:type_name -> vrx.v1.ObjectsConfig
@@ -38403,10 +39404,10 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	106, // 49: vrx.v1.DesiredState.management:type_name -> vrx.v1.ManagementConfig
 	36,  // 50: vrx.v1.SystemConfig.banner:type_name -> vrx.v1.SystemBanner
 	37,  // 51: vrx.v1.SystemConfig.dns:type_name -> vrx.v1.SystemDns
-	353, // 52: vrx.v1.DataplaneConfig.devices:type_name -> vrx.v1.DataplaneConfig.DevicesEntry
+	364, // 52: vrx.v1.DataplaneConfig.devices:type_name -> vrx.v1.DataplaneConfig.DevicesEntry
 	39,  // 53: vrx.v1.DataplaneConfig.plugins:type_name -> vrx.v1.PluginSet
-	354, // 54: vrx.v1.PluginSet.switches:type_name -> vrx.v1.PluginSet.SwitchesEntry
-	355, // 55: vrx.v1.Interface.subinterfaces:type_name -> vrx.v1.Interface.SubinterfacesEntry
+	365, // 54: vrx.v1.PluginSet.switches:type_name -> vrx.v1.PluginSet.SwitchesEntry
+	366, // 55: vrx.v1.Interface.subinterfaces:type_name -> vrx.v1.Interface.SubinterfacesEntry
 	42,  // 56: vrx.v1.Interface.dhcp_client:type_name -> vrx.v1.DhcpClient
 	176, // 57: vrx.v1.Interface.bond:type_name -> vrx.v1.Bond
 	184, // 58: vrx.v1.Interface.l2:type_name -> vrx.v1.BridgeL2Port
@@ -38428,496 +39429,510 @@ var file_vrx_v1_dataplane_proto_depIdxs = []int32{
 	71,  // 74: vrx.v1.RoutingConfig.bfd:type_name -> vrx.v1.BfdConfig
 	48,  // 75: vrx.v1.RoutingConfig.policy:type_name -> vrx.v1.RoutingPolicy
 	186, // 76: vrx.v1.RoutingConfig.l2:type_name -> vrx.v1.BridgeL2Config
-	214, // 77: vrx.v1.RoutingConfig.neighbors:type_name -> vrx.v1.NeighborsConfig
-	224, // 78: vrx.v1.RoutingConfig.pbr:type_name -> vrx.v1.PbrConfig
-	47,  // 79: vrx.v1.StaticRoute.next_hops:type_name -> vrx.v1.NextHop
-	356, // 80: vrx.v1.RoutingPolicy.prefix_lists:type_name -> vrx.v1.RoutingPolicy.PrefixListsEntry
-	357, // 81: vrx.v1.RoutingPolicy.route_maps:type_name -> vrx.v1.RoutingPolicy.RouteMapsEntry
-	50,  // 82: vrx.v1.PrefixList.rules:type_name -> vrx.v1.PrefixListRule
-	52,  // 83: vrx.v1.RouteMap.entries:type_name -> vrx.v1.RouteMapEntry
-	53,  // 84: vrx.v1.RouteMapEntry.match:type_name -> vrx.v1.RouteMapMatch
-	54,  // 85: vrx.v1.RouteMapEntry.set:type_name -> vrx.v1.RouteMapSet
-	55,  // 86: vrx.v1.Redistribute.connected:type_name -> vrx.v1.RedistributeOptions
-	55,  // 87: vrx.v1.Redistribute.static:type_name -> vrx.v1.RedistributeOptions
-	55,  // 88: vrx.v1.Redistribute.bgp:type_name -> vrx.v1.RedistributeOptions
-	55,  // 89: vrx.v1.Redistribute.ospf:type_name -> vrx.v1.RedistributeOptions
-	55,  // 90: vrx.v1.Redistribute.isis:type_name -> vrx.v1.RedistributeOptions
-	55,  // 91: vrx.v1.Redistribute.rip:type_name -> vrx.v1.RedistributeOptions
-	57,  // 92: vrx.v1.BgpAfi.ipv4_unicast:type_name -> vrx.v1.BgpAddressFamily
-	57,  // 93: vrx.v1.BgpAfi.ipv6_unicast:type_name -> vrx.v1.BgpAddressFamily
-	58,  // 94: vrx.v1.BgpPeerGroup.afi:type_name -> vrx.v1.BgpAfi
-	58,  // 95: vrx.v1.BgpNeighbor.afi:type_name -> vrx.v1.BgpAfi
-	358, // 96: vrx.v1.BgpConfig.peer_groups:type_name -> vrx.v1.BgpConfig.PeerGroupsEntry
-	359, // 97: vrx.v1.BgpConfig.neighbors:type_name -> vrx.v1.BgpConfig.NeighborsEntry
-	61,  // 98: vrx.v1.BgpConfig.networks:type_name -> vrx.v1.BgpNetwork
-	56,  // 99: vrx.v1.BgpConfig.redistribute:type_name -> vrx.v1.Redistribute
-	360, // 100: vrx.v1.OspfConfig.areas:type_name -> vrx.v1.OspfConfig.AreasEntry
-	361, // 101: vrx.v1.OspfConfig.interfaces:type_name -> vrx.v1.OspfConfig.InterfacesEntry
-	56,  // 102: vrx.v1.OspfConfig.redistribute:type_name -> vrx.v1.Redistribute
-	362, // 103: vrx.v1.IsisConfig.interfaces:type_name -> vrx.v1.IsisConfig.InterfacesEntry
-	56,  // 104: vrx.v1.IsisConfig.redistribute:type_name -> vrx.v1.Redistribute
-	363, // 105: vrx.v1.RipConfig.interfaces:type_name -> vrx.v1.RipConfig.InterfacesEntry
-	56,  // 106: vrx.v1.RipConfig.redistribute:type_name -> vrx.v1.Redistribute
-	70,  // 107: vrx.v1.BfdConfig.sessions:type_name -> vrx.v1.BfdSession
-	364, // 108: vrx.v1.TunnelsConfig.gre:type_name -> vrx.v1.TunnelsConfig.GreEntry
-	365, // 109: vrx.v1.TunnelsConfig.vxlan:type_name -> vrx.v1.TunnelsConfig.VxlanEntry
-	366, // 110: vrx.v1.TunnelsConfig.ipip:type_name -> vrx.v1.TunnelsConfig.IpipEntry
-	332, // 111: vrx.v1.TunnelsConfig.lisp:type_name -> vrx.v1.LispConfig
-	78,  // 112: vrx.v1.ServicesConfig.dhcp:type_name -> vrx.v1.DhcpService
-	85,  // 113: vrx.v1.ServicesConfig.dns:type_name -> vrx.v1.DnsService
-	92,  // 114: vrx.v1.ServicesConfig.snmp:type_name -> vrx.v1.SnmpService
-	93,  // 115: vrx.v1.ServicesConfig.lldp:type_name -> vrx.v1.LldpService
-	94,  // 116: vrx.v1.ServicesConfig.ipfix:type_name -> vrx.v1.IpfixService
-	95,  // 117: vrx.v1.ServicesConfig.ntp:type_name -> vrx.v1.NtpService
-	96,  // 118: vrx.v1.ServicesConfig.qos:type_name -> vrx.v1.QosService
-	309, // 119: vrx.v1.ServicesConfig.host_stack:type_name -> vrx.v1.HostStackService
-	292, // 120: vrx.v1.ServicesConfig.lb:type_name -> vrx.v1.LbService
-	228, // 121: vrx.v1.ServicesConfig.auto_sdl:type_name -> vrx.v1.AutoSdlConfig
-	202, // 122: vrx.v1.ServicesConfig.nsim:type_name -> vrx.v1.NsimService
-	367, // 123: vrx.v1.DhcpService.servers:type_name -> vrx.v1.DhcpService.ServersEntry
-	368, // 124: vrx.v1.DhcpService.relays:type_name -> vrx.v1.DhcpService.RelaysEntry
-	79,  // 125: vrx.v1.DhcpReservation.options:type_name -> vrx.v1.DhcpOption
-	80,  // 126: vrx.v1.DhcpSubnet.pools:type_name -> vrx.v1.DhcpPool
-	79,  // 127: vrx.v1.DhcpSubnet.options:type_name -> vrx.v1.DhcpOption
-	369, // 128: vrx.v1.DhcpSubnet.reservations:type_name -> vrx.v1.DhcpSubnet.ReservationsEntry
-	370, // 129: vrx.v1.DhcpServer.subnets:type_name -> vrx.v1.DhcpServer.SubnetsEntry
-	79,  // 130: vrx.v1.DhcpServer.options:type_name -> vrx.v1.DhcpOption
-	372, // 131: vrx.v1.DnsService.resolvers:type_name -> vrx.v1.DnsService.ResolversEntry
-	371, // 132: vrx.v1.DnsService.vpp_cache:type_name -> vrx.v1.DnsService.VppCache
-	86,  // 133: vrx.v1.DnsForwardZone.forwarders:type_name -> vrx.v1.DnsUpstream
-	88,  // 134: vrx.v1.DnsLocalZone.records:type_name -> vrx.v1.DnsRecord
-	77,  // 135: vrx.v1.DnsResolver.listen:type_name -> vrx.v1.SocketAddress
-	90,  // 136: vrx.v1.DnsResolver.access_control:type_name -> vrx.v1.DnsAccessControl
-	86,  // 137: vrx.v1.DnsResolver.forwarders:type_name -> vrx.v1.DnsUpstream
-	87,  // 138: vrx.v1.DnsResolver.forward_zones:type_name -> vrx.v1.DnsForwardZone
-	89,  // 139: vrx.v1.DnsResolver.local_zones:type_name -> vrx.v1.DnsLocalZone
-	373, // 140: vrx.v1.DnsResolver.dnssec:type_name -> vrx.v1.DnsResolver.Dnssec
-	374, // 141: vrx.v1.DnsResolver.cache:type_name -> vrx.v1.DnsResolver.Cache
-	77,  // 142: vrx.v1.SnmpService.listen:type_name -> vrx.v1.SocketAddress
-	378, // 143: vrx.v1.SnmpService.communities:type_name -> vrx.v1.SnmpService.CommunitiesEntry
-	379, // 144: vrx.v1.SnmpService.v3_users:type_name -> vrx.v1.SnmpService.V3UsersEntry
-	377, // 145: vrx.v1.SnmpService.trap_receivers:type_name -> vrx.v1.SnmpService.TrapReceiver
-	380, // 146: vrx.v1.SnmpService.views:type_name -> vrx.v1.SnmpService.ViewsEntry
-	318, // 147: vrx.v1.SnmpService.monitors:type_name -> vrx.v1.SnmpMonitors
-	321, // 148: vrx.v1.SnmpService.subagent:type_name -> vrx.v1.SnmpSubagent
-	381, // 149: vrx.v1.LldpService.interfaces:type_name -> vrx.v1.LldpService.Interface
-	385, // 150: vrx.v1.IpfixService.exporters:type_name -> vrx.v1.IpfixService.ExportersEntry
-	383, // 151: vrx.v1.IpfixService.flowprobe:type_name -> vrx.v1.IpfixService.Flowprobe
-	384, // 152: vrx.v1.IpfixService.sflow:type_name -> vrx.v1.IpfixService.Sflow
-	387, // 153: vrx.v1.NtpService.servers:type_name -> vrx.v1.NtpService.Server
-	388, // 154: vrx.v1.NtpService.rate_limit:type_name -> vrx.v1.NtpService.RateLimit
-	389, // 155: vrx.v1.NtpService.nts_server:type_name -> vrx.v1.NtpService.NtsServer
-	390, // 156: vrx.v1.NtpService.makestep:type_name -> vrx.v1.NtpService.Makestep
-	391, // 157: vrx.v1.QosService.policers:type_name -> vrx.v1.QosService.PolicersEntry
-	392, // 158: vrx.v1.QosService.shapers:type_name -> vrx.v1.QosService.ShapersEntry
-	393, // 159: vrx.v1.QosService.maps:type_name -> vrx.v1.QosService.MapsEntry
-	394, // 160: vrx.v1.QosService.interfaces:type_name -> vrx.v1.QosService.InterfacesEntry
-	97,  // 161: vrx.v1.QosPolicer.conform_action:type_name -> vrx.v1.QosPolicerAction
-	97,  // 162: vrx.v1.QosPolicer.exceed_action:type_name -> vrx.v1.QosPolicerAction
-	97,  // 163: vrx.v1.QosPolicer.violate_action:type_name -> vrx.v1.QosPolicerAction
-	395, // 164: vrx.v1.QosMap.rows:type_name -> vrx.v1.QosMap.Rows
-	396, // 165: vrx.v1.QosInterface.policer:type_name -> vrx.v1.QosInterface.Policer
-	397, // 166: vrx.v1.QosInterface.store:type_name -> vrx.v1.QosInterface.Store
-	398, // 167: vrx.v1.QosInterface.mark:type_name -> vrx.v1.QosInterface.Mark
-	399, // 168: vrx.v1.HaConfig.vrrp:type_name -> vrx.v1.HaConfig.VrrpEntry
-	105, // 169: vrx.v1.HaConfig.cluster:type_name -> vrx.v1.HaCluster
-	400, // 170: vrx.v1.VrrpInstance.unicast:type_name -> vrx.v1.VrrpInstance.Unicast
-	401, // 171: vrx.v1.VrrpInstance.track:type_name -> vrx.v1.VrrpInstance.Track
-	402, // 172: vrx.v1.HaCluster.peers:type_name -> vrx.v1.HaCluster.Peer
-	403, // 173: vrx.v1.HaCluster.state_sync:type_name -> vrx.v1.HaCluster.StateSync
-	107, // 174: vrx.v1.ManagementConfig.users:type_name -> vrx.v1.ManagementUser
-	108, // 175: vrx.v1.ManagementConfig.aaa:type_name -> vrx.v1.ManagementAaa
-	113, // 176: vrx.v1.ManagementConfig.tls:type_name -> vrx.v1.ManagementTls
-	114, // 177: vrx.v1.ManagementConfig.syslog:type_name -> vrx.v1.SyslogTarget
-	109, // 178: vrx.v1.ManagementAaa.radius:type_name -> vrx.v1.AaaRadius
-	111, // 179: vrx.v1.ManagementAaa.tacacs:type_name -> vrx.v1.AaaTacacs
-	110, // 180: vrx.v1.AaaRadius.servers:type_name -> vrx.v1.RadiusServer
-	112, // 181: vrx.v1.AaaTacacs.servers:type_name -> vrx.v1.TacacsServer
-	273, // 182: vrx.v1.SyslogTarget.tls:type_name -> vrx.v1.SyslogTls
-	117, // 183: vrx.v1.NatConfig.pools:type_name -> vrx.v1.NatPool
-	118, // 184: vrx.v1.NatConfig.static_mappings:type_name -> vrx.v1.NatStaticMapping
-	119, // 185: vrx.v1.NatConfig.identity_mappings:type_name -> vrx.v1.NatIdentityMapping
-	120, // 186: vrx.v1.NatConfig.load_balanced_mappings:type_name -> vrx.v1.NatLoadBalancedMapping
-	116, // 187: vrx.v1.NatConfig.timeouts:type_name -> vrx.v1.NatTimeouts
-	121, // 188: vrx.v1.NatConfig.ipfix:type_name -> vrx.v1.NatIpfix
-	122, // 189: vrx.v1.NatConfig.nat64:type_name -> vrx.v1.Nat64Config
-	123, // 190: vrx.v1.NatConfig.nat66:type_name -> vrx.v1.Nat66Config
-	124, // 191: vrx.v1.NatConfig.nptv6:type_name -> vrx.v1.Nptv6Config
-	125, // 192: vrx.v1.NatConfig.det44:type_name -> vrx.v1.Det44Config
-	126, // 193: vrx.v1.NatConfig.dslite:type_name -> vrx.v1.DsliteConfig
-	130, // 194: vrx.v1.NatConfig.map:type_name -> vrx.v1.MapConfig
-	133, // 195: vrx.v1.NatConfig.cnat:type_name -> vrx.v1.CnatConfig
-	404, // 196: vrx.v1.NatStaticMapping.local:type_name -> vrx.v1.NatStaticMapping.Local
-	405, // 197: vrx.v1.NatStaticMapping.external:type_name -> vrx.v1.NatStaticMapping.External
-	406, // 198: vrx.v1.NatLoadBalancedMapping.external:type_name -> vrx.v1.NatLoadBalancedMapping.External
-	407, // 199: vrx.v1.NatLoadBalancedMapping.locals:type_name -> vrx.v1.NatLoadBalancedMapping.Local
-	408, // 200: vrx.v1.Nat64Config.prefixes:type_name -> vrx.v1.Nat64Config.Prefix
-	409, // 201: vrx.v1.Nat64Config.pools:type_name -> vrx.v1.Nat64Config.Pool
-	410, // 202: vrx.v1.Nat64Config.static_bibs:type_name -> vrx.v1.Nat64Config.StaticBib
-	116, // 203: vrx.v1.Nat64Config.timeouts:type_name -> vrx.v1.NatTimeouts
-	412, // 204: vrx.v1.Nat66Config.static_mappings:type_name -> vrx.v1.Nat66Config.StaticMapping
-	413, // 205: vrx.v1.Nptv6Config.bindings:type_name -> vrx.v1.Nptv6Config.Binding
-	414, // 206: vrx.v1.Det44Config.mappings:type_name -> vrx.v1.Det44Config.Mapping
-	116, // 207: vrx.v1.Det44Config.timeouts:type_name -> vrx.v1.NatTimeouts
-	415, // 208: vrx.v1.DsliteConfig.aftr:type_name -> vrx.v1.DsliteConfig.Endpoint
-	415, // 209: vrx.v1.DsliteConfig.b4:type_name -> vrx.v1.DsliteConfig.Endpoint
-	416, // 210: vrx.v1.DsliteConfig.pools:type_name -> vrx.v1.DsliteConfig.Pool
-	417, // 211: vrx.v1.MapDomain.rules:type_name -> vrx.v1.MapDomain.Rule
-	418, // 212: vrx.v1.MapParameters.fragmentation:type_name -> vrx.v1.MapParameters.Fragmentation
-	419, // 213: vrx.v1.MapParameters.security_check:type_name -> vrx.v1.MapParameters.SecurityCheck
-	420, // 214: vrx.v1.MapParameters.traffic_class:type_name -> vrx.v1.MapParameters.TrafficClass
-	421, // 215: vrx.v1.MapParameters.pre_resolve:type_name -> vrx.v1.MapParameters.PreResolve
-	127, // 216: vrx.v1.MapConfig.domains:type_name -> vrx.v1.MapDomain
-	128, // 217: vrx.v1.MapConfig.parameters:type_name -> vrx.v1.MapParameters
-	129, // 218: vrx.v1.MapConfig.interfaces:type_name -> vrx.v1.MapInterface
-	131, // 219: vrx.v1.CnatTranslation.vip:type_name -> vrx.v1.CnatEndpoint
-	131, // 220: vrx.v1.CnatTranslation.backends:type_name -> vrx.v1.CnatEndpoint
-	132, // 221: vrx.v1.CnatConfig.translations:type_name -> vrx.v1.CnatTranslation
-	422, // 222: vrx.v1.CnatConfig.snat:type_name -> vrx.v1.CnatConfig.Snat
-	425, // 223: vrx.v1.ObjectsConfig.addresses:type_name -> vrx.v1.ObjectsConfig.AddressesEntry
-	426, // 224: vrx.v1.ObjectsConfig.address_groups:type_name -> vrx.v1.ObjectsConfig.AddressGroupsEntry
-	427, // 225: vrx.v1.ObjectsConfig.services:type_name -> vrx.v1.ObjectsConfig.ServicesEntry
-	428, // 226: vrx.v1.ObjectsConfig.service_groups:type_name -> vrx.v1.ObjectsConfig.ServiceGroupsEntry
-	429, // 227: vrx.v1.ObjectsConfig.schedules:type_name -> vrx.v1.ObjectsConfig.SchedulesEntry
-	430, // 228: vrx.v1.ObjectsConfig.zones:type_name -> vrx.v1.ObjectsConfig.ZonesEntry
-	431, // 229: vrx.v1.ObjectsConfig.tags:type_name -> vrx.v1.ObjectsConfig.TagsEntry
-	137, // 230: vrx.v1.ServiceSpec.tcp_flags:type_name -> vrx.v1.TcpFlags
-	137, // 231: vrx.v1.ServiceObject.tcp_flags:type_name -> vrx.v1.TcpFlags
-	432, // 232: vrx.v1.AclConfig.lists:type_name -> vrx.v1.AclConfig.ListsEntry
-	433, // 233: vrx.v1.AclConfig.macip:type_name -> vrx.v1.AclConfig.MacipEntry
-	434, // 234: vrx.v1.AclConfig.host:type_name -> vrx.v1.AclConfig.HostEntry
-	154, // 235: vrx.v1.AclConfig.attachments:type_name -> vrx.v1.AclAttachment
-	155, // 236: vrx.v1.AclConfig.macip_attachments:type_name -> vrx.v1.MacipAttachment
-	156, // 237: vrx.v1.AclConfig.host_attachments:type_name -> vrx.v1.HostAttachment
-	239, // 238: vrx.v1.AclConfig.host_settings:type_name -> vrx.v1.HostAclSettings
-	138, // 239: vrx.v1.ServiceMatch.spec:type_name -> vrx.v1.ServiceSpec
-	145, // 240: vrx.v1.AclRule.source:type_name -> vrx.v1.AddressMatch
-	145, // 241: vrx.v1.AclRule.destination:type_name -> vrx.v1.AddressMatch
-	146, // 242: vrx.v1.AclRule.service:type_name -> vrx.v1.ServiceMatch
-	147, // 243: vrx.v1.AclList.rules:type_name -> vrx.v1.AclRule
-	149, // 244: vrx.v1.MacipList.rules:type_name -> vrx.v1.MacipRule
-	145, // 245: vrx.v1.HostRule.source:type_name -> vrx.v1.AddressMatch
-	145, // 246: vrx.v1.HostRule.destination:type_name -> vrx.v1.AddressMatch
-	146, // 247: vrx.v1.HostRule.service:type_name -> vrx.v1.ServiceMatch
-	151, // 248: vrx.v1.HostList.rules:type_name -> vrx.v1.HostRule
-	153, // 249: vrx.v1.AclAttachment.target:type_name -> vrx.v1.AttachmentTarget
-	166, // 250: vrx.v1.VpnConfig.ipsec:type_name -> vrx.v1.IpsecConfig
-	169, // 251: vrx.v1.VpnConfig.wireguard:type_name -> vrx.v1.WireguardConfig
-	172, // 252: vrx.v1.VpnConfig.pki:type_name -> vrx.v1.PkiConfig
-	435, // 253: vrx.v1.VpnConfig.remote_access:type_name -> vrx.v1.VpnConfig.RemoteAccessEntry
-	158, // 254: vrx.v1.IpsecProposal.ike:type_name -> vrx.v1.IkeProposal
-	159, // 255: vrx.v1.IpsecProposal.esp:type_name -> vrx.v1.EspProposal
-	161, // 256: vrx.v1.IpsecTunnel.auth:type_name -> vrx.v1.IpsecAuth
-	162, // 257: vrx.v1.IpsecTunnel.dpd:type_name -> vrx.v1.IpsecDpd
-	163, // 258: vrx.v1.IpsecTunnel.rekey:type_name -> vrx.v1.IpsecRekey
-	436, // 259: vrx.v1.IpsecTunnel.route_based:type_name -> vrx.v1.IpsecTunnel.RouteBased
-	165, // 260: vrx.v1.IpsecConfig.settings:type_name -> vrx.v1.IpsecSettings
-	437, // 261: vrx.v1.IpsecConfig.proposals:type_name -> vrx.v1.IpsecConfig.ProposalsEntry
-	438, // 262: vrx.v1.IpsecConfig.tunnels:type_name -> vrx.v1.IpsecConfig.TunnelsEntry
-	439, // 263: vrx.v1.WireguardPeer.endpoint:type_name -> vrx.v1.WireguardPeer.Endpoint
-	440, // 264: vrx.v1.WireguardInterface.peers:type_name -> vrx.v1.WireguardInterface.PeersEntry
-	441, // 265: vrx.v1.WireguardConfig.interfaces:type_name -> vrx.v1.WireguardConfig.InterfacesEntry
-	442, // 266: vrx.v1.PkiCa.crl:type_name -> vrx.v1.PkiCa.Crl
-	443, // 267: vrx.v1.PkiCertificate.acme:type_name -> vrx.v1.PkiCertificate.Acme
-	445, // 268: vrx.v1.PkiConfig.cas:type_name -> vrx.v1.PkiConfig.CasEntry
-	446, // 269: vrx.v1.PkiConfig.certificates:type_name -> vrx.v1.PkiConfig.CertificatesEntry
-	444, // 270: vrx.v1.PkiConfig.hsm:type_name -> vrx.v1.PkiConfig.Hsm
-	173, // 271: vrx.v1.RemoteAccessProfile.pools:type_name -> vrx.v1.RemoteAccessPool
-	174, // 272: vrx.v1.RemoteAccessProfile.users:type_name -> vrx.v1.RemoteAccessUser
-	447, // 273: vrx.v1.RemoteAccessProfile.radius:type_name -> vrx.v1.RemoteAccessProfile.Radius
-	162, // 274: vrx.v1.RemoteAccessProfile.dpd:type_name -> vrx.v1.IpsecDpd
-	163, // 275: vrx.v1.RemoteAccessProfile.rekey:type_name -> vrx.v1.IpsecRekey
-	449, // 276: vrx.v1.Bond.members:type_name -> vrx.v1.Bond.MembersEntry
-	180, // 277: vrx.v1.BondStateResponse.bonds:type_name -> vrx.v1.BondStatus
-	468, // 278: vrx.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	181, // 279: vrx.v1.BondStatus.members:type_name -> vrx.v1.BondMemberStatus
-	182, // 280: vrx.v1.BondMemberStatus.lacp:type_name -> vrx.v1.BondLacpState
-	183, // 281: vrx.v1.BondLacpState.actor:type_name -> vrx.v1.BondLacpPort
-	183, // 282: vrx.v1.BondLacpState.partner:type_name -> vrx.v1.BondLacpPort
-	185, // 283: vrx.v1.BridgeL2Port.tag_rewrite:type_name -> vrx.v1.BridgeL2TagRewrite
-	450, // 284: vrx.v1.BridgeL2Config.bridge_domains:type_name -> vrx.v1.BridgeL2Config.BridgeDomainsEntry
-	451, // 285: vrx.v1.BridgeL2Config.xconnects:type_name -> vrx.v1.BridgeL2Config.XconnectsEntry
-	452, // 286: vrx.v1.BridgeL2Config.l3xc:type_name -> vrx.v1.BridgeL2Config.L3xcEntry
-	453, // 287: vrx.v1.BridgeL2Config.mac_filters:type_name -> vrx.v1.BridgeL2Config.MacFiltersEntry
-	188, // 288: vrx.v1.BridgeL2Domain.static_macs:type_name -> vrx.v1.BridgeL2StaticMac
-	191, // 289: vrx.v1.BridgeL2L3xc.ipv4_paths:type_name -> vrx.v1.BridgeL2L3xcPath
-	191, // 290: vrx.v1.BridgeL2L3xc.ipv6_paths:type_name -> vrx.v1.BridgeL2L3xcPath
-	193, // 291: vrx.v1.BridgeL2MacFilter.ranges:type_name -> vrx.v1.BridgeL2MacFilterRange
-	196, // 292: vrx.v1.BridgeDomainStateResponse.bridge_domains:type_name -> vrx.v1.BridgeDomainStatus
-	468, // 293: vrx.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	197, // 294: vrx.v1.BridgeDomainStatus.members:type_name -> vrx.v1.BridgeDomainMember
-	200, // 295: vrx.v1.BridgeDomainMacsResponse.macs:type_name -> vrx.v1.BridgeDomainMac
-	468, // 296: vrx.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	454, // 297: vrx.v1.NsimService.cross_connect:type_name -> vrx.v1.NsimService.CrossConnect
-	205, // 298: vrx.v1.LldpNeighborsResponse.neighbors:type_name -> vrx.v1.LldpNeighbor
-	468, // 299: vrx.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	209, // 300: vrx.v1.ListRoutesResponse.routes:type_name -> vrx.v1.ListRoutesEntry
-	468, // 301: vrx.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	210, // 302: vrx.v1.ListRoutesEntry.paths:type_name -> vrx.v1.ListRoutesPath
-	455, // 303: vrx.v1.Ipv6Ra.prefixes:type_name -> vrx.v1.Ipv6Ra.PrefixesEntry
-	215, // 304: vrx.v1.NeighborsConfig.static:type_name -> vrx.v1.StaticNeighbor
-	216, // 305: vrx.v1.NeighborsConfig.ipv4_limits:type_name -> vrx.v1.NeighborLimits
-	216, // 306: vrx.v1.NeighborsConfig.ipv6_limits:type_name -> vrx.v1.NeighborLimits
-	217, // 307: vrx.v1.NeighborsConfig.dad:type_name -> vrx.v1.NeighborDad
-	220, // 308: vrx.v1.ListNeighborsResponse.neighbors:type_name -> vrx.v1.NeighborEntry
-	468, // 309: vrx.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	456, // 310: vrx.v1.PbrConfig.policies:type_name -> vrx.v1.PbrConfig.PoliciesEntry
-	227, // 311: vrx.v1.PbrConfig.attachments:type_name -> vrx.v1.PbrAttachment
-	226, // 312: vrx.v1.PbrPolicy.paths:type_name -> vrx.v1.PbrPath
-	231, // 313: vrx.v1.FqdnObjectStateResponse.objects:type_name -> vrx.v1.FqdnObjectState
-	468, // 314: vrx.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	468, // 315: vrx.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
-	468, // 316: vrx.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
-	233, // 317: vrx.v1.AclStateRequest.filter:type_name -> vrx.v1.AclStateFilter
-	468, // 318: vrx.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	235, // 319: vrx.v1.AclStateResponse.lists:type_name -> vrx.v1.AclListState
-	236, // 320: vrx.v1.AclStateResponse.rules:type_name -> vrx.v1.AclRuleState
-	237, // 321: vrx.v1.AclStateResponse.interfaces:type_name -> vrx.v1.AclInterfaceState
-	235, // 322: vrx.v1.AclStateResponse.macip_lists:type_name -> vrx.v1.AclListState
-	6,   // 323: vrx.v1.AclRuleState.status:type_name -> vrx.v1.AclRuleStatus
-	238, // 324: vrx.v1.AclInterfaceState.input:type_name -> vrx.v1.AclBoundAcl
-	238, // 325: vrx.v1.AclInterfaceState.output:type_name -> vrx.v1.AclBoundAcl
-	238, // 326: vrx.v1.AclInterfaceState.macip:type_name -> vrx.v1.AclBoundAcl
-	240, // 327: vrx.v1.HostAclSettings.anti_lockout:type_name -> vrx.v1.HostAclAntiLockout
-	468, // 328: vrx.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	243, // 329: vrx.v1.HostAclStateResponse.sets:type_name -> vrx.v1.HostAclSetState
-	244, // 330: vrx.v1.HostAclStateResponse.chains:type_name -> vrx.v1.HostAclChainState
-	245, // 331: vrx.v1.HostAclChainState.rules:type_name -> vrx.v1.HostAclRuleState
-	246, // 332: vrx.v1.NatSessionsRequest.filter:type_name -> vrx.v1.NatSessionFilter
-	7,   // 333: vrx.v1.NatSessionsRequest.variant:type_name -> vrx.v1.NatSessionVariant
-	248, // 334: vrx.v1.NatSessionsResponse.sessions:type_name -> vrx.v1.NatSession
-	468, // 335: vrx.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	7,   // 336: vrx.v1.NatSessionsResponse.variant:type_name -> vrx.v1.NatSessionVariant
-	251, // 337: vrx.v1.NatSummaryResponse.pools:type_name -> vrx.v1.NatPoolUsage
-	457, // 338: vrx.v1.NatSummaryResponse.sessions_by_protocol:type_name -> vrx.v1.NatSummaryResponse.SessionsByProtocolEntry
-	468, // 339: vrx.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	7,   // 340: vrx.v1.NatSessionKillAction.variant:type_name -> vrx.v1.NatSessionVariant
-	256, // 341: vrx.v1.WireguardStateResponse.interfaces:type_name -> vrx.v1.WireguardInterfaceState
-	468, // 342: vrx.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	257, // 343: vrx.v1.WireguardInterfaceState.peers:type_name -> vrx.v1.WireguardPeerState
-	468, // 344: vrx.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
-	468, // 345: vrx.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	261, // 346: vrx.v1.RoutingStateResponse.bgp:type_name -> vrx.v1.BgpInstanceState
-	458, // 347: vrx.v1.RoutingStateResponse.rib_counts:type_name -> vrx.v1.RoutingStateResponse.RibCountsEntry
-	264, // 348: vrx.v1.RoutingStateResponse.lcp_pairs:type_name -> vrx.v1.RoutingLcpPair
-	459, // 349: vrx.v1.RoutingStateResponse.readers:type_name -> vrx.v1.RoutingStateResponse.ReadersEntry
-	265, // 350: vrx.v1.RoutingStateResponse.rib:type_name -> vrx.v1.RoutingRibEntry
-	262, // 351: vrx.v1.BgpInstanceState.neighbors:type_name -> vrx.v1.BgpNeighborState
-	263, // 352: vrx.v1.BgpNeighborState.afis:type_name -> vrx.v1.BgpNeighborAfiState
-	266, // 353: vrx.v1.RoutingRibEntry.next_hops:type_name -> vrx.v1.RoutingRibNextHop
-	468, // 354: vrx.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
-	269, // 355: vrx.v1.DhcpServerStatus.subnets:type_name -> vrx.v1.DhcpSubnetUsage
-	268, // 356: vrx.v1.DhcpLeasesResponse.leases:type_name -> vrx.v1.DhcpLease
-	270, // 357: vrx.v1.DhcpLeasesResponse.servers:type_name -> vrx.v1.DhcpServerStatus
-	271, // 358: vrx.v1.DhcpLeasesResponse.client:type_name -> vrx.v1.DhcpClientLease
-	468, // 359: vrx.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	468, // 360: vrx.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	460, // 361: vrx.v1.DnsStateResponse.status:type_name -> vrx.v1.DnsStateResponse.StatusEntry
-	461, // 362: vrx.v1.DnsStateResponse.stats:type_name -> vrx.v1.DnsStateResponse.StatsEntry
-	278, // 363: vrx.v1.DnsStateResponse.forwards:type_name -> vrx.v1.DnsZoneState
-	278, // 364: vrx.v1.DnsStateResponse.stubs:type_name -> vrx.v1.DnsZoneState
-	279, // 365: vrx.v1.DnsStateResponse.local_zones:type_name -> vrx.v1.DnsLocalZoneState
-	275, // 366: vrx.v1.DnsStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
-	280, // 367: vrx.v1.DnsStateResponse.vpp_cache:type_name -> vrx.v1.DnsVppCacheState
-	468, // 368: vrx.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	283, // 369: vrx.v1.NtpStateResponse.tracking:type_name -> vrx.v1.NtpTracking
-	284, // 370: vrx.v1.NtpStateResponse.sources:type_name -> vrx.v1.NtpSource
-	285, // 371: vrx.v1.NtpStateResponse.source_stats:type_name -> vrx.v1.NtpSourceStats
-	462, // 372: vrx.v1.NtpStateResponse.server_stats:type_name -> vrx.v1.NtpStateResponse.ServerStatsEntry
-	275, // 373: vrx.v1.NtpStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
-	468, // 374: vrx.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	288, // 375: vrx.v1.SyslogStateResponse.targets:type_name -> vrx.v1.SyslogTargetState
-	463, // 376: vrx.v1.SyslogStateResponse.inputs:type_name -> vrx.v1.SyslogStateResponse.InputsEntry
-	275, // 377: vrx.v1.SyslogStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
-	468, // 378: vrx.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
-	468, // 379: vrx.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	291, // 380: vrx.v1.SyslogEntriesResponse.entries:type_name -> vrx.v1.SyslogEntry
-	468, // 381: vrx.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
-	293, // 382: vrx.v1.LbService.settings:type_name -> vrx.v1.LbSettings
-	464, // 383: vrx.v1.LbService.vips:type_name -> vrx.v1.LbService.VipsEntry
-	296, // 384: vrx.v1.LbService.nat_interfaces:type_name -> vrx.v1.LbNatInterface
-	295, // 385: vrx.v1.LbVip.servers:type_name -> vrx.v1.LbServer
-	300, // 386: vrx.v1.LbStateResponse.vips:type_name -> vrx.v1.LbVipState
-	468, // 387: vrx.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	299, // 388: vrx.v1.LbVipState.servers:type_name -> vrx.v1.LbServerState
-	304, // 389: vrx.v1.QosPolicerStatus.conform:type_name -> vrx.v1.QosPolicerCounter
-	304, // 390: vrx.v1.QosPolicerStatus.exceed:type_name -> vrx.v1.QosPolicerCounter
-	304, // 391: vrx.v1.QosPolicerStatus.violate:type_name -> vrx.v1.QosPolicerCounter
-	305, // 392: vrx.v1.QosPolicerStateResponse.policers:type_name -> vrx.v1.QosPolicerStatus
-	468, // 393: vrx.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	468, // 394: vrx.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
-	465, // 395: vrx.v1.HostStackService.namespaces:type_name -> vrx.v1.HostStackService.NamespacesEntry
-	311, // 396: vrx.v1.HostStackService.session_rules:type_name -> vrx.v1.HostStackSessionRule
-	312, // 397: vrx.v1.HostStackService.tcp_source_addresses:type_name -> vrx.v1.HostStackTcpSource
-	313, // 398: vrx.v1.HostStackService.http_static:type_name -> vrx.v1.HostStackHttpStatic
-	315, // 399: vrx.v1.HostStackStateResponse.rules:type_name -> vrx.v1.HostStackRuleState
-	468, // 400: vrx.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	319, // 401: vrx.v1.SnmpMonitors.disks:type_name -> vrx.v1.SnmpMonitorDisk
-	320, // 402: vrx.v1.SnmpMonitors.load:type_name -> vrx.v1.SnmpMonitorLoad
-	326, // 403: vrx.v1.IpfixStateResponse.exporters:type_name -> vrx.v1.IpfixExporterState
-	327, // 404: vrx.v1.IpfixStateResponse.flowprobe_params:type_name -> vrx.v1.IpfixFlowprobeParamsState
-	328, // 405: vrx.v1.IpfixStateResponse.flowprobe_interfaces:type_name -> vrx.v1.IpfixFlowprobeInterfaceState
-	329, // 406: vrx.v1.IpfixStateResponse.sflow_global:type_name -> vrx.v1.IpfixSflowGlobalState
-	330, // 407: vrx.v1.IpfixStateResponse.sflow_interfaces:type_name -> vrx.v1.IpfixSflowInterfaceState
-	331, // 408: vrx.v1.IpfixStateResponse.sflow_counters:type_name -> vrx.v1.IpfixCounter
-	468, // 409: vrx.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	466, // 410: vrx.v1.LispConfig.locator_sets:type_name -> vrx.v1.LispConfig.LocatorSetsEntry
-	335, // 411: vrx.v1.LispConfig.local_eids:type_name -> vrx.v1.LispLocalEid
-	467, // 412: vrx.v1.LispConfig.eid_tables:type_name -> vrx.v1.LispConfig.EidTablesEntry
-	338, // 413: vrx.v1.LispConfig.remote_mappings:type_name -> vrx.v1.LispRemoteMapping
-	339, // 414: vrx.v1.LispConfig.adjacencies:type_name -> vrx.v1.LispAdjacency
-	341, // 415: vrx.v1.LispConfig.gpe_entries:type_name -> vrx.v1.LispGpeEntry
-	334, // 416: vrx.v1.LispLocatorSet.locators:type_name -> vrx.v1.LispLocator
-	337, // 417: vrx.v1.LispRemoteMapping.rlocs:type_name -> vrx.v1.LispRloc
-	340, // 418: vrx.v1.LispGpeEntry.pairs:type_name -> vrx.v1.LispLocatorPair
-	343, // 419: vrx.v1.LispStateLocatorSet.locators:type_name -> vrx.v1.LispStateLocator
-	344, // 420: vrx.v1.LispStateResponse.locator_sets:type_name -> vrx.v1.LispStateLocatorSet
-	345, // 421: vrx.v1.LispStateResponse.mappings:type_name -> vrx.v1.LispStateMapping
-	346, // 422: vrx.v1.LispStateResponse.adjacencies:type_name -> vrx.v1.LispStateAdjacency
-	347, // 423: vrx.v1.LispStateResponse.eid_tables:type_name -> vrx.v1.LispStateEidTable
-	468, // 424: vrx.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	41,  // 425: vrx.v1.DesiredState.InterfacesEntry.value:type_name -> vrx.v1.Interface
-	44,  // 426: vrx.v1.DesiredState.VrfsEntry.value:type_name -> vrx.v1.Vrf
-	40,  // 427: vrx.v1.DataplaneConfig.DevicesEntry.value:type_name -> vrx.v1.DataplaneDevice
-	43,  // 428: vrx.v1.Interface.SubinterfacesEntry.value:type_name -> vrx.v1.Subinterface
-	49,  // 429: vrx.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> vrx.v1.PrefixList
-	51,  // 430: vrx.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> vrx.v1.RouteMap
-	59,  // 431: vrx.v1.BgpConfig.PeerGroupsEntry.value:type_name -> vrx.v1.BgpPeerGroup
-	60,  // 432: vrx.v1.BgpConfig.NeighborsEntry.value:type_name -> vrx.v1.BgpNeighbor
-	63,  // 433: vrx.v1.OspfConfig.AreasEntry.value:type_name -> vrx.v1.OspfArea
-	64,  // 434: vrx.v1.OspfConfig.InterfacesEntry.value:type_name -> vrx.v1.OspfInterface
-	66,  // 435: vrx.v1.IsisConfig.InterfacesEntry.value:type_name -> vrx.v1.IsisInterface
-	68,  // 436: vrx.v1.RipConfig.InterfacesEntry.value:type_name -> vrx.v1.RipInterface
-	73,  // 437: vrx.v1.TunnelsConfig.GreEntry.value:type_name -> vrx.v1.GreTunnel
-	74,  // 438: vrx.v1.TunnelsConfig.VxlanEntry.value:type_name -> vrx.v1.VxlanTunnel
-	75,  // 439: vrx.v1.TunnelsConfig.IpipEntry.value:type_name -> vrx.v1.IpipTunnel
-	83,  // 440: vrx.v1.DhcpService.ServersEntry.value:type_name -> vrx.v1.DhcpServer
-	84,  // 441: vrx.v1.DhcpService.RelaysEntry.value:type_name -> vrx.v1.DhcpRelay
-	81,  // 442: vrx.v1.DhcpSubnet.ReservationsEntry.value:type_name -> vrx.v1.DhcpReservation
-	82,  // 443: vrx.v1.DhcpServer.SubnetsEntry.value:type_name -> vrx.v1.DhcpSubnet
-	91,  // 444: vrx.v1.DnsService.ResolversEntry.value:type_name -> vrx.v1.DnsResolver
-	375, // 445: vrx.v1.SnmpService.CommunitiesEntry.value:type_name -> vrx.v1.SnmpService.Community
-	376, // 446: vrx.v1.SnmpService.V3UsersEntry.value:type_name -> vrx.v1.SnmpService.V3User
-	317, // 447: vrx.v1.SnmpService.ViewsEntry.value:type_name -> vrx.v1.SnmpView
-	77,  // 448: vrx.v1.IpfixService.Exporter.collector:type_name -> vrx.v1.SocketAddress
-	386, // 449: vrx.v1.IpfixService.Flowprobe.interfaces:type_name -> vrx.v1.IpfixService.Flowprobe.Interface
-	77,  // 450: vrx.v1.IpfixService.Sflow.collectors:type_name -> vrx.v1.SocketAddress
-	382, // 451: vrx.v1.IpfixService.ExportersEntry.value:type_name -> vrx.v1.IpfixService.Exporter
-	98,  // 452: vrx.v1.QosService.PolicersEntry.value:type_name -> vrx.v1.QosPolicer
-	99,  // 453: vrx.v1.QosService.ShapersEntry.value:type_name -> vrx.v1.QosShaper
-	101, // 454: vrx.v1.QosService.MapsEntry.value:type_name -> vrx.v1.QosMap
-	102, // 455: vrx.v1.QosService.InterfacesEntry.value:type_name -> vrx.v1.QosInterface
-	100, // 456: vrx.v1.QosMap.Rows.ext:type_name -> vrx.v1.QosMapEntry
-	100, // 457: vrx.v1.QosMap.Rows.vlan:type_name -> vrx.v1.QosMapEntry
-	100, // 458: vrx.v1.QosMap.Rows.mpls:type_name -> vrx.v1.QosMapEntry
-	100, // 459: vrx.v1.QosMap.Rows.ip:type_name -> vrx.v1.QosMapEntry
-	104, // 460: vrx.v1.HaConfig.VrrpEntry.value:type_name -> vrx.v1.VrrpInstance
-	411, // 461: vrx.v1.Nat64Config.StaticBib.inside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
-	411, // 462: vrx.v1.Nat64Config.StaticBib.outside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
-	423, // 463: vrx.v1.CnatConfig.Snat.addresses:type_name -> vrx.v1.CnatConfig.Snat.Addresses
-	424, // 464: vrx.v1.CnatConfig.Snat.interfaces:type_name -> vrx.v1.CnatConfig.Snat.PolicyInterface
-	135, // 465: vrx.v1.ObjectsConfig.AddressesEntry.value:type_name -> vrx.v1.AddressObject
-	136, // 466: vrx.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> vrx.v1.AddressGroup
-	139, // 467: vrx.v1.ObjectsConfig.ServicesEntry.value:type_name -> vrx.v1.ServiceObject
-	140, // 468: vrx.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> vrx.v1.ServiceGroup
-	141, // 469: vrx.v1.ObjectsConfig.SchedulesEntry.value:type_name -> vrx.v1.Schedule
-	142, // 470: vrx.v1.ObjectsConfig.ZonesEntry.value:type_name -> vrx.v1.Zone
-	143, // 471: vrx.v1.ObjectsConfig.TagsEntry.value:type_name -> vrx.v1.Tag
-	148, // 472: vrx.v1.AclConfig.ListsEntry.value:type_name -> vrx.v1.AclList
-	150, // 473: vrx.v1.AclConfig.MacipEntry.value:type_name -> vrx.v1.MacipList
-	152, // 474: vrx.v1.AclConfig.HostEntry.value:type_name -> vrx.v1.HostList
-	175, // 475: vrx.v1.VpnConfig.RemoteAccessEntry.value:type_name -> vrx.v1.RemoteAccessProfile
-	160, // 476: vrx.v1.IpsecConfig.ProposalsEntry.value:type_name -> vrx.v1.IpsecProposal
-	164, // 477: vrx.v1.IpsecConfig.TunnelsEntry.value:type_name -> vrx.v1.IpsecTunnel
-	167, // 478: vrx.v1.WireguardInterface.PeersEntry.value:type_name -> vrx.v1.WireguardPeer
-	168, // 479: vrx.v1.WireguardConfig.InterfacesEntry.value:type_name -> vrx.v1.WireguardInterface
-	170, // 480: vrx.v1.PkiConfig.CasEntry.value:type_name -> vrx.v1.PkiCa
-	171, // 481: vrx.v1.PkiConfig.CertificatesEntry.value:type_name -> vrx.v1.PkiCertificate
-	448, // 482: vrx.v1.RemoteAccessProfile.Radius.servers:type_name -> vrx.v1.RemoteAccessProfile.Radius.Server
-	177, // 483: vrx.v1.Bond.MembersEntry.value:type_name -> vrx.v1.BondMember
-	187, // 484: vrx.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> vrx.v1.BridgeL2Domain
-	189, // 485: vrx.v1.BridgeL2Config.XconnectsEntry.value:type_name -> vrx.v1.BridgeL2Xconnect
-	190, // 486: vrx.v1.BridgeL2Config.L3xcEntry.value:type_name -> vrx.v1.BridgeL2L3xc
-	192, // 487: vrx.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> vrx.v1.BridgeL2MacFilter
-	212, // 488: vrx.v1.Ipv6Ra.PrefixesEntry.value:type_name -> vrx.v1.Ipv6RaPrefix
-	225, // 489: vrx.v1.PbrConfig.PoliciesEntry.value:type_name -> vrx.v1.PbrPolicy
-	294, // 490: vrx.v1.LbService.VipsEntry.value:type_name -> vrx.v1.LbVip
-	310, // 491: vrx.v1.HostStackService.NamespacesEntry.value:type_name -> vrx.v1.HostStackNamespace
-	333, // 492: vrx.v1.LispConfig.LocatorSetsEntry.value:type_name -> vrx.v1.LispLocatorSet
-	336, // 493: vrx.v1.LispConfig.EidTablesEntry.value:type_name -> vrx.v1.LispEidTable
-	8,   // 494: vrx.v1.Dataplane.Apply:input_type -> vrx.v1.ApplyRequest
-	15,  // 495: vrx.v1.Dataplane.Retrieve:input_type -> vrx.v1.RetrieveRequest
-	12,  // 496: vrx.v1.Dataplane.DryRun:input_type -> vrx.v1.DryRunRequest
-	17,  // 497: vrx.v1.Dataplane.StreamStats:input_type -> vrx.v1.StreamStatsRequest
-	21,  // 498: vrx.v1.Dataplane.StreamEvents:input_type -> vrx.v1.StreamEventsRequest
-	23,  // 499: vrx.v1.Dataplane.Action:input_type -> vrx.v1.ActionRequest
-	29,  // 500: vrx.v1.Dataplane.Health:input_type -> vrx.v1.HealthRequest
-	31,  // 501: vrx.v1.Dataplane.InterfaceState:input_type -> vrx.v1.InterfaceStateRequest
-	297, // 502: vrx.v1.Dataplane.LbState:input_type -> vrx.v1.LbStateRequest
-	301, // 503: vrx.v1.Dataplane.LbFlushVip:input_type -> vrx.v1.LbFlushVipRequest
-	303, // 504: vrx.v1.Dataplane.QosPolicerState:input_type -> vrx.v1.QosPolicerStateRequest
-	307, // 505: vrx.v1.Dataplane.QosPolicerReset:input_type -> vrx.v1.QosPolicerResetRequest
-	314, // 506: vrx.v1.Dataplane.HostStackState:input_type -> vrx.v1.HostStackStateRequest
-	322, // 507: vrx.v1.Dataplane.SnmpState:input_type -> vrx.v1.SnmpStateRequest
-	324, // 508: vrx.v1.Dataplane.IpfixState:input_type -> vrx.v1.IpfixStateRequest
-	342, // 509: vrx.v1.Dataplane.LispState:input_type -> vrx.v1.LispStateRequest
-	178, // 510: vrx.v1.Dataplane.BondState:input_type -> vrx.v1.BondStateRequest
-	194, // 511: vrx.v1.Dataplane.BridgeDomainState:input_type -> vrx.v1.BridgeDomainStateRequest
-	198, // 512: vrx.v1.Dataplane.BridgeDomainMacs:input_type -> vrx.v1.BridgeDomainMacsRequest
-	203, // 513: vrx.v1.Dataplane.LldpNeighbors:input_type -> vrx.v1.LldpNeighborsRequest
-	207, // 514: vrx.v1.Dataplane.ListRoutes:input_type -> vrx.v1.ListRoutesRequest
-	218, // 515: vrx.v1.Dataplane.ListNeighbors:input_type -> vrx.v1.ListNeighborsRequest
-	229, // 516: vrx.v1.Dataplane.FqdnObjectState:input_type -> vrx.v1.FqdnObjectStateRequest
-	232, // 517: vrx.v1.Dataplane.AclState:input_type -> vrx.v1.AclStateRequest
-	241, // 518: vrx.v1.Dataplane.HostAclState:input_type -> vrx.v1.HostAclStateRequest
-	247, // 519: vrx.v1.Dataplane.NatSessions:input_type -> vrx.v1.NatSessionsRequest
-	250, // 520: vrx.v1.Dataplane.NatSummary:input_type -> vrx.v1.NatSummaryRequest
-	254, // 521: vrx.v1.Dataplane.WireguardState:input_type -> vrx.v1.WireguardStateRequest
-	259, // 522: vrx.v1.Dataplane.RoutingState:input_type -> vrx.v1.RoutingStateRequest
-	267, // 523: vrx.v1.Dataplane.DhcpLeases:input_type -> vrx.v1.DhcpLeasesRequest
-	276, // 524: vrx.v1.Dataplane.DnsState:input_type -> vrx.v1.DnsStateRequest
-	281, // 525: vrx.v1.Dataplane.NtpState:input_type -> vrx.v1.NtpStateRequest
-	286, // 526: vrx.v1.Dataplane.SyslogState:input_type -> vrx.v1.SyslogStateRequest
-	289, // 527: vrx.v1.Dataplane.SyslogEntries:input_type -> vrx.v1.SyslogEntriesRequest
-	9,   // 528: vrx.v1.Dataplane.Apply:output_type -> vrx.v1.ApplyResponse
-	16,  // 529: vrx.v1.Dataplane.Retrieve:output_type -> vrx.v1.RetrieveResponse
-	14,  // 530: vrx.v1.Dataplane.DryRun:output_type -> vrx.v1.ValidationReport
-	18,  // 531: vrx.v1.Dataplane.StreamStats:output_type -> vrx.v1.StatsBatch
-	22,  // 532: vrx.v1.Dataplane.StreamEvents:output_type -> vrx.v1.Event
-	27,  // 533: vrx.v1.Dataplane.Action:output_type -> vrx.v1.ActionOutput
-	30,  // 534: vrx.v1.Dataplane.Health:output_type -> vrx.v1.HealthResponse
-	32,  // 535: vrx.v1.Dataplane.InterfaceState:output_type -> vrx.v1.InterfaceStateResponse
-	298, // 536: vrx.v1.Dataplane.LbState:output_type -> vrx.v1.LbStateResponse
-	302, // 537: vrx.v1.Dataplane.LbFlushVip:output_type -> vrx.v1.LbFlushVipResponse
-	306, // 538: vrx.v1.Dataplane.QosPolicerState:output_type -> vrx.v1.QosPolicerStateResponse
-	308, // 539: vrx.v1.Dataplane.QosPolicerReset:output_type -> vrx.v1.QosPolicerResetResponse
-	316, // 540: vrx.v1.Dataplane.HostStackState:output_type -> vrx.v1.HostStackStateResponse
-	323, // 541: vrx.v1.Dataplane.SnmpState:output_type -> vrx.v1.SnmpStateResponse
-	325, // 542: vrx.v1.Dataplane.IpfixState:output_type -> vrx.v1.IpfixStateResponse
-	348, // 543: vrx.v1.Dataplane.LispState:output_type -> vrx.v1.LispStateResponse
-	179, // 544: vrx.v1.Dataplane.BondState:output_type -> vrx.v1.BondStateResponse
-	195, // 545: vrx.v1.Dataplane.BridgeDomainState:output_type -> vrx.v1.BridgeDomainStateResponse
-	199, // 546: vrx.v1.Dataplane.BridgeDomainMacs:output_type -> vrx.v1.BridgeDomainMacsResponse
-	204, // 547: vrx.v1.Dataplane.LldpNeighbors:output_type -> vrx.v1.LldpNeighborsResponse
-	208, // 548: vrx.v1.Dataplane.ListRoutes:output_type -> vrx.v1.ListRoutesResponse
-	219, // 549: vrx.v1.Dataplane.ListNeighbors:output_type -> vrx.v1.ListNeighborsResponse
-	230, // 550: vrx.v1.Dataplane.FqdnObjectState:output_type -> vrx.v1.FqdnObjectStateResponse
-	234, // 551: vrx.v1.Dataplane.AclState:output_type -> vrx.v1.AclStateResponse
-	242, // 552: vrx.v1.Dataplane.HostAclState:output_type -> vrx.v1.HostAclStateResponse
-	249, // 553: vrx.v1.Dataplane.NatSessions:output_type -> vrx.v1.NatSessionsResponse
-	252, // 554: vrx.v1.Dataplane.NatSummary:output_type -> vrx.v1.NatSummaryResponse
-	255, // 555: vrx.v1.Dataplane.WireguardState:output_type -> vrx.v1.WireguardStateResponse
-	260, // 556: vrx.v1.Dataplane.RoutingState:output_type -> vrx.v1.RoutingStateResponse
-	272, // 557: vrx.v1.Dataplane.DhcpLeases:output_type -> vrx.v1.DhcpLeasesResponse
-	277, // 558: vrx.v1.Dataplane.DnsState:output_type -> vrx.v1.DnsStateResponse
-	282, // 559: vrx.v1.Dataplane.NtpState:output_type -> vrx.v1.NtpStateResponse
-	287, // 560: vrx.v1.Dataplane.SyslogState:output_type -> vrx.v1.SyslogStateResponse
-	290, // 561: vrx.v1.Dataplane.SyslogEntries:output_type -> vrx.v1.SyslogEntriesResponse
-	528, // [528:562] is the sub-list for method output_type
-	494, // [494:528] is the sub-list for method input_type
-	494, // [494:494] is the sub-list for extension type_name
-	494, // [494:494] is the sub-list for extension extendee
-	0,   // [0:494] is the sub-list for field type_name
+	332, // 77: vrx.v1.RoutingConfig.srv6:type_name -> vrx.v1.Srv6Config
+	214, // 78: vrx.v1.RoutingConfig.neighbors:type_name -> vrx.v1.NeighborsConfig
+	224, // 79: vrx.v1.RoutingConfig.pbr:type_name -> vrx.v1.PbrConfig
+	47,  // 80: vrx.v1.StaticRoute.next_hops:type_name -> vrx.v1.NextHop
+	367, // 81: vrx.v1.RoutingPolicy.prefix_lists:type_name -> vrx.v1.RoutingPolicy.PrefixListsEntry
+	368, // 82: vrx.v1.RoutingPolicy.route_maps:type_name -> vrx.v1.RoutingPolicy.RouteMapsEntry
+	50,  // 83: vrx.v1.PrefixList.rules:type_name -> vrx.v1.PrefixListRule
+	52,  // 84: vrx.v1.RouteMap.entries:type_name -> vrx.v1.RouteMapEntry
+	53,  // 85: vrx.v1.RouteMapEntry.match:type_name -> vrx.v1.RouteMapMatch
+	54,  // 86: vrx.v1.RouteMapEntry.set:type_name -> vrx.v1.RouteMapSet
+	55,  // 87: vrx.v1.Redistribute.connected:type_name -> vrx.v1.RedistributeOptions
+	55,  // 88: vrx.v1.Redistribute.static:type_name -> vrx.v1.RedistributeOptions
+	55,  // 89: vrx.v1.Redistribute.bgp:type_name -> vrx.v1.RedistributeOptions
+	55,  // 90: vrx.v1.Redistribute.ospf:type_name -> vrx.v1.RedistributeOptions
+	55,  // 91: vrx.v1.Redistribute.isis:type_name -> vrx.v1.RedistributeOptions
+	55,  // 92: vrx.v1.Redistribute.rip:type_name -> vrx.v1.RedistributeOptions
+	57,  // 93: vrx.v1.BgpAfi.ipv4_unicast:type_name -> vrx.v1.BgpAddressFamily
+	57,  // 94: vrx.v1.BgpAfi.ipv6_unicast:type_name -> vrx.v1.BgpAddressFamily
+	58,  // 95: vrx.v1.BgpPeerGroup.afi:type_name -> vrx.v1.BgpAfi
+	58,  // 96: vrx.v1.BgpNeighbor.afi:type_name -> vrx.v1.BgpAfi
+	369, // 97: vrx.v1.BgpConfig.peer_groups:type_name -> vrx.v1.BgpConfig.PeerGroupsEntry
+	370, // 98: vrx.v1.BgpConfig.neighbors:type_name -> vrx.v1.BgpConfig.NeighborsEntry
+	61,  // 99: vrx.v1.BgpConfig.networks:type_name -> vrx.v1.BgpNetwork
+	56,  // 100: vrx.v1.BgpConfig.redistribute:type_name -> vrx.v1.Redistribute
+	371, // 101: vrx.v1.OspfConfig.areas:type_name -> vrx.v1.OspfConfig.AreasEntry
+	372, // 102: vrx.v1.OspfConfig.interfaces:type_name -> vrx.v1.OspfConfig.InterfacesEntry
+	56,  // 103: vrx.v1.OspfConfig.redistribute:type_name -> vrx.v1.Redistribute
+	373, // 104: vrx.v1.IsisConfig.interfaces:type_name -> vrx.v1.IsisConfig.InterfacesEntry
+	56,  // 105: vrx.v1.IsisConfig.redistribute:type_name -> vrx.v1.Redistribute
+	374, // 106: vrx.v1.RipConfig.interfaces:type_name -> vrx.v1.RipConfig.InterfacesEntry
+	56,  // 107: vrx.v1.RipConfig.redistribute:type_name -> vrx.v1.Redistribute
+	70,  // 108: vrx.v1.BfdConfig.sessions:type_name -> vrx.v1.BfdSession
+	375, // 109: vrx.v1.TunnelsConfig.gre:type_name -> vrx.v1.TunnelsConfig.GreEntry
+	376, // 110: vrx.v1.TunnelsConfig.vxlan:type_name -> vrx.v1.TunnelsConfig.VxlanEntry
+	377, // 111: vrx.v1.TunnelsConfig.ipip:type_name -> vrx.v1.TunnelsConfig.IpipEntry
+	343, // 112: vrx.v1.TunnelsConfig.lisp:type_name -> vrx.v1.LispConfig
+	78,  // 113: vrx.v1.ServicesConfig.dhcp:type_name -> vrx.v1.DhcpService
+	85,  // 114: vrx.v1.ServicesConfig.dns:type_name -> vrx.v1.DnsService
+	92,  // 115: vrx.v1.ServicesConfig.snmp:type_name -> vrx.v1.SnmpService
+	93,  // 116: vrx.v1.ServicesConfig.lldp:type_name -> vrx.v1.LldpService
+	94,  // 117: vrx.v1.ServicesConfig.ipfix:type_name -> vrx.v1.IpfixService
+	95,  // 118: vrx.v1.ServicesConfig.ntp:type_name -> vrx.v1.NtpService
+	96,  // 119: vrx.v1.ServicesConfig.qos:type_name -> vrx.v1.QosService
+	309, // 120: vrx.v1.ServicesConfig.host_stack:type_name -> vrx.v1.HostStackService
+	292, // 121: vrx.v1.ServicesConfig.lb:type_name -> vrx.v1.LbService
+	228, // 122: vrx.v1.ServicesConfig.auto_sdl:type_name -> vrx.v1.AutoSdlConfig
+	202, // 123: vrx.v1.ServicesConfig.nsim:type_name -> vrx.v1.NsimService
+	378, // 124: vrx.v1.DhcpService.servers:type_name -> vrx.v1.DhcpService.ServersEntry
+	379, // 125: vrx.v1.DhcpService.relays:type_name -> vrx.v1.DhcpService.RelaysEntry
+	79,  // 126: vrx.v1.DhcpReservation.options:type_name -> vrx.v1.DhcpOption
+	80,  // 127: vrx.v1.DhcpSubnet.pools:type_name -> vrx.v1.DhcpPool
+	79,  // 128: vrx.v1.DhcpSubnet.options:type_name -> vrx.v1.DhcpOption
+	380, // 129: vrx.v1.DhcpSubnet.reservations:type_name -> vrx.v1.DhcpSubnet.ReservationsEntry
+	381, // 130: vrx.v1.DhcpServer.subnets:type_name -> vrx.v1.DhcpServer.SubnetsEntry
+	79,  // 131: vrx.v1.DhcpServer.options:type_name -> vrx.v1.DhcpOption
+	383, // 132: vrx.v1.DnsService.resolvers:type_name -> vrx.v1.DnsService.ResolversEntry
+	382, // 133: vrx.v1.DnsService.vpp_cache:type_name -> vrx.v1.DnsService.VppCache
+	86,  // 134: vrx.v1.DnsForwardZone.forwarders:type_name -> vrx.v1.DnsUpstream
+	88,  // 135: vrx.v1.DnsLocalZone.records:type_name -> vrx.v1.DnsRecord
+	77,  // 136: vrx.v1.DnsResolver.listen:type_name -> vrx.v1.SocketAddress
+	90,  // 137: vrx.v1.DnsResolver.access_control:type_name -> vrx.v1.DnsAccessControl
+	86,  // 138: vrx.v1.DnsResolver.forwarders:type_name -> vrx.v1.DnsUpstream
+	87,  // 139: vrx.v1.DnsResolver.forward_zones:type_name -> vrx.v1.DnsForwardZone
+	89,  // 140: vrx.v1.DnsResolver.local_zones:type_name -> vrx.v1.DnsLocalZone
+	384, // 141: vrx.v1.DnsResolver.dnssec:type_name -> vrx.v1.DnsResolver.Dnssec
+	385, // 142: vrx.v1.DnsResolver.cache:type_name -> vrx.v1.DnsResolver.Cache
+	77,  // 143: vrx.v1.SnmpService.listen:type_name -> vrx.v1.SocketAddress
+	389, // 144: vrx.v1.SnmpService.communities:type_name -> vrx.v1.SnmpService.CommunitiesEntry
+	390, // 145: vrx.v1.SnmpService.v3_users:type_name -> vrx.v1.SnmpService.V3UsersEntry
+	388, // 146: vrx.v1.SnmpService.trap_receivers:type_name -> vrx.v1.SnmpService.TrapReceiver
+	391, // 147: vrx.v1.SnmpService.views:type_name -> vrx.v1.SnmpService.ViewsEntry
+	318, // 148: vrx.v1.SnmpService.monitors:type_name -> vrx.v1.SnmpMonitors
+	321, // 149: vrx.v1.SnmpService.subagent:type_name -> vrx.v1.SnmpSubagent
+	392, // 150: vrx.v1.LldpService.interfaces:type_name -> vrx.v1.LldpService.Interface
+	396, // 151: vrx.v1.IpfixService.exporters:type_name -> vrx.v1.IpfixService.ExportersEntry
+	394, // 152: vrx.v1.IpfixService.flowprobe:type_name -> vrx.v1.IpfixService.Flowprobe
+	395, // 153: vrx.v1.IpfixService.sflow:type_name -> vrx.v1.IpfixService.Sflow
+	398, // 154: vrx.v1.NtpService.servers:type_name -> vrx.v1.NtpService.Server
+	399, // 155: vrx.v1.NtpService.rate_limit:type_name -> vrx.v1.NtpService.RateLimit
+	400, // 156: vrx.v1.NtpService.nts_server:type_name -> vrx.v1.NtpService.NtsServer
+	401, // 157: vrx.v1.NtpService.makestep:type_name -> vrx.v1.NtpService.Makestep
+	402, // 158: vrx.v1.QosService.policers:type_name -> vrx.v1.QosService.PolicersEntry
+	403, // 159: vrx.v1.QosService.shapers:type_name -> vrx.v1.QosService.ShapersEntry
+	404, // 160: vrx.v1.QosService.maps:type_name -> vrx.v1.QosService.MapsEntry
+	405, // 161: vrx.v1.QosService.interfaces:type_name -> vrx.v1.QosService.InterfacesEntry
+	97,  // 162: vrx.v1.QosPolicer.conform_action:type_name -> vrx.v1.QosPolicerAction
+	97,  // 163: vrx.v1.QosPolicer.exceed_action:type_name -> vrx.v1.QosPolicerAction
+	97,  // 164: vrx.v1.QosPolicer.violate_action:type_name -> vrx.v1.QosPolicerAction
+	406, // 165: vrx.v1.QosMap.rows:type_name -> vrx.v1.QosMap.Rows
+	407, // 166: vrx.v1.QosInterface.policer:type_name -> vrx.v1.QosInterface.Policer
+	408, // 167: vrx.v1.QosInterface.store:type_name -> vrx.v1.QosInterface.Store
+	409, // 168: vrx.v1.QosInterface.mark:type_name -> vrx.v1.QosInterface.Mark
+	410, // 169: vrx.v1.HaConfig.vrrp:type_name -> vrx.v1.HaConfig.VrrpEntry
+	105, // 170: vrx.v1.HaConfig.cluster:type_name -> vrx.v1.HaCluster
+	411, // 171: vrx.v1.VrrpInstance.unicast:type_name -> vrx.v1.VrrpInstance.Unicast
+	412, // 172: vrx.v1.VrrpInstance.track:type_name -> vrx.v1.VrrpInstance.Track
+	413, // 173: vrx.v1.HaCluster.peers:type_name -> vrx.v1.HaCluster.Peer
+	414, // 174: vrx.v1.HaCluster.state_sync:type_name -> vrx.v1.HaCluster.StateSync
+	107, // 175: vrx.v1.ManagementConfig.users:type_name -> vrx.v1.ManagementUser
+	108, // 176: vrx.v1.ManagementConfig.aaa:type_name -> vrx.v1.ManagementAaa
+	113, // 177: vrx.v1.ManagementConfig.tls:type_name -> vrx.v1.ManagementTls
+	114, // 178: vrx.v1.ManagementConfig.syslog:type_name -> vrx.v1.SyslogTarget
+	109, // 179: vrx.v1.ManagementAaa.radius:type_name -> vrx.v1.AaaRadius
+	111, // 180: vrx.v1.ManagementAaa.tacacs:type_name -> vrx.v1.AaaTacacs
+	110, // 181: vrx.v1.AaaRadius.servers:type_name -> vrx.v1.RadiusServer
+	112, // 182: vrx.v1.AaaTacacs.servers:type_name -> vrx.v1.TacacsServer
+	273, // 183: vrx.v1.SyslogTarget.tls:type_name -> vrx.v1.SyslogTls
+	117, // 184: vrx.v1.NatConfig.pools:type_name -> vrx.v1.NatPool
+	118, // 185: vrx.v1.NatConfig.static_mappings:type_name -> vrx.v1.NatStaticMapping
+	119, // 186: vrx.v1.NatConfig.identity_mappings:type_name -> vrx.v1.NatIdentityMapping
+	120, // 187: vrx.v1.NatConfig.load_balanced_mappings:type_name -> vrx.v1.NatLoadBalancedMapping
+	116, // 188: vrx.v1.NatConfig.timeouts:type_name -> vrx.v1.NatTimeouts
+	121, // 189: vrx.v1.NatConfig.ipfix:type_name -> vrx.v1.NatIpfix
+	122, // 190: vrx.v1.NatConfig.nat64:type_name -> vrx.v1.Nat64Config
+	123, // 191: vrx.v1.NatConfig.nat66:type_name -> vrx.v1.Nat66Config
+	124, // 192: vrx.v1.NatConfig.nptv6:type_name -> vrx.v1.Nptv6Config
+	125, // 193: vrx.v1.NatConfig.det44:type_name -> vrx.v1.Det44Config
+	126, // 194: vrx.v1.NatConfig.dslite:type_name -> vrx.v1.DsliteConfig
+	130, // 195: vrx.v1.NatConfig.map:type_name -> vrx.v1.MapConfig
+	133, // 196: vrx.v1.NatConfig.cnat:type_name -> vrx.v1.CnatConfig
+	415, // 197: vrx.v1.NatStaticMapping.local:type_name -> vrx.v1.NatStaticMapping.Local
+	416, // 198: vrx.v1.NatStaticMapping.external:type_name -> vrx.v1.NatStaticMapping.External
+	417, // 199: vrx.v1.NatLoadBalancedMapping.external:type_name -> vrx.v1.NatLoadBalancedMapping.External
+	418, // 200: vrx.v1.NatLoadBalancedMapping.locals:type_name -> vrx.v1.NatLoadBalancedMapping.Local
+	419, // 201: vrx.v1.Nat64Config.prefixes:type_name -> vrx.v1.Nat64Config.Prefix
+	420, // 202: vrx.v1.Nat64Config.pools:type_name -> vrx.v1.Nat64Config.Pool
+	421, // 203: vrx.v1.Nat64Config.static_bibs:type_name -> vrx.v1.Nat64Config.StaticBib
+	116, // 204: vrx.v1.Nat64Config.timeouts:type_name -> vrx.v1.NatTimeouts
+	423, // 205: vrx.v1.Nat66Config.static_mappings:type_name -> vrx.v1.Nat66Config.StaticMapping
+	424, // 206: vrx.v1.Nptv6Config.bindings:type_name -> vrx.v1.Nptv6Config.Binding
+	425, // 207: vrx.v1.Det44Config.mappings:type_name -> vrx.v1.Det44Config.Mapping
+	116, // 208: vrx.v1.Det44Config.timeouts:type_name -> vrx.v1.NatTimeouts
+	426, // 209: vrx.v1.DsliteConfig.aftr:type_name -> vrx.v1.DsliteConfig.Endpoint
+	426, // 210: vrx.v1.DsliteConfig.b4:type_name -> vrx.v1.DsliteConfig.Endpoint
+	427, // 211: vrx.v1.DsliteConfig.pools:type_name -> vrx.v1.DsliteConfig.Pool
+	428, // 212: vrx.v1.MapDomain.rules:type_name -> vrx.v1.MapDomain.Rule
+	429, // 213: vrx.v1.MapParameters.fragmentation:type_name -> vrx.v1.MapParameters.Fragmentation
+	430, // 214: vrx.v1.MapParameters.security_check:type_name -> vrx.v1.MapParameters.SecurityCheck
+	431, // 215: vrx.v1.MapParameters.traffic_class:type_name -> vrx.v1.MapParameters.TrafficClass
+	432, // 216: vrx.v1.MapParameters.pre_resolve:type_name -> vrx.v1.MapParameters.PreResolve
+	127, // 217: vrx.v1.MapConfig.domains:type_name -> vrx.v1.MapDomain
+	128, // 218: vrx.v1.MapConfig.parameters:type_name -> vrx.v1.MapParameters
+	129, // 219: vrx.v1.MapConfig.interfaces:type_name -> vrx.v1.MapInterface
+	131, // 220: vrx.v1.CnatTranslation.vip:type_name -> vrx.v1.CnatEndpoint
+	131, // 221: vrx.v1.CnatTranslation.backends:type_name -> vrx.v1.CnatEndpoint
+	132, // 222: vrx.v1.CnatConfig.translations:type_name -> vrx.v1.CnatTranslation
+	433, // 223: vrx.v1.CnatConfig.snat:type_name -> vrx.v1.CnatConfig.Snat
+	436, // 224: vrx.v1.ObjectsConfig.addresses:type_name -> vrx.v1.ObjectsConfig.AddressesEntry
+	437, // 225: vrx.v1.ObjectsConfig.address_groups:type_name -> vrx.v1.ObjectsConfig.AddressGroupsEntry
+	438, // 226: vrx.v1.ObjectsConfig.services:type_name -> vrx.v1.ObjectsConfig.ServicesEntry
+	439, // 227: vrx.v1.ObjectsConfig.service_groups:type_name -> vrx.v1.ObjectsConfig.ServiceGroupsEntry
+	440, // 228: vrx.v1.ObjectsConfig.schedules:type_name -> vrx.v1.ObjectsConfig.SchedulesEntry
+	441, // 229: vrx.v1.ObjectsConfig.zones:type_name -> vrx.v1.ObjectsConfig.ZonesEntry
+	442, // 230: vrx.v1.ObjectsConfig.tags:type_name -> vrx.v1.ObjectsConfig.TagsEntry
+	137, // 231: vrx.v1.ServiceSpec.tcp_flags:type_name -> vrx.v1.TcpFlags
+	137, // 232: vrx.v1.ServiceObject.tcp_flags:type_name -> vrx.v1.TcpFlags
+	443, // 233: vrx.v1.AclConfig.lists:type_name -> vrx.v1.AclConfig.ListsEntry
+	444, // 234: vrx.v1.AclConfig.macip:type_name -> vrx.v1.AclConfig.MacipEntry
+	445, // 235: vrx.v1.AclConfig.host:type_name -> vrx.v1.AclConfig.HostEntry
+	154, // 236: vrx.v1.AclConfig.attachments:type_name -> vrx.v1.AclAttachment
+	155, // 237: vrx.v1.AclConfig.macip_attachments:type_name -> vrx.v1.MacipAttachment
+	156, // 238: vrx.v1.AclConfig.host_attachments:type_name -> vrx.v1.HostAttachment
+	239, // 239: vrx.v1.AclConfig.host_settings:type_name -> vrx.v1.HostAclSettings
+	138, // 240: vrx.v1.ServiceMatch.spec:type_name -> vrx.v1.ServiceSpec
+	145, // 241: vrx.v1.AclRule.source:type_name -> vrx.v1.AddressMatch
+	145, // 242: vrx.v1.AclRule.destination:type_name -> vrx.v1.AddressMatch
+	146, // 243: vrx.v1.AclRule.service:type_name -> vrx.v1.ServiceMatch
+	147, // 244: vrx.v1.AclList.rules:type_name -> vrx.v1.AclRule
+	149, // 245: vrx.v1.MacipList.rules:type_name -> vrx.v1.MacipRule
+	145, // 246: vrx.v1.HostRule.source:type_name -> vrx.v1.AddressMatch
+	145, // 247: vrx.v1.HostRule.destination:type_name -> vrx.v1.AddressMatch
+	146, // 248: vrx.v1.HostRule.service:type_name -> vrx.v1.ServiceMatch
+	151, // 249: vrx.v1.HostList.rules:type_name -> vrx.v1.HostRule
+	153, // 250: vrx.v1.AclAttachment.target:type_name -> vrx.v1.AttachmentTarget
+	166, // 251: vrx.v1.VpnConfig.ipsec:type_name -> vrx.v1.IpsecConfig
+	169, // 252: vrx.v1.VpnConfig.wireguard:type_name -> vrx.v1.WireguardConfig
+	172, // 253: vrx.v1.VpnConfig.pki:type_name -> vrx.v1.PkiConfig
+	446, // 254: vrx.v1.VpnConfig.remote_access:type_name -> vrx.v1.VpnConfig.RemoteAccessEntry
+	158, // 255: vrx.v1.IpsecProposal.ike:type_name -> vrx.v1.IkeProposal
+	159, // 256: vrx.v1.IpsecProposal.esp:type_name -> vrx.v1.EspProposal
+	161, // 257: vrx.v1.IpsecTunnel.auth:type_name -> vrx.v1.IpsecAuth
+	162, // 258: vrx.v1.IpsecTunnel.dpd:type_name -> vrx.v1.IpsecDpd
+	163, // 259: vrx.v1.IpsecTunnel.rekey:type_name -> vrx.v1.IpsecRekey
+	447, // 260: vrx.v1.IpsecTunnel.route_based:type_name -> vrx.v1.IpsecTunnel.RouteBased
+	165, // 261: vrx.v1.IpsecConfig.settings:type_name -> vrx.v1.IpsecSettings
+	448, // 262: vrx.v1.IpsecConfig.proposals:type_name -> vrx.v1.IpsecConfig.ProposalsEntry
+	449, // 263: vrx.v1.IpsecConfig.tunnels:type_name -> vrx.v1.IpsecConfig.TunnelsEntry
+	450, // 264: vrx.v1.WireguardPeer.endpoint:type_name -> vrx.v1.WireguardPeer.Endpoint
+	451, // 265: vrx.v1.WireguardInterface.peers:type_name -> vrx.v1.WireguardInterface.PeersEntry
+	452, // 266: vrx.v1.WireguardConfig.interfaces:type_name -> vrx.v1.WireguardConfig.InterfacesEntry
+	453, // 267: vrx.v1.PkiCa.crl:type_name -> vrx.v1.PkiCa.Crl
+	454, // 268: vrx.v1.PkiCertificate.acme:type_name -> vrx.v1.PkiCertificate.Acme
+	456, // 269: vrx.v1.PkiConfig.cas:type_name -> vrx.v1.PkiConfig.CasEntry
+	457, // 270: vrx.v1.PkiConfig.certificates:type_name -> vrx.v1.PkiConfig.CertificatesEntry
+	455, // 271: vrx.v1.PkiConfig.hsm:type_name -> vrx.v1.PkiConfig.Hsm
+	173, // 272: vrx.v1.RemoteAccessProfile.pools:type_name -> vrx.v1.RemoteAccessPool
+	174, // 273: vrx.v1.RemoteAccessProfile.users:type_name -> vrx.v1.RemoteAccessUser
+	458, // 274: vrx.v1.RemoteAccessProfile.radius:type_name -> vrx.v1.RemoteAccessProfile.Radius
+	162, // 275: vrx.v1.RemoteAccessProfile.dpd:type_name -> vrx.v1.IpsecDpd
+	163, // 276: vrx.v1.RemoteAccessProfile.rekey:type_name -> vrx.v1.IpsecRekey
+	460, // 277: vrx.v1.Bond.members:type_name -> vrx.v1.Bond.MembersEntry
+	180, // 278: vrx.v1.BondStateResponse.bonds:type_name -> vrx.v1.BondStatus
+	481, // 279: vrx.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	181, // 280: vrx.v1.BondStatus.members:type_name -> vrx.v1.BondMemberStatus
+	182, // 281: vrx.v1.BondMemberStatus.lacp:type_name -> vrx.v1.BondLacpState
+	183, // 282: vrx.v1.BondLacpState.actor:type_name -> vrx.v1.BondLacpPort
+	183, // 283: vrx.v1.BondLacpState.partner:type_name -> vrx.v1.BondLacpPort
+	185, // 284: vrx.v1.BridgeL2Port.tag_rewrite:type_name -> vrx.v1.BridgeL2TagRewrite
+	461, // 285: vrx.v1.BridgeL2Config.bridge_domains:type_name -> vrx.v1.BridgeL2Config.BridgeDomainsEntry
+	462, // 286: vrx.v1.BridgeL2Config.xconnects:type_name -> vrx.v1.BridgeL2Config.XconnectsEntry
+	463, // 287: vrx.v1.BridgeL2Config.l3xc:type_name -> vrx.v1.BridgeL2Config.L3xcEntry
+	464, // 288: vrx.v1.BridgeL2Config.mac_filters:type_name -> vrx.v1.BridgeL2Config.MacFiltersEntry
+	188, // 289: vrx.v1.BridgeL2Domain.static_macs:type_name -> vrx.v1.BridgeL2StaticMac
+	191, // 290: vrx.v1.BridgeL2L3xc.ipv4_paths:type_name -> vrx.v1.BridgeL2L3xcPath
+	191, // 291: vrx.v1.BridgeL2L3xc.ipv6_paths:type_name -> vrx.v1.BridgeL2L3xcPath
+	193, // 292: vrx.v1.BridgeL2MacFilter.ranges:type_name -> vrx.v1.BridgeL2MacFilterRange
+	196, // 293: vrx.v1.BridgeDomainStateResponse.bridge_domains:type_name -> vrx.v1.BridgeDomainStatus
+	481, // 294: vrx.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	197, // 295: vrx.v1.BridgeDomainStatus.members:type_name -> vrx.v1.BridgeDomainMember
+	200, // 296: vrx.v1.BridgeDomainMacsResponse.macs:type_name -> vrx.v1.BridgeDomainMac
+	481, // 297: vrx.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	465, // 298: vrx.v1.NsimService.cross_connect:type_name -> vrx.v1.NsimService.CrossConnect
+	205, // 299: vrx.v1.LldpNeighborsResponse.neighbors:type_name -> vrx.v1.LldpNeighbor
+	481, // 300: vrx.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	209, // 301: vrx.v1.ListRoutesResponse.routes:type_name -> vrx.v1.ListRoutesEntry
+	481, // 302: vrx.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	210, // 303: vrx.v1.ListRoutesEntry.paths:type_name -> vrx.v1.ListRoutesPath
+	466, // 304: vrx.v1.Ipv6Ra.prefixes:type_name -> vrx.v1.Ipv6Ra.PrefixesEntry
+	215, // 305: vrx.v1.NeighborsConfig.static:type_name -> vrx.v1.StaticNeighbor
+	216, // 306: vrx.v1.NeighborsConfig.ipv4_limits:type_name -> vrx.v1.NeighborLimits
+	216, // 307: vrx.v1.NeighborsConfig.ipv6_limits:type_name -> vrx.v1.NeighborLimits
+	217, // 308: vrx.v1.NeighborsConfig.dad:type_name -> vrx.v1.NeighborDad
+	220, // 309: vrx.v1.ListNeighborsResponse.neighbors:type_name -> vrx.v1.NeighborEntry
+	481, // 310: vrx.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	467, // 311: vrx.v1.PbrConfig.policies:type_name -> vrx.v1.PbrConfig.PoliciesEntry
+	227, // 312: vrx.v1.PbrConfig.attachments:type_name -> vrx.v1.PbrAttachment
+	226, // 313: vrx.v1.PbrPolicy.paths:type_name -> vrx.v1.PbrPath
+	231, // 314: vrx.v1.FqdnObjectStateResponse.objects:type_name -> vrx.v1.FqdnObjectState
+	481, // 315: vrx.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	481, // 316: vrx.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
+	481, // 317: vrx.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
+	233, // 318: vrx.v1.AclStateRequest.filter:type_name -> vrx.v1.AclStateFilter
+	481, // 319: vrx.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	235, // 320: vrx.v1.AclStateResponse.lists:type_name -> vrx.v1.AclListState
+	236, // 321: vrx.v1.AclStateResponse.rules:type_name -> vrx.v1.AclRuleState
+	237, // 322: vrx.v1.AclStateResponse.interfaces:type_name -> vrx.v1.AclInterfaceState
+	235, // 323: vrx.v1.AclStateResponse.macip_lists:type_name -> vrx.v1.AclListState
+	6,   // 324: vrx.v1.AclRuleState.status:type_name -> vrx.v1.AclRuleStatus
+	238, // 325: vrx.v1.AclInterfaceState.input:type_name -> vrx.v1.AclBoundAcl
+	238, // 326: vrx.v1.AclInterfaceState.output:type_name -> vrx.v1.AclBoundAcl
+	238, // 327: vrx.v1.AclInterfaceState.macip:type_name -> vrx.v1.AclBoundAcl
+	240, // 328: vrx.v1.HostAclSettings.anti_lockout:type_name -> vrx.v1.HostAclAntiLockout
+	481, // 329: vrx.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	243, // 330: vrx.v1.HostAclStateResponse.sets:type_name -> vrx.v1.HostAclSetState
+	244, // 331: vrx.v1.HostAclStateResponse.chains:type_name -> vrx.v1.HostAclChainState
+	245, // 332: vrx.v1.HostAclChainState.rules:type_name -> vrx.v1.HostAclRuleState
+	246, // 333: vrx.v1.NatSessionsRequest.filter:type_name -> vrx.v1.NatSessionFilter
+	7,   // 334: vrx.v1.NatSessionsRequest.variant:type_name -> vrx.v1.NatSessionVariant
+	248, // 335: vrx.v1.NatSessionsResponse.sessions:type_name -> vrx.v1.NatSession
+	481, // 336: vrx.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	7,   // 337: vrx.v1.NatSessionsResponse.variant:type_name -> vrx.v1.NatSessionVariant
+	251, // 338: vrx.v1.NatSummaryResponse.pools:type_name -> vrx.v1.NatPoolUsage
+	468, // 339: vrx.v1.NatSummaryResponse.sessions_by_protocol:type_name -> vrx.v1.NatSummaryResponse.SessionsByProtocolEntry
+	481, // 340: vrx.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	7,   // 341: vrx.v1.NatSessionKillAction.variant:type_name -> vrx.v1.NatSessionVariant
+	256, // 342: vrx.v1.WireguardStateResponse.interfaces:type_name -> vrx.v1.WireguardInterfaceState
+	481, // 343: vrx.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	257, // 344: vrx.v1.WireguardInterfaceState.peers:type_name -> vrx.v1.WireguardPeerState
+	481, // 345: vrx.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
+	481, // 346: vrx.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	261, // 347: vrx.v1.RoutingStateResponse.bgp:type_name -> vrx.v1.BgpInstanceState
+	469, // 348: vrx.v1.RoutingStateResponse.rib_counts:type_name -> vrx.v1.RoutingStateResponse.RibCountsEntry
+	264, // 349: vrx.v1.RoutingStateResponse.lcp_pairs:type_name -> vrx.v1.RoutingLcpPair
+	470, // 350: vrx.v1.RoutingStateResponse.readers:type_name -> vrx.v1.RoutingStateResponse.ReadersEntry
+	265, // 351: vrx.v1.RoutingStateResponse.rib:type_name -> vrx.v1.RoutingRibEntry
+	262, // 352: vrx.v1.BgpInstanceState.neighbors:type_name -> vrx.v1.BgpNeighborState
+	263, // 353: vrx.v1.BgpNeighborState.afis:type_name -> vrx.v1.BgpNeighborAfiState
+	266, // 354: vrx.v1.RoutingRibEntry.next_hops:type_name -> vrx.v1.RoutingRibNextHop
+	481, // 355: vrx.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
+	269, // 356: vrx.v1.DhcpServerStatus.subnets:type_name -> vrx.v1.DhcpSubnetUsage
+	268, // 357: vrx.v1.DhcpLeasesResponse.leases:type_name -> vrx.v1.DhcpLease
+	270, // 358: vrx.v1.DhcpLeasesResponse.servers:type_name -> vrx.v1.DhcpServerStatus
+	271, // 359: vrx.v1.DhcpLeasesResponse.client:type_name -> vrx.v1.DhcpClientLease
+	481, // 360: vrx.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	481, // 361: vrx.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	471, // 362: vrx.v1.DnsStateResponse.status:type_name -> vrx.v1.DnsStateResponse.StatusEntry
+	472, // 363: vrx.v1.DnsStateResponse.stats:type_name -> vrx.v1.DnsStateResponse.StatsEntry
+	278, // 364: vrx.v1.DnsStateResponse.forwards:type_name -> vrx.v1.DnsZoneState
+	278, // 365: vrx.v1.DnsStateResponse.stubs:type_name -> vrx.v1.DnsZoneState
+	279, // 366: vrx.v1.DnsStateResponse.local_zones:type_name -> vrx.v1.DnsLocalZoneState
+	275, // 367: vrx.v1.DnsStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
+	280, // 368: vrx.v1.DnsStateResponse.vpp_cache:type_name -> vrx.v1.DnsVppCacheState
+	481, // 369: vrx.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	283, // 370: vrx.v1.NtpStateResponse.tracking:type_name -> vrx.v1.NtpTracking
+	284, // 371: vrx.v1.NtpStateResponse.sources:type_name -> vrx.v1.NtpSource
+	285, // 372: vrx.v1.NtpStateResponse.source_stats:type_name -> vrx.v1.NtpSourceStats
+	473, // 373: vrx.v1.NtpStateResponse.server_stats:type_name -> vrx.v1.NtpStateResponse.ServerStatsEntry
+	275, // 374: vrx.v1.NtpStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
+	481, // 375: vrx.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	288, // 376: vrx.v1.SyslogStateResponse.targets:type_name -> vrx.v1.SyslogTargetState
+	474, // 377: vrx.v1.SyslogStateResponse.inputs:type_name -> vrx.v1.SyslogStateResponse.InputsEntry
+	275, // 378: vrx.v1.SyslogStateResponse.pending_actions:type_name -> vrx.v1.ServiceDaemonAction
+	481, // 379: vrx.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
+	481, // 380: vrx.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	291, // 381: vrx.v1.SyslogEntriesResponse.entries:type_name -> vrx.v1.SyslogEntry
+	481, // 382: vrx.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
+	293, // 383: vrx.v1.LbService.settings:type_name -> vrx.v1.LbSettings
+	475, // 384: vrx.v1.LbService.vips:type_name -> vrx.v1.LbService.VipsEntry
+	296, // 385: vrx.v1.LbService.nat_interfaces:type_name -> vrx.v1.LbNatInterface
+	295, // 386: vrx.v1.LbVip.servers:type_name -> vrx.v1.LbServer
+	300, // 387: vrx.v1.LbStateResponse.vips:type_name -> vrx.v1.LbVipState
+	481, // 388: vrx.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	299, // 389: vrx.v1.LbVipState.servers:type_name -> vrx.v1.LbServerState
+	304, // 390: vrx.v1.QosPolicerStatus.conform:type_name -> vrx.v1.QosPolicerCounter
+	304, // 391: vrx.v1.QosPolicerStatus.exceed:type_name -> vrx.v1.QosPolicerCounter
+	304, // 392: vrx.v1.QosPolicerStatus.violate:type_name -> vrx.v1.QosPolicerCounter
+	305, // 393: vrx.v1.QosPolicerStateResponse.policers:type_name -> vrx.v1.QosPolicerStatus
+	481, // 394: vrx.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	481, // 395: vrx.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
+	476, // 396: vrx.v1.HostStackService.namespaces:type_name -> vrx.v1.HostStackService.NamespacesEntry
+	311, // 397: vrx.v1.HostStackService.session_rules:type_name -> vrx.v1.HostStackSessionRule
+	312, // 398: vrx.v1.HostStackService.tcp_source_addresses:type_name -> vrx.v1.HostStackTcpSource
+	313, // 399: vrx.v1.HostStackService.http_static:type_name -> vrx.v1.HostStackHttpStatic
+	315, // 400: vrx.v1.HostStackStateResponse.rules:type_name -> vrx.v1.HostStackRuleState
+	481, // 401: vrx.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	319, // 402: vrx.v1.SnmpMonitors.disks:type_name -> vrx.v1.SnmpMonitorDisk
+	320, // 403: vrx.v1.SnmpMonitors.load:type_name -> vrx.v1.SnmpMonitorLoad
+	326, // 404: vrx.v1.IpfixStateResponse.exporters:type_name -> vrx.v1.IpfixExporterState
+	327, // 405: vrx.v1.IpfixStateResponse.flowprobe_params:type_name -> vrx.v1.IpfixFlowprobeParamsState
+	328, // 406: vrx.v1.IpfixStateResponse.flowprobe_interfaces:type_name -> vrx.v1.IpfixFlowprobeInterfaceState
+	329, // 407: vrx.v1.IpfixStateResponse.sflow_global:type_name -> vrx.v1.IpfixSflowGlobalState
+	330, // 408: vrx.v1.IpfixStateResponse.sflow_interfaces:type_name -> vrx.v1.IpfixSflowInterfaceState
+	331, // 409: vrx.v1.IpfixStateResponse.sflow_counters:type_name -> vrx.v1.IpfixCounter
+	481, // 410: vrx.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	477, // 411: vrx.v1.Srv6Config.local_sids:type_name -> vrx.v1.Srv6Config.LocalSidsEntry
+	478, // 412: vrx.v1.Srv6Config.policies:type_name -> vrx.v1.Srv6Config.PoliciesEntry
+	336, // 413: vrx.v1.Srv6Config.steering:type_name -> vrx.v1.Srv6Steering
+	335, // 414: vrx.v1.Srv6Policy.sid_lists:type_name -> vrx.v1.Srv6SidList
+	339, // 415: vrx.v1.Srv6StateResponse.local_sids:type_name -> vrx.v1.Srv6StateLocalSid
+	340, // 416: vrx.v1.Srv6StateResponse.policies:type_name -> vrx.v1.Srv6StatePolicy
+	342, // 417: vrx.v1.Srv6StateResponse.steering:type_name -> vrx.v1.Srv6StateSteering
+	481, // 418: vrx.v1.Srv6StateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	341, // 419: vrx.v1.Srv6StatePolicy.sid_lists:type_name -> vrx.v1.Srv6StateSidList
+	479, // 420: vrx.v1.LispConfig.locator_sets:type_name -> vrx.v1.LispConfig.LocatorSetsEntry
+	346, // 421: vrx.v1.LispConfig.local_eids:type_name -> vrx.v1.LispLocalEid
+	480, // 422: vrx.v1.LispConfig.eid_tables:type_name -> vrx.v1.LispConfig.EidTablesEntry
+	349, // 423: vrx.v1.LispConfig.remote_mappings:type_name -> vrx.v1.LispRemoteMapping
+	350, // 424: vrx.v1.LispConfig.adjacencies:type_name -> vrx.v1.LispAdjacency
+	352, // 425: vrx.v1.LispConfig.gpe_entries:type_name -> vrx.v1.LispGpeEntry
+	345, // 426: vrx.v1.LispLocatorSet.locators:type_name -> vrx.v1.LispLocator
+	348, // 427: vrx.v1.LispRemoteMapping.rlocs:type_name -> vrx.v1.LispRloc
+	351, // 428: vrx.v1.LispGpeEntry.pairs:type_name -> vrx.v1.LispLocatorPair
+	354, // 429: vrx.v1.LispStateLocatorSet.locators:type_name -> vrx.v1.LispStateLocator
+	355, // 430: vrx.v1.LispStateResponse.locator_sets:type_name -> vrx.v1.LispStateLocatorSet
+	356, // 431: vrx.v1.LispStateResponse.mappings:type_name -> vrx.v1.LispStateMapping
+	357, // 432: vrx.v1.LispStateResponse.adjacencies:type_name -> vrx.v1.LispStateAdjacency
+	358, // 433: vrx.v1.LispStateResponse.eid_tables:type_name -> vrx.v1.LispStateEidTable
+	481, // 434: vrx.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	41,  // 435: vrx.v1.DesiredState.InterfacesEntry.value:type_name -> vrx.v1.Interface
+	44,  // 436: vrx.v1.DesiredState.VrfsEntry.value:type_name -> vrx.v1.Vrf
+	40,  // 437: vrx.v1.DataplaneConfig.DevicesEntry.value:type_name -> vrx.v1.DataplaneDevice
+	43,  // 438: vrx.v1.Interface.SubinterfacesEntry.value:type_name -> vrx.v1.Subinterface
+	49,  // 439: vrx.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> vrx.v1.PrefixList
+	51,  // 440: vrx.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> vrx.v1.RouteMap
+	59,  // 441: vrx.v1.BgpConfig.PeerGroupsEntry.value:type_name -> vrx.v1.BgpPeerGroup
+	60,  // 442: vrx.v1.BgpConfig.NeighborsEntry.value:type_name -> vrx.v1.BgpNeighbor
+	63,  // 443: vrx.v1.OspfConfig.AreasEntry.value:type_name -> vrx.v1.OspfArea
+	64,  // 444: vrx.v1.OspfConfig.InterfacesEntry.value:type_name -> vrx.v1.OspfInterface
+	66,  // 445: vrx.v1.IsisConfig.InterfacesEntry.value:type_name -> vrx.v1.IsisInterface
+	68,  // 446: vrx.v1.RipConfig.InterfacesEntry.value:type_name -> vrx.v1.RipInterface
+	73,  // 447: vrx.v1.TunnelsConfig.GreEntry.value:type_name -> vrx.v1.GreTunnel
+	74,  // 448: vrx.v1.TunnelsConfig.VxlanEntry.value:type_name -> vrx.v1.VxlanTunnel
+	75,  // 449: vrx.v1.TunnelsConfig.IpipEntry.value:type_name -> vrx.v1.IpipTunnel
+	83,  // 450: vrx.v1.DhcpService.ServersEntry.value:type_name -> vrx.v1.DhcpServer
+	84,  // 451: vrx.v1.DhcpService.RelaysEntry.value:type_name -> vrx.v1.DhcpRelay
+	81,  // 452: vrx.v1.DhcpSubnet.ReservationsEntry.value:type_name -> vrx.v1.DhcpReservation
+	82,  // 453: vrx.v1.DhcpServer.SubnetsEntry.value:type_name -> vrx.v1.DhcpSubnet
+	91,  // 454: vrx.v1.DnsService.ResolversEntry.value:type_name -> vrx.v1.DnsResolver
+	386, // 455: vrx.v1.SnmpService.CommunitiesEntry.value:type_name -> vrx.v1.SnmpService.Community
+	387, // 456: vrx.v1.SnmpService.V3UsersEntry.value:type_name -> vrx.v1.SnmpService.V3User
+	317, // 457: vrx.v1.SnmpService.ViewsEntry.value:type_name -> vrx.v1.SnmpView
+	77,  // 458: vrx.v1.IpfixService.Exporter.collector:type_name -> vrx.v1.SocketAddress
+	397, // 459: vrx.v1.IpfixService.Flowprobe.interfaces:type_name -> vrx.v1.IpfixService.Flowprobe.Interface
+	77,  // 460: vrx.v1.IpfixService.Sflow.collectors:type_name -> vrx.v1.SocketAddress
+	393, // 461: vrx.v1.IpfixService.ExportersEntry.value:type_name -> vrx.v1.IpfixService.Exporter
+	98,  // 462: vrx.v1.QosService.PolicersEntry.value:type_name -> vrx.v1.QosPolicer
+	99,  // 463: vrx.v1.QosService.ShapersEntry.value:type_name -> vrx.v1.QosShaper
+	101, // 464: vrx.v1.QosService.MapsEntry.value:type_name -> vrx.v1.QosMap
+	102, // 465: vrx.v1.QosService.InterfacesEntry.value:type_name -> vrx.v1.QosInterface
+	100, // 466: vrx.v1.QosMap.Rows.ext:type_name -> vrx.v1.QosMapEntry
+	100, // 467: vrx.v1.QosMap.Rows.vlan:type_name -> vrx.v1.QosMapEntry
+	100, // 468: vrx.v1.QosMap.Rows.mpls:type_name -> vrx.v1.QosMapEntry
+	100, // 469: vrx.v1.QosMap.Rows.ip:type_name -> vrx.v1.QosMapEntry
+	104, // 470: vrx.v1.HaConfig.VrrpEntry.value:type_name -> vrx.v1.VrrpInstance
+	422, // 471: vrx.v1.Nat64Config.StaticBib.inside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
+	422, // 472: vrx.v1.Nat64Config.StaticBib.outside:type_name -> vrx.v1.Nat64Config.StaticBib.Endpoint
+	434, // 473: vrx.v1.CnatConfig.Snat.addresses:type_name -> vrx.v1.CnatConfig.Snat.Addresses
+	435, // 474: vrx.v1.CnatConfig.Snat.interfaces:type_name -> vrx.v1.CnatConfig.Snat.PolicyInterface
+	135, // 475: vrx.v1.ObjectsConfig.AddressesEntry.value:type_name -> vrx.v1.AddressObject
+	136, // 476: vrx.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> vrx.v1.AddressGroup
+	139, // 477: vrx.v1.ObjectsConfig.ServicesEntry.value:type_name -> vrx.v1.ServiceObject
+	140, // 478: vrx.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> vrx.v1.ServiceGroup
+	141, // 479: vrx.v1.ObjectsConfig.SchedulesEntry.value:type_name -> vrx.v1.Schedule
+	142, // 480: vrx.v1.ObjectsConfig.ZonesEntry.value:type_name -> vrx.v1.Zone
+	143, // 481: vrx.v1.ObjectsConfig.TagsEntry.value:type_name -> vrx.v1.Tag
+	148, // 482: vrx.v1.AclConfig.ListsEntry.value:type_name -> vrx.v1.AclList
+	150, // 483: vrx.v1.AclConfig.MacipEntry.value:type_name -> vrx.v1.MacipList
+	152, // 484: vrx.v1.AclConfig.HostEntry.value:type_name -> vrx.v1.HostList
+	175, // 485: vrx.v1.VpnConfig.RemoteAccessEntry.value:type_name -> vrx.v1.RemoteAccessProfile
+	160, // 486: vrx.v1.IpsecConfig.ProposalsEntry.value:type_name -> vrx.v1.IpsecProposal
+	164, // 487: vrx.v1.IpsecConfig.TunnelsEntry.value:type_name -> vrx.v1.IpsecTunnel
+	167, // 488: vrx.v1.WireguardInterface.PeersEntry.value:type_name -> vrx.v1.WireguardPeer
+	168, // 489: vrx.v1.WireguardConfig.InterfacesEntry.value:type_name -> vrx.v1.WireguardInterface
+	170, // 490: vrx.v1.PkiConfig.CasEntry.value:type_name -> vrx.v1.PkiCa
+	171, // 491: vrx.v1.PkiConfig.CertificatesEntry.value:type_name -> vrx.v1.PkiCertificate
+	459, // 492: vrx.v1.RemoteAccessProfile.Radius.servers:type_name -> vrx.v1.RemoteAccessProfile.Radius.Server
+	177, // 493: vrx.v1.Bond.MembersEntry.value:type_name -> vrx.v1.BondMember
+	187, // 494: vrx.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> vrx.v1.BridgeL2Domain
+	189, // 495: vrx.v1.BridgeL2Config.XconnectsEntry.value:type_name -> vrx.v1.BridgeL2Xconnect
+	190, // 496: vrx.v1.BridgeL2Config.L3xcEntry.value:type_name -> vrx.v1.BridgeL2L3xc
+	192, // 497: vrx.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> vrx.v1.BridgeL2MacFilter
+	212, // 498: vrx.v1.Ipv6Ra.PrefixesEntry.value:type_name -> vrx.v1.Ipv6RaPrefix
+	225, // 499: vrx.v1.PbrConfig.PoliciesEntry.value:type_name -> vrx.v1.PbrPolicy
+	294, // 500: vrx.v1.LbService.VipsEntry.value:type_name -> vrx.v1.LbVip
+	310, // 501: vrx.v1.HostStackService.NamespacesEntry.value:type_name -> vrx.v1.HostStackNamespace
+	333, // 502: vrx.v1.Srv6Config.LocalSidsEntry.value:type_name -> vrx.v1.Srv6LocalSid
+	334, // 503: vrx.v1.Srv6Config.PoliciesEntry.value:type_name -> vrx.v1.Srv6Policy
+	344, // 504: vrx.v1.LispConfig.LocatorSetsEntry.value:type_name -> vrx.v1.LispLocatorSet
+	347, // 505: vrx.v1.LispConfig.EidTablesEntry.value:type_name -> vrx.v1.LispEidTable
+	8,   // 506: vrx.v1.Dataplane.Apply:input_type -> vrx.v1.ApplyRequest
+	15,  // 507: vrx.v1.Dataplane.Retrieve:input_type -> vrx.v1.RetrieveRequest
+	12,  // 508: vrx.v1.Dataplane.DryRun:input_type -> vrx.v1.DryRunRequest
+	17,  // 509: vrx.v1.Dataplane.StreamStats:input_type -> vrx.v1.StreamStatsRequest
+	21,  // 510: vrx.v1.Dataplane.StreamEvents:input_type -> vrx.v1.StreamEventsRequest
+	23,  // 511: vrx.v1.Dataplane.Action:input_type -> vrx.v1.ActionRequest
+	29,  // 512: vrx.v1.Dataplane.Health:input_type -> vrx.v1.HealthRequest
+	31,  // 513: vrx.v1.Dataplane.InterfaceState:input_type -> vrx.v1.InterfaceStateRequest
+	297, // 514: vrx.v1.Dataplane.LbState:input_type -> vrx.v1.LbStateRequest
+	301, // 515: vrx.v1.Dataplane.LbFlushVip:input_type -> vrx.v1.LbFlushVipRequest
+	303, // 516: vrx.v1.Dataplane.QosPolicerState:input_type -> vrx.v1.QosPolicerStateRequest
+	307, // 517: vrx.v1.Dataplane.QosPolicerReset:input_type -> vrx.v1.QosPolicerResetRequest
+	314, // 518: vrx.v1.Dataplane.HostStackState:input_type -> vrx.v1.HostStackStateRequest
+	322, // 519: vrx.v1.Dataplane.SnmpState:input_type -> vrx.v1.SnmpStateRequest
+	324, // 520: vrx.v1.Dataplane.IpfixState:input_type -> vrx.v1.IpfixStateRequest
+	337, // 521: vrx.v1.Dataplane.Srv6State:input_type -> vrx.v1.Srv6StateRequest
+	353, // 522: vrx.v1.Dataplane.LispState:input_type -> vrx.v1.LispStateRequest
+	178, // 523: vrx.v1.Dataplane.BondState:input_type -> vrx.v1.BondStateRequest
+	194, // 524: vrx.v1.Dataplane.BridgeDomainState:input_type -> vrx.v1.BridgeDomainStateRequest
+	198, // 525: vrx.v1.Dataplane.BridgeDomainMacs:input_type -> vrx.v1.BridgeDomainMacsRequest
+	203, // 526: vrx.v1.Dataplane.LldpNeighbors:input_type -> vrx.v1.LldpNeighborsRequest
+	207, // 527: vrx.v1.Dataplane.ListRoutes:input_type -> vrx.v1.ListRoutesRequest
+	218, // 528: vrx.v1.Dataplane.ListNeighbors:input_type -> vrx.v1.ListNeighborsRequest
+	229, // 529: vrx.v1.Dataplane.FqdnObjectState:input_type -> vrx.v1.FqdnObjectStateRequest
+	232, // 530: vrx.v1.Dataplane.AclState:input_type -> vrx.v1.AclStateRequest
+	241, // 531: vrx.v1.Dataplane.HostAclState:input_type -> vrx.v1.HostAclStateRequest
+	247, // 532: vrx.v1.Dataplane.NatSessions:input_type -> vrx.v1.NatSessionsRequest
+	250, // 533: vrx.v1.Dataplane.NatSummary:input_type -> vrx.v1.NatSummaryRequest
+	254, // 534: vrx.v1.Dataplane.WireguardState:input_type -> vrx.v1.WireguardStateRequest
+	259, // 535: vrx.v1.Dataplane.RoutingState:input_type -> vrx.v1.RoutingStateRequest
+	267, // 536: vrx.v1.Dataplane.DhcpLeases:input_type -> vrx.v1.DhcpLeasesRequest
+	276, // 537: vrx.v1.Dataplane.DnsState:input_type -> vrx.v1.DnsStateRequest
+	281, // 538: vrx.v1.Dataplane.NtpState:input_type -> vrx.v1.NtpStateRequest
+	286, // 539: vrx.v1.Dataplane.SyslogState:input_type -> vrx.v1.SyslogStateRequest
+	289, // 540: vrx.v1.Dataplane.SyslogEntries:input_type -> vrx.v1.SyslogEntriesRequest
+	9,   // 541: vrx.v1.Dataplane.Apply:output_type -> vrx.v1.ApplyResponse
+	16,  // 542: vrx.v1.Dataplane.Retrieve:output_type -> vrx.v1.RetrieveResponse
+	14,  // 543: vrx.v1.Dataplane.DryRun:output_type -> vrx.v1.ValidationReport
+	18,  // 544: vrx.v1.Dataplane.StreamStats:output_type -> vrx.v1.StatsBatch
+	22,  // 545: vrx.v1.Dataplane.StreamEvents:output_type -> vrx.v1.Event
+	27,  // 546: vrx.v1.Dataplane.Action:output_type -> vrx.v1.ActionOutput
+	30,  // 547: vrx.v1.Dataplane.Health:output_type -> vrx.v1.HealthResponse
+	32,  // 548: vrx.v1.Dataplane.InterfaceState:output_type -> vrx.v1.InterfaceStateResponse
+	298, // 549: vrx.v1.Dataplane.LbState:output_type -> vrx.v1.LbStateResponse
+	302, // 550: vrx.v1.Dataplane.LbFlushVip:output_type -> vrx.v1.LbFlushVipResponse
+	306, // 551: vrx.v1.Dataplane.QosPolicerState:output_type -> vrx.v1.QosPolicerStateResponse
+	308, // 552: vrx.v1.Dataplane.QosPolicerReset:output_type -> vrx.v1.QosPolicerResetResponse
+	316, // 553: vrx.v1.Dataplane.HostStackState:output_type -> vrx.v1.HostStackStateResponse
+	323, // 554: vrx.v1.Dataplane.SnmpState:output_type -> vrx.v1.SnmpStateResponse
+	325, // 555: vrx.v1.Dataplane.IpfixState:output_type -> vrx.v1.IpfixStateResponse
+	338, // 556: vrx.v1.Dataplane.Srv6State:output_type -> vrx.v1.Srv6StateResponse
+	359, // 557: vrx.v1.Dataplane.LispState:output_type -> vrx.v1.LispStateResponse
+	179, // 558: vrx.v1.Dataplane.BondState:output_type -> vrx.v1.BondStateResponse
+	195, // 559: vrx.v1.Dataplane.BridgeDomainState:output_type -> vrx.v1.BridgeDomainStateResponse
+	199, // 560: vrx.v1.Dataplane.BridgeDomainMacs:output_type -> vrx.v1.BridgeDomainMacsResponse
+	204, // 561: vrx.v1.Dataplane.LldpNeighbors:output_type -> vrx.v1.LldpNeighborsResponse
+	208, // 562: vrx.v1.Dataplane.ListRoutes:output_type -> vrx.v1.ListRoutesResponse
+	219, // 563: vrx.v1.Dataplane.ListNeighbors:output_type -> vrx.v1.ListNeighborsResponse
+	230, // 564: vrx.v1.Dataplane.FqdnObjectState:output_type -> vrx.v1.FqdnObjectStateResponse
+	234, // 565: vrx.v1.Dataplane.AclState:output_type -> vrx.v1.AclStateResponse
+	242, // 566: vrx.v1.Dataplane.HostAclState:output_type -> vrx.v1.HostAclStateResponse
+	249, // 567: vrx.v1.Dataplane.NatSessions:output_type -> vrx.v1.NatSessionsResponse
+	252, // 568: vrx.v1.Dataplane.NatSummary:output_type -> vrx.v1.NatSummaryResponse
+	255, // 569: vrx.v1.Dataplane.WireguardState:output_type -> vrx.v1.WireguardStateResponse
+	260, // 570: vrx.v1.Dataplane.RoutingState:output_type -> vrx.v1.RoutingStateResponse
+	272, // 571: vrx.v1.Dataplane.DhcpLeases:output_type -> vrx.v1.DhcpLeasesResponse
+	277, // 572: vrx.v1.Dataplane.DnsState:output_type -> vrx.v1.DnsStateResponse
+	282, // 573: vrx.v1.Dataplane.NtpState:output_type -> vrx.v1.NtpStateResponse
+	287, // 574: vrx.v1.Dataplane.SyslogState:output_type -> vrx.v1.SyslogStateResponse
+	290, // 575: vrx.v1.Dataplane.SyslogEntries:output_type -> vrx.v1.SyslogEntriesResponse
+	541, // [541:576] is the sub-list for method output_type
+	506, // [506:541] is the sub-list for method input_type
+	506, // [506:506] is the sub-list for extension type_name
+	506, // [506:506] is the sub-list for extension extendee
+	0,   // [0:506] is the sub-list for field type_name
 }
 
 func init() { file_vrx_v1_dataplane_proto_init() }
@@ -39101,43 +40116,37 @@ func file_vrx_v1_dataplane_proto_init() {
 	file_vrx_v1_dataplane_proto_msgTypes[313].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[318].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[324].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[325].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[326].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[327].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[328].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[329].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[330].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[331].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[332].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[333].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[363].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[365].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[366].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[367].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[368].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[369].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[373].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[335].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[337].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[338].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[339].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[340].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[341].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[342].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[343].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[344].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[374].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[375].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[376].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[377].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[378].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[379].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[380].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[381].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[382].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[388].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[384].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[385].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[386].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[387].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[389].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[390].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[391].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[392].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[393].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[394].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[395].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[396].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[397].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[398].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[399].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[400].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[401].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[402].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[403].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[404].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[405].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[406].OneofWrappers = []any{}
@@ -39151,20 +40160,31 @@ func file_vrx_v1_dataplane_proto_init() {
 	file_vrx_v1_dataplane_proto_msgTypes[414].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[415].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[416].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[428].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[431].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[434].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[435].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[436].OneofWrappers = []any{}
-	file_vrx_v1_dataplane_proto_msgTypes[440].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[417].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[418].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[419].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[420].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[421].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[422].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[423].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[424].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[425].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[426].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[427].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[439].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[442].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[445].OneofWrappers = []any{}
 	file_vrx_v1_dataplane_proto_msgTypes[446].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[447].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[451].OneofWrappers = []any{}
+	file_vrx_v1_dataplane_proto_msgTypes[457].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrx_v1_dataplane_proto_rawDesc), len(file_vrx_v1_dataplane_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   460,
+			NumMessages:   473,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

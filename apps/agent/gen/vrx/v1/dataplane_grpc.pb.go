@@ -61,6 +61,7 @@ const (
 	Dataplane_HostStackState_FullMethodName    = "/vrx.v1.Dataplane/HostStackState"
 	Dataplane_SnmpState_FullMethodName         = "/vrx.v1.Dataplane/SnmpState"
 	Dataplane_IpfixState_FullMethodName        = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_Srv6State_FullMethodName         = "/vrx.v1.Dataplane/Srv6State"
 	Dataplane_LispState_FullMethodName         = "/vrx.v1.Dataplane/LispState"
 	Dataplane_BondState_FullMethodName         = "/vrx.v1.Dataplane/BondState"
 	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
@@ -146,6 +147,12 @@ type DataplaneClient interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(ctx context.Context, in *IpfixStateRequest, opts ...grpc.CallOption) (*IpfixStateResponse, error)
+	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+	// Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+	// (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+	Srv6State(ctx context.Context, in *Srv6StateRequest, opts ...grpc.CallOption) (*Srv6StateResponse, error)
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
@@ -411,6 +418,16 @@ func (c *dataplaneClient) IpfixState(ctx context.Context, in *IpfixStateRequest,
 	return out, nil
 }
 
+func (c *dataplaneClient) Srv6State(ctx context.Context, in *Srv6StateRequest, opts ...grpc.CallOption) (*Srv6StateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Srv6StateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_Srv6State_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataplaneClient) LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LispStateResponse)
@@ -665,6 +682,12 @@ type DataplaneServer interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error)
+	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+	// Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+	// (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+	Srv6State(context.Context, *Srv6StateRequest) (*Srv6StateResponse, error)
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
@@ -797,6 +820,9 @@ func (UnimplementedDataplaneServer) SnmpState(context.Context, *SnmpStateRequest
 }
 func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IpfixState not implemented")
+}
+func (UnimplementedDataplaneServer) Srv6State(context.Context, *Srv6StateRequest) (*Srv6StateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Srv6State not implemented")
 }
 func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
@@ -1121,6 +1147,24 @@ func _Dataplane_IpfixState_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).IpfixState(ctx, req.(*IpfixStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_Srv6State_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Srv6StateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).Srv6State(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_Srv6State_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).Srv6State(ctx, req.(*Srv6StateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1521,6 +1565,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IpfixState",
 			Handler:    _Dataplane_IpfixState_Handler,
+		},
+		{
+			MethodName: "Srv6State",
+			Handler:    _Dataplane_Srv6State_Handler,
 		},
 		{
 			MethodName: "LispState",

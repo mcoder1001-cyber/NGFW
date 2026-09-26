@@ -50,6 +50,7 @@ import { snmpFeature } from './features/snmp/index.js';
 import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
+import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
@@ -155,6 +156,7 @@ export class AppModule {
         ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.controllers,
         // wave-BC: F-lisp
         ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
@@ -244,6 +246,7 @@ export class AppModule {
         ...ipfixSflowFeature.providers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.providers,
         // wave-BC: F-lisp
         ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution

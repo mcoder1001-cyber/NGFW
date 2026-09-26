@@ -1,0 +1,100 @@
+{
+  "interfaces": {
+    "loop70": {
+      "enabled": true,
+      "ipv4": ["192.168.70.1/24"],
+      "l2": {
+        "bridgeDomain": "lan",
+        "bvi": true
+      },
+      "gso": true
+    },
+    "TenGigabitEthernet0/0/0": {
+      "enabled": true,
+      "l2": {
+        "bridgeDomain": "lan"
+      },
+      "gso": false,
+      "mirror": [
+        {
+          "destination": "TenGigabitEthernet0/0/2",
+          "direction": "both",
+          "level": "device"
+        },
+        {
+          "destination": "gre7",
+          "direction": "rx",
+          "level": "l2"
+        }
+      ]
+    },
+    "TenGigabitEthernet0/0/1": {
+      "enabled": true,
+      "ipv4": ["10.0.1.1/24"],
+      "mirror": [
+        {
+          "destination": "TenGigabitEthernet0/0/2",
+          "direction": "tx",
+          "level": "device"
+        }
+      ]
+    },
+    "TenGigabitEthernet0/0/2": {
+      "enabled": true
+    },
+    "TenGigabitEthernet0/0/3": {
+      "enabled": true
+    },
+    "TenGigabitEthernet0/0/4": {
+      "enabled": true
+    }
+  },
+  "routing": {
+    "l2": {
+      "bridgeDomains": {
+        "lan": {
+          "id": 70
+        }
+      }
+    }
+  },
+  "tunnels": {
+    "gre": {
+      "erspan-collector": {
+        "instance": 7,
+        "type": "erspan",
+        "src": "10.0.1.1",
+        "dst": "10.0.1.2",
+        "sessionId": 7
+      }
+    }
+  },
+  "services": {
+    "lldp": {
+      "enabled": true,
+      "systemName": "vrx-lab",
+      "txHold": 4,
+      "txIntervalSec": 30,
+      "interfaces": [
+        {
+          "interface": "TenGigabitEthernet0/0/0",
+          "portDescription": "uplink"
+        },
+        {
+          "interface": "TenGigabitEthernet0/0/1",
+          "mgmtIpv4": "10.0.1.1"
+        }
+      ]
+    },
+    "nsim": {
+      "delayMs": 50,
+      "bandwidthMbps": 100,
+      "packetSize": 1500,
+      "dropFraction": 0.001,
+      "crossConnect": {
+        "a": "TenGigabitEthernet0/0/3",
+        "b": "TenGigabitEthernet0/0/4"
+      }
+    }
+  }
+}

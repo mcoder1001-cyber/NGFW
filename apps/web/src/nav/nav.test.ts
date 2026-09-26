@@ -40,6 +40,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-bridge-l2
       'bridging',
       // wave-A: F-loopback-bvi-gso-lldp-span
+      'lldp',
+      'mirroring',
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
@@ -79,6 +81,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-hardening-lite
       // wave-BC: F-licensing (unanchored)
       'licensing',
+      'nsim', // F-loopback-bvi-gso-lldp-span: the Tools group comes after System (no anchor there)
       // web: WEB-2
       'dev-schema-form',
       'dev-data-grid',

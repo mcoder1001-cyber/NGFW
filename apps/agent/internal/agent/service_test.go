@@ -94,7 +94,7 @@ const sampleDoc = `{
 }`
 
 // canonical is what Retrieve must return for sampleDoc (owned objects only; default VRF not
-// owned; distance only when set).
+// owned; distance only when set; every implemented domain present — `services` since F-rpf-adl-pbr).
 const canonicalDoc = `{
   "vrfs": {"red": {"id": 7001}},
   "services": {"qos": {}},

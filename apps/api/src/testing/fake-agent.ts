@@ -807,6 +807,9 @@ export class FakeAgent {
         this.checkCommon('BridgeDomainMacs', call.request, cb) &&
         cb({ code: status.UNIMPLEMENTED, details: 'unknown method BridgeDomainMacs' }),
       // wave-A: F-loopback-bvi-gso-lldp-span
+      lldpNeighbors: (call, cb) =>
+        this.checkCommon('LldpNeighbors', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method LldpNeighbors' }),
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr

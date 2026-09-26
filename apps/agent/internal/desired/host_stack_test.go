@@ -112,14 +112,15 @@ func TestHostStackCoverageNotes(t *testing.T) {
 
 func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
 	s := &hsSink{}
-	unsupportedServices(s, &vrxv1.ServicesConfig{
+	ServicesUnsupported(s, &vrxv1.ServicesConfig{ // the one services reporter (desired/qos_services.go)
 		Snmp:      &vrxv1.SnmpService{Enabled: proto.Bool(true)},
 		Dns:       &vrxv1.DnsService{}, // empty: not reported
 		Lldp:      &vrxv1.LldpService{Interfaces: []*vrxv1.LldpService_Interface{{Interface: proto.String("loop0")}}},
 		HostStack: &vrxv1.HostStackService{Enabled: proto.Bool(true)},
 		Ipfix:     &vrxv1.IpfixService{Exporters: map[string]*vrxv1.IpfixService_Exporter{"x": {}}},
+		Dhcp:      &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"x": {}}}, // no builder in this build
 	})
-	if got := strings.Join(s.warns, ","); got != "/services/lldp agent.unsupported-field" {
+	if got := strings.Join(s.warns, ","); got != "/services/dhcp agent.unsupported-field" {
 		t.Fatalf("got %q", got)
 	}
 }

@@ -63,6 +63,7 @@ const (
 	Dataplane_BondState_FullMethodName         = "/vrx.v1.Dataplane/BondState"
 	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
 	Dataplane_BridgeDomainMacs_FullMethodName  = "/vrx.v1.Dataplane/BridgeDomainMacs"
+	Dataplane_LldpNeighbors_FullMethodName     = "/vrx.v1.Dataplane/LldpNeighbors"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -135,6 +136,11 @@ type DataplaneClient interface {
 	// BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
 	// at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
 	BridgeDomainMacs(ctx context.Context, in *BridgeDomainMacsRequest, opts ...grpc.CallOption) (*BridgeDomainMacsResponse, error)
+	// LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+	// never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+	// ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+	// Read-only.
+	LldpNeighbors(ctx context.Context, in *LldpNeighborsRequest, opts ...grpc.CallOption) (*LldpNeighborsResponse, error)
 }
 
 type dataplaneClient struct {
@@ -342,6 +348,16 @@ func (c *dataplaneClient) BridgeDomainMacs(ctx context.Context, in *BridgeDomain
 	return out, nil
 }
 
+func (c *dataplaneClient) LldpNeighbors(ctx context.Context, in *LldpNeighborsRequest, opts ...grpc.CallOption) (*LldpNeighborsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LldpNeighborsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LldpNeighbors_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -412,6 +428,11 @@ type DataplaneServer interface {
 	// BridgeDomainMacs pages through the L2 FIB of one of this agent's bridge domains (l2_fib_table_dump),
 	// at most 1000 entries per call, so a message stays bounded however large the table is. Read-only.
 	BridgeDomainMacs(context.Context, *BridgeDomainMacsRequest) (*BridgeDomainMacsResponse, error)
+	// LldpNeighbors lists the interfaces with LLDP enabled that this agent can name (its own and untagged ones,
+	// never another owner's) with what was heard on each (lldp_dump: chassis id, port id, TTL, last heard/sent),
+	// ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
+	// Read-only.
+	LldpNeighbors(context.Context, *LldpNeighborsRequest) (*LldpNeighborsResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -472,6 +493,9 @@ func (UnimplementedDataplaneServer) BridgeDomainState(context.Context, *BridgeDo
 }
 func (UnimplementedDataplaneServer) BridgeDomainMacs(context.Context, *BridgeDomainMacsRequest) (*BridgeDomainMacsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BridgeDomainMacs not implemented")
+}
+func (UnimplementedDataplaneServer) LldpNeighbors(context.Context, *LldpNeighborsRequest) (*LldpNeighborsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LldpNeighbors not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -779,6 +803,24 @@ func _Dataplane_BridgeDomainMacs_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_LldpNeighbors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LldpNeighborsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LldpNeighbors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LldpNeighbors_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LldpNeighbors(ctx, req.(*LldpNeighborsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -841,6 +883,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BridgeDomainMacs",
 			Handler:    _Dataplane_BridgeDomainMacs_Handler,
+		},
+		{
+			MethodName: "LldpNeighbors",
+			Handler:    _Dataplane_LldpNeighbors_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

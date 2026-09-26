@@ -99,6 +99,8 @@ var Domains = map[string][]string{
 		bridgeL2MacRange,
 		bridgeL2MacEnable,
 		// wave-A: F-loopback-bvi-gso-lldp-span
+		loopbackGso,
+		loopbackSpanMirror,
 		// wave-A: F-neighbors-ra
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
@@ -143,6 +145,7 @@ var Domains = map[string][]string{
 	},
 	// wave-BC: F-dashboard-prom-alarms
 	// wave-A: F-loopback-bvi-gso-lldp-span
+	// (services: lldp.* / nsim.* are appended to F-rpf-adl-pbr's Services entry by loopback_bvi_gso_lldp_span.go init)
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
 	// wave-A: F-acl
@@ -281,6 +284,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-bridge-l2
 	w.registerBridgeL2(r)
 	// wave-A: F-loopback-bvi-gso-lldp-span
+	w.registerLoopbackBviGsoLldpSpan(r)
 	// wave-A: F-vrf-static-ecmp
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr

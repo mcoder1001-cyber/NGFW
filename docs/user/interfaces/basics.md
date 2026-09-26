@@ -25,7 +25,7 @@ Click a row to open the detail drawer:
   sends only the fields you changed (a merge patch). Nothing reaches the data plane until you **Commit** in the bar at the
   top (review the diff there; the default commit auto-reverts unless you confirm it).
 - **Sub-interfaces (802.1Q):** add, edit and remove single-tag VLAN sub-interfaces (`<parent>.<id>`, usually id = VLAN).
-  QinQ is not supported by this release.
+  QinQ (802.1ad / 802.1Q-in-802.1Q) sub-interfaces: [vlan-qinq.md](vlan-qinq.md).
 - **Remove from configuration** deletes the interface from the candidate. The agent deletes interfaces it created (`host-…`,
   `loop…`) on commit; physical NICs stay and only lose their configuration.
 

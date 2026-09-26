@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-vlan-qinq
-id: F-vlan-qinq   branch: task/F-vlan-qinq   worktree: /root/ngfw-wt/F-vlan-qinq   base: main@<BASE>   started: <STARTED>
+id: F-vlan-qinq   branch: task/F-vlan-qinq   worktree: /root/ngfw-wt/F-vlan-qinq   base: main@task/W-seed@8b7558e (SPECULATIVE, D-114/D-120: P08 fix round 2 still running — do NOT merge main until the manager tells you P08 has landed)   started: 2026-09-24T17:27
 title: Wave A (day 7-9): 802.1q sub-interfaces + QinQ stacking
 prompt: prompts/features/F-vlan-qinq.md   (regenerated for D-104 on task/prompts-s4b, on main before wave A)   wbs: D1.4
 scope: close the QinQ / 802.1ad gap on top of DF-1 + P08 and prove it (tests, UI tag-stack column, docs). No new descriptor, projection, state route or screen.
@@ -8,9 +8,9 @@ merged deps you can rely on: P08, DF-1
   - DF-1: interface.subinterface, interface/<name> alias, attribute descriptors
   - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight; sub-interface Create sanitizes) and TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-vlan-qinq.md · docs/status/vertical-slice.md · docs/status/tasks/P08.md · docs/status/wave-A-hotspots.md (§0 rules; your ids: W5, W3, D1; defect-only A3, C2) · docs/agent/descriptors/interface.md
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24
+slot: 5 → VRX_SLOT=5 VRX_TEST_PREFIX=w5 VRX_HTTP_PORT=3000+100·5 VRX_WEB_PORT=5000+100·5 VRX_METRICS_PORT=9100+10·5+1 VRX_AGENT_SOCKET=/run/vrx-test/w5/agent.sock VRX_PG_DATABASE=vrx_w5 VRX_VALKEY_DB=5 VRX_VPP_TABLE_BASE=5000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 5)"`
+  - rig prefix w5 → 10.5.{1,2}.0/24
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -60,14 +60,14 @@ host rules:
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL) with the headless Chrome approach of P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`), kept outside the product code, and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-vlan-qinq.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-vlan-qinq-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w5 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-vlan-qinq.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup:
   - stop every process you started (API/agent/vite), by PID
   - lab lock released
-  - vrx_w<SLOT> dropped
+  - vrx_w5 dropped
   - your rig removed (`tools/lab rig down`)
-  - no w<SLOT> sub-interfaces left in VPP (dump pasted)
+  - no w5 sub-interfaces left in VPP (dump pasted)
   - dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-vlan-qinq-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

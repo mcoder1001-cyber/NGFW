@@ -164,7 +164,7 @@ export const Srv6SteeringL2Schema = z.strictObject({
   }),
   interface: withUi(vppInterfaceName, {
     title: 'Interface',
-    help: 'VPP switches it to L2 cross-connect mode: it must not carry IP addresses',
+    help: 'The engine switches it to L2 cross-connect mode: it must not carry IP addresses',
     order: 2,
   }),
   bsid: withUi(ipv6Address, {
@@ -188,13 +188,13 @@ export const Srv6Schema = withUi(
   z.strictObject({
     encapSource: withUi(ipv6Address.optional(), {
       title: 'Encapsulation source',
-      help: 'outer source address of encapsulating policies that set none; also VPP’s global default (applied by the globals owner only)',
+      help: 'outer source address of encapsulating policies that set none; also the engine’s global default (applied by the globals owner only)',
       group: SRV6_GROUP,
       order: 1,
     }),
     encapHopLimit: withUi(z.number().int().min(1).max(255).optional(), {
       title: 'Encapsulation hop limit',
-      help: 'hop limit of the outer IPv6 header, VPP-wide (globals owner only; VPP default 64)',
+      help: 'hop limit of the outer IPv6 header, engine-wide (globals owner only; engine default 64)',
       widget: 'number',
       group: SRV6_GROUP,
       order: 2,
@@ -221,7 +221,7 @@ export const Srv6Schema = withUi(
   }),
   {
     title: 'SRv6',
-    description: 'Segment Routing over IPv6: local SIDs, policies and steering (VPP sr).',
+    description: 'Segment Routing over IPv6: local SIDs, policies and steering (engine sr).',
   },
 );
 export type Srv6Config = z.infer<typeof Srv6Schema>;

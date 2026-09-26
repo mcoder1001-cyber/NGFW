@@ -257,7 +257,7 @@ describe('Bridging page', () => {
       expect(nav.getAttribute('href')).toBe('/interfaces/bridging');
       const grid = await screen.findByRole('grid', { name: 'Bridge domains' });
       await waitFor(() => expect(within(grid).getByText('lan')).toBeTruthy());
-      expect(within(grid).getByText('not in VPP')).toBeTruthy();
+      expect(within(grid).getByText('not in the engine')).toBeTruthy();
       expect(within(grid).getByText('pending')).toBeTruthy();
       fireEvent.click(within(grid).getByText('lan'));
       const members = await screen.findByRole('table', { name: 'Members' });

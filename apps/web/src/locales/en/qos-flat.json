@@ -1,6 +1,6 @@
 {
   "tab": "QoS",
-  "intro": "Flat QoS on VPP: policers, egress rate limits, DSCP / 802.1p / MPLS EXP marking maps and their interface attachments. Changes go to the candidate; commit them from the pending-change bar. Hierarchical QoS and queues are not available (VPP 26.06 has no HQoS scheduler).",
+  "intro": "Flat QoS on the engine: policers, egress rate limits, DSCP / 802.1p / MPLS EXP marking maps and their interface attachments. Changes go to the candidate; commit them from the pending-change bar. Hierarchical QoS and queues are not available (the engine has no HQoS scheduler).",
   "refresh": "Refresh",
   "sections": "QoS sections",
   "loading": "Loading",
@@ -14,11 +14,11 @@
   },
   "state": {
     "unavailable": "Live policer state is unavailable (agent unreachable or too old); the configuration is still shown.",
-    "countersError": "Counters could not be read from the VPP stats segment: {{error}}"
+    "countersError": "Counters could not be read from the engine stats segment: {{error}}"
   },
   "status": {
     "applied": "Applied",
-    "missing": "Not in VPP",
+    "missing": "Not in the engine",
     "unmanaged": "Not configured",
     "pending": "Not committed"
   },
@@ -34,7 +34,7 @@
   },
   "reset": {
     "title": "Reset {{name}}?",
-    "body": "Refills the token buckets of the policer in VPP (policer_reset). Counters are kept; they restart only when the policer is re-created or changed.",
+    "body": "Refills the token buckets of the policer in the engine (policer_reset). Counters are kept; they restart only when the policer is re-created or changed.",
     "done": "Token buckets of {{name}} refilled.",
     "confirm": "Reset"
   },
@@ -101,7 +101,7 @@
     "title": "Rate limits (egress)",
     "add": "Add rate limit",
     "none": "No rate limits configured.",
-    "caveat": "VPP 26.06 has no queueing shaper outside the excluded HQoS scheduler. A rate limit is realised as an egress policer (single rate, two colours): traffic above the rate is DROPPED, not delayed. It appears in VPP as the policer shaper:<name>.",
+    "caveat": "The engine has no queueing shaper outside the excluded HQoS scheduler. A rate limit is realised as an egress policer (single rate, two colours): traffic above the rate is DROPPED, not delayed. It appears in the engine as the policer shaper:<name>.",
     "autoBurst": "auto ({{n}} B: ≈ 10 ms, ≥ 3000 B)",
     "addTitle": "Add rate limit",
     "editTitle": "Edit rate limit {{name}}"
@@ -115,9 +115,9 @@
     "addTitle": "Add marking map",
     "editTitle": "Edit marking map {{name}}",
     "id": "Map id (optional)",
-    "idHelp": "VPP egress map id; empty = allocated by the agent",
+    "idHelp": "Engine egress map id; empty = allocated by the agent",
     "description": "Description",
-    "gridHelp": "Each cell is a recorded value; type the value to write on egress. Empty cells are not listed (VPP writes 0).",
+    "gridHelp": "Each cell is a recorded value; type the value to write on egress. Empty cells are not listed (the engine writes 0).",
     "sources": "Recorded source",
     "sourceTab": "{{source}} ({{n}})",
     "sourceRange": "{{source}}: recorded values 0–{{max}}; output values 0–255 (they must fit the marked header)",
@@ -147,7 +147,7 @@
     "recordHelp": "Copies the header's DSCP / PCP / EXP into the packet's QoS record",
     "store": "Store a fixed QoS value",
     "storeSource": "Source slot",
-    "storeHelp": "VPP 26.06 stores for the IP source only",
+    "storeHelp": "The engine stores for the IP source only",
     "storeValue": "Value",
     "egress": "Egress",
     "egressKind": "Egress limiter",
@@ -159,7 +159,7 @@
     "markMap": "Marking map",
     "markOutput": "Header written",
     "none": "None",
-    "writeOnlyNote": "Ingress / egress policer and rate-limit attachments are applied once per VPP start and VPP cannot report them back (write-only, D-063): they are not part of the retrieved state. Record, store and mark are read back from VPP.",
+    "writeOnlyNote": "Ingress / egress policer and rate-limit attachments are applied once per engine start and the engine cannot report them back (write-only, D-063): they are not part of the retrieved state. Record, store and mark are read back from the engine.",
     "egressShaperValue": "rate limit {{name}}",
     "storeValueText": "{{source}} = {{value}}",
     "markValueText": "{{map}} → {{output}}"

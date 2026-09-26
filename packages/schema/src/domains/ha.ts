@@ -82,7 +82,7 @@ export const VrrpInstanceSchema = z
     engine: withUi(z.enum(['vpp', 'keepalived']).default('vpp'), {
       title: 'Engine',
       widget: 'select',
-      help: 'Native VPP vrrp plugin or keepalived',
+      help: 'Native engine vrrp plugin or keepalived',
     }),
     track: withUi(z.array(VrrpTrackSchema).max(16).default([]), {
       title: 'Tracked interfaces',

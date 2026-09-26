@@ -27,7 +27,7 @@
     "push": "push",
     "pop": "pop",
     "table": "look up in table",
-    "recursive": "recursive MPLS (VPP does not report the via label)"
+    "recursive": "recursive MPLS (the engine does not report the via label)"
   },
   "interfaces": {
     "intro": "Interfaces that accept labelled packets, and additional MPLS tables for label routes that should not live in the default MPLS table.",
@@ -68,8 +68,8 @@
       "name": "Name",
       "paths": "Paths",
       "l2Only": "L2 only",
-      "status": "In VPP",
-      "vpp": "VPP interface"
+      "status": "In the engine",
+      "vpp": "Engine interface"
     },
     "status": {
       "up": "present",
@@ -78,7 +78,7 @@
     }
   },
   "sr": {
-    "writeOnly": "VPP has no way to read SR-MPLS policies and steering back: they are applied once per VPP start and are not shown in the live state or the drift view.",
+    "writeOnly": "The engine has no way to read SR-MPLS policies and steering back: they are applied once per engine start and are not shown in the live state or the drift view.",
     "policies": "SR-MPLS policies",
     "intro": "A policy is identified by its binding SID and sends traffic over one or more segment lists.",
     "addPolicy": "Add policy",
@@ -99,7 +99,7 @@
   },
   "fib": {
     "title": "MPLS FIB",
-    "intro": "The live MPLS forwarding table of one MPLS table, read from VPP on demand (each read walks the whole table; nothing refreshes by itself).",
+    "intro": "The live MPLS forwarding table of one MPLS table, read from the engine on demand (each read walks the whole table; nothing refreshes by itself).",
     "table": "MPLS table",
     "table0": "0 (default)",
     "label": "Label",

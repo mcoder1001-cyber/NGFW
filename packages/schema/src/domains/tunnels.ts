@@ -41,7 +41,7 @@ const tunnelCommon = {
   instance: withUi(u32Int, {
     title: 'Instance',
     widget: 'number',
-    help: 'Fixes the VPP interface name (gre<n>, ipip<n>, vxlan_tunnel<n>); required to reference the tunnel elsewhere',
+    help: 'Fixes the engine interface name (gre<n>, ipip<n>, vxlan_tunnel<n>); required to reference the tunnel elsewhere',
   }).optional(),
   src: withUi(ipAddress, {
     title: 'Source address',

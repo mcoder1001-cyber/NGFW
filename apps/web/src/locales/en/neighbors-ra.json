@@ -49,12 +49,12 @@
     "readonly": "Your role can only view the table."
   },
   "static": {
-    "intro": "Static ARP/ND entries (the address must lie in a connected subnet of the interface) and the VPP-wide neighbour-table limits and duplicate address detection. Saving writes the candidate; commit to apply.",
+    "intro": "Static ARP/ND entries (the address must lie in a connected subnet of the interface) and the engine-wide neighbour-table limits and duplicate address detection. Saving writes the candidate; commit to apply.",
     "save": "Save to candidate",
     "reset": "Reset",
     "saved": "Saved to the candidate. Review and commit it in the pending-change bar.",
     "loading": "Loading the candidate…",
-    "globals": "Limits and duplicate address detection are VPP-wide: only the product agent (the globals owner) applies them."
+    "globals": "Limits and duplicate address detection are engine-wide: only the product agent (the globals owner) applies them."
   },
   "labels": {
     "static": "Static neighbours",
@@ -81,7 +81,7 @@
     "field": {
       "ipv6Ra": {
         "title": "IPv6 router advertisements",
-        "help": "absent = VPP defaults (RAs suppressed); untick “Suppress” to send RAs; the interface needs an IPv6 address"
+        "help": "absent = engine defaults (RAs suppressed); untick “Suppress” to send RAs; the interface needs an IPv6 address"
       },
       "proxyArp": {
         "title": "Proxy ARP",

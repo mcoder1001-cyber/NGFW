@@ -92,7 +92,7 @@ export const Ipv6RaSchema = z
   .strictObject({
     suppress: withUi(z.boolean().default(RA_DEFAULTS.suppress), {
       title: 'Suppress router advertisements',
-      help: 'untick to send RAs on this interface (VPP suppresses them by default)',
+      help: 'untick to send RAs on this interface (the engine suppresses them by default)',
       order: 1,
     }),
     managed: withUi(z.boolean().default(RA_DEFAULTS.managed), {
@@ -158,7 +158,7 @@ export type Ipv6RaConfig = z.infer<typeof Ipv6RaSchema>;
 /** `interfaces.<if>.ipv6Ra` (and on sub-interfaces). */
 export const ipv6RaField = withUi(Ipv6RaSchema.optional(), {
   title: 'IPv6 router advertisements',
-  help: 'absent = VPP defaults (RAs suppressed); the interface needs an IPv6 address',
+  help: 'absent = engine defaults (RAs suppressed); the interface needs an IPv6 address',
   group: NEIGHBORS_RA_GROUP,
   order: 42,
 });
@@ -174,7 +174,7 @@ export const proxyArpField = withUi(z.boolean().optional(), {
 /** `interfaces.<if>.proxyNd`: IPv6 addresses this interface answers neighbour solicitations for (experimental, V12). */
 export const proxyNdField = withUi(z.array(ipv6Address).max(64).optional(), {
   title: 'Proxy ND addresses (experimental)',
-  help: 'experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1 (VPP V12)',
+  help: 'experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1 (V12)',
   group: NEIGHBORS_RA_GROUP,
   order: 41,
 });
@@ -263,17 +263,17 @@ export const NeighborsSchema = z.strictObject({
   }),
   ipv4Limits: withUi(NeighborLimitsSchema.optional(), {
     title: 'IPv4 (ARP) table limits',
-    help: 'VPP-wide: applied by the globals owner only; absent = VPP defaults',
+    help: 'Engine-wide: applied by the globals owner only; absent = engine defaults',
     order: 2,
   }),
   ipv6Limits: withUi(NeighborLimitsSchema.optional(), {
     title: 'IPv6 (ND) table limits',
-    help: 'VPP-wide: applied by the globals owner only; absent = VPP defaults',
+    help: 'Engine-wide: applied by the globals owner only; absent = engine defaults',
     order: 3,
   }),
   dad: withUi(NeighborDadSchema.optional(), {
     title: 'Duplicate address detection',
-    help: 'VPP-wide, present = enabled: applied by the globals owner only',
+    help: 'Engine-wide, present = enabled: applied by the globals owner only',
     order: 4,
   }),
 });

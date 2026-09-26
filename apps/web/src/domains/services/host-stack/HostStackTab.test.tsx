@@ -41,7 +41,7 @@ describe('Services → Host stack (F-host-stack)', () => {
     render(app('/services?tab=host-stack'));
     expect(await screen.findByTestId('host-stack-banner')).toHaveTextContent('Advanced (T3)');
     expect(await screen.findByText('Session layer on')).toBeInTheDocument();
-    expect(screen.getByText('1 own rules / 3 in VPP')).toBeInTheDocument();
+    expect(screen.getByText('1 own rules / 3 in the engine')).toBeInTheDocument();
     const rules = await screen.findByRole('table', { name: 'Session rules' });
     expect(within(rules).getByText('w1-deny')).toBeInTheDocument();
     expect(within(screen.getByRole('table', { name: 'App namespaces' })).getByText('w1-app')).toBeInTheDocument();

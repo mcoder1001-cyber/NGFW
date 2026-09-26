@@ -59,6 +59,8 @@ import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-dashboard-prom-alarms
+// web: WEB-dashboard
+import { hostMetricsFeature } from './features/host-metrics/index.js';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
@@ -166,6 +168,8 @@ export class AppModule {
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
         // wave-BC: F-dashboard-prom-alarms
+        // web: WEB-dashboard
+        ...hostMetricsFeature.controllers,
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing
@@ -257,6 +261,8 @@ export class AppModule {
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
         // wave-BC: F-dashboard-prom-alarms
+        // web: WEB-dashboard
+        ...hostMetricsFeature.providers,
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-licensing

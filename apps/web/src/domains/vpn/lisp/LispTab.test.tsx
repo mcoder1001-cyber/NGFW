@@ -50,11 +50,11 @@ describe('VPN page, LISP tab', () => {
     expect(within(tabs).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Locators', 'EIDs', 'Mappings', 'Resolvers']);
     const table = await screen.findByRole('table', { name: 'Configured objects and data-plane status' });
     await waitFor(() => expect(within(table).getByText('w11-rloc')).toBeInTheDocument());
-    expect(within(table).getAllByText('In VPP').length).toBe(3);
+    expect(within(table).getAllByText('In the engine').length).toBe(3);
 
     await userEvent.click(within(tabs).getByRole('tab', { name: 'EIDs' }));
     await waitFor(() => expect(within(screen.getByRole('table', { name: 'Configured objects and data-plane status' })).getByText('1100/10.11.100.0/24')).toBeInTheDocument());
-    expect(screen.getByText('Not in VPP')).toBeInTheDocument(); // the local EID is not in the (scripted) state
+    expect(screen.getByText('Not in the engine')).toBeInTheDocument(); // the local EID is not in the (scripted) state
 
     await userEvent.click(within(tabs).getByRole('tab', { name: 'Resolvers' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Save to candidate' }));

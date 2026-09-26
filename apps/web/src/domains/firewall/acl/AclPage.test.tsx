@@ -164,7 +164,7 @@ afterEach(async () => {
 
 describe('ACL screen', () => {
   it(
-    'lists the access lists with attachments, live VPP status and the counters caveat; ADL is a link',
+    'lists the access lists with attachments, live engine status and the counters caveat; ADL is a link',
     { timeout: 60_000 },
     async () => {
       const api = installFakeApi();
@@ -177,7 +177,7 @@ describe('ACL screen', () => {
       const table = await screen.findByRole('table', { name: 'Access lists' });
       const web = (await within(table).findByText('web-in')).closest('tr')!;
       expect(within(web).getByText('ACL 7')).toBeInTheDocument();
-      expect(within(web).getByText('4 VPP rules')).toBeInTheDocument();
+      expect(within(web).getByText('4 engine rules')).toBeInTheDocument();
       expect(within(web).getByText(/host-w3l0.* · in/)).toBeInTheDocument();
       const draft = within(table).getByText('draft').closest('tr')!;
       expect(within(draft).getByText('new')).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe('ACL screen', () => {
   );
 
   it(
-    'attachments: VPP chains with other owners’ ACLs marked foreign; removing an attachment patches the whole array',
+    'attachments: engine chains with other owners’ ACLs marked foreign; removing an attachment patches the whole array',
     { timeout: 60_000 },
     async () => {
       const api = installFakeApi();
@@ -446,7 +446,7 @@ describe('ACL screen', () => {
       render(app('/firewall/acl?tab=attachments'));
       const live = await screen.findByRole(
         'table',
-        { name: 'ACLs per interface in VPP' },
+        { name: 'ACLs per interface in the engine' },
         { timeout: 15_000 },
       );
       const row = (await within(live).findByText('host-w3l0')).closest('tr')!;
@@ -454,7 +454,7 @@ describe('ACL screen', () => {
       expect(within(row).getByText('other owner')).toBeInTheDocument();
       expect(within(row).getByText('web-in')).toBeInTheDocument();
       expect(within(row).getByText('in sync')).toBeInTheDocument();
-      // no timer on this tab: only the explicit refresh walks VPP again
+      // no timer on this tab: only the explicit refresh walks the engine again
       expect(api.calls.filter((c) => c.path === '/api/v1/state/acl/attachments')).toHaveLength(1);
 
       const configured = screen.getByRole('table', { name: 'Configured attachments' });
@@ -497,7 +497,7 @@ describe('ACL screen', () => {
       const web = (await within(table).findByText('web-in')).closest('tr')!;
       expect(within(web).getByText('ACL شمارهٔ ۷')).toBeInTheDocument();
       expect(within(web).getByText('۳')).toBeInTheDocument();
-      expect(within(web).getByText('۴ قانون VPP')).toBeInTheDocument();
+      expect(within(web).getByText('۴ قانون موتور')).toBeInTheDocument();
     },
   );
 });

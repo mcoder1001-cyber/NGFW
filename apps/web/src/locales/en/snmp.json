@@ -8,7 +8,7 @@
   "yes": "yes",
   "no": "no",
   "adminOnly": "Only an administrator can write community strings and passphrases.",
-  "mibHint": "The private MIB (VRX-MIB: VPP interface counters, agent health) is in deploy/snmp/VRX-MIB.txt.",
+  "mibHint": "The private MIB (VRX-MIB: engine interface counters, agent health) is in deploy/snmp/VRX-MIB.txt.",
   "state": {
     "title": "State",
     "configured": "Configured: {{value}}",
@@ -27,7 +27,7 @@
     "sysLocation": "sysLocation",
     "sysContact": "sysContact",
     "engineId": "Engine id (hex)",
-    "subagent": "Serve VRX-MIB (VPP interface counters)"
+    "subagent": "Serve VRX-MIB (engine interface counters)"
   },
   "communities": {
     "title": "Communities (v2c, read-only)",

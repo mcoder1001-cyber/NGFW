@@ -216,7 +216,7 @@ describe('LLDP, mirroring and nsim screens', () => {
       const table = await screen.findByRole('table', { name: 'Port mirroring' });
       await waitFor(() => expect(within(table).getByText('gre7')).toBeTruthy());
       expect(within(table).getByText('active')).toBeTruthy();
-      expect(within(table).getByText('not in VPP')).toBeTruthy();
+      expect(within(table).getByText('not in the engine')).toBeTruthy();
       fireEvent.click(within(table).getByRole('button', { name: 'Remove loop7101 → gre7' }));
       await waitFor(() =>
         expect(patched).toEqual({

@@ -10,9 +10,9 @@
 #   tools/app reset-db [--yes] [--no-start] [--no-agent]
 #                                            DROP the whole vrx_app database + Valkey keys, then start again (fresh admin)
 #
-# Layout: the web UI (vite preview of the production build) listens on VRX_APP_HOST:VRX_APP_WEB_PORT (default 0.0.0.0:8080)
+# Layout: the web UI (vite preview of the production build) listens on VRX_APP_HOST:VRX_APP_WEB_PORT (default [::]:8080 — dual-stack, IPv4 and IPv6 — or 0.0.0.0:8080 when the kernel has no IPv6)
 # and proxies /api (HTTP + WebSocket) to the API on 127.0.0.1:VRX_APP_API_PORT (default 3000). Only the web port is public;
-# set VRX_APP_API_HOST=0.0.0.0 to expose the API directly too.
+# set VRX_APP_API_HOST=:: (or 0.0.0.0 for IPv4 only) to expose the API directly too.
 # State: database vrx_app (deploy/dev/pg-test.sh), Valkey db 0 prefix vrx:app:, secrets in /var/lib/vrx-app/secrets.env (0600,
 # generated once: JWT key + first-admin password), logs and pids in /var/log/vrx-app and /run/vrx-app.
 # Agent: the real vrx-agent against the host VPP (/run/vpp/api.sock), owner tag "vrx" — it only touches objects it owns.
@@ -22,7 +22,9 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOST="${VRX_APP_HOST:-0.0.0.0}"
+# default: dual-stack [::] when the kernel has IPv6, else 0.0.0.0 (listening on :: fails with EAFNOSUPPORT when IPv6 is off)
+if [[ -s /proc/net/if_inet6 ]]; then DEFAULT_HOST="::"; else DEFAULT_HOST="0.0.0.0"; fi
+HOST="${VRX_APP_HOST:-$DEFAULT_HOST}"
 WEB_PORT="${VRX_APP_WEB_PORT:-8080}"
 API_HOST="${VRX_APP_API_HOST:-127.0.0.1}"
 API_PORT="${VRX_APP_API_PORT:-3000}"
@@ -148,9 +150,15 @@ cmd_status() {
   for s in agent api web; do
     local pid; pid="$(pidof_svc $s)"; if [[ -n "$pid" ]]; then printf '%-6s running (pid %s)\n' "$s" "$pid"; else printf '%-6s stopped\n' "$s"; fi
   done
-  local ips; ips="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | grep -v '^192\.168\.122\.' || true)"
+  local ips ip6s; ips="$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | grep -v '^192\.168\.122\.' || true)"
+  ip6s="$(ip -6 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 || true)"
   echo "web UI:"
-  if [[ "$HOST" == 0.0.0.0 ]]; then for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; else echo "  http://$HOST:$WEB_PORT/"; fi
+  case "$HOST" in
+    ::) for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done; for ip in $ip6s; do echo "  http://[$ip]:$WEB_PORT/"; done ;;
+    0.0.0.0) for ip in $ips; do echo "  http://$ip:$WEB_PORT/"; done ;;
+    *:*) echo "  http://[$HOST]:$WEB_PORT/" ;;
+    *) echo "  http://$HOST:$WEB_PORT/" ;;
+  esac
   # the API runs with VRX_TRUST_PROXY=none (see cmd_up): passwords from other machines cross the LAN in clear on this
   # port — the recorded lab exception until PENDING-tools-app-transport is answered; an SSH tunnel avoids it
   if [[ "$HOST" != 127.* && "$HOST" != localhost && "$HOST" != ::1 ]]; then

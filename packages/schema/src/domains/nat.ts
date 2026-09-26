@@ -488,7 +488,7 @@ export const MapDomainSchema = withUi(
     ipv6Source: withUi(ipv6Cidr, {
       title: 'BR IPv6 source / DMR prefix',
       widget: 'cidr',
-      help: 'VPP map_add_domain.ip6_src: /128 for MAP-E and lw4o6, /64 or /96 for MAP-T',
+      help: 'Engine map_add_domain.ip6_src: /128 for MAP-E and lw4o6, /64 or /96 for MAP-T',
     }),
     eaBitsLength: withUi(z.number().int().min(0).max(64).default(0), {
       title: 'EA bits length',
@@ -571,7 +571,7 @@ export const MapInterfaceSchema = withUi(
     interface: withUi(vppInterfaceName, { title: 'Interface', widget: 'interface-picker' }),
     mode: withUi(z.enum(['map-e', 'map-t']), {
       title: 'Mode',
-      help: 'map-e = encapsulation (MAP-E and lw4o6 domains); map-t = translation (VPP is_translation)',
+      help: 'map-e = encapsulation (MAP-E and lw4o6 domains); map-t = translation (engine is_translation)',
     }),
   }),
   { title: 'MAP interface' },
@@ -727,7 +727,7 @@ export const NatSchema = withUi(
     sessionLimit: withUi(z.number().int().min(1024).max(2_147_483_647), {
       title: 'Session limit',
       group: 'General',
-      help: 'Max sessions per worker thread; omit = VPP default',
+      help: 'Max sessions per worker thread; omit = engine default',
     }).optional(),
     pools: withUi(z.array(NatPoolSchema).max(1024).default([]), {
       title: 'Address pools',

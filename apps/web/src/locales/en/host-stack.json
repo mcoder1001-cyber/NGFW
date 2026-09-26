@@ -1,10 +1,10 @@
 {
   "tab": "Host stack",
-  "banner": "Advanced (T3): VPP's host stack is rarely needed on a router. Only the API-configurable part is here; buffer sizes, congestion control, VCL, TLS, QUIC and HTTP/3 are not.",
+  "banner": "Advanced (T3): the engine's host stack is rarely needed on a router. Only the API-configurable part is here; buffer sizes, congestion control, VCL, TLS, QUIC and HTTP/3 are not.",
   "live": "Live state",
   "sessionOn": "Session layer on",
   "sessionOff": "Session layer off",
-  "ruleCount": "{{own}} own rules / {{total}} in VPP",
+  "ruleCount": "{{own}} own rules / {{total}} in the engine",
   "appliedNs": "Applied namespaces: {{list}}",
   "none": "none",
   "enabled": "Session layer required (rule-table engine)",

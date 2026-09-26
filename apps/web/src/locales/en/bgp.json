@@ -8,7 +8,7 @@
   "remove": "Remove",
   "refresh": "Refresh",
   "badName": "Letters, digits, _ . - only (up to 63, starting with a letter or digit)",
-  "intro": "BGP runs in FRR on the Linux side of the router; the routes it learns reach the data plane (VPP) through linux-cp. Changes go into the candidate; commit them from the bar at the bottom.",
+  "intro": "BGP runs in FRR on the Linux side of the router; the routes it learns reach the data plane (the engine) through linux-cp. Changes go into the candidate; commit them from the bar at the bottom.",
   "frrDown": "FRR does not answer, so the live session state is not available: {{error}}",
   "frrVersion": "FRR {{version}}",
   "nav": {
@@ -102,17 +102,17 @@
   },
   "pairs": {
     "title": "Linux pairs (linux-cp)",
-    "intro": "A pair mirrors a VPP interface into Linux, so FRR can run its sessions on it. The live column shows whether the pair exists in VPP.",
+    "intro": "A pair mirrors an engine interface into Linux, so FRR can run its sessions on it. The live column shows whether the pair exists in the engine.",
     "add": "Add pair",
     "addTitle": "New linux-cp pair",
     "editTitle": "Linux pair of {{key}}",
-    "key": "VPP interface",
+    "key": "Engine interface",
     "exists": "This interface already has a pair",
     "unknownInterface": "Not an interface of the configuration",
-    "present": "In VPP",
-    "absent": "Not in VPP",
+    "present": "In the engine",
+    "absent": "Not in the engine",
     "col": {
-      "interface": "VPP interface",
+      "interface": "Engine interface",
       "hostIfName": "Linux interface",
       "hostIfType": "Type",
       "netns": "Namespace",
@@ -339,14 +339,14 @@
     "lcp": {
       "hostIfName": {
         "title": "Linux interface name",
-        "help": "default: the VPP name (max 15 characters)"
+        "help": "default: the engine name (max 15 characters)"
       },
       "hostIfType": {
         "title": "Host interface type"
       },
       "netns": {
         "title": "Network namespace",
-        "help": "leave empty: the linux-cp default namespace, the only one linux-nl hears; a different namespace makes the pair invisible to linux-nl (no routes reach VPP through it)"
+        "help": "leave empty: the linux-cp default namespace, the only one linux-nl hears; a different namespace makes the pair invisible to linux-nl (no routes reach engine through it)"
       }
     }
   }

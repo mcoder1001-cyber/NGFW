@@ -5314,6 +5314,96 @@ export interface RemoteAccessProfile_Radius_Server {
   secretRef?: string | undefined;
 }
 
+/** QosPolicerStateRequest selects policers of this agent. */
+export interface QosPolicerStateRequest {
+  /** Must be empty or equal to the agent's owner (§6). */
+  owner: string;
+  /** Policer names without the owner prefix (a `services.qos.policers` key, or "shaper:<name>"); empty = all. */
+  names: string[];
+}
+
+/** QosPolicerCounter is one colour's counter of a policer, summed over VPP's threads. */
+export interface QosPolicerCounter {
+  /** Packets. */
+  packets: string;
+  /** Bytes. */
+  bytes: string;
+}
+
+/** QosPolicerStatus is one policer of this owner as VPP reports it (policer_dump_v2 + stats segment). */
+export interface QosPolicerStatus {
+  /** Name without the owner prefix: a `services.qos.policers` key, or "shaper:<name>" for a shaper. */
+  name: string;
+  /** "policer" | "shaper". */
+  kind: string;
+  /** VPP pool index (changes when the policer is re-created). */
+  index: number;
+  /** "1r2c" | "1r3c-rfc2697" | "2r3c-rfc2698" | "2r3c-rfc4115" | "2r3c-mef5cf1" (the configuration spelling). */
+  type: string;
+  /** "kbps" | "pps". */
+  rateUnit: string;
+  /** Committed information rate. */
+  cir: number;
+  /** Excess / peak information rate (0 for single-rate policers). */
+  eir: number;
+  /** Committed burst (bytes for kbps, packets for pps). */
+  cb: string;
+  /** Excess burst. */
+  eb: string;
+  /** Committed token bucket fill (policer_details current_bucket, VPP's internal token units). */
+  currentBucket: number;
+  /** Committed token bucket limit. */
+  currentLimit: number;
+  /** Extended (excess / peak) token bucket fill. */
+  extendedBucket: number;
+  /** Extended token bucket limit. */
+  extendedLimit: number;
+  /** Conforming traffic. */
+  conform:
+    | QosPolicerCounter
+    | undefined;
+  /** Exceeding traffic. */
+  exceed:
+    | QosPolicerCounter
+    | undefined;
+  /** Violating traffic (three-colour policers). */
+  violate: QosPolicerCounter | undefined;
+}
+
+/** QosPolicerStateResponse lists the selected policers, sorted by name. */
+export interface QosPolicerStateResponse {
+  /** Policers. */
+  policers: QosPolicerStatus[];
+  /** The agent's owner. */
+  owner: string;
+  /** When VPP was read. */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** Non-empty when the stats segment could not be read: the counters are then zero, the rest is valid. */
+  countersError: string;
+}
+
+/** QosPolicerResetRequest names the policer whose token buckets are refilled. */
+export interface QosPolicerResetRequest {
+  /** Must be empty or equal to the agent's owner (§6). */
+  owner: string;
+  /** Policer name without the owner prefix (a `services.qos.policers` key, or "shaper:<name>"). */
+  name: string;
+}
+
+/** QosPolicerResetResponse confirms a reset. */
+export interface QosPolicerResetResponse {
+  /** The agent's owner. */
+  owner: string;
+  /** The policer. */
+  name: string;
+  /** VPP pool index of the policer that was reset. */
+  index: number;
+  /** When the reset was sent. */
+  resetAt: Date | undefined;
+}
+
 /** HostStackService is `services.hostStack` (F-host-stack, D-085): the API-configurable part of VPP's host stack. */
 export interface HostStackService {
   /** Required state of the session layer (rule-table engine); set only by the globals owner (D-071). */
@@ -43459,6 +43549,861 @@ export const RemoteAccessProfile_Radius_Server: MessageFns<RemoteAccessProfile_R
   },
 };
 
+function createBaseQosPolicerStateRequest(): QosPolicerStateRequest {
+  return { owner: "", names: [] };
+}
+
+export const QosPolicerStateRequest: MessageFns<QosPolicerStateRequest> = {
+  encode(message: QosPolicerStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.names) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: QosPolicerStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerStateRequest>): QosPolicerStateRequest {
+    return QosPolicerStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerStateRequest>): QosPolicerStateRequest {
+    const message = createBaseQosPolicerStateRequest();
+    message.owner = object.owner ?? "";
+    message.names = object.names?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseQosPolicerCounter(): QosPolicerCounter {
+  return { packets: "0", bytes: "0" };
+}
+
+export const QosPolicerCounter: MessageFns<QosPolicerCounter> = {
+  encode(message: QosPolicerCounter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.packets !== "0") {
+      writer.uint32(8).uint64(message.packets);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(16).uint64(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerCounter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerCounter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerCounter {
+    return {
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+    };
+  },
+
+  toJSON(message: QosPolicerCounter): unknown {
+    const obj: any = {};
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerCounter>): QosPolicerCounter {
+    return QosPolicerCounter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerCounter>): QosPolicerCounter {
+    const message = createBaseQosPolicerCounter();
+    message.packets = object.packets ?? "0";
+    message.bytes = object.bytes ?? "0";
+    return message;
+  },
+};
+
+function createBaseQosPolicerStatus(): QosPolicerStatus {
+  return {
+    name: "",
+    kind: "",
+    index: 0,
+    type: "",
+    rateUnit: "",
+    cir: 0,
+    eir: 0,
+    cb: "0",
+    eb: "0",
+    currentBucket: 0,
+    currentLimit: 0,
+    extendedBucket: 0,
+    extendedLimit: 0,
+    conform: undefined,
+    exceed: undefined,
+    violate: undefined,
+  };
+}
+
+export const QosPolicerStatus: MessageFns<QosPolicerStatus> = {
+  encode(message: QosPolicerStatus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.kind !== "") {
+      writer.uint32(18).string(message.kind);
+    }
+    if (message.index !== 0) {
+      writer.uint32(24).uint32(message.index);
+    }
+    if (message.type !== "") {
+      writer.uint32(34).string(message.type);
+    }
+    if (message.rateUnit !== "") {
+      writer.uint32(42).string(message.rateUnit);
+    }
+    if (message.cir !== 0) {
+      writer.uint32(48).uint32(message.cir);
+    }
+    if (message.eir !== 0) {
+      writer.uint32(56).uint32(message.eir);
+    }
+    if (message.cb !== "0") {
+      writer.uint32(64).uint64(message.cb);
+    }
+    if (message.eb !== "0") {
+      writer.uint32(72).uint64(message.eb);
+    }
+    if (message.currentBucket !== 0) {
+      writer.uint32(80).uint32(message.currentBucket);
+    }
+    if (message.currentLimit !== 0) {
+      writer.uint32(88).uint32(message.currentLimit);
+    }
+    if (message.extendedBucket !== 0) {
+      writer.uint32(96).uint32(message.extendedBucket);
+    }
+    if (message.extendedLimit !== 0) {
+      writer.uint32(104).uint32(message.extendedLimit);
+    }
+    if (message.conform !== undefined) {
+      QosPolicerCounter.encode(message.conform, writer.uint32(114).fork()).join();
+    }
+    if (message.exceed !== undefined) {
+      QosPolicerCounter.encode(message.exceed, writer.uint32(122).fork()).join();
+    }
+    if (message.violate !== undefined) {
+      QosPolicerCounter.encode(message.violate, writer.uint32(130).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerStatus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerStatus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.index = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.rateUnit = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.cir = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.eir = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.cb = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.eb = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.currentBucket = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.currentLimit = reader.uint32();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.extendedBucket = reader.uint32();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.extendedLimit = reader.uint32();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.conform = QosPolicerCounter.decode(reader, reader.uint32());
+            continue;
+          }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.exceed = QosPolicerCounter.decode(reader, reader.uint32());
+            continue;
+          }
+          case 16: {
+            if (tag !== 130) {
+              break;
+            }
+
+            message.violate = QosPolicerCounter.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerStatus {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      rateUnit: isSet(object.rateUnit)
+        ? globalThis.String(object.rateUnit)
+        : isSet(object.rate_unit)
+        ? globalThis.String(object.rate_unit)
+        : "",
+      cir: isSet(object.cir) ? globalThis.Number(object.cir) : 0,
+      eir: isSet(object.eir) ? globalThis.Number(object.eir) : 0,
+      cb: isSet(object.cb) ? globalThis.String(object.cb) : "0",
+      eb: isSet(object.eb) ? globalThis.String(object.eb) : "0",
+      currentBucket: isSet(object.currentBucket)
+        ? globalThis.Number(object.currentBucket)
+        : isSet(object.current_bucket)
+        ? globalThis.Number(object.current_bucket)
+        : 0,
+      currentLimit: isSet(object.currentLimit)
+        ? globalThis.Number(object.currentLimit)
+        : isSet(object.current_limit)
+        ? globalThis.Number(object.current_limit)
+        : 0,
+      extendedBucket: isSet(object.extendedBucket)
+        ? globalThis.Number(object.extendedBucket)
+        : isSet(object.extended_bucket)
+        ? globalThis.Number(object.extended_bucket)
+        : 0,
+      extendedLimit: isSet(object.extendedLimit)
+        ? globalThis.Number(object.extendedLimit)
+        : isSet(object.extended_limit)
+        ? globalThis.Number(object.extended_limit)
+        : 0,
+      conform: isSet(object.conform) ? QosPolicerCounter.fromJSON(object.conform) : undefined,
+      exceed: isSet(object.exceed) ? QosPolicerCounter.fromJSON(object.exceed) : undefined,
+      violate: isSet(object.violate) ? QosPolicerCounter.fromJSON(object.violate) : undefined,
+    };
+  },
+
+  toJSON(message: QosPolicerStatus): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.rateUnit !== "") {
+      obj.rateUnit = message.rateUnit;
+    }
+    if (message.cir !== 0) {
+      obj.cir = Math.round(message.cir);
+    }
+    if (message.eir !== 0) {
+      obj.eir = Math.round(message.eir);
+    }
+    if (message.cb !== "0") {
+      obj.cb = message.cb;
+    }
+    if (message.eb !== "0") {
+      obj.eb = message.eb;
+    }
+    if (message.currentBucket !== 0) {
+      obj.currentBucket = Math.round(message.currentBucket);
+    }
+    if (message.currentLimit !== 0) {
+      obj.currentLimit = Math.round(message.currentLimit);
+    }
+    if (message.extendedBucket !== 0) {
+      obj.extendedBucket = Math.round(message.extendedBucket);
+    }
+    if (message.extendedLimit !== 0) {
+      obj.extendedLimit = Math.round(message.extendedLimit);
+    }
+    if (message.conform !== undefined) {
+      obj.conform = QosPolicerCounter.toJSON(message.conform);
+    }
+    if (message.exceed !== undefined) {
+      obj.exceed = QosPolicerCounter.toJSON(message.exceed);
+    }
+    if (message.violate !== undefined) {
+      obj.violate = QosPolicerCounter.toJSON(message.violate);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerStatus>): QosPolicerStatus {
+    return QosPolicerStatus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerStatus>): QosPolicerStatus {
+    const message = createBaseQosPolicerStatus();
+    message.name = object.name ?? "";
+    message.kind = object.kind ?? "";
+    message.index = object.index ?? 0;
+    message.type = object.type ?? "";
+    message.rateUnit = object.rateUnit ?? "";
+    message.cir = object.cir ?? 0;
+    message.eir = object.eir ?? 0;
+    message.cb = object.cb ?? "0";
+    message.eb = object.eb ?? "0";
+    message.currentBucket = object.currentBucket ?? 0;
+    message.currentLimit = object.currentLimit ?? 0;
+    message.extendedBucket = object.extendedBucket ?? 0;
+    message.extendedLimit = object.extendedLimit ?? 0;
+    message.conform = (object.conform !== undefined && object.conform !== null)
+      ? QosPolicerCounter.fromPartial(object.conform)
+      : undefined;
+    message.exceed = (object.exceed !== undefined && object.exceed !== null)
+      ? QosPolicerCounter.fromPartial(object.exceed)
+      : undefined;
+    message.violate = (object.violate !== undefined && object.violate !== null)
+      ? QosPolicerCounter.fromPartial(object.violate)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseQosPolicerStateResponse(): QosPolicerStateResponse {
+  return { policers: [], owner: "", retrievedAt: undefined, countersError: "" };
+}
+
+export const QosPolicerStateResponse: MessageFns<QosPolicerStateResponse> = {
+  encode(message: QosPolicerStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.policers) {
+      QosPolicerStatus.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    if (message.countersError !== "") {
+      writer.uint32(34).string(message.countersError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.policers.push(QosPolicerStatus.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.countersError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerStateResponse {
+    return {
+      policers: globalThis.Array.isArray(object?.policers)
+        ? object.policers.map((e: any) => QosPolicerStatus.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      countersError: isSet(object.countersError)
+        ? globalThis.String(object.countersError)
+        : isSet(object.counters_error)
+        ? globalThis.String(object.counters_error)
+        : "",
+    };
+  },
+
+  toJSON(message: QosPolicerStateResponse): unknown {
+    const obj: any = {};
+    if (message.policers?.length) {
+      obj.policers = message.policers.map((e) => QosPolicerStatus.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.countersError !== "") {
+      obj.countersError = message.countersError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerStateResponse>): QosPolicerStateResponse {
+    return QosPolicerStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerStateResponse>): QosPolicerStateResponse {
+    const message = createBaseQosPolicerStateResponse();
+    message.policers = object.policers?.map((e) => QosPolicerStatus.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.countersError = object.countersError ?? "";
+    return message;
+  },
+};
+
+function createBaseQosPolicerResetRequest(): QosPolicerResetRequest {
+  return { owner: "", name: "" };
+}
+
+export const QosPolicerResetRequest: MessageFns<QosPolicerResetRequest> = {
+  encode(message: QosPolicerResetRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerResetRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerResetRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerResetRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+    };
+  },
+
+  toJSON(message: QosPolicerResetRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerResetRequest>): QosPolicerResetRequest {
+    return QosPolicerResetRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerResetRequest>): QosPolicerResetRequest {
+    const message = createBaseQosPolicerResetRequest();
+    message.owner = object.owner ?? "";
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+function createBaseQosPolicerResetResponse(): QosPolicerResetResponse {
+  return { owner: "", name: "", index: 0, resetAt: undefined };
+}
+
+export const QosPolicerResetResponse: MessageFns<QosPolicerResetResponse> = {
+  encode(message: QosPolicerResetResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.index !== 0) {
+      writer.uint32(24).uint32(message.index);
+    }
+    if (message.resetAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.resetAt), writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): QosPolicerResetResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseQosPolicerResetResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.index = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.resetAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): QosPolicerResetResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      resetAt: isSet(object.resetAt)
+        ? fromJsonTimestamp(object.resetAt)
+        : isSet(object.reset_at)
+        ? fromJsonTimestamp(object.reset_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: QosPolicerResetResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.resetAt !== undefined) {
+      obj.resetAt = message.resetAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<QosPolicerResetResponse>): QosPolicerResetResponse {
+    return QosPolicerResetResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<QosPolicerResetResponse>): QosPolicerResetResponse {
+    const message = createBaseQosPolicerResetResponse();
+    message.owner = object.owner ?? "";
+    message.name = object.name ?? "";
+    message.index = object.index ?? 0;
+    message.resetAt = object.resetAt ?? undefined;
+    return message;
+  },
+};
+
 function createBaseHostStackService(): HostStackService {
   return { enabled: undefined, namespaces: {}, sessionRules: [], tcpSourceAddresses: undefined, httpStatic: undefined };
 }
@@ -49318,6 +50263,38 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
   /**
+   * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+   * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+   * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+   * status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+   */
+  qosPolicerState: {
+    path: "/vrx.v1.Dataplane/QosPolicerState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: QosPolicerStateRequest): Buffer =>
+      Buffer.from(QosPolicerStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): QosPolicerStateRequest => QosPolicerStateRequest.decode(value),
+    responseSerialize: (value: QosPolicerStateResponse): Buffer =>
+      Buffer.from(QosPolicerStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): QosPolicerStateResponse => QosPolicerStateResponse.decode(value),
+  },
+  /**
+   * QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+   * keeps the counters (they restart only when the policer is re-created or updated).
+   */
+  qosPolicerReset: {
+    path: "/vrx.v1.Dataplane/QosPolicerReset" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: QosPolicerResetRequest): Buffer =>
+      Buffer.from(QosPolicerResetRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): QosPolicerResetRequest => QosPolicerResetRequest.decode(value),
+    responseSerialize: (value: QosPolicerResetResponse): Buffer =>
+      Buffer.from(QosPolicerResetResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): QosPolicerResetResponse => QosPolicerResetResponse.decode(value),
+  },
+  /**
    * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
    * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
    */
@@ -49418,6 +50395,18 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /**
+   * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+   * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+   * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+   * status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+   */
+  qosPolicerState: handleUnaryCall<QosPolicerStateRequest, QosPolicerStateResponse>;
+  /**
+   * QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+   * keeps the counters (they restart only when the policer is re-created or updated).
+   */
+  qosPolicerReset: handleUnaryCall<QosPolicerResetRequest, QosPolicerResetResponse>;
   /**
    * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),
    * this owner's session rules (from session_rules_v2_dump) and the app namespaces it applied. Never mutates.
@@ -49569,6 +50558,46 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
+   * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
+   * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
+   * status, never part of Retrieve (§5); one policer walk at a time per agent (D-132).
+   */
+  qosPolicerState(
+    request: QosPolicerStateRequest,
+    callback: (error: ServiceError | null, response: QosPolicerStateResponse) => void,
+  ): ClientUnaryCall;
+  qosPolicerState(
+    request: QosPolicerStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: QosPolicerStateResponse) => void,
+  ): ClientUnaryCall;
+  qosPolicerState(
+    request: QosPolicerStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: QosPolicerStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * QosPolicerReset (F-qos-flat) refills the token buckets of one of this owner's policers (policer_reset). VPP
+   * keeps the counters (they restart only when the policer is re-created or updated).
+   */
+  qosPolicerReset(
+    request: QosPolicerResetRequest,
+    callback: (error: ServiceError | null, response: QosPolicerResetResponse) => void,
+  ): ClientUnaryCall;
+  qosPolicerReset(
+    request: QosPolicerResetRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: QosPolicerResetResponse) => void,
+  ): ClientUnaryCall;
+  qosPolicerReset(
+    request: QosPolicerResetRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: QosPolicerResetResponse) => void,
   ): ClientUnaryCall;
   /**
    * HostStackState reports the host stack as VPP sees it: session layer on/off (read-only probe),

@@ -229,8 +229,15 @@ func TestPolicerValidate(t *testing.T) {
 }
 
 func TestAttachments(t *testing.T) {
-	f := df7test.NewFake()
+	f, _ := fakePolicers(t) // F-qos-flat: an attachment records the pool index of its policer
 	ctx := t.Context()
+	for _, n := range []string{"gold", "silver"} {
+		p := gold
+		p.Name = n
+		if _, err := NewPolicer(f, df7test.Owner).Create(ctx, df7.Encode(p)); err != nil {
+			t.Fatal(err)
+		}
+	}
 	// VPP stacks the feature on every apply: model it with a counter per interface/direction
 	stack := map[string]int{}
 	count := func(name string, idx interface_types.InterfaceIndex, apply bool) {

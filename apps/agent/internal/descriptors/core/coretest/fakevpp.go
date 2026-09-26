@@ -103,6 +103,7 @@ func New() *VPP {
 	v.install()
 	v.installIfExt()             // P08: DF-1 attributes, af_packet, sub-interfaces, DHCP client dump
 	v.installIpfixSflow()        // F-ipfix-sflow: exporters, flowprobe, sflow
+	v.installQoSFlat()           // F-qos-flat (coretest/qos_flat.go): policers, qos record/store/map/mark
 	sanitizetest.Clean(v.Client) // interface creators sanitize the new sw_if_index (D-095)
 	v.installExtensions()        // TD-23/D-134: every feature registered with RegisterExtension
 	return v

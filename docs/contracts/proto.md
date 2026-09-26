@@ -431,3 +431,34 @@ configuration `name` when the agent knows it and `stat_index` only when this age
 this owner's objects; sFlow reports learned interfaces only, V17), `sflow_global` (always, VPP defaults included),
 `sflow_counters[]` (`/err/sflow/*` from the stats segment, summed over workers; empty with a note when the segment is
 unavailable), `globals_owner` (D-071), `notes[]`, `owner`, `retrieved_at`. Messages: `// ----- F-ipfix-sflow -----`.
+
+### F-qos-flat: QosPolicerState, QosPolicerReset
+
+<!-- unanchored: no `wave-BC: F-qos-flat` anchor was seeded in this file (F-qos-flat-questions.md) -->
+
+`rpc QosPolicerState(QosPolicerStateRequest) returns (QosPolicerStateResponse)` — read-only QoS status, never part of
+Retrieve (§5).
+
+- Lists this owner's policers as VPP reports them: every `services.qos.policers.<name>` and every shaper, which the
+  agent realises as an egress policer named `shaper:<name>` (V3: VPP 26.06 has no queueing shaper outside the excluded
+  HQoS scheduler). Names are returned without the owner prefix (`w1:gold` → `gold`); `kind` is `policer` or `shaper`.
+  `names` narrows the list (unknown names are simply absent).
+- Configuration and token buckets come from `policer_dump_v2` (the agent's DF-7 policer walk: one dump of all
+  policers, then one per pool index to learn the index); the configuration spellings are the document's
+  (`1r3c-rfc2697`, `kbps`, …). Counters (`conform`, `exceed`, `violate`: packets and bytes summed over VPP's threads)
+  come from the stats segment (`/net/policer/conform|exceed|violate`, combined counters indexed by pool index). When the
+  stats segment cannot be read, the counters are zero and `counters_error` says why; the call itself succeeds.
+- One policer walk at a time per agent (D-132): a second call waits for the first; a call that cannot start within
+  3 s fails with `UNAVAILABLE` (the UI polls no faster than every 30 s and has a Refresh button).
+- Errors: `INVALID_ARGUMENT` for an owner mismatch; `UNAVAILABLE` when VPP is not connected or the walk slot is busy;
+  `UNIMPLEMENTED` from an agent without the RPC.
+- API: `GET /api/v1/state/services/qos/policers` (joined there with the running configuration's attachments).
+
+`rpc QosPolicerReset(QosPolicerResetRequest) returns (QosPolicerResetResponse)` — an action, not configuration.
+
+- Refills the token buckets of one of this owner's policers (`policer_reset`, the pool index looked up by the
+  owner-tagged name right before the call — never a stored index). VPP keeps the counters: they restart only when
+  the policer is created or updated. No transaction, no revision; the API audits the call.
+- Errors: `INVALID_ARGUMENT` for an owner mismatch or a name that is not a policer name (`<objectName>` or
+  `shaper:<objectName>`); `NOT_FOUND` when this owner has no such policer in VPP; `UNAVAILABLE` as above.
+- API: `POST /api/v1/actions/qos/policers/{name}/reset` (operator; 404 for an unknown policer).

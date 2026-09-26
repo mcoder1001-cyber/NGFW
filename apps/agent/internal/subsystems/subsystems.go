@@ -38,6 +38,8 @@ import (
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
 	"ngfw/agent/internal/descriptors/lisp"
+	"ngfw/agent/internal/descriptors/policer"
+	"ngfw/agent/internal/descriptors/qos"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
@@ -118,7 +120,9 @@ var Domains = map[string][]string{
 	// wave-BC: F-ipfix-sflow
 	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
 		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
-		desired.SnmpDescriptorName), // F-snmp
+		desired.SnmpDescriptorName,                 // F-snmp
+		policer.NamePolicer, policer.NameInterface, // F-qos-flat
+		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta), // F-qos-flat
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -280,6 +284,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if err := registerIpfixSflow(r, w); err != nil {
+		return nil, err
+	}
+	// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor in this block)
+	if err := w.registerQoS(r); err != nil {
 		return nil, err
 	}
 	return w, nil

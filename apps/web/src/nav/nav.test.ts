@@ -62,6 +62,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-kea-dhcp-relay
       // wave-A: F-unbound-chrony-syslog
       // wave-BC: F-ipfix-sflow (unanchored)
+      // F-qos-flat (unanchored)
       'services',
       'users',
       'revisions',

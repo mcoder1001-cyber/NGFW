@@ -288,10 +288,14 @@ func (d *RecordDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 	if on {
 		return Meta{SwIfIndex: idx}, tg.Adopt()
 	}
-	if err := d.set(ctx, idx, r.Source, true); err != nil {
+	c, err := tg.ClaimFirst(ctx) // TD-11b: the claim before the VPP write, released when VPP refuses
+	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
+	if err := d.set(ctx, idx, r.Source, true); err != nil {
+		return nil, c.Undo(err)
+	}
+	return Meta{SwIfIndex: idx}, nil
 }
 
 func (d *RecordDescriptor) enabled(ctx context.Context, idx uint32, source string) (bool, error) {
@@ -403,10 +407,14 @@ func (d *StoreDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if on { // reference-counted: never a second enable (D-076); adopt only our own (M1)
 		return Meta{SwIfIndex: idx}, tg.Adopt()
 	}
-	if err := d.set(ctx, idx, s, true); err != nil {
+	c, err := tg.ClaimFirst(ctx) // TD-11b: the claim before the VPP write, released when VPP refuses
+	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
+	if err := d.set(ctx, idx, s, true); err != nil {
+		return nil, c.Undo(err)
+	}
+	return Meta{SwIfIndex: idx}, nil
 }
 
 func (d *StoreDescriptor) enabled(ctx context.Context, idx uint32, source string) (bool, error) {
@@ -589,10 +597,14 @@ func (d *MarkDescriptor) Create(ctx context.Context, obj proto.Message) (any, er
 		return nil, err
 	}
 	idx := tg.Index
-	if err := d.set(ctx, idx, m, true); err != nil {
+	c, err := tg.ClaimFirst(ctx) // TD-11b: the claim before the VPP write, released when VPP refuses
+	if err != nil {
 		return nil, err
 	}
-	return Meta{SwIfIndex: idx}, tg.Claim() // claim only after VPP accepted the add (M1)
+	if err := d.set(ctx, idx, m, true); err != nil {
+		return nil, c.Undo(err)
+	}
+	return Meta{SwIfIndex: idx}, nil
 }
 
 // Update implements scheduler.Descriptor: another map is applied in place (VPP replaces the

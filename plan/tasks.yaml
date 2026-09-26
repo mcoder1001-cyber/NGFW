@@ -1136,7 +1136,9 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'Added 2026-09-26 at the user''s request. VPP 26.06 has no NAT46 plugin (binapi: nat44_ed, nat44_ei, nat64, nat66, map, cnat, pnat). Design spike first: (a) stateless SIIT (RFC 7915) — can the map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
+  notes: 'Added 2026-09-26 at the user''s request. VPP 26.06 has no NAT46 plugin (binapi: nat44_ed, nat44_ei, nat64, nat66, map, cnat, pnat). Design spike first: (a) stateless SIIT (RFC 7915) — can the
+    map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope
+    decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md
@@ -1153,7 +1155,8 @@ tasks:
   wbs:
   - D0.14
   scope: apply the `system` schema domain on the box (renderer) and build its screen
-  files_owned: apps/agent/internal/renderers/sysident/** docs/agent/renderers/sysident.md apps/agent/internal/desired/system*.go apps/agent/internal/subsystems/system*.go apps/web/src/domains/system/identity/** apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
+  files_owned: apps/agent/internal/renderers/sysident/** docs/agent/renderers/sysident.md apps/agent/internal/desired/system*.go apps/agent/internal/subsystems/system*.go apps/web/src/domains/system/identity/**
+    apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
   branch: ''
   worktree: ''
   owner: ''
@@ -1183,7 +1186,9 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav entry.'
+  notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
+    route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav
+    entry.'
 - id: F-management-ui
   title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
   prompt: prompts/features/F-management-ui.md
@@ -1208,7 +1213,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'
+  notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
+    apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md
@@ -1494,7 +1500,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D7.3
@@ -1509,7 +1515,7 @@ tasks:
   worktree: /root/ngfw-wt/F-unbound-chrony-syslog
   owner: ''
   started: 2026-09-25T00:14
-  finished: ''
+  finished: '2026-09-26'
   notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | done c94e90d9
     (CI green; 04:27 dns crash guarded, D-137); review running | review APPROVE WITH CHANGES b665904f; fix round 1 (H1 IPv6-only cache crash, H2 live readiness, M1–M3, M5) — D-139 | fix round 1 06ad0939;
     verify APPROVE 4507e5ea; rebase round after F-kea + TD-13 + TD-23 (L3 fail closed)'
@@ -1778,7 +1784,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D8.1

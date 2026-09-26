@@ -284,9 +284,10 @@ func TestIpfixSflowProjection(t *testing.T) {
 	if !find(p, "/services/ipfix/sflow/headerBytes", vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR) {
 		t.Fatalf("issues %v", p.issues)
 	}
-	// other services sub-trees are reported, not applied
+	// another services sub-tree is not this feature's: nothing applied, and no unsupported note since
+	// F-unbound-chrony-syslog projects services.ntp
 	p = run(`{"ntp": {"enabled": true}}`)
-	if !find(p, "/services/ntp", vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING) || len(p.kvs) != 0 {
+	if find(p, "/services/ntp", vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING) || len(p.kvs) != 0 {
 		t.Fatalf("issues %v", p.issues)
 	}
 }

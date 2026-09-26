@@ -161,6 +161,7 @@ func TestDHCPProjectionErrors(t *testing.T) {
 }
 
 func TestServicesUnsupportedDhcp(t *testing.T) {
+	withServiceUnimplemented(t, "ntp") // every member has a builder since F-unbound-chrony-syslog
 	s := newKeaSink()
 	ServicesUnsupported(s, nil)
 	ServicesUnsupported(s, &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}, Ntp: &vrxv1.NtpService{Enabled: proto.Bool(true)}})

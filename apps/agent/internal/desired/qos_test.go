@@ -279,8 +279,9 @@ func TestQoSProjectionErrors(t *testing.T) {
 }
 
 func TestServicesUnsupported(t *testing.T) {
+	withServiceUnimplemented(t, "dns") // every member has a builder since F-unbound-chrony-syslog
 	s := &qosSink{}
-	// snmp is projected by this build (F-snmp), so it is not warned; dns has no builder yet; empty lldp is skipped.
+	// snmp is projected by this build (F-snmp), so it is not warned; dns is unregistered above; empty lldp is skipped.
 	ServicesUnsupported(s, parseDS(t, `{"services": {"qos": {"policers": {"a": {"cir": 1, "cb": "1"}}}, "snmp": {"enabled": true}, "dns": {"vppCache": {"enabled": true}}, "lldp": {}}}`).GetServices())
 	if strings.Join(s.warns, "|") != "/services/dns agent.unsupported-field" {
 		t.Fatalf("warnings %v", s.warns)

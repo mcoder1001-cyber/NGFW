@@ -39,6 +39,7 @@ import {
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
 import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
+import { unboundChronySyslogFake } from '../features/unbound-chrony-syslog/fake.js';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -842,6 +843,7 @@ export class FakeAgent {
       // wave-A: F-kea-dhcp-relay
       dhcpLeases: dhcpLeases(this),
       // wave-A: F-unbound-chrony-syslog
+      ...unboundChronySyslogFake(this), // DnsState/NtpState/SyslogState/SyslogEntries + Action dns_lookup (others UNIMPLEMENTED)
     };
   }
 }

@@ -138,6 +138,8 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 		}
 		return g.natSessionKill(req, stream)
 	// wave-A: F-unbound-chrony-syslog
+	case *vrxv1.ActionRequest_DnsLookup:
+		return g.dnsLookup(req.GetDnsLookup(), stream)
 	default:
 		return status.Error(codes.Unimplemented, "actions (ping, traceroute, capture) are implemented by P08/F-*")
 	}

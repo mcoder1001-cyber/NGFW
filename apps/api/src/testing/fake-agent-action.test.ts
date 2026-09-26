@@ -42,6 +42,7 @@ describe('FakeAgent action dispatch', () => {
   beforeEach(async () => {
     fake = new FakeAgent({ owner: 'w1' });
     await fake.start(socket);
+    resetActionHandlersForTest(); // only this file's stubs: feature fakes register theirs when the fake agent starts
     client = new DataplaneClient(`unix:${socket}`, credentials.createInsecure());
   });
 

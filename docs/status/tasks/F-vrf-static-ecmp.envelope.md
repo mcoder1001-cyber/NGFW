@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-vrf-static-ecmp
-id: F-vrf-static-ecmp   branch: task/F-vrf-static-ecmp   worktree: /root/ngfw-wt/F-vrf-static-ecmp   base: main@<BASE>   started: <STARTED>
+id: F-vrf-static-ecmp   branch: task/F-vrf-static-ecmp   worktree: /root/ngfw-wt/F-vrf-static-ecmp   base: main@task/W-seed@8b7558e (SPECULATIVE, D-114/D-120: P08 fix round 2 still running — do NOT merge main until the manager tells you P08 has landed)   started: 2026-09-24T17:27
 title: Wave A (day 7-9): VRF mgmt, static routes, ECMP, FIB browser (paged), ping/traceroute actions
 prompt: prompts/features/F-vrf-static-ecmp.md   (template: prompts/FEATURE-TEMPLATE.md; checked against main + P08 in wave-A prep)   wbs: D2.1, D2.2, D2.5, D2.6
 scope: source-VRF select (new `svs` descriptors), next hop in another VRF, the D-072 `viaFrr` flag + selector, ECMP/blackhole (exist since P05/P08 — verify and test only), agent-side paged FIB browser (`ListRoutes` RPC), ping action (default table only), traceroute = UNIMPLEMENTED + one V-item, the generic Action bridge in the API, UI, docs
@@ -8,9 +8,9 @@ merged deps you can rely on: P08
   - through P08: P05 core `vrf/<id>` + `ip.route/<table>/<prefix>` (weighted multipath, DROP path for blackhole, best-source claim rule, owner table), P06 API (actions controller = 501 stub, `/state/routes` paging a full Retrieve), P07a/b UI, RF-1 `frr.RegisterStaticSelector`
   - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight), TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-vrf-static-ecmp.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 A4 A6 A7 C1–C7 P1–P5 W1–W3) · apps/agent/internal/descriptors/core/README.md · docs/status/vertical-slice.md · docs/vpp-code-track.md V15, V22 · docs/decisions/LOG.md D-063, D-065, D-069, D-071, D-072, D-073, D-076, D-080, D-087, D-094, D-095, D-101
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; every VRF, SVS table and FIB-browser table id in <SLOT>000–<SLOT>999; route prefixes inside 10.<SLOT>.0.0/16 (+ one slot-unique IPv6 /48)
+slot: 2 → VRX_SLOT=2 VRX_TEST_PREFIX=w2 VRX_HTTP_PORT=3000+100·2 VRX_WEB_PORT=5000+100·2 VRX_METRICS_PORT=9100+10·2+1 VRX_AGENT_SOCKET=/run/vrx-test/w2/agent.sock VRX_PG_DATABASE=vrx_w2 VRX_VALKEY_DB=2 VRX_VPP_TABLE_BASE=2000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 2)"`
+  - rig prefix w2 → 10.2.{1,2}.0/24; every VRF, SVS table and FIB-browser table id in 2000–2999; route prefixes inside 10.2.0.0/16 (+ one slot-unique IPv6 /48)
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none (FRR rendering of `viaFrr` routes is P12 / F-bfd-redistribution; you only add the flag and register the selector)
@@ -64,8 +64,8 @@ coordination: F-neighbors-ra and F-nat44-ed-sessions share the A4 Action switch 
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: VRF list, ECMP route editor, FIB browser page, ping result) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-vrf-static-ecmp.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-vrf-static-ecmp-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-vrf-static-ecmp.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> tables/routes/SVS objects left in VPP (Retrieve + `show ip fib table <id>` pasted) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w2 dropped · no w2 tables/routes/SVS objects left in VPP (Retrieve + `show ip fib table <id>` pasted) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-vrf-static-ecmp-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

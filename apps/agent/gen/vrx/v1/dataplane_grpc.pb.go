@@ -64,6 +64,7 @@ const (
 	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
 	Dataplane_BridgeDomainMacs_FullMethodName  = "/vrx.v1.Dataplane/BridgeDomainMacs"
 	Dataplane_LldpNeighbors_FullMethodName     = "/vrx.v1.Dataplane/LldpNeighbors"
+	Dataplane_ListRoutes_FullMethodName        = "/vrx.v1.Dataplane/ListRoutes"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -141,6 +142,9 @@ type DataplaneClient interface {
 	// ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
 	// Read-only.
 	LldpNeighbors(ctx context.Context, in *LldpNeighborsRequest, opts ...grpc.CallOption) (*LldpNeighborsResponse, error)
+	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
 }
 
 type dataplaneClient struct {
@@ -358,6 +362,16 @@ func (c *dataplaneClient) LldpNeighbors(ctx context.Context, in *LldpNeighborsRe
 	return out, nil
 }
 
+func (c *dataplaneClient) ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRoutesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_ListRoutes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -433,6 +447,9 @@ type DataplaneServer interface {
 	// ordered by interface name, at most 1000 per call (docs/contracts/proto.md "F-loopback-bvi-gso-lldp-span").
 	// Read-only.
 	LldpNeighbors(context.Context, *LldpNeighborsRequest) (*LldpNeighborsResponse, error)
+	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
+	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
+	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -496,6 +513,9 @@ func (UnimplementedDataplaneServer) BridgeDomainMacs(context.Context, *BridgeDom
 }
 func (UnimplementedDataplaneServer) LldpNeighbors(context.Context, *LldpNeighborsRequest) (*LldpNeighborsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LldpNeighbors not implemented")
+}
+func (UnimplementedDataplaneServer) ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRoutes not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -821,6 +841,24 @@ func _Dataplane_LldpNeighbors_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_ListRoutes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRoutesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).ListRoutes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_ListRoutes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).ListRoutes(ctx, req.(*ListRoutesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -887,6 +925,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LldpNeighbors",
 			Handler:    _Dataplane_LldpNeighbors_Handler,
+		},
+		{
+			MethodName: "ListRoutes",
+			Handler:    _Dataplane_ListRoutes_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

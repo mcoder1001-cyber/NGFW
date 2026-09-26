@@ -43,6 +43,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'lldp',
       'mirroring',
       // wave-A: F-vrf-static-ecmp
+      'vrfs',
+      'routing',
       // wave-A: F-neighbors-ra
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12

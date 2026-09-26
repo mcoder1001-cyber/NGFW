@@ -86,6 +86,7 @@ export * from './domains/ext/bridge-l2.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 export * from './domains/ext/loopback-bvi-gso-lldp-span.js';
 // wave-A: F-vrf-static-ecmp
+export * from './domains/ext/vrf-static-ecmp.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model

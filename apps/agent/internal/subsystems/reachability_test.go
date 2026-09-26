@@ -103,6 +103,7 @@ var descriptorReach = map[string]reachEntry{
 	"qos":                 {wired, "F-qos-flat"},
 	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
+	"svs":                 {wired, "F-vrf-static-ecmp"},
 	"sr":                  {pending, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},

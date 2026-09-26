@@ -72,6 +72,7 @@ import { bridgeL2Feature } from './features/bridge-l2/index.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 import { loopbackBviGsoLldpSpanFeature } from './features/loopback-bvi-gso-lldp-span/index.js';
 // wave-A: F-vrf-static-ecmp
+import { vrfStaticEcmpFeature } from './features/vrf-static-ecmp/index.js';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
@@ -164,6 +165,7 @@ export class AppModule {
         // wave-A: F-loopback-bvi-gso-lldp-span
         ...loopbackBviGsoLldpSpanFeature.controllers,
         // wave-A: F-vrf-static-ecmp
+        ...vrfStaticEcmpFeature.controllers,
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
@@ -240,6 +242,7 @@ export class AppModule {
         // wave-A: F-loopback-bvi-gso-lldp-span
         ...loopbackBviGsoLldpSpanFeature.providers,
         // wave-A: F-vrf-static-ecmp
+        ...vrfStaticEcmpFeature.providers,
         // wave-A: F-neighbors-ra
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model

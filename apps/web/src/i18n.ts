@@ -80,6 +80,8 @@ import faBridgeL2 from './locales/fa/bridge-l2.json';
 import enLoopbackBviGsoLldpSpan from './locales/en/loopback-bvi-gso-lldp-span.json';
 import faLoopbackBviGsoLldpSpan from './locales/fa/loopback-bvi-gso-lldp-span.json';
 // wave-A: F-vrf-static-ecmp
+import enVrfStaticEcmp from './locales/en/vrf-static-ecmp.json';
+import faVrfStaticEcmp from './locales/fa/vrf-static-ecmp.json';
 // wave-A: F-neighbors-ra
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
@@ -152,6 +154,7 @@ export const NAMESPACES = [
   // wave-A: F-loopback-bvi-gso-lldp-span
   'loopback-bvi-gso-lldp-span',
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp',
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -226,6 +229,7 @@ const en = {
   // wave-A: F-loopback-bvi-gso-lldp-span
   'loopback-bvi-gso-lldp-span': enLoopbackBviGsoLldpSpan,
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp': enVrfStaticEcmp,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
@@ -297,6 +301,7 @@ const fa = {
   // wave-A: F-loopback-bvi-gso-lldp-span
   'loopback-bvi-gso-lldp-span': faLoopbackBviGsoLldpSpan,
   // wave-A: F-vrf-static-ecmp
+  'vrf-static-ecmp': faVrfStaticEcmp,
   // wave-A: F-neighbors-ra
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model

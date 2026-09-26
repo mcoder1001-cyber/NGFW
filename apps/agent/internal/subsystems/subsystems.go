@@ -108,6 +108,9 @@ var Domains = map[string][]string{
 	VRFs: {
 		core.VRFName,
 		// wave-A: F-vrf-static-ecmp
+		svsTableName,
+		svsInterfaceName,
+		svsRouteName,
 		// wave-A: F-neighbors-ra
 	},
 	Routing: {
@@ -286,6 +289,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	w.registerLoopbackBviGsoLldpSpan(r)
 	// wave-A: F-vrf-static-ecmp
+	registerVrfStaticEcmp(r, w)
 	// wave-A: F-neighbors-ra
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model

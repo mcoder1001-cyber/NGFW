@@ -12,6 +12,7 @@ D0.10,D0,Foundation & Platform,"UI shell: theme, layout, i18n en/fa + RTL, Schem
 D0.11,D0,Foundation & Platform,"Interactive CLI (clixon-like: config mode, completion, show commands)",T1,90,6,7,S4,D0.8,TNSR's primary interface
 D0.12,D0,Foundation & Platform,Telemetry pipeline: stats -> gRPC stream -> WS fan-out -> Prometheus -> history,T1,50,2,3,S4,D0.7,
 D0.13,D0,Foundation & Platform,"Test infra: containerlab/QEMU lab, Robot Framework, TRex harness, Playwright",T1,70,1,2,QA,D0.1,
+D0.14,D0,Foundation & Platform,"System identity: hostname, timezone, login/MOTD banners, DNS client (systemd-resolved)",T1,8,4,5,S4,D0.8,"Added 2026-09-26 by the product owner (DEC-system-identity, D-152)"
 D1.1,D1,Interfaces & L2,"NIC inventory and driver binding: dpdk, rdma, af_xdp, af_packet, vmxnet3, virtio, vhost-user, tap-v2, netmap, memif, pipe, Marvell mGig",T1,70,2,3,S1,D0.6,Fix a supported-hardware matrix; refuse 'any NIC'
 D1.2,D1,Interfaces & L2,"Interface basics: admin state, MTU, MAC, promisc, rx-mode, rx/tx queues, worker placement",T1,35,2,2,S1,D0.7,
 D1.3,D1,Interfaces & L2,IPv4/IPv6 addressing + IP unnumbered,T1,20,2,2,S1,D1.2,

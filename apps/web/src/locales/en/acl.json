@@ -1,0 +1,428 @@
+{
+  "title": "Access lists",
+  "intro": "L3/L4 and MACIP access lists, their rules, and where they are attached. Edits go to the candidate configuration; commit them from the pending-change bar.",
+  "tabsLabel": "ACL sections",
+  "tabs": {
+    "lists": "Lists",
+    "rules": "Rule editor",
+    "attachments": "Attachments",
+    "macip": "MACIP"
+  },
+  "adl": {
+    "text": "Access-list based ADL / Auto-SDL is configured on the interface security settings.",
+    "link": "Open ADL / Auto-SDL"
+  },
+  "loading": "Loading",
+  "refresh": "Refresh",
+  "updated": "Updated {{when}}",
+  "readonly": "Your role cannot change the configuration",
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "close": "Close",
+  "delete": "Delete",
+  "listSeparator": ", ",
+  "pending": {
+    "added": "new",
+    "changed": "changed",
+    "deleted": "deleted",
+    "pending": "not committed"
+  },
+  "live": {
+    "agentError": "Live data is unavailable:",
+    "countersOff": "Hit counters are not available:",
+    "aclIndex": "ACL {{index}}",
+    "foreign": "other owner",
+    "unknown": "Unknown (agent unavailable)",
+    "notCommitted": "Not committed",
+    "notApplied": "Not applied",
+    "vppRules_one": "{{n}} VPP rule",
+    "vppRules_other": "{{n}} VPP rules",
+    "hits": "{{packets}} packets · {{bytes}}",
+    "inSync": "in sync",
+    "outOfSync": "out of sync",
+    "syncUnknown": "unknown"
+  },
+  "unit": {
+    "bytes": "{{value}} {{unit}}",
+    "B": "B",
+    "KiB": "KiB",
+    "MiB": "MiB",
+    "GiB": "GiB",
+    "TiB": "TiB",
+    "PiB": "PiB"
+  },
+  "col": {
+    "name": "Name",
+    "description": "Description",
+    "rules": "Rules",
+    "attachments": "Attached to",
+    "tags": "Tags",
+    "live": "In VPP",
+    "hits": "Hits",
+    "actions": "Actions",
+    "drag": "Drag to reorder",
+    "sequence": "Sequence",
+    "enabled": "Enabled",
+    "action": "Action",
+    "ipVersion": "IP version",
+    "source": "Source",
+    "destination": "Destination",
+    "service": "Service",
+    "schedule": "Schedule",
+    "log": "Log",
+    "pending": "Pending",
+    "status": "Status",
+    "vppRules": "VPP rules",
+    "packets": "Packets",
+    "bytes": "Bytes",
+    "list": "List",
+    "target": "Target",
+    "direction": "Direction",
+    "vrf": "VRF",
+    "interface": "Interface",
+    "interfaces": "Interfaces",
+    "input": "Input ACLs",
+    "output": "Output ACLs",
+    "macip": "MACIP",
+    "expected": "Configured",
+    "inSync": "State"
+  },
+  "target": {
+    "zone": "zone {{zone}}"
+  },
+  "enum": {
+    "direction": {
+      "in": "in",
+      "out": "out"
+    },
+    "action": {
+      "permit": "permit",
+      "deny": "deny",
+      "reflect": "reflect"
+    },
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "any": "IPv4 + IPv6"
+    },
+    "protocol": {
+      "tcp": "TCP",
+      "tcp-udp": "TCP and UDP",
+      "udp": "UDP",
+      "sctp": "SCTP",
+      "icmp": "ICMP",
+      "icmp6": "ICMPv6"
+    }
+  },
+  "match": {
+    "any": "any",
+    "always": "always"
+  },
+  "counters": {
+    "notInVpp": "This rule is not in VPP (not committed, disabled or outside its schedule)"
+  },
+  "lists": {
+    "add": "New list",
+    "tableLabel": "Access lists",
+    "empty": "No access lists yet.",
+    "openRules": "Rules",
+    "openRulesOf": "Open the rules of {{name}}",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "addTitle": "New access list",
+    "editTitle": "Edit access list {{name}}",
+    "deleteTitle": "Delete access list {{name}}?",
+    "deleteText_one": "The list and its {{n}} rule are removed from the candidate.",
+    "deleteText_other": "The list and its {{n}} rules are removed from the candidate.",
+    "deleteAttached_one": "It is still attached once: remove the attachment too, or the commit fails validation.",
+    "deleteAttached_other": "It is still attached {{n}} times: remove the attachments too, or the commit fails validation.",
+    "notAttached": "not attached",
+    "attachment": "{{target}} · {{direction}}",
+    "attachmentDisabled": "Attachment disabled",
+    "name": "Name",
+    "nameHelp": "Letters, digits, dot, dash and underscore; up to 63 characters",
+    "exists": "A list with this name exists already"
+  },
+  "rules": {
+    "list": "Access list",
+    "pickList": "Choose a list to edit its rules.",
+    "noLists": "There are no access lists yet: create one on the Lists tab.",
+    "dragHandle": "Drag rule {{sequence}} onto another rule to place it before that rule",
+    "off": "off",
+    "on": "on",
+    "logOn": "yes",
+    "viewNamed": "View rule {{sequence}}",
+    "editNamed": "Edit rule {{sequence}}",
+    "deleteNamed": "Delete rule {{sequence}}",
+    "deleteTitle": "Delete rule {{sequence}}?",
+    "sourceLabel": "Configuration shown",
+    "source": {
+      "candidate": "Candidate",
+      "running": "Running"
+    },
+    "hitsOnly": "Only rules with hits",
+    "search": "Search rules",
+    "searchHelp": "Every word must match (address, object, port, description…)",
+    "add": "Add rule",
+    "import": "Import CSV",
+    "export": "Export CSV",
+    "exportFrom": {
+      "candidate": "Candidate configuration",
+      "running": "Running configuration"
+    },
+    "renumber": "Renumber",
+    "count_one": "{{n}} rule",
+    "count_other": "{{n}} rules",
+    "countFiltered": "{{total}} of {{size}} rules match",
+    "notApplied": "This list is not in VPP: it is not committed, or not attached to any interface.",
+    "gridLabel": "Rules of {{list}}",
+    "moved": "Rule {{sequence}} moved before rule {{before}}."
+  },
+  "status": {
+    "applied": "applied",
+    "disabled": "disabled",
+    "schedule-inactive": "outside schedule",
+    "empty": "matches nothing",
+    "unknown": "unknown",
+    "notCommitted": "not committed",
+    "notApplied": "not applied"
+  },
+  "bulk": {
+    "label": "Bulk actions",
+    "selected_one": "{{n}} rule selected",
+    "selected_other": "{{n}} rules selected",
+    "enable": "Enable",
+    "disable": "Disable",
+    "move": "Move to sequence…",
+    "delete": "Delete",
+    "clear": "Clear selection",
+    "done_one": "{{n}} rule changed in the candidate.",
+    "done_other": "{{n}} rules changed in the candidate.",
+    "deleteTitle_one": "Delete {{n}} rule?",
+    "deleteTitle_other": "Delete {{n}} rules?",
+    "deleteText": "The rules are removed from the candidate; nothing changes in VPP until you commit.",
+    "moveTitle_one": "Move {{n}} rule",
+    "moveTitle_other": "Move {{n}} rules",
+    "moveHelp": "The selected rules get this sequence and the following numbers, in their current order; rules already there move down.",
+    "moveTo": "Target sequence",
+    "moveRun": "Move"
+  },
+  "renumber": {
+    "title": "Renumber the list",
+    "help": "Every rule of the list gets a new sequence in its current order: start, start + step, …",
+    "start": "Start",
+    "step": "Step",
+    "run": "Renumber"
+  },
+  "rule": {
+    "addTitle": "New rule",
+    "editTitle": "Rule {{sequence}}",
+    "stale": "This rule changed in the candidate since the page was read (another session moved or deleted rules). Refresh and edit it again."
+  },
+  "import": {
+    "title": "Import rules into {{list}}",
+    "help": "A CSV file with a header row, up to 100 000 rules (format: see the ACL user guide). A dry run checks it first; nothing is written until you import.",
+    "choose": "Choose CSV file",
+    "noFile": "No file chosen",
+    "mode": "Import mode",
+    "modes": {
+      "replace": "Replace the list's rules",
+      "append": "Append to the list"
+    },
+    "check": "Check (dry run)",
+    "run": "Import",
+    "done": "Imported {{imported}} rules; the list now has {{total}} rules in the candidate.",
+    "resultLabel": "Dry-run result",
+    "summary": "{{rows}} rows: {{valid}} valid, {{errors}} with errors.",
+    "afterReplace": "The {{existing}} current rules would be replaced; the list would have {{total}} rules.",
+    "afterAppend": "Appended to the {{existing}} current rules; the list would have {{total}} rules.",
+    "errors": "Errors",
+    "line": "Line",
+    "column": "Column",
+    "message": "Message",
+    "moreErrors": "Showing {{shown}} of {{total}} errors.",
+    "lineNo": "Line {{line}}:",
+    "preview_one": "Preview of the first {{n}} rule",
+    "preview_other": "Preview of the first {{n}} rules",
+    "previewLabel": "Preview"
+  },
+  "attachments": {
+    "configured": "Configured attachments",
+    "configuredLabel": "Configured attachments",
+    "add": "Attach a list",
+    "empty": "No list is attached yet.",
+    "removedPending_one": "{{n}} attachment removed in the candidate (not committed).",
+    "removedPending_other": "{{n}} attachments removed in the candidate (not committed).",
+    "editNamed": "Edit attachment of {{list}} to {{target}}",
+    "deleteNamed": "Remove attachment of {{list}} to {{target}}",
+    "addTitle": "Attach an access list",
+    "editTitle": "Edit attachment",
+    "deleteTitle": "Remove attachment?",
+    "deleteText": "{{list}} is detached from {{target}} in the candidate.",
+    "live": "In VPP",
+    "liveLabel": "ACLs per interface in VPP",
+    "liveHelp": "ACLs bound to each interface as VPP holds them, in evaluation order. ACLs of other owners are kept and shown, never edited here.",
+    "liveEmpty": "No interface has an ACL.",
+    "expectedIn": "in: {{lists}}",
+    "expectedOut": "out: {{lists}}",
+    "expectedMacip": "MACIP: {{list}}"
+  },
+  "macip": {
+    "lists": "MACIP lists",
+    "listsLabel": "MACIP lists",
+    "add": "New MACIP list",
+    "empty": "No MACIP lists yet.",
+    "editNamed": "Edit {{name}}",
+    "deleteNamed": "Delete {{name}}",
+    "addTitle": "New MACIP list",
+    "editTitle": "Edit MACIP list {{name}}",
+    "deleteTitle": "Delete MACIP list {{name}}?",
+    "deleteText": "The list is removed from the candidate.",
+    "deleteAttached": "The list is removed from the candidate. It is still attached: remove the attachment too, or the commit fails validation.",
+    "attachments": "MACIP attachments",
+    "attachmentsLabel": "MACIP attachments",
+    "attachmentsEmpty": "No MACIP list is attached yet.",
+    "attach": "Attach a MACIP list",
+    "attachHelp": "MACIP lists filter incoming traffic by source MAC and IP address; an interface holds one MACIP list.",
+    "attachTitle": "Attach a MACIP list",
+    "editAttachmentTitle": "Edit MACIP attachment",
+    "editAttachment": "Edit attachment of {{list}} to {{interface}}",
+    "deleteAttachment": "Remove attachment of {{list}} to {{interface}}",
+    "deleteAttachmentTitle": "Remove MACIP attachment?",
+    "deleteAttachmentText": "{{list}} is detached from {{interface}} in the candidate.",
+    "onePerInterface": "{{interface}} already has a MACIP list: an interface holds only one."
+  },
+  "entry": {
+    "stale": "The candidate changed since the table was read (another session). Nothing was saved: close, refresh and try again."
+  },
+  "variant": {
+    "any": "Any",
+    "prefix": "Prefix",
+    "object": "Object",
+    "inline": "Protocol and ports",
+    "interface": "Interface",
+    "zone": "Zone",
+    "tcp|tcp-udp": "TCP / TCP and UDP",
+    "udp|sctp": "UDP / SCTP",
+    "icmp|icmp6": "ICMP / ICMPv6",
+    "other": "Other IP protocol"
+  },
+  "field": {
+    "sequence": {
+      "title": "Sequence",
+      "help": "Evaluation order: lower numbers first"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "enabled": {
+      "title": "Enabled"
+    },
+    "action": {
+      "title": "Action"
+    },
+    "ipVersion": {
+      "title": "IP version",
+      "help": "IPv4 + IPv6 matches both families; it must agree with the prefixes and the ICMP protocol"
+    },
+    "source": {
+      "title": "Source"
+    },
+    "destination": {
+      "title": "Destination"
+    },
+    "service": {
+      "title": "Service"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "help": "A schedule object; empty = always active"
+    },
+    "log": {
+      "title": "Log"
+    },
+    "prefix": {
+      "title": "Prefix",
+      "help": "e.g. 10.0.0.0/24 or 2001:db8::/32"
+    },
+    "name": {
+      "title": "Object",
+      "help": "An object or group from the Objects page"
+    },
+    "spec": {
+      "title": "Protocol and ports"
+    },
+    "protocol": {
+      "title": "Protocol"
+    },
+    "destinationPorts": {
+      "title": "Destination ports",
+      "help": "443 or 8000-8080; empty = any port"
+    },
+    "sourcePorts": {
+      "title": "Source ports",
+      "help": "empty = any port"
+    },
+    "tcpFlags": {
+      "title": "TCP flags",
+      "help": "Optional, as JSON: {\"mask\": 18, \"value\": 2} matches SYN set with ACK clear; empty = any flags"
+    },
+    "mask": {
+      "title": "Mask",
+      "help": "Bit mask over the TCP flags (FIN … CWR)"
+    },
+    "value": {
+      "title": "Value"
+    },
+    "type": {
+      "title": "ICMP type",
+      "help": "empty = any type"
+    },
+    "code": {
+      "title": "ICMP code",
+      "help": "needs a type; empty = any code"
+    },
+    "number": {
+      "title": "IP protocol number",
+      "help": "e.g. 47 = GRE, 50 = ESP, 89 = OSPF"
+    },
+    "tags": {
+      "title": "Tags",
+      "help": "Tags from the Objects page"
+    },
+    "rules": {
+      "title": "Rules"
+    },
+    "list": {
+      "title": "Access list"
+    },
+    "target": {
+      "title": "Target"
+    },
+    "interface": {
+      "title": "Interface"
+    },
+    "zone": {
+      "title": "Zone"
+    },
+    "direction": {
+      "title": "Direction"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "Must be the VRF of the target interface"
+    },
+    "sourceMac": {
+      "title": "Source MAC"
+    },
+    "sourceMacMask": {
+      "title": "Source MAC mask",
+      "help": "ff:ff:ff:ff:ff:ff = exact match"
+    },
+    "sourcePrefix": {
+      "title": "Source prefix",
+      "help": "empty = any address"
+    }
+  }
+}

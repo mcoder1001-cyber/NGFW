@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-acl
-id: F-acl   branch: task/F-acl   worktree: /root/ngfw-wt/F-acl   base: main@<BASE>   started: <STARTED>
+id: F-acl   branch: task/F-acl   worktree: /root/ngfw-wt/F-acl   base: main@task/F-object-model@31249d3 (SPECULATIVE D-114: F-object-model is done and under review; it contains W-seed + P08 r2 + TD-5)   started: 2026-09-24T19:50
 title: Wave A (day 7-9): MACIP/L3/L4 ACLs, attachments, hit counters, 100k-rule editor (ADL/Auto-SDL: info link only)
 prompt: prompts/features/F-acl.md   (template: prompts/FEATURE-TEMPLATE.md; updated on task/prep-waveA for P08's layout)   wbs: D5.2, D5.4, D5.5
 scope: MACIP/L3/L4 ACLs, attachments (interface/zone), per-rule hit counters, 100k-rule editor. ADL/Auto-SDL is only a link to F-rpf-adl-pbr's screens: no descriptors or screens here.
@@ -9,9 +9,9 @@ merged deps you can rely on: P08, DF-4, F-object-model
   - F-object-model: internal/objects (Expand/ExpandService/Active, FQDN resolver + change event), object picker UI
   - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight), TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-acl.md · docs/status/wave-A-hotspots.md (§0 rules, A1 A2 A4 A5 C5–C7 P1 P4 P5 P6 W1–W3) · docs/agent/descriptors/acl.md · docs/status/vertical-slice.md · docs/status/tasks/F-object-model.md · docs/vpp-code-track.md V7, V19 · docs/decisions/LOG.md D-065, D-066, D-069, D-071, D-080, D-082, D-095, D-101
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24
+slot: 3 → VRX_SLOT=3 VRX_TEST_PREFIX=w3 VRX_HTTP_PORT=3000+100·3 VRX_WEB_PORT=5000+100·3 VRX_METRICS_PORT=9100+10·3+1 VRX_AGENT_SOCKET=/run/vrx-test/w3/agent.sock VRX_PG_DATABASE=vrx_w3 VRX_VALKEY_DB=3 VRX_VPP_TABLE_BASE=3000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 3)"`
+  - rig prefix w3 → 10.3.{1,2}.0/24
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -64,8 +64,11 @@ coordination: F-host-acl-nftables runs in parallel on the same `acl` root key; e
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL, the rule editor scrolled at 100k) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-acl.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-acl-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-acl.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> ACLs/bindings left in VPP (dump pasted) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w3 dropped · no w3 ACLs/bindings left in VPP (dump pasted) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-acl-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
+
+MANAGER ADDENDA: D-128 — never run `show trace` / `trace add` / `clear trace` on the shared VPP (it crashed VPP); prove forwarding with counters/dumps. D-126 — no classify sweeps by index. GIT RULE: git only inside your own worktree, NEVER in /root/ngfw. CI: use main's tools/ci.sh fix if your branch copy fails in the contract guard with SIGPIPE (D-127) — `git -C <wt> show main:tools/ci.sh > /tmp/g-w3/ci.sh` and run that copy.
+MANAGER ADDENDUM (D-131): F-rpf-adl-pbr registers a read-only stand-in `pbr.acl-ref` for `acl.acl/<name>` (skipped when `acl.acl` is already registered) plus the test `TestRpfAdlPbrWithoutFAcl`. When you register `acl.acl`, REMOVE the stand-in and that test (read them with `git -C /root/ngfw show task/F-rpf-adl-pbr:<path>`; the merger merges F-rpf-adl-pbr before you) and add a test that a PBR policy naming your ACL applies.

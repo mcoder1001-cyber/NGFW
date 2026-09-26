@@ -63,6 +63,7 @@ const (
 	// wave-A: F-object-model
 	Objects = "objects"
 	// wave-A: F-acl
+	ACL = "acl" // shared with F-host-acl-nftables (one key, both families)
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
@@ -169,6 +170,7 @@ var Domains = map[string][]string{
 	// wave-A: F-object-model
 	Objects: objectModelDescriptors(), // agent-local objects.* family (object_model.go)
 	// wave-A: F-acl
+	ACL: aclDescriptors(), // DF-4 acl plugin family (acl.go); F-host-acl-nftables appends its own
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: P11
@@ -320,6 +322,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-acl
+	if err := w.registerACL(r); err != nil { // acl.Register's six descriptors with KeyedClaims("acl") (acl.go)
+		return nil, err
+	}
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-nat44-ei-64-66-nptv6

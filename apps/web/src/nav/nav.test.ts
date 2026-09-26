@@ -50,6 +50,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-A: F-rpf-adl-pbr
       'pbr',
       'objects', // F-object-model (firewall group, after pbr/adl per schema order)
+      'acl', // F-acl (firewall group, after objects)
       'adl',
       // wave-A: P12
       // wave-A: F-nat44-ed-sessions

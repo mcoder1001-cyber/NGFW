@@ -77,7 +77,7 @@ func TestMacipBindingLifecycle(t *testing.T) {
 		t.Fatalf("key %q", d.KeyOf(desired.Proto()))
 	}
 	deps := d.Dependencies(desired.Proto())
-	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "interface/loop1040", Optional: true}) || deps[1] != (scheduler.Dependency{Key: KeyMacipACL("m1")}) {
+	if len(deps) != 2 || deps[0] != (scheduler.Dependency{Key: "interface/loop1040"}) || deps[1] != (scheduler.Dependency{Key: KeyMacipACL("m1")}) {
 		t.Fatalf("deps %+v", deps)
 	}
 	meta, err := d.Create(ctx, desired.Proto())

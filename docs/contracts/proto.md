@@ -510,6 +510,32 @@ Apply. No VPP round trip; the RPC works while VPP is disconnected. `Retrieve` ne
 Go API (`internal/objects`: `Expand`, `ExpandService`, `Active`) are in `docs/agent/objects.md`. No `EventKind` is
 allocated in this task (§2's 11 stays reserved for it): changes are state only until the agent's event sink is wired.
 <!-- wave-A: F-acl -->
+
+### F-acl: AclState
+
+`AclState(AclStateRequest{owner, list, offset, limit, filter{sequences[], hits_only}, include_interfaces}) →
+AclStateResponse{owner, retrieved_at, counters_available, counters_reason, lists[], rules[], total, interfaces[], macip_lists[]}`
+is the **state RPC** §5 points to for the `acl` domain: VPP indexes, hit counters and interface bindings are runtime state
+and never appear in `Retrieve`. Read-only; never mutates.
+
+- `lists[]` / `macip_lists[]`: this owner's L3/L4 and MACIP ACLs in VPP (`AclListState{name, acl_index, vpp_rules,
+  mapping_known, config_rules, packets, bytes}`), sorted by name; only `list` when it is set. MACIP ACLs have no counters.
+- `rules[]`: when `list` is set, a page of that list's **configuration** rules in sequence order
+  (`AclRuleState{sequence, status, vpp_rules, first_vpp_rule, packets, bytes}`). One configuration rule expands to
+  `vpp_rules` contiguous VPP rules (address objects × families × services); its counters are the sum over them. The agent
+  maps VPP rules back to sequences through the expansion of the configuration it applied (`mapping_known`); when it
+  cannot (VPP holds something it did not project), `rules[]` is empty and `mapping_known` is false. `status` says why a
+  rule rendered nothing (`DISABLED`, `SCHEDULE_INACTIVE`, `EMPTY`). `offset`/`limit` page after the filter; `limit` is
+  1–1000 (0 = 100, more is `INVALID_ARGUMENT`) and `total` is the filtered count — a 100 000-rule list is never sent in
+  one message. `filter.sequences` (≤ 1000) selects rules (the API pages the configuration document and asks for exactly
+  the page's sequences); `filter.hits_only` keeps rules with packets > 0.
+- `counters_available` is false (packets/bytes 0, `counters_reason` says why) unless `acl.stats-enable` was applied to
+  the running VPP by the globals owner (D-071) and the stats segment is readable; VPP has no getter for the flag (V7).
+- `interfaces[]` (`include_interfaces`): every interface with ACLs bound, by sw_if_index, input and output lists in VPP
+  evaluation order **including other owners' ACLs** (`AclBoundAcl{acl_index, name, tag, foreign}`, D-066), and the MACIP
+  ACL bound inbound.
+- Errors: unknown `list` → `NOT_FOUND`; `limit` > 1000 or more than 1000 `sequences` → `INVALID_ARGUMENT`; VPP not
+  connected → `UNAVAILABLE`; an older agent → `UNIMPLEMENTED` (the API answers 501).
 <!-- wave-A: F-host-acl-nftables -->
 <!-- wave-A: F-nat44-ed-sessions -->
 <!-- wave-A: F-nat44-ei-64-66-nptv6 -->

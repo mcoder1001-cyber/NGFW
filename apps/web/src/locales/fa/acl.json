@@ -1,0 +1,428 @@
+{
+  "title": "فهرست‌های دسترسی",
+  "intro": "فهرست‌های دسترسی L3/L4 و MACIP، قانون‌های آن‌ها و جاهایی که به آن‌ها متصل شده‌اند. تغییرات در پیکربندی نامزد ذخیره می‌شوند؛ آن‌ها را از نوار تغییرات در انتظار اعمال کنید.",
+  "tabsLabel": "بخش‌های ACL",
+  "tabs": {
+    "lists": "فهرست‌ها",
+    "rules": "ویرایشگر قانون‌ها",
+    "attachments": "اتصال‌ها",
+    "macip": "MACIP"
+  },
+  "adl": {
+    "text": "ADL / Auto-SDL مبتنی بر فهرست دسترسی در تنظیمات امنیتی واسط پیکربندی می‌شود.",
+    "link": "باز کردن ADL / Auto-SDL"
+  },
+  "loading": "در حال بارگذاری",
+  "refresh": "تازه‌سازی",
+  "updated": "به‌روز شده {{when}}",
+  "readonly": "نقش شما اجازهٔ تغییر پیکربندی را ندارد",
+  "save": "ذخیره در نامزد",
+  "reset": "بازنشانی",
+  "cancel": "انصراف",
+  "close": "بستن",
+  "delete": "حذف",
+  "listSeparator": "، ",
+  "pending": {
+    "added": "جدید",
+    "changed": "تغییر یافته",
+    "deleted": "حذف شده",
+    "pending": "اعمال نشده"
+  },
+  "live": {
+    "agentError": "داده‌های زنده در دسترس نیست:",
+    "countersOff": "شمارنده‌های برخورد در دسترس نیستند:",
+    "aclIndex": "ACL شمارهٔ {{index}}",
+    "foreign": "مالک دیگر",
+    "unknown": "نامعلوم (عامل در دسترس نیست)",
+    "notCommitted": "اعمال نشده",
+    "notApplied": "در VPP نیست",
+    "vppRules_one": "{{n}} قانون VPP",
+    "vppRules_other": "{{n}} قانون VPP",
+    "hits": "{{packets}} بسته · {{bytes}}",
+    "inSync": "همگام",
+    "outOfSync": "ناهمگام",
+    "syncUnknown": "نامعلوم"
+  },
+  "unit": {
+    "bytes": "{{value}} {{unit}}",
+    "B": "بایت",
+    "KiB": "کیلوبایت",
+    "MiB": "مگابایت",
+    "GiB": "گیگابایت",
+    "TiB": "ترابایت",
+    "PiB": "پتابایت"
+  },
+  "col": {
+    "name": "نام",
+    "description": "توضیح",
+    "rules": "قانون‌ها",
+    "attachments": "متصل به",
+    "tags": "برچسب‌ها",
+    "live": "در VPP",
+    "hits": "برخوردها",
+    "actions": "عملیات",
+    "drag": "برای جابه‌جایی بکشید",
+    "sequence": "ترتیب",
+    "enabled": "فعال",
+    "action": "کنش",
+    "ipVersion": "نسخهٔ IP",
+    "source": "مبدأ",
+    "destination": "مقصد",
+    "service": "سرویس",
+    "schedule": "زمان‌بندی",
+    "log": "ثبت رویداد",
+    "pending": "در انتظار",
+    "status": "وضعیت",
+    "vppRules": "قانون‌های VPP",
+    "packets": "بسته‌ها",
+    "bytes": "بایت‌ها",
+    "list": "فهرست",
+    "target": "مقصد اتصال",
+    "direction": "جهت",
+    "vrf": "VRF",
+    "interface": "واسط",
+    "interfaces": "واسط‌ها",
+    "input": "ACLهای ورودی",
+    "output": "ACLهای خروجی",
+    "macip": "MACIP",
+    "expected": "پیکربندی‌شده",
+    "inSync": "وضعیت"
+  },
+  "target": {
+    "zone": "ناحیهٔ {{zone}}"
+  },
+  "enum": {
+    "direction": {
+      "in": "ورودی",
+      "out": "خروجی"
+    },
+    "action": {
+      "permit": "اجازه",
+      "deny": "رد",
+      "reflect": "اجازه با وضعیت (reflect)"
+    },
+    "ipVersion": {
+      "ipv4": "IPv4",
+      "ipv6": "IPv6",
+      "any": "IPv4 و IPv6"
+    },
+    "protocol": {
+      "tcp": "TCP",
+      "tcp-udp": "TCP و UDP",
+      "udp": "UDP",
+      "sctp": "SCTP",
+      "icmp": "ICMP",
+      "icmp6": "ICMPv6"
+    }
+  },
+  "match": {
+    "any": "هر",
+    "always": "همیشه"
+  },
+  "counters": {
+    "notInVpp": "این قانون در VPP نیست (اعمال نشده، غیرفعال یا خارج از زمان‌بندی)"
+  },
+  "lists": {
+    "add": "فهرست جدید",
+    "tableLabel": "فهرست‌های دسترسی",
+    "empty": "هنوز فهرست دسترسی‌ای وجود ندارد.",
+    "openRules": "قانون‌ها",
+    "openRulesOf": "باز کردن قانون‌های {{name}}",
+    "editNamed": "ویرایش {{name}}",
+    "deleteNamed": "حذف {{name}}",
+    "addTitle": "فهرست دسترسی جدید",
+    "editTitle": "ویرایش فهرست دسترسی {{name}}",
+    "deleteTitle": "فهرست دسترسی {{name}} حذف شود؟",
+    "deleteText_one": "فهرست و {{n}} قانون آن از نامزد حذف می‌شوند.",
+    "deleteText_other": "فهرست و {{n}} قانون آن از نامزد حذف می‌شوند.",
+    "deleteAttached_one": "این فهرست هنوز یک بار متصل است: اتصال را هم حذف کنید، وگرنه اعتبارسنجی هنگام اعمال شکست می‌خورد.",
+    "deleteAttached_other": "این فهرست هنوز {{n}} بار متصل است: اتصال‌ها را هم حذف کنید، وگرنه اعتبارسنجی هنگام اعمال شکست می‌خورد.",
+    "notAttached": "متصل نیست",
+    "attachment": "{{target}} · {{direction}}",
+    "attachmentDisabled": "اتصال غیرفعال است",
+    "name": "نام",
+    "nameHelp": "حروف لاتین، رقم، نقطه، خط تیره و زیرخط؛ حداکثر ۶۳ نویسه",
+    "exists": "فهرستی با این نام از قبل وجود دارد"
+  },
+  "rules": {
+    "list": "فهرست دسترسی",
+    "pickList": "برای ویرایش قانون‌ها یک فهرست انتخاب کنید.",
+    "noLists": "هنوز فهرست دسترسی‌ای وجود ندارد: از زبانهٔ فهرست‌ها یکی بسازید.",
+    "dragHandle": "قانون {{sequence}} را روی قانون دیگری بکشید تا پیش از آن قرار گیرد",
+    "off": "خاموش",
+    "on": "روشن",
+    "logOn": "بله",
+    "viewNamed": "نمایش قانون {{sequence}}",
+    "editNamed": "ویرایش قانون {{sequence}}",
+    "deleteNamed": "حذف قانون {{sequence}}",
+    "deleteTitle": "قانون {{sequence}} حذف شود؟",
+    "sourceLabel": "پیکربندی نمایش‌داده‌شده",
+    "source": {
+      "candidate": "نامزد",
+      "running": "در حال اجرا"
+    },
+    "hitsOnly": "فقط قانون‌های دارای برخورد",
+    "search": "جست‌وجوی قانون‌ها",
+    "searchHelp": "همهٔ واژه‌ها باید پیدا شوند (نشانی، شیء، درگاه، توضیح…)",
+    "add": "افزودن قانون",
+    "import": "درون‌ریزی CSV",
+    "export": "برون‌بری CSV",
+    "exportFrom": {
+      "candidate": "پیکربندی نامزد",
+      "running": "پیکربندی در حال اجرا"
+    },
+    "renumber": "شماره‌گذاری دوباره",
+    "count_one": "{{n}} قانون",
+    "count_other": "{{n}} قانون",
+    "countFiltered": "{{total}} از {{size}} قانون مطابقت دارند",
+    "notApplied": "این فهرست در VPP نیست: یا اعمال نشده یا به هیچ واسطی متصل نیست.",
+    "gridLabel": "قانون‌های {{list}}",
+    "moved": "قانون {{sequence}} پیش از قانون {{before}} قرار گرفت."
+  },
+  "status": {
+    "applied": "اعمال شده",
+    "disabled": "غیرفعال",
+    "schedule-inactive": "خارج از زمان‌بندی",
+    "empty": "با چیزی تطبیق ندارد",
+    "unknown": "نامعلوم",
+    "notCommitted": "اعمال نشده",
+    "notApplied": "در VPP نیست"
+  },
+  "bulk": {
+    "label": "عملیات گروهی",
+    "selected_one": "{{n}} قانون انتخاب شده",
+    "selected_other": "{{n}} قانون انتخاب شده",
+    "enable": "فعال‌سازی",
+    "disable": "غیرفعال‌سازی",
+    "move": "انتقال به ترتیب…",
+    "delete": "حذف",
+    "clear": "پاک کردن انتخاب",
+    "done_one": "{{n}} قانون در نامزد تغییر کرد.",
+    "done_other": "{{n}} قانون در نامزد تغییر کرد.",
+    "deleteTitle_one": "{{n}} قانون حذف شود؟",
+    "deleteTitle_other": "{{n}} قانون حذف شوند؟",
+    "deleteText": "قانون‌ها از نامزد حذف می‌شوند؛ تا زمان اعمال، چیزی در VPP تغییر نمی‌کند.",
+    "moveTitle_one": "انتقال {{n}} قانون",
+    "moveTitle_other": "انتقال {{n}} قانون",
+    "moveHelp": "قانون‌های انتخاب‌شده به ترتیب فعلی خود این شماره و شماره‌های پس از آن را می‌گیرند؛ قانون‌هایی که آن‌جا هستند پایین‌تر می‌روند.",
+    "moveTo": "ترتیب مقصد",
+    "moveRun": "انتقال"
+  },
+  "renumber": {
+    "title": "شماره‌گذاری دوبارهٔ فهرست",
+    "help": "همهٔ قانون‌های فهرست به ترتیب فعلی شمارهٔ تازه می‌گیرند: شروع، شروع + گام، …",
+    "start": "شروع",
+    "step": "گام",
+    "run": "شماره‌گذاری دوباره"
+  },
+  "rule": {
+    "addTitle": "قانون جدید",
+    "editTitle": "قانون {{sequence}}",
+    "stale": "این قانون پس از خواندن صفحه در نامزد تغییر کرده است (نشست دیگری قانون‌ها را جابه‌جا یا حذف کرده). صفحه را تازه کنید و دوباره ویرایش کنید."
+  },
+  "import": {
+    "title": "درون‌ریزی قانون‌ها به {{list}}",
+    "help": "یک فایل CSV با سطر سرآیند و حداکثر ۱۰۰٬۰۰۰ قانون (قالب: راهنمای کاربری ACL). ابتدا یک اجرای آزمایشی آن را بررسی می‌کند؛ تا درون‌ریزی نکنید چیزی نوشته نمی‌شود.",
+    "choose": "انتخاب فایل CSV",
+    "noFile": "فایلی انتخاب نشده",
+    "mode": "شیوهٔ درون‌ریزی",
+    "modes": {
+      "replace": "جایگزینی قانون‌های فهرست",
+      "append": "افزودن به انتهای فهرست"
+    },
+    "check": "بررسی (اجرای آزمایشی)",
+    "run": "درون‌ریزی",
+    "done": "{{imported}} قانون درون‌ریزی شد؛ فهرست اکنون در نامزد {{total}} قانون دارد.",
+    "resultLabel": "نتیجهٔ اجرای آزمایشی",
+    "summary": "{{rows}} سطر: {{valid}} معتبر، {{errors}} دارای خطا.",
+    "afterReplace": "{{existing}} قانون فعلی جایگزین می‌شوند؛ فهرست {{total}} قانون خواهد داشت.",
+    "afterAppend": "به {{existing}} قانون فعلی افزوده می‌شوند؛ فهرست {{total}} قانون خواهد داشت.",
+    "errors": "خطاها",
+    "line": "سطر",
+    "column": "ستون",
+    "message": "پیام",
+    "moreErrors": "{{shown}} خطا از {{total}} خطا نمایش داده شده است.",
+    "lineNo": "سطر {{line}}:",
+    "preview_one": "پیش‌نمایش {{n}} قانون نخست",
+    "preview_other": "پیش‌نمایش {{n}} قانون نخست",
+    "previewLabel": "پیش‌نمایش"
+  },
+  "attachments": {
+    "configured": "اتصال‌های پیکربندی‌شده",
+    "configuredLabel": "اتصال‌های پیکربندی‌شده",
+    "add": "اتصال یک فهرست",
+    "empty": "هنوز هیچ فهرستی متصل نشده است.",
+    "removedPending_one": "{{n}} اتصال در نامزد حذف شده است (اعمال نشده).",
+    "removedPending_other": "{{n}} اتصال در نامزد حذف شده‌اند (اعمال نشده).",
+    "editNamed": "ویرایش اتصال {{list}} به {{target}}",
+    "deleteNamed": "حذف اتصال {{list}} به {{target}}",
+    "addTitle": "اتصال یک فهرست دسترسی",
+    "editTitle": "ویرایش اتصال",
+    "deleteTitle": "اتصال حذف شود؟",
+    "deleteText": "{{list}} در نامزد از {{target}} جدا می‌شود.",
+    "live": "در VPP",
+    "liveLabel": "ACLهای هر واسط در VPP",
+    "liveHelp": "ACLهای متصل به هر واسط همان‌گونه که VPP نگه می‌دارد، به ترتیب ارزیابی. ACLهای مالکان دیگر حفظ و نمایش داده می‌شوند و این‌جا هرگز ویرایش نمی‌شوند.",
+    "liveEmpty": "هیچ واسطی ACL ندارد.",
+    "expectedIn": "ورودی: {{lists}}",
+    "expectedOut": "خروجی: {{lists}}",
+    "expectedMacip": "MACIP: {{list}}"
+  },
+  "macip": {
+    "lists": "فهرست‌های MACIP",
+    "listsLabel": "فهرست‌های MACIP",
+    "add": "فهرست MACIP جدید",
+    "empty": "هنوز فهرست MACIP وجود ندارد.",
+    "editNamed": "ویرایش {{name}}",
+    "deleteNamed": "حذف {{name}}",
+    "addTitle": "فهرست MACIP جدید",
+    "editTitle": "ویرایش فهرست MACIP {{name}}",
+    "deleteTitle": "فهرست MACIP {{name}} حذف شود؟",
+    "deleteText": "فهرست از نامزد حذف می‌شود.",
+    "deleteAttached": "فهرست از نامزد حذف می‌شود. این فهرست هنوز متصل است: اتصال را هم حذف کنید، وگرنه اعتبارسنجی هنگام اعمال شکست می‌خورد.",
+    "attachments": "اتصال‌های MACIP",
+    "attachmentsLabel": "اتصال‌های MACIP",
+    "attachmentsEmpty": "هنوز هیچ فهرست MACIP متصل نشده است.",
+    "attach": "اتصال یک فهرست MACIP",
+    "attachHelp": "فهرست‌های MACIP ترافیک ورودی را بر پایهٔ MAC و نشانی IP مبدأ پالایش می‌کنند؛ هر واسط فقط یک فهرست MACIP دارد.",
+    "attachTitle": "اتصال یک فهرست MACIP",
+    "editAttachmentTitle": "ویرایش اتصال MACIP",
+    "editAttachment": "ویرایش اتصال {{list}} به {{interface}}",
+    "deleteAttachment": "حذف اتصال {{list}} به {{interface}}",
+    "deleteAttachmentTitle": "اتصال MACIP حذف شود؟",
+    "deleteAttachmentText": "{{list}} در نامزد از {{interface}} جدا می‌شود.",
+    "onePerInterface": "{{interface}} از قبل یک فهرست MACIP دارد: هر واسط فقط یکی می‌پذیرد."
+  },
+  "entry": {
+    "stale": "نامزد پس از خواندن جدول تغییر کرده است (نشست دیگری). چیزی ذخیره نشد: ببندید، تازه کنید و دوباره تلاش کنید."
+  },
+  "variant": {
+    "any": "هر",
+    "prefix": "پیشوند",
+    "object": "شیء",
+    "inline": "پروتکل و درگاه‌ها",
+    "interface": "واسط",
+    "zone": "ناحیه",
+    "tcp|tcp-udp": "TCP / TCP و UDP",
+    "udp|sctp": "UDP / SCTP",
+    "icmp|icmp6": "ICMP / ICMPv6",
+    "other": "پروتکل IP دیگر"
+  },
+  "field": {
+    "sequence": {
+      "title": "ترتیب",
+      "help": "ترتیب ارزیابی: شمارهٔ کوچک‌تر زودتر"
+    },
+    "description": {
+      "title": "توضیح"
+    },
+    "enabled": {
+      "title": "فعال"
+    },
+    "action": {
+      "title": "کنش"
+    },
+    "ipVersion": {
+      "title": "نسخهٔ IP",
+      "help": "«IPv4 و IPv6» هر دو خانواده را پوشش می‌دهد و باید با پیشوندها و پروتکل ICMP سازگار باشد"
+    },
+    "source": {
+      "title": "مبدأ"
+    },
+    "destination": {
+      "title": "مقصد"
+    },
+    "service": {
+      "title": "سرویس"
+    },
+    "schedule": {
+      "title": "زمان‌بندی",
+      "help": "یک شیء زمان‌بندی؛ خالی = همیشه فعال"
+    },
+    "log": {
+      "title": "ثبت رویداد"
+    },
+    "prefix": {
+      "title": "پیشوند",
+      "help": "برای نمونه 10.0.0.0/24 یا 2001:db8::/32"
+    },
+    "name": {
+      "title": "شیء",
+      "help": "یک شیء یا گروه از صفحهٔ اشیا"
+    },
+    "spec": {
+      "title": "پروتکل و درگاه‌ها"
+    },
+    "protocol": {
+      "title": "پروتکل"
+    },
+    "destinationPorts": {
+      "title": "درگاه‌های مقصد",
+      "help": "443 یا 8000-8080؛ خالی = هر درگاه"
+    },
+    "sourcePorts": {
+      "title": "درگاه‌های مبدأ",
+      "help": "خالی = هر درگاه"
+    },
+    "tcpFlags": {
+      "title": "پرچم‌های TCP",
+      "help": "اختیاری، به صورت JSON: ‎{\"mask\": 18, \"value\": 2}‎ یعنی SYN روشن و ACK خاموش؛ خالی = هر پرچمی"
+    },
+    "mask": {
+      "title": "ماسک",
+      "help": "ماسک بیتی روی پرچم‌های TCP (FIN … CWR)"
+    },
+    "value": {
+      "title": "مقدار"
+    },
+    "type": {
+      "title": "نوع ICMP",
+      "help": "خالی = هر نوع"
+    },
+    "code": {
+      "title": "کد ICMP",
+      "help": "نیازمند نوع؛ خالی = هر کد"
+    },
+    "number": {
+      "title": "شمارهٔ پروتکل IP",
+      "help": "برای نمونه 47 = GRE، 50 = ESP، 89 = OSPF"
+    },
+    "tags": {
+      "title": "برچسب‌ها",
+      "help": "برچسب‌هایی از صفحهٔ اشیا"
+    },
+    "rules": {
+      "title": "قانون‌ها"
+    },
+    "list": {
+      "title": "فهرست دسترسی"
+    },
+    "target": {
+      "title": "مقصد اتصال"
+    },
+    "interface": {
+      "title": "واسط"
+    },
+    "zone": {
+      "title": "ناحیه"
+    },
+    "direction": {
+      "title": "جهت"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "باید همان VRF واسط مقصد باشد"
+    },
+    "sourceMac": {
+      "title": "MAC مبدأ"
+    },
+    "sourceMacMask": {
+      "title": "ماسک MAC مبدأ",
+      "help": "ff:ff:ff:ff:ff:ff = تطبیق دقیق"
+    },
+    "sourcePrefix": {
+      "title": "پیشوند مبدأ",
+      "help": "خالی = هر نشانی"
+    }
+  }
+}

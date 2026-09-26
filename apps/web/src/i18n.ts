@@ -65,6 +65,9 @@ import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-dashboard-prom-alarms
+// web: WEB-dashboard
+import enDashboard from './locales/en/dashboard.json';
+import faDashboard from './locales/fa/dashboard.json';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
 // wave-BC: F-licensing
@@ -171,6 +174,8 @@ export const NAMESPACES = [
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
+  // web: WEB-dashboard
+  'dashboard',
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
@@ -260,6 +265,8 @@ const en = {
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
+  // web: WEB-dashboard
+  dashboard: enDashboard,
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing
@@ -346,6 +353,8 @@ const fa = {
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
+  // web: WEB-dashboard
+  dashboard: faDashboard,
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
   // wave-BC: F-licensing

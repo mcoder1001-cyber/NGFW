@@ -762,6 +762,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/host': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Appliance host resources: CPU, memory, disks, hugepages, with 6 minutes of history */
+    get: operations['HostMetrics_hostState'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/license': {
     parameters: {
       query?: never;
@@ -1507,7 +1524,7 @@ export interface components {
     };
     /**
      * Interfaces
-     * @description Physical, virtual and sub-interfaces keyed by VPP interface name.
+     * @description Physical, virtual and sub-interfaces keyed by engine interface name.
      * @default {}
      */
     InterfacesConfig: {
@@ -2897,7 +2914,7 @@ export interface components {
       };
       /**
        * SRv6
-       * @description Segment Routing over IPv6: local SIDs, policies and steering (VPP sr).
+       * @description Segment Routing over IPv6: local SIDs, policies and steering (engine sr).
        */
       srv6?: {
         /**
@@ -4792,7 +4809,7 @@ export interface components {
          */
         settings: {
           /**
-           * VPP crypto engine
+           * Crypto engine
            * @default auto
            * @enum {string}
            */
@@ -6162,10 +6179,10 @@ export interface components {
             logQueries: boolean;
           };
         };
-        /** VPP caching DNS plugin */
+        /** Engine caching DNS plugin */
         vppCache?: {
           /**
-           * VPP DNS cache
+           * Engine DNS cache
            * @default false
            */
           enabled: boolean;
@@ -11257,6 +11274,77 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HostMetrics_hostState: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            hostname: string;
+            uptimeSec: number;
+            cpu: {
+              cores: number;
+              model: string;
+              /** @description all cores over the last sample period; null until two samples exist */
+              usagePct: number | null;
+              /** @description 1, 5 and 15 minute load averages */
+              load: [number, number, number];
+            };
+            memory: {
+              totalBytes: number;
+              usedBytes: number;
+              availableBytes: number;
+            };
+            /** @description reserved hugepages (the packet engine uses them); null when none are configured */
+            hugepages: {
+              total: number;
+              free: number;
+              sizeBytes: number;
+            } | null;
+            disks: {
+              mount: string;
+              totalBytes: number;
+              usedBytes: number;
+            }[];
+            /** @description one sample every 5 s, oldest first, up to 6 minutes */
+            history: {
+              at: number;
+              cpuPct: number | null;
+              memUsedPct: number;
+            }[];
+            sampledAt: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

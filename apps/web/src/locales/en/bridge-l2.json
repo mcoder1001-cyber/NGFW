@@ -34,7 +34,7 @@
     "role": "Role",
     "shg": "Split horizon",
     "tagRewrite": "Tag rewrite",
-    "live": "In VPP",
+    "live": "In the engine",
     "mac": "MAC",
     "type": "Type",
     "rx": "Receive on",
@@ -46,8 +46,8 @@
     "ranges": "Weekly ranges"
   },
   "status": {
-    "live": "in VPP",
-    "missing": "not in VPP"
+    "live": "in the engine",
+    "missing": "not in the engine"
   },
   "role": {
     "normal": "member",
@@ -71,7 +71,7 @@
   },
   "domain": {
     "addTitle": "New bridge domain",
-    "addHelp": "Name the bridge domain; its VPP id (1–16777215) is set in the form. Tunnels attach by this id.",
+    "addHelp": "Name the bridge domain; its engine id (1–16777215) is set in the form. Tunnels attach by this id.",
     "drawerTitle": "Bridge domain {{name}}",
     "settings": "Settings",
     "members": "Members",
@@ -81,10 +81,10 @@
     "interfacePick": "Interface",
     "interfaceHelp": "A configured interface or sub-interface (name.id)",
     "macs": "MAC table",
-    "macsHelp": "The L2 FIB as VPP holds it (learned and static entries), paged by the server.",
+    "macsHelp": "The L2 FIB as the engine holds it (learned and static entries), paged by the server.",
     "removeDomain": "Remove bridge domain",
     "removeHint": "Remove its members first",
-    "vppId": "VPP bridge domain {{id}}"
+    "vppId": "Engine bridge domain {{id}}"
   },
   "xc": {
     "l2": "L2 cross-connect",
@@ -96,7 +96,7 @@
     "pathCount": "{{count}} path(s)"
   },
   "mf": {
-    "intro": "Devices are admitted or blocked by source MAC on interfaces that have the MAC filter switched on (member form). Times use VPP's mactime clock (start-up setting mactime timezone_offset, default UTC−5 with US daylight saving).",
+    "intro": "Devices are admitted or blocked by source MAC on interfaces that have the MAC filter switched on (member form). Times use the engine's mactime clock (start-up setting mactime timezone_offset, default UTC−5 with US daylight saving).",
     "add": "Add device",
     "none": "No devices configured.",
     "always": "always",
@@ -133,7 +133,7 @@
     },
     "id": {
       "title": "Bridge-domain ID",
-      "help": "VPP id 1–16777215; tunnels reference the domain by this number"
+      "help": "Engine id 1–16777215; tunnels reference the domain by this number"
     },
     "flood": {
       "title": "Flood",

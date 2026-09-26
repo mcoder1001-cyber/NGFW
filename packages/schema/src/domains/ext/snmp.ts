@@ -79,7 +79,7 @@ export const SnmpSubagentSchema = z.strictObject({
   enabled: withUi(z.boolean().default(true), {
     title: 'VRX-MIB subagent',
     widget: 'switch',
-    help: 'Serve VPP interface counters and agent health (VRX-MIB) through AgentX',
+    help: 'Serve engine interface counters and agent health (VRX-MIB) through AgentX',
   }),
 });
 

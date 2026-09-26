@@ -65,7 +65,7 @@ export const nextHopVrf = withUi(vrfName.optional(), {
  */
 export const staticRouteViaFrr = withUi(z.boolean().optional(), {
   title: 'Program via FRR',
-  help: 'hand this route to FRR (staticd) instead of programming it in VPP directly, e.g. to redistribute it',
+  help: 'hand this route to FRR (staticd) instead of programming it in the engine directly, e.g. to redistribute it',
   group: GROUP,
   order: 7,
 });

@@ -238,7 +238,7 @@ export type InterfaceConfig = z.infer<typeof InterfaceSchema>;
 
 export const InterfacesSchema = withUi(z.record(parentInterfaceName, InterfaceSchema), {
   title: 'Interfaces',
-  description: 'Physical, virtual and sub-interfaces keyed by VPP interface name.',
+  description: 'Physical, virtual and sub-interfaces keyed by engine interface name.',
   order: 30,
 });
 

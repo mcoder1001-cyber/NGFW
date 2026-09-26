@@ -126,7 +126,7 @@ export const LbVipSchema = z
     }),
     nodePort: withUi(transportPort.optional(), {
       title: 'Node port (nat nodeport)',
-      help: 'node port of a nodeport VIP; VPP 26.06 accepts but does not use it (the API handler ignores node_port)',
+      help: 'node port of a nodeport VIP; the engine accepts but does not use it (the API handler ignores node_port)',
       order: 8,
     }),
     newFlowsTableLength: withUi(z.int().min(1).max(LB_FLOWS_TABLE_MAX).default(1024), {
@@ -213,24 +213,24 @@ export const LbSettingsSchema = z
   .strictObject({
     ip4Source: withUi(z.ipv4().optional(), {
       title: 'IPv4 source',
-      help: 'outer source of gre4 packets and SNAT source of nat4 nodeport VIPs (VPP default 255.255.255.255)',
+      help: 'outer source of gre4 packets and SNAT source of nat4 nodeport VIPs (engine default 255.255.255.255)',
       widget: 'ip',
       order: 1,
     }),
     ip6Source: withUi(z.ipv6().optional(), {
       title: 'IPv6 source',
-      help: 'outer source of gre6 packets and SNAT source of nat6 nodeport VIPs (VPP default ffff:…:ffff)',
+      help: 'outer source of gre6 packets and SNAT source of nat6 nodeport VIPs (engine default ffff:…:ffff)',
       widget: 'ip',
       order: 2,
     }),
     flowBuckets: withUi(z.int().min(1).max(LB_FLOW_BUCKETS_MAX).optional(), {
       title: 'Sticky-table buckets per worker',
-      help: 'a power of two (VPP default 1024; unset keeps the current value)',
+      help: 'a power of two (engine default 1024; unset keeps the current value)',
       order: 3,
     }),
     flowTimeoutSec: withUi(z.int().min(1).max(LB_FLOW_TIMEOUT_MAX).optional(), {
       title: 'Flow timeout (s)',
-      help: 'idle time after which a flow may move to another server (VPP default 40; unset keeps the current value)',
+      help: 'idle time after which a flow may move to another server (engine default 40; unset keeps the current value)',
       order: 4,
     }),
   })
@@ -249,7 +249,7 @@ export type LbSettingsConfig = z.infer<typeof LbSettingsSchema>;
 export const LbNatInterfaceSchema = z.strictObject({
   interface: withUi(vppInterfaceName, {
     title: 'Interface',
-    help: 'interface the application servers answer on (VPP lb-nat4-in2out / lb-nat6-in2out feature)',
+    help: 'interface the application servers answer on (engine lb-nat4-in2out / lb-nat6-in2out feature)',
     widget: 'interface-picker',
     order: 1,
   }),
@@ -269,7 +269,7 @@ export const LbSchema = z
   .strictObject({
     settings: withUi(LbSettingsSchema.optional(), {
       title: 'Settings (global)',
-      help: 'VPP-wide lb settings; applied only by the globals owner',
+      help: 'Engine-wide lb settings; applied only by the globals owner',
       order: 1,
     }),
     vips: withUi(z.record(objectName, LbVipSchema).default({}), {

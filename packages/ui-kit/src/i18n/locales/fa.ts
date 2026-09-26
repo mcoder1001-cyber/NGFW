@@ -19,7 +19,7 @@ export const fa: UiKitResource = {
     hidePassword: 'پنهان‌کردن گذرواژه',
     serverError: 'سرور این تغییر را رد کرد',
     unmappedError: 'در {{pointer}}: {{detail}}',
-    interfacePickerHelp: 'نام اینترفیس VPP، مثلاً TenGigabitEthernet0/0/0',
+    interfacePickerHelp: 'نام اینترفیس موتور، مثلاً TenGigabitEthernet0/0/0',
     optional: 'اختیاری',
     ungrouped: 'عمومی',
     itemTitle: 'مورد {{index}}',

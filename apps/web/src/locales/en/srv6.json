@@ -10,7 +10,7 @@
   "refresh": "Refresh",
   "refreshHint": "The state is read from the data plane on demand (and every 30 s).",
   "retrievedAt": "Data plane read at {{at}}",
-  "proxyNote": "Service-chaining proxies (End.AD, End.AM, End.AS) are not available: VPP 26.06 offers them only on its command line, without an API. SRv6-mobile and uSID are not supported either.",
+  "proxyNote": "Service-chaining proxies (End.AD, End.AM, End.AS) are not available: the engine offers them only on its command line, without an API. SRv6-mobile and uSID are not supported either.",
   "edit": "Edit",
   "delete": "Delete",
   "save": "Save to candidate",
@@ -68,8 +68,8 @@
     "insert": "Insert SRH"
   },
   "globals": {
-    "title": "Encapsulation settings (VPP-wide)",
-    "note": "These two settings apply to the whole VPP and only the globals owner (the product agent) applies them. VPP cannot report them back, so they never show up as live state or drift. Every encapsulating policy uses its own source, or this one."
+    "title": "Encapsulation settings (engine-wide)",
+    "note": "These two settings apply to the whole engine and only the globals owner (the product agent) applies them. The engine cannot report them back, so they never show up as live state or drift. Every encapsulating policy uses its own source, or this one."
   },
   "sidLists": {
     "title": "Segment lists",
@@ -100,7 +100,7 @@
     "prefix": "Prefix",
     "prefixHint": "IPv4 or IPv6 network, e.g. 10.4.100.0/24; IPv4 needs an encapsulating policy",
     "interface": "Interface",
-    "l2Hint": "VPP switches the interface to L2 cross-connect mode: it must not carry IP addresses",
+    "l2Hint": "The engine switches the interface to L2 cross-connect mode: it must not carry IP addresses",
     "duplicate": "This prefix or interface is already steered."
   },
   "traffic": {
@@ -152,7 +152,7 @@
       },
       "encapSource": {
         "title": "Encapsulation source",
-        "help": "Outer source address of this policy (encapsulating policies only); empty = the VPP-wide setting"
+        "help": "Outer source address of this policy (encapsulating policies only); empty = the engine-wide setting"
       }
     }
   },
@@ -163,11 +163,11 @@
     "field": {
       "encapSource": {
         "title": "Encapsulation source",
-        "help": "Outer source of encapsulating policies that set none, and VPP’s global default"
+        "help": "Outer source of encapsulating policies that set none, and the engine’s global default"
       },
       "encapHopLimit": {
         "title": "Encapsulation hop limit",
-        "help": "Hop limit of the outer IPv6 header, 1–255 (VPP default 64)"
+        "help": "Hop limit of the outer IPv6 header, 1–255 (engine default 64)"
       }
     }
   }

@@ -24,7 +24,7 @@
     "truncated": "counts stopped at the agent's scan limit"
   },
   "outbound": {
-    "intro": "Source NAT (PAT) of inside hosts to the pool addresses on the outside interfaces (VPP nat44-ed). Traffic that matches no pool is dropped unless forwarding is on. Changes go to the candidate and apply on Commit.",
+    "intro": "Source NAT (PAT) of inside hosts to the pool addresses on the outside interfaces (engine nat44-ed). Traffic that matches no pool is dropped unless forwarding is on. Changes go to the candidate and apply on Commit.",
     "enabled": {
       "auto": "Automatic (on when NAT44 is configured)",
       "on": "On",
@@ -58,7 +58,7 @@
     },
     "sessionLimit": {
       "title": "Session limit",
-      "help": "Max sessions per worker thread; empty = VPP default"
+      "help": "Max sessions per worker thread; empty = engine default"
     },
     "timeouts": { "title": "Session timeouts (seconds)" },
     "name": { "title": "Name" },

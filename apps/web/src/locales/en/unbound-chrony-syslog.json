@@ -59,19 +59,19 @@
     "editTitle": "Resolver {{name}}",
     "nameTaken": "A resolver with this name exists",
     "nameHelp": "Letters, digits, '.', '_' and '-'",
-    "vppCache": "VPP DNS cache",
-    "removeCache": "Remove the VPP cache",
+    "vppCache": "The engine DNS cache",
+    "removeCache": "Remove the engine cache",
     "cacheOn": "Enabled, upstreams {{upstreams}}.",
     "cacheOff": "Not enabled.",
-    "cacheWriteOnly": "VPP has no getter for its DNS cache: this is the configuration as committed, not a live reading.",
+    "cacheWriteOnly": "The engine has no getter for its DNS cache: this is the configuration as committed, not a live reading.",
     "cacheOwner": "This agent programs it (globals owner).",
     "cacheRequired": "Only the globals owner programs it; this agent requires it."
   },
   "lookup": {
-    "title": "Look up a name through the VPP DNS cache",
+    "title": "Look up a name through the engine DNS cache",
     "name": "Name",
     "run": "Look up",
-    "help": "Works where the VPP DNS cache is enabled (the globals owner)."
+    "help": "Works where the engine DNS cache is enabled (the globals owner)."
   },
   "ntp": {
     "config": "Configuration",
@@ -147,7 +147,7 @@
       "logQueries": "Log queries"
     },
     "vppCache": {
-      "enabled": "VPP DNS cache",
+      "enabled": "The engine DNS cache",
       "upstreams": "Upstream name servers"
     },
     "ntp": {

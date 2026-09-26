@@ -73,7 +73,7 @@
     },
     "instance": {
       "title": "Instance",
-      "help": "The VPP interface is wg<instance>"
+      "help": "The engine interface is wg<instance>"
     },
     "vrf": {
       "title": "VRF",
@@ -102,7 +102,7 @@
     },
     "routeAllowedIps": {
       "title": "Route allowed IPs",
-      "help": "Install a route via this interface for every allowed IP of its peers (VPP needs a route with a next hop inside the allowed IP)"
+      "help": "Install a route via this interface for every allowed IP of its peers (the engine needs a route with a next hop inside the allowed IP)"
     }
   },
   "peerField": {
@@ -130,5 +130,5 @@
       "help": "0 disables"
     }
   },
-  "nbmaHint": "Route allowed IPs is on for new interfaces: VPP treats a WireGuard interface as point-to-multipoint (NBMA), so traffic needs a route through it whose next hop lies inside a peer's allowed IPs. Turn it off only if you add such routes yourself; full-tunnel peers (0.0.0.0/0) need their own overlay VRF."
+  "nbmaHint": "Route allowed IPs is on for new interfaces: the engine treats a WireGuard interface as point-to-multipoint (NBMA), so traffic needs a route through it whose next hop lies inside a peer's allowed IPs. Turn it off only if you add such routes yourself; full-tunnel peers (0.0.0.0/0) need their own overlay VRF."
 }

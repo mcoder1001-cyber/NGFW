@@ -13,7 +13,7 @@ import { installFakeApi, resetSession, signIn } from './test-api';
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
-/** Signed in through the scripted fake API; queries stay disabled (the health card then shows its loading state). */
+/** Signed in through the scripted fake API; queries stay disabled (the dashboard then shows its loading state). */
 function app(path: string, options?: RouteOptions) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { enabled: false, retry: false } } });
   return <App router={createTestRouter([path], options)} streamUrl={STREAM} queryClient={queryClient} />;
@@ -53,7 +53,7 @@ describe('App frame', () => {
     for (const key of ROOT_KEYS) {
       expect(await within(nav).findByRole('link', { name: new RegExp(`^${i18n.t(`nav:domains.${key}`)}`) })).toBeVisible();
     }
-    expect(screen.getByText('Dashboard widgets (throughput, CPU, sessions, alarms, tunnel health) are not yet available.')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Traffic, all interfaces' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main');
   });
 

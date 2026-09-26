@@ -17,7 +17,7 @@ export const en = {
     hidePassword: 'Hide password',
     serverError: 'The server rejected the change',
     unmappedError: 'At {{pointer}}: {{detail}}',
-    interfacePickerHelp: 'VPP interface name, e.g. TenGigabitEthernet0/0/0',
+    interfacePickerHelp: 'Engine interface name, e.g. TenGigabitEthernet0/0/0',
     optional: 'optional',
     ungrouped: 'General',
     itemTitle: 'Item {{index}}',

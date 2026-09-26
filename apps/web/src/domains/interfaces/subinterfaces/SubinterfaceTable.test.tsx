@@ -62,7 +62,7 @@ const row = (name: string, state: unknown, config: unknown) =>
   }) as unknown as InterfaceItem;
 const ITEMS = [
   row(`${W}.100`, live(`${W}.100`, 100, 0, { linkUp: false }), { vlanId: 100, dot1ad: false }),
-  // VPP still has the old inner tag 101 (a pending tag change): the live stack is shown under the configured one
+  // the engine still has the old inner tag 101 (a pending tag change): the live stack is shown under the configured one
   row(`${W}.200`, live(`${W}.200`, 200, 101), { vlanId: 200, innerVlanId: 101, dot1ad: true }),
 ];
 
@@ -127,19 +127,19 @@ describe('SubinterfaceTable', () => {
     ]);
     expect(cells(table, `${W}.200`)).toEqual([
       `${W}.200`,
-      'dot1ad 200 · dot1q 100in VPP: dot1ad 200 · dot1q 101',
+      'dot1ad 200 · dot1q 100in the engine: dot1ad 200 · dot1q 101',
       '100',
       'Up',
       'Up',
       '10.5.200.1/24',
       '',
     ]);
-    // configured but not (yet) in VPP
+    // configured but not (yet) in the engine
     expect(cells(table, `${W}.300`)).toEqual([
       `${W}.300`,
       'dot1q 300 · dot1q 30',
       '30',
-      'not in VPP',
+      'not in the engine',
       '—',
       '',
       '',

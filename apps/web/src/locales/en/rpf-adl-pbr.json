@@ -50,7 +50,7 @@
   },
   "pbr": {
     "title": "Policy routing",
-    "intro": "Policy-based routing (VPP ABF): packets permitted by a policy's ACL are forwarded over its paths instead of the routing table. Attach a policy to the interface the packets arrive on.",
+    "intro": "Policy-based routing (engine ABF): packets permitted by a policy's ACL are forwarded over its paths instead of the routing table. Attach a policy to the interface the packets arrive on.",
     "pending": "The candidate changes policy routing: commit it with the pending-change bar.",
     "noAcl": "No access list exists yet: a policy matches packets with an ACL of Firewall › ACL.",
     "policies": "Policies",
@@ -74,13 +74,13 @@
     "noInterfaces": "No interfaces are configured.",
     "edit": "Edit uRPF and ADL of {{name}}",
     "editTitle": "Anti-spoofing on {{name}}",
-    "note": "The same settings are in the interface drawer (Interfaces › interface › Security). The allow-list binding cannot be read back from VPP: Retrieve shows only whether ADL is on.",
+    "note": "The same settings are in the interface drawer (Interfaces › interface › Security). The allow-list binding cannot be read back from the engine: Retrieve shows only whether ADL is on.",
     "physicalOnly": "ADL works on physical ports (DPDK) only; the allow-list VRF must hold the allowed source prefixes as local entries. Non-IP frames always pass.",
     "summary": "{{families}} → {{vrf}}"
   },
   "autoSdl": {
     "title": "Auto-SDL",
-    "globals": "Automatic source deny list of VPP's host stack (TCP towards the router itself). It is a VPP-global setting: only the agent that owns the globals applies it, and it needs the session layer's SDL backend."
+    "globals": "Automatic source deny list of the engine's host stack (TCP towards the router itself). It is an engine-global setting: only the agent that owns the globals applies it, and it needs the session layer's SDL backend."
   },
   "form": {
     "name": {
@@ -181,7 +181,7 @@
       },
       "defaultAllow": {
         "title": "Pass non-IP frames",
-        "help": "VPP 26.06 cannot filter non-IP frames: keep it on"
+        "help": "The engine cannot filter non-IP frames: keep it on"
       }
     },
     "autoSdl": {

@@ -62,7 +62,7 @@
   },
   "fib": {
     "title": "FIB",
-    "intro": "The live forwarding table of one VRF as VPP has it, read page by page (the agent pages it, so even a million routes load one page at a time). Each entry shows its best source and its paths. Every page is a full walk of the table in VPP, so the view is read on demand: refresh it with the button; the prefix filter applies on Enter.",
+    "intro": "The live forwarding table of one VRF as the engine has it, read page by page (the agent pages it, so even a million routes load one page at a time). Each entry shows its best source and its paths. Every page is a full walk of the table in the engine, so the view is read on demand: refresh it with the button; the prefix filter applies on Enter.",
     "vrf": "VRF",
     "family": "Family",
     "any": "any",
@@ -81,10 +81,10 @@
     "prefixApply": "Press Enter to apply",
     "retrievedAt": "read at {{time}}",
     "refresh": "Refresh",
-    "refreshHelp": "Read the FIB again (each read walks the whole table in VPP)"
+    "refreshHelp": "Read the FIB again (each read walks the whole table in the engine)"
   },
   "ping": {
-    "intro": "Ping from the data plane (VPP), not from the management host.",
+    "intro": "Ping from the data plane (the engine), not from the management host.",
     "target": "Target address",
     "targetHelp": "IPv4 or IPv6 address",
     "badTarget": "Not an IP address",
@@ -92,7 +92,7 @@
     "interval": "Interval (ms)",
     "run": "Ping",
     "running": "Pinging…",
-    "limits": "VPP's ping API pings from the default VRF only, without a source address or payload size, and holds VPP's API while it runs: count × interval is limited to 5 seconds.",
+    "limits": "The engine's ping API pings from the default VRF only, without a source address or payload size, and holds the engine's API while it runs: count × interval is limited to 5 seconds.",
     "result": "Ping result",
     "reachable": "reachable",
     "unreachable": "no reply",
@@ -108,7 +108,7 @@
   "field": {
     "id": {
       "title": "Table ID",
-      "help": "VPP FIB table id (0 is the default VRF)"
+      "help": "Engine FIB table id (0 is the default VRF)"
     },
     "description": {
       "title": "Description"

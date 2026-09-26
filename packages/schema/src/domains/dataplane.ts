@@ -68,7 +68,7 @@ export const DataplaneSchema = withUi(
   z.strictObject({
     workers: withUi(z.number().int().min(0).max(255).optional(), {
       title: 'Worker threads',
-      help: 'number of VPP worker threads; 0 = run the graph on the main thread only',
+      help: 'number of engine worker threads; 0 = run the graph on the main thread only',
       group: 'cpu',
       order: 1,
     }),
@@ -80,7 +80,7 @@ export const DataplaneSchema = withUi(
     }),
     mainCore: withUi(cpuCore.optional(), {
       title: 'Main core',
-      help: 'CPU id of the VPP main thread (must not be a worker core)',
+      help: 'CPU id of the engine main thread (must not be a worker core)',
       group: 'cpu',
       order: 3,
     }),

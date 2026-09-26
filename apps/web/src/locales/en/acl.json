@@ -36,8 +36,8 @@
     "unknown": "Unknown (agent unavailable)",
     "notCommitted": "Not committed",
     "notApplied": "Not applied",
-    "vppRules_one": "{{n}} VPP rule",
-    "vppRules_other": "{{n}} VPP rules",
+    "vppRules_one": "{{n}} engine rule",
+    "vppRules_other": "{{n}} engine rules",
     "hits": "{{packets}} packets · {{bytes}}",
     "inSync": "in sync",
     "outOfSync": "out of sync",
@@ -58,7 +58,7 @@
     "rules": "Rules",
     "attachments": "Attached to",
     "tags": "Tags",
-    "live": "In VPP",
+    "live": "In the engine",
     "hits": "Hits",
     "actions": "Actions",
     "drag": "Drag to reorder",
@@ -73,7 +73,7 @@
     "log": "Log",
     "pending": "Pending",
     "status": "Status",
-    "vppRules": "VPP rules",
+    "vppRules": "Engine rules",
     "packets": "Packets",
     "bytes": "Bytes",
     "list": "List",
@@ -120,7 +120,7 @@
     "always": "always"
   },
   "counters": {
-    "notInVpp": "This rule is not in VPP (not committed, disabled or outside its schedule)"
+    "notInVpp": "This rule is not in the engine (not committed, disabled or outside its schedule)"
   },
   "lists": {
     "add": "New list",
@@ -175,7 +175,7 @@
     "count_one": "{{n}} rule",
     "count_other": "{{n}} rules",
     "countFiltered": "{{total}} of {{size}} rules match",
-    "notApplied": "This list is not in VPP: it is not committed, or not attached to any interface.",
+    "notApplied": "This list is not in the engine: it is not committed, or not attached to any interface.",
     "gridLabel": "Rules of {{list}}",
     "moved": "Rule {{sequence}} moved before rule {{before}}."
   },
@@ -201,7 +201,7 @@
     "done_other": "{{n}} rules changed in the candidate.",
     "deleteTitle_one": "Delete {{n}} rule?",
     "deleteTitle_other": "Delete {{n}} rules?",
-    "deleteText": "The rules are removed from the candidate; nothing changes in VPP until you commit.",
+    "deleteText": "The rules are removed from the candidate; nothing changes in the engine until you commit.",
     "moveTitle_one": "Move {{n}} rule",
     "moveTitle_other": "Move {{n}} rules",
     "moveHelp": "The selected rules get this sequence and the following numbers, in their current order; rules already there move down.",
@@ -260,9 +260,9 @@
     "editTitle": "Edit attachment",
     "deleteTitle": "Remove attachment?",
     "deleteText": "{{list}} is detached from {{target}} in the candidate.",
-    "live": "In VPP",
-    "liveLabel": "ACLs per interface in VPP",
-    "liveHelp": "ACLs bound to each interface as VPP holds them, in evaluation order. ACLs of other owners are kept and shown, never edited here.",
+    "live": "In the engine",
+    "liveLabel": "ACLs per interface in the engine",
+    "liveHelp": "ACLs bound to each interface as the engine holds them, in evaluation order. ACLs of other owners are kept and shown, never edited here.",
     "liveEmpty": "No interface has an ACL.",
     "expectedIn": "in: {{lists}}",
     "expectedOut": "out: {{lists}}",

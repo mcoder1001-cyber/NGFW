@@ -1,5 +1,5 @@
 import type { paths } from '@ngfw/api-client';
-import type { WireguardInterface, WireguardPeer } from '@ngfw/schema';
+import { canonicalPrefix, type WireguardInterface, type WireguardPeer } from '@ngfw/schema';
 import type { VrxStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
@@ -170,13 +170,7 @@ export function clientConfig(opts: {
   return lines.join('\n') + '\n';
 }
 
-/** "10.0.0.1/24" → "10.0.0.0/24" (IPv4); IPv6 addresses are kept as written. */
+/** "10.0.0.1/24" → "10.0.0.0/24", "2001:db8::1/64" → "2001:db8::/64"; malformed text is kept as written. */
 export function networkOf(cidr: string): string {
-  const [addr, len] = cidr.split('/');
-  if (addr === undefined || len === undefined || addr.includes(':')) return cidr;
-  const bits = Number(len);
-  const n = addr.split('.').reduce((acc, o) => (acc << 8) + Number(o), 0) >>> 0;
-  const mask = bits === 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0;
-  const net = (n & mask) >>> 0;
-  return `${[24, 16, 8, 0].map((s) => (net >>> s) & 255).join('.')}/${bits}`;
+  return canonicalPrefix(cidr) ?? cidr;
 }

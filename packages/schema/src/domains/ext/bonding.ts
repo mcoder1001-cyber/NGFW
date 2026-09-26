@@ -87,7 +87,7 @@ export const BondMemberSchema = z.strictObject({
   }),
   weight: withUi(z.number().int().min(1).max(255).optional(), {
     title: 'Weight',
-    help: 'active-backup only: the up member with the highest weight is the active one (1–255); absent = VPP default',
+    help: 'active-backup only: the up member with the highest weight is the active one (1–255); absent = engine default',
     widget: 'number',
     group: UI_GROUP,
     order: 3,
@@ -126,7 +126,7 @@ export const BondSchema = z.strictObject({
   id: withUi(z.number().int().min(0).max(4294967294).optional(), {
     title: 'Bond ID',
     widget: 'number',
-    help: 'VPP bond id; absent = the number in the interface name (BondEthernet<id>)',
+    help: 'Engine bond id; absent = the number in the interface name (BondEthernet<id>)',
     group: UI_GROUP,
     order: 5,
   }),

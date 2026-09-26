@@ -7,8 +7,8 @@
     "flowprobe": "Flowprobe",
     "sflow": "sFlow"
   },
-  "hsflowdBanner": "sFlow: VPP samples packets on the selected interfaces, but exporting the samples to sFlow collectors needs the hsflowd daemon, which is not shipped yet. IPFIX (flowprobe) export works without it.",
-  "notGlobalsOwner": "This agent is not the owner of VPP-global settings: exporter 0, flowprobe and sFlow parameters are only checked, never set.",
+  "hsflowdBanner": "sFlow: the engine samples packets on the selected interfaces, but exporting the samples to sFlow collectors needs the hsflowd daemon, which is not shipped yet. IPFIX (flowprobe) export works without it.",
+  "notGlobalsOwner": "This agent is not the owner of engine-global settings: exporter 0, flowprobe and sFlow parameters are only checked, never set.",
   "edit": "Edit {{name}}",
   "remove": "Remove {{name}}",
   "enabled": "Enabled",
@@ -43,7 +43,7 @@
     "description": "Description"
   },
   "flowprobe": {
-    "help": "Flow records per interface, exported through exporter 0. VPP records one variant per interface: IPv4, IPv6 or L2.",
+    "help": "Flow records per interface, exported through exporter 0. The engine records one variant per interface: IPv4, IPv6 or L2.",
     "needsExporter": "Flowprobe needs an enabled exporter with an IPv4 collector.",
     "active": "Active timer (s)",
     "passive": "Passive timer (s)",

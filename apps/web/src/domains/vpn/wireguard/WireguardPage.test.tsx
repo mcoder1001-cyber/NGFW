@@ -116,6 +116,7 @@ describe('WireGuard model', () => {
 
   it('client configuration: the private key only when generated in this session; networks of the interface', () => {
     expect(networkOf('10.1.52.1/24')).toBe('10.1.52.0/24');
+    expect(networkOf('2001:DB8:0:52::1/64')).toBe('2001:db8:0:52::/64');
     const withKey = clientConfig({
       clientPrivateKey: 'CLIENTKEY=',
       peer: cfg.peers['branch']!,

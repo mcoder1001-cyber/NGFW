@@ -206,7 +206,7 @@ describe('services.dns.vppCache (D-137)', () => {
     expect(r.error!.issues).toContainEqual(
       expect.objectContaining({
         path: ['services', 'dns', 'vppCache', 'upstreams'],
-        message: 'VPP DNS cache needs at least one IPv4 upstream (VPP 26.06 defect, D-137)',
+        message: 'The engine DNS cache needs at least one IPv4 upstream (engine defect, D-137)',
       }),
     );
   });

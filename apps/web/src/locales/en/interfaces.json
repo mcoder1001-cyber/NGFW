@@ -3,7 +3,7 @@
   "intro": "Live interface table of the data plane (from the agent) with the configured view. Click a row to edit it; changes go to the candidate and apply on Commit.",
   "add": "Add interface",
   "addTitle": "Add an interface to the configuration",
-  "addHelp": "VPP interface name: host-<netdev> (af_packet lab interface), loop<N>, a NIC name or a bond. The agent creates host- and loop interfaces; other names must exist on the data plane.",
+  "addHelp": "Engine interface name: host-<netdev> (af_packet lab interface), loop<N>, a NIC name or a bond. The agent creates host- and loop interfaces; other names must exist on the data plane.",
   "addFailed": "The interface could not be added to the candidate.",
   "badName": "Letters, digits, . _ / - ; starts with a letter",
   "cancel": "Cancel",
@@ -11,7 +11,7 @@
   "loading": "Loading…",
   "readonly": "Your role can view but not change the configuration.",
   "pending": "pending",
-  "notInVpp": "not in VPP",
+  "notInVpp": "not in the engine",
   "liveChip": "Live counters: {{status}}",
   "trendLabel": "Packet rate trend of {{name}}",
   "col": {
@@ -36,7 +36,7 @@
   "drawer": {
     "label": "Interface {{name}}",
     "liveTitle": "Live state",
-    "notInVpp": "VPP has no interface with this name (yet). It appears after Commit if the agent creates it (host-, loop interfaces).",
+    "notInVpp": "The engine has no interface with this name (yet). It appears after Commit if the agent creates it (host-, loop interfaces).",
     "configTitle": "Configuration (candidate)",
     "notConfigured": "Not in the configuration: saving the form adds it to the candidate.",
     "save": "Save to candidate",

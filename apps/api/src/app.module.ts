@@ -93,6 +93,7 @@ import { wireguardFeature } from './features/wireguard/index.js';
 // wave-A: P12
 import { bgpFeature } from './features/bgp/index.js';
 // wave-A: F-kea-dhcp-relay
+import { keaDhcpRelayFeature } from './features/kea-dhcp-relay/index.js';
 // wave-A: F-unbound-chrony-syslog
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
@@ -195,6 +196,7 @@ export class AppModule {
         // wave-A: P12
         ...bgpFeature.controllers,
         // wave-A: F-kea-dhcp-relay
+        ...keaDhcpRelayFeature.controllers,
         // wave-A: F-unbound-chrony-syslog
       ],
       providers: [
@@ -281,6 +283,7 @@ export class AppModule {
         // wave-A: P12
         ...bgpFeature.providers,
         // wave-A: F-kea-dhcp-relay
+        ...keaDhcpRelayFeature.providers,
         // wave-A: F-unbound-chrony-syslog
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },

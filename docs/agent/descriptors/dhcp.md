@@ -18,6 +18,7 @@ canonical (`net/netip`), so `proto.Equal(desired, Retrieve())` is a correct diff
 | `dhcp.dhcp6-client` (IA_NA) | `dhcp.dhcp6-client/<ifname>` | `dhcp6_client_enable_disable` | **write-only** (`ErrRetrieveUnsupported`) | re-apply | `interface/<ifname>` |
 | `dhcp.dhcp6-pd-client` | `dhcp.dhcp6-pd-client/<ifname>` | `dhcp6_pd_client_enable_disable` | **write-only** | `ErrRecreate` (group change) | `interface/<ifname>` |
 | `dhcp.dhcp6-pd-address` | `dhcp.dhcp6-pd-address/<ifname>/<group>/<addr>/<len>` | `ip6_add_del_address_using_prefix` | **write-only** | re-apply (all fields are key) | `interface/<ifname>`, `dhcp.dhcp6-pd-client/<ifname>` optional |
+| `dhcp.relay` (relay record, F-kea-dhcp-relay) | `dhcp.relay/<name>` | none (agent-local JSON store `<state dir>/dhcp-relays-<owner>.json`) | stored records whose servers VPP confirms (`dhcp_proxy_dump`: rx VRF, server VRF, src) | in place (store) | its `dhcp.proxy` keys (enabled relays) |
 | `dhcp.dhcp6-duid` (singleton) | `dhcp.dhcp6-duid/global` | `dhcp6_duid_ll_set` / — (no reset in VPP: Delete is a no-op) | **write-only** | in place | — |
 
 Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned interface from `dhcp_client_dump`),
@@ -66,6 +67,19 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
 - Retrieve never reports a key twice (`dfkit.Dedupe`).
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
+
+## F-kea-dhcp-relay
+- `services.dhcp.relays.<name>` → one `dhcp.proxy` per server (enabled relays; rx VRF / server VRF resolved to table ids)
+  plus the `dhcp.relay` record: VPP has no relay object, so the name, description, client interfaces and the enabled flag
+  live in the record (the document relay is carried as deterministic protobuf, base64), reported only as far as VPP has
+  the proxies. The agent's Retrieve therefore returns the configured relay; a lost proxy shows as drift.
+- Registered in `Domains["services"]` with `WithVRFScope` = the slot's table range (`VRX_VPP_TABLE_BASE`; product: every
+  VRF): `dhcp.proxy`, `dhcp.proxy-vss`, `dhcp.relay` (not `dhcp.Register`: `dhcp.client` is P08's registration).
+- **TD-11b Q3 (claim first):** `dhcp.client` Create resolves the target, records the claim on an untagged interface
+  **before** `dhcp_client_config` and releases a claim it made when the add fails; an existing client is adopted only
+  when the claim existed before this Create (H1 kept). Before, a failing claim after the add left an unclaimed client in
+  VPP (invisible to Retrieve, skipped by Delete, later Creates `ErrNotOurs`). `client_claim_test.go` fails on the old
+  order.
 
 ## Review fixes (H1, M6, L6)
 - H1: a DHCP client (or DHCPv6 object) that exists on an untagged interface without our claim is never adopted, not even

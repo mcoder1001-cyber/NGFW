@@ -114,6 +114,14 @@
         ],
         "severity": "INFO"
       }
-    ]
+    ],
+    "user-context": {
+      "vrx": {
+        "input": "WpMCCpACCo0CCgRsYW42EoQCGgRpcHY2KgR3MC1hKgR3MC1iUu8BCgRsYW42EuYBEg5mZDAwOjY6MTA6Oi82NBoiCg9mZDAwOjY6MTA6OjEwMDASD0ZEMDA6NjoxMDo6MUZGRioMZmQwMDo2OjEwOjoxMgxmZDAwOjY6MTA6OjE6EGxhbi5leGFtcGxlLnRlc3RCDGV4YW1wbGUudGVzdFINCOgHEghoZWxsbyB2NlopCgNjYW0SIgoRYWE6YmI6Y2M6MDA6MTE6MzMaDWZkMDA6NjoxMDo6MjFaOgoDbmFzEjMSHTAwOjAxOjAwOjAxOkFBOkJCOkNDOkREOkVFOkZGGg1mZDAwOjY6MTA6OjIwIgNuYXM=",
+        "servers": [
+          "lan6"
+        ]
+      }
+    }
   }
 }

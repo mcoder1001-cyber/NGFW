@@ -28,4 +28,29 @@ decisions: the package README.
 | `servers.<name>` relay, client classes, shared networks | not rendered (relay is VPP, DF-8) |
 
 Apply: `config-set` per running server (no restart). Retrieve: `status-get`, `config-get`,
-`statistic-get-all`, `lease4/6-get-page`. CLI equivalent: none yet (API/CLI are later tasks).
+`statistic-get-all`, `lease4/6-get-page`.
+
+## In the agent (F-kea-dhcp-relay)
+
+No renderer stage exists in the agent core, so each daemon is **one singleton scheduler descriptor** (D-109 d),
+`kea.dhcp4/vrx` and `kea.dhcp6/vrx` in `Domains["services"]` (`renderers/kea/descriptor.go`):
+
+| | |
+|---|---|
+| Value | `kea.Input(document, family)`: a `vrx.v1.DesiredState` with that family's servers (enabled or not, as configured) and, for DHCPv4, the IPv4 addresses of the interfaces they name. A family without servers has no object (Delete → idle config) |
+| Render | per family (`RenderFamily`); the input is embedded in the rendered config as top-level `user-context.vrx.input` (base64 of the deterministic protobuf, plus `servers` names) |
+| Create / Update | render → `kea-dhcp<N> -t` → atomic write + `config-set`; a stopped daemon with an active config is a start request (logged; `Status` reports `action_required = "start"` on every read — D-079), not a failure |
+| Delete | the idle configuration of the family |
+| Retrieve | `config-get` (running) or the file the daemon loads at start (stopped) → embedded input → re-rendered → `ConfigDrift` against what the daemon has: equal → the input is the Value; different → a `structpb` drift Value (never equal, the reconciler re-applies). No embedded input (idle, or a foreign/commented `/etc/kea` file) → no object: never deleted or rewritten |
+| Dependencies | `interface/<name>` of every server interface (optional) |
+
+Modes (`subsystems/kea.go`, `VRX_KEA_MODE`): `product` (default; ProductPaths, no interface mapper until linux-cp — a
+server interface is refused), `test` (`TestPaths(owner)`, checkers in `VRX_KEA_NETNS` through `ip netns exec`,
+`VRX_KEA_IFMAP` explicit VPP→Linux map, no `if/addr` bindings), `off`.
+
+State (`DhcpLeases` RPC, `rpc_kea.go`): `Status` (running, active, start request, reload age, per-subnet pool usage from
+`statistic-get-all` named through the subnets' `user-context`) and `LeasePage` (`lease4/6-get-page` in pages of 1000, at
+most 100 000 per family, filtered by server subnets and text, sorted, one page returned).
+
+CLI equivalent: `vrx set|merge services dhcp …` + `vrx commit`; state through the REST routes
+(`/api/v1/state/dhcp/leases`, operation id `KeaDhcpRelay_leases`).

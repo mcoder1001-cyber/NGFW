@@ -362,6 +362,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay
+	if in["services"] {
+		desired.DHCP(p, ds, vrfID)
+	}
 	// wave-A: F-unbound-chrony-syslog
 	if in["services"] { // F-snmp (unanchored)
 		desired.Snmp(p, ds.GetServices())
@@ -376,7 +379,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor in this block)
 	if in["services"] {
 		desired.QoS(p, ds.GetServices().GetQos())
-		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (merge note: F-kea-dhcp-relay calls it too)
+		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (F-kea-dhcp-relay registers "dhcp" in desired/kea.go)
 	}
 	return p
 }
@@ -559,6 +562,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleFRR(ds, kvs)
 	}
 	// wave-A: F-kea-dhcp-relay
+	if in["services"] {
+		desired.AssembleDHCP(ds, kvs)
+	}
 	// wave-A: F-unbound-chrony-syslog
 	if in["services"] { // F-snmp (unanchored)
 		desired.AssembleSnmp(ds, kvs)

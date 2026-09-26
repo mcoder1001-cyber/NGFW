@@ -73,6 +73,7 @@ const (
 	Dataplane_NatSummary_FullMethodName        = "/vrx.v1.Dataplane/NatSummary"
 	Dataplane_WireguardState_FullMethodName    = "/vrx.v1.Dataplane/WireguardState"
 	Dataplane_RoutingState_FullMethodName      = "/vrx.v1.Dataplane/RoutingState"
+	Dataplane_DhcpLeases_FullMethodName        = "/vrx.v1.Dataplane/DhcpLeases"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -191,6 +192,10 @@ type DataplaneClient interface {
 	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
 	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
 	RoutingState(ctx context.Context, in *RoutingStateRequest, opts ...grpc.CallOption) (*RoutingStateResponse, error)
+	// DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+	// agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+	// the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+	DhcpLeases(ctx context.Context, in *DhcpLeasesRequest, opts ...grpc.CallOption) (*DhcpLeasesResponse, error)
 }
 
 type dataplaneClient struct {
@@ -498,6 +503,16 @@ func (c *dataplaneClient) RoutingState(ctx context.Context, in *RoutingStateRequ
 	return out, nil
 }
 
+func (c *dataplaneClient) DhcpLeases(ctx context.Context, in *DhcpLeasesRequest, opts ...grpc.CallOption) (*DhcpLeasesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DhcpLeasesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_DhcpLeases_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -614,6 +629,10 @@ type DataplaneServer interface {
 	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
 	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
 	RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error)
+	// DhcpLeases (F-kea-dhcp-relay) pages the Kea DHCPv4/v6 leases (lease4/6-get-page, filtered and paged by the
+	// agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
+	// the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
+	DhcpLeases(context.Context, *DhcpLeasesRequest) (*DhcpLeasesResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -704,6 +723,9 @@ func (UnimplementedDataplaneServer) WireguardState(context.Context, *WireguardSt
 }
 func (UnimplementedDataplaneServer) RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RoutingState not implemented")
+}
+func (UnimplementedDataplaneServer) DhcpLeases(context.Context, *DhcpLeasesRequest) (*DhcpLeasesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DhcpLeases not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1191,6 +1213,24 @@ func _Dataplane_RoutingState_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_DhcpLeases_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DhcpLeasesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).DhcpLeases(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_DhcpLeases_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).DhcpLeases(ctx, req.(*DhcpLeasesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1293,6 +1333,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RoutingState",
 			Handler:    _Dataplane_RoutingState_Handler,
+		},
+		{
+			MethodName: "DhcpLeases",
+			Handler:    _Dataplane_DhcpLeases_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

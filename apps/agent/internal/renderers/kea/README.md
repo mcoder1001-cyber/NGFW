@@ -59,6 +59,15 @@ strings, argv of the checkers, Apply/rollback with a fake controller. Integratio
 (10.<slot>.10.1/24), kea-dhcp4/6 inside it, all children
 killed by PID.
 
+## In the agent (F-kea-dhcp-relay)
+
+`descriptor.go`: one singleton scheduler descriptor per daemon (`kea.dhcp4/vrx`, `kea.dhcp6/vrx`, D-109 d) whose Value
+is `Input(document, family)` (`input.go`). The input is embedded in the rendered config (`user-context.vrx.input`), so
+Retrieve derives the Value from what the daemon runs (`config-get`, or the file it loads when stopped), re-renders it and
+checks `ConfigDrift` — never an echo of cached desired state (D-063). `status.go`: `Status` and `LeasePage` for the
+`DhcpLeases` RPC. `WithAddressBinding(false)` renders plain interface names (lab relay rig). See
+`docs/agent/renderers/kea.md`.
+
 ## Interfaces in the product
 
 The default `InterfaceMapper` is `NoMapper`: until the linux-cp mapping (P12) is injected with

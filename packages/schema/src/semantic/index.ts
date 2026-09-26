@@ -53,6 +53,7 @@ import { wireguardValidators } from './wireguard.js';
 // wave-A: P12
 import { bgpValidators } from './bgp.js';
 // wave-A: F-kea-dhcp-relay
+import { keaDhcpRelayValidators } from './kea-dhcp-relay.js';
 // wave-A: F-unbound-chrony-syslog
 import { snmpValidators } from './snmp.js'; // F-snmp (unanchored)
 import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchored)
@@ -121,6 +122,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: P12
   ...bgpValidators,
   // wave-A: F-kea-dhcp-relay
+  ...keaDhcpRelayValidators,
   // wave-A: F-unbound-chrony-syslog
   ...snmpValidators, // F-snmp (unanchored)
   ...hostStackValidators, // F-host-stack (unanchored)

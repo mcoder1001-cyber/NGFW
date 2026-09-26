@@ -34,6 +34,14 @@
         ],
         "severity": "INFO"
       }
-    ]
+    ],
+    "user-context": {
+      "vrx": {
+        "input": "WhUKEwoRCgNvZmYSCggAKgZlbnMxOTI=",
+        "servers": [
+          "off"
+        ]
+      }
+    }
   }
 }

@@ -10,6 +10,7 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-host-stack
   { id: 'host-stack', labelKey: 'host-stack:tab', Component: lazy(() => import('./host-stack/HostStackTab').then((m) => ({ default: m.HostStackTab }))) },
   // wave-BC: F-lb
+  { id: 'lb', labelKey: 'lb:tab', Component: lazy(async () => ({ default: (await import('./lb/LbPage')).LbPage })) },
   // wave-BC: F-qos-flat
   { id: 'qos', labelKey: 'qos-flat:tab', Component: lazy(() => import('./qos-flat/QosPage')) },
   // wave-BC: F-snmp

@@ -39,6 +39,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-lb
+import { lbFeature } from './features/lb/index.js';
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -143,6 +144,7 @@ export class AppModule {
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
+        ...lbFeature.controllers,
         // wave-BC: F-qos-flat
         ...qosFlatFeature.controllers,
         // wave-BC: F-host-stack
@@ -232,6 +234,7 @@ export class AppModule {
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
+        ...lbFeature.providers,
         // wave-BC: F-qos-flat
         ...qosFlatFeature.providers,
         // wave-BC: F-host-stack

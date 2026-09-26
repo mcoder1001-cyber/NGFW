@@ -6,6 +6,9 @@
 #   tools/app status                         pids, ports, URLs
 #   tools/app logs [agent|api|web]           tail -f the logs
 #   tools/app build                          build only
+#   tools/app reset-admin [<user>]           set a new password for the admin (default user admin); asks for it
+#   tools/app reset-db [--yes] [--no-start] [--no-agent]
+#                                            DROP the whole vrx_app database + Valkey keys, then start again (fresh admin)
 #
 # Layout: the web UI (vite preview of the production build) listens on VRX_APP_HOST:VRX_APP_WEB_PORT (default 0.0.0.0:8080)
 # and proxies /api (HTTP + WebSocket) to the API on 127.0.0.1:VRX_APP_API_PORT (default 3000). Only the web port is public;
@@ -164,6 +167,82 @@ cmd_status() {
   fi
 }
 
+# the vrx_app DSN (pg.env lives on tmpfs: recreated after a reboot; `create` is idempotent)
+load_pg() {
+  [[ -f /run/vrx-test/app/pg.env ]] || "$ROOT/deploy/dev/pg-test.sh" create app >/dev/null
+  set -a
+  # shellcheck disable=SC1091
+  . /run/vrx-test/app/pg.env
+  set +a
+}
+
+# every Valkey key of this stack (sessions, refresh chains, lockouts, rate limits)
+clear_valkey() {
+  command -v redis-cli >/dev/null || { echo "redis-cli not found: Valkey keys vrx:app:* left in place"; return 0; }
+  local n=0 k
+  while IFS= read -r k; do [[ -n "$k" ]] && redis-cli -n 0 DEL "$k" >/dev/null && n=$((n + 1)); done \
+    < <(redis-cli -n 0 --scan --pattern 'vrx:app:*')
+  echo "cleared $n Valkey keys (vrx:app:*)"
+}
+
+cmd_reset_admin() {
+  local user="${1:-admin}" pw pw2 min=12
+  [[ $EUID -eq 0 ]] || die "run as root"
+  [[ -f "$ROOT/apps/api/dist/auth/password.js" ]] || die "API not built — run tools/app build first"
+  (( WEAK_PASSWORDS )) && min=1
+  read -r -s -p "new password for '$user': " pw; echo
+  read -r -s -p "again: " pw2; echo
+  [[ "$pw" == "$pw2" ]] || die "passwords do not match"
+  (( ${#pw} >= min )) || die "at least $min characters (VRX_APP_WEAK_PASSWORDS=1 allows shorter — development only)"
+  load_pg
+  # password via the environment, never argv (ps/proc); the API's own argon2id hash. Bumping credential_gen ends every
+  # session of the user; the row is created as a bootstrap admin when it does not exist
+  ( cd "$ROOT/apps/api" && VRX_RESET_USER="$user" VRX_RESET_PW="$pw" node --input-type=module -e '
+      import pg from "pg";
+      const { hashPassword } = await import(process.cwd() + "/dist/auth/password.js");
+      const c = new pg.Client({ connectionString: process.env.VRX_PG_DSN });
+      await c.connect();
+      const u = process.env.VRX_RESET_USER, h = await hashPassword(process.env.VRX_RESET_PW);
+      const r = await c.query(
+        `insert into app_user (username, password_hash, role, source) values ($1, $2, $3, $4)
+         on conflict (username) do update set password_hash = excluded.password_hash, role = $3, disabled = false,
+           failed_logins = 0, locked_until = null, credential_gen = app_user.credential_gen + 1
+         returning (xmax = 0) as created`, [u, h, "admin", "bootstrap"]);
+      console.log(r.rows[0].created ? `created admin ${u}` : `password of ${u} reset`);
+      await c.end();
+    ' ) || die "reset failed (is the database up? the API must have started once to create the tables)"
+  # per-address login lockouts live in Valkey
+  VRX_VALKEY_DB=0 VRX_VALKEY_PREFIX=vrx:app: VRX_API_DIST="$ROOT/apps/api/dist" VRX_DATABASE_URL="$VRX_PG_DSN" \
+    "$ROOT/deploy/sbin/vrx-authctl" unlock "$user" >/dev/null 2>&1 || true
+  echo "log in as '$user' with the new password"
+}
+
+cmd_reset_db() {
+  local yes=0 start=1 up_args=(--no-build) ans
+  for a in "$@"; do case "$a" in --yes) yes=1 ;; --no-start) start=0 ;; --no-agent) up_args+=(--no-agent) ;;
+    *) die "reset-db: unknown option $a" ;; esac; done
+  [[ $EUID -eq 0 ]] || die "run as root"
+  if (( ! yes )); then
+    echo "This DELETES the database vrx_app (users, configuration history, audit log, secrets) and all vrx:app:* Valkey keys."
+    read -r -p "type 'yes' to continue: " ans; [[ "$ans" == yes ]] || die "aborted"
+  fi
+  stop_svc web; stop_svc api
+  "$ROOT/deploy/dev/pg-test.sh" drop app
+  clear_valkey
+  # the secret store's master key encrypted rows that are gone now; a new one is created at the next start
+  rm -f "$STATE/secret.key"
+  # a new first-admin password: the empty database seeds the admin from it at the next start
+  if [[ -f "$SECRETS" ]]; then
+    sed -i "s|^VRX_BOOTSTRAP_ADMIN_PASSWORD=.*|VRX_BOOTSTRAP_ADMIN_PASSWORD=$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 16)|" "$SECRETS"
+  fi
+  if (( start )); then
+    cmd_up "${up_args[@]}"
+    echo; echo "new first admin: user admin, password: $(sed -n 's/^VRX_BOOTSTRAP_ADMIN_PASSWORD=//p' "$SECRETS")"
+  else
+    echo "database dropped — tools/app up --no-build creates it again with a fresh admin (password in $SECRETS)"
+  fi
+}
+
 cmd_logs() { local s="${1:-}"; if [[ -n "$s" ]]; then tail -n 100 -f "$LOG/$s.log"; else tail -n 50 -f "$LOG"/*.log; fi; }
 
 case "${1:-}" in
@@ -172,5 +251,7 @@ case "${1:-}" in
   status) cmd_status ;;
   logs) shift; cmd_logs "$@" ;;
   build) cmd_build ;;
-  *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  reset-admin) shift; cmd_reset_admin "$@" ;;
+  reset-db) shift; cmd_reset_db "$@" ;;
+  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

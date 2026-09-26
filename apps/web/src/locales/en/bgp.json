@@ -346,7 +346,7 @@
       },
       "netns": {
         "title": "Network namespace",
-        "help": "leave empty: the linux-cp default namespace, the only one linux-nl hears; a different namespace makes the pair invisible to linux-nl (no routes reach the engine through it)"
+        "help": "leave empty: the linux-cp default namespace, the only one linux-nl hears; a different namespace makes the pair invisible to linux-nl (no routes reach engine through it)"
       }
     }
   }

@@ -78,11 +78,18 @@ func TestDNSLifecycle(t *testing.T) {
 	if len(f.Calls()) != 0 {
 		t.Fatalf("non-owner sent %d messages", len(f.Calls()))
 	}
-	on := Enable{Enabled: true}.Proto()
-	// enabling without a name server fails in VPP: the order matters
-	if _, err := en.Create(ctx, on); !dfkit.IsVPPError(err, api.NO_NAME_SERVERS) {
-		t.Fatalf("enable without servers: %v", err)
+	// D-137: enabling without an IPv4 upstream is refused before anything is sent (VPP would also refuse it without
+	// any server, NO_NAME_SERVERS, and crash with IPv6-only servers)
+	sent := len(f.Calls())
+	for _, v := range []Enable{{Enabled: true}, {Enabled: true, Upstreams: []string{"fd00:5::53"}}} {
+		if _, err := en.Create(ctx, v.Proto()); !errors.Is(err, ErrNoIPv4Upstream) {
+			t.Fatalf("enable %v: %v", v, err)
+		}
 	}
+	if len(f.Calls()) != sent {
+		t.Fatal("a refused enable sent a message")
+	}
+	on := Enable{Enabled: true, Upstreams: []string{"10.5.0.53", "fd00:5::53"}}.Proto()
 	v4 := NameServer{Address: "10.5.0.53"}.Proto()
 	v6 := NameServer{Address: "fd00:5::53"}.Proto()
 	if k := ns.KeyOf(v6); k != "dns.name-server/fd00:5::53" {
@@ -139,16 +146,16 @@ func TestResolveHelpers(t *testing.T) {
 	name := make([]byte, 256)
 	copy(name, "w5-host.example")
 	f.Reply("dns_resolve_ip", &dns.DNSResolveIPReply{Name: name})
-	ip4, ip6, err := ResolveName(context.Background(), f, "w5-host.example")
+	ip4, ip6, err := ResolveName(context.Background(), f, "w5-host.example", true)
 	if err != nil || ip4.String() != "10.5.0.9" || ip6.IsValid() {
 		t.Fatalf("resolve name: %v %v %v", ip4, ip6, err)
 	}
-	got, err := ResolveIP(context.Background(), f, netip.MustParseAddr("10.5.0.9"))
+	got, err := ResolveIP(context.Background(), f, netip.MustParseAddr("10.5.0.9"), true)
 	if err != nil || got != "w5-host.example" {
 		t.Fatalf("resolve ip: %q %v", got, err)
 	}
 	for _, bad := range []string{"", "a b", "x;rm -rf /", "$(id)", string(make([]byte, 300))} {
-		if _, _, err := ResolveName(context.Background(), f, bad); !errors.Is(err, dfkit.ErrSpec) {
+		if _, _, err := ResolveName(context.Background(), f, bad, true); !errors.Is(err, dfkit.ErrSpec) {
 			t.Errorf("%q: %v", bad, err)
 		}
 	}

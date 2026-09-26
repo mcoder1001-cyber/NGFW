@@ -111,6 +111,7 @@ func TestHostStackCoverageNotes(t *testing.T) {
 }
 
 func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
+	withServiceUnimplemented(t, "ntp") // every member has a builder since F-unbound-chrony-syslog
 	s := &hsSink{}
 	ServicesUnsupported(s, &vrxv1.ServicesConfig{ // the one services reporter (desired/qos_services.go)
 		Snmp:      &vrxv1.SnmpService{Enabled: proto.Bool(true)},
@@ -119,7 +120,7 @@ func TestUnsupportedServicesNoSilentDrop(t *testing.T) {
 		HostStack: &vrxv1.HostStackService{Enabled: proto.Bool(true)},
 		Ipfix:     &vrxv1.IpfixService{Exporters: map[string]*vrxv1.IpfixService_Exporter{"x": {}}},
 		Dhcp:      &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"x": {}}}, // projected since F-kea-dhcp-relay: not reported
-		Ntp:       &vrxv1.NtpService{Enabled: proto.Bool(true)},                       // no builder in this build
+		Ntp:       &vrxv1.NtpService{Enabled: proto.Bool(true)},                       // unregistered above
 	})
 	if got := strings.Join(s.warns, ","); got != "/services/ntp agent.unsupported-field" {
 		t.Fatalf("got %q", got)

@@ -1,4 +1,5 @@
 # Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+# vrx-input: Im0KEGxvZ3MuZXhhbXBsZS5uZXQQ8jIaA3RscyIGbm90aWNlSkkKDmNlcnQvc3lzbG9nLWNhEhJjZXJ0L3N5c2xvZy1jbGllbnQaEWtleS9zeXNsb2ctY2xpZW50KhBsb2dzLmV4YW1wbGUubmV0
 module(load="impstats" interval="1" format="json" log.file="/var/spool/rsyslog/vrx-impstats.json" log.syslog="off" resetCounters="off")
 template(name="vrx_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
 

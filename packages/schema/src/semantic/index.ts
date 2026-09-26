@@ -23,6 +23,7 @@ import { managementValidators } from './management.js';
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-srv6
+import { srv6Validators } from './srv6.js';
 // wave-BC: F-lisp
 import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
@@ -61,6 +62,8 @@ import { hostStackValidators } from './host-stack.js'; // F-host-stack (unanchor
 import { ipfixSflowValidators } from './ipfix-sflow.js';
 // F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor was seeded here)
 import { qosFlatValidators } from './qos-flat.js';
+import { unboundChronySyslogValidators } from './unbound-chrony-syslog.js';
+import { lbValidators } from './lb.js';
 
 export * from './registry.js';
 
@@ -92,6 +95,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-srv6
+  ...srv6Validators,
   // wave-BC: F-lisp
   ...lispValidators,
   // wave-BC: F-bfd-redistribution
@@ -130,6 +134,8 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...ipfixSflowValidators,
   // F-qos-flat (unanchored)
   ...qosFlatValidators,
+  ...unboundChronySyslogValidators,
+  ...lbValidators,
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

@@ -22,3 +22,19 @@ Files: `/etc/chrony/chrony.conf`, `/etc/chrony/sources.d/vrx.sources`, `/etc/chr
 
 Apply: `chronyc reload sources` / `chronyc rekey`; any chrony.conf change → typed restart request
 (`ActionRequired`). Retrieve: `chronyc -c tracking | sources | sourcestats | serverstats`. CLI equivalent: none yet.
+
+## In the agent (F-unbound-chrony-syslog)
+
+Singleton descriptor `chrony.config/vrx` (`renderers/chrony/descriptor.go`), domain `services`:
+
+| | |
+|---|---|
+| Value | `chrony.Input(services.ntp)` — the NTP service while `enabled`; no object when disabled (DryRun notes the disabled defaults) |
+| Create / Update | Render → Validate (`chronyd -p`) → Apply; a chrony.conf change is a persisted restart request (not a failure) |
+| Delete | the disabled rendering (no sources, no server) |
+| Retrieve | the input embedded in `sources.d/vrx.sources` (the reloadable file, so an input change alone never costs a restart) → re-rendered → chrony.conf, vrx.sources, chrony.keys byte-equal |
+| Refused at DryRun | `servers[].keyRef` (`agent.secret-channel-pending`: no API→agent secret channel yet), `ntsServer` (F-ntp) |
+| Ownership | `RecordsNoOwnership()` (TD-11b) |
+
+Non-owner agents: `PathsUnder(<base>/chrony/agent)`, `_chrony:_chrony 0750`, and every source line gets `port 3<slot>23` (the
+slot's NTP server), so a slot instance never queries port 123 of the host.

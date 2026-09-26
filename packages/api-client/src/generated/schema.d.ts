@@ -609,6 +609,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/lb/vips': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Load-balancer VIPs of the running configuration as VPP holds them: VPP entries (removed copies included), VIP type, servers in use or removed (agent LbState) */
+    get: operations['Lb_vips'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/lb/vips/{name}/flush': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Flush the sticky flow table of a load-balancer VIP (lb_flush_vip): established flows are re-hashed over the current servers. 409 unless the VIP is applied and has a server in use */
+    post: operations['Lb_flush'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/services/qos/policers': {
     parameters: {
       query?: never;
@@ -686,6 +720,23 @@ export interface paths {
     };
     /** IPFIX exporters, flowprobe and sFlow interfaces and sampling counters as the data plane has them (agent IpfixState) */
     get: operations['IpfixSflow_ipfix'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/srv6': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SRv6 local SIDs (with good/bad counters), policies and steering of this agent, joined with the running VRF names */
+    get: operations['Srv6_state'];
     put?: never;
     post?: never;
     delete?: never;
@@ -1269,6 +1320,91 @@ export interface paths {
     get: operations['KeaDhcpRelay_client'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/dns': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Unbound resolver state (status, stats, forwards, local zones), pending daemon actions, VPP DNS cache as configured */
+    get: operations['UnboundChronySyslog_dns'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ntp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** chronyd state: tracking, sources, source statistics, pending daemon actions */
+    get: operations['UnboundChronySyslog_ntp'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/syslog': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Remote-syslog export: per-target counters (rsyslog impstats), pending daemon actions */
+    get: operations['UnboundChronySyslog_syslog'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/logs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Log explorer (admin only): one page of the local journal, newest first (bounded scan; filters by severity, facility, text) */
+    get: operations['UnboundChronySyslog_logs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/dns-lookup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Resolve a name through the VPP DNS cache (dns_resolve_name, with a deadline); 409 unless this agent (the globals owner) enabled the VPP DNS cache with an upstream */
+    post: operations['UnboundChronySyslog_dnsLookup'];
     delete?: never;
     options?: never;
     head?: never;
@@ -2775,6 +2911,127 @@ export interface components {
             }[];
           };
         };
+      };
+      /**
+       * SRv6
+       * @description Segment Routing over IPv6: local SIDs, policies and steering (engine sr).
+       */
+      srv6?: {
+        /**
+         * Encapsulation source
+         * Format: ipv6
+         */
+        encapSource?: string;
+        /** Encapsulation hop limit */
+        encapHopLimit?: number;
+        /**
+         * Local SIDs
+         * @default {}
+         */
+        localSids: {
+          [key: string]: {
+            /**
+             * Behavior
+             * @enum {string}
+             */
+            behavior:
+              'end' | 'end.x' | 'end.t' | 'end.dx2' | 'end.dx4' | 'end.dx6' | 'end.dt4' | 'end.dt6';
+            /**
+             * Penultimate segment pop (PSP)
+             * @default false
+             */
+            psp: boolean;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /** Interface */
+            interface?: string;
+            /** Next hop */
+            nextHop?: string;
+            /** Lookup VRF */
+            lookupVrf?: string;
+          };
+        };
+        /**
+         * Policies
+         * @default {}
+         */
+        policies: {
+          [key: string]: {
+            /**
+             * Type
+             * @default default
+             * @enum {string}
+             */
+            type: 'default' | 'spray' | 'tef';
+            /**
+             * Encapsulate (H.Encaps)
+             * @default true
+             */
+            encap: boolean;
+            /**
+             * VRF
+             * @default default
+             */
+            vrf: string;
+            /**
+             * Encapsulation source
+             * Format: ipv6
+             */
+            encapSource?: string;
+            /** Segment lists */
+            sidLists: {
+              /** Segments */
+              sids: string[];
+              /**
+               * Weight
+               * @default 1
+               */
+              weight: number;
+            }[];
+          };
+        };
+        /**
+         * Steering
+         * @default []
+         */
+        steering: (
+          | {
+              /**
+               * Match
+               * @constant
+               */
+              type: 'l3';
+              /** Prefix */
+              prefix: string;
+              /**
+               * VRF
+               * @default default
+               */
+              vrf: string;
+              /**
+               * Binding SID
+               * Format: ipv6
+               */
+              bsid: string;
+            }
+          | {
+              /**
+               * Match
+               * @constant
+               */
+              type: 'l2';
+              /** Interface */
+              interface: string;
+              /**
+               * Binding SID
+               * Format: ipv6
+               */
+              bsid: string;
+            }
+        )[];
       };
       /** Neighbours */
       neighbors?: {
@@ -6780,6 +7037,99 @@ export interface components {
          */
         removeTimeoutSec: number;
       };
+      /**
+       * Load balancer
+       * @description VPP lb plugin: virtual IPs spread over application servers (GRE, L3DSR or NAT; Maglev hashing). Tier T3: no health checks, no L7. Write-only in VPP 26.06; deleted VIPs linger until the lb garbage collection (V20).
+       */
+      lb?: {
+        /** Settings (global) */
+        settings?: {
+          /**
+           * IPv4 source
+           * Format: ipv4
+           */
+          ip4Source?: string;
+          /**
+           * IPv6 source
+           * Format: ipv6
+           */
+          ip6Source?: string;
+          /** Sticky-table buckets per worker */
+          flowBuckets?: number;
+          /** Flow timeout (s) */
+          flowTimeoutSec?: number;
+        };
+        /**
+         * Virtual IPs
+         * @default {}
+         */
+        vips: {
+          [key: string]: {
+            /** VIP prefix */
+            prefix: string;
+            /**
+             * Protocol
+             * @default any
+             * @enum {string}
+             */
+            protocol: 'any' | 'tcp' | 'udp';
+            /** Port */
+            port?: number;
+            /**
+             * Encapsulation
+             * @enum {string}
+             */
+            encap: 'gre4' | 'gre6' | 'l3dsr' | 'nat4' | 'nat6';
+            /** DSCP (l3dsr) */
+            dscp?: number;
+            /**
+             * Service type (nat)
+             * @enum {string}
+             */
+            srvType?: 'clusterip' | 'nodeport';
+            /** Target port (nat) */
+            targetPort?: number;
+            /** Node port (nat nodeport) */
+            nodePort?: number;
+            /**
+             * New-flows table length
+             * @default 1024
+             */
+            newFlowsTableLength: number;
+            /**
+             * Source-IP sticky
+             * @default false
+             */
+            srcIpSticky: boolean;
+            /**
+             * Application servers
+             * @default []
+             */
+            servers: {
+              /** Address */
+              address: string;
+              /**
+               * Flush on delete
+               * @default false
+               */
+              flushOnDelete: boolean;
+            }[];
+          };
+        };
+        /**
+         * NAT interfaces
+         * @default []
+         */
+        natInterfaces: {
+          /** Interface */
+          interface: string;
+          /**
+           * Family
+           * @enum {string}
+           */
+          family: 'ip4' | 'ip6';
+        }[];
+      };
     };
     /**
      * High availability
@@ -7086,6 +7436,52 @@ export interface components {
          * @default default
          */
         vrf: string;
+        /** Facilities */
+        facilities?: (
+          | 'kern'
+          | 'user'
+          | 'mail'
+          | 'daemon'
+          | 'auth'
+          | 'syslog'
+          | 'lpr'
+          | 'news'
+          | 'uucp'
+          | 'cron'
+          | 'authpriv'
+          | 'ftp'
+          | 'local0'
+          | 'local1'
+          | 'local2'
+          | 'local3'
+          | 'local4'
+          | 'local5'
+          | 'local6'
+          | 'local7'
+        )[];
+        /**
+         * Format
+         * @enum {string}
+         */
+        format?: 'rfc5424' | 'rfc3164';
+        /** Queue size (messages) */
+        queueSize?: number;
+        /** TLS */
+        tls?: {
+          /** CA certificate (reference) */
+          caRef: string;
+          /** Client certificate (reference) */
+          certRef?: string;
+          /** Client private key (reference) */
+          keyRef?: string;
+          /**
+           * Peer authentication
+           * @enum {string}
+           */
+          authMode?: 'x509/name' | 'x509/certvalid';
+          /** Permitted peer names */
+          permittedPeers?: string[];
+        };
       }[];
     };
     /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */
@@ -9985,6 +10381,206 @@ export interface operations {
       };
     };
   };
+  Lb_vips: {
+    parameters: {
+      query?: {
+        name?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description lb_vip_dump entries in the whole VPP (every owner, removed ones included) */
+            totalVppVips: number;
+            items: {
+              /** @description services.lb.vips key */
+              name: string;
+              prefix: string;
+              /** @description any | tcp | udp (as configured; VPP 26.06 does not report it) */
+              protocol: string;
+              /** @description 0 = all ports */
+              port: number;
+              /** @description configured encapsulation */
+              encap: string;
+              /**
+               * @description active: in VPP with a server in use; not-applied: the agent has no record of creating it on this VPP instance; missing: recorded but VPP does not list it; no-servers: in VPP without a server in use
+               * @enum {string}
+               */
+              status: 'active' | 'not-applied' | 'missing' | 'no-servers';
+              /** @description the agent created the VIP on the running VPP instance (D-080 boot record) */
+              applied: boolean;
+              /** @description lb_vip_dump entries with this prefix and port; > 1 = "removed" copies until the garbage collection */
+              vppEntries: number;
+              /** @description encapsulation VPP reports (from the VIP type); "" = not in VPP */
+              vppEncap: string;
+              dscp: number;
+              targetPort: number;
+              servers: {
+                address: string;
+                /** @description LB_AS_FLAGS_USED; false = removed, waiting for the lb garbage collection (V20) */
+                inUse: boolean;
+                /** @description VPP clock (s) of the last use or removal */
+                inUseSince: number;
+                /** @description the running configuration lists this server for the VIP */
+                configured: boolean;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Lb_flush: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description services.lb.vips key */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description the flushed VIP (lb.vip/<prefix>/<protocol>/<port>) */
+            vip: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   QosFlat_policers: {
     parameters: {
       query?: {
@@ -10447,6 +11043,113 @@ export interface operations {
       };
       /** @description Not implemented */
       501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Srv6_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            localSids: {
+              sid: string;
+              /** @description end, end.x, end.t, end.dx2, end.dx4, end.dx6, end.dt4, end.dt6 */
+              behavior: string;
+              psp: boolean;
+              /** @description VRF (IPv6 table) the SID is installed in */
+              vrf: string;
+              table: number;
+              interface: string | null;
+              nextHop: string | null;
+              /** @description end.t / end.dt4 / end.dt6: the VRF the inner packet is looked up in */
+              lookupVrf: string | null;
+              lookupTable: number | null;
+              /** @description packets processed by the SID */
+              goodPackets: number;
+              goodBytes: number;
+              /** @description packets the SID dropped */
+              badPackets: number;
+              badBytes: number;
+              /** @description whether the running configuration names this SID */
+              configured: boolean;
+            }[];
+            policies: {
+              bsid: string;
+              /** @description default, spray or tef */
+              type: string;
+              encap: boolean;
+              /** @description VRF (IPv6 table) of the binding SID */
+              vrf: string;
+              table: number;
+              /** @description outer source address (encapsulating policies) */
+              encapSource: string | null;
+              sidLists: {
+                sids: string[];
+                weight: number;
+              }[];
+              configured: boolean;
+            }[];
+            steering: {
+              /** @enum {string} */
+              type: 'l3' | 'l2';
+              /** @enum {string} */
+              trafficType: 'ipv4' | 'ipv6' | 'l2';
+              prefix: string | null;
+              vrf: string | null;
+              table: number | null;
+              interface: string | null;
+              bsid: string;
+              configured: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -13685,6 +14388,553 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_dns: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            /** @description unbound answers on its control socket */
+            running: boolean;
+            status: {
+              [key: string]: string;
+            };
+            /** @description unbound-control stats_noreset */
+            stats: {
+              [key: string]: string;
+            };
+            forwards: {
+              zone: string;
+              kind: string;
+              flags: string[];
+              addresses: string[];
+            }[];
+            stubs: {
+              zone: string;
+              kind: string;
+              flags: string[];
+              addresses: string[];
+            }[];
+            localZones: {
+              zone: string;
+              type: string;
+            }[];
+            localData: string[];
+            localDataTruncated: boolean;
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            vppCache: {
+              configured: boolean;
+              /** @description the globals owner programs it (D-071) */
+              appliedByThisAgent: boolean;
+              upstreams: string[];
+              /**
+               * @description VPP has no getter for its DNS cache (D-063): configured, never read back
+               * @constant
+               */
+              live: false;
+            } | null;
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_ntp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            running: boolean;
+            tracking: {
+              refId: string;
+              refName: string;
+              stratum: number;
+              refTime: number;
+              systemTime: number;
+              lastOffset: number;
+              rmsOffset: number;
+              frequency: number;
+              residualFreq: number;
+              skew: number;
+              rootDelay: number;
+              rootDispersion: number;
+              updateInterval: number;
+              leap: string;
+            } | null;
+            sources: {
+              mode: string;
+              /** @description "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable */
+              state: string;
+              name: string;
+              stratum: number;
+              poll: number;
+              reach: string;
+              lastRx: string;
+              offset: number;
+              measured: number;
+              error: number;
+            }[];
+            sourceStats: {
+              name: string;
+              np: number;
+              nr: number;
+              span: number;
+              frequency: number;
+              freqSkew: number;
+              offset: number;
+              stdDev: number;
+            }[];
+            serverStats: {
+              [key: string]: string;
+            };
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_syslog: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            targets: {
+              index: number;
+              action: string;
+              target: string;
+              protocol: string;
+              reported: boolean;
+              processed: number;
+              failed: number;
+              suspended: number;
+              suspendedDuration: number;
+              resumed: number;
+              queueSize: number;
+              enqueued: number;
+              full: number;
+              discardedFull: number;
+              discardedNf: number;
+              maxQueueSize: number;
+            }[];
+            inputs: {
+              [key: string]: number;
+            };
+            pendingActions: {
+              daemon: string;
+              unit: string;
+              /** @description "start" | "restart" */
+              action: string;
+              reason: string;
+            }[];
+            configPath: string;
+            error: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_logs: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+        q?: string;
+        facility?:
+          | 'kern'
+          | 'user'
+          | 'mail'
+          | 'daemon'
+          | 'auth'
+          | 'syslog'
+          | 'lpr'
+          | 'news'
+          | 'uucp'
+          | 'cron'
+          | 'authpriv'
+          | 'ftp'
+          | 'local0'
+          | 'local1'
+          | 'local2'
+          | 'local3'
+          | 'local4'
+          | 'local5'
+          | 'local6'
+          | 'local7';
+        severity?:
+          'emergency' | 'alert' | 'critical' | 'error' | 'warning' | 'notice' | 'info' | 'debug';
+        since?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: {
+              time: string | null;
+              severity: string;
+              facility: string;
+              identifier: string;
+              pid: number;
+              hostname: string;
+              unit: string;
+              message: string;
+            }[];
+            page: number;
+            pageSize: number;
+            /** @description matches within the scanned window */
+            total: number;
+            scanned: number;
+            /** @description the scan stopped at its bound (5000 newest entries since `since`) */
+            truncated: boolean;
+            /** @description "journald" */
+            source: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  UnboundChronySyslog_dnsLookup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          name: string;
+          /** @description deadline (default 5000) */
+          timeoutMs?: number;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            ok: boolean;
+            addresses: {
+              /** @enum {string} */
+              type: 'A' | 'AAAA';
+              address: string;
+            }[];
+            summary: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

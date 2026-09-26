@@ -987,7 +987,11 @@ export interface ActionRequest {
    * Delete one NAT44-ED session (F-nat44-ed-sessions); one `done` line, exit_code 1 when VPP has no
    * such session.
    */
-  natSessionKill?: NatSessionKillAction | undefined;
+  natSessionKill?:
+    | NatSessionKillAction
+    | undefined;
+  /** Resolve a name through VPP's caching DNS plugin (dns_resolve_name; F-unbound-chrony-syslog). */
+  dnsLookup?: DnsLookupAction | undefined;
 }
 
 /** PingAction sends ICMP echo requests from the data plane. */
@@ -1587,6 +1591,10 @@ export interface RoutingConfig {
   /** L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none. */
   l2:
     | BridgeL2Config
+    | undefined;
+  /** SRv6 local SIDs, policies and steering (F-srv6, VPP sr); unset = not configured. */
+  srv6:
+    | Srv6Config
     | undefined;
   /** Static neighbours, neighbour-table limits and DAD (F-neighbors-ra); unset = none configured. */
   neighbors:
@@ -2434,6 +2442,10 @@ export interface ServicesConfig {
   /** VPP host stack: session layer, app namespaces, session rules, TCP source addresses, http_static (F-host-stack). */
   hostStack:
     | HostStackService
+    | undefined;
+  /** Load balancer: VIPs, application servers, NAT interfaces (VPP lb plugin, F-lb; tier T3). */
+  lb:
+    | LbService
     | undefined;
   /** Automatic source deny list of the host stack (F-rpf-adl-pbr, auto_sdl plugin, a VPP-global); unset = off. */
   autoSdl:
@@ -3745,7 +3757,24 @@ export interface SyslogTarget {
     | string
     | undefined;
   /** VRF the collector is reached through; Zod default "default". */
-  vrf?: string | undefined;
+  vrf?:
+    | string
+    | undefined;
+  /**
+   * F-unbound-chrony-syslog (D-086, the RF-4 stand-ins; numbers from wave-A-hotspots §2):
+   * facilities forwarded ("kern", "daemon", "local0" …); empty = every facility.
+   */
+  facilities: string[];
+  /** "rfc5424" | "rfc3164"; unset = rfc5424. */
+  format?:
+    | string
+    | undefined;
+  /** Messages queued while the collector is unreachable (100..1000000); unset = 10000. */
+  queueSize?:
+    | number
+    | undefined;
+  /** TLS settings; only with protocol "tls" (then required). */
+  tls: SyslogTls | undefined;
 }
 
 /**
@@ -7326,6 +7355,507 @@ export interface DhcpLeasesResponse {
   retrievedAt: Date | undefined;
 }
 
+/**
+ * SyslogTls is the TLS part of one remote-syslog target (management.syslog[i].tls). Material is
+ * referenced (D-051), never inline.
+ */
+export interface SyslogTls {
+  /** CA certificate that verifies the collector ("cert/<name>"). */
+  caRef?:
+    | string
+    | undefined;
+  /** Client certificate ("cert/<name>"); goes with key_ref. */
+  certRef?:
+    | string
+    | undefined;
+  /** Client private key ("key/<name>"); goes with cert_ref. */
+  keyRef?:
+    | string
+    | undefined;
+  /** "x509/name" | "x509/certvalid"; unset = x509/name. */
+  authMode?:
+    | string
+    | undefined;
+  /** Accepted collector certificate names (x509/name); empty = the collector host name. */
+  permittedPeers: string[];
+}
+
+/**
+ * DnsLookupAction resolves one name through VPP's DNS cache (dns_resolve_name). Works only where
+ * the VPP dns plugin is enabled (the globals owner, D-071). Output: one line per address, then
+ * done with stats "ipv4" / "ipv6".
+ */
+export interface DnsLookupAction {
+  /** DNS name (≤ 253 characters of [A-Za-z0-9.-_]; validated by the agent). */
+  name: string;
+  /** Deadline in milliseconds; 0 = 5000; max 30000. */
+  timeoutMs: number;
+}
+
+/**
+ * ServiceDaemonAction is a start/restart request a renderer returned and persisted (D-079): the
+ * files are written, the daemon applies them only after the action. It stays until the daemon's
+ * process started after the request.
+ */
+export interface ServiceDaemonAction {
+  /** "unbound" | "chronyd" | "rsyslogd". */
+  daemon: string;
+  /** systemd unit the product acts on ("unbound", "chrony", "rsyslog"). */
+  unit: string;
+  /** "start" | "restart". */
+  action: string;
+  /** Why the action is needed. */
+  reason: string;
+}
+
+/** DnsStateRequest selects the owner (same rules as ApplyRequest.owner). */
+export interface DnsStateRequest {
+  owner: string;
+}
+
+/** DnsStateResponse is one snapshot of the Unbound instance (not configuration). */
+export interface DnsStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** True when unbound answers on its control socket. */
+  running: boolean;
+  /** unbound-control status ("version", "verbosity", "uptime" …). */
+  status: { [key: string]: string };
+  /** unbound-control stats_noreset ("total.num.queries" …). */
+  stats: { [key: string]: string };
+  /** list_forwards. */
+  forwards: DnsZoneState[];
+  /** list_stubs. */
+  stubs: DnsZoneState[];
+  /** list_local_zones. */
+  localZones: DnsLocalZoneState[];
+  /** list_local_data, one record per line. */
+  localData: string[];
+  /** list_local_data exceeded the capture limit; local_data is then empty. */
+  localDataTruncated: boolean;
+  /** Pending start/restart requests of the Unbound renderer. */
+  pendingActions: ServiceDaemonAction[];
+  /** The VPP DNS cache as this agent applies it. */
+  vppCache:
+    | DnsVppCacheState
+    | undefined;
+  /** Path of the rendered unbound.conf. */
+  configPath: string;
+  /** A read error (the snapshot is partial); empty when complete. */
+  error: string;
+}
+
+export interface DnsStateResponse_StatusEntry {
+  key: string;
+  value: string;
+}
+
+export interface DnsStateResponse_StatsEntry {
+  key: string;
+  value: string;
+}
+
+/** DnsZoneState is one list_forwards / list_stubs line. */
+export interface DnsZoneState {
+  zone: string;
+  /** "forward" | "stub". */
+  kind: string;
+  /** "+i", "+t" … flags as unbound prints them. */
+  flags: string[];
+  addresses: string[];
+}
+
+/** DnsLocalZoneState is one list_local_zones line. */
+export interface DnsLocalZoneState {
+  zone: string;
+  type: string;
+}
+
+/** DnsVppCacheState: VPP's dns plugin has no getter (D-063), so the state is what this agent applied. */
+export interface DnsVppCacheState {
+  /** The running configuration enables the VPP cache. */
+  configured: boolean;
+  /** This agent is the globals owner and programs it (D-071); false = another agent does, or none. */
+  appliedByThisAgent: boolean;
+  /** Upstream name servers as configured. */
+  upstreams: string[];
+}
+
+/** NtpStateRequest selects the owner. */
+export interface NtpStateRequest {
+  owner: string;
+}
+
+/** NtpStateResponse is one snapshot of the chronyd instance. */
+export interface NtpStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** True when chronyd answers on its command socket. */
+  running: boolean;
+  /** chronyc -c tracking (unset when not running). */
+  tracking:
+    | NtpTracking
+    | undefined;
+  /** chronyc -c sources. */
+  sources: NtpSource[];
+  /** chronyc -c sourcestats. */
+  sourceStats: NtpSourceStats[];
+  /** chronyc -c serverstats (name → value). */
+  serverStats: { [key: string]: string };
+  /** Pending start/restart requests of the chrony renderer. */
+  pendingActions: ServiceDaemonAction[];
+  /** Path of the rendered chrony.conf. */
+  configPath: string;
+  /** A read error; empty when complete. */
+  error: string;
+}
+
+export interface NtpStateResponse_ServerStatsEntry {
+  key: string;
+  value: string;
+}
+
+/** NtpTracking mirrors `chronyc -c tracking` (seconds, ppm). */
+export interface NtpTracking {
+  refId: string;
+  refName: string;
+  stratum: number;
+  refTime: number;
+  systemTime: number;
+  lastOffset: number;
+  rmsOffset: number;
+  frequency: number;
+  residualFreq: number;
+  skew: number;
+  rootDelay: number;
+  rootDispersion: number;
+  updateInterval: number;
+  leap: string;
+}
+
+/** NtpSource mirrors one `chronyc -c sources` row. */
+export interface NtpSource {
+  /** "^" server, "=" peer, "#" refclock. */
+  mode: string;
+  /** "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable. */
+  state: string;
+  name: string;
+  stratum: number;
+  poll: number;
+  /** Reachability register (octal). */
+  reach: string;
+  lastRx: string;
+  offset: number;
+  measured: number;
+  error: number;
+}
+
+/** NtpSourceStats mirrors one `chronyc -c sourcestats` row. */
+export interface NtpSourceStats {
+  name: string;
+  np: number;
+  nr: number;
+  span: number;
+  frequency: number;
+  freqSkew: number;
+  offset: number;
+  stdDev: number;
+}
+
+/** SyslogStateRequest selects the owner. */
+export interface SyslogStateRequest {
+  owner: string;
+}
+
+/** SyslogStateResponse is one snapshot of the remote-syslog export (rsyslog impstats). */
+export interface SyslogStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** One entry per rendered target, in management.syslog order. */
+  targets: SyslogTargetState[];
+  /** Messages submitted per rsyslog input (imuxsock, imtcp …). */
+  inputs: { [key: string]: string };
+  /** Pending restart request of the rsyslog renderer (test slots: the slot instance). */
+  pendingActions: ServiceDaemonAction[];
+  /** Path of the rendered export file. */
+  configPath: string;
+  /** Why counters are unavailable ("no impstats yet"); empty when complete. */
+  error: string;
+}
+
+export interface SyslogStateResponse_InputsEntry {
+  key: string;
+  value: string;
+}
+
+/** SyslogTargetState is one export action as impstats reports it. */
+export interface SyslogTargetState {
+  /** Index in management.syslog. */
+  index: number;
+  /** rsyslog action name ("vrx_export_<i>_<hash>"). */
+  action: string;
+  /** "<host>:<port>". */
+  target: string;
+  /** "udp" | "tcp". */
+  protocol: string;
+  /** False when impstats has no record of the action (rsyslog not running or not reporting yet). */
+  reported: boolean;
+  processed: string;
+  failed: string;
+  suspended: string;
+  suspendedDuration: string;
+  resumed: string;
+  queueSize: string;
+  enqueued: string;
+  full: string;
+  discardedFull: string;
+  discardedNf: string;
+  maxQueueSize: string;
+}
+
+/** SyslogEntriesRequest is one log-explorer query of the local journal. */
+export interface SyslogEntriesRequest {
+  owner: string;
+  /** Oldest entry considered; unset = one hour ago. Never older than 30 days. */
+  since:
+    | Date
+    | undefined;
+  /** Minimum severity ("emergency" … "debug"); "" = all. */
+  severity: string;
+  /** Syslog facility name ("kern", "daemon", "local0" …); "" = all. */
+  facility: string;
+  /**
+   * Case-insensitive substring of the message or identifier (≤ 128 printable characters; a plain
+   * string, never a pattern); "" = all.
+   */
+  query: string;
+  /** 1-based page, newest first; 0 = 1. */
+  page: number;
+  /** Entries per page; 0 = 100; max 500. */
+  pageSize: number;
+}
+
+/** SyslogEntriesResponse is one page of journal entries, newest first. */
+export interface SyslogEntriesResponse {
+  owner: string;
+  retrievedAt: Date | undefined;
+  entries: SyslogEntry[];
+  page: number;
+  pageSize: number;
+  /** Matching entries within the scanned window. */
+  total: number;
+  /** The scan stopped at its bound (the newest `scanned` entries since `since` were searched). */
+  truncated: boolean;
+  /** Entries read from the journal. */
+  scanned: number;
+  /** "journald". */
+  source: string;
+}
+
+/** SyslogEntry is one journal entry. */
+export interface SyslogEntry {
+  time:
+    | Date
+    | undefined;
+  /** "emergency" … "debug" ("" when the entry has no priority). */
+  severity: string;
+  /** Facility name ("" when unknown). */
+  facility: string;
+  /** SYSLOG_IDENTIFIER (or _COMM). */
+  identifier: string;
+  pid: number;
+  hostname: string;
+  /** _SYSTEMD_UNIT ("" when none). */
+  unit: string;
+  /** The message (non-UTF-8 bytes replaced, at most 4096 characters). */
+  message: string;
+}
+
+/**
+ * LbService is `services.lb` (VPP lb plugin; WBS D7.9, tier T3). Every lb object is write-only in VPP
+ * 26.06 (V20, D-063): Retrieve never reports this message; LbState is the read-only live view.
+ */
+export interface LbService {
+  /** VPP-global settings (lb_conf); applied only by the globals owner (D-071). */
+  settings:
+    | LbSettings
+    | undefined;
+  /** Virtual IPs keyed by name. */
+  vips: { [key: string]: LbVip };
+  /** Interfaces with the lb NAT in2out feature (nat4/nat6 VIPs). */
+  natInterfaces: LbNatInterface[];
+}
+
+export interface LbService_VipsEntry {
+  key: string;
+  value: LbVip | undefined;
+}
+
+/** LbSettings is `services.lb.settings` (lb_conf). */
+export interface LbSettings {
+  /** Outer source of gre4 packets / SNAT source of nat4 nodeport VIPs; unset = VPP default. */
+  ip4Source?:
+    | string
+    | undefined;
+  /** Outer source of gre6 packets / SNAT source of nat6 nodeport VIPs; unset = VPP default. */
+  ip6Source?:
+    | string
+    | undefined;
+  /** Sticky-table buckets per worker (power of two); unset = keep VPP's value. */
+  flowBuckets?:
+    | number
+    | undefined;
+  /** Flow timeout in seconds; unset = keep VPP's value. */
+  flowTimeoutSec?: number | undefined;
+}
+
+/** LbVip is `services.lb.vips.<name>`. */
+export interface LbVip {
+  /** VIP prefix (CIDR, host bits zero). */
+  prefix?:
+    | string
+    | undefined;
+  /** "any" | "tcp" | "udp". */
+  protocol?:
+    | string
+    | undefined;
+  /** Destination port (tcp/udp VIPs); unset for protocol any. */
+  port?:
+    | number
+    | undefined;
+  /** "gre4" | "gre6" | "l3dsr" | "nat4" | "nat6". */
+  encap?:
+    | string
+    | undefined;
+  /** DSCP written by an l3dsr VIP. */
+  dscp?:
+    | number
+    | undefined;
+  /** "clusterip" | "nodeport" (nat4/nat6). */
+  srvType?:
+    | string
+    | undefined;
+  /** Port on the application server (nat4/nat6). */
+  targetPort?:
+    | number
+    | undefined;
+  /** Node port of a nodeport VIP (ignored by VPP 26.06). */
+  nodePort?:
+    | number
+    | undefined;
+  /** Entries of the new-flows (Maglev) table, a power of two. */
+  newFlowsTableLength?:
+    | number
+    | undefined;
+  /** Hash on the source address only. */
+  srcIpSticky?:
+    | boolean
+    | undefined;
+  /** Application servers. */
+  servers: LbServer[];
+}
+
+/** LbServer is one application server of a VIP. */
+export interface LbServer {
+  /** Server address (the encapsulation's family). */
+  address?:
+    | string
+    | undefined;
+  /** Also drop the server's sticky-table entries when it is removed. */
+  flushOnDelete?: boolean | undefined;
+}
+
+/** LbNatInterface is one entry of `services.lb.nat_interfaces`. */
+export interface LbNatInterface {
+  /** Logical interface name. */
+  interface?:
+    | string
+    | undefined;
+  /** "ip4" | "ip6". */
+  family?: string | undefined;
+}
+
+/** LbStateRequest selects VIPs by configuration name. */
+export interface LbStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** VIP names of the agent's stored desired state; empty = every configured VIP. */
+  names: string[];
+}
+
+/** LbStateResponse is one snapshot of the lb plugin for this agent's VIPs. */
+export interface LbStateResponse {
+  /** One entry per configured VIP, sorted by name. */
+  vips: LbVipState[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dumps were taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** lb_vip_dump entries in the whole VPP (every owner, "removed" ones included). */
+  totalVppVips: number;
+}
+
+/** LbServerState is one application server as lb_as_dump reports it. */
+export interface LbServerState {
+  /** Server address. */
+  address: string;
+  /** true = in use (LB_AS_FLAGS_USED); false = removed, waiting for the lb garbage collection. */
+  inUse: boolean;
+  /** VPP clock (seconds) at which the server was last used / removed. */
+  inUseSince: number;
+}
+
+/** LbVipState is the live state of one configured VIP. */
+export interface LbVipState {
+  /** Configuration name (services.lb.vips key). */
+  name: string;
+  /** Configured prefix. */
+  prefix: string;
+  /** Configured protocol (VPP 26.06 does not report it: lb_vip_details.protocol is always 0). */
+  protocol: string;
+  /** Configured port (0 = all ports). */
+  port: number;
+  /** This agent created the VIP on the running VPP instance (its D-080 boot record exists). */
+  applied: boolean;
+  /**
+   * lb_vip_dump entries with this prefix and port: 0 = not in VPP, 1 = the VIP, > 1 = the VIP plus
+   * "removed" ones (a VIP change is delete + add) until the lb garbage collection.
+   */
+  vppEntries: number;
+  /** Encapsulation VPP reports (from the VIP type): gre4, gre6, l3dsr, nat4, nat6; "" = not in VPP. */
+  encap: string;
+  /** DSCP of an l3dsr VIP as VPP reports it. */
+  dscp: number;
+  /** Target port of a nat VIP (VPP 26.06 sends it byte-swapped; the agent swaps it back). */
+  targetPort: number;
+  /** Application servers of every entry with this prefix and port (in use and removed). */
+  servers: LbServerState[];
+}
+
+/** LbFlushVipRequest names one configured VIP. */
+export interface LbFlushVipRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** VIP name in the agent's stored desired state (services.lb.vips key). */
+  name: string;
+}
+
+/** LbFlushVipResponse is the outcome of a flush. */
+export interface LbFlushVipResponse {
+  /** The VIP that was flushed (prefix/protocol/port). */
+  vip: string;
+}
+
 /** QosPolicerStateRequest selects policers of this agent. */
 export interface QosPolicerStateRequest {
   /** Must be empty or equal to the agent's owner (§6). */
@@ -7770,6 +8300,197 @@ export interface IpfixCounter {
   name: string;
   /** Value, summed over workers. */
   value: string;
+}
+
+/** Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`. */
+export interface Srv6Config {
+  /**
+   * Outer IPv6 source of encapsulating policies that set none, and VPP's global default
+   * (sr_set_encap_source; applied by the globals owner only, D-071; write-only, never retrieved).
+   */
+  encapSource?:
+    | string
+    | undefined;
+  /**
+   * Hop limit of the outer IPv6 header, 1–255 (sr_set_encap_hop_limit; VPP-wide, globals owner only,
+   * write-only). Unset = VPP's default (64).
+   */
+  encapHopLimit?:
+    | number
+    | undefined;
+  /** Local SIDs keyed by SID (canonical IPv6 address). */
+  localSids: { [key: string]: Srv6LocalSid };
+  /** SR policies keyed by binding SID (canonical IPv6 address). */
+  policies: { [key: string]: Srv6Policy };
+  /** Steering entries: a prefix of a VRF or an L2 interface into a policy's binding SID. */
+  steering: Srv6Steering[];
+}
+
+export interface Srv6Config_LocalSidsEntry {
+  key: string;
+  value: Srv6LocalSid | undefined;
+}
+
+export interface Srv6Config_PoliciesEntry {
+  key: string;
+  value: Srv6Policy | undefined;
+}
+
+/** Srv6LocalSid mirrors `routing.srv6.localSids.<sid>` (sr_localsid_add_del). */
+export interface Srv6LocalSid {
+  /** "end" | "end.x" | "end.t" | "end.dx2" | "end.dx4" | "end.dx6" | "end.dt4" | "end.dt6". */
+  behavior?:
+    | string
+    | undefined;
+  /** Penultimate segment pop (end, end.x, end.t). Zod default false. */
+  psp?:
+    | boolean
+    | undefined;
+  /** VRF (IPv6 table) the SID is installed in. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Cross-connect interface (end.x, end.dx2, end.dx4, end.dx6). */
+  interface?:
+    | string
+    | undefined;
+  /** Next hop: IPv6 for end.x / end.dx6, IPv4 for end.dx4. */
+  nextHop?:
+    | string
+    | undefined;
+  /** Lookup VRF: IPv6 table for end.t / end.dt6, IPv4 table for end.dt4. */
+  lookupVrf?: string | undefined;
+}
+
+/** Srv6Policy mirrors `routing.srv6.policies.<bsid>` (sr_policy_add_v2 / sr_policy_mod_v2 / sr_policy_del). */
+export interface Srv6Policy {
+  /** "default" | "spray" | "tef". Zod default "default". */
+  type?:
+    | string
+    | undefined;
+  /** true = H.Encaps (outer IPv6 header + SRH), false = H.Insert. Zod default true. */
+  encap?:
+    | boolean
+    | undefined;
+  /** VRF (IPv6 table) of the binding SID. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** Outer source of this encapsulating policy; unset = Srv6Config.encap_source (D-074). */
+  encapSource?:
+    | string
+    | undefined;
+  /** Segment lists (at least one). */
+  sidLists: Srv6SidList[];
+}
+
+/** Srv6SidList mirrors one entry of `routing.srv6.policies.<bsid>.sidLists`. */
+export interface Srv6SidList {
+  /** Segment IDs in order (1–16 IPv6 addresses). */
+  sids: string[];
+  /** Load-balancing weight 1–65535. Zod default 1. */
+  weight?: number | undefined;
+}
+
+/**
+ * Srv6Steering mirrors one entry of `routing.srv6.steering` (sr_steering_add_del): a discriminated
+ * union on `type`; the fields of the other variant are unset.
+ */
+export interface Srv6Steering {
+  /** "l3" (prefix + vrf) | "l2" (interface). */
+  type?:
+    | string
+    | undefined;
+  /** l3: IPv4 or IPv6 network prefix. */
+  prefix?:
+    | string
+    | undefined;
+  /** l3: VRF of the prefix. Zod default "default". */
+  vrf?:
+    | string
+    | undefined;
+  /** l2: the interface whose received frames are steered. */
+  interface?:
+    | string
+    | undefined;
+  /** Binding SID of the policy (routing.srv6.policies key). */
+  bsid?: string | undefined;
+}
+
+/** Srv6StateRequest asks for the live SRv6 state of this owner. */
+export interface Srv6StateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** Srv6StateResponse is one snapshot of this owner's SRv6 objects (status, not configuration). */
+export interface Srv6StateResponse {
+  /** Local SIDs, sorted by SID. */
+  localSids: Srv6StateLocalSid[];
+  /** Policies, sorted by binding SID. */
+  policies: Srv6StatePolicy[];
+  /** Steering entries, sorted: L3 by table and prefix, then L2 by interface. */
+  steering: Srv6StateSteering[];
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dumps were taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** Srv6StateLocalSid is one local SID as VPP has it, with its counters. */
+export interface Srv6StateLocalSid {
+  /** The SID (canonical IPv6 address). */
+  sid: string;
+  /** Behaviour, as in Srv6LocalSid.behavior ("end", "end.x", …). */
+  behavior: string;
+  psp: boolean;
+  /** IPv6 table id the SID is installed in. */
+  fibTable: number;
+  /** Cross-connect interface (logical name; "" when none). */
+  interface: string;
+  /** Next hop ("" when none). */
+  nextHop: string;
+  /** Lookup table id (end.t / end.dt4 / end.dt6; 0 otherwise). */
+  lookupTable: number;
+  /** sr_localsids_with_packet_stats_details: traffic processed by the SID ("good") and dropped ("bad"). */
+  goodPackets: string;
+  goodBytes: string;
+  badPackets: string;
+  badBytes: string;
+}
+
+/** Srv6StatePolicy is one SR policy as VPP has it. */
+export interface Srv6StatePolicy {
+  /** Binding SID (canonical IPv6 address). */
+  bsid: string;
+  /** "default" | "spray" | "tef". */
+  type: string;
+  encap: boolean;
+  /** IPv6 table id of the binding SID. */
+  fibTable: number;
+  /** Outer source address (encapsulating policies; "" otherwise). */
+  encapSource: string;
+  /** Segment lists in VPP's order. */
+  sidLists: Srv6StateSidList[];
+}
+
+/** Srv6StateSidList is one segment list of a policy. */
+export interface Srv6StateSidList {
+  sids: string[];
+  weight: number;
+}
+
+/** Srv6StateSteering is one steering entry as VPP has it. */
+export interface Srv6StateSteering {
+  /** "ipv4" | "ipv6" | "l2". */
+  trafficType: string;
+  /** L3: the steered prefix and its table id. */
+  prefix: string;
+  fibTable: number;
+  /** L2: the interface (logical name). */
+  interface: string;
+  /** Binding SID of the policy the traffic is steered into. */
+  bsid: string;
 }
 
 /** LispConfig is `tunnels.lisp` (packages/schema domains/ext/lisp.ts). */
@@ -10303,7 +11024,14 @@ export const Event_AttributesEntry: MessageFns<Event_AttributesEntry> = {
 };
 
 function createBaseActionRequest(): ActionRequest {
-  return { ping: undefined, traceroute: undefined, capture: undefined, arpFlush: undefined, natSessionKill: undefined };
+  return {
+    ping: undefined,
+    traceroute: undefined,
+    capture: undefined,
+    arpFlush: undefined,
+    natSessionKill: undefined,
+    dnsLookup: undefined,
+  };
 }
 
 export const ActionRequest: MessageFns<ActionRequest> = {
@@ -10322,6 +11050,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.natSessionKill !== undefined) {
       NatSessionKillAction.encode(message.natSessionKill, writer.uint32(42).fork()).join();
+    }
+    if (message.dnsLookup !== undefined) {
+      DnsLookupAction.encode(message.dnsLookup, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -10379,6 +11110,14 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.natSessionKill = NatSessionKillAction.decode(reader, reader.uint32());
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.dnsLookup = DnsLookupAction.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -10406,6 +11145,11 @@ export const ActionRequest: MessageFns<ActionRequest> = {
         : isSet(object.nat_session_kill)
         ? NatSessionKillAction.fromJSON(object.nat_session_kill)
         : undefined,
+      dnsLookup: isSet(object.dnsLookup)
+        ? DnsLookupAction.fromJSON(object.dnsLookup)
+        : isSet(object.dns_lookup)
+        ? DnsLookupAction.fromJSON(object.dns_lookup)
+        : undefined,
     };
   },
 
@@ -10425,6 +11169,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.natSessionKill !== undefined) {
       obj.natSessionKill = NatSessionKillAction.toJSON(message.natSessionKill);
+    }
+    if (message.dnsLookup !== undefined) {
+      obj.dnsLookup = DnsLookupAction.toJSON(message.dnsLookup);
     }
     return obj;
   },
@@ -10448,6 +11195,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.natSessionKill = (object.natSessionKill !== undefined && object.natSessionKill !== null)
       ? NatSessionKillAction.fromPartial(object.natSessionKill)
+      : undefined;
+    message.dnsLookup = (object.dnsLookup !== undefined && object.dnsLookup !== null)
+      ? DnsLookupAction.fromPartial(object.dnsLookup)
       : undefined;
     return message;
   },
@@ -14939,6 +15689,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     bfd: undefined,
     policy: undefined,
     l2: undefined,
+    srv6: undefined,
     neighbors: undefined,
     pbr: undefined,
   };
@@ -14969,6 +15720,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.l2 !== undefined) {
       BridgeL2Config.encode(message.l2, writer.uint32(162).fork()).join();
+    }
+    if (message.srv6 !== undefined) {
+      Srv6Config.encode(message.srv6, writer.uint32(138).fork()).join();
     }
     if (message.neighbors !== undefined) {
       NeighborsConfig.encode(message.neighbors, writer.uint32(82).fork()).join();
@@ -15056,6 +15810,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.l2 = BridgeL2Config.decode(reader, reader.uint32());
             continue;
           }
+          case 17: {
+            if (tag !== 138) {
+              break;
+            }
+
+            message.srv6 = Srv6Config.decode(reader, reader.uint32());
+            continue;
+          }
           case 10: {
             if (tag !== 82) {
               break;
@@ -15094,6 +15856,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
       l2: isSet(object.l2) ? BridgeL2Config.fromJSON(object.l2) : undefined,
+      srv6: isSet(object.srv6) ? Srv6Config.fromJSON(object.srv6) : undefined,
       neighbors: isSet(object.neighbors) ? NeighborsConfig.fromJSON(object.neighbors) : undefined,
       pbr: isSet(object.pbr) ? PbrConfig.fromJSON(object.pbr) : undefined,
     };
@@ -15125,6 +15888,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.l2 !== undefined) {
       obj.l2 = BridgeL2Config.toJSON(message.l2);
     }
+    if (message.srv6 !== undefined) {
+      obj.srv6 = Srv6Config.toJSON(message.srv6);
+    }
     if (message.neighbors !== undefined) {
       obj.neighbors = NeighborsConfig.toJSON(message.neighbors);
     }
@@ -15153,6 +15919,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       ? RoutingPolicy.fromPartial(object.policy)
       : undefined;
     message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Config.fromPartial(object.l2) : undefined;
+    message.srv6 = (object.srv6 !== undefined && object.srv6 !== null)
+      ? Srv6Config.fromPartial(object.srv6)
+      : undefined;
     message.neighbors = (object.neighbors !== undefined && object.neighbors !== null)
       ? NeighborsConfig.fromPartial(object.neighbors)
       : undefined;
@@ -21394,6 +22163,7 @@ function createBaseServicesConfig(): ServicesConfig {
     ntp: undefined,
     qos: undefined,
     hostStack: undefined,
+    lb: undefined,
     autoSdl: undefined,
     nsim: undefined,
   };
@@ -21424,6 +22194,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     }
     if (message.hostStack !== undefined) {
       HostStackService.encode(message.hostStack, writer.uint32(82).fork()).join();
+    }
+    if (message.lb !== undefined) {
+      LbService.encode(message.lb, writer.uint32(90).fork()).join();
     }
     if (message.autoSdl !== undefined) {
       AutoSdlConfig.encode(message.autoSdl, writer.uint32(66).fork()).join();
@@ -21511,6 +22284,14 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
             message.hostStack = HostStackService.decode(reader, reader.uint32());
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.lb = LbService.decode(reader, reader.uint32());
+            continue;
+          }
           case 8: {
             if (tag !== 66) {
               break;
@@ -21553,6 +22334,7 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
         : isSet(object.host_stack)
         ? HostStackService.fromJSON(object.host_stack)
         : undefined,
+      lb: isSet(object.lb) ? LbService.fromJSON(object.lb) : undefined,
       autoSdl: isSet(object.autoSdl)
         ? AutoSdlConfig.fromJSON(object.autoSdl)
         : isSet(object.auto_sdl)
@@ -21588,6 +22370,9 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     if (message.hostStack !== undefined) {
       obj.hostStack = HostStackService.toJSON(message.hostStack);
     }
+    if (message.lb !== undefined) {
+      obj.lb = LbService.toJSON(message.lb);
+    }
     if (message.autoSdl !== undefined) {
       obj.autoSdl = AutoSdlConfig.toJSON(message.autoSdl);
     }
@@ -21620,6 +22405,7 @@ export const ServicesConfig: MessageFns<ServicesConfig> = {
     message.hostStack = (object.hostStack !== undefined && object.hostStack !== null)
       ? HostStackService.fromPartial(object.hostStack)
       : undefined;
+    message.lb = (object.lb !== undefined && object.lb !== null) ? LbService.fromPartial(object.lb) : undefined;
     message.autoSdl = (object.autoSdl !== undefined && object.autoSdl !== null)
       ? AutoSdlConfig.fromPartial(object.autoSdl)
       : undefined;
@@ -31775,7 +32561,17 @@ export const ManagementTls: MessageFns<ManagementTls> = {
 };
 
 function createBaseSyslogTarget(): SyslogTarget {
-  return { address: undefined, port: undefined, protocol: undefined, severity: undefined, vrf: undefined };
+  return {
+    address: undefined,
+    port: undefined,
+    protocol: undefined,
+    severity: undefined,
+    vrf: undefined,
+    facilities: [],
+    format: undefined,
+    queueSize: undefined,
+    tls: undefined,
+  };
 }
 
 export const SyslogTarget: MessageFns<SyslogTarget> = {
@@ -31794,6 +32590,18 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     }
     if (message.vrf !== undefined) {
       writer.uint32(42).string(message.vrf);
+    }
+    for (const v of message.facilities) {
+      writer.uint32(50).string(v!);
+    }
+    if (message.format !== undefined) {
+      writer.uint32(58).string(message.format);
+    }
+    if (message.queueSize !== undefined) {
+      writer.uint32(64).uint32(message.queueSize);
+    }
+    if (message.tls !== undefined) {
+      SyslogTls.encode(message.tls, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -31851,6 +32659,38 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
             message.vrf = reader.string();
             continue;
           }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.facilities.push(reader.string());
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.format = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.queueSize = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.tls = SyslogTls.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -31870,6 +32710,16 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
       protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
       severity: isSet(object.severity) ? globalThis.String(object.severity) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      facilities: globalThis.Array.isArray(object?.facilities)
+        ? object.facilities.map((e: any) => globalThis.String(e))
+        : [],
+      format: isSet(object.format) ? globalThis.String(object.format) : undefined,
+      queueSize: isSet(object.queueSize)
+        ? globalThis.Number(object.queueSize)
+        : isSet(object.queue_size)
+        ? globalThis.Number(object.queue_size)
+        : undefined,
+      tls: isSet(object.tls) ? SyslogTls.fromJSON(object.tls) : undefined,
     };
   },
 
@@ -31890,6 +32740,18 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     if (message.vrf !== undefined) {
       obj.vrf = message.vrf;
     }
+    if (message.facilities?.length) {
+      obj.facilities = message.facilities;
+    }
+    if (message.format !== undefined) {
+      obj.format = message.format;
+    }
+    if (message.queueSize !== undefined) {
+      obj.queueSize = Math.round(message.queueSize);
+    }
+    if (message.tls !== undefined) {
+      obj.tls = SyslogTls.toJSON(message.tls);
+    }
     return obj;
   },
 
@@ -31903,6 +32765,10 @@ export const SyslogTarget: MessageFns<SyslogTarget> = {
     message.protocol = object.protocol ?? undefined;
     message.severity = object.severity ?? undefined;
     message.vrf = object.vrf ?? undefined;
+    message.facilities = object.facilities?.map((e) => e) || [];
+    message.format = object.format ?? undefined;
+    message.queueSize = object.queueSize ?? undefined;
+    message.tls = (object.tls !== undefined && object.tls !== null) ? SyslogTls.fromPartial(object.tls) : undefined;
     return message;
   },
 };
@@ -62178,6 +63044,5252 @@ export const DhcpLeasesResponse: MessageFns<DhcpLeasesResponse> = {
   },
 };
 
+function createBaseSyslogTls(): SyslogTls {
+  return { caRef: undefined, certRef: undefined, keyRef: undefined, authMode: undefined, permittedPeers: [] };
+}
+
+export const SyslogTls: MessageFns<SyslogTls> = {
+  encode(message: SyslogTls, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.caRef !== undefined) {
+      writer.uint32(10).string(message.caRef);
+    }
+    if (message.certRef !== undefined) {
+      writer.uint32(18).string(message.certRef);
+    }
+    if (message.keyRef !== undefined) {
+      writer.uint32(26).string(message.keyRef);
+    }
+    if (message.authMode !== undefined) {
+      writer.uint32(34).string(message.authMode);
+    }
+    for (const v of message.permittedPeers) {
+      writer.uint32(42).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogTls {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogTls();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.caRef = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.certRef = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.keyRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.authMode = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.permittedPeers.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogTls {
+    return {
+      caRef: isSet(object.caRef)
+        ? globalThis.String(object.caRef)
+        : isSet(object.ca_ref)
+        ? globalThis.String(object.ca_ref)
+        : undefined,
+      certRef: isSet(object.certRef)
+        ? globalThis.String(object.certRef)
+        : isSet(object.cert_ref)
+        ? globalThis.String(object.cert_ref)
+        : undefined,
+      keyRef: isSet(object.keyRef)
+        ? globalThis.String(object.keyRef)
+        : isSet(object.key_ref)
+        ? globalThis.String(object.key_ref)
+        : undefined,
+      authMode: isSet(object.authMode)
+        ? globalThis.String(object.authMode)
+        : isSet(object.auth_mode)
+        ? globalThis.String(object.auth_mode)
+        : undefined,
+      permittedPeers: globalThis.Array.isArray(object?.permittedPeers)
+        ? object.permittedPeers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.permitted_peers)
+        ? object.permitted_peers.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: SyslogTls): unknown {
+    const obj: any = {};
+    if (message.caRef !== undefined) {
+      obj.caRef = message.caRef;
+    }
+    if (message.certRef !== undefined) {
+      obj.certRef = message.certRef;
+    }
+    if (message.keyRef !== undefined) {
+      obj.keyRef = message.keyRef;
+    }
+    if (message.authMode !== undefined) {
+      obj.authMode = message.authMode;
+    }
+    if (message.permittedPeers?.length) {
+      obj.permittedPeers = message.permittedPeers;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogTls>): SyslogTls {
+    return SyslogTls.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogTls>): SyslogTls {
+    const message = createBaseSyslogTls();
+    message.caRef = object.caRef ?? undefined;
+    message.certRef = object.certRef ?? undefined;
+    message.keyRef = object.keyRef ?? undefined;
+    message.authMode = object.authMode ?? undefined;
+    message.permittedPeers = object.permittedPeers?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDnsLookupAction(): DnsLookupAction {
+  return { name: "", timeoutMs: 0 };
+}
+
+export const DnsLookupAction: MessageFns<DnsLookupAction> = {
+  encode(message: DnsLookupAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.timeoutMs !== 0) {
+      writer.uint32(16).uint32(message.timeoutMs);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsLookupAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsLookupAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.timeoutMs = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsLookupAction {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      timeoutMs: isSet(object.timeoutMs)
+        ? globalThis.Number(object.timeoutMs)
+        : isSet(object.timeout_ms)
+        ? globalThis.Number(object.timeout_ms)
+        : 0,
+    };
+  },
+
+  toJSON(message: DnsLookupAction): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.timeoutMs !== 0) {
+      obj.timeoutMs = Math.round(message.timeoutMs);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsLookupAction>): DnsLookupAction {
+    return DnsLookupAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsLookupAction>): DnsLookupAction {
+    const message = createBaseDnsLookupAction();
+    message.name = object.name ?? "";
+    message.timeoutMs = object.timeoutMs ?? 0;
+    return message;
+  },
+};
+
+function createBaseServiceDaemonAction(): ServiceDaemonAction {
+  return { daemon: "", unit: "", action: "", reason: "" };
+}
+
+export const ServiceDaemonAction: MessageFns<ServiceDaemonAction> = {
+  encode(message: ServiceDaemonAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.daemon !== "") {
+      writer.uint32(10).string(message.daemon);
+    }
+    if (message.unit !== "") {
+      writer.uint32(18).string(message.unit);
+    }
+    if (message.action !== "") {
+      writer.uint32(26).string(message.action);
+    }
+    if (message.reason !== "") {
+      writer.uint32(34).string(message.reason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ServiceDaemonAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseServiceDaemonAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.daemon = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.unit = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ServiceDaemonAction {
+    return {
+      daemon: isSet(object.daemon) ? globalThis.String(object.daemon) : "",
+      unit: isSet(object.unit) ? globalThis.String(object.unit) : "",
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+    };
+  },
+
+  toJSON(message: ServiceDaemonAction): unknown {
+    const obj: any = {};
+    if (message.daemon !== "") {
+      obj.daemon = message.daemon;
+    }
+    if (message.unit !== "") {
+      obj.unit = message.unit;
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ServiceDaemonAction>): ServiceDaemonAction {
+    return ServiceDaemonAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ServiceDaemonAction>): ServiceDaemonAction {
+    const message = createBaseServiceDaemonAction();
+    message.daemon = object.daemon ?? "";
+    message.unit = object.unit ?? "";
+    message.action = object.action ?? "";
+    message.reason = object.reason ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateRequest(): DnsStateRequest {
+  return { owner: "" };
+}
+
+export const DnsStateRequest: MessageFns<DnsStateRequest> = {
+  encode(message: DnsStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: DnsStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateRequest>): DnsStateRequest {
+    return DnsStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateRequest>): DnsStateRequest {
+    const message = createBaseDnsStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse(): DnsStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    running: false,
+    status: {},
+    stats: {},
+    forwards: [],
+    stubs: [],
+    localZones: [],
+    localData: [],
+    localDataTruncated: false,
+    pendingActions: [],
+    vppCache: undefined,
+    configPath: "",
+    error: "",
+  };
+}
+
+export const DnsStateResponse: MessageFns<DnsStateResponse> = {
+  encode(message: DnsStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.running !== false) {
+      writer.uint32(24).bool(message.running);
+    }
+    globalThis.Object.entries(message.status).forEach(([key, value]: [string, string]) => {
+      DnsStateResponse_StatusEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    globalThis.Object.entries(message.stats).forEach(([key, value]: [string, string]) => {
+      DnsStateResponse_StatsEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).join();
+    });
+    for (const v of message.forwards) {
+      DnsZoneState.encode(v!, writer.uint32(50).fork()).join();
+    }
+    for (const v of message.stubs) {
+      DnsZoneState.encode(v!, writer.uint32(58).fork()).join();
+    }
+    for (const v of message.localZones) {
+      DnsLocalZoneState.encode(v!, writer.uint32(66).fork()).join();
+    }
+    for (const v of message.localData) {
+      writer.uint32(74).string(v!);
+    }
+    if (message.localDataTruncated !== false) {
+      writer.uint32(80).bool(message.localDataTruncated);
+    }
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(90).fork()).join();
+    }
+    if (message.vppCache !== undefined) {
+      DnsVppCacheState.encode(message.vppCache, writer.uint32(98).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(106).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(114).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.running = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = DnsStateResponse_StatusEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.status[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            const entry5 = DnsStateResponse_StatsEntry.decode(reader, reader.uint32());
+            if (entry5.value !== undefined) {
+              message.stats[entry5.key] = entry5.value;
+            }
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.forwards.push(DnsZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.stubs.push(DnsZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.localZones.push(DnsLocalZoneState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.localData.push(reader.string());
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.localDataTruncated = reader.bool();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.vppCache = DnsVppCacheState.decode(reader, reader.uint32());
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      running: isSet(object.running) ? globalThis.Boolean(object.running) : false,
+      status: isObject(object.status)
+        ? (globalThis.Object.entries(object.status) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      stats: isObject(object.stats)
+        ? (globalThis.Object.entries(object.stats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      forwards: globalThis.Array.isArray(object?.forwards)
+        ? object.forwards.map((e: any) => DnsZoneState.fromJSON(e))
+        : [],
+      stubs: globalThis.Array.isArray(object?.stubs) ? object.stubs.map((e: any) => DnsZoneState.fromJSON(e)) : [],
+      localZones: globalThis.Array.isArray(object?.localZones)
+        ? object.localZones.map((e: any) => DnsLocalZoneState.fromJSON(e))
+        : globalThis.Array.isArray(object?.local_zones)
+        ? object.local_zones.map((e: any) => DnsLocalZoneState.fromJSON(e))
+        : [],
+      localData: globalThis.Array.isArray(object?.localData)
+        ? object.localData.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.local_data)
+        ? object.local_data.map((e: any) => globalThis.String(e))
+        : [],
+      localDataTruncated: isSet(object.localDataTruncated)
+        ? globalThis.Boolean(object.localDataTruncated)
+        : isSet(object.local_data_truncated)
+        ? globalThis.Boolean(object.local_data_truncated)
+        : false,
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      vppCache: isSet(object.vppCache)
+        ? DnsVppCacheState.fromJSON(object.vppCache)
+        : isSet(object.vpp_cache)
+        ? DnsVppCacheState.fromJSON(object.vpp_cache)
+        : undefined,
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.running !== false) {
+      obj.running = message.running;
+    }
+    if (message.status) {
+      const entries = globalThis.Object.entries(message.status) as [string, string][];
+      if (entries.length > 0) {
+        obj.status = {};
+        entries.forEach(([k, v]) => {
+          obj.status[k] = v;
+        });
+      }
+    }
+    if (message.stats) {
+      const entries = globalThis.Object.entries(message.stats) as [string, string][];
+      if (entries.length > 0) {
+        obj.stats = {};
+        entries.forEach(([k, v]) => {
+          obj.stats[k] = v;
+        });
+      }
+    }
+    if (message.forwards?.length) {
+      obj.forwards = message.forwards.map((e) => DnsZoneState.toJSON(e));
+    }
+    if (message.stubs?.length) {
+      obj.stubs = message.stubs.map((e) => DnsZoneState.toJSON(e));
+    }
+    if (message.localZones?.length) {
+      obj.localZones = message.localZones.map((e) => DnsLocalZoneState.toJSON(e));
+    }
+    if (message.localData?.length) {
+      obj.localData = message.localData;
+    }
+    if (message.localDataTruncated !== false) {
+      obj.localDataTruncated = message.localDataTruncated;
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.vppCache !== undefined) {
+      obj.vppCache = DnsVppCacheState.toJSON(message.vppCache);
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse>): DnsStateResponse {
+    return DnsStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse>): DnsStateResponse {
+    const message = createBaseDnsStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.running = object.running ?? false;
+    message.status = (globalThis.Object.entries(object.status ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.stats = (globalThis.Object.entries(object.stats ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.forwards = object.forwards?.map((e) => DnsZoneState.fromPartial(e)) || [];
+    message.stubs = object.stubs?.map((e) => DnsZoneState.fromPartial(e)) || [];
+    message.localZones = object.localZones?.map((e) => DnsLocalZoneState.fromPartial(e)) || [];
+    message.localData = object.localData?.map((e) => e) || [];
+    message.localDataTruncated = object.localDataTruncated ?? false;
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.vppCache = (object.vppCache !== undefined && object.vppCache !== null)
+      ? DnsVppCacheState.fromPartial(object.vppCache)
+      : undefined;
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse_StatusEntry(): DnsStateResponse_StatusEntry {
+  return { key: "", value: "" };
+}
+
+export const DnsStateResponse_StatusEntry: MessageFns<DnsStateResponse_StatusEntry> = {
+  encode(message: DnsStateResponse_StatusEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse_StatusEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse_StatusEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse_StatusEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse_StatusEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse_StatusEntry>): DnsStateResponse_StatusEntry {
+    return DnsStateResponse_StatusEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse_StatusEntry>): DnsStateResponse_StatusEntry {
+    const message = createBaseDnsStateResponse_StatusEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsStateResponse_StatsEntry(): DnsStateResponse_StatsEntry {
+  return { key: "", value: "" };
+}
+
+export const DnsStateResponse_StatsEntry: MessageFns<DnsStateResponse_StatsEntry> = {
+  encode(message: DnsStateResponse_StatsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsStateResponse_StatsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsStateResponse_StatsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsStateResponse_StatsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: DnsStateResponse_StatsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsStateResponse_StatsEntry>): DnsStateResponse_StatsEntry {
+    return DnsStateResponse_StatsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsStateResponse_StatsEntry>): DnsStateResponse_StatsEntry {
+    const message = createBaseDnsStateResponse_StatsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsZoneState(): DnsZoneState {
+  return { zone: "", kind: "", flags: [], addresses: [] };
+}
+
+export const DnsZoneState: MessageFns<DnsZoneState> = {
+  encode(message: DnsZoneState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.zone !== "") {
+      writer.uint32(10).string(message.zone);
+    }
+    if (message.kind !== "") {
+      writer.uint32(18).string(message.kind);
+    }
+    for (const v of message.flags) {
+      writer.uint32(26).string(v!);
+    }
+    for (const v of message.addresses) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsZoneState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsZoneState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.zone = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.flags.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.addresses.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsZoneState {
+    return {
+      zone: isSet(object.zone) ? globalThis.String(object.zone) : "",
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      flags: globalThis.Array.isArray(object?.flags) ? object.flags.map((e: any) => globalThis.String(e)) : [],
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: DnsZoneState): unknown {
+    const obj: any = {};
+    if (message.zone !== "") {
+      obj.zone = message.zone;
+    }
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.flags?.length) {
+      obj.flags = message.flags;
+    }
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsZoneState>): DnsZoneState {
+    return DnsZoneState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsZoneState>): DnsZoneState {
+    const message = createBaseDnsZoneState();
+    message.zone = object.zone ?? "";
+    message.kind = object.kind ?? "";
+    message.flags = object.flags?.map((e) => e) || [];
+    message.addresses = object.addresses?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseDnsLocalZoneState(): DnsLocalZoneState {
+  return { zone: "", type: "" };
+}
+
+export const DnsLocalZoneState: MessageFns<DnsLocalZoneState> = {
+  encode(message: DnsLocalZoneState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.zone !== "") {
+      writer.uint32(10).string(message.zone);
+    }
+    if (message.type !== "") {
+      writer.uint32(18).string(message.type);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsLocalZoneState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsLocalZoneState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.zone = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsLocalZoneState {
+    return {
+      zone: isSet(object.zone) ? globalThis.String(object.zone) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+    };
+  },
+
+  toJSON(message: DnsLocalZoneState): unknown {
+    const obj: any = {};
+    if (message.zone !== "") {
+      obj.zone = message.zone;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsLocalZoneState>): DnsLocalZoneState {
+    return DnsLocalZoneState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsLocalZoneState>): DnsLocalZoneState {
+    const message = createBaseDnsLocalZoneState();
+    message.zone = object.zone ?? "";
+    message.type = object.type ?? "";
+    return message;
+  },
+};
+
+function createBaseDnsVppCacheState(): DnsVppCacheState {
+  return { configured: false, appliedByThisAgent: false, upstreams: [] };
+}
+
+export const DnsVppCacheState: MessageFns<DnsVppCacheState> = {
+  encode(message: DnsVppCacheState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.configured !== false) {
+      writer.uint32(8).bool(message.configured);
+    }
+    if (message.appliedByThisAgent !== false) {
+      writer.uint32(16).bool(message.appliedByThisAgent);
+    }
+    for (const v of message.upstreams) {
+      writer.uint32(26).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DnsVppCacheState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDnsVppCacheState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.appliedByThisAgent = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.upstreams.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DnsVppCacheState {
+    return {
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      appliedByThisAgent: isSet(object.appliedByThisAgent)
+        ? globalThis.Boolean(object.appliedByThisAgent)
+        : isSet(object.applied_by_this_agent)
+        ? globalThis.Boolean(object.applied_by_this_agent)
+        : false,
+      upstreams: globalThis.Array.isArray(object?.upstreams)
+        ? object.upstreams.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: DnsVppCacheState): unknown {
+    const obj: any = {};
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.appliedByThisAgent !== false) {
+      obj.appliedByThisAgent = message.appliedByThisAgent;
+    }
+    if (message.upstreams?.length) {
+      obj.upstreams = message.upstreams;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DnsVppCacheState>): DnsVppCacheState {
+    return DnsVppCacheState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DnsVppCacheState>): DnsVppCacheState {
+    const message = createBaseDnsVppCacheState();
+    message.configured = object.configured ?? false;
+    message.appliedByThisAgent = object.appliedByThisAgent ?? false;
+    message.upstreams = object.upstreams?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseNtpStateRequest(): NtpStateRequest {
+  return { owner: "" };
+}
+
+export const NtpStateRequest: MessageFns<NtpStateRequest> = {
+  encode(message: NtpStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: NtpStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateRequest>): NtpStateRequest {
+    return NtpStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateRequest>): NtpStateRequest {
+    const message = createBaseNtpStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpStateResponse(): NtpStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    running: false,
+    tracking: undefined,
+    sources: [],
+    sourceStats: [],
+    serverStats: {},
+    pendingActions: [],
+    configPath: "",
+    error: "",
+  };
+}
+
+export const NtpStateResponse: MessageFns<NtpStateResponse> = {
+  encode(message: NtpStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.running !== false) {
+      writer.uint32(24).bool(message.running);
+    }
+    if (message.tracking !== undefined) {
+      NtpTracking.encode(message.tracking, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.sources) {
+      NtpSource.encode(v!, writer.uint32(42).fork()).join();
+    }
+    for (const v of message.sourceStats) {
+      NtpSourceStats.encode(v!, writer.uint32(50).fork()).join();
+    }
+    globalThis.Object.entries(message.serverStats).forEach(([key, value]: [string, string]) => {
+      NtpStateResponse_ServerStatsEntry.encode({ key: key as any, value }, writer.uint32(58).fork()).join();
+    });
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(66).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(74).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(82).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.running = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.tracking = NtpTracking.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sources.push(NtpSource.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sourceStats.push(NtpSourceStats.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            const entry7 = NtpStateResponse_ServerStatsEntry.decode(reader, reader.uint32());
+            if (entry7.value !== undefined) {
+              message.serverStats[entry7.key] = entry7.value;
+            }
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      running: isSet(object.running) ? globalThis.Boolean(object.running) : false,
+      tracking: isSet(object.tracking) ? NtpTracking.fromJSON(object.tracking) : undefined,
+      sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => NtpSource.fromJSON(e)) : [],
+      sourceStats: globalThis.Array.isArray(object?.sourceStats)
+        ? object.sourceStats.map((e: any) => NtpSourceStats.fromJSON(e))
+        : globalThis.Array.isArray(object?.source_stats)
+        ? object.source_stats.map((e: any) => NtpSourceStats.fromJSON(e))
+        : [],
+      serverStats: isObject(object.serverStats)
+        ? (globalThis.Object.entries(object.serverStats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.server_stats)
+        ? (globalThis.Object.entries(object.server_stats) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: NtpStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.running !== false) {
+      obj.running = message.running;
+    }
+    if (message.tracking !== undefined) {
+      obj.tracking = NtpTracking.toJSON(message.tracking);
+    }
+    if (message.sources?.length) {
+      obj.sources = message.sources.map((e) => NtpSource.toJSON(e));
+    }
+    if (message.sourceStats?.length) {
+      obj.sourceStats = message.sourceStats.map((e) => NtpSourceStats.toJSON(e));
+    }
+    if (message.serverStats) {
+      const entries = globalThis.Object.entries(message.serverStats) as [string, string][];
+      if (entries.length > 0) {
+        obj.serverStats = {};
+        entries.forEach(([k, v]) => {
+          obj.serverStats[k] = v;
+        });
+      }
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateResponse>): NtpStateResponse {
+    return NtpStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateResponse>): NtpStateResponse {
+    const message = createBaseNtpStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.running = object.running ?? false;
+    message.tracking = (object.tracking !== undefined && object.tracking !== null)
+      ? NtpTracking.fromPartial(object.tracking)
+      : undefined;
+    message.sources = object.sources?.map((e) => NtpSource.fromPartial(e)) || [];
+    message.sourceStats = object.sourceStats?.map((e) => NtpSourceStats.fromPartial(e)) || [];
+    message.serverStats = (globalThis.Object.entries(object.serverStats ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpStateResponse_ServerStatsEntry(): NtpStateResponse_ServerStatsEntry {
+  return { key: "", value: "" };
+}
+
+export const NtpStateResponse_ServerStatsEntry: MessageFns<NtpStateResponse_ServerStatsEntry> = {
+  encode(message: NtpStateResponse_ServerStatsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpStateResponse_ServerStatsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpStateResponse_ServerStatsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpStateResponse_ServerStatsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: NtpStateResponse_ServerStatsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpStateResponse_ServerStatsEntry>): NtpStateResponse_ServerStatsEntry {
+    return NtpStateResponse_ServerStatsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpStateResponse_ServerStatsEntry>): NtpStateResponse_ServerStatsEntry {
+    const message = createBaseNtpStateResponse_ServerStatsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpTracking(): NtpTracking {
+  return {
+    refId: "",
+    refName: "",
+    stratum: 0,
+    refTime: 0,
+    systemTime: 0,
+    lastOffset: 0,
+    rmsOffset: 0,
+    frequency: 0,
+    residualFreq: 0,
+    skew: 0,
+    rootDelay: 0,
+    rootDispersion: 0,
+    updateInterval: 0,
+    leap: "",
+  };
+}
+
+export const NtpTracking: MessageFns<NtpTracking> = {
+  encode(message: NtpTracking, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.refId !== "") {
+      writer.uint32(10).string(message.refId);
+    }
+    if (message.refName !== "") {
+      writer.uint32(18).string(message.refName);
+    }
+    if (message.stratum !== 0) {
+      writer.uint32(24).int32(message.stratum);
+    }
+    if (message.refTime !== 0) {
+      writer.uint32(33).double(message.refTime);
+    }
+    if (message.systemTime !== 0) {
+      writer.uint32(41).double(message.systemTime);
+    }
+    if (message.lastOffset !== 0) {
+      writer.uint32(49).double(message.lastOffset);
+    }
+    if (message.rmsOffset !== 0) {
+      writer.uint32(57).double(message.rmsOffset);
+    }
+    if (message.frequency !== 0) {
+      writer.uint32(65).double(message.frequency);
+    }
+    if (message.residualFreq !== 0) {
+      writer.uint32(73).double(message.residualFreq);
+    }
+    if (message.skew !== 0) {
+      writer.uint32(81).double(message.skew);
+    }
+    if (message.rootDelay !== 0) {
+      writer.uint32(89).double(message.rootDelay);
+    }
+    if (message.rootDispersion !== 0) {
+      writer.uint32(97).double(message.rootDispersion);
+    }
+    if (message.updateInterval !== 0) {
+      writer.uint32(105).double(message.updateInterval);
+    }
+    if (message.leap !== "") {
+      writer.uint32(114).string(message.leap);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpTracking {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpTracking();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.refId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.refName = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.stratum = reader.int32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 33) {
+              break;
+            }
+
+            message.refTime = reader.double();
+            continue;
+          }
+          case 5: {
+            if (tag !== 41) {
+              break;
+            }
+
+            message.systemTime = reader.double();
+            continue;
+          }
+          case 6: {
+            if (tag !== 49) {
+              break;
+            }
+
+            message.lastOffset = reader.double();
+            continue;
+          }
+          case 7: {
+            if (tag !== 57) {
+              break;
+            }
+
+            message.rmsOffset = reader.double();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.frequency = reader.double();
+            continue;
+          }
+          case 9: {
+            if (tag !== 73) {
+              break;
+            }
+
+            message.residualFreq = reader.double();
+            continue;
+          }
+          case 10: {
+            if (tag !== 81) {
+              break;
+            }
+
+            message.skew = reader.double();
+            continue;
+          }
+          case 11: {
+            if (tag !== 89) {
+              break;
+            }
+
+            message.rootDelay = reader.double();
+            continue;
+          }
+          case 12: {
+            if (tag !== 97) {
+              break;
+            }
+
+            message.rootDispersion = reader.double();
+            continue;
+          }
+          case 13: {
+            if (tag !== 105) {
+              break;
+            }
+
+            message.updateInterval = reader.double();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.leap = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpTracking {
+    return {
+      refId: isSet(object.refId)
+        ? globalThis.String(object.refId)
+        : isSet(object.ref_id)
+        ? globalThis.String(object.ref_id)
+        : "",
+      refName: isSet(object.refName)
+        ? globalThis.String(object.refName)
+        : isSet(object.ref_name)
+        ? globalThis.String(object.ref_name)
+        : "",
+      stratum: isSet(object.stratum) ? globalThis.Number(object.stratum) : 0,
+      refTime: isSet(object.refTime)
+        ? globalThis.Number(object.refTime)
+        : isSet(object.ref_time)
+        ? globalThis.Number(object.ref_time)
+        : 0,
+      systemTime: isSet(object.systemTime)
+        ? globalThis.Number(object.systemTime)
+        : isSet(object.system_time)
+        ? globalThis.Number(object.system_time)
+        : 0,
+      lastOffset: isSet(object.lastOffset)
+        ? globalThis.Number(object.lastOffset)
+        : isSet(object.last_offset)
+        ? globalThis.Number(object.last_offset)
+        : 0,
+      rmsOffset: isSet(object.rmsOffset)
+        ? globalThis.Number(object.rmsOffset)
+        : isSet(object.rms_offset)
+        ? globalThis.Number(object.rms_offset)
+        : 0,
+      frequency: isSet(object.frequency) ? globalThis.Number(object.frequency) : 0,
+      residualFreq: isSet(object.residualFreq)
+        ? globalThis.Number(object.residualFreq)
+        : isSet(object.residual_freq)
+        ? globalThis.Number(object.residual_freq)
+        : 0,
+      skew: isSet(object.skew) ? globalThis.Number(object.skew) : 0,
+      rootDelay: isSet(object.rootDelay)
+        ? globalThis.Number(object.rootDelay)
+        : isSet(object.root_delay)
+        ? globalThis.Number(object.root_delay)
+        : 0,
+      rootDispersion: isSet(object.rootDispersion)
+        ? globalThis.Number(object.rootDispersion)
+        : isSet(object.root_dispersion)
+        ? globalThis.Number(object.root_dispersion)
+        : 0,
+      updateInterval: isSet(object.updateInterval)
+        ? globalThis.Number(object.updateInterval)
+        : isSet(object.update_interval)
+        ? globalThis.Number(object.update_interval)
+        : 0,
+      leap: isSet(object.leap) ? globalThis.String(object.leap) : "",
+    };
+  },
+
+  toJSON(message: NtpTracking): unknown {
+    const obj: any = {};
+    if (message.refId !== "") {
+      obj.refId = message.refId;
+    }
+    if (message.refName !== "") {
+      obj.refName = message.refName;
+    }
+    if (message.stratum !== 0) {
+      obj.stratum = Math.round(message.stratum);
+    }
+    if (message.refTime !== 0) {
+      obj.refTime = message.refTime;
+    }
+    if (message.systemTime !== 0) {
+      obj.systemTime = message.systemTime;
+    }
+    if (message.lastOffset !== 0) {
+      obj.lastOffset = message.lastOffset;
+    }
+    if (message.rmsOffset !== 0) {
+      obj.rmsOffset = message.rmsOffset;
+    }
+    if (message.frequency !== 0) {
+      obj.frequency = message.frequency;
+    }
+    if (message.residualFreq !== 0) {
+      obj.residualFreq = message.residualFreq;
+    }
+    if (message.skew !== 0) {
+      obj.skew = message.skew;
+    }
+    if (message.rootDelay !== 0) {
+      obj.rootDelay = message.rootDelay;
+    }
+    if (message.rootDispersion !== 0) {
+      obj.rootDispersion = message.rootDispersion;
+    }
+    if (message.updateInterval !== 0) {
+      obj.updateInterval = message.updateInterval;
+    }
+    if (message.leap !== "") {
+      obj.leap = message.leap;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpTracking>): NtpTracking {
+    return NtpTracking.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpTracking>): NtpTracking {
+    const message = createBaseNtpTracking();
+    message.refId = object.refId ?? "";
+    message.refName = object.refName ?? "";
+    message.stratum = object.stratum ?? 0;
+    message.refTime = object.refTime ?? 0;
+    message.systemTime = object.systemTime ?? 0;
+    message.lastOffset = object.lastOffset ?? 0;
+    message.rmsOffset = object.rmsOffset ?? 0;
+    message.frequency = object.frequency ?? 0;
+    message.residualFreq = object.residualFreq ?? 0;
+    message.skew = object.skew ?? 0;
+    message.rootDelay = object.rootDelay ?? 0;
+    message.rootDispersion = object.rootDispersion ?? 0;
+    message.updateInterval = object.updateInterval ?? 0;
+    message.leap = object.leap ?? "";
+    return message;
+  },
+};
+
+function createBaseNtpSource(): NtpSource {
+  return {
+    mode: "",
+    state: "",
+    name: "",
+    stratum: 0,
+    poll: 0,
+    reach: "",
+    lastRx: "",
+    offset: 0,
+    measured: 0,
+    error: 0,
+  };
+}
+
+export const NtpSource: MessageFns<NtpSource> = {
+  encode(message: NtpSource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mode !== "") {
+      writer.uint32(10).string(message.mode);
+    }
+    if (message.state !== "") {
+      writer.uint32(18).string(message.state);
+    }
+    if (message.name !== "") {
+      writer.uint32(26).string(message.name);
+    }
+    if (message.stratum !== 0) {
+      writer.uint32(32).int32(message.stratum);
+    }
+    if (message.poll !== 0) {
+      writer.uint32(40).int32(message.poll);
+    }
+    if (message.reach !== "") {
+      writer.uint32(50).string(message.reach);
+    }
+    if (message.lastRx !== "") {
+      writer.uint32(58).string(message.lastRx);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(65).double(message.offset);
+    }
+    if (message.measured !== 0) {
+      writer.uint32(73).double(message.measured);
+    }
+    if (message.error !== 0) {
+      writer.uint32(81).double(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpSource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpSource();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.stratum = reader.int32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.poll = reader.int32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.reach = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.lastRx = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.offset = reader.double();
+            continue;
+          }
+          case 9: {
+            if (tag !== 73) {
+              break;
+            }
+
+            message.measured = reader.double();
+            continue;
+          }
+          case 10: {
+            if (tag !== 81) {
+              break;
+            }
+
+            message.error = reader.double();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpSource {
+    return {
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      stratum: isSet(object.stratum) ? globalThis.Number(object.stratum) : 0,
+      poll: isSet(object.poll) ? globalThis.Number(object.poll) : 0,
+      reach: isSet(object.reach) ? globalThis.String(object.reach) : "",
+      lastRx: isSet(object.lastRx)
+        ? globalThis.String(object.lastRx)
+        : isSet(object.last_rx)
+        ? globalThis.String(object.last_rx)
+        : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      measured: isSet(object.measured) ? globalThis.Number(object.measured) : 0,
+      error: isSet(object.error) ? globalThis.Number(object.error) : 0,
+    };
+  },
+
+  toJSON(message: NtpSource): unknown {
+    const obj: any = {};
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.stratum !== 0) {
+      obj.stratum = Math.round(message.stratum);
+    }
+    if (message.poll !== 0) {
+      obj.poll = Math.round(message.poll);
+    }
+    if (message.reach !== "") {
+      obj.reach = message.reach;
+    }
+    if (message.lastRx !== "") {
+      obj.lastRx = message.lastRx;
+    }
+    if (message.offset !== 0) {
+      obj.offset = message.offset;
+    }
+    if (message.measured !== 0) {
+      obj.measured = message.measured;
+    }
+    if (message.error !== 0) {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpSource>): NtpSource {
+    return NtpSource.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpSource>): NtpSource {
+    const message = createBaseNtpSource();
+    message.mode = object.mode ?? "";
+    message.state = object.state ?? "";
+    message.name = object.name ?? "";
+    message.stratum = object.stratum ?? 0;
+    message.poll = object.poll ?? 0;
+    message.reach = object.reach ?? "";
+    message.lastRx = object.lastRx ?? "";
+    message.offset = object.offset ?? 0;
+    message.measured = object.measured ?? 0;
+    message.error = object.error ?? 0;
+    return message;
+  },
+};
+
+function createBaseNtpSourceStats(): NtpSourceStats {
+  return { name: "", np: 0, nr: 0, span: 0, frequency: 0, freqSkew: 0, offset: 0, stdDev: 0 };
+}
+
+export const NtpSourceStats: MessageFns<NtpSourceStats> = {
+  encode(message: NtpSourceStats, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.np !== 0) {
+      writer.uint32(16).int32(message.np);
+    }
+    if (message.nr !== 0) {
+      writer.uint32(24).int32(message.nr);
+    }
+    if (message.span !== 0) {
+      writer.uint32(32).int32(message.span);
+    }
+    if (message.frequency !== 0) {
+      writer.uint32(41).double(message.frequency);
+    }
+    if (message.freqSkew !== 0) {
+      writer.uint32(49).double(message.freqSkew);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(57).double(message.offset);
+    }
+    if (message.stdDev !== 0) {
+      writer.uint32(65).double(message.stdDev);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NtpSourceStats {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNtpSourceStats();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.np = reader.int32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.nr = reader.int32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.span = reader.int32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 41) {
+              break;
+            }
+
+            message.frequency = reader.double();
+            continue;
+          }
+          case 6: {
+            if (tag !== 49) {
+              break;
+            }
+
+            message.freqSkew = reader.double();
+            continue;
+          }
+          case 7: {
+            if (tag !== 57) {
+              break;
+            }
+
+            message.offset = reader.double();
+            continue;
+          }
+          case 8: {
+            if (tag !== 65) {
+              break;
+            }
+
+            message.stdDev = reader.double();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NtpSourceStats {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      np: isSet(object.np) ? globalThis.Number(object.np) : 0,
+      nr: isSet(object.nr) ? globalThis.Number(object.nr) : 0,
+      span: isSet(object.span) ? globalThis.Number(object.span) : 0,
+      frequency: isSet(object.frequency) ? globalThis.Number(object.frequency) : 0,
+      freqSkew: isSet(object.freqSkew)
+        ? globalThis.Number(object.freqSkew)
+        : isSet(object.freq_skew)
+        ? globalThis.Number(object.freq_skew)
+        : 0,
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      stdDev: isSet(object.stdDev)
+        ? globalThis.Number(object.stdDev)
+        : isSet(object.std_dev)
+        ? globalThis.Number(object.std_dev)
+        : 0,
+    };
+  },
+
+  toJSON(message: NtpSourceStats): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.np !== 0) {
+      obj.np = Math.round(message.np);
+    }
+    if (message.nr !== 0) {
+      obj.nr = Math.round(message.nr);
+    }
+    if (message.span !== 0) {
+      obj.span = Math.round(message.span);
+    }
+    if (message.frequency !== 0) {
+      obj.frequency = message.frequency;
+    }
+    if (message.freqSkew !== 0) {
+      obj.freqSkew = message.freqSkew;
+    }
+    if (message.offset !== 0) {
+      obj.offset = message.offset;
+    }
+    if (message.stdDev !== 0) {
+      obj.stdDev = message.stdDev;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NtpSourceStats>): NtpSourceStats {
+    return NtpSourceStats.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NtpSourceStats>): NtpSourceStats {
+    const message = createBaseNtpSourceStats();
+    message.name = object.name ?? "";
+    message.np = object.np ?? 0;
+    message.nr = object.nr ?? 0;
+    message.span = object.span ?? 0;
+    message.frequency = object.frequency ?? 0;
+    message.freqSkew = object.freqSkew ?? 0;
+    message.offset = object.offset ?? 0;
+    message.stdDev = object.stdDev ?? 0;
+    return message;
+  },
+};
+
+function createBaseSyslogStateRequest(): SyslogStateRequest {
+  return { owner: "" };
+}
+
+export const SyslogStateRequest: MessageFns<SyslogStateRequest> = {
+  encode(message: SyslogStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: SyslogStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateRequest>): SyslogStateRequest {
+    return SyslogStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateRequest>): SyslogStateRequest {
+    const message = createBaseSyslogStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogStateResponse(): SyslogStateResponse {
+  return { owner: "", retrievedAt: undefined, targets: [], inputs: {}, pendingActions: [], configPath: "", error: "" };
+}
+
+export const SyslogStateResponse: MessageFns<SyslogStateResponse> = {
+  encode(message: SyslogStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.targets) {
+      SyslogTargetState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    globalThis.Object.entries(message.inputs).forEach(([key, value]: [string, string]) => {
+      SyslogStateResponse_InputsEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    for (const v of message.pendingActions) {
+      ServiceDaemonAction.encode(v!, writer.uint32(42).fork()).join();
+    }
+    if (message.configPath !== "") {
+      writer.uint32(50).string(message.configPath);
+    }
+    if (message.error !== "") {
+      writer.uint32(58).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.targets.push(SyslogTargetState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = SyslogStateResponse_InputsEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.inputs[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.pendingActions.push(ServiceDaemonAction.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.configPath = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      targets: globalThis.Array.isArray(object?.targets)
+        ? object.targets.map((e: any) => SyslogTargetState.fromJSON(e))
+        : [],
+      inputs: isObject(object.inputs)
+        ? (globalThis.Object.entries(object.inputs) as [string, any][]).reduce(
+          (acc: { [key: string]: string }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.String(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      pendingActions: globalThis.Array.isArray(object?.pendingActions)
+        ? object.pendingActions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : globalThis.Array.isArray(object?.pending_actions)
+        ? object.pending_actions.map((e: any) => ServiceDaemonAction.fromJSON(e))
+        : [],
+      configPath: isSet(object.configPath)
+        ? globalThis.String(object.configPath)
+        : isSet(object.config_path)
+        ? globalThis.String(object.config_path)
+        : "",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: SyslogStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.targets?.length) {
+      obj.targets = message.targets.map((e) => SyslogTargetState.toJSON(e));
+    }
+    if (message.inputs) {
+      const entries = globalThis.Object.entries(message.inputs) as [string, string][];
+      if (entries.length > 0) {
+        obj.inputs = {};
+        entries.forEach(([k, v]) => {
+          obj.inputs[k] = v;
+        });
+      }
+    }
+    if (message.pendingActions?.length) {
+      obj.pendingActions = message.pendingActions.map((e) => ServiceDaemonAction.toJSON(e));
+    }
+    if (message.configPath !== "") {
+      obj.configPath = message.configPath;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateResponse>): SyslogStateResponse {
+    return SyslogStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateResponse>): SyslogStateResponse {
+    const message = createBaseSyslogStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.targets = object.targets?.map((e) => SyslogTargetState.fromPartial(e)) || [];
+    message.inputs = (globalThis.Object.entries(object.inputs ?? {}) as [string, string][]).reduce(
+      (acc: { [key: string]: string }, [key, value]: [string, string]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.pendingActions = object.pendingActions?.map((e) => ServiceDaemonAction.fromPartial(e)) || [];
+    message.configPath = object.configPath ?? "";
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogStateResponse_InputsEntry(): SyslogStateResponse_InputsEntry {
+  return { key: "", value: "0" };
+}
+
+export const SyslogStateResponse_InputsEntry: MessageFns<SyslogStateResponse_InputsEntry> = {
+  encode(message: SyslogStateResponse_InputsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "0") {
+      writer.uint32(16).int64(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogStateResponse_InputsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogStateResponse_InputsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.int64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogStateResponse_InputsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "0",
+    };
+  },
+
+  toJSON(message: SyslogStateResponse_InputsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "0") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogStateResponse_InputsEntry>): SyslogStateResponse_InputsEntry {
+    return SyslogStateResponse_InputsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogStateResponse_InputsEntry>): SyslogStateResponse_InputsEntry {
+    const message = createBaseSyslogStateResponse_InputsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "0";
+    return message;
+  },
+};
+
+function createBaseSyslogTargetState(): SyslogTargetState {
+  return {
+    index: 0,
+    action: "",
+    target: "",
+    protocol: "",
+    reported: false,
+    processed: "0",
+    failed: "0",
+    suspended: "0",
+    suspendedDuration: "0",
+    resumed: "0",
+    queueSize: "0",
+    enqueued: "0",
+    full: "0",
+    discardedFull: "0",
+    discardedNf: "0",
+    maxQueueSize: "0",
+  };
+}
+
+export const SyslogTargetState: MessageFns<SyslogTargetState> = {
+  encode(message: SyslogTargetState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.index !== 0) {
+      writer.uint32(8).uint32(message.index);
+    }
+    if (message.action !== "") {
+      writer.uint32(18).string(message.action);
+    }
+    if (message.target !== "") {
+      writer.uint32(26).string(message.target);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(34).string(message.protocol);
+    }
+    if (message.reported !== false) {
+      writer.uint32(40).bool(message.reported);
+    }
+    if (message.processed !== "0") {
+      writer.uint32(48).int64(message.processed);
+    }
+    if (message.failed !== "0") {
+      writer.uint32(56).int64(message.failed);
+    }
+    if (message.suspended !== "0") {
+      writer.uint32(64).int64(message.suspended);
+    }
+    if (message.suspendedDuration !== "0") {
+      writer.uint32(72).int64(message.suspendedDuration);
+    }
+    if (message.resumed !== "0") {
+      writer.uint32(80).int64(message.resumed);
+    }
+    if (message.queueSize !== "0") {
+      writer.uint32(88).int64(message.queueSize);
+    }
+    if (message.enqueued !== "0") {
+      writer.uint32(96).int64(message.enqueued);
+    }
+    if (message.full !== "0") {
+      writer.uint32(104).int64(message.full);
+    }
+    if (message.discardedFull !== "0") {
+      writer.uint32(112).int64(message.discardedFull);
+    }
+    if (message.discardedNf !== "0") {
+      writer.uint32(120).int64(message.discardedNf);
+    }
+    if (message.maxQueueSize !== "0") {
+      writer.uint32(128).int64(message.maxQueueSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogTargetState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogTargetState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.index = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.action = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.target = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.reported = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.processed = reader.int64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.failed = reader.int64().toString();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.suspended = reader.int64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.suspendedDuration = reader.int64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.resumed = reader.int64().toString();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.queueSize = reader.int64().toString();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.enqueued = reader.int64().toString();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.full = reader.int64().toString();
+            continue;
+          }
+          case 14: {
+            if (tag !== 112) {
+              break;
+            }
+
+            message.discardedFull = reader.int64().toString();
+            continue;
+          }
+          case 15: {
+            if (tag !== 120) {
+              break;
+            }
+
+            message.discardedNf = reader.int64().toString();
+            continue;
+          }
+          case 16: {
+            if (tag !== 128) {
+              break;
+            }
+
+            message.maxQueueSize = reader.int64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogTargetState {
+    return {
+      index: isSet(object.index) ? globalThis.Number(object.index) : 0,
+      action: isSet(object.action) ? globalThis.String(object.action) : "",
+      target: isSet(object.target) ? globalThis.String(object.target) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      reported: isSet(object.reported) ? globalThis.Boolean(object.reported) : false,
+      processed: isSet(object.processed) ? globalThis.String(object.processed) : "0",
+      failed: isSet(object.failed) ? globalThis.String(object.failed) : "0",
+      suspended: isSet(object.suspended) ? globalThis.String(object.suspended) : "0",
+      suspendedDuration: isSet(object.suspendedDuration)
+        ? globalThis.String(object.suspendedDuration)
+        : isSet(object.suspended_duration)
+        ? globalThis.String(object.suspended_duration)
+        : "0",
+      resumed: isSet(object.resumed) ? globalThis.String(object.resumed) : "0",
+      queueSize: isSet(object.queueSize)
+        ? globalThis.String(object.queueSize)
+        : isSet(object.queue_size)
+        ? globalThis.String(object.queue_size)
+        : "0",
+      enqueued: isSet(object.enqueued) ? globalThis.String(object.enqueued) : "0",
+      full: isSet(object.full) ? globalThis.String(object.full) : "0",
+      discardedFull: isSet(object.discardedFull)
+        ? globalThis.String(object.discardedFull)
+        : isSet(object.discarded_full)
+        ? globalThis.String(object.discarded_full)
+        : "0",
+      discardedNf: isSet(object.discardedNf)
+        ? globalThis.String(object.discardedNf)
+        : isSet(object.discarded_nf)
+        ? globalThis.String(object.discarded_nf)
+        : "0",
+      maxQueueSize: isSet(object.maxQueueSize)
+        ? globalThis.String(object.maxQueueSize)
+        : isSet(object.max_queue_size)
+        ? globalThis.String(object.max_queue_size)
+        : "0",
+    };
+  },
+
+  toJSON(message: SyslogTargetState): unknown {
+    const obj: any = {};
+    if (message.index !== 0) {
+      obj.index = Math.round(message.index);
+    }
+    if (message.action !== "") {
+      obj.action = message.action;
+    }
+    if (message.target !== "") {
+      obj.target = message.target;
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.reported !== false) {
+      obj.reported = message.reported;
+    }
+    if (message.processed !== "0") {
+      obj.processed = message.processed;
+    }
+    if (message.failed !== "0") {
+      obj.failed = message.failed;
+    }
+    if (message.suspended !== "0") {
+      obj.suspended = message.suspended;
+    }
+    if (message.suspendedDuration !== "0") {
+      obj.suspendedDuration = message.suspendedDuration;
+    }
+    if (message.resumed !== "0") {
+      obj.resumed = message.resumed;
+    }
+    if (message.queueSize !== "0") {
+      obj.queueSize = message.queueSize;
+    }
+    if (message.enqueued !== "0") {
+      obj.enqueued = message.enqueued;
+    }
+    if (message.full !== "0") {
+      obj.full = message.full;
+    }
+    if (message.discardedFull !== "0") {
+      obj.discardedFull = message.discardedFull;
+    }
+    if (message.discardedNf !== "0") {
+      obj.discardedNf = message.discardedNf;
+    }
+    if (message.maxQueueSize !== "0") {
+      obj.maxQueueSize = message.maxQueueSize;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogTargetState>): SyslogTargetState {
+    return SyslogTargetState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogTargetState>): SyslogTargetState {
+    const message = createBaseSyslogTargetState();
+    message.index = object.index ?? 0;
+    message.action = object.action ?? "";
+    message.target = object.target ?? "";
+    message.protocol = object.protocol ?? "";
+    message.reported = object.reported ?? false;
+    message.processed = object.processed ?? "0";
+    message.failed = object.failed ?? "0";
+    message.suspended = object.suspended ?? "0";
+    message.suspendedDuration = object.suspendedDuration ?? "0";
+    message.resumed = object.resumed ?? "0";
+    message.queueSize = object.queueSize ?? "0";
+    message.enqueued = object.enqueued ?? "0";
+    message.full = object.full ?? "0";
+    message.discardedFull = object.discardedFull ?? "0";
+    message.discardedNf = object.discardedNf ?? "0";
+    message.maxQueueSize = object.maxQueueSize ?? "0";
+    return message;
+  },
+};
+
+function createBaseSyslogEntriesRequest(): SyslogEntriesRequest {
+  return { owner: "", since: undefined, severity: "", facility: "", query: "", page: 0, pageSize: 0 };
+}
+
+export const SyslogEntriesRequest: MessageFns<SyslogEntriesRequest> = {
+  encode(message: SyslogEntriesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(18).fork()).join();
+    }
+    if (message.severity !== "") {
+      writer.uint32(26).string(message.severity);
+    }
+    if (message.facility !== "") {
+      writer.uint32(34).string(message.facility);
+    }
+    if (message.query !== "") {
+      writer.uint32(42).string(message.query);
+    }
+    if (message.page !== 0) {
+      writer.uint32(48).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(56).uint32(message.pageSize);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntriesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntriesRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.facility = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.query = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntriesRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : "",
+      facility: isSet(object.facility) ? globalThis.String(object.facility) : "",
+      query: isSet(object.query) ? globalThis.String(object.query) : "",
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+    };
+  },
+
+  toJSON(message: SyslogEntriesRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.severity !== "") {
+      obj.severity = message.severity;
+    }
+    if (message.facility !== "") {
+      obj.facility = message.facility;
+    }
+    if (message.query !== "") {
+      obj.query = message.query;
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntriesRequest>): SyslogEntriesRequest {
+    return SyslogEntriesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntriesRequest>): SyslogEntriesRequest {
+    const message = createBaseSyslogEntriesRequest();
+    message.owner = object.owner ?? "";
+    message.since = object.since ?? undefined;
+    message.severity = object.severity ?? "";
+    message.facility = object.facility ?? "";
+    message.query = object.query ?? "";
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    return message;
+  },
+};
+
+function createBaseSyslogEntriesResponse(): SyslogEntriesResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    entries: [],
+    page: 0,
+    pageSize: 0,
+    total: 0,
+    truncated: false,
+    scanned: 0,
+    source: "",
+  };
+}
+
+export const SyslogEntriesResponse: MessageFns<SyslogEntriesResponse> = {
+  encode(message: SyslogEntriesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.entries) {
+      SyslogEntry.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.page !== 0) {
+      writer.uint32(32).uint32(message.page);
+    }
+    if (message.pageSize !== 0) {
+      writer.uint32(40).uint32(message.pageSize);
+    }
+    if (message.total !== 0) {
+      writer.uint32(48).uint32(message.total);
+    }
+    if (message.truncated !== false) {
+      writer.uint32(56).bool(message.truncated);
+    }
+    if (message.scanned !== 0) {
+      writer.uint32(64).uint32(message.scanned);
+    }
+    if (message.source !== "") {
+      writer.uint32(74).string(message.source);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntriesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntriesResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.entries.push(SyslogEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.page = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.pageSize = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.total = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.scanned = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntriesResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      entries: globalThis.Array.isArray(object?.entries) ? object.entries.map((e: any) => SyslogEntry.fromJSON(e)) : [],
+      page: isSet(object.page) ? globalThis.Number(object.page) : 0,
+      pageSize: isSet(object.pageSize)
+        ? globalThis.Number(object.pageSize)
+        : isSet(object.page_size)
+        ? globalThis.Number(object.page_size)
+        : 0,
+      total: isSet(object.total) ? globalThis.Number(object.total) : 0,
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      scanned: isSet(object.scanned) ? globalThis.Number(object.scanned) : 0,
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+    };
+  },
+
+  toJSON(message: SyslogEntriesResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => SyslogEntry.toJSON(e));
+    }
+    if (message.page !== 0) {
+      obj.page = Math.round(message.page);
+    }
+    if (message.pageSize !== 0) {
+      obj.pageSize = Math.round(message.pageSize);
+    }
+    if (message.total !== 0) {
+      obj.total = Math.round(message.total);
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.scanned !== 0) {
+      obj.scanned = Math.round(message.scanned);
+    }
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntriesResponse>): SyslogEntriesResponse {
+    return SyslogEntriesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntriesResponse>): SyslogEntriesResponse {
+    const message = createBaseSyslogEntriesResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.entries = object.entries?.map((e) => SyslogEntry.fromPartial(e)) || [];
+    message.page = object.page ?? 0;
+    message.pageSize = object.pageSize ?? 0;
+    message.total = object.total ?? 0;
+    message.truncated = object.truncated ?? false;
+    message.scanned = object.scanned ?? 0;
+    message.source = object.source ?? "";
+    return message;
+  },
+};
+
+function createBaseSyslogEntry(): SyslogEntry {
+  return { time: undefined, severity: "", facility: "", identifier: "", pid: 0, hostname: "", unit: "", message: "" };
+}
+
+export const SyslogEntry: MessageFns<SyslogEntry> = {
+  encode(message: SyslogEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.time !== undefined) {
+      Timestamp.encode(toTimestamp(message.time), writer.uint32(10).fork()).join();
+    }
+    if (message.severity !== "") {
+      writer.uint32(18).string(message.severity);
+    }
+    if (message.facility !== "") {
+      writer.uint32(26).string(message.facility);
+    }
+    if (message.identifier !== "") {
+      writer.uint32(34).string(message.identifier);
+    }
+    if (message.pid !== 0) {
+      writer.uint32(40).uint32(message.pid);
+    }
+    if (message.hostname !== "") {
+      writer.uint32(50).string(message.hostname);
+    }
+    if (message.unit !== "") {
+      writer.uint32(58).string(message.unit);
+    }
+    if (message.message !== "") {
+      writer.uint32(66).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SyslogEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSyslogEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.time = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.facility = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.identifier = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.pid = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.unit = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.message = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SyslogEntry {
+    return {
+      time: isSet(object.time) ? fromJsonTimestamp(object.time) : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : "",
+      facility: isSet(object.facility) ? globalThis.String(object.facility) : "",
+      identifier: isSet(object.identifier) ? globalThis.String(object.identifier) : "",
+      pid: isSet(object.pid) ? globalThis.Number(object.pid) : 0,
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
+      unit: isSet(object.unit) ? globalThis.String(object.unit) : "",
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: SyslogEntry): unknown {
+    const obj: any = {};
+    if (message.time !== undefined) {
+      obj.time = message.time.toISOString();
+    }
+    if (message.severity !== "") {
+      obj.severity = message.severity;
+    }
+    if (message.facility !== "") {
+      obj.facility = message.facility;
+    }
+    if (message.identifier !== "") {
+      obj.identifier = message.identifier;
+    }
+    if (message.pid !== 0) {
+      obj.pid = Math.round(message.pid);
+    }
+    if (message.hostname !== "") {
+      obj.hostname = message.hostname;
+    }
+    if (message.unit !== "") {
+      obj.unit = message.unit;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SyslogEntry>): SyslogEntry {
+    return SyslogEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SyslogEntry>): SyslogEntry {
+    const message = createBaseSyslogEntry();
+    message.time = object.time ?? undefined;
+    message.severity = object.severity ?? "";
+    message.facility = object.facility ?? "";
+    message.identifier = object.identifier ?? "";
+    message.pid = object.pid ?? 0;
+    message.hostname = object.hostname ?? "";
+    message.unit = object.unit ?? "";
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
+function createBaseLbService(): LbService {
+  return { settings: undefined, vips: {}, natInterfaces: [] };
+}
+
+export const LbService: MessageFns<LbService> = {
+  encode(message: LbService, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.settings !== undefined) {
+      LbSettings.encode(message.settings, writer.uint32(10).fork()).join();
+    }
+    globalThis.Object.entries(message.vips).forEach(([key, value]: [string, LbVip]) => {
+      LbService_VipsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    for (const v of message.natInterfaces) {
+      LbNatInterface.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbService {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbService();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.settings = LbSettings.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = LbService_VipsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.vips[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.natInterfaces.push(LbNatInterface.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbService {
+    return {
+      settings: isSet(object.settings) ? LbSettings.fromJSON(object.settings) : undefined,
+      vips: isObject(object.vips)
+        ? (globalThis.Object.entries(object.vips) as [string, any][]).reduce(
+          (acc: { [key: string]: LbVip }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: LbVip.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      natInterfaces: globalThis.Array.isArray(object?.natInterfaces)
+        ? object.natInterfaces.map((e: any) => LbNatInterface.fromJSON(e))
+        : globalThis.Array.isArray(object?.nat_interfaces)
+        ? object.nat_interfaces.map((e: any) => LbNatInterface.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbService): unknown {
+    const obj: any = {};
+    if (message.settings !== undefined) {
+      obj.settings = LbSettings.toJSON(message.settings);
+    }
+    if (message.vips) {
+      const entries = globalThis.Object.entries(message.vips) as [string, LbVip][];
+      if (entries.length > 0) {
+        obj.vips = {};
+        entries.forEach(([k, v]) => {
+          obj.vips[k] = LbVip.toJSON(v);
+        });
+      }
+    }
+    if (message.natInterfaces?.length) {
+      obj.natInterfaces = message.natInterfaces.map((e) => LbNatInterface.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbService>): LbService {
+    return LbService.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbService>): LbService {
+    const message = createBaseLbService();
+    message.settings = (object.settings !== undefined && object.settings !== null)
+      ? LbSettings.fromPartial(object.settings)
+      : undefined;
+    message.vips = (globalThis.Object.entries(object.vips ?? {}) as [string, LbVip][]).reduce(
+      (acc: { [key: string]: LbVip }, [key, value]: [string, LbVip]) => {
+        if (value !== undefined) {
+          acc[key] = LbVip.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.natInterfaces = object.natInterfaces?.map((e) => LbNatInterface.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbService_VipsEntry(): LbService_VipsEntry {
+  return { key: "", value: undefined };
+}
+
+export const LbService_VipsEntry: MessageFns<LbService_VipsEntry> = {
+  encode(message: LbService_VipsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      LbVip.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbService_VipsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbService_VipsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = LbVip.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbService_VipsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? LbVip.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: LbService_VipsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = LbVip.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbService_VipsEntry>): LbService_VipsEntry {
+    return LbService_VipsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbService_VipsEntry>): LbService_VipsEntry {
+    const message = createBaseLbService_VipsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null) ? LbVip.fromPartial(object.value) : undefined;
+    return message;
+  },
+};
+
+function createBaseLbSettings(): LbSettings {
+  return { ip4Source: undefined, ip6Source: undefined, flowBuckets: undefined, flowTimeoutSec: undefined };
+}
+
+export const LbSettings: MessageFns<LbSettings> = {
+  encode(message: LbSettings, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.ip4Source !== undefined) {
+      writer.uint32(10).string(message.ip4Source);
+    }
+    if (message.ip6Source !== undefined) {
+      writer.uint32(18).string(message.ip6Source);
+    }
+    if (message.flowBuckets !== undefined) {
+      writer.uint32(24).uint32(message.flowBuckets);
+    }
+    if (message.flowTimeoutSec !== undefined) {
+      writer.uint32(32).uint32(message.flowTimeoutSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbSettings {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbSettings();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ip4Source = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ip6Source = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.flowBuckets = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.flowTimeoutSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbSettings {
+    return {
+      ip4Source: isSet(object.ip4Source)
+        ? globalThis.String(object.ip4Source)
+        : isSet(object.ip4_source)
+        ? globalThis.String(object.ip4_source)
+        : undefined,
+      ip6Source: isSet(object.ip6Source)
+        ? globalThis.String(object.ip6Source)
+        : isSet(object.ip6_source)
+        ? globalThis.String(object.ip6_source)
+        : undefined,
+      flowBuckets: isSet(object.flowBuckets)
+        ? globalThis.Number(object.flowBuckets)
+        : isSet(object.flow_buckets)
+        ? globalThis.Number(object.flow_buckets)
+        : undefined,
+      flowTimeoutSec: isSet(object.flowTimeoutSec)
+        ? globalThis.Number(object.flowTimeoutSec)
+        : isSet(object.flow_timeout_sec)
+        ? globalThis.Number(object.flow_timeout_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LbSettings): unknown {
+    const obj: any = {};
+    if (message.ip4Source !== undefined) {
+      obj.ip4Source = message.ip4Source;
+    }
+    if (message.ip6Source !== undefined) {
+      obj.ip6Source = message.ip6Source;
+    }
+    if (message.flowBuckets !== undefined) {
+      obj.flowBuckets = Math.round(message.flowBuckets);
+    }
+    if (message.flowTimeoutSec !== undefined) {
+      obj.flowTimeoutSec = Math.round(message.flowTimeoutSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbSettings>): LbSettings {
+    return LbSettings.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbSettings>): LbSettings {
+    const message = createBaseLbSettings();
+    message.ip4Source = object.ip4Source ?? undefined;
+    message.ip6Source = object.ip6Source ?? undefined;
+    message.flowBuckets = object.flowBuckets ?? undefined;
+    message.flowTimeoutSec = object.flowTimeoutSec ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbVip(): LbVip {
+  return {
+    prefix: undefined,
+    protocol: undefined,
+    port: undefined,
+    encap: undefined,
+    dscp: undefined,
+    srvType: undefined,
+    targetPort: undefined,
+    nodePort: undefined,
+    newFlowsTableLength: undefined,
+    srcIpSticky: undefined,
+    servers: [],
+  };
+}
+
+export const LbVip: MessageFns<LbVip> = {
+  encode(message: LbVip, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.prefix !== undefined) {
+      writer.uint32(10).string(message.prefix);
+    }
+    if (message.protocol !== undefined) {
+      writer.uint32(18).string(message.protocol);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(24).uint32(message.port);
+    }
+    if (message.encap !== undefined) {
+      writer.uint32(34).string(message.encap);
+    }
+    if (message.dscp !== undefined) {
+      writer.uint32(40).uint32(message.dscp);
+    }
+    if (message.srvType !== undefined) {
+      writer.uint32(50).string(message.srvType);
+    }
+    if (message.targetPort !== undefined) {
+      writer.uint32(56).uint32(message.targetPort);
+    }
+    if (message.nodePort !== undefined) {
+      writer.uint32(64).uint32(message.nodePort);
+    }
+    if (message.newFlowsTableLength !== undefined) {
+      writer.uint32(72).uint32(message.newFlowsTableLength);
+    }
+    if (message.srcIpSticky !== undefined) {
+      writer.uint32(80).bool(message.srcIpSticky);
+    }
+    for (const v of message.servers) {
+      LbServer.encode(v!, writer.uint32(90).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbVip {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbVip();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.encap = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.dscp = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.srvType = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.targetPort = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.nodePort = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.newFlowsTableLength = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.srcIpSticky = reader.bool();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.servers.push(LbServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbVip {
+    return {
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      encap: isSet(object.encap) ? globalThis.String(object.encap) : undefined,
+      dscp: isSet(object.dscp) ? globalThis.Number(object.dscp) : undefined,
+      srvType: isSet(object.srvType)
+        ? globalThis.String(object.srvType)
+        : isSet(object.srv_type)
+        ? globalThis.String(object.srv_type)
+        : undefined,
+      targetPort: isSet(object.targetPort)
+        ? globalThis.Number(object.targetPort)
+        : isSet(object.target_port)
+        ? globalThis.Number(object.target_port)
+        : undefined,
+      nodePort: isSet(object.nodePort)
+        ? globalThis.Number(object.nodePort)
+        : isSet(object.node_port)
+        ? globalThis.Number(object.node_port)
+        : undefined,
+      newFlowsTableLength: isSet(object.newFlowsTableLength)
+        ? globalThis.Number(object.newFlowsTableLength)
+        : isSet(object.new_flows_table_length)
+        ? globalThis.Number(object.new_flows_table_length)
+        : undefined,
+      srcIpSticky: isSet(object.srcIpSticky)
+        ? globalThis.Boolean(object.srcIpSticky)
+        : isSet(object.src_ip_sticky)
+        ? globalThis.Boolean(object.src_ip_sticky)
+        : undefined,
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => LbServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbVip): unknown {
+    const obj: any = {};
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.protocol !== undefined) {
+      obj.protocol = message.protocol;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.encap !== undefined) {
+      obj.encap = message.encap;
+    }
+    if (message.dscp !== undefined) {
+      obj.dscp = Math.round(message.dscp);
+    }
+    if (message.srvType !== undefined) {
+      obj.srvType = message.srvType;
+    }
+    if (message.targetPort !== undefined) {
+      obj.targetPort = Math.round(message.targetPort);
+    }
+    if (message.nodePort !== undefined) {
+      obj.nodePort = Math.round(message.nodePort);
+    }
+    if (message.newFlowsTableLength !== undefined) {
+      obj.newFlowsTableLength = Math.round(message.newFlowsTableLength);
+    }
+    if (message.srcIpSticky !== undefined) {
+      obj.srcIpSticky = message.srcIpSticky;
+    }
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => LbServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbVip>): LbVip {
+    return LbVip.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbVip>): LbVip {
+    const message = createBaseLbVip();
+    message.prefix = object.prefix ?? undefined;
+    message.protocol = object.protocol ?? undefined;
+    message.port = object.port ?? undefined;
+    message.encap = object.encap ?? undefined;
+    message.dscp = object.dscp ?? undefined;
+    message.srvType = object.srvType ?? undefined;
+    message.targetPort = object.targetPort ?? undefined;
+    message.nodePort = object.nodePort ?? undefined;
+    message.newFlowsTableLength = object.newFlowsTableLength ?? undefined;
+    message.srcIpSticky = object.srcIpSticky ?? undefined;
+    message.servers = object.servers?.map((e) => LbServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbServer(): LbServer {
+  return { address: undefined, flushOnDelete: undefined };
+}
+
+export const LbServer: MessageFns<LbServer> = {
+  encode(message: LbServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.flushOnDelete !== undefined) {
+      writer.uint32(16).bool(message.flushOnDelete);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.flushOnDelete = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbServer {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      flushOnDelete: isSet(object.flushOnDelete)
+        ? globalThis.Boolean(object.flushOnDelete)
+        : isSet(object.flush_on_delete)
+        ? globalThis.Boolean(object.flush_on_delete)
+        : undefined,
+    };
+  },
+
+  toJSON(message: LbServer): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.flushOnDelete !== undefined) {
+      obj.flushOnDelete = message.flushOnDelete;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbServer>): LbServer {
+    return LbServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbServer>): LbServer {
+    const message = createBaseLbServer();
+    message.address = object.address ?? undefined;
+    message.flushOnDelete = object.flushOnDelete ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbNatInterface(): LbNatInterface {
+  return { interface: undefined, family: undefined };
+}
+
+export const LbNatInterface: MessageFns<LbNatInterface> = {
+  encode(message: LbNatInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.family !== undefined) {
+      writer.uint32(18).string(message.family);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbNatInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbNatInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.family = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbNatInterface {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      family: isSet(object.family) ? globalThis.String(object.family) : undefined,
+    };
+  },
+
+  toJSON(message: LbNatInterface): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.family !== undefined) {
+      obj.family = message.family;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbNatInterface>): LbNatInterface {
+    return LbNatInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbNatInterface>): LbNatInterface {
+    const message = createBaseLbNatInterface();
+    message.interface = object.interface ?? undefined;
+    message.family = object.family ?? undefined;
+    return message;
+  },
+};
+
+function createBaseLbStateRequest(): LbStateRequest {
+  return { owner: "", names: [] };
+}
+
+export const LbStateRequest: MessageFns<LbStateRequest> = {
+  encode(message: LbStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.names) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.names.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      names: globalThis.Array.isArray(object?.names) ? object.names.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: LbStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.names?.length) {
+      obj.names = message.names;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbStateRequest>): LbStateRequest {
+    return LbStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbStateRequest>): LbStateRequest {
+    const message = createBaseLbStateRequest();
+    message.owner = object.owner ?? "";
+    message.names = object.names?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseLbStateResponse(): LbStateResponse {
+  return { vips: [], owner: "", retrievedAt: undefined, totalVppVips: 0 };
+}
+
+export const LbStateResponse: MessageFns<LbStateResponse> = {
+  encode(message: LbStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.vips) {
+      LbVipState.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    if (message.totalVppVips !== 0) {
+      writer.uint32(32).uint32(message.totalVppVips);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vips.push(LbVipState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.totalVppVips = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbStateResponse {
+    return {
+      vips: globalThis.Array.isArray(object?.vips) ? object.vips.map((e: any) => LbVipState.fromJSON(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      totalVppVips: isSet(object.totalVppVips)
+        ? globalThis.Number(object.totalVppVips)
+        : isSet(object.total_vpp_vips)
+        ? globalThis.Number(object.total_vpp_vips)
+        : 0,
+    };
+  },
+
+  toJSON(message: LbStateResponse): unknown {
+    const obj: any = {};
+    if (message.vips?.length) {
+      obj.vips = message.vips.map((e) => LbVipState.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.totalVppVips !== 0) {
+      obj.totalVppVips = Math.round(message.totalVppVips);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbStateResponse>): LbStateResponse {
+    return LbStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbStateResponse>): LbStateResponse {
+    const message = createBaseLbStateResponse();
+    message.vips = object.vips?.map((e) => LbVipState.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.totalVppVips = object.totalVppVips ?? 0;
+    return message;
+  },
+};
+
+function createBaseLbServerState(): LbServerState {
+  return { address: "", inUse: false, inUseSince: 0 };
+}
+
+export const LbServerState: MessageFns<LbServerState> = {
+  encode(message: LbServerState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== "") {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.inUse !== false) {
+      writer.uint32(16).bool(message.inUse);
+    }
+    if (message.inUseSince !== 0) {
+      writer.uint32(24).uint32(message.inUseSince);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbServerState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbServerState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.inUse = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.inUseSince = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbServerState {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      inUse: isSet(object.inUse)
+        ? globalThis.Boolean(object.inUse)
+        : isSet(object.in_use)
+        ? globalThis.Boolean(object.in_use)
+        : false,
+      inUseSince: isSet(object.inUseSince)
+        ? globalThis.Number(object.inUseSince)
+        : isSet(object.in_use_since)
+        ? globalThis.Number(object.in_use_since)
+        : 0,
+    };
+  },
+
+  toJSON(message: LbServerState): unknown {
+    const obj: any = {};
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.inUse !== false) {
+      obj.inUse = message.inUse;
+    }
+    if (message.inUseSince !== 0) {
+      obj.inUseSince = Math.round(message.inUseSince);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbServerState>): LbServerState {
+    return LbServerState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbServerState>): LbServerState {
+    const message = createBaseLbServerState();
+    message.address = object.address ?? "";
+    message.inUse = object.inUse ?? false;
+    message.inUseSince = object.inUseSince ?? 0;
+    return message;
+  },
+};
+
+function createBaseLbVipState(): LbVipState {
+  return {
+    name: "",
+    prefix: "",
+    protocol: "",
+    port: 0,
+    applied: false,
+    vppEntries: 0,
+    encap: "",
+    dscp: 0,
+    targetPort: 0,
+    servers: [],
+  };
+}
+
+export const LbVipState: MessageFns<LbVipState> = {
+  encode(message: LbVipState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(26).string(message.protocol);
+    }
+    if (message.port !== 0) {
+      writer.uint32(32).uint32(message.port);
+    }
+    if (message.applied !== false) {
+      writer.uint32(40).bool(message.applied);
+    }
+    if (message.vppEntries !== 0) {
+      writer.uint32(48).uint32(message.vppEntries);
+    }
+    if (message.encap !== "") {
+      writer.uint32(58).string(message.encap);
+    }
+    if (message.dscp !== 0) {
+      writer.uint32(64).uint32(message.dscp);
+    }
+    if (message.targetPort !== 0) {
+      writer.uint32(72).uint32(message.targetPort);
+    }
+    for (const v of message.servers) {
+      LbServerState.encode(v!, writer.uint32(82).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbVipState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbVipState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.applied = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.vppEntries = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.encap = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.dscp = reader.uint32();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.targetPort = reader.uint32();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.servers.push(LbServerState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbVipState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      applied: isSet(object.applied) ? globalThis.Boolean(object.applied) : false,
+      vppEntries: isSet(object.vppEntries)
+        ? globalThis.Number(object.vppEntries)
+        : isSet(object.vpp_entries)
+        ? globalThis.Number(object.vpp_entries)
+        : 0,
+      encap: isSet(object.encap) ? globalThis.String(object.encap) : "",
+      dscp: isSet(object.dscp) ? globalThis.Number(object.dscp) : 0,
+      targetPort: isSet(object.targetPort)
+        ? globalThis.Number(object.targetPort)
+        : isSet(object.target_port)
+        ? globalThis.Number(object.target_port)
+        : 0,
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => LbServerState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: LbVipState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.applied !== false) {
+      obj.applied = message.applied;
+    }
+    if (message.vppEntries !== 0) {
+      obj.vppEntries = Math.round(message.vppEntries);
+    }
+    if (message.encap !== "") {
+      obj.encap = message.encap;
+    }
+    if (message.dscp !== 0) {
+      obj.dscp = Math.round(message.dscp);
+    }
+    if (message.targetPort !== 0) {
+      obj.targetPort = Math.round(message.targetPort);
+    }
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => LbServerState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbVipState>): LbVipState {
+    return LbVipState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbVipState>): LbVipState {
+    const message = createBaseLbVipState();
+    message.name = object.name ?? "";
+    message.prefix = object.prefix ?? "";
+    message.protocol = object.protocol ?? "";
+    message.port = object.port ?? 0;
+    message.applied = object.applied ?? false;
+    message.vppEntries = object.vppEntries ?? 0;
+    message.encap = object.encap ?? "";
+    message.dscp = object.dscp ?? 0;
+    message.targetPort = object.targetPort ?? 0;
+    message.servers = object.servers?.map((e) => LbServerState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseLbFlushVipRequest(): LbFlushVipRequest {
+  return { owner: "", name: "" };
+}
+
+export const LbFlushVipRequest: MessageFns<LbFlushVipRequest> = {
+  encode(message: LbFlushVipRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbFlushVipRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbFlushVipRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbFlushVipRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+    };
+  },
+
+  toJSON(message: LbFlushVipRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbFlushVipRequest>): LbFlushVipRequest {
+    return LbFlushVipRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbFlushVipRequest>): LbFlushVipRequest {
+    const message = createBaseLbFlushVipRequest();
+    message.owner = object.owner ?? "";
+    message.name = object.name ?? "";
+    return message;
+  },
+};
+
+function createBaseLbFlushVipResponse(): LbFlushVipResponse {
+  return { vip: "" };
+}
+
+export const LbFlushVipResponse: MessageFns<LbFlushVipResponse> = {
+  encode(message: LbFlushVipResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vip !== "") {
+      writer.uint32(10).string(message.vip);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): LbFlushVipResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseLbFlushVipResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vip = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): LbFlushVipResponse {
+    return { vip: isSet(object.vip) ? globalThis.String(object.vip) : "" };
+  },
+
+  toJSON(message: LbFlushVipResponse): unknown {
+    const obj: any = {};
+    if (message.vip !== "") {
+      obj.vip = message.vip;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<LbFlushVipResponse>): LbFlushVipResponse {
+    return LbFlushVipResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<LbFlushVipResponse>): LbFlushVipResponse {
+    const message = createBaseLbFlushVipResponse();
+    message.vip = object.vip ?? "";
+    return message;
+  },
+};
+
 function createBaseQosPolicerStateRequest(): QosPolicerStateRequest {
   return { owner: "", names: [] };
 }
@@ -66346,6 +72458,1787 @@ export const IpfixCounter: MessageFns<IpfixCounter> = {
   },
 };
 
+function createBaseSrv6Config(): Srv6Config {
+  return { encapSource: undefined, encapHopLimit: undefined, localSids: {}, policies: {}, steering: [] };
+}
+
+export const Srv6Config: MessageFns<Srv6Config> = {
+  encode(message: Srv6Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.encapSource !== undefined) {
+      writer.uint32(10).string(message.encapSource);
+    }
+    if (message.encapHopLimit !== undefined) {
+      writer.uint32(16).uint32(message.encapHopLimit);
+    }
+    globalThis.Object.entries(message.localSids).forEach(([key, value]: [string, Srv6LocalSid]) => {
+      Srv6Config_LocalSidsEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    globalThis.Object.entries(message.policies).forEach(([key, value]: [string, Srv6Policy]) => {
+      Srv6Config_PoliciesEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    for (const v of message.steering) {
+      Srv6Steering.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.encapHopLimit = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = Srv6Config_LocalSidsEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.localSids[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = Srv6Config_PoliciesEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.policies[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.steering.push(Srv6Steering.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config {
+    return {
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : undefined,
+      encapHopLimit: isSet(object.encapHopLimit)
+        ? globalThis.Number(object.encapHopLimit)
+        : isSet(object.encap_hop_limit)
+        ? globalThis.Number(object.encap_hop_limit)
+        : undefined,
+      localSids: isObject(object.localSids)
+        ? (globalThis.Object.entries(object.localSids) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6LocalSid.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : isObject(object.local_sids)
+        ? (globalThis.Object.entries(object.local_sids) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6LocalSid.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      policies: isObject(object.policies)
+        ? (globalThis.Object.entries(object.policies) as [string, any][]).reduce(
+          (acc: { [key: string]: Srv6Policy }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Srv6Policy.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      steering: globalThis.Array.isArray(object?.steering)
+        ? object.steering.map((e: any) => Srv6Steering.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6Config): unknown {
+    const obj: any = {};
+    if (message.encapSource !== undefined) {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.encapHopLimit !== undefined) {
+      obj.encapHopLimit = Math.round(message.encapHopLimit);
+    }
+    if (message.localSids) {
+      const entries = globalThis.Object.entries(message.localSids) as [string, Srv6LocalSid][];
+      if (entries.length > 0) {
+        obj.localSids = {};
+        entries.forEach(([k, v]) => {
+          obj.localSids[k] = Srv6LocalSid.toJSON(v);
+        });
+      }
+    }
+    if (message.policies) {
+      const entries = globalThis.Object.entries(message.policies) as [string, Srv6Policy][];
+      if (entries.length > 0) {
+        obj.policies = {};
+        entries.forEach(([k, v]) => {
+          obj.policies[k] = Srv6Policy.toJSON(v);
+        });
+      }
+    }
+    if (message.steering?.length) {
+      obj.steering = message.steering.map((e) => Srv6Steering.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config>): Srv6Config {
+    return Srv6Config.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config>): Srv6Config {
+    const message = createBaseSrv6Config();
+    message.encapSource = object.encapSource ?? undefined;
+    message.encapHopLimit = object.encapHopLimit ?? undefined;
+    message.localSids = (globalThis.Object.entries(object.localSids ?? {}) as [string, Srv6LocalSid][]).reduce(
+      (acc: { [key: string]: Srv6LocalSid }, [key, value]: [string, Srv6LocalSid]) => {
+        if (value !== undefined) {
+          acc[key] = Srv6LocalSid.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.policies = (globalThis.Object.entries(object.policies ?? {}) as [string, Srv6Policy][]).reduce(
+      (acc: { [key: string]: Srv6Policy }, [key, value]: [string, Srv6Policy]) => {
+        if (value !== undefined) {
+          acc[key] = Srv6Policy.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.steering = object.steering?.map((e) => Srv6Steering.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6Config_LocalSidsEntry(): Srv6Config_LocalSidsEntry {
+  return { key: "", value: undefined };
+}
+
+export const Srv6Config_LocalSidsEntry: MessageFns<Srv6Config_LocalSidsEntry> = {
+  encode(message: Srv6Config_LocalSidsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      Srv6LocalSid.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config_LocalSidsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config_LocalSidsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = Srv6LocalSid.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config_LocalSidsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? Srv6LocalSid.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Config_LocalSidsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = Srv6LocalSid.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config_LocalSidsEntry>): Srv6Config_LocalSidsEntry {
+    return Srv6Config_LocalSidsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config_LocalSidsEntry>): Srv6Config_LocalSidsEntry {
+    const message = createBaseSrv6Config_LocalSidsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? Srv6LocalSid.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Config_PoliciesEntry(): Srv6Config_PoliciesEntry {
+  return { key: "", value: undefined };
+}
+
+export const Srv6Config_PoliciesEntry: MessageFns<Srv6Config_PoliciesEntry> = {
+  encode(message: Srv6Config_PoliciesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      Srv6Policy.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Config_PoliciesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Config_PoliciesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = Srv6Policy.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Config_PoliciesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? Srv6Policy.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Config_PoliciesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = Srv6Policy.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Config_PoliciesEntry>): Srv6Config_PoliciesEntry {
+    return Srv6Config_PoliciesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Config_PoliciesEntry>): Srv6Config_PoliciesEntry {
+    const message = createBaseSrv6Config_PoliciesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? Srv6Policy.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6LocalSid(): Srv6LocalSid {
+  return {
+    behavior: undefined,
+    psp: undefined,
+    vrf: undefined,
+    interface: undefined,
+    nextHop: undefined,
+    lookupVrf: undefined,
+  };
+}
+
+export const Srv6LocalSid: MessageFns<Srv6LocalSid> = {
+  encode(message: Srv6LocalSid, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.behavior !== undefined) {
+      writer.uint32(10).string(message.behavior);
+    }
+    if (message.psp !== undefined) {
+      writer.uint32(16).bool(message.psp);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.nextHop !== undefined) {
+      writer.uint32(42).string(message.nextHop);
+    }
+    if (message.lookupVrf !== undefined) {
+      writer.uint32(50).string(message.lookupVrf);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6LocalSid {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6LocalSid();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.behavior = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.psp = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.lookupVrf = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6LocalSid {
+    return {
+      behavior: isSet(object.behavior) ? globalThis.String(object.behavior) : undefined,
+      psp: isSet(object.psp) ? globalThis.Boolean(object.psp) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      lookupVrf: isSet(object.lookupVrf)
+        ? globalThis.String(object.lookupVrf)
+        : isSet(object.lookup_vrf)
+        ? globalThis.String(object.lookup_vrf)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Srv6LocalSid): unknown {
+    const obj: any = {};
+    if (message.behavior !== undefined) {
+      obj.behavior = message.behavior;
+    }
+    if (message.psp !== undefined) {
+      obj.psp = message.psp;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.lookupVrf !== undefined) {
+      obj.lookupVrf = message.lookupVrf;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6LocalSid>): Srv6LocalSid {
+    return Srv6LocalSid.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6LocalSid>): Srv6LocalSid {
+    const message = createBaseSrv6LocalSid();
+    message.behavior = object.behavior ?? undefined;
+    message.psp = object.psp ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.nextHop = object.nextHop ?? undefined;
+    message.lookupVrf = object.lookupVrf ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Policy(): Srv6Policy {
+  return { type: undefined, encap: undefined, vrf: undefined, encapSource: undefined, sidLists: [] };
+}
+
+export const Srv6Policy: MessageFns<Srv6Policy> = {
+  encode(message: Srv6Policy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.encap !== undefined) {
+      writer.uint32(16).bool(message.encap);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.encapSource !== undefined) {
+      writer.uint32(34).string(message.encapSource);
+    }
+    for (const v of message.sidLists) {
+      Srv6SidList.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Policy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Policy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.encap = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.sidLists.push(Srv6SidList.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Policy {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      encap: isSet(object.encap) ? globalThis.Boolean(object.encap) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : undefined,
+      sidLists: globalThis.Array.isArray(object?.sidLists)
+        ? object.sidLists.map((e: any) => Srv6SidList.fromJSON(e))
+        : globalThis.Array.isArray(object?.sid_lists)
+        ? object.sid_lists.map((e: any) => Srv6SidList.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6Policy): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.encap !== undefined) {
+      obj.encap = message.encap;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.encapSource !== undefined) {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.sidLists?.length) {
+      obj.sidLists = message.sidLists.map((e) => Srv6SidList.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Policy>): Srv6Policy {
+    return Srv6Policy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Policy>): Srv6Policy {
+    const message = createBaseSrv6Policy();
+    message.type = object.type ?? undefined;
+    message.encap = object.encap ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.encapSource = object.encapSource ?? undefined;
+    message.sidLists = object.sidLists?.map((e) => Srv6SidList.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6SidList(): Srv6SidList {
+  return { sids: [], weight: undefined };
+}
+
+export const Srv6SidList: MessageFns<Srv6SidList> = {
+  encode(message: Srv6SidList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sids) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(16).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6SidList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6SidList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sids.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6SidList {
+    return {
+      sids: globalThis.Array.isArray(object?.sids) ? object.sids.map((e: any) => globalThis.String(e)) : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6SidList): unknown {
+    const obj: any = {};
+    if (message.sids?.length) {
+      obj.sids = message.sids;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6SidList>): Srv6SidList {
+    return Srv6SidList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6SidList>): Srv6SidList {
+    const message = createBaseSrv6SidList();
+    message.sids = object.sids?.map((e) => e) || [];
+    message.weight = object.weight ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6Steering(): Srv6Steering {
+  return { type: undefined, prefix: undefined, vrf: undefined, interface: undefined, bsid: undefined };
+}
+
+export const Srv6Steering: MessageFns<Srv6Steering> = {
+  encode(message: Srv6Steering, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.prefix !== undefined) {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.bsid !== undefined) {
+      writer.uint32(42).string(message.bsid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6Steering {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6Steering();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6Steering {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : undefined,
+    };
+  },
+
+  toJSON(message: Srv6Steering): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.prefix !== undefined) {
+      obj.prefix = message.prefix;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.bsid !== undefined) {
+      obj.bsid = message.bsid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6Steering>): Srv6Steering {
+    return Srv6Steering.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6Steering>): Srv6Steering {
+    const message = createBaseSrv6Steering();
+    message.type = object.type ?? undefined;
+    message.prefix = object.prefix ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.bsid = object.bsid ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6StateRequest(): Srv6StateRequest {
+  return { owner: "" };
+}
+
+export const Srv6StateRequest: MessageFns<Srv6StateRequest> = {
+  encode(message: Srv6StateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: Srv6StateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateRequest>): Srv6StateRequest {
+    return Srv6StateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateRequest>): Srv6StateRequest {
+    const message = createBaseSrv6StateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSrv6StateResponse(): Srv6StateResponse {
+  return { localSids: [], policies: [], steering: [], owner: "", retrievedAt: undefined };
+}
+
+export const Srv6StateResponse: MessageFns<Srv6StateResponse> = {
+  encode(message: Srv6StateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.localSids) {
+      Srv6StateLocalSid.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.policies) {
+      Srv6StatePolicy.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.steering) {
+      Srv6StateSteering.encode(v!, writer.uint32(26).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(34).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.localSids.push(Srv6StateLocalSid.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.policies.push(Srv6StatePolicy.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.steering.push(Srv6StateSteering.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateResponse {
+    return {
+      localSids: globalThis.Array.isArray(object?.localSids)
+        ? object.localSids.map((e: any) => Srv6StateLocalSid.fromJSON(e))
+        : globalThis.Array.isArray(object?.local_sids)
+        ? object.local_sids.map((e: any) => Srv6StateLocalSid.fromJSON(e))
+        : [],
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => Srv6StatePolicy.fromJSON(e))
+        : [],
+      steering: globalThis.Array.isArray(object?.steering)
+        ? object.steering.map((e: any) => Srv6StateSteering.fromJSON(e))
+        : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Srv6StateResponse): unknown {
+    const obj: any = {};
+    if (message.localSids?.length) {
+      obj.localSids = message.localSids.map((e) => Srv6StateLocalSid.toJSON(e));
+    }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => Srv6StatePolicy.toJSON(e));
+    }
+    if (message.steering?.length) {
+      obj.steering = message.steering.map((e) => Srv6StateSteering.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateResponse>): Srv6StateResponse {
+    return Srv6StateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateResponse>): Srv6StateResponse {
+    const message = createBaseSrv6StateResponse();
+    message.localSids = object.localSids?.map((e) => Srv6StateLocalSid.fromPartial(e)) || [];
+    message.policies = object.policies?.map((e) => Srv6StatePolicy.fromPartial(e)) || [];
+    message.steering = object.steering?.map((e) => Srv6StateSteering.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseSrv6StateLocalSid(): Srv6StateLocalSid {
+  return {
+    sid: "",
+    behavior: "",
+    psp: false,
+    fibTable: 0,
+    interface: "",
+    nextHop: "",
+    lookupTable: 0,
+    goodPackets: "0",
+    goodBytes: "0",
+    badPackets: "0",
+    badBytes: "0",
+  };
+}
+
+export const Srv6StateLocalSid: MessageFns<Srv6StateLocalSid> = {
+  encode(message: Srv6StateLocalSid, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sid !== "") {
+      writer.uint32(10).string(message.sid);
+    }
+    if (message.behavior !== "") {
+      writer.uint32(18).string(message.behavior);
+    }
+    if (message.psp !== false) {
+      writer.uint32(24).bool(message.psp);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(32).uint32(message.fibTable);
+    }
+    if (message.interface !== "") {
+      writer.uint32(42).string(message.interface);
+    }
+    if (message.nextHop !== "") {
+      writer.uint32(50).string(message.nextHop);
+    }
+    if (message.lookupTable !== 0) {
+      writer.uint32(56).uint32(message.lookupTable);
+    }
+    if (message.goodPackets !== "0") {
+      writer.uint32(64).uint64(message.goodPackets);
+    }
+    if (message.goodBytes !== "0") {
+      writer.uint32(72).uint64(message.goodBytes);
+    }
+    if (message.badPackets !== "0") {
+      writer.uint32(80).uint64(message.badPackets);
+    }
+    if (message.badBytes !== "0") {
+      writer.uint32(88).uint64(message.badBytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateLocalSid {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateLocalSid();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sid = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.behavior = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.psp = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.lookupTable = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.goodPackets = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.goodBytes = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.badPackets = reader.uint64().toString();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.badBytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateLocalSid {
+    return {
+      sid: isSet(object.sid) ? globalThis.String(object.sid) : "",
+      behavior: isSet(object.behavior) ? globalThis.String(object.behavior) : "",
+      psp: isSet(object.psp) ? globalThis.Boolean(object.psp) : false,
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : "",
+      lookupTable: isSet(object.lookupTable)
+        ? globalThis.Number(object.lookupTable)
+        : isSet(object.lookup_table)
+        ? globalThis.Number(object.lookup_table)
+        : 0,
+      goodPackets: isSet(object.goodPackets)
+        ? globalThis.String(object.goodPackets)
+        : isSet(object.good_packets)
+        ? globalThis.String(object.good_packets)
+        : "0",
+      goodBytes: isSet(object.goodBytes)
+        ? globalThis.String(object.goodBytes)
+        : isSet(object.good_bytes)
+        ? globalThis.String(object.good_bytes)
+        : "0",
+      badPackets: isSet(object.badPackets)
+        ? globalThis.String(object.badPackets)
+        : isSet(object.bad_packets)
+        ? globalThis.String(object.bad_packets)
+        : "0",
+      badBytes: isSet(object.badBytes)
+        ? globalThis.String(object.badBytes)
+        : isSet(object.bad_bytes)
+        ? globalThis.String(object.bad_bytes)
+        : "0",
+    };
+  },
+
+  toJSON(message: Srv6StateLocalSid): unknown {
+    const obj: any = {};
+    if (message.sid !== "") {
+      obj.sid = message.sid;
+    }
+    if (message.behavior !== "") {
+      obj.behavior = message.behavior;
+    }
+    if (message.psp !== false) {
+      obj.psp = message.psp;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== "") {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.lookupTable !== 0) {
+      obj.lookupTable = Math.round(message.lookupTable);
+    }
+    if (message.goodPackets !== "0") {
+      obj.goodPackets = message.goodPackets;
+    }
+    if (message.goodBytes !== "0") {
+      obj.goodBytes = message.goodBytes;
+    }
+    if (message.badPackets !== "0") {
+      obj.badPackets = message.badPackets;
+    }
+    if (message.badBytes !== "0") {
+      obj.badBytes = message.badBytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateLocalSid>): Srv6StateLocalSid {
+    return Srv6StateLocalSid.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateLocalSid>): Srv6StateLocalSid {
+    const message = createBaseSrv6StateLocalSid();
+    message.sid = object.sid ?? "";
+    message.behavior = object.behavior ?? "";
+    message.psp = object.psp ?? false;
+    message.fibTable = object.fibTable ?? 0;
+    message.interface = object.interface ?? "";
+    message.nextHop = object.nextHop ?? "";
+    message.lookupTable = object.lookupTable ?? 0;
+    message.goodPackets = object.goodPackets ?? "0";
+    message.goodBytes = object.goodBytes ?? "0";
+    message.badPackets = object.badPackets ?? "0";
+    message.badBytes = object.badBytes ?? "0";
+    return message;
+  },
+};
+
+function createBaseSrv6StatePolicy(): Srv6StatePolicy {
+  return { bsid: "", type: "", encap: false, fibTable: 0, encapSource: "", sidLists: [] };
+}
+
+export const Srv6StatePolicy: MessageFns<Srv6StatePolicy> = {
+  encode(message: Srv6StatePolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.bsid !== "") {
+      writer.uint32(10).string(message.bsid);
+    }
+    if (message.type !== "") {
+      writer.uint32(18).string(message.type);
+    }
+    if (message.encap !== false) {
+      writer.uint32(24).bool(message.encap);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(32).uint32(message.fibTable);
+    }
+    if (message.encapSource !== "") {
+      writer.uint32(42).string(message.encapSource);
+    }
+    for (const v of message.sidLists) {
+      Srv6StateSidList.encode(v!, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StatePolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StatePolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.encap = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.encapSource = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sidLists.push(Srv6StateSidList.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StatePolicy {
+    return {
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      encap: isSet(object.encap) ? globalThis.Boolean(object.encap) : false,
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      encapSource: isSet(object.encapSource)
+        ? globalThis.String(object.encapSource)
+        : isSet(object.encap_source)
+        ? globalThis.String(object.encap_source)
+        : "",
+      sidLists: globalThis.Array.isArray(object?.sidLists)
+        ? object.sidLists.map((e: any) => Srv6StateSidList.fromJSON(e))
+        : globalThis.Array.isArray(object?.sid_lists)
+        ? object.sid_lists.map((e: any) => Srv6StateSidList.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Srv6StatePolicy): unknown {
+    const obj: any = {};
+    if (message.bsid !== "") {
+      obj.bsid = message.bsid;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.encap !== false) {
+      obj.encap = message.encap;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.encapSource !== "") {
+      obj.encapSource = message.encapSource;
+    }
+    if (message.sidLists?.length) {
+      obj.sidLists = message.sidLists.map((e) => Srv6StateSidList.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StatePolicy>): Srv6StatePolicy {
+    return Srv6StatePolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StatePolicy>): Srv6StatePolicy {
+    const message = createBaseSrv6StatePolicy();
+    message.bsid = object.bsid ?? "";
+    message.type = object.type ?? "";
+    message.encap = object.encap ?? false;
+    message.fibTable = object.fibTable ?? 0;
+    message.encapSource = object.encapSource ?? "";
+    message.sidLists = object.sidLists?.map((e) => Srv6StateSidList.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSrv6StateSidList(): Srv6StateSidList {
+  return { sids: [], weight: 0 };
+}
+
+export const Srv6StateSidList: MessageFns<Srv6StateSidList> = {
+  encode(message: Srv6StateSidList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sids) {
+      writer.uint32(10).string(v!);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(16).uint32(message.weight);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateSidList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateSidList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sids.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateSidList {
+    return {
+      sids: globalThis.Array.isArray(object?.sids) ? object.sids.map((e: any) => globalThis.String(e)) : [],
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+    };
+  },
+
+  toJSON(message: Srv6StateSidList): unknown {
+    const obj: any = {};
+    if (message.sids?.length) {
+      obj.sids = message.sids;
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateSidList>): Srv6StateSidList {
+    return Srv6StateSidList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateSidList>): Srv6StateSidList {
+    const message = createBaseSrv6StateSidList();
+    message.sids = object.sids?.map((e) => e) || [];
+    message.weight = object.weight ?? 0;
+    return message;
+  },
+};
+
+function createBaseSrv6StateSteering(): Srv6StateSteering {
+  return { trafficType: "", prefix: "", fibTable: 0, interface: "", bsid: "" };
+}
+
+export const Srv6StateSteering: MessageFns<Srv6StateSteering> = {
+  encode(message: Srv6StateSteering, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.trafficType !== "") {
+      writer.uint32(10).string(message.trafficType);
+    }
+    if (message.prefix !== "") {
+      writer.uint32(18).string(message.prefix);
+    }
+    if (message.fibTable !== 0) {
+      writer.uint32(24).uint32(message.fibTable);
+    }
+    if (message.interface !== "") {
+      writer.uint32(34).string(message.interface);
+    }
+    if (message.bsid !== "") {
+      writer.uint32(42).string(message.bsid);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Srv6StateSteering {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSrv6StateSteering();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.trafficType = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.prefix = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.fibTable = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.bsid = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Srv6StateSteering {
+    return {
+      trafficType: isSet(object.trafficType)
+        ? globalThis.String(object.trafficType)
+        : isSet(object.traffic_type)
+        ? globalThis.String(object.traffic_type)
+        : "",
+      prefix: isSet(object.prefix) ? globalThis.String(object.prefix) : "",
+      fibTable: isSet(object.fibTable)
+        ? globalThis.Number(object.fibTable)
+        : isSet(object.fib_table)
+        ? globalThis.Number(object.fib_table)
+        : 0,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      bsid: isSet(object.bsid) ? globalThis.String(object.bsid) : "",
+    };
+  },
+
+  toJSON(message: Srv6StateSteering): unknown {
+    const obj: any = {};
+    if (message.trafficType !== "") {
+      obj.trafficType = message.trafficType;
+    }
+    if (message.prefix !== "") {
+      obj.prefix = message.prefix;
+    }
+    if (message.fibTable !== 0) {
+      obj.fibTable = Math.round(message.fibTable);
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.bsid !== "") {
+      obj.bsid = message.bsid;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Srv6StateSteering>): Srv6StateSteering {
+    return Srv6StateSteering.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Srv6StateSteering>): Srv6StateSteering {
+    const message = createBaseSrv6StateSteering();
+    message.trafficType = object.trafficType ?? "";
+    message.prefix = object.prefix ?? "";
+    message.fibTable = object.fibTable ?? 0;
+    message.interface = object.interface ?? "";
+    message.bsid = object.bsid ?? "";
+    return message;
+  },
+};
+
 function createBaseLispConfig(): LispConfig {
   return {
     enabled: undefined,
@@ -68892,6 +76785,35 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
   /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState: {
+    path: "/vrx.v1.Dataplane/LbState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LbStateRequest): Buffer => Buffer.from(LbStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LbStateRequest => LbStateRequest.decode(value),
+    responseSerialize: (value: LbStateResponse): Buffer => Buffer.from(LbStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LbStateResponse => LbStateResponse.decode(value),
+  },
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip: {
+    path: "/vrx.v1.Dataplane/LbFlushVip" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: LbFlushVipRequest): Buffer => Buffer.from(LbFlushVipRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): LbFlushVipRequest => LbFlushVipRequest.decode(value),
+    responseSerialize: (value: LbFlushVipResponse): Buffer => Buffer.from(LbFlushVipResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): LbFlushVipResponse => LbFlushVipResponse.decode(value),
+  },
+  /**
    * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
    * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
    * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
@@ -68965,6 +76887,22 @@ export const DataplaneService = {
     requestDeserialize: (value: Buffer): IpfixStateRequest => IpfixStateRequest.decode(value),
     responseSerialize: (value: IpfixStateResponse): Buffer => Buffer.from(IpfixStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): IpfixStateResponse => IpfixStateResponse.decode(value),
+  },
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State: {
+    path: "/vrx.v1.Dataplane/Srv6State" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: Srv6StateRequest): Buffer => Buffer.from(Srv6StateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): Srv6StateRequest => Srv6StateRequest.decode(value),
+    responseSerialize: (value: Srv6StateResponse): Buffer => Buffer.from(Srv6StateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): Srv6StateResponse => Srv6StateResponse.decode(value),
   },
   /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
@@ -69193,6 +77131,60 @@ export const DataplaneService = {
     responseSerialize: (value: DhcpLeasesResponse): Buffer => Buffer.from(DhcpLeasesResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): DhcpLeasesResponse => DhcpLeasesResponse.decode(value),
   },
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState: {
+    path: "/vrx.v1.Dataplane/DnsState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DnsStateRequest): Buffer => Buffer.from(DnsStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DnsStateRequest => DnsStateRequest.decode(value),
+    responseSerialize: (value: DnsStateResponse): Buffer => Buffer.from(DnsStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DnsStateResponse => DnsStateResponse.decode(value),
+  },
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState: {
+    path: "/vrx.v1.Dataplane/NtpState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: NtpStateRequest): Buffer => Buffer.from(NtpStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): NtpStateRequest => NtpStateRequest.decode(value),
+    responseSerialize: (value: NtpStateResponse): Buffer => Buffer.from(NtpStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): NtpStateResponse => NtpStateResponse.decode(value),
+  },
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState: {
+    path: "/vrx.v1.Dataplane/SyslogState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SyslogStateRequest): Buffer => Buffer.from(SyslogStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SyslogStateRequest => SyslogStateRequest.decode(value),
+    responseSerialize: (value: SyslogStateResponse): Buffer => Buffer.from(SyslogStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SyslogStateResponse => SyslogStateResponse.decode(value),
+  },
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries: {
+    path: "/vrx.v1.Dataplane/SyslogEntries" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SyslogEntriesRequest): Buffer => Buffer.from(SyslogEntriesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SyslogEntriesRequest => SyslogEntriesRequest.decode(value),
+    responseSerialize: (value: SyslogEntriesResponse): Buffer =>
+      Buffer.from(SyslogEntriesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SyslogEntriesResponse => SyslogEntriesResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -69239,6 +77231,19 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
   /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState: handleUnaryCall<LbStateRequest, LbStateResponse>;
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip: handleUnaryCall<LbFlushVipRequest, LbFlushVipResponse>;
+  /**
    * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
    * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
    * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
@@ -69267,6 +77272,14 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
    */
   ipfixState: handleUnaryCall<IpfixStateRequest, IpfixStateResponse>;
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State: handleUnaryCall<Srv6StateRequest, Srv6StateResponse>;
   /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
    * adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
@@ -69362,6 +77375,27 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
    */
   dhcpLeases: handleUnaryCall<DhcpLeasesRequest, DhcpLeasesResponse>;
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState: handleUnaryCall<DnsStateRequest, DnsStateResponse>;
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState: handleUnaryCall<NtpStateRequest, NtpStateResponse>;
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState: handleUnaryCall<SyslogStateRequest, SyslogStateResponse>;
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries: handleUnaryCall<SyslogEntriesRequest, SyslogEntriesResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -69493,6 +77527,47 @@ export interface DataplaneClient extends Client {
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
   ): ClientUnaryCall;
   /**
+   * LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+   * port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+   * number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+   * Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+   */
+  lbState(
+    request: LbStateRequest,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  lbState(
+    request: LbStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  lbState(
+    request: LbStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LbStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+   * flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+   * agent on the running VPP instance and has an application server in use.
+   */
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
+  ): ClientUnaryCall;
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
+  ): ClientUnaryCall;
+  lbFlushVip(
+    request: LbFlushVipRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: LbFlushVipResponse) => void,
+  ): ClientUnaryCall;
+  /**
    * QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
    * agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
    * buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
@@ -69590,6 +77665,28 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: IpfixStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+   * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+   * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+   * Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+   * (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+   */
+  srv6State(
+    request: Srv6StateRequest,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
+  ): ClientUnaryCall;
+  srv6State(
+    request: Srv6StateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
+  ): ClientUnaryCall;
+  srv6State(
+    request: Srv6StateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Srv6StateResponse) => void,
   ): ClientUnaryCall;
   /**
    * LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
@@ -69895,6 +77992,83 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: DhcpLeasesResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+   * stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+   * start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+   */
+  dnsState(
+    request: DnsStateRequest,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  dnsState(
+    request: DnsStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  dnsState(
+    request: DnsStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DnsStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+   * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   */
+  ntpState(
+    request: NtpStateRequest,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  ntpState(
+    request: NtpStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  ntpState(
+    request: NtpStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: NtpStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+   * counters, and the pending restart request. Never mutates.
+   */
+  syslogState(
+    request: SyslogStateRequest,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  syslogState(
+    request: SyslogStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  syslogState(
+    request: SyslogStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SyslogStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+   * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+   */
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
+  ): ClientUnaryCall;
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
+  ): ClientUnaryCall;
+  syslogEntries(
+    request: SyslogEntriesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
   ): ClientUnaryCall;
 }
 

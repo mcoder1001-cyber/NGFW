@@ -10,6 +10,7 @@ export const servicesTabs: readonly DomainTab[] = [
   // wave-BC: F-host-stack
   { id: 'host-stack', labelKey: 'host-stack:tab', Component: lazy(() => import('./host-stack/HostStackTab').then((m) => ({ default: m.HostStackTab }))) },
   // wave-BC: F-lb
+  { id: 'lb', labelKey: 'lb:tab', Component: lazy(async () => ({ default: (await import('./lb/LbPage')).LbPage })) },
   // wave-BC: F-qos-flat
   { id: 'qos', labelKey: 'qos-flat:tab', Component: lazy(() => import('./qos-flat/QosPage')) },
   // wave-BC: F-snmp
@@ -23,4 +24,7 @@ export const servicesTabs: readonly DomainTab[] = [
     Component: lazy(() => import('./kea-dhcp-relay/DhcpPage')),
   },
   // wave-A: F-unbound-chrony-syslog
+  { id: 'dns', labelKey: 'unbound-chrony-syslog:tab.dns', Component: lazy(() => import('./unbound-chrony-syslog/DnsTab')) },
+  { id: 'ntp', labelKey: 'unbound-chrony-syslog:tab.ntp', Component: lazy(() => import('./unbound-chrony-syslog/NtpTab')) },
+  { id: 'logging', labelKey: 'unbound-chrony-syslog:tab.logging', Component: lazy(() => import('./unbound-chrony-syslog/LoggingTab')) },
 ];

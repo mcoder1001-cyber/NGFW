@@ -1156,7 +1156,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.14
@@ -1181,7 +1181,7 @@ tasks:
   - F-startup-apply
   priority: 4
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.6
@@ -1207,7 +1207,7 @@ tasks:
   - F-unbound-chrony-syslog
   priority: 4
   est_hours: 6
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D0.9
@@ -1530,7 +1530,7 @@ tasks:
   - W-seed
   priority: 4
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D7.3
@@ -1545,7 +1545,7 @@ tasks:
   worktree: /root/ngfw-wt/F-unbound-chrony-syslog
   owner: ''
   started: 2026-09-25T00:14
-  finished: ''
+  finished: '2026-09-26'
   notes: ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write) | done c94e90d9
     (CI green; 04:27 dns crash guarded, D-137); review running | review APPROVE WITH CHANGES b665904f; fix round 1 (H1 IPv6-only cache crash, H2 live readiness, M1–M3, M5) — D-139 | fix round 1 06ad0939;
     verify APPROVE 4507e5ea; rebase round after F-kea + TD-13 + TD-23 (L3 fail closed)'
@@ -1636,7 +1636,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D6.7
@@ -1646,7 +1646,7 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-09-26'
   notes: ' | D-074: manager generates srv6_ad/am/as binapi on main before spawning | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
 - id: F-lisp
   title: 'Wave C (day 13-15): LISP/LISP-GPE'
@@ -1708,7 +1708,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D7.9
@@ -1720,8 +1720,8 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
-  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
+  finished: '2026-09-26'
+  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25 | ported to main a8a506bf (cloud session) before a server review: review still owed'
 - id: F-qos-flat
   title: 'Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded)'
   prompt: prompts/features/F-qos-flat.md
@@ -1747,7 +1747,7 @@ tasks:
   owner: ''
   started: ''
   finished: '2026-09-26'
-  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25 | merged a8a506b on the GitHub main (ported from task/F-qos-flat), board synced 2026-09-26'
+  notes: ' | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25 | ported to main a8a506bf (cloud session) before a server review: review still owed'
 - id: F-snmp
   title: 'Wave C (day 13-15): SNMP v2c/v3 via snmpd renderer + private MIB'
   prompt: prompts/features/F-snmp.md
@@ -1814,7 +1814,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D8.1
@@ -2768,7 +2768,7 @@ tasks:
   notes: 'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3) | verify APPROVE + C1 follow-up 55b2f8fa (deprecated no-op); squashed c2e3eabb; queued after WEB-2'
 - template: ''
   parked_on: ''
-  finished: ''
+  finished: '2026-09-26'
   wbs: *id001
   id: WEB-2
   title: Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page
@@ -2778,7 +2778,7 @@ tasks:
   - P08
   priority: 2
   est_hours: 9
-  state: review
+  state: merged
   scope: web-ahead (D-123); SPECULATIVE on task/P08
   files_owned: apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.*) docs/status/tasks/WEB-2*
   branch: task/WEB-2
@@ -2819,7 +2819,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: todo
+  state: ready
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
   branch: ''
@@ -2840,7 +2840,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: todo
+  state: ready
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
   branch: ''
@@ -3567,3 +3567,131 @@ tasks:
   scope: 'P12 review H3; manager decision: no global lcp default-netns window on the shared VPP'
   files_owned: test/topology/frr-linuxcp/** docs/status/tasks/P12-fib-proof*
   notes: test design in docs/status/tasks/P12.md (fix round 1)
+- id: F-global-blocking
+  title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
+  prompt: prompts/features/F-global-blocking.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-object-model
+  - F-acl
+  - F-host-acl-nftables
+  priority: 3
+  est_hours: 20
+  state: ready
+  parked_on: ''
+  wbs: []
+  scope: IP-only block lists, uploaded or fetched from a URL, per-interface; domains/Geo-IP stay in plan/backlog.yaml
+  files_owned: '- packages/schema/src/domains/ext/global-blocking.ts, apps/agent/internal/descriptors/globalblock/**, apps/api/src/features/global-blocking/**, apps/web/src/domains/security/global-blocking/**'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26) | product owner asked for URL download + per-interface selection (est 14 → 20)
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-lb-host
+  title: 'F-lb host runs: TestLbOnHost on a slot, GC on host (manager window), UI screenshot against the real endpoint'
+  stage: S4
+  deps:
+  - F-lb
+  priority: 3
+  est_hours: 2
+  scope: 'F-lb review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-lb.md'
+  files_owned: docs/status/tasks/F-lb-host*
+  notes: steps 1-3 of F-lb.md Pending host steps; NRestarts before/after
+- id: F-pppoe-client
+  title: PPPoE client on WAN (ISP dial-up), reconnect, MTU/MSS clamping, IPv4/IPv6 from the peer
+  prompt: prompts/features/F-pppoe-client.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - P12
+  - F-vlan-qinq
+  - F-nat44-ed-sessions
+  priority: 3
+  est_hours: 16
+  state: ready
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/agent/internal/renderers/pppoe/**, docs/user/network/pppoe.md'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-NET-01 by the product owner (2026-09-26)
+- id: F-multiwan
+  title: Multi-WAN failover and weighted load sharing with ICMP/HTTP/DNS link health monitors
+  prompt: prompts/features/F-multiwan.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-vrf-static-ecmp
+  - F-rpf-adl-pbr
+  - F-nat44-ed-sessions
+  - F-dashboard-prom-alarms
+  priority: 3
+  est_hours: 20
+  state: todo
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/agent/internal/subsystems/wanmon/**, apps/web/src/domains/routing/wan-groups/**, docs/user/network/multi-wan.md'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-NET-03 by the product owner (2026-09-26)
+- id: F-notifications
+  title: 'Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state'
+  prompt: prompts/features/F-notifications.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-dashboard-prom-alarms
+  - F-management-ui
+  priority: 3
+  est_hours: 10
+  state: todo
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-OPS-06 by the product owner (2026-09-26)
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-srv6-host
+  title: 'F-srv6 host runs: srv6_integration_test on a slot, stack.sh through the API, real-agent screenshots'
+  stage: S4
+  deps:
+  - F-srv6
+  priority: 3
+  est_hours: 2
+  scope: 'F-srv6 review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-srv6.md'
+  files_owned: docs/status/tasks/F-srv6-host*
+  notes: 'steps of F-srv6.md Pending host steps; NRestarts before/after'

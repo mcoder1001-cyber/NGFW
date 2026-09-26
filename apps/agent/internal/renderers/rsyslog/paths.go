@@ -77,7 +77,12 @@ func ProductPaths() Paths {
 // /run/vrx-test/<prefix>/rsyslog, a standalone config with imuxsock on <dir>/log.sock and
 // (tcpPort > 0) imtcp on 127.0.0.1:tcpPort.
 func TestPaths(prefix string, tcpPort uint32) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "rsyslog")
+	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "rsyslog"), tcpPort)
+}
+
+// PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance
+// there, F-unbound-chrony-syslog).
+func PathsUnder(base string, tcpPort uint32) Paths {
 	return Paths{
 		ConfFile:   filepath.Join(base, "rsyslog.conf"),
 		StatsFile:  filepath.Join(base, "impstats.json"),

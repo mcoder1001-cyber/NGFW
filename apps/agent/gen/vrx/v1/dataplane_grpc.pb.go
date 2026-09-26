@@ -54,11 +54,14 @@ const (
 	Dataplane_Action_FullMethodName            = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName            = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName    = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_LbState_FullMethodName           = "/vrx.v1.Dataplane/LbState"
+	Dataplane_LbFlushVip_FullMethodName        = "/vrx.v1.Dataplane/LbFlushVip"
 	Dataplane_QosPolicerState_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerState"
 	Dataplane_QosPolicerReset_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerReset"
 	Dataplane_HostStackState_FullMethodName    = "/vrx.v1.Dataplane/HostStackState"
 	Dataplane_SnmpState_FullMethodName         = "/vrx.v1.Dataplane/SnmpState"
 	Dataplane_IpfixState_FullMethodName        = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_Srv6State_FullMethodName         = "/vrx.v1.Dataplane/Srv6State"
 	Dataplane_LispState_FullMethodName         = "/vrx.v1.Dataplane/LispState"
 	Dataplane_BondState_FullMethodName         = "/vrx.v1.Dataplane/BondState"
 	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
@@ -74,6 +77,10 @@ const (
 	Dataplane_WireguardState_FullMethodName    = "/vrx.v1.Dataplane/WireguardState"
 	Dataplane_RoutingState_FullMethodName      = "/vrx.v1.Dataplane/RoutingState"
 	Dataplane_DhcpLeases_FullMethodName        = "/vrx.v1.Dataplane/DhcpLeases"
+	Dataplane_DnsState_FullMethodName          = "/vrx.v1.Dataplane/DnsState"
+	Dataplane_NtpState_FullMethodName          = "/vrx.v1.Dataplane/NtpState"
+	Dataplane_SyslogState_FullMethodName       = "/vrx.v1.Dataplane/SyslogState"
+	Dataplane_SyslogEntries_FullMethodName     = "/vrx.v1.Dataplane/SyslogEntries"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -112,6 +119,15 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+	// Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+	LbState(ctx context.Context, in *LbStateRequest, opts ...grpc.CallOption) (*LbStateResponse, error)
+	// LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+	// flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+	// agent on the running VPP instance and has an application server in use.
+	LbFlushVip(ctx context.Context, in *LbFlushVipRequest, opts ...grpc.CallOption) (*LbFlushVipResponse, error)
 	// QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
 	// agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
 	// buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
@@ -131,6 +147,12 @@ type DataplaneClient interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(ctx context.Context, in *IpfixStateRequest, opts ...grpc.CallOption) (*IpfixStateResponse, error)
+	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+	// Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+	// (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+	Srv6State(ctx context.Context, in *Srv6StateRequest, opts ...grpc.CallOption) (*Srv6StateResponse, error)
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
@@ -196,6 +218,19 @@ type DataplaneClient interface {
 	// agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
 	// the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
 	DhcpLeases(ctx context.Context, in *DhcpLeasesRequest, opts ...grpc.CallOption) (*DhcpLeasesResponse, error)
+	// DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+	// stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+	// start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+	DnsState(ctx context.Context, in *DnsStateRequest, opts ...grpc.CallOption) (*DnsStateResponse, error)
+	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error)
+	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+	// counters, and the pending restart request. Never mutates.
+	SyslogState(ctx context.Context, in *SyslogStateRequest, opts ...grpc.CallOption) (*SyslogStateResponse, error)
+	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+	SyslogEntries(ctx context.Context, in *SyslogEntriesRequest, opts ...grpc.CallOption) (*SyslogEntriesResponse, error)
 }
 
 type dataplaneClient struct {
@@ -313,6 +348,26 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	return out, nil
 }
 
+func (c *dataplaneClient) LbState(ctx context.Context, in *LbStateRequest, opts ...grpc.CallOption) (*LbStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LbStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LbState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) LbFlushVip(ctx context.Context, in *LbFlushVipRequest, opts ...grpc.CallOption) (*LbFlushVipResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LbFlushVipResponse)
+	err := c.cc.Invoke(ctx, Dataplane_LbFlushVip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataplaneClient) QosPolicerState(ctx context.Context, in *QosPolicerStateRequest, opts ...grpc.CallOption) (*QosPolicerStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(QosPolicerStateResponse)
@@ -357,6 +412,16 @@ func (c *dataplaneClient) IpfixState(ctx context.Context, in *IpfixStateRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IpfixStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_IpfixState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) Srv6State(ctx context.Context, in *Srv6StateRequest, opts ...grpc.CallOption) (*Srv6StateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Srv6StateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_Srv6State_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -513,6 +578,46 @@ func (c *dataplaneClient) DhcpLeases(ctx context.Context, in *DhcpLeasesRequest,
 	return out, nil
 }
 
+func (c *dataplaneClient) DnsState(ctx context.Context, in *DnsStateRequest, opts ...grpc.CallOption) (*DnsStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DnsStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_DnsState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NtpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_NtpState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) SyslogState(ctx context.Context, in *SyslogStateRequest, opts ...grpc.CallOption) (*SyslogStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyslogStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SyslogState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) SyslogEntries(ctx context.Context, in *SyslogEntriesRequest, opts ...grpc.CallOption) (*SyslogEntriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyslogEntriesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SyslogEntries_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -549,6 +654,15 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+	// port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+	// number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+	// Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+	LbState(context.Context, *LbStateRequest) (*LbStateResponse, error)
+	// LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+	// flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+	// agent on the running VPP instance and has an application server in use.
+	LbFlushVip(context.Context, *LbFlushVipRequest) (*LbFlushVipResponse, error)
 	// QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
 	// agent realises as egress policers "shaper:<name>" — as VPP reports them (policer_dump_v2: configuration and token
 	// buckets) with their conform / exceed / violate counters from the stats segment (/net/policer/*). Read-only
@@ -568,6 +682,12 @@ type DataplaneServer interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error)
+	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+	// Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+	// (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+	Srv6State(context.Context, *Srv6StateRequest) (*Srv6StateResponse, error)
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
@@ -633,6 +753,19 @@ type DataplaneServer interface {
 	// agent, never the whole lease file) with the daemons' status and per-subnet pool usage, or — with `interface` —
 	// the VPP DHCPv4 client lease of one interface. Read-only status, never part of Retrieve (§5).
 	DhcpLeases(context.Context, *DhcpLeasesRequest) (*DhcpLeasesResponse, error)
+	// DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+	// stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+	// start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+	DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error)
+	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error)
+	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+	// counters, and the pending restart request. Never mutates.
+	SyslogState(context.Context, *SyslogStateRequest) (*SyslogStateResponse, error)
+	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+	SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -667,6 +800,12 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
 }
+func (UnimplementedDataplaneServer) LbState(context.Context, *LbStateRequest) (*LbStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LbState not implemented")
+}
+func (UnimplementedDataplaneServer) LbFlushVip(context.Context, *LbFlushVipRequest) (*LbFlushVipResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method LbFlushVip not implemented")
+}
 func (UnimplementedDataplaneServer) QosPolicerState(context.Context, *QosPolicerStateRequest) (*QosPolicerStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QosPolicerState not implemented")
 }
@@ -681,6 +820,9 @@ func (UnimplementedDataplaneServer) SnmpState(context.Context, *SnmpStateRequest
 }
 func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IpfixState not implemented")
+}
+func (UnimplementedDataplaneServer) Srv6State(context.Context, *Srv6StateRequest) (*Srv6StateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Srv6State not implemented")
 }
 func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
@@ -726,6 +868,18 @@ func (UnimplementedDataplaneServer) RoutingState(context.Context, *RoutingStateR
 }
 func (UnimplementedDataplaneServer) DhcpLeases(context.Context, *DhcpLeasesRequest) (*DhcpLeasesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DhcpLeases not implemented")
+}
+func (UnimplementedDataplaneServer) DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DnsState not implemented")
+}
+func (UnimplementedDataplaneServer) NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method NtpState not implemented")
+}
+func (UnimplementedDataplaneServer) SyslogState(context.Context, *SyslogStateRequest) (*SyslogStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyslogState not implemented")
+}
+func (UnimplementedDataplaneServer) SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SyslogEntries not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -871,6 +1025,42 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_LbState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LbStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LbState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LbState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LbState(ctx, req.(*LbStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_LbFlushVip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LbFlushVipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).LbFlushVip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_LbFlushVip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).LbFlushVip(ctx, req.(*LbFlushVipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Dataplane_QosPolicerState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QosPolicerStateRequest)
 	if err := dec(in); err != nil {
@@ -957,6 +1147,24 @@ func _Dataplane_IpfixState_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).IpfixState(ctx, req.(*IpfixStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_Srv6State_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Srv6StateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).Srv6State(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_Srv6State_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).Srv6State(ctx, req.(*Srv6StateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1231,6 +1439,78 @@ func _Dataplane_DhcpLeases_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_DnsState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DnsStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).DnsState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_DnsState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).DnsState(ctx, req.(*DnsStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_NtpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NtpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).NtpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_NtpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).NtpState(ctx, req.(*NtpStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_SyslogState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyslogStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SyslogState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SyslogState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SyslogState(ctx, req.(*SyslogStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_SyslogEntries_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SyslogEntriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SyslogEntries(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SyslogEntries_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SyslogEntries(ctx, req.(*SyslogEntriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1259,6 +1539,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Dataplane_InterfaceState_Handler,
 		},
 		{
+			MethodName: "LbState",
+			Handler:    _Dataplane_LbState_Handler,
+		},
+		{
+			MethodName: "LbFlushVip",
+			Handler:    _Dataplane_LbFlushVip_Handler,
+		},
+		{
 			MethodName: "QosPolicerState",
 			Handler:    _Dataplane_QosPolicerState_Handler,
 		},
@@ -1277,6 +1565,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IpfixState",
 			Handler:    _Dataplane_IpfixState_Handler,
+		},
+		{
+			MethodName: "Srv6State",
+			Handler:    _Dataplane_Srv6State_Handler,
 		},
 		{
 			MethodName: "LispState",
@@ -1337,6 +1629,22 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DhcpLeases",
 			Handler:    _Dataplane_DhcpLeases_Handler,
+		},
+		{
+			MethodName: "DnsState",
+			Handler:    _Dataplane_DnsState_Handler,
+		},
+		{
+			MethodName: "NtpState",
+			Handler:    _Dataplane_NtpState_Handler,
+		},
+		{
+			MethodName: "SyslogState",
+			Handler:    _Dataplane_SyslogState_Handler,
+		},
+		{
+			MethodName: "SyslogEntries",
+			Handler:    _Dataplane_SyslogEntries_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

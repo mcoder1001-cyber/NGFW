@@ -78,6 +78,17 @@ service Dataplane {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+
+  // LbState reports what VPP's lb plugin holds for this agent's VIPs (lb_vip_dump + lb_as_dump: prefix,
+  // port, VIP type, DSCP / target port, each application server with its in-use or "removed" flag) and the
+  // number of lb_vip_dump entries per VIP (deleted VIPs stay listed until the lb garbage collection, V20).
+  // Read-only, never used as Retrieve: VPP 26.06 corrupts the protocol and table-length fields (D-063).
+  rpc LbState(LbStateRequest) returns (LbStateResponse);
+  // LbFlushVip flushes the sticky flow table of one of this agent's VIPs (lb_flush_vip), so established
+  // flows are re-hashed over the current application servers. Refused unless the VIP was created by this
+  // agent on the running VPP instance and has an application server in use.
+  rpc LbFlushVip(LbFlushVipRequest) returns (LbFlushVipResponse);
+
   // wave-BC: F-qos-flat
 
   // QosPolicerState (F-qos-flat) lists this owner's policers — the `services.qos.policers` and the shapers, which the
@@ -111,6 +122,14 @@ service Dataplane {
 
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+
+  // Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
+  // steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
+  // (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
+  // Never another owner's objects, never the write-only globals. Never mutates; one walk at a time
+  // (D-132) (docs/contracts/proto.md "F-srv6: Srv6State").
+  rpc Srv6State(Srv6StateRequest) returns (Srv6StateResponse);
+
   // wave-BC: F-lisp
 
   // LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
@@ -225,6 +244,20 @@ service Dataplane {
   rpc DhcpLeases(DhcpLeasesRequest) returns (DhcpLeasesResponse);
 
   // wave-A: F-unbound-chrony-syslog
+
+  // DnsState reads the Unbound resolver instance this agent renders (unbound-control status,
+  // stats_noreset, list_forwards / list_stubs / list_local_zones / list_local_data), its pending
+  // start/restart request and the VPP DNS cache as configured (write-only in VPP). Never mutates.
+  rpc DnsState(DnsStateRequest) returns (DnsStateResponse);
+  // NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
+  // sourcestats / serverstats) and its pending start/restart request. Never mutates.
+  rpc NtpState(NtpStateRequest) returns (NtpStateResponse);
+  // SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
+  // counters, and the pending restart request. Never mutates.
+  rpc SyslogState(SyslogStateRequest) returns (SyslogStateResponse);
+  // SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
+  // (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
+  rpc SyslogEntries(SyslogEntriesRequest) returns (SyslogEntriesResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -664,6 +697,9 @@ message ActionRequest {
     NatSessionKillAction nat_session_kill = 5;
 
     // wave-A: F-unbound-chrony-syslog
+
+    // Resolve a name through VPP's caching DNS plugin (dns_resolve_name; F-unbound-chrony-syslog).
+    DnsLookupAction dns_lookup = 7;
   }
 }
 
@@ -1168,6 +1204,9 @@ message RoutingConfig {
 
   // L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none.
   BridgeL2Config l2 = 20;
+
+  // SRv6 local SIDs, policies and steering (F-srv6, VPP sr); unset = not configured.
+  Srv6Config srv6 = 17;
 
   // wave-A: F-neighbors-ra
 
@@ -1728,6 +1767,10 @@ message ServicesConfig {
   HostStackService host_stack = 10;
 
   // wave-BC: F-lb
+
+  // Load balancer: VIPs, application servers, NAT interfaces (VPP lb plugin, F-lb; tier T3).
+  LbService lb = 11;
+
   // wave-A: F-rpf-adl-pbr
 
   // Automatic source deny list of the host stack (F-rpf-adl-pbr, auto_sdl plugin, a VPP-global); unset = off.
@@ -2595,6 +2638,15 @@ message SyslogTarget {
   optional string severity = 4;
   // VRF the collector is reached through; Zod default "default".
   optional string vrf = 5;
+  // F-unbound-chrony-syslog (D-086, the RF-4 stand-ins; numbers from wave-A-hotspots §2):
+  // facilities forwarded ("kern", "daemon", "local0" …); empty = every facility.
+  repeated string facilities = 6;
+  // "rfc5424" | "rfc3164"; unset = rfc5424.
+  optional string format = 7;
+  // Messages queued while the collector is unreachable (100..1000000); unset = 10000.
+  optional uint32 queue_size = 8;
+  // TLS settings; only with protocol "tls" (then required).
+  SyslogTls tls = 9;
 }
 
 // ----- nat (P02b, mirrors packages/schema/src/domains/nat.ts) -----
@@ -5306,6 +5358,280 @@ message DhcpLeasesResponse {
 
 // ----- F-unbound-chrony-syslog -----
 
+// SyslogTls is the TLS part of one remote-syslog target (management.syslog[i].tls). Material is
+// referenced (D-051), never inline.
+message SyslogTls {
+  // CA certificate that verifies the collector ("cert/<name>").
+  optional string ca_ref = 1;
+  // Client certificate ("cert/<name>"); goes with key_ref.
+  optional string cert_ref = 2;
+  // Client private key ("key/<name>"); goes with cert_ref.
+  optional string key_ref = 3;
+  // "x509/name" | "x509/certvalid"; unset = x509/name.
+  optional string auth_mode = 4;
+  // Accepted collector certificate names (x509/name); empty = the collector host name.
+  repeated string permitted_peers = 5;
+}
+
+// DnsLookupAction resolves one name through VPP's DNS cache (dns_resolve_name). Works only where
+// the VPP dns plugin is enabled (the globals owner, D-071). Output: one line per address, then
+// done with stats "ipv4" / "ipv6".
+message DnsLookupAction {
+  // DNS name (≤ 253 characters of [A-Za-z0-9.-_]; validated by the agent).
+  string name = 1;
+  // Deadline in milliseconds; 0 = 5000; max 30000.
+  uint32 timeout_ms = 2;
+}
+
+// ServiceDaemonAction is a start/restart request a renderer returned and persisted (D-079): the
+// files are written, the daemon applies them only after the action. It stays until the daemon's
+// process started after the request.
+message ServiceDaemonAction {
+  // "unbound" | "chronyd" | "rsyslogd".
+  string daemon = 1;
+  // systemd unit the product acts on ("unbound", "chrony", "rsyslog").
+  string unit = 2;
+  // "start" | "restart".
+  string action = 3;
+  // Why the action is needed.
+  string reason = 4;
+}
+
+// DnsStateRequest selects the owner (same rules as ApplyRequest.owner).
+message DnsStateRequest {
+  string owner = 1;
+}
+
+// DnsStateResponse is one snapshot of the Unbound instance (not configuration).
+message DnsStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // True when unbound answers on its control socket.
+  bool running = 3;
+  // unbound-control status ("version", "verbosity", "uptime" …).
+  map<string, string> status = 4;
+  // unbound-control stats_noreset ("total.num.queries" …).
+  map<string, string> stats = 5;
+  // list_forwards.
+  repeated DnsZoneState forwards = 6;
+  // list_stubs.
+  repeated DnsZoneState stubs = 7;
+  // list_local_zones.
+  repeated DnsLocalZoneState local_zones = 8;
+  // list_local_data, one record per line.
+  repeated string local_data = 9;
+  // list_local_data exceeded the capture limit; local_data is then empty.
+  bool local_data_truncated = 10;
+  // Pending start/restart requests of the Unbound renderer.
+  repeated ServiceDaemonAction pending_actions = 11;
+  // The VPP DNS cache as this agent applies it.
+  DnsVppCacheState vpp_cache = 12;
+  // Path of the rendered unbound.conf.
+  string config_path = 13;
+  // A read error (the snapshot is partial); empty when complete.
+  string error = 14;
+}
+
+// DnsZoneState is one list_forwards / list_stubs line.
+message DnsZoneState {
+  string zone = 1;
+  // "forward" | "stub".
+  string kind = 2;
+  // "+i", "+t" … flags as unbound prints them.
+  repeated string flags = 3;
+  repeated string addresses = 4;
+}
+
+// DnsLocalZoneState is one list_local_zones line.
+message DnsLocalZoneState {
+  string zone = 1;
+  string type = 2;
+}
+
+// DnsVppCacheState: VPP's dns plugin has no getter (D-063), so the state is what this agent applied.
+message DnsVppCacheState {
+  // The running configuration enables the VPP cache.
+  bool configured = 1;
+  // This agent is the globals owner and programs it (D-071); false = another agent does, or none.
+  bool applied_by_this_agent = 2;
+  // Upstream name servers as configured.
+  repeated string upstreams = 3;
+}
+
+// NtpStateRequest selects the owner.
+message NtpStateRequest {
+  string owner = 1;
+}
+
+// NtpStateResponse is one snapshot of the chronyd instance.
+message NtpStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // True when chronyd answers on its command socket.
+  bool running = 3;
+  // chronyc -c tracking (unset when not running).
+  NtpTracking tracking = 4;
+  // chronyc -c sources.
+  repeated NtpSource sources = 5;
+  // chronyc -c sourcestats.
+  repeated NtpSourceStats source_stats = 6;
+  // chronyc -c serverstats (name → value).
+  map<string, string> server_stats = 7;
+  // Pending start/restart requests of the chrony renderer.
+  repeated ServiceDaemonAction pending_actions = 8;
+  // Path of the rendered chrony.conf.
+  string config_path = 9;
+  // A read error; empty when complete.
+  string error = 10;
+}
+
+// NtpTracking mirrors `chronyc -c tracking` (seconds, ppm).
+message NtpTracking {
+  string ref_id = 1;
+  string ref_name = 2;
+  int32 stratum = 3;
+  double ref_time = 4;
+  double system_time = 5;
+  double last_offset = 6;
+  double rms_offset = 7;
+  double frequency = 8;
+  double residual_freq = 9;
+  double skew = 10;
+  double root_delay = 11;
+  double root_dispersion = 12;
+  double update_interval = 13;
+  string leap = 14;
+}
+
+// NtpSource mirrors one `chronyc -c sources` row.
+message NtpSource {
+  // "^" server, "=" peer, "#" refclock.
+  string mode = 1;
+  // "*" selected, "+" combined, "-" not combined, "?" unusable, "x" falseticker, "~" variable.
+  string state = 2;
+  string name = 3;
+  int32 stratum = 4;
+  int32 poll = 5;
+  // Reachability register (octal).
+  string reach = 6;
+  string last_rx = 7;
+  double offset = 8;
+  double measured = 9;
+  double error = 10;
+}
+
+// NtpSourceStats mirrors one `chronyc -c sourcestats` row.
+message NtpSourceStats {
+  string name = 1;
+  int32 np = 2;
+  int32 nr = 3;
+  int32 span = 4;
+  double frequency = 5;
+  double freq_skew = 6;
+  double offset = 7;
+  double std_dev = 8;
+}
+
+// SyslogStateRequest selects the owner.
+message SyslogStateRequest {
+  string owner = 1;
+}
+
+// SyslogStateResponse is one snapshot of the remote-syslog export (rsyslog impstats).
+message SyslogStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // One entry per rendered target, in management.syslog order.
+  repeated SyslogTargetState targets = 3;
+  // Messages submitted per rsyslog input (imuxsock, imtcp …).
+  map<string, int64> inputs = 4;
+  // Pending restart request of the rsyslog renderer (test slots: the slot instance).
+  repeated ServiceDaemonAction pending_actions = 5;
+  // Path of the rendered export file.
+  string config_path = 6;
+  // Why counters are unavailable ("no impstats yet"); empty when complete.
+  string error = 7;
+}
+
+// SyslogTargetState is one export action as impstats reports it.
+message SyslogTargetState {
+  // Index in management.syslog.
+  uint32 index = 1;
+  // rsyslog action name ("vrx_export_<i>_<hash>").
+  string action = 2;
+  // "<host>:<port>".
+  string target = 3;
+  // "udp" | "tcp".
+  string protocol = 4;
+  // False when impstats has no record of the action (rsyslog not running or not reporting yet).
+  bool reported = 5;
+  int64 processed = 6;
+  int64 failed = 7;
+  int64 suspended = 8;
+  int64 suspended_duration = 9;
+  int64 resumed = 10;
+  int64 queue_size = 11;
+  int64 enqueued = 12;
+  int64 full = 13;
+  int64 discarded_full = 14;
+  int64 discarded_nf = 15;
+  int64 max_queue_size = 16;
+}
+
+// SyslogEntriesRequest is one log-explorer query of the local journal.
+message SyslogEntriesRequest {
+  string owner = 1;
+  // Oldest entry considered; unset = one hour ago. Never older than 30 days.
+  google.protobuf.Timestamp since = 2;
+  // Minimum severity ("emergency" … "debug"); "" = all.
+  string severity = 3;
+  // Syslog facility name ("kern", "daemon", "local0" …); "" = all.
+  string facility = 4;
+  // Case-insensitive substring of the message or identifier (≤ 128 printable characters; a plain
+  // string, never a pattern); "" = all.
+  string query = 5;
+  // 1-based page, newest first; 0 = 1.
+  uint32 page = 6;
+  // Entries per page; 0 = 100; max 500.
+  uint32 page_size = 7;
+}
+
+// SyslogEntriesResponse is one page of journal entries, newest first.
+message SyslogEntriesResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated SyslogEntry entries = 3;
+  uint32 page = 4;
+  uint32 page_size = 5;
+  // Matching entries within the scanned window.
+  uint32 total = 6;
+  // The scan stopped at its bound (the newest `scanned` entries since `since` were searched).
+  bool truncated = 7;
+  // Entries read from the journal.
+  uint32 scanned = 8;
+  // "journald".
+  string source = 9;
+}
+
+// SyslogEntry is one journal entry.
+message SyslogEntry {
+  google.protobuf.Timestamp time = 1;
+  // "emergency" … "debug" ("" when the entry has no priority).
+  string severity = 2;
+  // Facility name ("" when unknown).
+  string facility = 3;
+  // SYSLOG_IDENTIFIER (or _COMM).
+  string identifier = 4;
+  uint32 pid = 5;
+  string hostname = 6;
+  // _SYSTEMD_UNIT ("" when none).
+  string unit = 7;
+  // The message (non-UTF-8 bytes replaced, at most 4096 characters).
+  string message = 8;
+}
+
 // ----- F-det44-map-dslite-cnat -----
 
 // ----- F-tunnels -----
@@ -5323,6 +5649,140 @@ message DhcpLeasesResponse {
 // ----- F-mpls-srmpls -----
 
 // ----- F-lb -----
+
+// LbService is `services.lb` (VPP lb plugin; WBS D7.9, tier T3). Every lb object is write-only in VPP
+// 26.06 (V20, D-063): Retrieve never reports this message; LbState is the read-only live view.
+message LbService {
+  // VPP-global settings (lb_conf); applied only by the globals owner (D-071).
+  LbSettings settings = 1;
+  // Virtual IPs keyed by name.
+  map<string, LbVip> vips = 2;
+  // Interfaces with the lb NAT in2out feature (nat4/nat6 VIPs).
+  repeated LbNatInterface nat_interfaces = 3;
+}
+
+// LbSettings is `services.lb.settings` (lb_conf).
+message LbSettings {
+  // Outer source of gre4 packets / SNAT source of nat4 nodeport VIPs; unset = VPP default.
+  optional string ip4_source = 1;
+  // Outer source of gre6 packets / SNAT source of nat6 nodeport VIPs; unset = VPP default.
+  optional string ip6_source = 2;
+  // Sticky-table buckets per worker (power of two); unset = keep VPP's value.
+  optional uint32 flow_buckets = 3;
+  // Flow timeout in seconds; unset = keep VPP's value.
+  optional uint32 flow_timeout_sec = 4;
+}
+
+// LbVip is `services.lb.vips.<name>`.
+message LbVip {
+  // VIP prefix (CIDR, host bits zero).
+  optional string prefix = 1;
+  // "any" | "tcp" | "udp".
+  optional string protocol = 2;
+  // Destination port (tcp/udp VIPs); unset for protocol any.
+  optional uint32 port = 3;
+  // "gre4" | "gre6" | "l3dsr" | "nat4" | "nat6".
+  optional string encap = 4;
+  // DSCP written by an l3dsr VIP.
+  optional uint32 dscp = 5;
+  // "clusterip" | "nodeport" (nat4/nat6).
+  optional string srv_type = 6;
+  // Port on the application server (nat4/nat6).
+  optional uint32 target_port = 7;
+  // Node port of a nodeport VIP (ignored by VPP 26.06).
+  optional uint32 node_port = 8;
+  // Entries of the new-flows (Maglev) table, a power of two.
+  optional uint32 new_flows_table_length = 9;
+  // Hash on the source address only.
+  optional bool src_ip_sticky = 10;
+  // Application servers.
+  repeated LbServer servers = 11;
+}
+
+// LbServer is one application server of a VIP.
+message LbServer {
+  // Server address (the encapsulation's family).
+  optional string address = 1;
+  // Also drop the server's sticky-table entries when it is removed.
+  optional bool flush_on_delete = 2;
+}
+
+// LbNatInterface is one entry of `services.lb.nat_interfaces`.
+message LbNatInterface {
+  // Logical interface name.
+  optional string interface = 1;
+  // "ip4" | "ip6".
+  optional string family = 2;
+}
+
+// LbStateRequest selects VIPs by configuration name.
+message LbStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VIP names of the agent's stored desired state; empty = every configured VIP.
+  repeated string names = 2;
+}
+
+// LbStateResponse is one snapshot of the lb plugin for this agent's VIPs.
+message LbStateResponse {
+  // One entry per configured VIP, sorted by name.
+  repeated LbVipState vips = 1;
+  // The owner whose view was returned.
+  string owner = 2;
+  // When the dumps were taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+  // lb_vip_dump entries in the whole VPP (every owner, "removed" ones included).
+  uint32 total_vpp_vips = 4;
+}
+
+// LbServerState is one application server as lb_as_dump reports it.
+message LbServerState {
+  // Server address.
+  string address = 1;
+  // true = in use (LB_AS_FLAGS_USED); false = removed, waiting for the lb garbage collection.
+  bool in_use = 2;
+  // VPP clock (seconds) at which the server was last used / removed.
+  uint32 in_use_since = 3;
+}
+
+// LbVipState is the live state of one configured VIP.
+message LbVipState {
+  // Configuration name (services.lb.vips key).
+  string name = 1;
+  // Configured prefix.
+  string prefix = 2;
+  // Configured protocol (VPP 26.06 does not report it: lb_vip_details.protocol is always 0).
+  string protocol = 3;
+  // Configured port (0 = all ports).
+  uint32 port = 4;
+  // This agent created the VIP on the running VPP instance (its D-080 boot record exists).
+  bool applied = 5;
+  // lb_vip_dump entries with this prefix and port: 0 = not in VPP, 1 = the VIP, > 1 = the VIP plus
+  // "removed" ones (a VIP change is delete + add) until the lb garbage collection.
+  uint32 vpp_entries = 6;
+  // Encapsulation VPP reports (from the VIP type): gre4, gre6, l3dsr, nat4, nat6; "" = not in VPP.
+  string encap = 7;
+  // DSCP of an l3dsr VIP as VPP reports it.
+  uint32 dscp = 8;
+  // Target port of a nat VIP (VPP 26.06 sends it byte-swapped; the agent swaps it back).
+  uint32 target_port = 9;
+  // Application servers of every entry with this prefix and port (in use and removed).
+  repeated LbServerState servers = 10;
+}
+
+// LbFlushVipRequest names one configured VIP.
+message LbFlushVipRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VIP name in the agent's stored desired state (services.lb.vips key).
+  string name = 2;
+}
+
+// LbFlushVipResponse is the outcome of a flush.
+message LbFlushVipResponse {
+  // The VIP that was flushed (prefix/protocol/port).
+  string vip = 1;
+}
 
 // ----- F-qos-flat -----
 
@@ -5720,6 +6180,151 @@ message IpfixCounter {
 // ----- F-capture-trace -----
 
 // ----- F-srv6 -----
+
+// Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`.
+message Srv6Config {
+  // Outer IPv6 source of encapsulating policies that set none, and VPP's global default
+  // (sr_set_encap_source; applied by the globals owner only, D-071; write-only, never retrieved).
+  optional string encap_source = 1;
+  // Hop limit of the outer IPv6 header, 1–255 (sr_set_encap_hop_limit; VPP-wide, globals owner only,
+  // write-only). Unset = VPP's default (64).
+  optional uint32 encap_hop_limit = 2;
+  // Local SIDs keyed by SID (canonical IPv6 address).
+  map<string, Srv6LocalSid> local_sids = 3;
+  // SR policies keyed by binding SID (canonical IPv6 address).
+  map<string, Srv6Policy> policies = 4;
+  // Steering entries: a prefix of a VRF or an L2 interface into a policy's binding SID.
+  repeated Srv6Steering steering = 5;
+}
+
+// Srv6LocalSid mirrors `routing.srv6.localSids.<sid>` (sr_localsid_add_del).
+message Srv6LocalSid {
+  // "end" | "end.x" | "end.t" | "end.dx2" | "end.dx4" | "end.dx6" | "end.dt4" | "end.dt6".
+  optional string behavior = 1;
+  // Penultimate segment pop (end, end.x, end.t). Zod default false.
+  optional bool psp = 2;
+  // VRF (IPv6 table) the SID is installed in. Zod default "default".
+  optional string vrf = 3;
+  // Cross-connect interface (end.x, end.dx2, end.dx4, end.dx6).
+  optional string interface = 4;
+  // Next hop: IPv6 for end.x / end.dx6, IPv4 for end.dx4.
+  optional string next_hop = 5;
+  // Lookup VRF: IPv6 table for end.t / end.dt6, IPv4 table for end.dt4.
+  optional string lookup_vrf = 6;
+}
+
+// Srv6Policy mirrors `routing.srv6.policies.<bsid>` (sr_policy_add_v2 / sr_policy_mod_v2 / sr_policy_del).
+message Srv6Policy {
+  // "default" | "spray" | "tef". Zod default "default".
+  optional string type = 1;
+  // true = H.Encaps (outer IPv6 header + SRH), false = H.Insert. Zod default true.
+  optional bool encap = 2;
+  // VRF (IPv6 table) of the binding SID. Zod default "default".
+  optional string vrf = 3;
+  // Outer source of this encapsulating policy; unset = Srv6Config.encap_source (D-074).
+  optional string encap_source = 4;
+  // Segment lists (at least one).
+  repeated Srv6SidList sid_lists = 5;
+}
+
+// Srv6SidList mirrors one entry of `routing.srv6.policies.<bsid>.sidLists`.
+message Srv6SidList {
+  // Segment IDs in order (1–16 IPv6 addresses).
+  repeated string sids = 1;
+  // Load-balancing weight 1–65535. Zod default 1.
+  optional uint32 weight = 2;
+}
+
+// Srv6Steering mirrors one entry of `routing.srv6.steering` (sr_steering_add_del): a discriminated
+// union on `type`; the fields of the other variant are unset.
+message Srv6Steering {
+  // "l3" (prefix + vrf) | "l2" (interface).
+  optional string type = 1;
+  // l3: IPv4 or IPv6 network prefix.
+  optional string prefix = 2;
+  // l3: VRF of the prefix. Zod default "default".
+  optional string vrf = 3;
+  // l2: the interface whose received frames are steered.
+  optional string interface = 4;
+  // Binding SID of the policy (routing.srv6.policies key).
+  optional string bsid = 5;
+}
+
+// Srv6StateRequest asks for the live SRv6 state of this owner.
+message Srv6StateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// Srv6StateResponse is one snapshot of this owner's SRv6 objects (status, not configuration).
+message Srv6StateResponse {
+  // Local SIDs, sorted by SID.
+  repeated Srv6StateLocalSid local_sids = 1;
+  // Policies, sorted by binding SID.
+  repeated Srv6StatePolicy policies = 2;
+  // Steering entries, sorted: L3 by table and prefix, then L2 by interface.
+  repeated Srv6StateSteering steering = 3;
+  // The owner whose view was returned.
+  string owner = 4;
+  // When the dumps were taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 5;
+}
+
+// Srv6StateLocalSid is one local SID as VPP has it, with its counters.
+message Srv6StateLocalSid {
+  // The SID (canonical IPv6 address).
+  string sid = 1;
+  // Behaviour, as in Srv6LocalSid.behavior ("end", "end.x", …).
+  string behavior = 2;
+  bool psp = 3;
+  // IPv6 table id the SID is installed in.
+  uint32 fib_table = 4;
+  // Cross-connect interface (logical name; "" when none).
+  string interface = 5;
+  // Next hop ("" when none).
+  string next_hop = 6;
+  // Lookup table id (end.t / end.dt4 / end.dt6; 0 otherwise).
+  uint32 lookup_table = 7;
+  // sr_localsids_with_packet_stats_details: traffic processed by the SID ("good") and dropped ("bad").
+  uint64 good_packets = 8;
+  uint64 good_bytes = 9;
+  uint64 bad_packets = 10;
+  uint64 bad_bytes = 11;
+}
+
+// Srv6StatePolicy is one SR policy as VPP has it.
+message Srv6StatePolicy {
+  // Binding SID (canonical IPv6 address).
+  string bsid = 1;
+  // "default" | "spray" | "tef".
+  string type = 2;
+  bool encap = 3;
+  // IPv6 table id of the binding SID.
+  uint32 fib_table = 4;
+  // Outer source address (encapsulating policies; "" otherwise).
+  string encap_source = 5;
+  // Segment lists in VPP's order.
+  repeated Srv6StateSidList sid_lists = 6;
+}
+
+// Srv6StateSidList is one segment list of a policy.
+message Srv6StateSidList {
+  repeated string sids = 1;
+  uint32 weight = 2;
+}
+
+// Srv6StateSteering is one steering entry as VPP has it.
+message Srv6StateSteering {
+  // "ipv4" | "ipv6" | "l2".
+  string traffic_type = 1;
+  // L3: the steered prefix and its table id.
+  string prefix = 2;
+  uint32 fib_table = 3;
+  // L2: the interface (logical name).
+  string interface = 4;
+  // Binding SID of the policy the traffic is steered into.
+  string bsid = 5;
+}
 
 // ----- F-lisp -----
 

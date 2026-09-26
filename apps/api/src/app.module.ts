@@ -39,6 +39,7 @@ import { UsersService } from './users/users.service.js';
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-lb
+import { lbFeature } from './features/lb/index.js';
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -49,6 +50,7 @@ import { snmpFeature } from './features/snmp/index.js';
 import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
+import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
@@ -97,6 +99,7 @@ import { bgpFeature } from './features/bgp/index.js';
 // wave-A: F-kea-dhcp-relay
 import { keaDhcpRelayFeature } from './features/kea-dhcp-relay/index.js';
 // wave-A: F-unbound-chrony-syslog
+import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/index.js';
 
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
@@ -144,6 +147,7 @@ export class AppModule {
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
+        ...lbFeature.controllers,
         // wave-BC: F-qos-flat
         ...qosFlatFeature.controllers,
         // wave-BC: F-host-stack
@@ -154,6 +158,7 @@ export class AppModule {
         ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.controllers,
         // wave-BC: F-lisp
         ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
@@ -202,6 +207,7 @@ export class AppModule {
         // wave-A: F-kea-dhcp-relay
         ...keaDhcpRelayFeature.controllers,
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.controllers,
       ],
       providers: [
         { provide: ENV, useValue: env },
@@ -234,6 +240,7 @@ export class AppModule {
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         // wave-BC: F-lb
+        ...lbFeature.providers,
         // wave-BC: F-qos-flat
         ...qosFlatFeature.providers,
         // wave-BC: F-host-stack
@@ -243,6 +250,7 @@ export class AppModule {
         ...ipfixSflowFeature.providers,
         // wave-BC: F-capture-trace
         // wave-BC: F-srv6
+        ...srv6Feature.providers,
         // wave-BC: F-lisp
         ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution
@@ -291,6 +299,7 @@ export class AppModule {
         // wave-A: F-kea-dhcp-relay
         ...keaDhcpRelayFeature.providers,
         // wave-A: F-unbound-chrony-syslog
+        ...unboundChronySyslogFeature.providers,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
         { provide: APP_FILTER, useClass: ProblemFilter },

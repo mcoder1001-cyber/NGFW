@@ -771,3 +771,70 @@ Retrieve (§5).
 - Errors: `INVALID_ARGUMENT` for an owner mismatch or a name that is not a policer name (`<objectName>` or
   `shaper:<objectName>`); `NOT_FOUND` when this owner has no such policer in VPP; `UNAVAILABLE` as above.
 - API: `POST /api/v1/actions/qos/policers/{name}/reset` (operator; 404 for an unknown policer).
+
+### F-unbound-chrony-syslog: DnsState, NtpState, SyslogState, SyslogEntries, ActionRequest.dns_lookup (7), SyslogTarget 6–9
+
+- **`SyslogTarget` 6 `facilities`, 7 `format`, 8 `queue_size`, 9 `tls` (`SyslogTls`)** — the RF-4 stand-ins (D-055) moved
+  into the contract (D-086); all optional, absent = the RF-4 default (every facility, rfc5424, 10000 messages, no TLS).
+  `SyslogTls{ca_ref, cert_ref, key_ref, auth_mode, permitted_peers}` carries references (D-051), never material.
+- **`DnsState(DnsStateRequest{owner}) → DnsStateResponse`** — read-only snapshot of the Unbound instance the agent
+  renders: `unbound-control status | stats_noreset | list_forwards | list_stubs | list_local_zones | list_local_data`,
+  the renderer's pending start/restart requests (`ServiceDaemonAction`, D-079), and the VPP DNS cache *as configured*
+  (`DnsVppCacheState`: VPP's dns plugin has no getter, D-063). A daemon that is not running is `running: false`, not
+  an error; a partial read sets `error`.
+- **`NtpState(NtpStateRequest{owner}) → NtpStateResponse`** — `chronyc -c tracking | sources | sourcestats | serverstats`
+  of the chronyd instance the agent renders, plus pending requests.
+- **`SyslogState(SyslogStateRequest{owner}) → SyslogStateResponse`** — per rendered export target the impstats
+  counters (`SyslogTargetState`), rsyslog inputs, pending restart requests.
+- **`SyslogEntries(SyslogEntriesRequest) → SyslogEntriesResponse`** — the log explorer: one bounded query of the local
+  journal (`journalctl -o json`, fixed argv, allow-listed; newest first; at most 5000 entries scanned since `since`,
+  never older than 30 days); `severity` (minimum), `facility` are validated enum values, `query` a plain
+  case-insensitive substring (≤ 128 printable characters, matched in the agent — never a regex or a shell argument);
+  `page`/`page_size` (≤ 500) over the matches. `truncated` says the scan bound was hit.
+- **`ActionRequest.dns_lookup` = 7 (`DnsLookupAction{name, timeout_ms}`)** — `dns_resolve_name` through VPP's DNS
+  cache with a deadline (0 = 5 s, max 30 s). Output: one `line` per address (`A 192.0.2.1`, `AAAA 2001:db8::1`), then
+  `done{exit_code, stats{ipv4, ipv6}}`. Needs the dns plugin enabled (the globals owner, D-071); elsewhere VPP answers
+  with an error that ends the stream with a non-zero `exit_code`. The name is validated (`dns.ValidateName`).
+
+### F-lb: LbState, LbFlushVip
+
+`services.lb` is `ServicesConfig.lb = 11` → `LbService{settings, vips map, nat_interfaces}` (numbers:
+docs/status/wave-BC-numbers.md § F-lb). Every lb object is **write-only** (VPP 26.06 corrupts `lb_vip_details`, V20,
+D-063): `Retrieve` never returns `services.lb`, DryRun notes `/services/lb` as `agent.write-only`, and the live view is
+the state RPC below — never a Retrieve source.
+
+- `LbState(LbStateRequest{owner, names[]}) → LbStateResponse{vips[], owner, retrieved_at, total_vpp_vips}` — one
+  `LbVipState` per VIP of the agent's stored desired state (sorted by name; `names` filters): the configured
+  prefix/protocol/port, `applied` (the agent's D-080 boot record for `lb.vip/<prefix>/<protocol>/<port>` exists on the
+  running VPP instance), `vpp_entries` (lb_vip_dump entries with that prefix and port — > 1 means "removed" copies
+  waiting for the lb garbage collection), the VIP type VPP reports as `encap`, `dscp`, `target_port` (swapped back to
+  host order), and every application server of those entries from lb_as_dump with `in_use` (false = removed) and
+  `in_use_since` (VPP clock). The protocol is not reported by VPP 26.06, so a tcp and a udp VIP on the same prefix and
+  port share their entries. One VPP walk at a time per agent (D-132): a second caller waits up to 3 s, then
+  `UNAVAILABLE`. `UNAVAILABLE` without VPP.
+- `LbFlushVip(LbFlushVipRequest{owner, name}) → LbFlushVipResponse{vip}` — `lb_flush_vip` for the VIP `name` of the
+  stored desired state. `NOT_FOUND` for an unknown name; `FAILED_PRECONDITION` unless this agent created the VIP on the
+  running VPP instance (boot record) and lb_as_dump shows an application server of it in use (VPP 26.06 flushes an
+  uninitialised VIP index when its lookup fails, so the agent never sends a flush it cannot prove will match).
+  API: `POST /api/v1/actions/lb/vips/{name}/flush` (audited like every mutation).
+
+### F-srv6: Srv6State
+
+- `RoutingConfig.srv6 = 17` (`routing.srv6`, `Srv6Config{encap_source, encap_hop_limit, local_sids, policies, steering}`,
+  `Srv6LocalSid`, `Srv6Policy`, `Srv6SidList`, `Srv6Steering` — the steering entry is one message for the
+  `type: "l3" | "l2"` discriminated union, §1). The agent projects it onto DF-6's `sr.*` descriptors
+  (docs/agent/descriptors/sr.md). `encap_source` / `encap_hop_limit` are VPP-wide and write-only: only the globals
+  owner applies them (D-071), and Retrieve never carries them (§5, "a leaf the backend cannot report is left unset";
+  DryRun notes both as `agent.unsupported-field` so the running-vs-actual diff skips them). An encapsulating policy's
+  `encap_source` is set in a Retrieve result only when it differs from the global source this agent applied (the
+  policy inherited it otherwise).
+- `rpc Srv6State(Srv6StateRequest) returns (Srv6StateResponse)` — read-only, never mutates. Per call: one
+  `sr_localsids_dump`, one `sr_localsids_with_packet_stats_dump` (only when there is a local SID), one
+  `sr_policies_v2_dump`, one `sr_steering_pol_dump`, `sw_interface_dump` for interface names and a `control_ping`
+  (boot identity of the claims). Only the objects this owner's Creates claimed (DF-6 ClaimStore, D-071): another
+  owner's or an operator's SIDs are never reported. `Srv6StateLocalSid` carries the local SID's `good_*` (processed)
+  and `bad_*` (dropped) packet/byte counters; policies and steering carry VPP's view (table ids, not VRF names — the
+  API joins them with the running configuration). One SR walk in flight per agent (D-132): a second caller waits at
+  most 3 s, then `UNAVAILABLE`; callers refresh on demand or at most every 30 s. `UNIMPLEMENTED` when the build has
+  no sr family, `FAILED_PRECONDITION` when VPP does not know the `sr` messages.
+- No `EventKind`, no `ActionRequest` member.

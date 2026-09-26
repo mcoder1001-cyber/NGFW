@@ -37,6 +37,7 @@ import (
 	"ngfw/agent/internal/descriptors/ikev2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipsec"
+	"ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/descriptors/policer"
 	"ngfw/agent/internal/descriptors/qos"
@@ -72,7 +73,8 @@ const (
 	// wave-A: F-wireguard
 	VPN = "vpn"
 	// wave-A: F-kea-dhcp-relay (shares F-rpf-adl-pbr's Services key/const above)
-	// wave-A: F-unbound-chrony-syslog
+	// wave-A: F-unbound-chrony-syslog (shares F-rpf-adl-pbr's Services key/const above)
+	Management = "management"
 )
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
@@ -134,6 +136,11 @@ var Domains = map[string][]string{
 		// wave-BC: F-mpls-srmpls
 		// wave-BC: F-igmp-mfib
 		// wave-BC: F-srv6
+		srLocalSidName,      // F-srv6: sr.localsid (srv6.go)
+		srPolicyName,        // F-srv6: sr.policy
+		srSteeringName,      // F-srv6: sr.steering
+		srEncapSourceName,   // F-srv6: sr.encap-source (VPP global, globals owner only)
+		srEncapHopLimitName, // F-srv6: sr.encap-hop-limit (VPP global, globals owner only)
 		// wave-A: F-vrf-static-ecmp
 		// wave-A: F-neighbors-ra
 		neighborsRaNeighbor,
@@ -152,17 +159,19 @@ var Domains = map[string][]string{
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
-	// wave-BC: F-lb
+	// wave-BC: F-lb (services: lb.* are in the one services entry below)
 	// wave-BC: F-qos-flat
 	// wave-BC: F-host-stack
 	// wave-BC: F-snmp
 	// wave-BC: F-ipfix-sflow
-	"services": append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
+	"services": append(append(append(append([]string{}, ipfixSflowDescriptors...), // other services families: extend ipfixSflowDescriptors' slice here
 		hoststack.NameSession, hoststack.NameNamespace, hoststack.NameSessionRule, hoststack.NameTCPSrc, hoststack.NameHTTPStatic, // F-host-stack
 		desired.SnmpDescriptorName,                 // F-snmp
 		policer.NamePolicer, policer.NameInterface, // F-qos-flat
 		qos.NameEgressMap, qos.NameRecord, qos.NameStore, qos.NameMark, qos.NameMeta, // F-qos-flat
 		kea.NameDhcp4, kea.NameDhcp6, dhcp.NameProxy, dhcp.NameProxyVSS, dhcp.NameRelay), // F-kea-dhcp-relay
+		servicesDescriptors...), // F-unbound-chrony-syslog (unbound, chrony, dns.*: unbound.go)
+		lb.NameConf, lb.NameVIP, lb.NameAS, lb.NameIntfNat), // F-lb
 	// wave-BC: F-lisp
 	Tunnels: {
 		lisp.EnableName, lisp.GpeEnableName, lisp.LocatorSetName, lisp.LocatorName, lisp.LocalEidName,
@@ -188,7 +197,8 @@ var Domains = map[string][]string{
 	// wave-A: F-wireguard
 	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
 	// wave-A: F-kea-dhcp-relay (services: kea.dhcp4/6, dhcp.proxy/proxy-vss/relay are in the one services entry above)
-	// wave-A: F-unbound-chrony-syslog
+	// wave-A: F-unbound-chrony-syslog (services: unbound, chrony, dns.* are in the one services entry above)
+	Management: managementDescriptors,
 }
 
 // DomainOf returns the domain a descriptor belongs to ("" when none).
@@ -224,6 +234,10 @@ type Env struct {
 	// Resync asks the agent for a full resync of its stored desired state (A5 seam, F-acl);
 	// Wiring.RequestResync calls it. nil = no-op (the default).
 	Resync func()
+	// Exclusive runs fn while no transaction runs (the agent's transaction lock; F-lb review M2): background work
+	// that reads VPP state and then acts on it (lb garbage collection) must not interleave with a transaction.
+	// nil = fn runs directly (tests, the wiring before the service exists).
+	Exclusive func(ctx context.Context, fn func(context.Context) error) error
 	// IDs is this agent's VPP numeric id range (TD-8; the agent resolves it once with ResolveIDScope).
 	// Families read it through Wiring.IDRange, which fails closed: the zero value owns no id.
 	IDs IDScope
@@ -302,6 +316,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-isis-rip
 	// wave-BC: F-mpls-srmpls
 	// wave-BC: F-srv6
+	if err := w.registerSrv6(r); err != nil { // DF-6 sr family, df6 claims in PairClaims("df6") (srv6.go)
+		return nil, err
+	}
 	// wave-BC: F-lisp
 	if err := registerLisp(r, w); err != nil {
 		return nil, err
@@ -361,6 +378,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-unbound-chrony-syslog
+	if err := registerUnboundChronySyslog(r, env); err != nil {
+		return nil, err
+	}
 	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {
 		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static
@@ -373,6 +393,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := w.registerQoS(r); err != nil {
 		return nil, err
 	}
+	w.registerLb(r)
 	return w, nil
 }
 

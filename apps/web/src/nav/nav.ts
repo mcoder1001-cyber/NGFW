@@ -53,7 +53,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'services', // F-snmp (unanchored: no wave-BC: F-snmp anchor in BUILT_DOMAINS)
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
-  // wave-BC: F-srv6
+  // wave-BC: F-srv6 ('vpn' is already built: F-lisp's entry below)
   // wave-BC: F-lisp
   'vpn',
   // wave-A: F-vrf-static-ecmp

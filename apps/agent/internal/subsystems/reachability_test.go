@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 30
+const maxPending = 25
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -83,7 +83,7 @@ var descriptorReach = map[string]reachEntry{
 	"l2":                  {wired, "F-bridge-l2"},
 	"l2tp":                {pending, "F-tunnels"},
 	"l3xc":                {wired, "F-bridge-l2"},
-	"lb":                  {pending, "F-lb"},
+	"lb":                  {wired, "F-lb"},
 	"lcp":                 {wired, "P12"},
 	"lisp":                {wired, "F-lisp"},
 	"lldp":                {wired, "F-loopback-bvi-gso-lldp-span"},
@@ -106,7 +106,7 @@ var descriptorReach = map[string]reachEntry{
 	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"svs":                 {wired, "F-vrf-static-ecmp"},
-	"sr":                  {pending, "F-srv6"},
+	"sr":                  {wired, "F-srv6"},
 	"sr_mpls":             {pending, "F-mpls-srmpls"},
 	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
 	"trace":               {pending, "F-capture-trace"},
@@ -119,16 +119,16 @@ var descriptorReach = map[string]reachEntry{
 }
 
 var rendererReach = map[string]reachEntry{
-	"chrony":     {pending, "F-unbound-chrony-syslog"},
+	"chrony":     {wired, "F-unbound-chrony-syslog"},
 	"frr":        {wired, "P12"},
 	"kea":        {wired, "F-kea-dhcp-relay"},
 	"keepalived": {pending, "F-vrrp-config-sync"},
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},
-	"rsyslog":    {pending, "F-unbound-chrony-syslog"},
+	"rsyslog":    {wired, "F-unbound-chrony-syslog"},
 	"nftables":   {wired, "F-host-acl-nftables"},
 	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},
-	"unbound":    {pending, "F-unbound-chrony-syslog"},
+	"unbound":    {wired, "F-unbound-chrony-syslog"},
 	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},
 }
 

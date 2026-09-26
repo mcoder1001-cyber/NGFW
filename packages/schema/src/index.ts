@@ -74,6 +74,7 @@ export * from './domains/management.js';
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-srv6
+export * from './domains/ext/srv6.js';
 // wave-BC: F-lisp
 export * from './domains/ext/lisp.js';
 // wave-BC: F-bfd-redistribution
@@ -100,6 +101,8 @@ export * from './domains/ext/frr-linuxcp.js';
 // wave-A: F-unbound-chrony-syslog
 export * from './domains/ext/snmp.js'; // F-snmp (unanchored)
 export * from './domains/ext/host-stack.js'; // F-host-stack (unanchored)
+export * from './domains/ext/syslog.js';
+export * from './domains/ext/lb.js';
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

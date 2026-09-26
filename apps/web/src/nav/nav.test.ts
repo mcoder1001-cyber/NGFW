@@ -68,7 +68,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-capture-trace
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
-      // wave-BC: F-srv6
+      // wave-BC: F-srv6 ('vpn' already listed by F-lisp below)
       // wave-BC: F-lisp
       'vpn', // F-lisp: vpn group, after the interfaces/routing/firewall items above
       // wave-A: F-bonding

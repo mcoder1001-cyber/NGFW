@@ -177,6 +177,15 @@ func (s *Service) lock(ctx context.Context) error {
 	}
 }
 
+// exclusive runs fn holding the transaction lock (subsystems.Env.Exclusive): no transaction runs meanwhile.
+func (s *Service) exclusive(ctx context.Context, fn func(context.Context) error) error {
+	if err := s.lock(ctx); err != nil {
+		return err
+	}
+	defer s.unlock()
+	return fn(ctx)
+}
+
 func (s *Service) unlock() {
 	if len(s.sources) > 0 {
 		s.holder.Store(0)

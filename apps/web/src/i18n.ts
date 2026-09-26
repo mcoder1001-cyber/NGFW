@@ -39,6 +39,8 @@ import faAdvanced from './locales/fa/advanced.json';
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
 // wave-BC: F-lb
+import enLb from './locales/en/lb.json';
+import faLb from './locales/fa/lb.json';
 // wave-BC: F-qos-flat
 import enQosFlat from './locales/en/qos-flat.json';
 import faQosFlat from './locales/fa/qos-flat.json';
@@ -53,6 +55,8 @@ import enIpfixSflow from './locales/en/ipfix-sflow.json';
 import faIpfixSflow from './locales/fa/ipfix-sflow.json';
 // wave-BC: F-capture-trace
 // wave-BC: F-srv6
+import enSrv6 from './locales/en/srv6.json';
+import faSrv6 from './locales/fa/srv6.json';
 // wave-BC: F-lisp
 import enLisp from './locales/en/lisp.json';
 import faLisp from './locales/fa/lisp.json';
@@ -124,6 +128,8 @@ import faBgp from './locales/fa/bgp.json';
 import enKeaDhcpRelay from './locales/en/kea-dhcp-relay.json';
 import faKeaDhcpRelay from './locales/fa/kea-dhcp-relay.json';
 // wave-A: F-unbound-chrony-syslog
+import enUcs from './locales/en/unbound-chrony-syslog.json';
+import faUcs from './locales/fa/unbound-chrony-syslog.json';
 import { loadSettings } from './settings/storage';
 
 export const NAMESPACES = [
@@ -149,6 +155,7 @@ export const NAMESPACES = [
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  'lb',
   // wave-BC: F-qos-flat
   'qos-flat',
   // wave-BC: F-host-stack
@@ -159,6 +166,7 @@ export const NAMESPACES = [
   'ipfix-sflow',
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  'srv6',
   // wave-BC: F-lisp
   'lisp',
   // wave-BC: F-bfd-redistribution
@@ -210,6 +218,7 @@ export const NAMESPACES = [
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay',
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog',
   'dev',
   UI_KIT_NS,
 ] as const;
@@ -237,6 +246,7 @@ const en = {
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  lb: enLb,
   // wave-BC: F-qos-flat
   'qos-flat': enQosFlat,
   // wave-BC: F-host-stack
@@ -247,6 +257,7 @@ const en = {
   'ipfix-sflow': enIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  srv6: enSrv6,
   // wave-BC: F-lisp
   lisp: enLisp,
   // wave-BC: F-bfd-redistribution
@@ -298,6 +309,7 @@ const en = {
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay': enKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog': enUcs,
 };
 const fa = {
   common: faCommon,
@@ -322,6 +334,7 @@ const fa = {
   // wave-BC: P14
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  lb: faLb,
   // wave-BC: F-qos-flat
   'qos-flat': faQosFlat,
   // wave-BC: F-host-stack
@@ -332,6 +345,7 @@ const fa = {
   'ipfix-sflow': faIpfixSflow,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  srv6: faSrv6,
   // wave-BC: F-lisp
   lisp: faLisp,
   // wave-BC: F-bfd-redistribution
@@ -383,6 +397,7 @@ const fa = {
   // wave-A: F-kea-dhcp-relay
   'kea-dhcp-relay': faKeaDhcpRelay,
   // wave-A: F-unbound-chrony-syslog
+  'unbound-chrony-syslog': faUcs,
 };
 
 /** The `dev` namespace (developer demo pages) is loaded only when the demo routes are built in (review P07a M1). */

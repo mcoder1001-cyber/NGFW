@@ -48,3 +48,32 @@ Every VIP delete — and so every VIP change, which is ErrRecreate = delete + ad
 recursive-resolution `/32` of each of its ASes in VPP until a global GC (`lb vip|as|conf` CLI) or a VPP restart.
 The API cannot collect them. Product answer: the globals owner runs the GC (DF-7-questions Q1). The host test is
 opt-in (`VRX_DF7_LB=1`) so CI runs stop adding leftovers.
+
+## F-lb additions (gap-only, each named by a test in `gaps_test.go`)
+
+- **TD-11b declarations** (`ownership.go`, `TestOwnershipDeclared`): `lb.conf` `RecordsNoOwnership` (a VPP global,
+  globals owner only); `lb.vip`/`lb.as` `CheckPersistent` = the DF-7 BootStore must be persisted (their D-080 ownership
+  records); `lb.intf-nat` = BootStore + the owner's DF-1 claim store.
+- **Claim first** (`TestIntfNatClaimsFirst`): `lb.intf-nat` Create records its claim on an untagged interface before
+  `lb_add_del_intf_nat4/6` (`dfkit.Target.ClaimFirst`); a failed enable releases a claim this Create made.
+- **`DumpASes`** (`state.go`, `TestDumpASes`): `lb_as_dump` of every VIP (zero prefix = all) — VIP prefix/port,
+  server, in-use flag (`LB_AS_FLAGS_USED`), `in_use_since`. The protocol is reported as 0, like `lb_vip_dump`.
+- **`FlushVIP` fixed** (`TestFlushVIPIPv4Layout`, `TestFlushVIPRefusesWithoutServerInUse`): VPP 26.06's
+  `vl_api_lb_flush_vip_t_handler` copies `pfx.address.un.ip6` into an `ip46_address_t` whatever the family, so an IPv4 VIP
+  must travel in the ip46 layout (12 zero bytes + the IPv4 address, length 96+n); DF-7 sent the IPv4 address in the
+  first four bytes, the lookup never matched, and the handler — which ignores the lookup's return value — flushed an
+  uninitialised VIP index (possibly `~0` = every VIP's flows on every worker). `FlushVIP` now also refuses unless
+  `lb_as_dump` shows a server of that prefix/port in use; the agent's `LbFlushVip` additionally requires its own boot
+  record of the VIP.
+- **`GarbageCollect` / `GCSafe`** (`gc.go`, `TestGarbageCollect*`): D-090 (2). `lb conf` without arguments returns
+  before its garbage collection (empty line), so the constant command is **`lb vip 0.0.0.0/32 del`**: it parses, runs
+  `lb_garbage_collection()`, then fails its lookup of a VIP that never exists (0.0.0.0/8 is refused as a VIP by the
+  schema and the projection); the expected reply is `lb_vip_find_index error -6`. VPP frees a removed AS only 10 s after
+  its removal and collects a VIP at most every 60 s, so the wiring runs it `GCDelay` (65 s) after the last delete.
+  `GCSafe` refuses when an (AS address, target port) of NAT port VIPs occurs in more than one `lb_as_dump` row: VPP keys
+  the SNAT mapping by exactly that pair, so collecting a changed NAT VIP's removed predecessor would free the live VIP's
+  mapping and a later collection would `pool_put` a NULL mapping.
+
+Wiring (F-lb, `internal/subsystems/lb.go`): one `lb.Register` (+ `RegisterGlobals` in the globals owner); in the
+globals owner the `lb.vip`/`lb.as` descriptors are wrapped so a successful Delete (re)arms the collection timer.
+Projection `internal/desired/lb.go`, live state `internal/agent/rpc_lb.go` (`LbState`, `LbFlushVip`).

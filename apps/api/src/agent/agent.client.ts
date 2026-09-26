@@ -30,6 +30,8 @@ import {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  type LbFlushVipResponse,
+  type LbStateResponse,
   // wave-BC: F-qos-flat
   type QosPolicerResetRequest,
   type QosPolicerResetResponse,
@@ -43,6 +45,7 @@ import {
   type IpfixStateResponse,
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  type Srv6StateResponse,
   // wave-BC: F-lisp
   type LispStateResponse,
   // wave-BC: F-bfd-redistribution
@@ -95,7 +98,13 @@ import {
   // wave-A: F-kea-dhcp-relay
   type DhcpLeasesRequest,
   type DhcpLeasesResponse,
-  // wave-A: F-unbound-chrony-syslog
+  // wave-A: F-unbound-chrony-syslog (ActionOutput imported above)
+  type DnsLookupAction,
+  type DnsStateResponse,
+  type NtpStateResponse,
+  type SyslogEntriesRequest,
+  type SyslogEntriesResponse,
+  type SyslogStateResponse,
 } from '@ngfw/proto';
 import type { ClientReadableStream } from '@grpc/grpc-js';
 import { ENV, type Env } from '../config.js';
@@ -229,6 +238,14 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
   // wave-BC: F-lb
+  /** F-lb: live lb state of the configured VIPs (proto.md "F-lb"); an agent without the RPC answers 501. */
+  lbState(names: string[] = []): Promise<LbStateResponse> {
+    return this.unary(this.c.lbState, { names, owner: this.owner });
+  }
+  /** F-lb: flush the sticky flow table of one configured VIP (lb_flush_vip). */
+  lbFlushVip(name: string): Promise<LbFlushVipResponse> {
+    return this.unary(this.c.lbFlushVip, { name, owner: this.owner });
+  }
   // wave-BC: F-qos-flat
   /** F-qos-flat (proto.md §11): this owner's policers and shapers as VPP reports them, with their counters. */
   qosPolicerState(req: Omit<QosPolicerStateRequest, 'owner'>): Promise<QosPolicerStateResponse> {
@@ -252,6 +269,10 @@ export class AgentClient implements OnModuleDestroy {
   }
   // wave-BC: F-capture-trace
   // wave-BC: F-srv6
+  /** F-srv6: live SRv6 state (proto.md §11); callers do not poll faster than every 30 s (D-132). */
+  srv6State(): Promise<Srv6StateResponse> {
+    return this.unary(this.c.srv6State, { owner: this.owner });
+  }
   // wave-BC: F-lisp
   /** Live LISP state (F-lisp); an agent without the RPC answers 501. */
   lispState(): Promise<LispStateResponse> {
@@ -420,6 +441,37 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.dhcpLeases, { ...req, owner: this.owner });
   }
   // wave-A: F-unbound-chrony-syslog
+  /** F-unbound-chrony-syslog: Unbound instance state (read-only). */
+  dnsState(): Promise<DnsStateResponse> {
+    return this.unary(this.c.dnsState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: chronyd state (read-only). */
+  ntpState(): Promise<NtpStateResponse> {
+    return this.unary(this.c.ntpState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: remote-syslog export counters (read-only). */
+  syslogState(): Promise<SyslogStateResponse> {
+    return this.unary(this.c.syslogState, { owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: one page of the log explorer (bounded journal query). */
+  syslogEntries(req: Omit<SyslogEntriesRequest, 'owner'>): Promise<SyslogEntriesResponse> {
+    return this.unary(this.c.syslogEntries, { ...req, owner: this.owner });
+  }
+  /** F-unbound-chrony-syslog: ActionRequest.dns_lookup; collects the whole (short) output stream. */
+  dnsLookup(
+    req: DnsLookupAction,
+    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  ): Promise<ActionOutput[]> {
+    return new Promise((resolve, reject) => {
+      const out: ActionOutput[] = [];
+      const stream = this.c.action({ dnsLookup: req }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      stream.on('data', (o: ActionOutput) => out.push(o));
+      stream.on('error', (err: ServiceError) => reject(agentProblem(err)));
+      stream.on('end', () => resolve(out));
+    });
+  }
 
   close(): void {
     this.client?.close();

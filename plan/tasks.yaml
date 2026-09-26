@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-09-25'
+updated: '2026-09-26'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1112,6 +1112,31 @@ tasks:
   started: ''
   finished: ''
   notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md'
+- id: F-nat46
+  title: 'Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46)'
+  prompt: prompts/features/F-nat46.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - P08
+  - DF-3
+  - F-nat44-ed-sessions
+  - F-nat44-ei-64-66-nptv6
+  - F-vrf-static-ecmp
+  priority: 4
+  est_hours: 16
+  state: todo
+  parked_on: ''
+  wbs:
+  - D4.5
+  scope: NAT46 (IPv4→IPv6 translation) — design spike first
+  files_owned: '- apps/agent/internal/descriptors/nat46/** and docs/agent/descriptors/nat46.md (new, if a descriptor family is needed)'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: 'Added 2026-09-26 at the user''s request. VPP 26.06 has no NAT46 plugin (binapi: nat44_ed, nat44_ei, nat64, nat66, map, cnat, pnat). Design spike first: (a) stateless SIIT (RFC 7915) — can the map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md

@@ -42,6 +42,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 | TD-3 re-review M3: ifsanitize probing → exact per-interface binding readback | idle pool | before P10/P14 |
 | ApplyResponse has no warnings field (2.5 agent part) | the first row that emits an Apply-time warning, with its contract commit after the wave-A proto edits | that row's merge |
 | `sdk/test.sh`, `gen.sh --check` and `deploy/vpp/verify.sh` are not in tools/ci.sh; audit ARCH-03/A7 adds a go-generate check for the 28 internal `*.pb.go`, and the SDK on main lacks `Users_setPassword`/`Config_revisionDiff` (whichever of P08/TD-4 merges second commits `chore(sdk)`) | manager | P10 (audit: now — TD-6's ci.sh change has landed) |
+| IPv6 follow-ups from docs/status/ipv6-audit-2026-09-26.md: dual-stack product listener with IPv6-off fallback (P10); OSPFv3 (F-ospf); RIPng (F-isis-rip); MLD has no row (F-igmp-mfib decides) | P10 / F-ospf / F-isis-rip / F-igmp-mfib | those rows |
 | No `mkdocs.yml` (`docs/user/` skeleton) | manager | DOCS-GEN |
 | libvirt not purged (virbr0) | manager | P14 |
 | DF-2 N3/N5 and DF-6 N4/N6/N7 claim hygiene | TD-11b if it touches those files, else a row | F-tunnels / F-lisp / F-srv6 merge |

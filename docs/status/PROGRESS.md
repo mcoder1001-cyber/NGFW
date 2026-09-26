@@ -2,7 +2,7 @@
 
 Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 63.2% by hours (774.0/1224.5 h), 64.0% by tasks (87/136)**
+**Overall: 62.9% by hours (774.0/1230.5 h), 64.0% by tasks (87/136)**
 
 | state | tasks |
 |---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 377.0 / 657.0 | 57.4% | 44/76 | 2 | 23 | 0 |
+| S4 | 377.0 / 663.0 | 56.9% | 44/76 | 2 | 23 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 

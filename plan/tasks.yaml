@@ -3538,7 +3538,7 @@ tasks:
   files_owned: test/topology/frr-linuxcp/** docs/status/tasks/P12-fib-proof*
   notes: test design in docs/status/tasks/P12.md (fix round 1)
 - id: F-global-blocking
-  title: 'Global Blocking: upload an IP list file (IPv4/IPv6, CIDR) and drop it on every interface and local-in'
+  title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
   prompt: prompts/features/F-global-blocking.md
   template: prompts/FEATURE-TEMPLATE.md
   stage: S4
@@ -3547,18 +3547,18 @@ tasks:
   - F-acl
   - F-host-acl-nftables
   priority: 3
-  est_hours: 14
+  est_hours: 20
   state: ready
   parked_on: ''
   wbs: []
-  scope: IP-only block lists from an uploaded file; domains/feeds/Geo-IP stay in plan/backlog.yaml
+  scope: IP-only block lists, uploaded or fetched from a URL, per-interface; domains/Geo-IP stay in plan/backlog.yaml
   files_owned: '- packages/schema/src/domains/ext/global-blocking.ts, apps/agent/internal/descriptors/globalblock/**, apps/api/src/features/global-blocking/**, apps/web/src/domains/security/global-blocking/**'
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26)
+  notes: 'promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26) | product owner asked for URL download + per-interface selection (est 14 → 20)'
 - template: ''
   parked_on: ''
   branch: ''

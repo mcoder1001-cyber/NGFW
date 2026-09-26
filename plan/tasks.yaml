@@ -2680,7 +2680,7 @@ tasks:
   notes: D-123 web-ahead | APPROVED (verify 1250124); queued
 - template: ''
   parked_on: ''
-  finished: ''
+  finished: '2026-09-26'
   wbs: *id001
   id: WEB-3
   title: 'Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6)'
@@ -2690,7 +2690,7 @@ tasks:
   - ui-nav-collapse
   priority: 3
   est_hours: 4
-  state: review
+  state: merged
   scope: web-ahead (D-123)
   files_owned: apps/web/test/e2e/{lib/**,shots.mjs,README.md,screens/_example.mjs,flow.e2e.mjs}
   branch: task/WEB-3

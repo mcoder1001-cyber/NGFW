@@ -7,7 +7,8 @@
  *
  * Not part of `pnpm test` (unit-only, 00-CONTEXT): Playwright is not a workspace dependency and packages may not be
  * installed on the shared host, so the script loads `playwright-core` from VRX_PLAYWRIGHT_CORE and drives the
- * Chrome binary in VRX_CHROME. Environment:
+ * Chrome binary in VRX_CHROME (via `lib/browser.mjs`, WEB-3 — the same small library `shots.mjs` and every feature's
+ * `screens/<slug>.mjs` use for login/nav/screenshots). Environment:
  *   VRX_E2E_BASE                  web origin (vite dev/preview on the slot port, proxying /api to the slot API)
  *   VRX_E2E_ADMIN_USER            default "admin"
  *   VRX_E2E_ADMIN_PASSWORD_FILE   file holding the bootstrap admin password (never pass it on the command line)
@@ -26,10 +27,16 @@
  */
 import { randomBytes } from 'node:crypto';
 import net from 'node:net';
-import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { login as libLogin, signOut as libSignOut } from './lib/auth.mjs';
+import { launchBrowser, newPage as libNewPage } from './lib/browser.mjs';
+import { createChecklist } from './lib/checklist.mjs';
+import { createTranslator } from './lib/locales.mjs';
+import { nav as libNav } from './lib/nav.mjs';
+import { shot as libShot } from './lib/shot.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = resolve(here, '../..');
@@ -51,84 +58,36 @@ const ADMIN_PW = readFileSync(process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/v
 const PREFIX = process.env.VRX_TEST_PREFIX ?? 'w1';
 const RO_USER = `${PREFIX}ro`;
 let RO_PW = randomBytes(18).toString('base64url'); // per run, memory only
-const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.VRX_PLAYWRIGHT_CORE ?? 'playwright-core');
 const argon2 = createRequire(join(resolve(repo, process.env.VRX_E2E_ARGON2_FROM ?? 'apps/api'), 'package.json'))('@node-rs/argon2');
 const hashOf = (pw) => argon2.hash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
 let RO_HASH = await hashOf(RO_PW);
 
-/** The app's own locale files, so every lookup matches what the UI renders in that language. */
-function loadLocales(lang) {
-  const dir = join(webRoot, 'src/locales', lang);
-  return Object.fromEntries(readdirSync(dir).map((f) => [f.replace(/\.json$/, ''), JSON.parse(readFileSync(join(dir, f), 'utf8'))]));
-}
-const LOCALES = Object.fromEntries(LANGS.map((l) => [l, loadLocales(l)]));
-function tr(lang, key, vars = {}) {
-  const [ns, path] = key.split(':');
-  let v = path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), LOCALES[lang][ns]);
-  if (typeof v !== 'string') throw new Error(`no string ${lang}:${key}`);
-  for (const [k, val] of Object.entries(vars)) v = v.replaceAll(`{{${k}}}`, String(val));
-  return v;
-}
-
-const results = [];
-function ok(msg) {
-  results.push(msg);
-  console.log(`ok   ${msg}`);
-}
-function check(cond, msg) {
-  if (!cond) throw new Error(`FAILED: ${msg}`);
-  ok(msg);
-}
+// The app's own locale files (lib/locales.mjs), so every lookup matches what the UI renders in that language.
+const tr = createTranslator(webRoot, LANGS);
+const { ok, check, results } = createChecklist();
 
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 async function shot(page, name) {
   if (!SHOTS) return;
-  await page.waitForTimeout(400); // let transitions settle
-  await page.screenshot({ path: join(SHOTS, `${name}.png`) });
-  const dir = await page.evaluate(() => `${document.documentElement.dir}/${document.documentElement.lang}`);
-  console.log(`shot ${name}.png  (${dir})  ${page.url().replace(BASE, '')}`);
+  await libShot(page, SHOTS, name, { base: BASE });
 }
 
 async function newPage(browser, lang) {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 860 }, deviceScaleFactor: 1 });
-  await ctx.addInitScript((s) => {
-    localStorage.setItem('vrx.ui.settings', JSON.stringify(s));
-  }, { mode: 'light', lang, persianDigits: false, dense: true });
-  const page = await ctx.newPage();
-  page.on('pageerror', (e) => console.log(`pageerror ${e}`));
-  return { ctx, page };
+  return libNewPage(browser, { lang });
 }
 
 async function login(page, lang, user, pw) {
-  await page.getByLabel(tr(lang, 'auth:username'), { exact: false }).fill(user);
-  await page.getByLabel(tr(lang, 'auth:passwordLabel'), { exact: false }).fill(pw);
-  await page.getByRole('button', { name: tr(lang, 'auth:signIn') }).click();
+  return libLogin(page, tr, lang, user, pw);
 }
 
 async function signOut(page, lang) {
-  await page.getByTestId('user-menu').click();
-  await page.getByRole('menuitem', { name: tr(lang, 'auth:signOut') }).click();
-  await page.waitForURL(/\/login/);
+  return libSignOut(page, tr, lang);
 }
 
-/** Nav group of each entry the flow visits: groups start collapsed, so the owning group is opened first (D-117). */
-const NAV_GROUP_OF = { users: 'system', revisions: 'system' };
-
+// nav (lib/nav.mjs): groups start collapsed, so the owning group is opened first (ui-nav-collapse, D-117) — the
+// library derives the group from the DOM (no per-entry map to keep in sync with apps/web/src/nav/nav.ts).
 async function nav(page, lang, key) {
-  const menu = page.getByRole('navigation', { name: tr(lang, 'common:menu.navigation') });
-  const group = NAV_GROUP_OF[key];
-  if (group) {
-    const header = menu.getByRole('button', { name: tr(lang, `nav:groups.${group}`) });
-    if ((await header.getAttribute('aria-expanded')) === 'false') {
-      await header.click();
-      check((await header.getAttribute('aria-expanded')) === 'true', `[${lang}] nav: opened the collapsed "${tr(lang, `nav:groups.${group}`)}" group to reach ${key}`);
-    }
-  }
-  const link = menu.getByRole('link', { name: tr(lang, `nav:${key}`) });
-  await link.click();
-  // the router navigates asynchronously: return only once this entry is the current page
-  await link.and(page.locator('[aria-current="page"]')).waitFor();
+  return libNav(page, tr, lang, key, { check });
 }
 
 /** Commit through the bar's dialog; `confirmMinutes` null = without auto-revert. Returns after the dialog closed or showed its result. */
@@ -189,7 +148,7 @@ async function confirmBanner(page, lang, shotName) {
 }
 
 async function adminPass(browser, lang, index) {
-  const { ctx, page } = await newPage(browser, lang);
+  const { ctx, page, assertNoPageErrors } = await newPage(browser, lang);
   const n = (i) => `${String(index * 10 + i).padStart(2, '0')}`;
   await page.goto(`${BASE}/system/users`);
   await page.waitForURL(/\/login\?next=/);
@@ -273,11 +232,12 @@ async function adminPass(browser, lang, index) {
   let disabled = 0;
   for (let i = 0; i < all; i++) if (await rb.nth(i).isDisabled()) disabled++;
   check(all > 0 && disabled === all, `[${lang}] readonly: all ${all} rollback buttons disabled`);
+  assertNoPageErrors(`[${lang}] adminPass`);
   await ctx.close();
 }
 
 async function revertPass(browser, lang) {
-  const { ctx, page } = await newPage(browser, lang);
+  const { ctx, page, assertNoPageErrors } = await newPage(browser, lang);
   await page.goto(`${BASE}/login`);
   await login(page, lang, ADMIN, ADMIN_PW);
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
@@ -297,6 +257,7 @@ async function revertPass(browser, lang) {
   await page.getByRole('dialog').getByRole('button', { name: tr(lang, 'config:discard.confirm') }).click();
   await page.getByTestId('pending-bar').waitFor({ state: 'hidden' });
   ok(`[${lang}] the kept candidate was discarded from the bar`);
+  assertNoPageErrors(`[${lang}] revertPass`);
   await ctx.close();
 }
 
@@ -314,7 +275,7 @@ async function tabTo(page, re, max = 60) {
 }
 
 async function keyboardPass(browser, lang) {
-  const { ctx, page } = await newPage(browser, lang);
+  const { ctx, page, assertNoPageErrors } = await newPage(browser, lang);
   await page.goto(`${BASE}/login`);
   await page.getByRole('button', { name: tr(lang, 'auth:signIn') }).waitFor();
   await page.keyboard.type(ADMIN); // the username field has focus on load
@@ -345,6 +306,7 @@ async function keyboardPass(browser, lang) {
   const outcome = page.getByTestId('confirm-outcome');
   await outcome.waitFor({ timeout: 30_000 });
   check((await outcome.innerText()).includes(tr(lang, 'config:confirm.outcome.confirmed.title')), `[${lang}] keyboard: Commit… (${t1} Tabs) → Commit with auto-revert (${t2}) → Confirm (${t3}) → confirmed`);
+  assertNoPageErrors(`[${lang}] keyboardPass`);
   await ctx.close();
 }
 
@@ -401,7 +363,7 @@ function silentProxy(listenPort, upstream) {
 }
 
 async function secretPass(browser, lang) {
-  const { ctx, page } = await newPage(browser, lang);
+  const { ctx, page, assertNoPageErrors } = await newPage(browser, lang);
   await page.goto(`${BASE}/login`);
   await login(page, lang, ADMIN, ADMIN_PW);
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
@@ -435,11 +397,12 @@ async function secretPass(browser, lang) {
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
   check(true, `[${lang}] secret: ${RO_USER} signs in with the NEW password`);
   RO_PW = newPw;
+  assertNoPageErrors(`[${lang}] secretPass`);
   await ctx.close();
 }
 
 async function blackholePass(browser, lang, proxy) {
-  const { ctx, page } = await newPage(browser, lang);
+  const { ctx, page, assertNoPageErrors } = await newPage(browser, lang);
   await page.goto(`${BASE}/login`);
   await login(page, lang, ADMIN, ADMIN_PW);
   await page.waitForURL((u) => !u.pathname.startsWith('/login'));
@@ -475,6 +438,7 @@ async function blackholePass(browser, lang, proxy) {
   const applied = await outcome.getByTestId('commit-result').innerText();
   check(applied.includes(tr(lang, 'config:confirm.applyResult')), `[${lang}] blackhole: confirmed; apply result shown: "${applied.split('\n').slice(0, 2).join(' | ')}"`);
   await shot(page, `52-confirmed-with-apply-result-${lang}`);
+  assertNoPageErrors(`[${lang}] blackholePass`);
   await ctx.close();
 }
 
@@ -497,7 +461,7 @@ async function apiRevisions(page) {
 
 const proxy = process.env.VRX_E2E_PROXY_PORT ? await silentProxy(process.env.VRX_E2E_PROXY_PORT, process.env.VRX_E2E_UPSTREAM ?? '127.0.0.1:3101') : null;
 if (BLACKHOLE && !proxy) throw new Error('--blackhole needs VRX_E2E_PROXY_PORT and VRX_E2E_UPSTREAM');
-const browser = await chromium.launch({ executablePath: process.env.VRX_CHROME, headless: true });
+const browser = await launchBrowser();
 try {
   for (const [i, lang] of LANGS.entries()) await adminPass(browser, lang, i);
   if (SECRET) await secretPass(browser, LANGS[0]);

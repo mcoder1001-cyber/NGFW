@@ -1,6 +1,6 @@
 {
   "tab": "DHCP",
-  "intro": "Kea DHCPv4/DHCPv6 servers with their subnets, pools and reservations, VPP DHCP relays per VRF, and the lease browser. Edits go into the candidate; commit them from the pending-change bar.",
+  "intro": "Kea DHCPv4/DHCPv6 servers with their subnets, pools and reservations, engine DHCP relays per VRF, and the lease browser. Edits go into the candidate; commit them from the pending-change bar.",
   "clientHint": "The DHCP client of an interface is set in the interface drawer (DHCP client).",
   "clientLink": "Open Interfaces",
   "sections": "DHCP sections",
@@ -68,7 +68,7 @@
   "relays": {
     "title": "DHCP relays",
     "add": "Add relay",
-    "hint": "VPP relays DHCP per client VRF: every interface of that VRF is relayed. All relays of one VRF and family share one source address.",
+    "hint": "The engine relays DHCP per client VRF: every interface of that VRF is relayed. All relays of one VRF and family share one source address.",
     "none": "No DHCP relay configured.",
     "editTitle": "Relay {{name}}",
     "addTitle": "New DHCP relay"
@@ -180,9 +180,9 @@
     "reservation_ip": "Inside the subnet and outside every pool",
     "reservation_options_code": "DHCPv4: 1–254, DHCPv6: 1–65535",
     "reservation_options_data": "Kea option data: text, comma-separated list or hex string",
-    "relay_vrf": "VRF of the client-facing interfaces (VPP rx VRF)",
+    "relay_vrf": "VRF of the client-facing interfaces (engine rx VRF)",
     "relay_serverVrf": "VRF the DHCP servers are reached in; defaults to the client VRF",
-    "relay_interfaces": "Interfaces whose DHCP requests are relayed (VPP relays every interface of the client VRF)",
+    "relay_interfaces": "Interfaces whose DHCP requests are relayed (the engine relays every interface of the client VRF)",
     "relay_sourceAddress": "giaddr and source of the relayed request; must be configured on an interface in the server VRF (else the client VRF)"
   }
 }

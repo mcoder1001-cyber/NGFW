@@ -15,7 +15,7 @@
   "loading": "در حال بارگذاری…",
   "readonly": "نقش شما اجازهٔ مشاهده دارد، نه تغییر پیکربندی.",
   "pending": "در انتظار",
-  "notInVpp": "در VPP نیست",
+  "notInVpp": "در موتور نیست",
   "memberLacp": "{{name}}: {{state}}",
   "col": {
     "name": "نام",
@@ -55,14 +55,14 @@
     "detail": "این سو: {{flags}} · همتا: {{system}}"
   },
   "live": {
-    "vppName": "نام در VPP",
+    "vppName": "نام در موتور",
     "swIfIndex": "sw_if_index",
     "activeOf": "{{active}} از {{total}}"
   },
   "drawer": {
     "label": "باند {{name}}",
     "liveTitle": "وضعیت زنده",
-    "notInVpp": "VPP (هنوز) چنین باندی ندارد. با Commit ساخته می‌شود.",
+    "notInVpp": "موتور (هنوز) چنین باندی ندارد. با Commit ساخته می‌شود.",
     "noLive": "عامل وضعیت زندهٔ باند را گزارش نمی‌کند؛ فقط پیکربندی نمایش داده می‌شود.",
     "interfaceHint": "وضعیت مدیریتی، MTU، MAC، نشانی‌ها، VRF و زیرواسط‌های VLAN باند مانند هر واسط دیگری ویرایش می‌شوند:",
     "interfaceLink": "باز کردن واسط‌ها",

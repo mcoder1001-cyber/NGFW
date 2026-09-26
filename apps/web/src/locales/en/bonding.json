@@ -15,7 +15,7 @@
   "loading": "Loading…",
   "readonly": "Your role can view but not change the configuration.",
   "pending": "pending",
-  "notInVpp": "not in VPP",
+  "notInVpp": "not in the engine",
   "memberLacp": "{{name}}: {{state}}",
   "col": {
     "name": "Name",
@@ -55,14 +55,14 @@
     "detail": "actor: {{flags}} · partner: {{system}}"
   },
   "live": {
-    "vppName": "VPP name",
+    "vppName": "Engine name",
     "swIfIndex": "sw_if_index",
     "activeOf": "{{active}} of {{total}}"
   },
   "drawer": {
     "label": "Bond {{name}}",
     "liveTitle": "Live state",
-    "notInVpp": "VPP has no such bond (yet). It is created on Commit.",
+    "notInVpp": "The engine has no such bond (yet). It is created on Commit.",
     "noLive": "The agent does not report live bond state; only the configuration is shown.",
     "interfaceHint": "Admin state, MTU, MAC, addresses, VRF and VLAN sub-interfaces of the bond are edited like any interface's:",
     "interfaceLink": "open Interfaces",

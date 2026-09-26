@@ -13,7 +13,7 @@
     "nptv6": "NPTv6"
   },
   "ei": {
-    "intro": "Endpoint-independent NAT44 (VPP nat44-ei): one outside port per inside endpoint whatever the destination, so any remote host can reach a mapped inside endpoint (full-cone behaviour). It uses the same NAT44 settings as ED — Outbound, Static & port forwards and Pools — without twice-NAT and load-balanced mappings. ED and EI are mutually exclusive.",
+    "intro": "Endpoint-independent NAT44 (engine nat44-ei): one outside port per inside endpoint whatever the destination, so any remote host can reach a mapped inside endpoint (full-cone behaviour). It uses the same NAT44 settings as ED — Outbound, Static & port forwards and Pools — without twice-NAT and load-balanced mappings. ED and EI are mutually exclusive.",
     "modeEi": "NAT44 runs in EI mode: the Outbound, Static and Pools tabs are applied with nat44-ei.",
     "modeEd": "NAT44 runs in ED mode. Switch to EI to apply the NAT44 settings with nat44-ei (twice-NAT and load-balanced mappings must be removed first).",
     "switchTo": {
@@ -70,7 +70,7 @@
     "total": "{{sessions}} sessions from {{clients}} IPv6 clients"
   },
   "nat66": {
-    "intro": "NAT66: stateless 1:1 translation of one IPv6 address to another between the inside and outside interfaces (VPP nat66).",
+    "intro": "NAT66: stateless 1:1 translation of one IPv6 address to another between the inside and outside interfaces (engine nat66).",
     "mappings": "Static mappings",
     "empty": "No static mapping."
   },
@@ -78,7 +78,7 @@
     "intro": "NPTv6 (RFC 6296): stateless, checksum-neutral translation of an internal IPv6 prefix to an external one on an interface. One binding per interface; both prefixes have the same length, at most /64.",
     "running": "Bindings in the running configuration",
     "empty": "No binding.",
-    "writeOnlyHelp": "VPP cannot list NPTv6 bindings: the agent applies every binding of the running configuration and re-applies it on each resync, but cannot read it back."
+    "writeOnlyHelp": "The engine cannot list NPTv6 bindings: the agent applies every binding of the running configuration and re-applies it on each resync, but cannot read it back."
   },
   "status": {
     "applied": "applied",

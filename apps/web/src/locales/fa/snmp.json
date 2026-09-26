@@ -8,7 +8,7 @@
   "yes": "بله",
   "no": "خیر",
   "adminOnly": "فقط مدیر سیستم می‌تواند رشته‌های community و عبارت‌های عبور را بنویسد.",
-  "mibHint": "MIB اختصاصی (VRX-MIB: شمارنده‌های رابط‌های VPP و سلامت عامل) در deploy/snmp/VRX-MIB.txt است.",
+  "mibHint": "MIB اختصاصی (VRX-MIB: شمارنده‌های رابط‌های موتور و سلامت عامل) در deploy/snmp/VRX-MIB.txt است.",
   "state": {
     "title": "وضعیت",
     "configured": "پیکربندی‌شده: {{value}}",
@@ -27,7 +27,7 @@
     "sysLocation": "sysLocation",
     "sysContact": "sysContact",
     "engineId": "شناسه موتور (هگز)",
-    "subagent": "ارائه VRX-MIB (شمارنده‌های رابط VPP)"
+    "subagent": "ارائه VRX-MIB (شمارنده‌های رابط موتور)"
   },
   "communities": {
     "title": "Communityها (v2c، فقط خواندنی)",

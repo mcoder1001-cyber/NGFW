@@ -1,0 +1,116 @@
+{
+  "banner": {
+    "label": "وضعیت سیستم",
+    "appliance": "دستگاه",
+    "ok": "همهٔ سیستم‌ها عادی کار می‌کنند",
+    "attention": "نیاز به بررسی",
+    "apiDown": "API مدیریت در دسترس نیست",
+    "uptime": "روشن از {{h}} ساعت و {{m}} دقیقه پیش",
+    "uptimeDays": "روشن از {{d}} روز و {{h}} ساعت پیش",
+    "revision": "نسخهٔ {{id}}",
+    "engine": "موتور {{version}}",
+    "separator": " · "
+  },
+  "health": {
+    "checking": "در حال بررسی…",
+    "apiUp": "API {{version}}",
+    "apiDown": "API در دسترس نیست",
+    "agentUp": "ایجنت متصل",
+    "agentDegraded": "ایجنت با اختلال",
+    "agentDown": "ایجنت در دسترس نیست",
+    "engineUp": "موتور متصل",
+    "engineDown": "موتور متصل نیست"
+  },
+  "tiles": {
+    "cpu": "پردازندهٔ دستگاه",
+    "memory": "حافظه (RAM)",
+    "storage": "دیسک",
+    "throughput": "ترافیک"
+  },
+  "level": {
+    "warning": "پرکار",
+    "critical": "بیش از ظرفیت"
+  },
+  "cpu": {
+    "cores": "{{cores}} هسته",
+    "load": "بار {{l1}} · {{l5}}"
+  },
+  "memory": {
+    "used": "مصرف",
+    "detail": "{{used}} از {{total}}",
+    "available": "{{available}} آزاد"
+  },
+  "storage": {
+    "detail": "{{used}} از {{total}}"
+  },
+  "host": {
+    "unavailable": "اطلاعات دستگاه در دسترس نیست"
+  },
+  "units": {
+    "bytes": "{{value}} {{unit}}"
+  },
+  "throughput": {
+    "in": "ورودی {{value}}",
+    "out": "خروجی {{value}}",
+    "waiting": "در انتظار شمارنده‌های زنده"
+  },
+  "traffic": {
+    "title": "ترافیک همهٔ رابط‌ها",
+    "rx": "ورودی (دریافت)",
+    "tx": "خروجی (ارسال)",
+    "time": "زمان",
+    "collecting": "در حال جمع‌آوری نمونه — نمودار پس از دو به‌روزرسانی شروع می‌شود",
+    "noStream": "جریان زنده: {{status}}"
+  },
+  "engine": {
+    "title": "موتور پردازش بسته",
+    "connected": "متصل",
+    "disconnected": "قطع",
+    "hugepages": "حافظهٔ بسته‌ها (hugepages)",
+    "hugepagesDetail": "{{used}} از {{total}} در حال استفاده",
+    "noHugepages": "hugepage رزرو نشده است",
+    "threads": "رشته‌های موتور",
+    "main": "رشتهٔ اصلی",
+    "worker": "worker {{n}}",
+    "threadLevel": "{{value}} · {{level}}",
+    "noThreads": "هنوز نمونه‌ای نرسیده است (هنگام اجرای جریان زنده ارسال می‌شود)",
+    "word": "موتور"
+  },
+  "resources": {
+    "title": "پردازنده و حافظهٔ دستگاه",
+    "cpu": "پردازنده",
+    "mem": "حافظه",
+    "collecting": "در حال جمع‌آوری نمونه (هر ۵ ثانیه)"
+  },
+  "interfaces": {
+    "title": "وضعیت رابط‌ها",
+    "upOfTotal": "{{up}} رابط از {{total}} فعال",
+    "ofTotal": "از {{total}} فعال",
+    "breakdown": "{{up}} فعال، {{down}} قطع، {{adminDown}} غیرفعال مدیریتی، {{missing}} در موتور نیست",
+    "missing": "{{n}} تعریف‌شده ولی موجود نیست",
+    "open": "مشاهدهٔ رابط‌ها"
+  },
+  "config": {
+    "sync": "ایجنت: {{state}}",
+    "pending": "commit در انتظار تأیید"
+  },
+  "top": {
+    "title": "پرترافیک‌ترین رابط‌ها",
+    "none": "هنوز ترافیکی اندازه‌گیری نشده است"
+  },
+  "events": {
+    "title": "رویدادهای اخیر",
+    "none": "رویدادی نیست",
+    "error": "بارگذاری رویدادها ممکن نشد",
+    "meta": "{{when}} · {{subsystem}}",
+    "codes": {
+      "VPP_CONNECTED": "موتور پردازش بسته متصل شد",
+      "VPP_DISCONNECTED": "اتصال موتور پردازش بسته قطع شد",
+      "DEGRADED": "ایجنت دچار اختلال شد",
+      "COMMIT_APPLIED": "پیکربندی اعمال شد",
+      "COMMIT_CONFIRMED": "commit تأیید شد",
+      "CONFIRM_REVERTED": "commit تأیید نشد و برگردانده شد",
+      "RUNNING_IN_SYNC": "پیکربندی جاری همگام است"
+    }
+  }
+}

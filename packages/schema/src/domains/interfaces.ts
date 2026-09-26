@@ -15,6 +15,7 @@ import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { interfaceL2Field, subinterfaceL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 import { interfaceGsoField, interfaceMirrorField } from './ext/loopback-bvi-gso-lldp-span.js'; // wave-A: F-loopback-bvi-gso-lldp-span
+import { ipv6RaField, proxyArpField, proxyNdField } from './ext/neighbors-ra.js';
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -174,6 +175,9 @@ export const SubinterfaceSchema = z
     // wave-A: F-bridge-l2
     l2: subinterfaceL2Field,
     // wave-A: F-neighbors-ra
+    ipv6Ra: ipv6RaField,
+    proxyArp: proxyArpField,
+    proxyNd: proxyNdField,
     // wave-A: F-rpf-adl-pbr
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
@@ -217,6 +221,9 @@ export const InterfaceSchema = z
     gso: interfaceGsoField,
     mirror: interfaceMirrorField,
     // wave-A: F-neighbors-ra
+    ipv6Ra: ipv6RaField,
+    proxyArp: proxyArpField,
+    proxyNd: proxyNdField,
     // wave-A: F-rpf-adl-pbr
     // wave-A: P12
   })

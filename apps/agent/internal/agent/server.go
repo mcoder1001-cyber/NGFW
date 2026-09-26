@@ -128,6 +128,8 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 	case *vrxv1.ActionRequest_Traceroute:
 		return g.actionTraceroute(req.GetTraceroute())
 	// wave-A: F-neighbors-ra
+	case *vrxv1.ActionRequest_ArpFlush:
+		return g.arpFlush(req.GetArpFlush(), stream)
 	// wave-A: F-nat44-ed-sessions
 	// wave-A: F-unbound-chrony-syslog
 	default:

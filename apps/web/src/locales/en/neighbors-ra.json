@@ -1,0 +1,96 @@
+{
+  "nav": "Neighbours",
+  "title": "Neighbours",
+  "intro": "The live ARP (IPv4) and ND (IPv6) table of the data plane, static neighbours and the neighbour-table settings. Router advertisements, proxy ARP and proxy ND are set per interface (Interfaces → interface → “IPv6 RA, proxy ARP/ND”).",
+  "tabs": {
+    "label": "Neighbour sections",
+    "table": "Neighbour table",
+    "static": "Static entries and limits"
+  },
+  "liveChip": "Live: {{status}}",
+  "refreshed": "Updated {{time}}",
+  "filter": {
+    "interface": "Interface",
+    "family": "Family",
+    "state": "State",
+    "vrf": "VRF",
+    "any": "Any"
+  },
+  "family": {
+    "ipv4": "IPv4 (ARP)",
+    "ipv6": "IPv6 (ND)"
+  },
+  "state": {
+    "static": "Static",
+    "dynamic": "Learned"
+  },
+  "col": {
+    "interface": "Interface",
+    "ip": "IP address",
+    "mac": "MAC address",
+    "family": "Family",
+    "state": "State",
+    "age": "Age",
+    "vrf": "VRF"
+  },
+  "noFib": "no FIB entry",
+  "ageValue": "{{value}} s",
+  "flush": {
+    "button": "Flush…",
+    "title": "Flush learned entries",
+    "text": "Deletes the learned ARP/ND entries; the data plane learns them again on the next packet. Static neighbours are kept.",
+    "scope": "Interface",
+    "all": "All configured interfaces",
+    "family": "Family",
+    "both": "IPv4 and IPv6",
+    "confirm": "Flush",
+    "cancel": "Cancel",
+    "done": "Deleted {{deleted}} learned entries on {{interfaces}} interfaces.",
+    "readonly": "Your role can only view the table."
+  },
+  "static": {
+    "intro": "Static ARP/ND entries (the address must lie in a connected subnet of the interface) and the VPP-wide neighbour-table limits and duplicate address detection. Saving writes the candidate; commit to apply.",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "saved": "Saved to the candidate. Review and commit it in the pending-change bar.",
+    "loading": "Loading the candidate…",
+    "globals": "Limits and duplicate address detection are VPP-wide: only the product agent (the globals owner) applies them."
+  },
+  "labels": {
+    "static": "Static neighbours",
+    "static.interface": "Interface",
+    "static.ip": "IP address",
+    "static.mac": "MAC address",
+    "static.noFibEntry": "No FIB entry",
+    "ipv4Limits": "IPv4 (ARP) table limits",
+    "ipv6Limits": "IPv6 (ND) table limits",
+    "ipv4Limits.maxNumber": "Maximum entries",
+    "ipv4Limits.maxAgeSec": "Maximum age (s)",
+    "ipv4Limits.recycle": "Recycle the oldest entry",
+    "ipv6Limits.maxNumber": "Maximum entries",
+    "ipv6Limits.maxAgeSec": "Maximum age (s)",
+    "ipv6Limits.recycle": "Recycle the oldest entry",
+    "dad": "Duplicate address detection",
+    "dad.transmits": "Probes",
+    "dad.delayMs": "Retransmit delay (ms)"
+  },
+  "interfaceDrawer": {
+    "group": {
+      "neighbors-ra": "IPv6 RA, proxy ARP/ND"
+    },
+    "field": {
+      "ipv6Ra": {
+        "title": "IPv6 router advertisements",
+        "help": "absent = VPP defaults (RAs suppressed); untick “Suppress” to send RAs; the interface needs an IPv6 address"
+      },
+      "proxyArp": {
+        "title": "Proxy ARP",
+        "help": "answer ARP for the proxy-ARP ranges of this interface’s VRF"
+      },
+      "proxyNd": {
+        "title": "Proxy ND addresses (experimental)",
+        "help": "experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1"
+      }
+    }
+  }
+}

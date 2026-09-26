@@ -486,23 +486,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/api/v1/state/neighbors': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** IP neighbours — needs an agent state RPC that the v1 contract does not have (501) */
-    get: operations['State_neighbors'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/api/v1/state/drift': {
     parameters: {
       query?: never;
@@ -850,6 +833,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live ARP/ND table (learned and static neighbours) of the interfaces the agent can name, filtered and paged by the agent */
+    get: operations['NeighborsRa_neighbors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/arp-flush': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Flush learned ARP/ND entries of one interface or of every configured interface; static neighbours stay */
+    post: operations['NeighborsRa_arpFlush'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1121,6 +1138,71 @@ export interface components {
                */
               macFilter: boolean;
             };
+            /** IPv6 router advertisements */
+            ipv6Ra?: {
+              /**
+               * Suppress router advertisements
+               * @default true
+               */
+              suppress: boolean;
+              /**
+               * Managed flag (M)
+               * @default false
+               */
+              managed: boolean;
+              /**
+               * Other configuration flag (O)
+               * @default false
+               */
+              other: boolean;
+              /**
+               * Router lifetime (s)
+               * @default 600
+               */
+              lifetimeSec: number;
+              /**
+               * Maximum interval (s)
+               * @default 200
+               */
+              maxIntervalSec: number;
+              /**
+               * Minimum interval (s)
+               * @default 150
+               */
+              minIntervalSec: number;
+              /**
+               * Advertised prefixes
+               * @default {}
+               */
+              prefixes: {
+                [key: string]: {
+                  /**
+                   * Valid lifetime (s)
+                   * @default 2592000
+                   */
+                  validSec: number;
+                  /**
+                   * Preferred lifetime (s)
+                   * @default 604800
+                   */
+                  preferredSec: number;
+                  /**
+                   * Off-link
+                   * @default false
+                   */
+                  offLink: boolean;
+                  /**
+                   * No autoconfiguration
+                   * @default false
+                   */
+                  noAutoconfig: boolean;
+                };
+              };
+            };
+            /** Proxy ARP */
+            proxyArp?: boolean;
+            /** Proxy ND addresses (experimental) */
+            proxyNd?: string[];
           };
         };
         /** Bond */
@@ -1232,6 +1314,71 @@ export interface components {
            */
           level: 'device' | 'l2';
         }[];
+        /** IPv6 router advertisements */
+        ipv6Ra?: {
+          /**
+           * Suppress router advertisements
+           * @default true
+           */
+          suppress: boolean;
+          /**
+           * Managed flag (M)
+           * @default false
+           */
+          managed: boolean;
+          /**
+           * Other configuration flag (O)
+           * @default false
+           */
+          other: boolean;
+          /**
+           * Router lifetime (s)
+           * @default 600
+           */
+          lifetimeSec: number;
+          /**
+           * Maximum interval (s)
+           * @default 200
+           */
+          maxIntervalSec: number;
+          /**
+           * Minimum interval (s)
+           * @default 150
+           */
+          minIntervalSec: number;
+          /**
+           * Advertised prefixes
+           * @default {}
+           */
+          prefixes: {
+            [key: string]: {
+              /**
+               * Valid lifetime (s)
+               * @default 2592000
+               */
+              validSec: number;
+              /**
+               * Preferred lifetime (s)
+               * @default 604800
+               */
+              preferredSec: number;
+              /**
+               * Off-link
+               * @default false
+               */
+              offLink: boolean;
+              /**
+               * No autoconfiguration
+               * @default false
+               */
+              noAutoconfig: boolean;
+            };
+          };
+        };
+        /** Proxy ARP */
+        proxyArp?: boolean;
+        /** Proxy ND addresses (experimental) */
+        proxyNd?: string[];
       };
     };
     /**
@@ -1251,6 +1398,19 @@ export interface components {
           prefix: string;
           /** Ingress interface */
           interface: string;
+        }[];
+        /** Proxy-ARP ranges */
+        proxyArpRanges?: {
+          /**
+           * First address
+           * Format: ipv4
+           */
+          low: string;
+          /**
+           * Last address
+           * Format: ipv4
+           */
+          high: string;
         }[];
       };
     };
@@ -2152,6 +2312,75 @@ export interface components {
               end: string;
             }[];
           };
+        };
+      };
+      /** Neighbours */
+      neighbors?: {
+        /**
+         * Static neighbours
+         * @default []
+         */
+        static: {
+          /** Interface */
+          interface: string;
+          /** IP address */
+          ip: string;
+          /** MAC address */
+          mac: string;
+          /**
+           * No FIB entry
+           * @default false
+           */
+          noFibEntry: boolean;
+        }[];
+        /** IPv4 (ARP) table limits */
+        ipv4Limits?: {
+          /**
+           * Maximum entries
+           * @default 50000
+           */
+          maxNumber: number;
+          /**
+           * Maximum age (s)
+           * @default 0
+           */
+          maxAgeSec: number;
+          /**
+           * Recycle
+           * @default false
+           */
+          recycle: boolean;
+        };
+        /** IPv6 (ND) table limits */
+        ipv6Limits?: {
+          /**
+           * Maximum entries
+           * @default 50000
+           */
+          maxNumber: number;
+          /**
+           * Maximum age (s)
+           * @default 0
+           */
+          maxAgeSec: number;
+          /**
+           * Recycle
+           * @default false
+           */
+          recycle: boolean;
+        };
+        /** Duplicate address detection */
+        dad?: {
+          /**
+           * Probes
+           * @default 1
+           */
+          transmits: number;
+          /**
+           * Retransmit delay (ms)
+           * @default 1000
+           */
+          delayMs: number;
         };
       };
     };
@@ -8574,51 +8803,6 @@ export interface operations {
       };
     };
   };
-  State_neighbors: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Neighbour table (reserved: answers 501 in this release) */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Not authenticated */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Role too low */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-      /** @description Not implemented */
-      501: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/problem+json': components['schemas']['Problem'];
-        };
-      };
-    };
-  };
   State_drift: {
     parameters: {
       query?: never;
@@ -10490,6 +10674,190 @@ export interface operations {
       };
       /** @description Not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  NeighborsRa_neighbors: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+        dir?: 'asc' | 'desc';
+        sort?: 'interface' | 'ip' | 'mac' | 'age' | 'vrf' | 'state';
+        search?: string;
+        state?: 'static' | 'dynamic';
+        family?: 'ipv4' | 'ipv6';
+        interface?: string;
+        vrf?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            page: number;
+            pageSize: number;
+            total: number;
+            retrievedAt?: string;
+            items: {
+              interface: string;
+              ip: string;
+              mac: string;
+              /** @enum {string} */
+              family: 'ipv4' | 'ipv6';
+              /** @enum {string} */
+              state: 'static' | 'dynamic';
+              noFibEntry: boolean;
+              /** @description seconds since the entry was last confirmed; 0 for static entries */
+              ageSec: number;
+              vrf: string;
+              tableId: number;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  NeighborsRa_arpFlush: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description flush this interface only; absent = every configured interface */
+          interface?: string;
+          /**
+           * @description absent = ARP and ND
+           * @enum {string}
+           */
+          family?: 'ipv4' | 'ipv6';
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description learned entries deleted; static neighbours are never removed */
+            deleted: number;
+            interfaces: number;
+            summary: string;
+            lines: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
         headers: {
           [name: string]: unknown;
         };

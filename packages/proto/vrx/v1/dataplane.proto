@@ -156,6 +156,12 @@ service Dataplane {
   rpc ListRoutes(ListRoutesRequest) returns (ListRoutesResponse);
 
   // wave-A: F-neighbors-ra
+
+  // ListNeighbors (F-neighbors-ra) dumps the live ARP/ND table (ip_neighbor_dump per interface and address family)
+  // of every interface this agent can name — its own and untagged ones, never another owner's — filtered and paged
+  // by the agent. Read-only; learned (dynamic) and static entries alike.
+  rpc ListNeighbors(ListNeighborsRequest) returns (ListNeighborsResponse);
+
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
   // wave-A: F-acl
@@ -527,6 +533,12 @@ enum EventKind {
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-A: F-neighbors-ra
+
+  // The ARP/ND table of an interface changed (F-neighbors-ra): learned, updated or removed entries, coalesced to at
+  // most one event per interface per second (`interface` set; attributes "added", "removed", "updated" — counts), or
+  // one event with `interface` unset (plus attribute "interfaces") when more than 16 interfaces changed in that second.
+  EVENT_KIND_NEIGHBOR_CHANGED = 10;
+
   // wave-A: F-object-model
   // wave-A: P11
   // wave-A: F-wireguard
@@ -576,6 +588,10 @@ message ActionRequest {
     // wave-BC: F-ha-state-sync
     // wave-BC: F-backup-restore
     // wave-A: F-neighbors-ra
+
+    // Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay.
+    ArpFlushAction arp_flush = 4;
+
     // wave-A: F-nat44-ed-sessions
     // wave-A: F-unbound-chrony-syslog
   }
@@ -947,6 +963,15 @@ message Interface {
   BridgeL2Port l2 = 14;
 
   // wave-A: F-neighbors-ra
+
+  // IPv6 router advertisements (F-neighbors-ra, sw_interface_ip6nd_ra_config / _ra_prefix); unset = not
+  // configured (VPP default: suppressed).
+  Ipv6Ra ipv6_ra = 15;
+  // Proxy ARP on this interface (proxy_arp_intfc_enable_disable); unset or false = off.
+  optional bool proxy_arp = 16;
+  // Proxied IPv6 addresses (ip6nd_proxy_add_del); experimental, applied only with VRX_DF2_PROXY_ND=1 (V12).
+  repeated string proxy_nd = 17;
+
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-loopback-bvi-gso-lldp-span
 
@@ -999,6 +1024,14 @@ message Subinterface {
   BridgeL2Port l2 = 12;
 
   // wave-A: F-neighbors-ra
+
+  // IPv6 router advertisements (F-neighbors-ra); unset = not configured.
+  Ipv6Ra ipv6_ra = 13;
+  // Proxy ARP on this sub-interface; unset or false = off.
+  optional bool proxy_arp = 14;
+  // Proxied IPv6 addresses (experimental, V12).
+  repeated string proxy_nd = 15;
+
   // wave-A: F-rpf-adl-pbr
 }
 
@@ -1018,6 +1051,9 @@ message Vrf {
   repeated VrfSourceSelect source_select = 3;
 
   // wave-A: F-neighbors-ra
+
+  // Proxy-ARP address ranges of this VRF's IPv4 FIB (F-neighbors-ra, proxy_arp_add_del).
+  repeated ProxyArpRange proxy_arp_ranges = 4;
 }
 
 // ----- routing (P02a, mirrors packages/schema/src/domains/routing.ts) -----
@@ -1055,6 +1091,10 @@ message RoutingConfig {
   BridgeL2Config l2 = 20;
 
   // wave-A: F-neighbors-ra
+
+  // Static neighbours, neighbour-table limits and DAD (F-neighbors-ra); unset = none configured.
+  NeighborsConfig neighbors = 10;
+
   // wave-A: F-rpf-adl-pbr
 }
 
@@ -4145,6 +4185,156 @@ message ListRoutesPath {
 }
 
 // ----- F-neighbors-ra -----
+
+// Ipv6Ra mirrors `interfaces.<if>.ipv6Ra` (and on sub-interfaces): router advertisements of one interface. The Zod
+// defaults are VPP's fresh-interface state (suppressed, lifetime 600, intervals 200/150).
+message Ipv6Ra {
+  // Do not send RAs; Zod default true (VPP's default).
+  optional bool suppress = 1;
+  // Managed address configuration flag (M); default false.
+  optional bool managed = 2;
+  // Other configuration flag (O); default false.
+  optional bool other = 3;
+  // Router lifetime in seconds, 0 = not a default router, else > max_interval_sec and ≤ 9000; default 600.
+  optional uint32 lifetime_sec = 4;
+  // Maximum interval between unsolicited RAs, 4–1800 s; default 200.
+  optional uint32 max_interval_sec = 5;
+  // Minimum interval, 3 s … 0.75 × max_interval_sec; default 150.
+  optional uint32 min_interval_sec = 6;
+  // Advertised prefixes keyed by IPv6 network ("2001:db8:1::/64").
+  map<string, Ipv6RaPrefix> prefixes = 7;
+}
+
+// Ipv6RaPrefix mirrors one entry of `ipv6Ra.prefixes` (prefix-information option).
+message Ipv6RaPrefix {
+  // Valid lifetime in seconds; default 2592000.
+  optional uint32 valid_sec = 1;
+  // Preferred lifetime in seconds (≤ valid_sec); default 604800.
+  optional uint32 preferred_sec = 2;
+  // Clear the on-link (L) flag; default false.
+  optional bool off_link = 3;
+  // Clear the autonomous (A) flag; default false (SLAAC then needs a /64).
+  optional bool no_autoconfig = 4;
+}
+
+// ProxyArpRange mirrors one entry of `vrfs.<name>.proxyArpRanges` (IPv4 only).
+message ProxyArpRange {
+  // First address of the range.
+  optional string low = 1;
+  // Last address of the range (≥ low).
+  optional string high = 2;
+}
+
+// NeighborsConfig mirrors `routing.neighbors`.
+message NeighborsConfig {
+  // Static ARP/ND entries (ip_neighbor_add_del, flag STATIC).
+  repeated StaticNeighbor static = 1;
+  // IPv4 (ARP) table limits (ip_neighbor_config); VPP-wide, globals owner only (D-071).
+  NeighborLimits ipv4_limits = 2;
+  // IPv6 (ND) table limits; VPP-wide, globals owner only.
+  NeighborLimits ipv6_limits = 3;
+  // IPv6 duplicate address detection (ip6_dad_enable_disable); present = enabled; globals owner only.
+  NeighborDad dad = 4;
+}
+
+// StaticNeighbor mirrors one entry of `routing.neighbors.static`.
+message StaticNeighbor {
+  // Logical interface name (D-069).
+  optional string interface = 1;
+  // IPv4 or IPv6 address inside a connected subnet of the interface.
+  optional string ip = 2;
+  // Unicast MAC address.
+  optional string mac = 3;
+  // Do not install the /32 or /128 host route (IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY); default false.
+  optional bool no_fib_entry = 4;
+}
+
+// NeighborLimits mirrors `routing.neighbors.ipv4Limits` / `ipv6Limits`.
+message NeighborLimits {
+  // Maximum entries; default 50000.
+  optional uint32 max_number = 1;
+  // Maximum age of learned entries in seconds, 0 = never; default 0.
+  optional uint32 max_age_sec = 2;
+  // Replace the oldest entry when full; default false.
+  optional bool recycle = 3;
+}
+
+// NeighborDad mirrors `routing.neighbors.dad`.
+message NeighborDad {
+  // Probes per tentative address, 1–10; default 1.
+  optional uint32 transmits = 1;
+  // Delay between probes, 100–10000 ms; default 1000.
+  optional uint32 delay_ms = 2;
+}
+
+// ListNeighborsRequest filters and pages the live neighbour table (all filters AND-ed).
+message ListNeighborsRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // VRF name ("default" for table 0); "" = every VRF.
+  string vrf = 2;
+  // Logical interface name; "" = every interface this agent can name.
+  string interface = 3;
+  // "ipv4" | "ipv6"; "" = both.
+  string family = 4;
+  // "static" | "dynamic"; "" = both.
+  string state = 5;
+  // Case-insensitive substring of the IP address, the MAC address or the interface name; "" = no filter.
+  string search = 6;
+  // Sort key: "interface" (default), "ip", "mac", "age", "vrf", "state".
+  string sort = 7;
+  // Sort descending.
+  bool descending = 8;
+  // Rows to skip.
+  uint32 offset = 9;
+  // Page size; 0 = 100, maximum 1000.
+  uint32 limit = 10;
+}
+
+// ListNeighborsResponse is one page of the neighbour table.
+message ListNeighborsResponse {
+  // The page, in the requested order.
+  repeated NeighborEntry neighbors = 1;
+  // Rows matching the filters (all pages).
+  uint32 total = 2;
+  // The owner whose view was returned.
+  string owner = 3;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 4;
+}
+
+// NeighborEntry is one ARP/ND entry as VPP reports it (ip_neighbor_details).
+message NeighborEntry {
+  // Logical interface name.
+  string interface = 1;
+  // IP address (canonical text).
+  string ip = 2;
+  // MAC address, lower-case "aa:bb:cc:dd:ee:ff".
+  string mac = 3;
+  // "ipv4" | "ipv6".
+  string family = 4;
+  // "static" (configured) | "dynamic" (learned).
+  string state = 5;
+  // IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY is set.
+  bool no_fib_entry = 6;
+  // Seconds since the entry was last confirmed (VPP `age`); 0 for static entries.
+  double age_sec = 7;
+  // VRF name of the interface's table for this family ("default" for table 0, the table id for tables this agent does
+  // not name).
+  string vrf = 8;
+  // FIB table id of the interface for this family.
+  uint32 table_id = 9;
+}
+
+// ArpFlushAction deletes the learned (dynamic) ARP/ND entries of one interface, or of every configured interface
+// this agent can name; static neighbours are never removed. Output: one line per interface and family, then `done`
+// with stats "deleted", "interfaces".
+message ArpFlushAction {
+  // Logical interface name; "" = every interface of the agent's stored configuration that it can name.
+  string interface = 1;
+  // "ipv4" | "ipv6"; "" = both.
+  string family = 2;
+}
 
 // ----- F-rpf-adl-pbr -----
 

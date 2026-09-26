@@ -17,6 +17,7 @@ import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { routingL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
+import { neighborsField } from './ext/neighbors-ra.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
@@ -720,6 +721,7 @@ export const RoutingSchema = withUi(
     // wave-A: F-bridge-l2
     l2: routingL2Field,
     // wave-A: F-neighbors-ra
+    neighbors: neighborsField,
     // wave-A: F-rpf-adl-pbr
   }),
   {

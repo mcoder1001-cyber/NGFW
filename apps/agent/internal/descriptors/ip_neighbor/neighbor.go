@@ -137,7 +137,8 @@ func (d *NeighborDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 }
 
 // Retrieve dumps both address families and keeps the static entries on interfaces tagged by
-// this owner and claimed entries on untagged interfaces.
+// this owner and claimed entries on untagged interfaces. It dumps one candidate interface at a
+// time (F-neighbors-ra, shared-VPP rule): sw_if_index ~0 would read every slot's neighbour table.
 func (d *NeighborDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
@@ -145,35 +146,51 @@ func (d *NeighborDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	}
 	svc := ip_neighbor.NewServiceClient(d.client)
 	var out []scheduler.KV
-	for _, af := range []ip_types.AddressFamily{ip_types.ADDRESS_IP4, ip_types.ADDRESS_IP6} {
-		stream, err := svc.IPNeighborDump(ctx, &ip_neighbor.IPNeighborDump{SwIfIndex: interface_types.InterfaceIndex(df2.NoInterface), Af: af})
-		if err != nil {
-			return nil, fmt.Errorf("ip_neighbor_dump: %w", err)
+	for _, idx := range ifs.Candidates() {
+		for _, af := range []ip_types.AddressFamily{ip_types.ADDRESS_IP4, ip_types.ADDRESS_IP6} {
+			kvs, err := d.retrieveOne(ctx, svc, ifs, idx, af)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, kvs...)
 		}
-		details, err := df2.Collect(stream.Recv)
-		if err != nil {
-			return nil, fmt.Errorf("ip_neighbor_dump: %w", err)
+	}
+	return out, nil
+}
+
+// retrieveOne dumps the entries of one interface and family.
+func (d *NeighborDescriptor) retrieveOne(ctx context.Context, svc ip_neighbor.RPCService, ifs *df2.Interfaces, idx uint32, af ip_types.AddressFamily) ([]scheduler.KV, error) {
+	stream, err := svc.IPNeighborDump(ctx, &ip_neighbor.IPNeighborDump{SwIfIndex: interface_types.InterfaceIndex(idx), Af: af})
+	if err != nil {
+		return nil, fmt.Errorf("ip_neighbor_dump: %w", err)
+	}
+	details, err := df2.Collect(stream.Recv)
+	if err != nil {
+		return nil, fmt.Errorf("ip_neighbor_dump: %w", err)
+	}
+	var out []scheduler.KV
+	for _, det := range details {
+		nb := det.Neighbor
+		if uint32(nb.SwIfIndex) != idx {
+			continue // VPP walks exactly idx
 		}
-		for _, det := range details {
-			nb := det.Neighbor
-			if nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_STATIC == 0 {
-				continue // learned entry: never desired state
-			}
-			name, ok := ifs.Name(uint32(nb.SwIfIndex))
-			if !ok {
-				continue
-			}
-			v := &Neighbor{
-				Interface:  name,
-				IpAddress:  df2.FromAddress(nb.IPAddress).String(),
-				MacAddress: df2.MACString(nb.MacAddress),
-				NoFibEntry: nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY != 0,
-			}
-			if !ifs.OwnsObject(uint32(nb.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
-				continue // another owner's interface, or an untagged one we did not configure
-			}
-			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: NeighborMeta{SwIfIndex: uint32(nb.SwIfIndex)}})
+		if nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_STATIC == 0 {
+			continue // learned entry: never desired state
 		}
+		name, ok := ifs.Name(uint32(nb.SwIfIndex))
+		if !ok {
+			continue
+		}
+		v := &Neighbor{
+			Interface:  name,
+			IpAddress:  df2.FromAddress(nb.IPAddress).String(),
+			MacAddress: df2.MACString(nb.MacAddress),
+			NoFibEntry: nb.Flags&ip_neighbor.IP_API_NEIGHBOR_FLAG_NO_FIB_ENTRY != 0,
+		}
+		if !ifs.OwnsObject(uint32(nb.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
+			continue // another owner's interface, or an untagged one we did not configure
+		}
+		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: NeighborMeta{SwIfIndex: uint32(nb.SwIfIndex)}})
 	}
 	return out, nil
 }

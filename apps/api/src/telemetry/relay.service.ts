@@ -33,6 +33,8 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-BC: F-mpls-ldp
     // wave-BC: F-igmp-mfib
     // wave-A: F-neighbors-ra
+    case EventKind.EVENT_KIND_NEIGHBOR_CHANGED:
+      return 'neighbor.events';
     // wave-A: F-object-model
     // wave-A: F-acl
     // wave-A: P11

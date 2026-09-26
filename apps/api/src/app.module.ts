@@ -74,6 +74,7 @@ import { loopbackBviGsoLldpSpanFeature } from './features/loopback-bvi-gso-lldp-
 // wave-A: F-vrf-static-ecmp
 import { vrfStaticEcmpFeature } from './features/vrf-static-ecmp/index.js';
 // wave-A: F-neighbors-ra
+import { neighborsRaFeature } from './features/neighbors-ra/index.js';
 // wave-A: F-rpf-adl-pbr
 // wave-A: F-object-model
 // wave-A: F-acl
@@ -167,6 +168,7 @@ export class AppModule {
         // wave-A: F-vrf-static-ecmp
         ...vrfStaticEcmpFeature.controllers,
         // wave-A: F-neighbors-ra
+        ...neighborsRaFeature.controllers,
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
         // wave-A: F-acl
@@ -244,6 +246,7 @@ export class AppModule {
         // wave-A: F-vrf-static-ecmp
         ...vrfStaticEcmpFeature.providers,
         // wave-A: F-neighbors-ra
+        ...neighborsRaFeature.providers,
         // wave-A: F-rpf-adl-pbr
         // wave-A: F-object-model
         // wave-A: F-acl

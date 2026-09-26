@@ -46,6 +46,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'vrfs',
       'routing',
       // wave-A: F-neighbors-ra
+      'neighbors',
       // wave-A: F-rpf-adl-pbr
       // wave-A: P12
       // wave-A: F-nat44-ed-sessions

@@ -2,17 +2,17 @@
 
 Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 48.3% by hours (584.0/1208.5 h), 51.5% by tasks (69/134)**
+**Overall: 49.1% by hours (593.0/1208.5 h), 52.2% by tasks (70/134)**
 
 | state | tasks |
 |---|---|
-| merged | 69 |
-| review | 16 |
+| merged | 70 |
+| review | 15 |
 | running | 5 |
-| ready | 8 |
+| ready | 13 |
 | parked | 2 |
 | failed | 0 |
-| todo | 34 |
+| todo | 29 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 187.0 / 641.0 | 29.2% | 26/74 | 4 | 7 | 0 |
+| S4 | 196.0 / 641.0 | 30.6% | 27/74 | 4 | 12 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -46,7 +46,6 @@ Updated 2026-09-26 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-lb — Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev) (running, unassigned)
 - F-qos-flat — Wave C (day 13-15): policer, marking, QoS record/map, DSCP/dot1p (HQoS = V3, excluded) (running, unassigned)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
-- WEB-2 — Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page (review, ngfw-46 slot1)
 
 ## Parked
 

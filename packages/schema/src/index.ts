@@ -80,6 +80,7 @@ export * from './domains/ext/lisp.js';
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-A: F-bonding
+export * from './domains/ext/bonding.js';
 // wave-A: F-bridge-l2
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp

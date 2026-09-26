@@ -85,6 +85,9 @@ var Domains = map[string][]string{
 		core.InterfaceAddrName,
 		dhcp.NameClient,
 		// wave-A: F-bonding
+		bondingBond,
+		bondingMember,
+		bondingWeight,
 		// wave-A: F-bridge-l2
 		// wave-A: F-loopback-bvi-gso-lldp-span
 		// wave-A: F-neighbors-ra
@@ -263,6 +266,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-ha-state-sync
 	registerSnmp(r, w) // F-snmp (unanchored: no wave-BC: F-snmp anchor in register())
 	// wave-A: F-bonding
+	if err := w.registerBonding(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp

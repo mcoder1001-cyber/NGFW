@@ -52,6 +52,7 @@ import {
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
+  type BondStateResponse,
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
@@ -235,6 +236,11 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
+  /** F-bonding: live bonds (proto.md §11); an agent without the RPC answers 501. */
+  bondState(names: string[] = []): Promise<BondStateResponse> {
+    return this.unary(this.c.bondState, { names, owner: this.owner });
+  }
+
   // wave-A: F-bridge-l2
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp

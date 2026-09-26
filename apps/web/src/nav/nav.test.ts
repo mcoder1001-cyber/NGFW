@@ -34,6 +34,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(available).toEqual([
       'dashboard',
       'interfaces',
+      'bonds', // F-bonding
       // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip
@@ -46,7 +47,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-srv6
       // wave-BC: F-lisp
       'vpn',
-      // wave-A: F-bonding
+      // wave-A: F-bonding (bonds: Interfaces group, listed right after 'interfaces')
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp

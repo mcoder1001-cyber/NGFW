@@ -51,6 +51,21 @@ func (*BondDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 // Dependencies implements scheduler.Descriptor.
 func (*BondDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
+// RecordsNoOwnership declares for the product agent's ownership guard (TD-11b, dfkit/persist): a bond is ours by the owner
+// tag VPP carries on the bond interface; nothing is recorded in a claim or boot store.
+func (*BondDescriptor) RecordsNoOwnership() {}
+
+// ProvidedKeys implements the scheduler's KeyProvider (F-bonding, D-125): a bond also satisfies the alias
+// "interface/<name>" that its members, addresses and attributes depend on. Without it a plan that only deletes
+// (a rollback) has no edge from those objects to bond.bond — the alias object is observe-only and never planned —
+// and would order the bond's delete by registration rank, i.e. before its address.
+func (*BondDescriptor) ProvidedKeys(obj proto.Message) []scheduler.Key {
+	if o, ok := obj.(*Bond); ok && o.GetName() != "" {
+		return []scheduler.Key{iface.AliasKey(o.GetName())}
+	}
+	return nil
+}
+
 // lbFor validates the mode/lb combination the way VPP resolves it (vnet/bonding/cli.c
 // bond_create_if): only XOR and LACP choose an algorithm; round-robin, active-backup and
 // broadcast get their own value forced and reported by sw_bond_interface_dump, so the model must

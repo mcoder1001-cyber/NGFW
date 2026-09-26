@@ -88,6 +88,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // web: WEB-2
         // wave-A: UI-domain-editor
         // wave-A: F-bonding
+        { path: 'interfaces/bonds', lazy: async () => ({ Component: (await import('./domains/interfaces/bonding/BondsPage')).BondsPage }) },
         // wave-A: F-bridge-l2
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp

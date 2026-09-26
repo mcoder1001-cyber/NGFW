@@ -308,6 +308,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
+	if in["interfaces"] {
+		desired.Bonds(p, ds.GetInterfaces()) // interfaces.<BondEthernet<id>>.bond → bond.bond, bond.member, bond.member-weight
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp
@@ -449,6 +452,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-igmp-mfib
 	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
+	if in["interfaces"] {
+		desired.AssembleBonds(ds, kvs, stored, nameOf) // the bond leaf of every retrieved bond (F-bonding)
+	}
 	// wave-A: F-bridge-l2
 	// wave-A: F-loopback-bvi-gso-lldp-span
 	// wave-A: F-vrf-static-ecmp

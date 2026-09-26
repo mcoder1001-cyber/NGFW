@@ -68,6 +68,8 @@ const (
 	KindLoopback
 	// KindHostInterface: host-<netdev>, an af_packet interface created on the Linux netdev.
 	KindHostInterface
+	// KindBond: BondEthernet<id>, created by DF-1's bond.bond when the document carries its `bond` leaf (F-bonding, bond.go).
+	KindBond
 )
 
 // netdev is a Linux interface name (IFNAMSIZ-1 = 15 bytes) in the alphabet of parentInterfaceName.
@@ -80,6 +82,9 @@ func KindOf(name string) (Kind, string) {
 	}
 	if m := hostRe.FindStringSubmatch(name); m != nil {
 		return KindHostInterface, m[1]
+	}
+	if _, ok := BondID(name); ok { // wave-A: F-bonding
+		return KindBond, ""
 	}
 	return KindExisting, ""
 }
@@ -143,6 +148,10 @@ func Interfaces(s Sink, ifs map[string]*vrxv1.Interface, vrfID func(string) (uin
 			k := scheduler.Join(afpacket.HostInterfaceName, name)
 			s.Add(k, hi, pt)
 			alias.Creator = string(k)
+		case KindBond: // wave-A: F-bonding — bond.bond is emitted by Bonds (bond.go); without a bond leaf the bond pre-exists
+			if itf.GetBond() != nil {
+				alias.Creator = string(scheduler.Join(iface.BondName, name))
+			}
 		}
 		s.Add(iface.AliasKey(name), alias, pt)
 		ref := string(iface.AliasKey(name))

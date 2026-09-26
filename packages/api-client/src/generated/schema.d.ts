@@ -776,6 +776,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/interfaces/bonds': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bond interfaces: live state from VPP (agent BondState: mode, load balance, members with LACP actor/partner state, active member count) merged with the running configuration and pending candidate changes */
+    get: operations['Bonding_bonds'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -998,6 +1015,46 @@ export interface components {
               setBroadcastFlag: boolean;
             };
           };
+        };
+        /** Bond */
+        bond?: {
+          /**
+           * Mode
+           * @enum {string}
+           */
+          mode: 'lacp' | 'xor' | 'round-robin' | 'active-backup';
+          /**
+           * Load balance
+           * @enum {string}
+           */
+          loadBalance?: 'l2' | 'l23' | 'l34';
+          /**
+           * Members
+           * @default {}
+           */
+          members: {
+            [key: string]: {
+              /**
+               * Passive
+               * @default false
+               */
+              passive: boolean;
+              /**
+               * Long timeout
+               * @default false
+               */
+              longTimeout: boolean;
+              /** Weight */
+              weight?: number;
+            };
+          };
+          /**
+           * NUMA-local members only
+           * @default false
+           */
+          numaOnly: boolean;
+          /** Bond ID */
+          id?: number;
         };
       };
     };
@@ -9515,6 +9572,140 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Bonding_bonds: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt?: string;
+            /** @description false when the agent does not implement BondState (live state unknown) */
+            live: boolean;
+            items: {
+              /** @description bond interface (BondEthernet<id>) */
+              name: string;
+              /** @description null when VPP has no such bond (or the agent has no BondState RPC) */
+              state: {
+                vppName: string;
+                swIfIndex: number;
+                id: number;
+                /** @description lacp | xor | round-robin | active-backup */
+                mode: string;
+                /** @description l2 | l23 | l34, or the algorithm VPP forces: round-robin | active-backup */
+                loadBalance: string;
+                numaOnly: boolean;
+                adminUp: boolean;
+                linkUp: boolean;
+                memberCount: number;
+                activeMemberCount: number;
+                members: {
+                  /** @description logical interface name */
+                  interface: string;
+                  swIfIndex: number;
+                  passive: boolean;
+                  longTimeout: boolean;
+                  /** @description 0 = never set */
+                  weight: number;
+                  isLocalNuma: boolean;
+                  adminUp: boolean;
+                  linkUp: boolean;
+                  /** @description LACP state; null for bonds in other modes */
+                  lacp: {
+                    /** @description initialize | port-disabled | expired | lacp-disabled | defaulted | current */
+                    rxState: string;
+                    txState: string;
+                    /** @description detached | waiting | attached | collecting-distributing */
+                    muxState: string;
+                    /** @description no-periodic | fast-periodic | slow-periodic | periodic-tx */
+                    ptxState: string;
+                    actor: {
+                      systemPriority: number;
+                      /** @description system id MAC (all zero while no partner has been seen) */
+                      system: string;
+                      key: number;
+                      portPriority: number;
+                      portNumber: number;
+                      /** @description LACP state octet (802.1AX) */
+                      state: number;
+                      /** @description set bits: activity, timeout, aggregation, synchronization, collecting, distributing, defaulted, expired */
+                      stateFlags: string[];
+                    };
+                    partner: {
+                      systemPriority: number;
+                      /** @description system id MAC (all zero while no partner has been seen) */
+                      system: string;
+                      key: number;
+                      portPriority: number;
+                      portNumber: number;
+                      /** @description LACP state octet (802.1AX) */
+                      state: number;
+                      /** @description set bits: activity, timeout, aggregation, synchronization, collecting, distributing, defaulted, expired */
+                      stateFlags: string[];
+                    };
+                  } | null;
+                }[];
+              } | null;
+              /** @description interfaces.<name>.bond of the running configuration; null when it is not configured */
+              running: {
+                [key: string]: unknown;
+              } | null;
+              /** @description interfaces.<name>.bond of the candidate; null when the candidate has none */
+              candidate: {
+                [key: string]: unknown;
+              } | null;
+              /** @description the candidate differs from running for this bond (interfaces.<name>, bond leaf included) */
+              hasPendingChange: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

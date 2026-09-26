@@ -1,0 +1,132 @@
+{
+  "nav": "Bonds",
+  "title": "Bonds",
+  "intro": "Link aggregation: bond interfaces (BondEthernet<id>) with their member NICs, and live member / LACP state from the data plane. Changes go to the candidate and apply on Commit.",
+  "add": "Add bond",
+  "addTitle": "Add a bond interface",
+  "addHelp": "A bond is named BondEthernet<id>. Add members after creating it; the bond's addresses, MTU and VLANs are set on the Interfaces page like any interface's.",
+  "addFailed": "The bond could not be added to the candidate.",
+  "bondId": "Bond ID",
+  "badId": "A decimal number (no leading zeros)",
+  "exists": "{{name}} is already configured",
+  "willBe": "Creates {{name}}",
+  "cancel": "Cancel",
+  "close": "Close",
+  "loading": "Loading…",
+  "readonly": "Your role can view but not change the configuration.",
+  "pending": "pending",
+  "notInVpp": "not in VPP",
+  "memberLacp": "{{name}}: {{state}}",
+  "col": {
+    "name": "Name",
+    "mode": "Mode",
+    "loadBalance": "Load balance",
+    "status": "Status",
+    "active": "Active members",
+    "members": "Members"
+  },
+  "mode": {
+    "lacp": "LACP (802.3ad)",
+    "xor": "XOR",
+    "round-robin": "Round-robin",
+    "active-backup": "Active-backup"
+  },
+  "status": {
+    "up": "up",
+    "down": "down",
+    "adminDown": "admin down",
+    "degraded": "no active member"
+  },
+  "lacp": {
+    "mux": {
+      "detached": "detached",
+      "waiting": "waiting",
+      "attached": "attached",
+      "collecting-distributing": "collecting/distributing"
+    },
+    "rx": {
+      "initialize": "initialize",
+      "port-disabled": "port disabled",
+      "expired": "expired",
+      "lacp-disabled": "LACP disabled",
+      "defaulted": "defaulted (no partner)",
+      "current": "current"
+    },
+    "detail": "actor: {{flags}} · partner: {{system}}"
+  },
+  "live": {
+    "vppName": "VPP name",
+    "swIfIndex": "sw_if_index",
+    "activeOf": "{{active}} of {{total}}"
+  },
+  "drawer": {
+    "label": "Bond {{name}}",
+    "liveTitle": "Live state",
+    "notInVpp": "VPP has no such bond (yet). It is created on Commit.",
+    "noLive": "The agent does not report live bond state; only the configuration is shown.",
+    "interfaceHint": "Admin state, MTU, MAC, addresses, VRF and VLAN sub-interfaces of the bond are edited like any interface's:",
+    "interfaceLink": "open Interfaces",
+    "configTitle": "Bond (candidate)",
+    "notConfigured": "This bond is not in the candidate configuration.",
+    "saved": "Saved to the candidate. Commit to apply.",
+    "save": "Save to candidate",
+    "reset": "Reset",
+    "remove": "Remove bond"
+  },
+  "members": {
+    "title": "Members",
+    "interface": "Interface",
+    "link": "Link",
+    "options": "Options",
+    "lacp": "LACP",
+    "actions": "Actions",
+    "none": "No members yet.",
+    "weight": "weight {{weight}}",
+    "remove": "Remove member {{name}}",
+    "editTitle": "Member {{name}} of {{bond}}",
+    "addTitle": "Add {{name}} to {{bond}}",
+    "pick": "Eligible interface",
+    "noneEligible": "No eligible interface (NICs without addresses, not in another bond)",
+    "add": "Add member"
+  },
+  "group": {
+    "bonding": "Bond"
+  },
+  "field": {
+    "mode": {
+      "title": "Mode",
+      "help": "lacp (802.3ad), xor, round-robin or active-backup; changing it re-creates the bond"
+    },
+    "loadBalance": {
+      "title": "Load balance",
+      "help": "xor and lacp only: transmit hash over l2 (MAC), l23 (MAC+IP) or l34 (IP+port); absent = l2"
+    },
+    "numaOnly": {
+      "title": "NUMA-local members only",
+      "help": "transmit only on members attached to the bond's NUMA node"
+    },
+    "id": {
+      "title": "Bond ID",
+      "help": "absent = the number in the interface name (BondEthernet<id>)"
+    },
+    "passive": {
+      "title": "Passive",
+      "help": "LACP only: do not initiate LACP; the partner must be active"
+    },
+    "longTimeout": {
+      "title": "Long timeout",
+      "help": "LACP only: 90 s partner timeout (slow LACPDUs) instead of 3 s"
+    },
+    "weight": {
+      "title": "Weight",
+      "help": "active-backup only: the up member with the highest weight is active (1–255)"
+    }
+  },
+  "memberStatus": {
+    "up": "up",
+    "down": "link down",
+    "adminDown": "admin down",
+    "degraded": "not aggregated"
+  },
+  "refresh": "Refresh"
+}

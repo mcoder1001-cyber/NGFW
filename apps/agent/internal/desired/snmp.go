@@ -18,6 +18,8 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+func init() { ServicesImplemented["snmp"] = true }
+
 // SnmpDescriptorName is the singleton snmpd descriptor.
 const SnmpDescriptorName = "snmpd.config"
 

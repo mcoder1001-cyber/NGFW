@@ -142,7 +142,9 @@ func TestIpfixSflowGlobalsOwnerLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := services(t, ipfixCanonical); !proto.Equal(got.GetDesiredState().GetServices(), want) {
+	want := services(t, ipfixCanonical)
+	want.Qos = &vrxv1.QosService{} // F-qos-flat: the services Retrieve always carries the (here empty) qos family
+	if !proto.Equal(got.GetDesiredState().GetServices(), want) {
 		t.Fatalf("retrieve:\n got %s\nwant %s", protojson.Format(got.GetDesiredState().GetServices()), protojson.Format(want))
 	}
 

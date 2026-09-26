@@ -79,7 +79,7 @@ func newSvcValidating(t *testing.T, v *coretest.VPP, dir, name string, check che
 func onlyReads(t *testing.T, v *coretest.VPP) {
 	t.Helper()
 	for _, c := range v.Calls() {
-		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && !strings.HasSuffix(n, "_get") && n != "control_ping" && n != "sw_interface_get_table" {
+		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && !strings.HasSuffix(n, "_get") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" {
 			t.Fatalf("VPP received %s: a rejected configuration was written", n)
 		}
 	}

@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 33
+const maxPending = 31
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -84,7 +84,7 @@ var descriptorReach = map[string]reachEntry{
 	"l2tp":                {pending, "F-tunnels"},
 	"l3xc":                {wired, "F-bridge-l2"},
 	"lb":                  {pending, "F-lb"},
-	"lcp":                 {pending, "P12"},
+	"lcp":                 {wired, "P12"},
 	"lisp":                {wired, "F-lisp"},
 	"lldp":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"mactime":             {wired, "F-bridge-l2"},
@@ -120,7 +120,7 @@ var descriptorReach = map[string]reachEntry{
 
 var rendererReach = map[string]reachEntry{
 	"chrony":     {pending, "F-unbound-chrony-syslog"},
-	"frr":        {pending, "P12"},
+	"frr":        {wired, "P12"},
 	"kea":        {pending, "F-kea-dhcp-relay"},
 	"keepalived": {pending, "F-vrrp-config-sync"},
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},

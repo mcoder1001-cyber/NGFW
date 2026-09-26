@@ -5,7 +5,8 @@ package desired
 //	vrfs.<vrf>.sourceSelect[k]{prefix, interface}  → svs.table/<id>             one per ingress interface (id: svs.Allocate)
 //	                                               → svs.interface/<interface>  (svs_enable_disable IPv4 + IPv6)
 //	                                               → svs.route/<id>/<prefix>    source table = <vrf>'s table id
-//	routing.static[i].viaFrr = true                → nothing (D-072: FRR programs it; warning agent.unsupported-field)
+//	routing.static[i].viaFrr = true                → nothing (D-072: FRR programs it — P12's frr.config stage, desired.FRR,
+//	                                                  which also reports it when the agent drives no FRR)
 //
 // The weighted ECMP paths, blackhole and the next-hop VRF of routing.static are projected by P08's routing.static block in
 // projection.go (the next-hop VRF lines are this feature's).
@@ -21,17 +22,10 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
-// VrfStaticEcmp projects the feature's leaves of ds for the domains in `in`: `vrfs` → svs objects, `routing` → the
-// D-072 notice for viaFrr routes. vrfID resolves a VRF name to its table id; rng is where svs table ids come from.
+// VrfStaticEcmp projects the feature's leaves of ds for the domains in `in`: `vrfs` → svs objects. viaFrr routes are
+// FRR's (desired.FRR, P12: rendered by the frr.config stage, or one notice per route when the agent drives no FRR).
+// vrfID resolves a VRF name to its table id; rng is where svs table ids come from.
 func VrfStaticEcmp(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), rng svs.Range) {
-	if in["routing"] {
-		for i, r := range ds.GetRouting().GetStatic() {
-			if r.GetViaFrr() {
-				s.Warnf(Ptr("routing", "static", strconv.Itoa(i)), "agent.unsupported-field",
-					"routing.static[%d] (%s) is programmed by FRR (viaFrr, D-072), not by the agent; FRR rendering is P12's", i, r.GetPrefix())
-			}
-		}
-	}
 	if in["vrfs"] {
 		sourceSelect(s, ds, vrfID, rng)
 	}

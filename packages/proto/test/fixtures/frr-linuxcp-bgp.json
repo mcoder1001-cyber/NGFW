@@ -1,0 +1,167 @@
+{
+  "interfaces": {
+    "host-w8l0": {
+      "enabled": true,
+      "ipv4": ["10.8.1.1/24"],
+      "lcp": {
+        "hostIfName": "w8-l0",
+        "hostIfType": "tap",
+        "netns": "ns-w8-frr"
+      }
+    },
+    "host-w8w0": {
+      "enabled": true,
+      "ipv4": ["10.8.2.1/24"],
+      "ipv6": ["2001:db8:8:2::1/64"],
+      "lcp": {
+        "hostIfName": "w8-w0",
+        "hostIfType": "tap"
+      }
+    },
+    "loop0": {
+      "enabled": true,
+      "ipv4": ["10.8.255.1/32"],
+      "lcp": {
+        "hostIfType": "tap"
+      }
+    }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "10.8.250.0/24",
+        "vrf": "default",
+        "blackhole": true,
+        "distance": 1,
+        "viaFrr": true,
+        "tag": 800
+      }
+    ],
+    "policy": {
+      "prefixLists": {
+        "pl-peer1": {
+          "family": "ipv4",
+          "rules": [
+            {
+              "seq": 5,
+              "action": "permit",
+              "prefix": "10.8.64.0/18",
+              "le": 25
+            }
+          ]
+        },
+        "pl-own": {
+          "family": "ipv4",
+          "rules": [
+            {
+              "seq": 5,
+              "action": "permit",
+              "prefix": "10.8.250.0/24"
+            }
+          ]
+        }
+      },
+      "routeMaps": {
+        "rm-in": {
+          "description": "deny peer 1",
+          "entries": [
+            {
+              "seq": 10,
+              "action": "deny",
+              "match": {
+                "prefixList": "pl-peer1"
+              },
+              "set": {
+                "communityAdditive": false
+              }
+            },
+            {
+              "seq": 20,
+              "action": "permit",
+              "match": {},
+              "set": {
+                "localPref": 150,
+                "communityAdditive": false
+              }
+            }
+          ]
+        },
+        "rm-out": {
+          "entries": [
+            {
+              "seq": 10,
+              "action": "permit",
+              "match": {
+                "prefixList": "pl-own"
+              },
+              "set": {
+                "community": ["65080:1"],
+                "communityAdditive": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    "bgp": {
+      "asn": 65080,
+      "routerId": "10.8.255.1",
+      "vrf": "default",
+      "peerGroups": {
+        "peers": {
+          "afi": {
+            "ipv4Unicast": {
+              "enabled": true,
+              "routeMapIn": "rm-in",
+              "routeMapOut": "rm-out",
+              "nextHopSelf": false,
+              "softReconfig": false,
+              "defaultOriginate": false
+            }
+          },
+          "bfd": false
+        }
+      },
+      "neighbors": {
+        "10.8.1.2": {
+          "remoteAs": 65081,
+          "peerGroup": "peers",
+          "description": "peer one",
+          "updateSource": "host-w8l0",
+          "shutdown": false,
+          "bfd": false,
+          "afi": {}
+        },
+        "10.8.2.2": {
+          "remoteAs": 65082,
+          "peerGroup": "peers",
+          "shutdown": false,
+          "bfd": false,
+          "holdTimeSec": 9,
+          "keepaliveSec": 3,
+          "afi": {
+            "ipv4Unicast": {
+              "enabled": true,
+              "maximumPrefixes": 1000,
+              "nextHopSelf": false,
+              "softReconfig": true,
+              "defaultOriginate": false
+            }
+          }
+        }
+      },
+      "networks": [
+        {
+          "prefix": "10.8.250.0/24"
+        }
+      ],
+      "redistribute": {
+        "static": {
+          "routeMap": "rm-out"
+        }
+      },
+      "gracefulRestart": false,
+      "ebgpRequiresPolicy": true
+    }
+  }
+}

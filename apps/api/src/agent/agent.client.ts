@@ -90,6 +90,8 @@ import {
   // wave-A: F-wireguard
   type WireguardStateResponse,
   // wave-A: P12
+  type RoutingStateRequest,
+  type RoutingStateResponse,
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 } from '@ngfw/proto';
@@ -406,6 +408,10 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.wireguardState, { interfaces, owner: this.owner });
   }
   // wave-A: P12
+  /** P12: live routing-daemon state (BGP, FRR RIB counts / lookups, linux-cp pairs) — RoutingState. */
+  routingState(req: Omit<RoutingStateRequest, 'owner'>): Promise<RoutingStateResponse> {
+    return this.unary(this.c.routingState, { ...req, owner: this.owner });
+  }
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
 

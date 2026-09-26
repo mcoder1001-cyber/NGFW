@@ -91,6 +91,7 @@ import { nat44Ei6466Nptv6Feature } from './features/nat44-ei-64-66-nptv6/index.j
 // wave-A: F-wireguard
 import { wireguardFeature } from './features/wireguard/index.js';
 // wave-A: P12
+import { bgpFeature } from './features/bgp/index.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 
@@ -192,6 +193,7 @@ export class AppModule {
         // wave-A: F-wireguard
         ...wireguardFeature.controllers,
         // wave-A: P12
+        ...bgpFeature.controllers,
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
       ],
@@ -277,6 +279,7 @@ export class AppModule {
         // wave-A: F-wireguard
         ...wireguardFeature.providers,
         // wave-A: P12
+        ...bgpFeature.providers,
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
         { provide: APP_GUARD, useClass: AuthGuard },

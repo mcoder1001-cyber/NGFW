@@ -51,6 +51,7 @@ import { nat44EdSessionsValidators } from './nat44-ed-sessions.js';
 // wave-A: F-wireguard
 import { wireguardValidators } from './wireguard.js';
 // wave-A: P12
+import { bgpValidators } from './bgp.js';
 // wave-A: F-kea-dhcp-relay
 // wave-A: F-unbound-chrony-syslog
 import { snmpValidators } from './snmp.js'; // F-snmp (unanchored)
@@ -118,6 +119,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-A: F-wireguard
   ...wireguardValidators,
   // wave-A: P12
+  ...bgpValidators,
   // wave-A: F-kea-dhcp-relay
   // wave-A: F-unbound-chrony-syslog
   ...snmpValidators, // F-snmp (unanchored)

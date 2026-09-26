@@ -226,3 +226,16 @@ func TestReplaceAndRegister(t *testing.T) {
 		t.Fatal(r.Names())
 	}
 }
+
+func TestItfPairProvidesHostAlias(t *testing.T) {
+	f, _ := newFake()
+	d := NewItfPair(f, "w5")
+	var kp scheduler.KeyProvider = d // TD-11c: an interface creator names its alias
+	got := kp.ProvidedKeys(ItfPair{Interface: "loop501", HostIfName: "w5-lcp0", HostIfType: "tap"}.Proto())
+	if len(got) != 1 || got[0] != "interface/lcp-host.w5-lcp0" {
+		t.Fatalf("provided keys %v", got)
+	}
+	if kp.ProvidedKeys(ItfPair{Interface: "loop501"}.Proto()) != nil {
+		t.Fatal("no alias without a host name")
+	}
+}

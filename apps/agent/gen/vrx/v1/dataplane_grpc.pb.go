@@ -72,6 +72,7 @@ const (
 	Dataplane_NatSessions_FullMethodName       = "/vrx.v1.Dataplane/NatSessions"
 	Dataplane_NatSummary_FullMethodName        = "/vrx.v1.Dataplane/NatSummary"
 	Dataplane_WireguardState_FullMethodName    = "/vrx.v1.Dataplane/WireguardState"
+	Dataplane_RoutingState_FullMethodName      = "/vrx.v1.Dataplane/RoutingState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -186,6 +187,10 @@ type DataplaneClient interface {
 	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
 	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
 	WireguardState(ctx context.Context, in *WireguardStateRequest, opts ...grpc.CallOption) (*WireguardStateResponse, error)
+	// RoutingState reads the live routing-daemon state (FRR, P12): BGP instances and neighbours, FRR RIB counts, this
+	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
+	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
+	RoutingState(ctx context.Context, in *RoutingStateRequest, opts ...grpc.CallOption) (*RoutingStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -483,6 +488,16 @@ func (c *dataplaneClient) WireguardState(ctx context.Context, in *WireguardState
 	return out, nil
 }
 
+func (c *dataplaneClient) RoutingState(ctx context.Context, in *RoutingStateRequest, opts ...grpc.CallOption) (*RoutingStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RoutingStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RoutingState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -595,6 +610,10 @@ type DataplaneServer interface {
 	// their peers (handshake flags, learnt endpoint, interface counters); never keys, never another
 	// owner's interfaces. Never mutates (docs/contracts/proto.md "F-wireguard: WireguardState").
 	WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error)
+	// RoutingState reads the live routing-daemon state (FRR, P12): BGP instances and neighbours, FRR RIB counts, this
+	// owner's linux-cp pairs, registered FRR state readers by key and a bounded RIB lookup. Read-only state
+	// (docs/contracts/proto.md §11 P12: RoutingState); never part of Retrieve.
+	RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -682,6 +701,9 @@ func (UnimplementedDataplaneServer) NatSummary(context.Context, *NatSummaryReque
 }
 func (UnimplementedDataplaneServer) WireguardState(context.Context, *WireguardStateRequest) (*WireguardStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method WireguardState not implemented")
+}
+func (UnimplementedDataplaneServer) RoutingState(context.Context, *RoutingStateRequest) (*RoutingStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RoutingState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1151,6 +1173,24 @@ func _Dataplane_WireguardState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_RoutingState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RoutingStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RoutingState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RoutingState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RoutingState(ctx, req.(*RoutingStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1249,6 +1289,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WireguardState",
 			Handler:    _Dataplane_WireguardState_Handler,
+		},
+		{
+			MethodName: "RoutingState",
+			Handler:    _Dataplane_RoutingState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

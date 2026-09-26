@@ -72,3 +72,16 @@ service integrated-vtysh-config
 | registered (`RegisterPoller`) | protocol-defined | `EVENT_KIND_UNSPECIFIED` + attributes |
 
 CLI equivalent: `vtysh -c "show running-config"`, `vtysh -c "show ip route json"`.
+
+## P12 additions (framework gap-only)
+- **Seam S2 `frr.RegisterInterfaceLines(name, fn)`** (`interfacelines.go`): a producer returns Linux interface name →
+  indented lines for the framework's `interface X … exit` block; the block is rendered when a description or lines exist,
+  producers in name order after the description. First user: `lcpmap` (`lcp-addresses`: ` ip address` / ` ipv6 address`
+  of every paired interface, because VPP copies addresses to the tap only at pair creation with `lcp-sync` off).
+  `frr.WithInterfaceLines(...)` replaces the registry in tests. F-ospf/F-isis-rip/F-bfd add their per-interface lines here.
+- **`StaticRoute.tag`** (proto 8) is read from the typed state; the D-055 stand-in `routing.static[i].tag` only fills
+  documents without it.
+- **frrtest `Options.Instance`**: more FRR instances of one slot (pathspace `<prefix><instance>`, base
+  `/run/vrx-test/<prefix>/frr-<instance>`, lock `…/frr-<instance>.lock`, default netns `ns-<prefix>-<instance>`,
+  symlink `/run/frr/<pathspace>`), e.g. topology peers; `frr.TestInstancePaths`.
+- The agent drives the renderer through one singleton scheduler object `frr.config/vrx` (docs/agent/renderers/frr-bgp.md).

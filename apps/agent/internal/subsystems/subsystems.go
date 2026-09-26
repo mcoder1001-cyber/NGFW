@@ -102,6 +102,10 @@ var Domains = map[string][]string{
 		loopbackGso,
 		loopbackSpanMirror,
 		// wave-A: F-neighbors-ra
+		neighborsRaRaConfig,
+		neighborsRaRaPrefix,
+		neighborsRaProxyNd,
+		neighborsRaProxyArpIf,
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
 	},
@@ -112,6 +116,7 @@ var Domains = map[string][]string{
 		svsInterfaceName,
 		svsRouteName,
 		// wave-A: F-neighbors-ra
+		neighborsRaProxyRange,
 	},
 	Routing: {
 		core.RouteName,
@@ -121,6 +126,9 @@ var Domains = map[string][]string{
 		// wave-BC: F-srv6
 		// wave-A: F-vrf-static-ecmp
 		// wave-A: F-neighbors-ra
+		neighborsRaNeighbor,
+		neighborsRaConfig,
+		neighborsRaDad,
 		// wave-A: F-rpf-adl-pbr
 		// wave-A: P12
 	},
@@ -291,6 +299,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-A: F-vrf-static-ecmp
 	registerVrfStaticEcmp(r, w)
 	// wave-A: F-neighbors-ra
+	if err := w.registerNeighborsRa(r); err != nil {
+		return nil, err
+	}
 	// wave-A: F-rpf-adl-pbr
 	// wave-A: F-object-model
 	// wave-A: F-acl
@@ -363,6 +374,8 @@ func (w *Wiring) Connected(ctx context.Context) {
 		w.env.Log.Info("VPP boot identity", "identity", id.String(), "complete", id.Complete(), "expired_claims", n)
 	}
 	w.dhcpClient.Reconnected() // DF-8 (obligation): re-subscribe lease events on the new connection
+	// F-neighbors-ra (W-seed seeded no anchor in Connected, questions Q2): restart the neighbour-event watcher
+	w.neighborsRaConnected(ctx)
 }
 
 // KeyedClaims opens (once per family) the persisted single-key claim store of a descriptor family

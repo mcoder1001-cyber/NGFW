@@ -123,6 +123,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   groups.get('interfaces')!.push({ id: 'lldp', path: '/interfaces/lldp', labelKey: 'loopback-bvi-gso-lldp-span:nav.lldp', fallbackLabel: 'LLDP', available: true }, { id: 'mirroring', path: '/interfaces/mirroring', labelKey: 'loopback-bvi-gso-lldp-span:nav.mirroring', fallbackLabel: 'Port mirroring', available: true });
   groups.get('tools')!.push({ id: 'nsim', path: '/tools/nsim', labelKey: 'loopback-bvi-gso-lldp-span:nav.nsim', fallbackLabel: 'Delay simulator (lab)', available: true });
   // wave-A: F-neighbors-ra
+  groups.get('routing')!.push({ id: 'neighbors', path: '/routing/neighbors', labelKey: 'neighbors-ra:nav', fallbackLabel: 'Neighbours', available: true });
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-host-acl-nftables
   // wave-A: P12

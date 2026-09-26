@@ -65,8 +65,14 @@ function load(dir: URL, file: string): unknown {
 }
 
 const corpus: { name: string; doc: unknown }[] = [
-  ...listValid(corpora.examples).map((f) => ({ name: `examples/${f}`, doc: load(corpora.examples, f) })),
-  ...listValid(corpora.fixtures).map((f) => ({ name: `fixtures/${f}`, doc: load(corpora.fixtures, f) })),
+  ...listValid(corpora.examples).map((f) => ({
+    name: `examples/${f}`,
+    doc: load(corpora.examples, f),
+  })),
+  ...listValid(corpora.fixtures).map((f) => ({
+    name: `fixtures/${f}`,
+    doc: load(corpora.fixtures, f),
+  })),
 ];
 
 describe('DesiredState mirrors RootConfig', () => {
@@ -77,7 +83,11 @@ describe('DesiredState mirrors RootConfig', () => {
 
   it('corpus covers the schema examples and the all-domains fixture', () => {
     expect(corpus.map((c) => c.name)).toEqual(
-      expect.arrayContaining(['examples/minimal.json', 'examples/two-interfaces.json', 'fixtures/all-domains.json']),
+      expect.arrayContaining([
+        'examples/minimal.json',
+        'examples/two-interfaces.json',
+        'fixtures/all-domains.json',
+      ]),
     );
   });
 
@@ -98,14 +108,20 @@ describe('DesiredState mirrors RootConfig', () => {
     expect(() => DesiredState.fromJSON(bad)).not.toThrow(); // lenient (the limitation)
     expect(DesiredState.toJSON(DesiredState.fromJSON(bad))).not.toEqual(bad); // `tenants` is gone
     const nested = { system: { hostname: 'vrx-a', bogusField: 1 } };
-    expect(DesiredState.toJSON(DesiredState.fromJSON(nested))).toEqual({ system: { hostname: 'vrx-a' } });
+    expect(DesiredState.toJSON(DesiredState.fromJSON(nested))).toEqual({
+      system: { hostname: 'vrx-a' },
+    });
   });
 
   it('explicit presence (D-039): proto3 defaults set by the document survive toJSON — the F3 probe', () => {
     const doc = {
       vrfs: { default: { id: 0 } },
       interfaces: { x: { enabled: false, vrf: 'default', rxMode: 'polling' } },
-      acl: { lists: { l: { rules: [{ sequence: 1, enabled: false, action: 'permit', ipVersion: 'any' }] } } },
+      acl: {
+        lists: {
+          l: { rules: [{ sequence: 1, enabled: false, action: 'permit', ipVersion: 'any' }] },
+        },
+      },
     };
     const ds = DesiredState.fromJSON(doc);
     expect(ds.vrfs['default']?.id).toBe(0);
@@ -150,7 +166,13 @@ describe('DesiredState mirrors RootConfig', () => {
     expect(sub?.vrf).toBe('customer-a');
 
     expect(ds.vrfs['default']?.id).toBe(0);
-    expect(ds.vrfs['customer-a']).toMatchObject({ id: 10, description: 'customer A' });
+    // proxyArpRanges (F-neighbors-ra) and sourceSelect (F-vrf-static-ecmp): repeated — ts-proto fills an absent repeated field with []
+    expect(ds.vrfs['customer-a']).toEqual({
+      id: 10,
+      description: 'customer A',
+      proxyArpRanges: [],
+      sourceSelect: [], // F-vrf-static-ecmp: repeated, [] when absent
+    });
 
     const route: StaticRoute | undefined = ds.routing?.static[0];
     expect(route?.prefix).toBe('0.0.0.0/0');
@@ -187,17 +209,25 @@ describe('DesiredState mirrors RootConfig', () => {
 
   it('64-bit integers are strings (forceLong=string, D-039/F1) and survive values above 2^53', () => {
     const big = '18446744073709551615'; // 2^64 − 1: the default `number` mapping threw here
-    const counters = InterfaceCounters.fromJSON({ name: 'x', rxBytes: big, txPackets: '9007199254740993' });
+    const counters = InterfaceCounters.fromJSON({
+      name: 'x',
+      rxBytes: big,
+      txPackets: '9007199254740993',
+    });
     expect(counters.rxBytes).toBe(big);
     expect(typeof counters.rxBytes).toBe('string');
     const decoded = InterfaceCounters.decode(InterfaceCounters.encode(counters).finish());
     expect(decoded.rxBytes).toBe(big);
     expect(decoded.txPackets).toBe('9007199254740993');
     const batch = StatsBatch.fromPartial({ seq: '1', interfaceCounters: [counters] });
-    expect(StatsBatch.decode(StatsBatch.encode(batch).finish()).interfaceCounters[0]?.rxBytes).toBe(big);
+    expect(StatsBatch.decode(StatsBatch.encode(batch).finish()).interfaceCounters[0]?.rxBytes).toBe(
+      big,
+    );
     // A Zod document carries 64-bit leaves as JSON numbers; fromJSON accepts them and normalises to
     // string, so the API must diff `toJSON(fromJSON(running))` against `toJSON(actual)` (proto.md §5).
-    expect(IpsecRekey.toJSON(IpsecRekey.fromJSON({ espBytes: 1073741824 }))).toEqual({ espBytes: '1073741824' });
+    expect(IpsecRekey.toJSON(IpsecRekey.fromJSON({ espBytes: 1073741824 }))).toEqual({
+      espBytes: '1073741824',
+    });
   });
 
   it('JSON names are the Zod (lowerCamelCase) names', () => {
@@ -205,14 +235,40 @@ describe('DesiredState mirrors RootConfig', () => {
       DesiredState.fromPartial({
         dataplane: { pciWhitelist: ['0000:0b:00.0'], rxQueues: 2, corelist: [2, 3] },
         interfaces: { loop700: { rxMode: 'polling', subinterfaces: { '10': { vlanId: 10 } } } },
-        routing: { static: [{ prefix: '10.70.0.0/16', vrf: 'w7-a', nextHops: [{ address: '10.7.0.254' }] }] },
+        routing: {
+          static: [{ prefix: '10.70.0.0/16', vrf: 'w7-a', nextHops: [{ address: '10.7.0.254' }] }],
+        },
         nat: { staticMappings: [{ name: 'web', out2inOnly: true }], insideVrf: 'w7-a' },
-        vpn: { ipsec: { tunnels: { 'site-b': { ikeVersion: 2, natT: true, auth: { method: 'psk', secretRef: 'psk/site-b' } } } } },
+        vpn: {
+          ipsec: {
+            tunnels: {
+              'site-b': {
+                ikeVersion: 2,
+                natT: true,
+                auth: { method: 'psk', secretRef: 'psk/site-b' },
+              },
+            },
+          },
+        },
         management: { users: [{ username: 'a', sshKeys: ['ssh-ed25519 AAAA test'] }] },
       }),
     ) as Record<string, unknown>;
     const text = JSON.stringify(json);
-    for (const key of ['pciWhitelist', 'rxQueues', 'corelist', 'rxMode', 'vlanId', 'nextHops', 'staticMappings', 'out2inOnly', 'insideVrf', 'ikeVersion', 'natT', 'secretRef', 'sshKeys']) {
+    for (const key of [
+      'pciWhitelist',
+      'rxQueues',
+      'corelist',
+      'rxMode',
+      'vlanId',
+      'nextHops',
+      'staticMappings',
+      'out2inOnly',
+      'insideVrf',
+      'ikeVersion',
+      'natT',
+      'secretRef',
+      'sshKeys',
+    ]) {
       expect(text).toContain(`"${key}"`);
     }
   });
@@ -221,29 +277,101 @@ describe('DesiredState mirrors RootConfig', () => {
     const ds = DesiredState.fromPartial({
       system: { hostname: 'vrx-a', timezone: 'UTC', banner: { login: 'hi' }, dns: {} },
       dataplane: { workers: 2, corelist: [2, 3], pciWhitelist: [] },
-      interfaces: { loop700: { enabled: true, mtu: 1500, ipv4: ['10.7.0.1/24'], vrf: 'default', rxMode: 'polling', promiscuous: false } },
-      vrfs: { default: { id: 0 }, 'w7-a': { id: 7001, description: 'slot 7' } },
-      routing: { static: [{ prefix: '10.70.0.0/16', vrf: 'w7-a', nextHops: [{ address: '10.7.0.254', weight: 1 }], distance: 1 }], bgp: {} },
-      nat: { enabled: true, mode: 'ed', inside: ['loop700'], pools: [{ name: 'p1', range: '10.7.1.1-10.7.1.10' }] },
-      objects: { addresses: { h1: { type: 'host', address: '10.7.0.10' } }, services: { https: { protocol: 'tcp', destinationPorts: ['443'] } } },
-      acl: {
-        lists: { in: { rules: [{ sequence: 10, enabled: true, action: 'permit', ipVersion: 'any', source: { kind: 'object', name: 'h1' } }] } },
-        attachments: [{ list: 'in', target: { kind: 'interface', interface: 'loop700' }, direction: 'in', sequence: 1, enabled: true }],
+      interfaces: {
+        loop700: {
+          enabled: true,
+          mtu: 1500,
+          ipv4: ['10.7.0.1/24'],
+          vrf: 'default',
+          rxMode: 'polling',
+          promiscuous: false,
+        },
       },
-      vpn: { wireguard: { interfaces: { wg0: { instance: 0, listenPort: 51820, privateKeyRef: 'key/wg0', peers: {} } } } },
+      vrfs: { default: { id: 0 }, 'w7-a': { id: 7001, description: 'slot 7' } },
+      routing: {
+        static: [
+          {
+            prefix: '10.70.0.0/16',
+            vrf: 'w7-a',
+            nextHops: [{ address: '10.7.0.254', weight: 1 }],
+            distance: 1,
+          },
+        ],
+        bgp: {},
+      },
+      nat: {
+        enabled: true,
+        mode: 'ed',
+        inside: ['loop700'],
+        pools: [{ name: 'p1', range: '10.7.1.1-10.7.1.10' }],
+      },
+      objects: {
+        addresses: { h1: { type: 'host', address: '10.7.0.10' } },
+        services: { https: { protocol: 'tcp', destinationPorts: ['443'] } },
+      },
+      acl: {
+        lists: {
+          in: {
+            rules: [
+              {
+                sequence: 10,
+                enabled: true,
+                action: 'permit',
+                ipVersion: 'any',
+                source: { kind: 'object', name: 'h1' },
+              },
+            ],
+          },
+        },
+        attachments: [
+          {
+            list: 'in',
+            target: { kind: 'interface', interface: 'loop700' },
+            direction: 'in',
+            sequence: 1,
+            enabled: true,
+          },
+        ],
+      },
+      vpn: {
+        wireguard: {
+          interfaces: {
+            wg0: { instance: 0, listenPort: 51820, privateKeyRef: 'key/wg0', peers: {} },
+          },
+        },
+      },
       tunnels: { gre: { gre0: {} } },
       services: { dhcp: {} },
       ha: { vrrp: { lan: {} } },
-      management: { users: [{ username: 'admin', role: 'admin', scope: '*', sshKeys: [], disabled: false }] },
+      management: {
+        users: [{ username: 'admin', role: 'admin', scope: '*', sshKeys: [], disabled: false }],
+      },
     });
     for (const key of ROOT_KEYS) {
       expect(ds[key], key).toBeDefined();
     }
-    const req = ApplyRequest.fromPartial({ txnId: 't1', desiredState: ds, subsystems: ['interfaces', 'vrfs'], confirmTimeoutSec: 120, owner: 'w7' });
-    expect(ApplyRequest.decode(ApplyRequest.encode(req).finish()).desiredState?.interfaces['loop700']?.mtu).toBe(1500);
+    const req = ApplyRequest.fromPartial({
+      txnId: 't1',
+      desiredState: ds,
+      subsystems: ['interfaces', 'vrfs'],
+      confirmTimeoutSec: 120,
+      owner: 'w7',
+    });
+    expect(
+      ApplyRequest.decode(ApplyRequest.encode(req).finish()).desiredState?.interfaces['loop700']
+        ?.mtu,
+    ).toBe(1500);
     // Renamed enums (F10) and Event.interface presence (F10).
-    const result = ObjectResult.fromPartial({ key: 'interface/loop700', op: ApplyOperation.APPLY_OPERATION_CREATE, code: ObjectResultCode.OBJECT_RESULT_CODE_OK });
-    expect(ObjectResult.toJSON(result)).toEqual({ key: 'interface/loop700', op: 'APPLY_OPERATION_CREATE', code: 'OBJECT_RESULT_CODE_OK' });
+    const result = ObjectResult.fromPartial({
+      key: 'interface/loop700',
+      op: ApplyOperation.APPLY_OPERATION_CREATE,
+      code: ObjectResultCode.OBJECT_RESULT_CODE_OK,
+    });
+    expect(ObjectResult.toJSON(result)).toEqual({
+      key: 'interface/loop700',
+      op: 'APPLY_OPERATION_CREATE',
+      code: 'OBJECT_RESULT_CODE_OK',
+    });
     expect(IssueSeverity.ISSUE_SEVERITY_ERROR).toBe(1);
     const ev = Event.fromPartial({ kind: EventKind.EVENT_KIND_RECONCILE_DONE, seq: '1' });
     expect(ev.interface).toBeUndefined();

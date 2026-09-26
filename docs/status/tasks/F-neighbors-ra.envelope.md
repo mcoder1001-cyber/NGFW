@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-neighbors-ra
-id: F-neighbors-ra   branch: task/F-neighbors-ra   worktree: /root/ngfw-wt/F-neighbors-ra   base: main@<BASE>   started: <STARTED>
+id: F-neighbors-ra   branch: task/F-neighbors-ra   worktree: /root/ngfw-wt/F-neighbors-ra   base: main@task/W-seed@8b7558e (SPECULATIVE, D-114/D-120: P08 fix round 2 still running — do NOT merge main until the manager tells you P08 has landed)   started: 2026-09-24T17:27
 title: Wave A (day 7-9): ARP/ND table, proxy-ND, IPv6 RA, DAD
 prompt: prompts/features/F-neighbors-ra.md   (template: prompts/FEATURE-TEMPLATE.md; checked against main + P08 in wave-A prep)   wbs: D2.3 (+ the ARP-flush tool of D2.6)
 scope: glue on top of DF-2 + P08: projection of `ip-neighbor.*` / `ip6-nd.*` / `arp.*` (static neighbours, RA config + prefixes, proxy-ARP ranges/interfaces, proxy-ND opt-in only, neighbour limits + DAD for the globals owner only), a paged `ListNeighbors` RPC + change events, the ARP-flush action, API module, Neighbours screen + per-interface RA fields, docs. No new descriptor package, no second claim store.
@@ -8,9 +8,9 @@ merged deps you can rely on: P08, DF-2
   - DF-2: descriptors/ip_neighbor (`ipneighbor.Register`, `RegisterGlobals`), descriptors/ip6_nd (`ip6nd.Register`, `RegisterGlobals` = DAD, `RegisterProxyNd` = opt-in), descriptors/arp (`arp.Register(r, c, owner, tables *df2.IDRange, …)`), helper descriptors/df2 (`WithClaims`, `IDRange`); docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md
   - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight), TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-neighbors-ra.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 A4 A6 C1–C7 P1 P2 P4 P5 P6 W1–W3 W5) · docs/agent/descriptors/{ip_neighbor,ip6_nd,arp}.md · docs/status/tasks/DF-2.md · docs/status/vertical-slice.md · docs/vpp-code-track.md V12 · docs/decisions/LOG.md D-063, D-064, D-065, D-069, D-071, D-076, D-080, D-082, D-094, D-095, D-101, D-104
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; neighbour/RA/proxy objects only on w<SLOT>-prefixed interfaces; proxy-ARP ranges only in tables <SLOT>000–<SLOT>999 and addresses in 10.<SLOT>.0.0/16
+slot: 9 → VRX_SLOT=9 VRX_TEST_PREFIX=w9 VRX_HTTP_PORT=3000+100·9 VRX_WEB_PORT=5000+100·9 VRX_METRICS_PORT=9100+10·9+1 VRX_AGENT_SOCKET=/run/vrx-test/w9/agent.sock VRX_PG_DATABASE=vrx_w9 VRX_VALKEY_DB=9 VRX_VPP_TABLE_BASE=9000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 9)"`
+  - rig prefix w9 → 10.9.{1,2}.0/24; neighbour/RA/proxy objects only on w9-prefixed interfaces; proxy-ARP ranges only in tables 9000–9999 and addresses in 10.9.0.0/16
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -64,8 +64,8 @@ coordination: F-vrf-static-ecmp and F-nat44-ed-sessions share the A4 Action swit
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: live neighbour table, flush confirm, RA fields in the interface drawer) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-neighbors-ra.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-neighbors-ra-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w9 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-neighbors-ra.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> neighbour/RA/proxy objects left in VPP (Retrieve + `vppctl show ip neighbors` / `show ip6 interface <if>` pasted) · every global you changed restored to its previous value (pasted) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w9 dropped · no w9 neighbour/RA/proxy objects left in VPP (Retrieve + `vppctl show ip neighbors` / `show ip6 interface <if>` pasted) · every global you changed restored to its previous value (pasted) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-neighbors-ra-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

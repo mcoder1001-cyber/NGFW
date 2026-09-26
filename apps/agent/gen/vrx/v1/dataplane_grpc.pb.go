@@ -65,6 +65,7 @@ const (
 	Dataplane_BridgeDomainMacs_FullMethodName  = "/vrx.v1.Dataplane/BridgeDomainMacs"
 	Dataplane_LldpNeighbors_FullMethodName     = "/vrx.v1.Dataplane/LldpNeighbors"
 	Dataplane_ListRoutes_FullMethodName        = "/vrx.v1.Dataplane/ListRoutes"
+	Dataplane_ListNeighbors_FullMethodName     = "/vrx.v1.Dataplane/ListNeighbors"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -145,6 +146,10 @@ type DataplaneClient interface {
 	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
 	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
 	ListRoutes(ctx context.Context, in *ListRoutesRequest, opts ...grpc.CallOption) (*ListRoutesResponse, error)
+	// ListNeighbors (F-neighbors-ra) dumps the live ARP/ND table (ip_neighbor_dump per interface and address family)
+	// of every interface this agent can name — its own and untagged ones, never another owner's — filtered and paged
+	// by the agent. Read-only; learned (dynamic) and static entries alike.
+	ListNeighbors(ctx context.Context, in *ListNeighborsRequest, opts ...grpc.CallOption) (*ListNeighborsResponse, error)
 }
 
 type dataplaneClient struct {
@@ -372,6 +377,16 @@ func (c *dataplaneClient) ListRoutes(ctx context.Context, in *ListRoutesRequest,
 	return out, nil
 }
 
+func (c *dataplaneClient) ListNeighbors(ctx context.Context, in *ListNeighborsRequest, opts ...grpc.CallOption) (*ListNeighborsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListNeighborsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_ListNeighbors_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -450,6 +465,10 @@ type DataplaneServer interface {
 	// ListRoutes pages the live FIB of one VRF (ip_route_v2_dump read once, filtered and paged in the agent; only the
 	// page crosses this boundary). Read-only state (docs/contracts/proto.md §11 F-vrf-static-ecmp: ListRoutes).
 	ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error)
+	// ListNeighbors (F-neighbors-ra) dumps the live ARP/ND table (ip_neighbor_dump per interface and address family)
+	// of every interface this agent can name — its own and untagged ones, never another owner's — filtered and paged
+	// by the agent. Read-only; learned (dynamic) and static entries alike.
+	ListNeighbors(context.Context, *ListNeighborsRequest) (*ListNeighborsResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -516,6 +535,9 @@ func (UnimplementedDataplaneServer) LldpNeighbors(context.Context, *LldpNeighbor
 }
 func (UnimplementedDataplaneServer) ListRoutes(context.Context, *ListRoutesRequest) (*ListRoutesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRoutes not implemented")
+}
+func (UnimplementedDataplaneServer) ListNeighbors(context.Context, *ListNeighborsRequest) (*ListNeighborsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListNeighbors not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -859,6 +881,24 @@ func _Dataplane_ListRoutes_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_ListNeighbors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListNeighborsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).ListNeighbors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_ListNeighbors_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).ListNeighbors(ctx, req.(*ListNeighborsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -929,6 +969,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRoutes",
 			Handler:    _Dataplane_ListRoutes_Handler,
+		},
+		{
+			MethodName: "ListNeighbors",
+			Handler:    _Dataplane_ListNeighbors_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

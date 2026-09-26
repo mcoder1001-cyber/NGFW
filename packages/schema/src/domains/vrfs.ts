@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { descriptionText, objectName, uint32 } from '../primitives.js';
 import { withUi } from '../ui.js';
 import { vrfSourceSelect } from './ext/vrf-static-ecmp.js';
+import { proxyArpRangesField } from './ext/neighbors-ra.js';
 
 /**
  * `vrfs` — VRF / FIB tables keyed by name (docs/04-api-datamodel.md).
@@ -23,6 +24,7 @@ export const VrfSchema = z.strictObject({
   // wave-A: F-vrf-static-ecmp
   sourceSelect: vrfSourceSelect,
   // wave-A: F-neighbors-ra
+  proxyArpRanges: proxyArpRangesField,
 });
 export type VrfConfig = z.infer<typeof VrfSchema>;
 

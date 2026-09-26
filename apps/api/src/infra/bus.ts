@@ -21,6 +21,7 @@ export const TOPICS = [
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
   // wave-A: F-neighbors-ra
+  'neighbor.events',
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: P11

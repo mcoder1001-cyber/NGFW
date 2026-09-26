@@ -46,6 +46,7 @@ import { hostStackFake } from '../features/host-stack/fake.js'; // F-host-stack 
 import { lispStateFake } from '../features/lisp/fake.js';
 import { qosFlatFake } from '../features/qos-flat/fake.js';
 import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
+import { neighborsRaFake } from '../features/neighbors-ra/fake.js';
 
 /**
  * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
@@ -816,6 +817,7 @@ export class FakeAgent {
       // wave-A: F-vrf-static-ecmp
       ...vrfStaticEcmpFake(this), // listRoutes + action (ping/traceroute; other actions stay UNIMPLEMENTED)
       // wave-A: F-neighbors-ra
+      ...neighborsRaFake(this),
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model
       // wave-A: F-acl

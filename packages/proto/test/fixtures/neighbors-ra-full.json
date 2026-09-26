@@ -1,0 +1,52 @@
+{
+  "interfaces": {
+    "host-w9l0": {
+      "enabled": true,
+      "ipv4": ["10.9.1.1/24"],
+      "ipv6": ["2001:db8:9:1::1/64"],
+      "vrf": "default",
+      "proxyArp": true,
+      "proxyNd": ["2001:db8:9:1::99"],
+      "ipv6Ra": {
+        "suppress": false,
+        "managed": false,
+        "other": true,
+        "lifetimeSec": 1800,
+        "maxIntervalSec": 600,
+        "minIntervalSec": 200,
+        "prefixes": {
+          "2001:db8:9:1::/64": { "validSec": 86400, "preferredSec": 14400, "offLink": false, "noAutoconfig": false }
+        }
+      },
+      "subinterfaces": {
+        "100": {
+          "vlanId": 100,
+          "ipv6": ["2001:db8:9:100::1/64"],
+          "proxyArp": false,
+          "ipv6Ra": {
+            "suppress": false,
+            "managed": true,
+            "other": true,
+            "lifetimeSec": 0,
+            "maxIntervalSec": 200,
+            "minIntervalSec": 150
+          }
+        }
+      }
+    }
+  },
+  "vrfs": {
+    "w9red": { "id": 9001, "proxyArpRanges": [{ "low": "10.9.3.10", "high": "10.9.3.20" }] }
+  },
+  "routing": {
+    "neighbors": {
+      "static": [
+        { "interface": "host-w9l0", "ip": "10.9.1.50", "mac": "02:00:00:00:09:50", "noFibEntry": false },
+        { "interface": "host-w9l0", "ip": "2001:db8:9:1::50", "mac": "02:00:00:00:09:51", "noFibEntry": true }
+      ],
+      "ipv4Limits": { "maxNumber": 100000, "maxAgeSec": 300, "recycle": true },
+      "ipv6Limits": { "maxNumber": 20000, "maxAgeSec": 0, "recycle": false },
+      "dad": { "transmits": 2, "delayMs": 500 }
+    }
+  }
+}

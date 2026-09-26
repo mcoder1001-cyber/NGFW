@@ -60,6 +60,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'vrfs',
   'routing',
   // wave-A: F-object-model
+  'objects',
   // wave-A: F-acl
   // wave-A: F-nat44-ed-sessions
   // wave-A: P11

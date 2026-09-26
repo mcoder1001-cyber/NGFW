@@ -66,6 +66,7 @@ const (
 	Dataplane_LldpNeighbors_FullMethodName     = "/vrx.v1.Dataplane/LldpNeighbors"
 	Dataplane_ListRoutes_FullMethodName        = "/vrx.v1.Dataplane/ListRoutes"
 	Dataplane_ListNeighbors_FullMethodName     = "/vrx.v1.Dataplane/ListNeighbors"
+	Dataplane_FqdnObjectState_FullMethodName   = "/vrx.v1.Dataplane/FqdnObjectState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -150,6 +151,11 @@ type DataplaneClient interface {
 	// of every interface this agent can name — its own and untagged ones, never another owner's — filtered and paged
 	// by the agent. Read-only; learned (dynamic) and static entries alike.
 	ListNeighbors(ctx context.Context, in *ListNeighborsRequest, opts ...grpc.CallOption) (*ListNeighborsResponse, error)
+	// FqdnObjectState reports the agent's resolver state of every FQDN address object
+	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+	FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -387,6 +393,16 @@ func (c *dataplaneClient) ListNeighbors(ctx context.Context, in *ListNeighborsRe
 	return out, nil
 }
 
+func (c *dataplaneClient) FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FqdnObjectStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_FqdnObjectState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -469,6 +485,11 @@ type DataplaneServer interface {
 	// of every interface this agent can name — its own and untagged ones, never another owner's — filtered and paged
 	// by the agent. Read-only; learned (dynamic) and static entries alike.
 	ListNeighbors(context.Context, *ListNeighborsRequest) (*ListNeighborsResponse, error)
+	// FqdnObjectState reports the agent's resolver state of every FQDN address object
+	// (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+	FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -538,6 +559,9 @@ func (UnimplementedDataplaneServer) ListRoutes(context.Context, *ListRoutesReque
 }
 func (UnimplementedDataplaneServer) ListNeighbors(context.Context, *ListNeighborsRequest) (*ListNeighborsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListNeighbors not implemented")
+}
+func (UnimplementedDataplaneServer) FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FqdnObjectState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -899,6 +923,24 @@ func _Dataplane_ListNeighbors_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_FqdnObjectState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FqdnObjectStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).FqdnObjectState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_FqdnObjectState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).FqdnObjectState(ctx, req.(*FqdnObjectStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -973,6 +1015,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListNeighbors",
 			Handler:    _Dataplane_ListNeighbors_Handler,
+		},
+		{
+			MethodName: "FqdnObjectState",
+			Handler:    _Dataplane_FqdnObjectState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

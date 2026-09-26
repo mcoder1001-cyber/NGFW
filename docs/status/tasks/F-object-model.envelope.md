@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-object-model
-id: F-object-model   branch: task/F-object-model   worktree: /root/ngfw-wt/F-object-model   base: main@<BASE>   started: <STARTED>
+id: F-object-model   branch: task/F-object-model   worktree: /root/ngfw-wt/F-object-model   base: main@task/W-seed@8b7558e (SPECULATIVE, D-114/D-120: P08 fix round 2 still running — do NOT merge main until the manager tells you P08 has landed)   started: 2026-09-24T17:27
 title: Wave A (day 7-9): addresses, groups, FQDN (agent-resolved), services, schedules, zones, tags
 prompt: prompts/features/F-object-model.md   (template: prompts/FEATURE-TEMPLATE.md; checked against main + P08 in wave-A prep)   wbs: D5.1
 scope: agent library `internal/objects` (Expand/ExpandService, range→CIDR, v4/v6 split, schedules, 10 000-entry cap), the agent-side FQDN resolver with persisted last-good state, `objects` as an implemented agent-state domain (no VPP objects), a read-only `FqdnObjectState` RPC, API FQDN state + where-used, the Objects page + an exported ObjectPicker widget, docs. The config schema, its semantic rules and `ObjectsConfig` already exist — use, do not rebuild.
@@ -9,9 +9,9 @@ merged deps you can rely on: P08
   - also on main: TD-3 (V19 sanitizer), TD-2 (API auth/users follow-ups)
 downstream: F-acl and F-host-acl-nftables depend on this task (board) — keep the exported Go API of `internal/objects` small, documented (docs/agent/objects.md) and stable, and export the web `ObjectPicker` from your directory; they wire the re-projection trigger and the picker on their side
 read first: prompts/features/F-object-model.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 C1–C7 P1 P4 P5 P6 W1–W3) · docs/contracts/schema-nat-objects-acl.md · docs/status/vertical-slice.md · docs/decisions/LOG.md D-003, D-062, D-063, D-073, D-078, D-094, D-104
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - object addresses in fixtures: documentation ranges or 10.<SLOT>.0.0/16; FQDN names under a test-only zone served by your in-process responder
+slot: 3 → VRX_SLOT=3 VRX_TEST_PREFIX=w3 VRX_HTTP_PORT=3000+100·3 VRX_WEB_PORT=5000+100·3 VRX_METRICS_PORT=9100+10·3+1 VRX_AGENT_SOCKET=/run/vrx-test/w3/agent.sock VRX_PG_DATABASE=vrx_w3 VRX_VALKEY_DB=3 VRX_VPP_TABLE_BASE=3000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 3)"`
+  - object addresses in fixtures: documentation ranges or 10.3.0.0/16; FQDN names under a test-only zone served by your in-process responder
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none (the resolver is Go code in the agent; it never configures, starts or reloads unbound, systemd-resolved or any other daemon)
@@ -58,8 +58,8 @@ coordination: F-acl and F-host-acl-nftables start after you merge (board deps) a
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: each tab, where-used drawer, FQDN resolution column) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-object-model.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-object-model-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-object-model.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite/DNS responder), by PID · lab lock released · vrx_w<SLOT> dropped · your slot's agent state dir removed · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite/DNS responder), by PID · lab lock released · vrx_w3 dropped · your slot's agent state dir removed · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-object-model-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

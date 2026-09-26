@@ -164,6 +164,13 @@ service Dataplane {
 
   // wave-A: F-rpf-adl-pbr
   // wave-A: F-object-model
+
+  // FqdnObjectState reports the agent's resolver state of every FQDN address object
+  // (objects.addresses.<name> with type "fqdn"): the addresses in use (last-good answers survive a
+  // failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
+  // Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
+  rpc FqdnObjectState(FqdnObjectStateRequest) returns (FqdnObjectStateResponse);
+
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
@@ -4426,6 +4433,43 @@ message AutoSdlConfig {
 }
 
 // ----- F-object-model -----
+
+// FqdnObjectStateRequest selects FQDN address objects by name.
+message FqdnObjectStateRequest {
+  // Object names (keys of objects.addresses); empty = every FQDN object the agent holds.
+  repeated string names = 1;
+  // Same rules as ApplyRequest.owner.
+  string owner = 2;
+}
+
+// FqdnObjectStateResponse is one snapshot of the agent's FQDN resolver.
+message FqdnObjectStateResponse {
+  // One entry per FQDN address object the agent holds (applied configuration), sorted by name.
+  repeated FqdnObjectState objects = 1;
+  // The owner whose view was returned.
+  string owner = 2;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+}
+
+// FqdnObjectState is the resolver's runtime view of one FQDN address object (not configuration).
+message FqdnObjectState {
+  // Object name (key of objects.addresses).
+  string name = 1;
+  // The hostname that is resolved (objects.addresses.<name>.fqdn).
+  string fqdn = 2;
+  // A and AAAA answers in use, canonical text (net/netip), IPv4 before IPv6, each family sorted.
+  // After a failed refresh these are the last good answers; empty = the object expands to nothing.
+  repeated string addresses = 3;
+  // Last successful resolution (at least one address family answered); unset = never resolved.
+  google.protobuf.Timestamp last_resolved = 4;
+  // Next scheduled query.
+  google.protobuf.Timestamp next_refresh = 5;
+  // The latest attempt's failure ("no such host", a timeout, …); empty = it succeeded.
+  string error = 6;
+  // Consecutive failed attempts since the last success (0 after a success).
+  uint32 failures = 7;
+}
 
 // ----- F-acl -----
 

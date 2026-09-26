@@ -61,6 +61,7 @@ const (
 	// wave-A: F-rpf-adl-pbr
 	Services = "services"
 	// wave-A: F-object-model
+	Objects = "objects"
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
@@ -166,6 +167,7 @@ var Domains = map[string][]string{
 	// (services: lldp.* / nsim.* are appended to F-rpf-adl-pbr's Services entry by loopback_bvi_gso_lldp_span.go init)
 	// wave-A: F-rpf-adl-pbr (services: autosdl is appended to the services entry by rpf_adl_pbr.go init)
 	// wave-A: F-object-model
+	Objects: objectModelDescriptors(), // agent-local objects.* family (object_model.go)
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions
@@ -314,6 +316,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-A: F-object-model
+	if err := w.registerObjectModel(r); err != nil { // objects.* store + FQDN resolver (object_model.go)
+		return nil, err
+	}
 	// wave-A: F-acl
 	// wave-A: F-host-acl-nftables
 	// wave-A: F-nat44-ed-sessions

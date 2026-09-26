@@ -78,6 +78,7 @@ import { neighborsRaFeature } from './features/neighbors-ra/index.js';
 // wave-A: F-rpf-adl-pbr
 import { rpfAdlPbrFeature } from './features/rpf-adl-pbr/index.js';
 // wave-A: F-object-model
+import { objectModelFeature } from './features/object-model/index.js';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
@@ -173,6 +174,7 @@ export class AppModule {
         // wave-A: F-rpf-adl-pbr
         ...rpfAdlPbrFeature.controllers,
         // wave-A: F-object-model
+        ...objectModelFeature.controllers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions
@@ -252,6 +254,7 @@ export class AppModule {
         // wave-A: F-rpf-adl-pbr
         ...rpfAdlPbrFeature.providers,
         // wave-A: F-object-model
+        ...objectModelFeature.providers,
         // wave-A: F-acl
         // wave-A: F-host-acl-nftables
         // wave-A: F-nat44-ed-sessions

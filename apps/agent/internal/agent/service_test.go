@@ -147,7 +147,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	if want := doc(t, canonicalDoc); !proto.Equal(got.GetDesiredState(), want) {
 		t.Fatalf("retrieve:\n got %s\nwant %s", protojson.Format(got.GetDesiredState()), protojson.Format(want))
 	}
-	if strings.Join(got.GetSubsystems(), ",") != "interfaces,vrfs,routing,tunnels,services" || got.GetOwner() != testOwner {
+	if strings.Join(got.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") || got.GetOwner() != testOwner { // every implemented domain (wave A adds some)
 		t.Fatalf("retrieve meta %v %s", got.GetSubsystems(), got.GetOwner())
 	}
 	// Idempotent: same state, new txn → empty plan, no results.
@@ -711,7 +711,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 	defer cancel()
 
 	h, err := c.Health(ctx, &vrxv1.HealthRequest{})
-	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != "interfaces,vrfs,routing,tunnels,services" {
+	if err != nil || h.GetOwner() != testOwner || !h.GetVppConnected() || strings.Join(h.GetSubsystems(), ",") != strings.Join(implementedDomains(), ",") {
 		t.Fatalf("health %v %v", err, h)
 	}
 	evs, err := c.StreamEvents(ctx, &vrxv1.StreamEventsRequest{})

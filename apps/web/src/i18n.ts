@@ -91,6 +91,8 @@ import './domains/routing/rpf-adl-pbr/drawer-i18n';
 import enRpfAdlPbr from './locales/en/rpf-adl-pbr.json';
 import faRpfAdlPbr from './locales/fa/rpf-adl-pbr.json';
 // wave-A: F-object-model
+import enObjectModel from './locales/en/object-model.json';
+import faObjectModel from './locales/fa/object-model.json';
 // wave-A: F-acl
 // wave-A: F-host-acl-nftables
 // wave-A: F-nat44-ed-sessions
@@ -166,6 +168,7 @@ export const NAMESPACES = [
   // wave-A: F-rpf-adl-pbr
   'rpf-adl-pbr',
   // wave-A: F-object-model
+  'object-model',
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
@@ -243,6 +246,7 @@ const en = {
   // wave-A: F-rpf-adl-pbr
   'rpf-adl-pbr': enRpfAdlPbr,
   // wave-A: F-object-model
+  'object-model': enObjectModel,
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
@@ -317,6 +321,7 @@ const fa = {
   // wave-A: F-rpf-adl-pbr
   'rpf-adl-pbr': faRpfAdlPbr,
   // wave-A: F-object-model
+  'object-model': faObjectModel,
   // wave-A: F-acl
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions

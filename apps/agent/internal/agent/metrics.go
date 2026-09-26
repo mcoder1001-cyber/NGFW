@@ -17,6 +17,7 @@ import (
 	"time"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp/ifsanitize"
 )
@@ -236,6 +237,7 @@ func (m *metrics) writeAgent(w io.Writer) {
 		}
 	}
 	ifsanitize.WriteMetrics(w) // D-095: inherited per-interface state cleared on new interfaces
+	objects.WriteMetrics(w)    // F-object-model: objects store (corrupt, write errors) and FQDN staleness counters
 }
 
 func fmtFloat(f float64) string {

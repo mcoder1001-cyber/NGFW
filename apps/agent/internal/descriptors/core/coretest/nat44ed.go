@@ -18,7 +18,6 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/nat44_ed"
-	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/binapi/nat_types"
 )
 
@@ -168,15 +167,12 @@ func (v *VPP) Nat44ED() *Nat44ED {
 	return m.(*Nat44ED)
 }
 
-// installNat44ED installs the nat44-ed (and the nat44-ei running-config) handlers and returns the model.
+// installNat44ED installs the nat44-ed handlers and returns the model (the nat44-ei ones are coretest/nat44ei.go's).
 func (v *VPP) installNat44ED() *Nat44ED {
 	n := &Nat44ED{v: v, Features: map[uint32]nat_types.NatConfigFlags{}, Outputs: map[uint32]bool{}, IfAddrs: map[uint32]nat_types.NatConfigFlags{}}
 	one := func(m api.Message) ([]api.Message, error) { return []api.Message{m}, nil }
 	rv := func(e api.VPPApiError) int32 { return int32(e) }
 
-	v.On("nat44_ei_show_running_config", func(api.Message) ([]api.Message, error) {
-		return one(&nat44_ei.Nat44EiShowRunningConfigReply{}) // EI off: ED and EI are exclusive
-	})
 	v.On("nat44_show_running_config", func(api.Message) ([]api.Message, error) {
 		n.mu.Lock()
 		defer n.mu.Unlock()

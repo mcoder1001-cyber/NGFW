@@ -31,5 +31,33 @@ export const natTabs: readonly DomainTab[] = [
     Component: lazy(async () => ({ default: (await import('./SessionsTab')).SessionsTab })),
   },
   // wave-A: F-nat44-ei-64-66-nptv6
+  {
+    id: 'ei',
+    labelKey: 'nat44-ei-64-66-nptv6:tab.ei',
+    Component: lazy(async () => ({
+      default: (await import('../nat44-ei-64-66-nptv6/EiTab')).EiTab,
+    })),
+  },
+  {
+    id: 'nat64',
+    labelKey: 'nat44-ei-64-66-nptv6:tab.nat64',
+    Component: lazy(async () => ({
+      default: (await import('../nat44-ei-64-66-nptv6/Nat64Tab')).Nat64Tab,
+    })),
+  },
+  {
+    id: 'nat66',
+    labelKey: 'nat44-ei-64-66-nptv6:tab.nat66',
+    Component: lazy(async () => ({
+      default: (await import('../nat44-ei-64-66-nptv6/Nat66Tab')).Nat66Tab,
+    })),
+  },
+  {
+    id: 'nptv6',
+    labelKey: 'nat44-ei-64-66-nptv6:tab.nptv6',
+    Component: lazy(async () => ({
+      default: (await import('../nat44-ei-64-66-nptv6/Nptv6Tab')).Nptv6Tab,
+    })),
+  },
   // wave-BC: F-det44-map-dslite-cnat
 ];

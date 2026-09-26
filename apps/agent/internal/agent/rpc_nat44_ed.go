@@ -146,6 +146,10 @@ func (s *Service) natFilter(f *vrxv1.NatSessionFilter) (natsessions.Filter, erro
 
 // NatSessions implements the NatSessions RPC: one bounded page of this owner's sessions.
 func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
+	// wave-A: F-nat44-ei-64-66-nptv6 — variant dispatch (EI, NAT64: rpc_nat44_ei.go); unset / ED below
+	if natVariantOf(req.GetVariant()) {
+		return s.natSessionsVariant(ctx, req)
+	}
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}

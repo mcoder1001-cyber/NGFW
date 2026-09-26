@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 37
+const maxPending = 34
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -92,10 +92,11 @@ var descriptorReach = map[string]reachEntry{
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
 	"mpls":                {pending, "F-mpls-srmpls"},
 	"nat44ed":             {wired, "F-nat44-ed-sessions"},
-	"nat44ei":             {pending, "F-nat44-ei-64-66-nptv6"},
-	"nat64":               {pending, "F-nat44-ei-64-66-nptv6"},
-	"nat66":               {pending, "F-nat44-ei-64-66-nptv6"},
+	"nat44ei":             {wired, "F-nat44-ei-64-66-nptv6"},
+	"nat64":               {wired, "F-nat44-ei-64-66-nptv6"},
+	"nat66":               {wired, "F-nat44-ei-64-66-nptv6"},
 	"natcommon":           {library, "DF-3 shared NAT helpers"},
+	"npt66":               {wired, "F-nat44-ei-64-66-nptv6"},
 	"nsim":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"pcap":                {pending, "F-capture-trace"},
 	"pnat":                {pending, "F-nat44-ei-64-66-nptv6"},

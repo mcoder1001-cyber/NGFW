@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-nat44-ei-64-66-nptv6
-id: F-nat44-ei-64-66-nptv6   branch: task/F-nat44-ei-64-66-nptv6   worktree: /root/ngfw-wt/F-nat44-ei-64-66-nptv6   base: main@<BASE>   started: <STARTED>
+id: F-nat44-ei-64-66-nptv6   branch: task/F-nat44-ei-64-66-nptv6   worktree: /root/ngfw-wt/F-nat44-ei-64-66-nptv6   base: main@task/F-nat44-ed-sessions@acc1877 (SPECULATIVE D-114: F-nat44-ed-sessions is done and under review; it contains W-seed + P08 r2 + TD-5)   started: 2026-09-24T19:50
 title: Wave A (day 7-9): NAT44-EI, NAT64, NAT66, NPTv6 (npt66 loaded since D-060)
 prompt: prompts/features/F-nat44-ei-64-66-nptv6.md   (template: prompts/FEATURE-TEMPLATE.md; updated on task/prep-waveA for DF-3/P08 and the regenerated ED prompt)   wbs: D4.2, D4.3
 scope: project nat.mode ei, nat.nat64 and nat.nat66 onto the existing DF-3 descriptors; a new write-only npt66 descriptor for nat.nptv6; EI + NAT64 session state/kill as variants of the ED session path; NAT page tabs; tests; docs
@@ -9,9 +9,9 @@ merged deps you can rely on: P08, DF-3, F-nat44-ed-sessions
   - F-nat44-ed-sessions: desired/nat.go (the `nat` builder), NatSessions RPC + NatSessionKillAction (oneof 5), natTabs registry, NAT API module
   - also on main: TD-3 (V19 sanitizer + cmd/vrx-vpp-preflight), TD-2
 read first: prompts/features/F-nat44-ei-64-66-nptv6.md · docs/status/wave-A-hotspots.md (§0 rules, A1 A2 A4 A7 C4–C7 P1 P4 P5 W3) · docs/agent/descriptors/nat-common.md (first), nat44-ei.md, nat64.md, nat66.md · docs/status/tasks/F-nat44-ed-sessions.md + F-nat44-ed-sessions-contract.md · docs/status/tasks/DF-3.md · docs/decisions/LOG.md D-060, D-062, D-063, D-064, D-071, D-076, D-080, D-082, D-095, D-101
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
-  - source of truth: `eval "$(tools/lab env <SLOT>)"`
-  - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24 (IPv4 only); IPv6 only inside fd00:<SLOT hex>::/32 (natcommon.Scope)
+slot: 4 → VRX_SLOT=4 VRX_TEST_PREFIX=w4 VRX_HTTP_PORT=3000+100·4 VRX_WEB_PORT=5000+100·4 VRX_METRICS_PORT=9100+10·4+1 VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock VRX_PG_DATABASE=vrx_w4 VRX_VALKEY_DB=4 VRX_VPP_TABLE_BASE=4000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+  - source of truth: `eval "$(tools/lab env 4)"`
+  - rig prefix w4 → 10.4.{1,2}.0/24 (IPv4 only); IPv6 only inside fd00:<SLOT hex>::/32 (natcommon.Scope)
   - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
@@ -61,15 +61,17 @@ host rules:
   - V19 SAFETY (D-095): before ANY packet through the rig, `go -C apps/agent run ./cmd/vrx-vpp-preflight` must exit 0 (TD-3). Stop if NRestarts rises
   - delete order: npt66 bindings, NAT interface features and pools before the interfaces they sit on (D-095c)
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
-  - IPv6 on the rig: add it yourself inside fd00:<SLOT hex>::/32 on ns-w<SLOT>-lan/wan and your rig interfaces, and remove it in t.Cleanup
+  - IPv6 on the rig: add it yourself inside fd00:<SLOT hex>::/32 on ns-w4-lan/wan and your rig interfaces, and remove it in t.Cleanup
   - the NAT64 prefix is a slot /96 in a slot VRF (DF-3 nat64_integration_test.go), never 64:ff9b::/96 in the shared default table
   - nattest.SlotLock(t, "nat44") in every NAT44 host test; with VRX_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
 coordination: starts after F-nat44-ed-sessions has merged (board dep) — build on its merged builder, RPC, kill action and tabs · F-det44-map-dslite-cnat (wave B) appends to the same builder/tabs after you · F-ha-state-sync (wave C) owns nat44_ei_ha
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL, EI/NAT64/NAT66/NPTv6 tabs) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-nat44-ei-64-66-nptv6.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-nat44-ei-64-66-nptv6-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-nat44-ei-64-66-nptv6.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> NAT/npt66 objects or IPv6 rig addresses left (dump pasted) · plugins left as the fixtures found them · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w4 dropped · no w4 NAT/npt66 objects or IPv6 rig addresses left (dump pasted) · plugins left as the fixtures found them · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-nat44-ei-64-66-nptv6-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
+
+MANAGER ADDENDA: D-128 — never run `show trace` / `trace add` / `clear trace` on the shared VPP (it crashed VPP); prove forwarding with counters/dumps. D-126 — no classify sweeps by index. GIT RULE: git only inside your own worktree, NEVER in /root/ngfw. CI: use main's tools/ci.sh fix if your branch copy fails in the contract guard with SIGPIPE (D-127) — `git -C <wt> show main:tools/ci.sh > /tmp/g-w4/ci.sh` and run that copy.

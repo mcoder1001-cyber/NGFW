@@ -91,11 +91,11 @@ func Nat(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	// Sibling translators, one line each; a sibling replaces its lines by its builder call (anchors: two groups).
 	// wave-A: F-nat44-ei-64-66-nptv6
 	if on && mode == NatModeEI {
-		s.Warnf(Ptr("nat", "mode"), ruleUnsupported, "NAT44-EI (nat.mode \"ei\") is not applied by this agent build (F-nat44-ei-64-66-nptv6); nothing of nat44 is programmed")
+		nat44EI(s, nat, vrfID)
 	}
-	natUnsupported(s, "nat64", nat.GetNat64(), "F-nat44-ei-64-66-nptv6")
-	natUnsupported(s, "nat66", nat.GetNat66(), "F-nat44-ei-64-66-nptv6")
-	natUnsupported(s, "nptv6", nat.GetNptv6(), "F-nat44-ei-64-66-nptv6")
+	nat64Build(s, nat.GetNat64(), vrfID)
+	nat66Build(s, nat.GetNat66(), vrfID)
+	nptv6Build(s, nat.GetNptv6())
 	// wave-BC: F-det44-map-dslite-cnat
 	natUnsupported(s, "det44", nat.GetDet44(), "F-det44-map-dslite-cnat")
 	natUnsupported(s, "dslite", nat.GetDslite(), "F-det44-map-dslite-cnat")
@@ -388,6 +388,10 @@ func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.NatCo
 	assembleNat44ED(out, kvs, tableName)
 	// Sibling assemblers add their leaves below their anchors.
 	// wave-A: F-nat44-ei-64-66-nptv6
+	assembleNat44EI(out, kvs, tableName)
+	assembleNat64(out, kvs, tableName)
+	assembleNat66(out, kvs, tableName)
+	assembleNptv6(out, kvs)
 	// wave-BC: F-det44-map-dslite-cnat
 	return out
 }

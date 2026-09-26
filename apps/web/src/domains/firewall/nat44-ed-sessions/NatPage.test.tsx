@@ -220,7 +220,12 @@ describe('nat model', () => {
   });
 
   it('natTabs: the four NAT44-ED tabs in order (siblings append after them)', () => {
-    expect(natTabs.map((t) => t.id)).toEqual(['outbound', 'static', 'pools', 'sessions']);
+    expect(natTabs.map((t) => t.id).slice(0, 4)).toEqual([
+      'outbound',
+      'static',
+      'pools',
+      'sessions',
+    ]);
   });
 });
 
@@ -240,7 +245,8 @@ describe('NAT screen', () => {
       expect(
         within(tabs)
           .getAllByRole('tab')
-          .map((t) => t.textContent),
+          .map((t) => t.textContent)
+          .slice(0, 4), // the sibling NAT features' tabs follow (F-nat44-ei-64-66-nptv6)
       ).toEqual(['Outbound', 'Static & port forwards', 'Pools', 'Sessions']);
       expect(within(tabs).getByRole('tab', { name: 'Pools' })).toHaveAttribute(
         'aria-selected',

@@ -4765,6 +4765,9 @@ message NatSessionsRequest {
   uint32 limit = 3;
   // Filter; unset = every session of this owner.
   NatSessionFilter filter = 4;
+  // Session table (F-nat44-ei-64-66-nptv6); UNSPECIFIED = NAT44-ED. NAT44_EI takes the same filter as ED;
+  // NAT64 accepts only `filter.protocol` (any other filter field is INVALID_ARGUMENT).
+  optional NatSessionVariant variant = 5;
 }
 
 // NatSession is one NAT44-ED translation as VPP reports it (state, not configuration).
@@ -4824,6 +4827,8 @@ message NatSessionsResponse {
   string owner = 6;
   // When the dump was taken (agent clock).
   google.protobuf.Timestamp retrieved_at = 7;
+  // The session table this page comes from (F-nat44-ei-64-66-nptv6): EI or NAT64; unset = NAT44-ED.
+  optional NatSessionVariant variant = 8;
 }
 
 // NatSummaryRequest has only the owner.
@@ -4891,9 +4896,28 @@ message NatSessionKillAction {
   uint32 external_port = 5;
   // Inside VRF name; "" = "default" (a decimal string is a raw table id).
   string vrf = 6;
+  // Session table (F-nat44-ei-64-66-nptv6); UNSPECIFIED = NAT44-ED. NAT44_EI deletes by the inside endpoint
+  // (protocol, inside address/port, VRF; the external endpoint is optional and ignored by VPP). NAT64 has no
+  // session delete in VPP 26.06: INVALID_ARGUMENT.
+  optional NatSessionVariant variant = 7;
 }
 
 // ----- F-nat44-ei-64-66-nptv6 -----
+
+// NatSessionVariant selects the NAT session table of NatSessions / NatSessionKillAction (docs/contracts/proto.md §11
+// "F-nat44-ei-64-66-nptv6"). The NatSession fields keep their names; for NAT64 they carry: inside_* = the IPv6
+// client (il_addr/il_port), outside_* = the IPv4 pool endpoint (ol_addr/ol_port), external_* = the IPv4 remote
+// (or_addr/r_port), external_nat_* = the remote as the IPv6 client sees it (ir_addr = NAT64 prefix + IPv4, r_port).
+enum NatSessionVariant {
+  // Unset: NAT44-ED (the F-nat44-ed-sessions behaviour).
+  NAT_SESSION_VARIANT_UNSPECIFIED = 0;
+  // NAT44 endpoint-dependent (nat44-ed).
+  NAT_SESSION_VARIANT_ED = 1;
+  // NAT44 endpoint-independent (nat44-ei).
+  NAT_SESSION_VARIANT_EI = 2;
+  // NAT64 (nat64_st_dump; read-only).
+  NAT_SESSION_VARIANT_NAT64 = 3;
+}
 
 // ----- P11 -----
 

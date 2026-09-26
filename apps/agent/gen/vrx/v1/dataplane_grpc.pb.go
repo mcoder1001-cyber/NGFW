@@ -67,6 +67,7 @@ const (
 	Dataplane_ListRoutes_FullMethodName        = "/vrx.v1.Dataplane/ListRoutes"
 	Dataplane_ListNeighbors_FullMethodName     = "/vrx.v1.Dataplane/ListNeighbors"
 	Dataplane_FqdnObjectState_FullMethodName   = "/vrx.v1.Dataplane/FqdnObjectState"
+	Dataplane_AclState_FullMethodName          = "/vrx.v1.Dataplane/AclState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -156,6 +157,14 @@ type DataplaneClient interface {
 	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
 	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
 	FqdnObjectState(ctx context.Context, in *FqdnObjectStateRequest, opts ...grpc.CallOption) (*FqdnObjectStateResponse, error)
+	// AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+	// acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+	// configuration rules by sequence with the number of VPP rules each expanded to and their hit
+	// counters, mapped back through the agent's expansion; on request the ACLs bound to every
+	// interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+	// from the stats segment, never a whole list in one message. Never mutates.
+	AclState(ctx context.Context, in *AclStateRequest, opts ...grpc.CallOption) (*AclStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -403,6 +412,16 @@ func (c *dataplaneClient) FqdnObjectState(ctx context.Context, in *FqdnObjectSta
 	return out, nil
 }
 
+func (c *dataplaneClient) AclState(ctx context.Context, in *AclStateRequest, opts ...grpc.CallOption) (*AclStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AclStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_AclState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -490,6 +509,14 @@ type DataplaneServer interface {
 	// failed refresh), when they were last resolved, the next scheduled refresh and the latest error.
 	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve). Never mutates.
 	FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error)
+	// AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+	// acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+	// configuration rules by sequence with the number of VPP rules each expanded to and their hit
+	// counters, mapped back through the agent's expansion; on request the ACLs bound to every
+	// interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+	// Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+	// from the stats segment, never a whole list in one message. Never mutates.
+	AclState(context.Context, *AclStateRequest) (*AclStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -562,6 +589,9 @@ func (UnimplementedDataplaneServer) ListNeighbors(context.Context, *ListNeighbor
 }
 func (UnimplementedDataplaneServer) FqdnObjectState(context.Context, *FqdnObjectStateRequest) (*FqdnObjectStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FqdnObjectState not implemented")
+}
+func (UnimplementedDataplaneServer) AclState(context.Context, *AclStateRequest) (*AclStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AclState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -941,6 +971,24 @@ func _Dataplane_FqdnObjectState_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_AclState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AclStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).AclState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_AclState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).AclState(ctx, req.(*AclStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1019,6 +1067,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FqdnObjectState",
 			Handler:    _Dataplane_FqdnObjectState_Handler,
+		},
+		{
+			MethodName: "AclState",
+			Handler:    _Dataplane_AclState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

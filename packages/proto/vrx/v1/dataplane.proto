@@ -172,6 +172,16 @@ service Dataplane {
   rpc FqdnObjectState(FqdnObjectStateRequest) returns (FqdnObjectStateResponse);
 
   // wave-A: F-acl
+
+  // AclState reports the runtime state of this owner's L3/L4 ACLs (acl.lists): per list the VPP
+  // acl_index, VPP rule count and summed hit counters; for one list a page (≤ 1000) of its
+  // configuration rules by sequence with the number of VPP rules each expanded to and their hit
+  // counters, mapped back through the agent's expansion; on request the ACLs bound to every
+  // interface in VPP order, other owners' included (D-066), and the MACIP ACL per interface.
+  // Read-only runtime state (docs/contracts/proto.md §5 keeps it out of Retrieve); counters come
+  // from the stats segment, never a whole list in one message. Never mutates.
+  rpc AclState(AclStateRequest) returns (AclStateResponse);
+
   // wave-A: F-host-acl-nftables
   // wave-A: F-nat44-ed-sessions
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -4472,6 +4482,127 @@ message FqdnObjectState {
 }
 
 // ----- F-acl -----
+
+// AclStateRequest selects what AclState reports.
+message AclStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // acl.lists.<name> whose rule page is wanted; empty = no rule page (list summaries only).
+  string list = 2;
+  // Page over the list's configuration rules in sequence order, after the filter.
+  uint32 offset = 3;
+  // Page size 1–1000; 0 = 100. More than 1000 is INVALID_ARGUMENT.
+  uint32 limit = 4;
+  // Optional rule filter.
+  AclStateFilter filter = 5;
+  // Also report the ACLs bound to every interface (acl_interface_list_dump, MACIP binding).
+  bool include_interfaces = 6;
+}
+
+// AclStateFilter narrows the rule page.
+message AclStateFilter {
+  // Only these configuration rule sequences (at most 1000); empty = every rule.
+  repeated uint32 sequences = 1;
+  // Only rules whose counters show at least one packet (empty page when counters are unavailable).
+  bool hits_only = 2;
+}
+
+// AclStateResponse is one snapshot of the ACL plugin state of this owner.
+message AclStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // True when per-rule hit counters are readable: acl.stats-enable was applied to this VPP by the
+  // globals owner (D-071) and the stats segment answers. False → packets/bytes are 0.
+  bool counters_available = 3;
+  // Why counters are unavailable (empty when available), e.g. "not the globals owner".
+  string counters_reason = 4;
+  // Summaries of this owner's L3/L4 ACLs in VPP, sorted by name (only `list` when it is set).
+  repeated AclListState lists = 5;
+  // The requested page of `list`'s configuration rules, in sequence order.
+  repeated AclRuleState rules = 6;
+  // Number of configuration rules of `list` that match the filter (the paging total).
+  uint32 total = 7;
+  // Interfaces with at least one ACL or a MACIP ACL bound (include_interfaces), by sw_if_index.
+  repeated AclInterfaceState interfaces = 8;
+  // Summaries of this owner's MACIP ACLs in VPP, sorted by name (list summaries only).
+  repeated AclListState macip_lists = 9;
+}
+
+// AclListState is the runtime summary of one ACL of this owner.
+message AclListState {
+  // List name (key of acl.lists / acl.macip).
+  string name = 1;
+  // The VPP acl_index.
+  uint32 acl_index = 2;
+  // Rules of the ACL in VPP.
+  uint32 vpp_rules = 3;
+  // True when the agent can map VPP rules to configuration rules (it projected exactly what VPP holds).
+  bool mapping_known = 4;
+  // Configuration rules of the list (mapping_known), including those that rendered no VPP rule.
+  uint32 config_rules = 5;
+  // Hits of all rules (L3/L4 ACLs with counters available; MACIP ACLs have no counters).
+  uint64 packets = 6;
+  // Bytes of all rules.
+  uint64 bytes = 7;
+}
+
+// AclRuleStatus says whether and why a configuration rule rendered VPP rules.
+enum AclRuleStatus {
+  // Not known (the mapping to VPP rules is unknown).
+  ACL_RULE_STATUS_UNSPECIFIED = 0;
+  // Rendered as vpp_rules VPP rules.
+  ACL_RULE_STATUS_APPLIED = 1;
+  // enabled: false — not rendered.
+  ACL_RULE_STATUS_DISABLED = 2;
+  // Its schedule is not active now — not rendered until it is.
+  ACL_RULE_STATUS_SCHEDULE_INACTIVE = 3;
+  // Expanded to nothing (e.g. an FQDN object without addresses, or no common address family).
+  ACL_RULE_STATUS_EMPTY = 4;
+}
+
+// AclRuleState is the runtime state of one configuration rule.
+message AclRuleState {
+  // Configuration rule sequence.
+  uint32 sequence = 1;
+  // Whether it is rendered.
+  AclRuleStatus status = 2;
+  // Number of VPP rules it expanded to (addresses × families × services).
+  uint32 vpp_rules = 3;
+  // Index of its first VPP rule in the ACL (its rules are contiguous); meaningful when vpp_rules > 0.
+  uint32 first_vpp_rule = 4;
+  // Hits summed over its VPP rules and all workers.
+  uint64 packets = 5;
+  // Bytes summed over its VPP rules and all workers.
+  uint64 bytes = 6;
+}
+
+// AclInterfaceState is the ACL binding of one VPP interface.
+message AclInterfaceState {
+  // Logical interface name (D-069); another owner's interface by its VPP name.
+  string interface = 1;
+  // VPP sw_if_index.
+  uint32 sw_if_index = 2;
+  // Inbound ACLs in evaluation order (first match wins), other owners' included.
+  repeated AclBoundAcl input = 3;
+  // Outbound ACLs in evaluation order, other owners' included.
+  repeated AclBoundAcl output = 4;
+  // The MACIP ACL bound inbound; unset = none.
+  AclBoundAcl macip = 5;
+}
+
+// AclBoundAcl is one ACL in an interface's list.
+message AclBoundAcl {
+  // VPP acl_index.
+  uint32 acl_index = 1;
+  // List name when the ACL is this owner's; empty for another owner's or an untagged ACL.
+  string name = 2;
+  // The VPP tag as stored ("<owner>:<name>" for managed ACLs).
+  string tag = 3;
+  // True when the ACL is not this owner's (D-066: preserved, never changed by this agent).
+  bool foreign = 4;
+}
 
 // ----- F-host-acl-nftables -----
 

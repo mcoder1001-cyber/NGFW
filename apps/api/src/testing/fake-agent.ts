@@ -822,6 +822,7 @@ export class FakeAgent {
       // wave-A: F-object-model
       fqdnObjectState: (call, cb) => void import('../features/object-model/fake.js').then((m) => m.fqdnObjectState(this)(call, cb)).catch((e: unknown) => cb(e as Error)),
       // wave-A: F-acl
+      aclState: (call, cb) => void import('../features/acl/fake.js').then((m) => m.aclState(this)(call, cb)).catch((e: unknown) => cb(e as Error)),
       // wave-A: F-host-acl-nftables
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-nat44-ei-64-66-nptv6

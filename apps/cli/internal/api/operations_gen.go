@@ -7,6 +7,12 @@ const SpecVersion = "0.1.0"
 
 // Operations is every REST operation of the API, by operationId.
 var Operations = map[string]Operation{
+	"Acl_attachments":                  {ID: "Acl_attachments", Method: "GET", Path: "/api/v1/state/acl/attachments", Summary: "ACLs bound per interface as VPP holds them (other owners’ included) vs the running config", PathParams: nil, QueryParams: nil, Body: false},
+	"Acl_bulk":                         {ID: "Acl_bulk", Method: "POST", Path: "/api/v1/actions/acl/lists/{name}/rules/bulk", Summary: "Bulk edit of a list’s rules in the candidate: enable, disable, delete, move to sequence, renumber", PathParams: []string{"name"}, QueryParams: nil, Body: true},
+	"Acl_exportCsv":                    {ID: "Acl_exportCsv", Method: "GET", Path: "/api/v1/actions/acl/export.csv", Summary: "Export a list’s rules as CSV (docs/user/firewall/acl.md format)", PathParams: nil, QueryParams: []string{"list", "source"}, Body: false},
+	"Acl_importCsv":                    {ID: "Acl_importCsv", Method: "POST", Path: "/api/v1/actions/acl/import", Summary: "Import CSV rules into a list of the candidate (dry run by default; streamed)", PathParams: nil, QueryParams: []string{"dryRun", "list", "mode"}, Body: true},
+	"Acl_lists":                        {ID: "Acl_lists", Method: "GET", Path: "/api/v1/state/acl/lists", Summary: "ACL and MACIP lists with pending marks and live VPP status (index, VPP rules, hits)", PathParams: nil, QueryParams: nil, Body: false},
+	"Acl_rules":                        {ID: "Acl_rules", Method: "GET", Path: "/api/v1/state/acl/lists/{name}/rules", Summary: "One list’s rules in sequence order, paged and searched server-side, with per-rule hits", PathParams: []string{"name"}, QueryParams: []string{"filter", "hitsOnly", "page", "pageSize", "source"}, Body: false},
 	"Actions_run":                      {ID: "Actions_run", Method: "POST", Path: "/api/v1/actions/{action}", Summary: "Run an action in the data plane (ping; traceroute and the others answer 501) and return its output", PathParams: []string{"action"}, QueryParams: nil, Body: true},
 	"Audit_list":                       {ID: "Audit_list", Method: "GET", Path: "/api/v1/audit", Summary: "Audit log, newest first (admin)", PathParams: nil, QueryParams: []string{"limit", "offset"}, Body: false},
 	"Auth_apiKeys":                     {ID: "Auth_apiKeys", Method: "GET", Path: "/api/v1/auth/api-keys", Summary: "API keys of the authenticated user", PathParams: nil, QueryParams: nil, Body: false},

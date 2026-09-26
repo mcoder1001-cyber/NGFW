@@ -50,11 +50,11 @@ func (*MacipBindingDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return KeyMacipBinding(b.Interface)
 }
 
-// Dependencies implements scheduler.Descriptor: the interface (optional) and the MACIP ACL
+// Dependencies implements scheduler.Descriptor: the interface (mandatory, review 3.4) and the MACIP ACL
 // (mandatory: VPP refuses macip_acl_del while bound).
 func (d *MacipBindingDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	b, _ := MacipBindingFromProto(obj)
-	return []scheduler.Dependency{d.opts.interfaceDependency(b.Interface), {Key: KeyMacipACL(b.ACL)}}
+	return []scheduler.Dependency{d.opts.boundInterfaceDependency(b.Interface), {Key: KeyMacipACL(b.ACL)}}
 }
 
 // ErrForeignMacipBinding is returned (wrapped) by Create when another owner's (or an untagged)

@@ -393,50 +393,29 @@ func TestACLBridgeRegistration(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	t.Run("acl.acl first", func(t *testing.T) {
-		v := coretest.New()
-		reg := scheduler.NewRegistry()
-		reg.Register(acl.NewACL(v, "w3"))
-		if _, err := subsystems.Register(reg, env(t, v)); err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := reg.Get("pbr.acl-ref"); ok {
-			t.Fatal("bridge registered although acl.acl was registered first")
-		}
-		// the harness does not register acl.acl twice
-		_ = rpfService(t, v, "w3", t.TempDir(), log)
-	})
-
-	t.Run("acl.acl after", func(t *testing.T) {
-		v := coretest.New()
-		v.AddACL("w3:lan-b")
-		reg := scheduler.NewRegistry()
-		if _, err := subsystems.Register(reg, env(t, v)); err != nil {
-			t.Fatal(err)
-		}
-		d, ok := reg.Get("pbr.acl-ref")
-		if !ok {
-			t.Fatal("bridge not registered")
-		}
-		kvs, err := d.Retrieve(ctx)
-		if err != nil || len(kvs) != 1 {
-			t.Fatalf("active bridge Retrieve = %v, %v", kvs, err)
-		}
-		ref := kvs[0].Value
-		if keys := d.(scheduler.KeyProvider).ProvidedKeys(ref); len(keys) != 1 || keys[0] != acl.KeyACL("lan-b") {
-			t.Fatalf("active bridge aliases = %v", keys)
-		}
-		reg.Register(acl.NewACL(v, "w3")) // F-acl's registration, later in Register
-		dumps := len(v.CallsNamed("acl_dump"))
-		kvs, err = d.Retrieve(ctx)
-		if err != nil || kvs != nil {
-			t.Fatalf("inert bridge Retrieve = %v, %v", kvs, err)
-		}
-		if keys := d.(scheduler.KeyProvider).ProvidedKeys(ref); keys != nil {
-			t.Fatalf("inert bridge aliases = %v", keys)
-		}
-		if n := len(v.CallsNamed("acl_dump")) - dumps; n != 0 {
-			t.Fatalf("inert bridge sent %d acl_dump", n)
-		}
-	})
+	// F-acl is in the product now: subsystems.Register wires acl.acl (registerACL), so the pbr.acl-ref bridge —
+	// a shim that resolves ABF's acl.acl/<name> dependency only while no acl.acl descriptor is registered — is
+	// registered but inert (its active() sees acl.acl and yields nothing). It self-activates only in a build
+	// without F-acl (unit-tested in aclRefs' own package-internal tests).
+	v := coretest.New()
+	v.AddACL("w3:lan-b")
+	reg := scheduler.NewRegistry()
+	if _, err := subsystems.Register(reg, env(t, v)); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := reg.Get("acl.acl"); !ok {
+		t.Fatal("acl.acl not registered by the product (F-acl)")
+	}
+	d, ok := reg.Get("pbr.acl-ref")
+	if !ok {
+		t.Fatal("bridge not registered")
+	}
+	dumps := len(v.CallsNamed("acl_dump"))
+	kvs, err := d.Retrieve(ctx)
+	if err != nil || kvs != nil {
+		t.Fatalf("inert bridge Retrieve = %v, %v (acl.acl is registered)", kvs, err)
+	}
+	if n := len(v.CallsNamed("acl_dump")) - dumps; n != 0 {
+		t.Fatalf("inert bridge sent %d acl_dump", n)
+	}
 }

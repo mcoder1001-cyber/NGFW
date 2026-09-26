@@ -14,7 +14,6 @@ import (
 	"go.fd.io/govpp/api"
 
 	abfapi "ngfw/agent/binapi/abf"
-	aclapi "ngfw/agent/binapi/acl"
 	adlapi "ngfw/agent/binapi/adl"
 	autosdlapi "ngfw/agent/binapi/auto_sdl"
 	featureapi "ngfw/agent/binapi/feature"
@@ -70,8 +69,6 @@ type RpfAdlPbrModel struct {
 	AdlInput  map[uint32]int // adl-input instances per sw_if_index
 	Allowlist int            // adl_allowlist_enable_disable calls (write-only: no dump)
 	// ACLs are acl-plugin ACLs (index → tag); tests add them with AddACL (F-acl creates them in the product).
-	ACLs     map[uint32]string
-	nextACL  uint32
 	Policies map[uint32]*abfapi.AbfPolicy
 	Attach   map[AbfAttachKey]uint32 // → priority
 	AutoSdl  []autosdlapi.AutoSdlConfig
@@ -88,7 +85,7 @@ func (v *VPP) rpf() *RpfAdlPbrModel {
 
 func (v *VPP) installRpfAdlPbr() {
 	m := &RpfAdlPbrModel{
-		Urpf: map[UrpfKey]UrpfCheck{}, AdlInput: map[uint32]int{}, ACLs: map[uint32]string{},
+		Urpf: map[UrpfKey]UrpfCheck{}, AdlInput: map[uint32]int{},
 		Policies: map[uint32]*abfapi.AbfPolicy{}, Attach: map[AbfAttachKey]uint32{},
 	}
 	rpfModels.Store(v, m)
@@ -147,20 +144,6 @@ func (v *VPP) installRpfAdlPbr() {
 		m.Allowlist++
 		return reply(&adlapi.AdlAllowlistEnableDisableReply{})
 	})
-	v.On("acl_dump", func(api.Message) ([]api.Message, error) {
-		v.mu.Lock()
-		defer v.mu.Unlock()
-		idx := make([]uint32, 0, len(m.ACLs))
-		for i := range m.ACLs {
-			idx = append(idx, i)
-		}
-		sort.Slice(idx, func(a, b int) bool { return idx[a] < idx[b] })
-		out := make([]api.Message, 0, len(idx))
-		for _, i := range idx {
-			out = append(out, &aclapi.ACLDetails{ACLIndex: i, Tag: m.ACLs[i]})
-		}
-		return out, nil
-	})
 	v.On("abf_policy_add_del", func(msg api.Message) ([]api.Message, error) {
 		req := msg.(*abfapi.AbfPolicyAddDel)
 		v.mu.Lock()
@@ -168,7 +151,7 @@ func (v *VPP) installRpfAdlPbr() {
 		p := req.Policy
 		cur, exists := m.Policies[p.PolicyID]
 		if req.IsAdd {
-			if _, ok := m.ACLs[p.ACLIndex]; !ok {
+			if !v.ACL().Has(p.ACLIndex) {
 				return reply(&abfapi.AbfPolicyAddDelReply{Retval: RetvalNoSuchEntry})
 			}
 			if !exists {
@@ -270,15 +253,8 @@ func samePath(a, b fib_types.FibPath) bool {
 }
 
 // AddACL adds an acl-plugin ACL with tag (e.g. "w3:lan-b") and returns its index.
-func (v *VPP) AddACL(tag string) uint32 {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	m := v.rpf()
-	i := m.nextACL
-	m.nextACL++
-	m.ACLs[i] = tag
-	return i
-}
+// AddACL adds a tag-only ACL to the shared acl.go model (F-acl owns acl_dump since both were ported onto main).
+func (v *VPP) AddACL(tag string) uint32 { return v.ACL().AddTagged(tag) }
 
 // RpfAdlPbrState returns a copy of the uRPF checks, adl-input counts, ABF policies (id → path count)
 // and attachments.

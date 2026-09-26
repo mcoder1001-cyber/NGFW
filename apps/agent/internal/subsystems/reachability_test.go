@@ -44,11 +44,11 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 39
+const maxPending = 38
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
-	"acl":                 {pending, "F-acl"},
+	"acl":                 {wired, "F-acl"},
 	"adl":                 {wired, "F-rpf-adl-pbr"},
 	"af_packet":           {wired, "P08"},
 	"auto_sdl":            {wired, "F-rpf-adl-pbr"},

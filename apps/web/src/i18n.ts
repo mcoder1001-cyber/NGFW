@@ -74,6 +74,8 @@ import faVlanQinq from './locales/fa/vlan-qinq.json';
 import enBonding from './locales/en/bonding.json';
 import faBonding from './locales/fa/bonding.json';
 // wave-A: F-bridge-l2
+import enBridgeL2 from './locales/en/bridge-l2.json';
+import faBridgeL2 from './locales/fa/bridge-l2.json';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra
@@ -144,6 +146,7 @@ export const NAMESPACES = [
   // wave-A: F-bonding
   'bonding',
   // wave-A: F-bridge-l2
+  'bridge-l2',
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -216,6 +219,7 @@ const en = {
   // wave-A: F-bonding
   bonding: enBonding,
   // wave-A: F-bridge-l2
+  'bridge-l2': enBridgeL2,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra
@@ -285,6 +289,7 @@ const fa = {
   // wave-A: F-bonding
   bonding: faBonding,
   // wave-A: F-bridge-l2
+  'bridge-l2': faBridgeL2,
   // wave-A: F-loopback-bvi-gso-lldp-span
   // wave-A: F-vrf-static-ecmp
   // wave-A: F-neighbors-ra

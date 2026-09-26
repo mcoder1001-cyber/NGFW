@@ -82,6 +82,7 @@ export * from './domains/ext/lisp.js';
 // wave-A: F-bonding
 export * from './domains/ext/bonding.js';
 // wave-A: F-bridge-l2
+export * from './domains/ext/bridge-l2.js';
 // wave-A: F-loopback-bvi-gso-lldp-span
 // wave-A: F-vrf-static-ecmp
 // wave-A: F-neighbors-ra

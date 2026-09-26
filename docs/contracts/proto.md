@@ -392,6 +392,26 @@ when the running document sets it or VPP's value is not l2 (absent ≡ l2); `id`
 - API: `GET /api/v1/state/interfaces/bonds` (`BondingController`) merges it with the running and candidate configuration.
 
 <!-- wave-A: F-bridge-l2 -->
+
+### F-bridge-l2: BridgeDomainState, BridgeDomainMacs (+ `Interface.l2` 14, `Subinterface.l2` 12, `RoutingConfig.l2` 20)
+
+Config (D-109 c, additive): per-port leaves `interfaces.<if>.l2` / `….subinterfaces.<id>.l2` (`BridgeL2Port`) and the
+container `routing.l2` (`BridgeL2Config`: `bridge_domains` by name, `xconnects` / `l3xc` by rx interface, `mac_filters` by
+name). `RoutingConfig.l2 = 20` was taken by F-bridge-l2 because D-109 (c) named no number (manager to confirm; questions
+file Q1). Retrieve reports the same messages: a bridge domain's record name comes back from its VPP tag
+(`<owner>:<id>/<name>`), members are `interfaces.<if>.l2.bridge_domain`, the mactime per-interface enable is write-only
+(D-063/D-076) and is reported from the agent's applied-once record for the running VPP boot.
+
+- **`BridgeDomainState(ids, owner)`** — read-only, like `InterfaceState` (§8a): one `BridgeDomainStatus` per bridge
+  domain whose tag is this agent's (`ids` empty = all): flags, MAC aging, members (`interface` logical name,
+  `sw_if_index`, `port_type` `normal|bvi|uu-fwd`, `shg`, `tag_rewrite` in the config spelling), `bvi` / `uu_fwd` names,
+  and the counts of learned vs. static/filter/BVI L2 FIB entries. `UNAVAILABLE` while VPP is disconnected.
+- **`BridgeDomainMacs(bd_id, offset, limit, owner)`** — read-only page of one bridge domain's L2 FIB, ordered by MAC:
+  `limit` 1–1000 (0 = 100; > 1000 → `INVALID_ARGUMENT`), `total` = entries in the whole table. A `bd_id` that is not
+  this agent's → `NOT_FOUND`. The agent dumps `l2_fib_table_dump(bd_id)` and slices it, so one message is bounded.
+- API: `GET /api/v1/state/l2/bridge-domains` and `GET /api/v1/state/l2/bridge-domains/{id}/macs?page&pageSize`
+  (`BridgeL2Controller`); an agent without the RPCs answers `UNIMPLEMENTED` → 501.
+
 <!-- wave-A: F-loopback-bvi-gso-lldp-span -->
 <!-- wave-A: F-vrf-static-ecmp -->
 <!-- wave-A: F-neighbors-ra -->

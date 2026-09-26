@@ -5,7 +5,7 @@ package vrx.agent.l2;
 
 option go_package = "ngfw/agent/internal/descriptors/l2;l2";
 
-// BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>".
+// BridgeDomain is bridge_domain_add_del_v2. Ownership: bd_tag = "<owner>:<id>" or "<owner>:<id>/<name>".
 message BridgeDomain {
   uint32 id = 1;
   bool flood = 2;
@@ -15,6 +15,9 @@ message BridgeDomain {
   bool arp_term = 6;
   bool arp_ufwd = 7;
   uint32 mac_age = 8;  // minutes, 0 = disabled
+  // Record name of the bridge domain in the configuration (F-bridge-l2): stored in the tag as
+  // "<owner>:<id>/<name>" so Retrieve can name the domain again; empty = tag "<owner>:<id>".
+  string name = 9;
 }
 
 enum PortType {

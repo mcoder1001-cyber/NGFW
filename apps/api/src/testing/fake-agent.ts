@@ -800,6 +800,12 @@ export class FakeAgent {
         this.checkCommon('BondState', call.request, cb) &&
         cb({ code: status.UNIMPLEMENTED, details: 'unknown method BondState' }),
       // wave-A: F-bridge-l2
+      bridgeDomainState: (call, cb) =>
+        this.checkCommon('BridgeDomainState', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method BridgeDomainState' }),
+      bridgeDomainMacs: (call, cb) =>
+        this.checkCommon('BridgeDomainMacs', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method BridgeDomainMacs' }),
       // wave-A: F-loopback-bvi-gso-lldp-span
       // wave-A: F-vrf-static-ecmp
       // wave-A: F-neighbors-ra

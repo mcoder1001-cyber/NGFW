@@ -1,0 +1,237 @@
+{
+  "nav": {
+    "bridging": "Bridging"
+  },
+  "title": "Bridging",
+  "intro": "Bridge domains switch frames between their member interfaces; a loopback BVI routes for the domain. Cross-connects forward everything received on one interface to another. Membership, split horizon and VLAN tag rewrite are set per interface; changes go to the candidate and apply on commit.",
+  "tab": {
+    "domains": "Bridge domains",
+    "xconnects": "Cross-connects",
+    "macFilter": "MAC filter"
+  },
+  "readonly": "Your role cannot edit the configuration",
+  "pending": "pending",
+  "add": "Add",
+  "edit": "Edit",
+  "remove": "Remove",
+  "save": "Save",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "close": "Close",
+  "badName": "Letters, digits, _ . - only",
+  "nameExists": "A record with this name exists",
+  "unavailable": "The agent does not report bridge-domain state yet",
+  "col": {
+    "name": "Name",
+    "id": "ID",
+    "status": "Data plane",
+    "members": "Members",
+    "bvi": "BVI",
+    "learned": "Learned MACs",
+    "flags": "Flags",
+    "macAge": "MAC aging",
+    "interface": "Interface",
+    "role": "Role",
+    "shg": "Split horizon",
+    "tagRewrite": "Tag rewrite",
+    "live": "In VPP",
+    "mac": "MAC",
+    "type": "Type",
+    "rx": "Receive on",
+    "tx": "Send to",
+    "kind": "Kind",
+    "paths": "Paths",
+    "device": "Device",
+    "action": "Action",
+    "ranges": "Weekly ranges"
+  },
+  "status": {
+    "live": "in VPP",
+    "missing": "not in VPP"
+  },
+  "role": {
+    "normal": "member",
+    "bvi": "BVI",
+    "uu-fwd": "uu-fwd"
+  },
+  "flag": {
+    "flood": "flood",
+    "uuFlood": "uu-flood",
+    "forward": "forward",
+    "learn": "learn",
+    "arpTerm": "ARP term"
+  },
+  "macAgeValue": "{{min}} min",
+  "macAgeOff": "off",
+  "type": {
+    "static": "static",
+    "learned": "learned",
+    "filter": "filter",
+    "bvi": "BVI"
+  },
+  "domain": {
+    "addTitle": "New bridge domain",
+    "addHelp": "Name the bridge domain; its VPP id (1–16777215) is set in the form. Tunnels attach by this id.",
+    "drawerTitle": "Bridge domain {{name}}",
+    "settings": "Settings",
+    "members": "Members",
+    "noMembers": "No interface is a member yet.",
+    "addMember": "Add member",
+    "memberTitle": "Member {{name}}",
+    "interfacePick": "Interface",
+    "interfaceHelp": "A configured interface or sub-interface (name.id)",
+    "macs": "MAC table",
+    "macsHelp": "The L2 FIB as VPP holds it (learned and static entries), paged by the server.",
+    "removeDomain": "Remove bridge domain",
+    "removeHint": "Remove its members first",
+    "vppId": "VPP bridge domain {{id}}"
+  },
+  "xc": {
+    "l2": "L2 cross-connect",
+    "l3": "L3 cross-connect",
+    "addL2": "Add L2 cross-connect",
+    "addL3": "Add L3 cross-connect",
+    "rxHelp": "Every frame (L2) or packet (L3) received here is forwarded; one direction per record",
+    "none": "No cross-connects configured.",
+    "pathCount": "{{count}} path(s)"
+  },
+  "mf": {
+    "intro": "Devices are admitted or blocked by source MAC on interfaces that have the MAC filter switched on (member form). Times use VPP's mactime clock (start-up setting mactime timezone_offset, default UTC−5 with US daylight saving).",
+    "add": "Add device",
+    "none": "No devices configured.",
+    "always": "always",
+    "enabledOn": "Filter on: {{list}}",
+    "enabledNone": "The filter is not switched on for any interface."
+  },
+  "group": {
+    "bridge-l2": "L2 switching"
+  },
+  "field": {
+    "bridgeDomain": {
+      "title": "Bridge domain",
+      "help": "Bridge domain this interface is a member of; empty = not bridged"
+    },
+    "shg": {
+      "title": "Split-horizon group",
+      "help": "0 = none; members of the same group never forward to each other"
+    },
+    "bvi": {
+      "title": "BVI",
+      "help": "The routed port of the bridge domain: a loopback, one per domain"
+    },
+    "uuFwd": {
+      "title": "Unknown-unicast forwarder",
+      "help": "Send unknown-unicast frames to this member only"
+    },
+    "tagRewrite": {
+      "title": "VLAN tag rewrite",
+      "help": "On a bridge member or an L2 cross-connect receive side"
+    },
+    "macFilter": {
+      "title": "Time-range MAC filter",
+      "help": "Run the MAC filter on frames received here (parent interfaces only)"
+    },
+    "id": {
+      "title": "Bridge-domain ID",
+      "help": "VPP id 1–16777215; tunnels reference the domain by this number"
+    },
+    "flood": {
+      "title": "Flood",
+      "help": "Flood broadcast and multicast frames to all members"
+    },
+    "uuFlood": {
+      "title": "Unknown-unicast flood",
+      "help": "Flood frames whose destination MAC is not learned"
+    },
+    "forward": {
+      "title": "Forward",
+      "help": "Forward by the L2 FIB"
+    },
+    "learn": {
+      "title": "Learn",
+      "help": "Learn source MAC addresses"
+    },
+    "arpTerm": {
+      "title": "ARP termination",
+      "help": "Answer ARP requests from the bridge ARP table"
+    },
+    "macAgeMin": {
+      "title": "MAC aging (minutes)",
+      "help": "0 = learned MACs never age out"
+    },
+    "staticMacs": {
+      "title": "Static MACs"
+    },
+    "tx": {
+      "title": "Send to",
+      "help": "Interface every frame received on the key interface is sent out of"
+    },
+    "ipv4Paths": {
+      "title": "IPv4 paths",
+      "help": "Every IPv4 packet received on the interface is forwarded via these paths"
+    },
+    "ipv6Paths": {
+      "title": "IPv6 paths"
+    },
+    "mac": {
+      "title": "MAC address",
+      "help": "Source MAC of the device"
+    },
+    "action": {
+      "title": "Action",
+      "help": "allow = admit only inside the ranges; drop = block inside the ranges (always, without ranges)"
+    },
+    "ranges": {
+      "title": "Weekly ranges"
+    },
+    "interface": {
+      "title": "Interface",
+      "help": "Member or egress interface"
+    },
+    "op": {
+      "title": "Operation",
+      "help": "push adds tags, pop removes tags, translate replaces them"
+    },
+    "tag1": {
+      "title": "Tag 1",
+      "help": "Outer VLAN id written by push / translate"
+    },
+    "tag2": {
+      "title": "Tag 2",
+      "help": "Inner VLAN id"
+    },
+    "dot1ad": {
+      "title": "802.1ad outer tag",
+      "help": "Pushed outer tag uses 0x88a8"
+    },
+    "nextHop": {
+      "title": "Next hop",
+      "help": "Next-hop address of the path"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "Table the next hop is resolved or looked up in"
+    },
+    "weight": {
+      "title": "Weight",
+      "help": "1–255"
+    },
+    "preference": {
+      "title": "Preference",
+      "help": "0–255"
+    },
+    "days": {
+      "title": "Days",
+      "help": "Days of the week"
+    },
+    "start": {
+      "title": "Start",
+      "help": "HH:MM"
+    },
+    "end": {
+      "title": "End",
+      "help": "HH:MM after start; 24:00 = midnight"
+    }
+  },
+  "refresh": "Refresh"
+}

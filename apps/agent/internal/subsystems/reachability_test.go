@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 52
+const maxPending = 47
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {pending, "F-rpf-adl-pbr"},
@@ -53,7 +53,7 @@ var descriptorReach = map[string]reachEntry{
 	"af_packet":           {wired, "P08"},
 	"arp":                 {pending, "F-neighbors-ra"},
 	"bfd":                 {pending, "F-bfd-redistribution"},
-	"bond":                {pending, "F-bonding"},
+	"bond":                {wired, "F-bonding"},
 	"classify":            {pending, "F-rpf-adl-pbr"},
 	"cnat":                {pending, "F-det44-map-dslite-cnat"},
 	"core":                {wired, "P08"},
@@ -78,13 +78,14 @@ var descriptorReach = map[string]reachEntry{
 	"ipfix":               {wired, "F-ipfix-sflow"},
 	"ipip":                {pending, "F-tunnels"},
 	"ipsec":               {pending, "P11"},
-	"l2":                  {pending, "F-bridge-l2"},
+	"l2":                  {wired, "F-bridge-l2"},
 	"l2tp":                {pending, "F-tunnels"},
-	"l3xc":                {pending, "F-bridge-l2"},
+	"l3xc":                {wired, "F-bridge-l2"},
 	"lb":                  {pending, "F-lb"},
 	"lcp":                 {pending, "P12"},
 	"lisp":                {wired, "F-lisp"},
 	"lldp":                {pending, "F-loopback-bvi-gso-lldp-span"},
+	"mactime":             {wired, "F-bridge-l2"},
 	"mapnat":              {pending, "F-det44-map-dslite-cnat"},
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
 	"mpls":                {pending, "F-mpls-srmpls"},
@@ -95,9 +96,9 @@ var descriptorReach = map[string]reachEntry{
 	"natcommon":           {library, "DF-3 shared NAT helpers"},
 	"pcap":                {pending, "F-capture-trace"},
 	"pnat":                {pending, "F-nat44-ei-64-66-nptv6"},
-	"policer":             {pending, "F-qos-flat"},
+	"policer":             {wired, "F-qos-flat"},
 	"pppoe":               {pending, "F-tunnels"},
-	"qos":                 {pending, "F-qos-flat"},
+	"qos":                 {wired, "F-qos-flat"},
 	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {pending, "F-loopback-bvi-gso-lldp-span"},
 	"sr":                  {pending, "F-srv6"},
@@ -300,6 +301,7 @@ func registerSelectors(t *testing.T) map[string]bool {
 		imps map[string]string
 	}
 	funcs := map[string]fn{}
+	methods := map[string]fn{} // helpers on *Wiring (w.registerQoS(r), w.registerBridgeL2(r))
 	fset := token.NewFileSet()
 	files, _ := filepath.Glob("*.go")
 	for _, name := range files {
@@ -314,6 +316,8 @@ func registerSelectors(t *testing.T) map[string]bool {
 		for _, d := range f.Decls {
 			if fd, ok := d.(*ast.FuncDecl); ok && fd.Recv == nil {
 				funcs[fd.Name.Name] = fn{fd, imps}
+			} else if ok {
+				methods[fd.Name.Name] = fn{fd, imps}
 			}
 		}
 	}
@@ -333,6 +337,11 @@ func registerSelectors(t *testing.T) map[string]bool {
 		}
 		if id, ok := call.Fun.(*ast.Ident); ok {
 			if h, ok := funcs[id.Name]; ok && id.Name != "register" {
+				helpers = append(helpers, h)
+			}
+		}
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+			if h, ok := methods[sel.Sel.Name]; ok {
 				helpers = append(helpers, h)
 			}
 		}

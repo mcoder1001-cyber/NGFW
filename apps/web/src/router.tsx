@@ -90,6 +90,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-bonding
         { path: 'interfaces/bonds', lazy: async () => ({ Component: (await import('./domains/interfaces/bonding/BondsPage')).BondsPage }) },
         // wave-A: F-bridge-l2
+        { path: 'interfaces/bridging', lazy: async () => ({ Component: (await import('./domains/interfaces/bridge-l2/BridgingPage')).BridgingPage }) },
         // wave-A: F-loopback-bvi-gso-lldp-span
         // wave-A: F-vrf-static-ecmp
         // wave-A: F-neighbors-ra

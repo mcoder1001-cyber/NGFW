@@ -103,3 +103,5 @@ Not in this release: bonding, bridge domains, QinQ, LACP, LLDP (planned features
 (the description is kept by the agent and shown from there).
 
 See also: [Bond interfaces (link aggregation, LACP)](bonding.md).
+
+See also: [Bridging](bridge-l2.md) — bridge domains, cross-connects, VLAN tag rewrite on L2 ports and the time-range MAC filter (`interfaces.<if>.l2`, `routing.l2`).

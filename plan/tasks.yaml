@@ -2822,13 +2822,13 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: ready
+  state: running
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   notes: D-123
 - template: ''
   parked_on: ''

@@ -85,7 +85,7 @@ Two tests keep it that way; both run in `tools/ci.sh` and fail the gate on drift
 | guard | what it compares | catches |
 |---|---|---|
 | `apps/agent/internal/contracttest/drift_test.go` `TestSchemaProtoDrift` (Go) | the JSON Schema `pnpm gen` writes from `RootConfig` (`packages/schema/dist/json-schema/root.json`, `io: 'input'`) walked alongside the `DesiredState` descriptor, **both directions** | schema leaf without a proto field (same JSON name); proto field without a schema leaf; record ↔ `map<string,…>`, array ↔ `repeated`, object ↔ message mismatches; scalar type and width (string, bool, `uint32` for non-negative ranges ≤ 2³²−1, `uint64` above, `int32`/`int64` when the minimum is negative, `double` for non-integers); a scalar without explicit presence (D-039); a `secret: true` leaf that has a proto field (D-040); unions of different kinds |
-| `packages/proto/test/parsed-documents.test.ts` (TS) | `DesiredState.toJSON(fromJSON(redactSecrets(RootConfig.parse(doc))))` against the parsed document, for `{}` (every default, all 13 domains prefaulted) and every valid example and fixture | keys the TS stubs drop or invent once Zod has filled defaults; value changes; secret leaves reaching `fromJSON` |
+| `packages/proto/test/parsed-documents.test.ts` (TS) | `DesiredState.toJSON(fromJSON(redactSecrets(RootConfig.parse(doc))))` against the parsed document, for `{}` (every default, all 14 domains prefaulted) and every valid example and fixture | keys the TS stubs drop or invent once Zod has filled defaults; value changes; secret leaves reaching `fromJSON` |
 
 Known, accepted differences are listed in `acceptedDrift` in `drift_test.go`, each with its reason, and a stale entry
 fails the test. Today there are four, all proto→schema supersets: the one shared `Redistribute` message has a key for
@@ -158,7 +158,7 @@ Which domains a transaction manages is decided per top-level key (`ROOT_KEYS`):
 So `subsystems` **narrows** the set of domains considered (empty = every domain present in `desired_state`), and
 naming a key there is the only way to make an unset/empty map domain authoritative. A partial document — an API bug, a
 hand-crafted `grpcurl` Apply, a caller that only knows about `system` — can therefore never wipe interfaces, VRFs or
-routes it does not mention (review F7). The API sends the whole parsed document (all 13 domains present, Zod
+routes it does not mention (review F7). The API sends the whole parsed document (all 14 domains present, Zod
 prefaults every key) and selects with `subsystems`, so from its side "empty `subsystems` = all" still holds. Unknown
 keys → `INVALID_ARGUMENT`; keys not implemented by this agent build → `UNIMPLEMENTED` (`HealthResponse.subsystems`
 lists the implemented ones). Dotted sub-keys (`routing.bgp`) are not accepted in v1 (reserved for an additive

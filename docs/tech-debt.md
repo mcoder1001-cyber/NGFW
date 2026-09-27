@@ -179,3 +179,8 @@ Items above that are not ticked keep their text; this table gives each one an ow
   (PIM->mFIB via P12's LCP mapping over seam S1) are F-igmp-mfib-host. The contract, semantics, the MulticastState RPC
   + state routes, and the web live view are done and tested (the fake agent serves state from the applied document).
   BIER (T3) is unbuilt. VPP-engine IGMP host tests are opt-in and alone in a manager window (D-087/D-090, V22b).
+- F-mpls-ldp (merged PR #56): the FRR ldpd section render and the V5 FRR->VPP label sync (frrsync/ldp: show mpls ldp
+  binding/neighbor json -> mpls-route.ldp in table 0 via seam S1 + LCP mapping, hold-down/flush, PHP/ECMP) plus the
+  neighbour poller are F-mpls-ldp-host. The contract, semantics, the MplsLdpState RPC + state routes, and the LDP tab
+  are done and tested (the fake agent serves state from the applied config). Ingress label imposition and LDP IPv6 are
+  out of scope; table 0 needs VRX_DF7_GLOBALS.

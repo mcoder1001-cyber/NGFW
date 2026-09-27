@@ -1585,7 +1585,7 @@ tasks:
   - W-seed-BC
   est_hours: 10
   files_owned: '- apps/agent/internal/renderers/frr/ldp/** (section `ldp`, order 600), docs/agent/renderers/frr-ldp.md'
-  finished: ''
+  finished: '2026-09-27'
   id: F-mpls-ldp
   notes: D-085 split | prompt generated (prep-waveA, D-109); owns renderers/frr/ldp/** frrsync/ldp/** docs/agent/renderers/frr-ldp.md
   owner: cloud session charming-johnson
@@ -1595,7 +1595,7 @@ tasks:
   scope: LDP only; split from F-mpls-srmpls (D-085); prompt generated from F-mpls-srmpls.md LDP part when it becomes ready
   stage: S4
   started: '2026-09-27'
-  state: running
+  state: merged
   template: prompts/FEATURE-TEMPLATE.md
   title: 'Wave C: LDP via FRR ldpd + agent-side FRR→VPP label sync (V5 fallback)'
   wbs:
@@ -3994,3 +3994,23 @@ tasks:
   scope: 'project routing.multicast onto DF-7 IGMP objects + new mfib.route descriptor (ip_mroute_add_del/dump, owned tables); FRR pim section + frrsync/pim translating (S,G)/(*,G)+OIL via LCP mapping through seam S1; feed VPP IGMP WatchEvents into multicast.events; host topology test (static (S,G) in show ip mfib, PIM (S,G) via frrsync, restart re-applies within 30s)'
   files_owned: apps/agent/internal/**
   notes: 'follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090)'
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-mpls-ldp-host
+  title: 'LDP data-plane: FRR mpls ldp renderer section + frrsync/ldp (FRR label state -> VPP MPLS FIB, V5) + neighbour poller'
+  stage: S4
+  deps:
+  - F-mpls-ldp
+  priority: 3
+  est_hours: 2
+  scope: 'render the mpls ldp FRR section (RF-1); frrsync/ldp reads show mpls ldp binding/neighbor json and installs mpls-route.ldp in table 0 via ip_mroute path through seam S1 (LCP mapping); neighbour up/down events -> mpls-ldp.events; host session test (peer ldpd, OPERATIONAL, binding synced to VPP mfib, withdraw removes it, restart re-derives)'
+  files_owned: apps/agent/internal/**
+  notes: 'follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0 only with VRX_DF7_GLOBALS)'

@@ -31,7 +31,7 @@ the crash guards (the fake fails the test if a lookup or detach is sent with no 
 checks create, Retrieve, idempotent re-apply and delete.
 
 **Projection (F-det44-map-dslite-cnat):** `nat.pnat` (NatConfig 27) → `desired/pnat.go`. Bindings are keyed by the match
-tuple; the binding `name` is a configuration-only label (Retrieve names them `pnat-<n>` in match-tuple order) and
+tuple; the binding `name` is a configuration-only label (Retrieve takes names and order from the last applied document by match tuple; unknown bindings get `pnat-<n>`) and
 attachments reference bindings by name in the document, by match-tuple id in the key. Wired in
 `subsystems/det44_map_dslite_cnat.go` with the persisted `nat` claims; service test on the coretest pnat model
 (`agent/rpc_det44_pnat_test.go`, V11 crash calls recorded and asserted empty).

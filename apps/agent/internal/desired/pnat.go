@@ -7,7 +7,8 @@ package desired
 //	nat.pnat.attachments[i]  → pnat.attachment/<interface>/<point>/<binding id>
 //
 // IPv4 only. V11: the descriptors keep the lazy-init guards (no lookup/detach while no pnat interface exists).
-// Retrieve cannot return binding names: the assembler names bindings "pnat-<n>" in match-tuple order.
+// VPP keeps no binding names: the assembler names bindings "pnat-<n>" in match-tuple order, then the Service's
+// Retrieve applies RelabelPnat with the last applied document (names and order matched by match tuple, no false drift).
 
 import (
 	"net/netip"
@@ -232,4 +233,91 @@ func assemblePnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		p.Attachments = append(p.Attachments, &vrxv1.PnatAttachment{Binding: proto.String(name), Interface: proto.String(a.Interface), Point: proto.String(a.Point)})
 	}
 	out.Pnat = p
+}
+
+type discardSink struct{}
+
+func (discardSink) Add(scheduler.Key, proto.Message, string) {}
+func (discardSink) Errorf(string, string, string, ...any)    {}
+func (discardSink) Warnf(string, string, string, ...any)     {}
+
+// pnatID is the binding id (match tuple) of a document binding; ok false when it does not project.
+func pnatID(b *vrxv1.PnatBinding) (string, bool) {
+	spec, ok := pnatBinding(discardSink{}, b, "")
+	if !ok {
+		return "", false
+	}
+	return pnat.BindingID(spec), true
+}
+
+// RelabelPnat gives a retrieved nat.pnat the binding names and the binding / attachment order of ref (the last
+// applied document), matched by binding id (the match tuple), so Retrieve equals the applied document and drift stays
+// empty. Retrieved bindings ref does not have keep their pnat-<n> names and follow the matched ones.
+func RelabelPnat(got, ref *vrxv1.PnatConfig) {
+	if got == nil || ref == nil {
+		return
+	}
+	type pos struct {
+		name string
+		idx  int
+	}
+	refB := map[string]pos{}
+	for i, b := range ref.GetBindings() {
+		if id, ok := pnatID(b); ok {
+			if _, dup := refB[id]; !dup {
+				refB[id] = pos{b.GetName(), i}
+			}
+		}
+	}
+	rename := map[string]string{} // retrieved name → document name
+	gotID := map[string]string{}  // retrieved binding name → id
+	rank := func(id string) int {
+		if p, ok := refB[id]; ok {
+			return p.idx
+		}
+		return len(ref.GetBindings())
+	}
+	for _, b := range got.GetBindings() {
+		id, ok := pnatID(b)
+		if !ok {
+			continue
+		}
+		gotID[b.GetName()] = id
+		if p, ok := refB[id]; ok {
+			rename[b.GetName()] = p.name
+		}
+	}
+	sort.SliceStable(got.Bindings, func(a, b int) bool {
+		return rank(gotID[got.Bindings[a].GetName()]) < rank(gotID[got.Bindings[b].GetName()])
+	})
+	for _, b := range got.GetBindings() {
+		if n, ok := rename[b.GetName()]; ok {
+			b.Name = proto.String(n)
+		}
+	}
+	refA := map[string]int{}
+	refNameID := map[string]string{}
+	for _, b := range ref.GetBindings() {
+		if id, ok := pnatID(b); ok {
+			refNameID[b.GetName()] = id
+		}
+	}
+	for i, a := range ref.GetAttachments() {
+		refA[a.GetInterface()+"/"+a.GetPoint()+"/"+refNameID[a.GetBinding()]] = i
+	}
+	aKey := func(a *vrxv1.PnatAttachment) string {
+		return a.GetInterface() + "/" + a.GetPoint() + "/" + gotID[a.GetBinding()]
+	}
+	aRank := func(a *vrxv1.PnatAttachment) int {
+		if i, ok := refA[aKey(a)]; ok {
+			return i
+		}
+		return len(ref.GetAttachments())
+	}
+	sort.SliceStable(got.Attachments, func(a, b int) bool { return aRank(got.Attachments[a]) < aRank(got.Attachments[b]) })
+	for _, a := range got.GetAttachments() {
+		if n, ok := rename[a.GetBinding()]; ok {
+			a.Binding = proto.String(n)
+		}
+	}
 }

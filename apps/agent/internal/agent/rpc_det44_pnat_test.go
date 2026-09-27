@@ -18,12 +18,20 @@ import (
 
 const pnatPart = `,
   "nat": {"pnat": {
-    "bindings": [{"name": "dns", "match": {"proto": "udp", "dst": "10.7.2.53", "dport": 53}, "rewrite": {"dst": "10.7.1.53", "dport": 5353}}],
-    "attachments": [{"binding": "dns", "interface": "host-w7w0", "point": "input"}]}}`
+    "bindings": [{"name": "web", "match": {"proto": "tcp", "dst": "10.7.2.80", "dport": 80}, "rewrite": {"dst": "10.7.1.80"}},
+      {"name": "dns", "match": {"proto": "udp", "dst": "10.7.2.53", "dport": 53}, "rewrite": {"dst": "10.7.1.53", "dport": 5353}}],
+    "attachments": [{"binding": "web", "interface": "host-w7w0", "point": "input"},
+      {"binding": "dns", "interface": "host-w7w0", "point": "input"},
+      {"binding": "dns", "interface": "host-w7l0", "point": "output"}]}}`
 
+// canonicalPnat is the applied document itself: Retrieve takes binding names and the binding / attachment order from
+// it (matched by the match tuple), so drift stays empty (review BLOCK 1).
 const canonicalPnat = `{"pnat": {
-  "bindings": [{"name": "pnat-1", "match": {"proto": "udp", "dst": "10.7.2.53", "dport": 53}, "rewrite": {"dst": "10.7.1.53", "dport": 5353}}],
-  "attachments": [{"binding": "pnat-1", "interface": "host-w7w0", "point": "input"}]}}`
+    "bindings": [{"name": "web", "match": {"proto": "tcp", "dst": "10.7.2.80", "dport": 80}, "rewrite": {"dst": "10.7.1.80"}},
+      {"name": "dns", "match": {"proto": "udp", "dst": "10.7.2.53", "dport": 53}, "rewrite": {"dst": "10.7.1.53", "dport": 5353}}],
+    "attachments": [{"binding": "web", "interface": "host-w7w0", "point": "input"},
+      {"binding": "dns", "interface": "host-w7w0", "point": "input"},
+      {"binding": "dns", "interface": "host-w7l0", "point": "output"}]}}`
 
 func pnatObjects(v *coretest.VPP) (bindings, flows int, crashes []string) {
 	p := v.Pnat()
@@ -65,8 +73,8 @@ func TestPnatDomainOnFake(t *testing.T) {
 	if got := natNat(t, s2); !proto.Equal(got, want) {
 		t.Fatalf("after restart + resync:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
-	if b, f, _ := pnatObjects(v); b != 1 || f != 1 {
-		t.Fatalf("after resync: %d bindings, %d flows (want 1, 1)", b, f)
+	if b, f, _ := pnatObjects(v); b != 2 || f != 3 {
+		t.Fatalf("after resync: %d bindings, %d flows (want 2, 3)", b, f)
 	}
 
 	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "p3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)}),

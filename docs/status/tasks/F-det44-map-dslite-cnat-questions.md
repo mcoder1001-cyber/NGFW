@@ -34,7 +34,7 @@ Written and kept going (never waited). Defaults taken are marked **default**.
 - **Q8 CNAT sessions are VPP-global.** `CnatSessions` returns the whole table to any agent (no owner tag exists in
   `cnat_session_details`); only the purge is restricted (globals owner, D-071, same rule as F-capture-trace's
   `captureGlobalsOwner`). **Default: read allowed for all, purge globals-owner only.**
-- **Q9 PNAT names.** VPP keeps no binding name; Retrieve names bindings `pnat-<n>` in match-tuple order, so drift shows
-  a rename when the document uses other names. **Default: accepted and documented**; alternative: the API could compare
-  PNAT by match tuple.
+- **Q9 PNAT names — fixed (review BLOCK 1).** Retrieve takes binding names and binding/attachment order from the last
+  applied document, matched by the match tuple (`desired.RelabelPnat`); only bindings the document lacks keep `pnat-<n>`.
+  Drift stays empty (service test `TestPnatDomainOnFake`).
 - **Q10 pre-existing red gate:** `@ngfw/proto` test "has exactly the 13 root keys" fails on origin/main (not this task).

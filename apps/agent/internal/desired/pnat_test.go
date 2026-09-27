@@ -82,3 +82,27 @@ func TestCnatFeatureInfo(t *testing.T) {
 		t.Fatalf("infos %v errs %v", s.infos, s.errs)
 	}
 }
+
+// TestRelabelPnat: names and order come from the applied document by match tuple; an unmatched binding keeps pnat-<n>.
+func TestRelabelPnat(t *testing.T) {
+	ref := natDoc(t, `{"pnat": {"bindings": [{"name": "web", "match": {"proto": "tcp", "dst": "10.9.52.2", "dport": 80}, "rewrite": {"src": "10.9.53.2"}},
+	  {"name": "dns", "match": {"proto": "udp", "src": "10.9.51.1"}, "rewrite": {"dst": "10.9.53.1"}}],
+	  "attachments": [{"binding": "dns", "interface": "b", "point": "output"}, {"binding": "web", "interface": "a", "point": "input"}]}}`).GetPnat()
+	s := newSink()
+	desired.Nat(s, natDoc(t, `{"pnat": {"bindings": [{"name": "x", "match": {"proto": "tcp", "dst": "10.9.52.2", "dport": 80}, "rewrite": {"src": "10.9.53.2"}},
+	  {"name": "y", "match": {"proto": "udp", "src": "10.9.51.1"}, "rewrite": {"dst": "10.9.53.1"}},
+	  {"name": "z", "match": {"src": "10.9.51.9"}, "rewrite": {"dst": "10.9.53.9"}}],
+	  "attachments": [{"binding": "x", "interface": "a", "point": "input"}, {"binding": "y", "interface": "b", "point": "output"}]}}`), vrfID)
+	got := desired.AssembleNat(s.kvs, tableName).GetPnat()
+	desired.RelabelPnat(got, ref)
+	var names, atts []string
+	for _, b := range got.GetBindings() {
+		names = append(names, b.GetName())
+	}
+	for _, a := range got.GetAttachments() {
+		atts = append(atts, a.GetBinding()+"@"+a.GetInterface())
+	}
+	if strings.Join(names, ",") != "web,dns,pnat-1" || strings.Join(atts, ",") != "dns@b,web@a" {
+		t.Fatalf("names %v attachments %v", names, atts)
+	}
+}

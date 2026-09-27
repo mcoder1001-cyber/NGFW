@@ -91,7 +91,7 @@ the PLAT's /96 and whose rule prefix covers the CLAT's IPv4 host address. No ext
 
 - IPv4 only. A match needs at least one field, a rewrite at least one; ports only with protocol `tcp`/`udp`.
 - The match is the binding's identity: two bindings with the same match are refused. Binding names are labels only
-  (the data plane keeps none), so the applied state names them `pnat-1`, `pnat-2`, … in match order.
+  (the data plane keeps none); the applied state shows your names again, matched by the match, so no drift appears.
 - All bindings on one interface and point must match the same fields (VPP refuses mixed masks).
 - V11: the agent never looks up or detaches a PNAT flow while no interface has an attachment (that crashes VPP 26.06).
 

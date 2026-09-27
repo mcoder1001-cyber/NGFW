@@ -23,8 +23,25 @@ function makePair(dir: string, name: string, cn: string) {
   const crt = join(dir, `${name}.crt`);
   execFileSync(
     'openssl',
-    ['req', '-x509', '-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes', '-keyout', key, '-out', crt,
-      '-days', '30', '-subj', `/CN=${cn}`, '-addext', `subjectAltName=DNS:${cn},IP:192.0.2.1`],
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'ec',
+      '-pkeyopt',
+      'ec_paramgen_curve:P-256',
+      '-nodes',
+      '-keyout',
+      key,
+      '-out',
+      crt,
+      '-days',
+      '30',
+      '-subj',
+      `/CN=${cn}`,
+      '-addext',
+      `subjectAltName=DNS:${cn},IP:192.0.2.1`,
+    ],
     { stdio: 'ignore' },
   );
   return { cert: readFileSync(crt, 'utf8'), key: readFileSync(key, 'utf8') };
@@ -55,7 +72,11 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       const r = validateTlsMaterial(a.cert, b.key, '1.2');
       expect(r.options).toBeUndefined();
       expect(r.issues).toEqual([
-        { pointer: KEY_POINTER, message: 'the private key does not match the certificate', rule: 'management.tls.key-mismatch' },
+        {
+          pointer: KEY_POINTER,
+          message: 'the private key does not match the certificate',
+          rule: 'management.tls.key-mismatch',
+        },
       ]);
       expect(JSON.stringify(r)).not.toContain(b.key.split('\n')[1]!);
     });
@@ -68,7 +89,10 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
 
     it('refuses a certificate that is not yet valid', () => {
       const r = validateTlsMaterial(a.cert, a.key, '1.2', new Date(Date.now() - 2 * 86_400_000));
-      expect(r.issues[0]).toMatchObject({ pointer: CERT_POINTER, rule: 'management.tls.not-yet-valid' });
+      expect(r.issues[0]).toMatchObject({
+        pointer: CERT_POINTER,
+        rule: 'management.tls.not-yet-valid',
+      });
     });
 
     it('refuses garbage in either secret', () => {
@@ -84,7 +108,13 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       const port = (server.address() as { port: number }).port;
       const hello = (maxVersion: 'TLSv1.2' | 'TLSv1.3') =>
         new Promise<string>((resolve) => {
-          const s = connect({ host: '127.0.0.1', port, servername: 'b.vrx.test', rejectUnauthorized: false, maxVersion });
+          const s = connect({
+            host: '127.0.0.1',
+            port,
+            servername: 'b.vrx.test',
+            rejectUnauthorized: false,
+            maxVersion,
+          });
           s.on('secureConnect', () => {
             resolve(`${s.getProtocol() ?? ''} ${s.getPeerX509Certificate()?.subject ?? ''}`);
             s.destroy();
@@ -104,7 +134,9 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
     function service(doc: unknown, secrets: Record<string, string>) {
       const holder = { doc, revision: 7 };
       const bus = new Bus();
-      const ds = { getRunning: async () => ({ revision: { id: holder.revision }, doc: holder.doc }) };
+      const ds = {
+        getRunning: async () => ({ revision: { id: holder.revision }, doc: holder.doc }),
+      };
       const svc = new MgmtTlsService(ds as never, bus, {} as never, {} as never, {} as never);
       svc.secretReader = async (ref) => secrets[ref] ?? null;
       svc.onModuleInit();

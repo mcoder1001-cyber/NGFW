@@ -69,12 +69,18 @@ export function validateTlsMaterial(
 ): TlsCheck {
   const blocks = certPem.match(PEM_CERT) ?? [];
   if (blocks.length === 0)
-    return { issues: [issue(CERT_POINTER, 'the secret does not hold a PEM certificate', 'certificate-pem')] };
+    return {
+      issues: [
+        issue(CERT_POINTER, 'the secret does not hold a PEM certificate', 'certificate-pem'),
+      ],
+    };
   let chain: X509Certificate[];
   try {
     chain = blocks.map((b) => new X509Certificate(b));
   } catch {
-    return { issues: [issue(CERT_POINTER, 'the PEM certificate cannot be parsed', 'certificate-pem')] };
+    return {
+      issues: [issue(CERT_POINTER, 'the PEM certificate cannot be parsed', 'certificate-pem')],
+    };
   }
   const leaf = chain[0]!;
   const info = certInfo(leaf, chain.length);
@@ -82,21 +88,43 @@ export function validateTlsMaterial(
   try {
     key = createPrivateKey(keyPem);
   } catch {
-    return { info, issues: [issue(KEY_POINTER, 'the secret does not hold a readable PEM private key (encrypted keys are not supported)', 'key-pem')] };
+    return {
+      info,
+      issues: [
+        issue(
+          KEY_POINTER,
+          'the secret does not hold a readable PEM private key (encrypted keys are not supported)',
+          'key-pem',
+        ),
+      ],
+    };
   }
   const issues: ProblemIssue[] = [];
   if (!leaf.checkPrivateKey(key))
-    issues.push(issue(KEY_POINTER, 'the private key does not match the certificate', 'key-mismatch'));
+    issues.push(
+      issue(KEY_POINTER, 'the private key does not match the certificate', 'key-mismatch'),
+    );
   if (now.getTime() > new Date(leaf.validTo).getTime())
     issues.push(issue(CERT_POINTER, `the certificate expired on ${info.notAfter}`, 'expired'));
   else if (now.getTime() < new Date(leaf.validFrom).getTime())
-    issues.push(issue(CERT_POINTER, `the certificate is not valid before ${info.notBefore}`, 'not-yet-valid'));
+    issues.push(
+      issue(CERT_POINTER, `the certificate is not valid before ${info.notBefore}`, 'not-yet-valid'),
+    );
   if (issues.length > 0) return { info, issues };
   try {
-    const options: SecureContextOptions = { cert: certPem, key: keyPem, minVersion: PROTOCOL[minVersion] };
+    const options: SecureContextOptions = {
+      cert: certPem,
+      key: keyPem,
+      minVersion: PROTOCOL[minVersion],
+    };
     createSecureContext(options); // throws on anything Node.js cannot serve
     return { info, issues, options };
   } catch {
-    return { info, issues: [issue(TLS_POINTER, 'Node.js refused the certificate and key for a TLS context', 'context')] };
+    return {
+      info,
+      issues: [
+        issue(TLS_POINTER, 'Node.js refused the certificate and key for a TLS context', 'context'),
+      ],
+    };
   }
 }

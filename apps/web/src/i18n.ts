@@ -52,6 +52,8 @@ import faHostStack from './locales/fa/host-stack.json';
 // F-dataplane-ui (unanchored)
 import enDataplane from './locales/en/dataplane.json';
 import faDataplane from './locales/fa/dataplane.json';
+import enManagement from './locales/en/management.json'; // F-management-ui (unanchored)
+import faManagement from './locales/fa/management.json'; // F-management-ui (unanchored)
 // F-system-identity (unanchored)
 import enSystemIdentity from './locales/en/system-identity.json';
 import faSystemIdentity from './locales/fa/system-identity.json';
@@ -172,6 +174,7 @@ export const NAMESPACES = [
   // F-system-identity (unanchored)
   'system-identity',
   'dataplane', // F-dataplane-ui (unanchored)
+  'management', // F-management-ui (unanchored)
   // wave-BC: F-snmp
   'snmp',
   // wave-BC: F-ipfix-sflow
@@ -267,6 +270,7 @@ const en = {
   // F-system-identity (unanchored)
   'system-identity': enSystemIdentity,
   dataplane: enDataplane, // F-dataplane-ui (unanchored)
+  management: enManagement, // F-management-ui (unanchored)
   // wave-BC: F-snmp
   snmp: enSnmp,
   // wave-BC: F-ipfix-sflow
@@ -359,6 +363,7 @@ const fa = {
   // F-system-identity (unanchored)
   'system-identity': faSystemIdentity,
   dataplane: faDataplane, // F-dataplane-ui (unanchored)
+  management: faManagement, // F-management-ui (unanchored)
   // wave-BC: F-snmp
   snmp: faSnmp,
   // wave-BC: F-ipfix-sflow

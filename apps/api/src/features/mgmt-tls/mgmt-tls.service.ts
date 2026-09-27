@@ -113,13 +113,17 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     const fastify = this.host.httpAdapter.getInstance() as unknown as FastifyInstance;
     // without a configured certificate the listener stays down (no self-signed fallback is generated here)
     if (this.context === null) {
-      this.log.warn('VRX_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started');
+      this.log.warn(
+        'VRX_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started',
+      );
       return;
     }
     this.server = createServer(this.context, (req, res) => fastify.routing(req, res));
     const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
     this.server.listen(this.httpsPort, hostName, () =>
-      this.log.log(`HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`),
+      this.log.log(
+        `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
+      ),
     );
   }
 
@@ -146,9 +150,25 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       this.readSecret(tls.privateKeyRef!),
     ]);
     if (cert === null)
-      return { issues: [{ pointer: CERT_POINTER, message: `secret ${tls.certificateRef} not found`, rule: 'management.tls.certificate-pem' }] };
+      return {
+        issues: [
+          {
+            pointer: CERT_POINTER,
+            message: `secret ${tls.certificateRef} not found`,
+            rule: 'management.tls.certificate-pem',
+          },
+        ],
+      };
     if (key === null)
-      return { issues: [{ pointer: KEY_POINTER, message: `secret ${tls.privateKeyRef} not found`, rule: 'management.tls.key-pem' }] };
+      return {
+        issues: [
+          {
+            pointer: KEY_POINTER,
+            message: `secret ${tls.privateKeyRef} not found`,
+            rule: 'management.tls.key-pem',
+          },
+        ],
+      };
     return validateTlsMaterial(cert, key, tls.minVersion ?? '1.2', this.now());
   }
 
@@ -180,7 +200,9 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       // hot reload: new handshakes use the new certificate and protocol floor, open connections are kept
       this.server?.setSecureContext(res.options);
       this.current = { ...base, configured: true, active: this.withDays(res.info), error: null };
-      this.log.log(`management.tls applied: ${res.info.subject} (sha256 ${res.info.fingerprintSha256})`);
+      this.log.log(
+        `management.tls applied: ${res.info.subject} (sha256 ${res.info.fingerprintSha256})`,
+      );
     } catch (e) {
       const error = `could not load management.tls: ${(e as Error).message}`;
       this.current = { ...(this.current ?? emptyState()), error };
@@ -189,7 +211,9 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   }
 
   private withDays(info: CertInfo) {
-    const daysLeft = Math.floor((new Date(info.notAfter).getTime() - this.now().getTime()) / 86_400_000);
+    const daysLeft = Math.floor(
+      (new Date(info.notAfter).getTime() - this.now().getTime()) / 86_400_000,
+    );
     return { ...info, daysLeft };
   }
 

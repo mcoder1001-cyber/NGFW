@@ -3623,7 +3623,7 @@ tasks:
   - F-nat44-ed-sessions
   priority: 3
   est_hours: 16
-  state: running
+  state: merged
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3632,7 +3632,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-26'
   notes: promoted from backlog BL-NET-01 by the product owner (2026-09-26)
 - id: F-multiwan
   title: Multi-WAN failover and weighted load sharing with ICMP/HTTP/DNS link health monitors
@@ -3866,3 +3866,23 @@ tasks:
   scope: 'lab host only: af_packet rig — listed source dropped both ways on a selected interface, passing on an unselected one, unlisted source passing, local-in blocked; show acl-plugin acl/interface before/after; acl-plugin-in-ip4-fa clocks/packet at 0/10k/200k entries; 200k commit time end to end; page screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-global-blocking*
   notes: 'follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here'
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-pppoe-client-host
+  title: 'PPPoE client on the lab: pppd vs an accel-ppp/rp-pppoe server, VPP FIB mirror, reconnect, MSS clamp, screenshot'
+  stage: S4
+  deps:
+  - F-pppoe-client
+  priority: 3
+  est_hours: 2
+  scope: 'lab host only (needs kernel PPP + VPP): agent live Apply (unit supervision, pppd exit tracking, mirror negotiated IPv4/IPv6 addr+route into VPP, MSS clamp), real PppoeReconnect handler, wire the renderer into the agent subsystem registry; topology test (session up, traffic through NAT, server restart -> reconnect within holdoff, wrong password -> clear error), grep proof the password is never in config/logs/audit, drawer screenshot against the real endpoint'
+  files_owned: docs/status/tasks/F-pppoe-client*
+  notes: 'follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here'

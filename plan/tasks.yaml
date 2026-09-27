@@ -1929,16 +1929,16 @@ tasks:
   - SEC-auth
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.8
   scope: RESTCONF/NETCONF + YANG generated from schema
   files_owned: '- packages/yang/** (new workspace package: package.json with `gen` + `test` scripts, src/ generator + hints side table, modules/*.yang generated output, golden tests)'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md'
 - id: F-sdk-terraform-ansible

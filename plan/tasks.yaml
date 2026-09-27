@@ -2843,7 +2843,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: running
+  state: review
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
   branch: claude/modest-keller-upaw4m

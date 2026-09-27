@@ -3776,7 +3776,7 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3785,7 +3785,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: promoted from backlog BL-SEC-16 by the product owner (2026-09-27)
 - template: ''
   parked_on: ''
@@ -3954,3 +3954,23 @@ tasks:
     move Users password change to POST /users/{name}/password (D-102)'
   files_owned: apps/api/src/features/aaa/**, apps/api/src/auth/**, apps/web/src/domains/system/aaa/**
   notes: increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-bruteforce-block-host
+  title: 'Brute-force/scan auto-block: data-plane enforcement (VPP acl + nftables local-in) and host detectors (SSH journald, IKE/EAP auth, port-scan counters) driven by security.autoBlock and the API auto-block set'
+  stage: S4
+  deps:
+  - F-bruteforce-block
+  priority: 3
+  est_hours: 2
+  scope: 'enforce the API auto-block set on VPP acl + nftables local-in; add SSH/IKE/port-scan detectors that call the same observe() path over the agent bridge; live topology test (10 bad logins -> blocked on local-in and through; expiry -> unblocked; allow-listed never blocked)'
+  files_owned: apps/agent/internal/**
+  notes: 'follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host)'

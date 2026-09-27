@@ -160,3 +160,11 @@ Items above that are not ticked keep their text; this table gives each one an ow
   OIDC/TACACS+/SAML backends are increment 2 (row F-aaa-login). The contract carries ldap/mfa/roleMap/fallbackLocal
   and reserves oidc/saml proto fields 5/6; the RADIUS + TOTP engines and the admin actions/aaa/test route are done.
   The login path is security-critical and was deliberately not rewritten in this session — it needs dedicated review.
+- F-bruteforce-block (merged PR #49): the data-plane enforcement of the auto-block set (VPP ACLs + nftables local-in)
+  and the host detectors (SSH journald, IKE/EAP auth, port-scan counters) are not wired into the running agent yet — the
+  API-side webLogin detector, the escalating block store (auto_block table), the allow-list/loopback guard, the expiry
+  sweep, the state/admin routes and the web page are done and tested. All host detectors funnel to the one
+  `AutoBlockService.observe(source, kind)` ingestion point. Owner: F-bruteforce-block-host.
+  Incidental, fixed in the same PR (ci.sh check is diff-scoped, so these latent failures slipped past earlier merges):
+  the group-a/index schema tests were refreshed for the already-merged multiwan `wanGroups` and aaa envelope fields,
+  and `renderers/pppoe` (F-pppoe-client) was registered in the agent TD-11a reachability table (pending; maxPending 20→21).

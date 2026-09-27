@@ -196,7 +196,8 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
       (await h.call(ro, 'POST', '/api/v1/actions/dns-lookup', { name: 'gw.lab.example' })).status,
     ).toBe(403);
     // the generic `/actions/:action` route is still 501 for everything else (the static route wins for dns-lookup)
-    expect((await h.call(op, 'POST', '/api/v1/actions/ping')).status).toBe(501);
+    // (ping is served since F-vrf-static-ecmp; reboot has no agent action yet)
+    expect((await h.call(op, 'POST', '/api/v1/actions/reboot')).status).toBe(501);
   });
 
   it('forwarder equal to a listen address → 400 problem+json with the pointer', async () => {

@@ -381,7 +381,8 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     // ping runs since F-vrf-static-ecmp (the Action bridge, vrf-static-ecmp.e2e.test.ts); reboot has no agent action yet
     expect((await h.call(op, 'POST', '/api/v1/actions/reboot')).status).toBe(501);
     expect((await h.call(op, 'POST', '/api/v1/actions/format-disk')).status).toBe(404);
-    expect((await h.call(ro, 'GET', '/api/v1/state/neighbors')).status).toBe(501);
+    // /state/neighbors is served since F-neighbors-ra (neighbors-ra.e2e.test.ts)
+    expect((await h.call(ro, 'GET', '/api/v1/state/neighbors')).status).toBe(200);
   });
 
   it('agent down → 503 problem, running untouched', async () => {

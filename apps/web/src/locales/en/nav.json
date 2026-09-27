@@ -27,6 +27,7 @@
     "tunnels": "Tunnels",
     "services": "Services",
     "ha": "High availability",
-    "management": "Management"
+    "management": "Management",
+    "security": "Security"
   }
 }

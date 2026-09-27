@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
 import type { VrxRequest } from '../../common/principal.js';
@@ -53,6 +53,7 @@ export class AutoBlockController {
   @MinRole('admin')
   @Protected(400, 403, 404)
   @ApiOperation({ summary: 'Admin: remove a source from the auto-block set' })
+  @ApiBody({ schema: openapi(UnblockBody, 'input') })
   @ApiOkResponse({ schema: openapi(UnblockOut, 'output') })
   async unblock(@Body(new ZodPipe(UnblockBody)) body: z.output<typeof UnblockBody>, @Req() req: VrxRequest) {
     const unblocked = await this.svc.unblock(body.source, req.principal!);
@@ -66,6 +67,7 @@ export class AutoBlockController {
   @MinRole('admin')
   @Protected(400, 403, 409)
   @ApiOperation({ summary: 'Admin: block a source by hand (refused for an allow-listed source)' })
+  @ApiBody({ schema: openapi(BlockBody, 'input') })
   @ApiOkResponse({ schema: openapi(BlockedEntryOut, 'output') })
   async block(@Body(new ZodPipe(BlockBody)) body: z.output<typeof BlockBody>, @Req() req: VrxRequest) {
     const entry = await this.svc.manualBlock(body.source, body.blockSec, body.note, req.principal!);

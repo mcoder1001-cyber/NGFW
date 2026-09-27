@@ -275,6 +275,7 @@ func (s *Service) refreshSnapshotLocked() {
 	s.mu.Unlock()
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
 	desired.SetIpfixExporterNames(s.st.desired.GetServices()) // F-ipfix-sflow: names from the stored state only
+	desired.SetNat46Owners(s.st.desired.GetNat())             // F-nat46: shared map-t interface owners, stored state only
 	if len(s.sources) > 0 {
 		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
 		s.mu.Lock()

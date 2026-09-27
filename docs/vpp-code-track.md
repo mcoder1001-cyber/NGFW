@@ -257,3 +257,11 @@ decoding, a checked lookup, and a per-VIP SNAT key.
 writes the unspecified addresses (`::` / `0.0.0.0`), which is what a fresh VPP reports; whether the data plane treats
 `::` as "no AFTR" was not verified on a host (no VPP host in the cloud container). Fallback implemented: the reset
 above; a slot agent never writes (D-071). Est. VPP effort: 0.5 day (an is_add flag or a delete message).
+
+### V-new (F-nat46) — stateful NAT46 (not built, D-160)
+
+Stateful NAT46 — many IPv4 clients sharing an IPv4 pool (with ports) in front of IPv6-only servers — has no
+implementation in VPP 26.06: `nat64` translates only IPv6→IPv4 sessions, `map` is stateless, `nat44_*`/`nat66`/`cnat`/
+`pnat` stay in one family. F-nat46 ships the stateless 1:1 variant (SIIT over a MAP-T domain per mapping, `nat.nat46`);
+D-160 puts the stateful variant out of scope. Fallback implemented: one IPv4 service address per IPv6 server (1:1).
+Est. VPP effort: 2–4 weeks (a nat46 session table + IPv4→IPv6 in2out/out2in nodes modelled on nat64).

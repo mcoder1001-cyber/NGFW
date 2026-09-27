@@ -28,6 +28,7 @@ func TestSnmpdIntegration(t *testing.T) {
 	vpptest.LockLab(t)
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
 	port, _ := strconv.Atoi(fmt.Sprintf("3%d61", slot))
+	port = vpptest.SubPort(slot, 61, port)
 	paths := TestPaths(prefix)
 	base := filepath.Dir(paths.ConfFile)
 	lockSlotDir(t, base)

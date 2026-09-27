@@ -7,7 +7,7 @@
 #
 #   eval "$(tools/lab env <slot>)"; test/topology/wireguard/stack.sh [<screenshot node script> <out dir>]
 #
-# Owner "<prefix>wg" (F-bonding shares slot 6), database vrx_<prefix>wg, API port 3000+100·slot+70, web 5000+100·slot+70,
+# Owner "<prefix>wg" (F-bonding shares slot 6), database vrx_<prefix>wg, API port VRX_HTTP_PORT+70, web VRX_WEB_PORT+70 (D-156),
 # agent socket /run/vrx-test/<prefix>/wg/agent.sock, wg instance/table base+70, tap id slot·100+70, UDP 20000+100·slot+10/+11,
 # 10.<slot>.70-72.0/24, loopback loop<slot>70. The screenshot script (kept outside the repo, P07a/P07b) is called as
 # `node <script> <webUrl> <outDir> <adminPasswordFile>`. Output: $RUN/evidence.log (key material never written there).
@@ -18,7 +18,7 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 : "${VRX_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
 P=$VRX_TEST_PREFIX N=$VRX_SLOT OWNER=${VRX_TEST_PREFIX}wg
 BASE=$((N * 1000)) INST=$((N * 1000 + 70)) TAPID=$((N * 100 + 70))
-API_PORT=$((3000 + 100 * N + 70)) WEB_PORT=$((5000 + 100 * N + 70))
+API_PORT=$((${VRX_HTTP_PORT:?} + 70)) WEB_PORT=$((${VRX_WEB_PORT:?} + 70))  # D-156: offsets from the slot exports
 VPP_PORT=$((20000 + 100 * N + 10)) KERN_PORT=$((20000 + 100 * N + 11))
 NS=ns-$OWNER TAP=tap$TAPID HOSTIF=$OWNER-t0 KIF=$OWNER-k0
 RUN=/run/vrx-test/$P/wg

@@ -19,6 +19,7 @@ export const TOPICS = [
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
+  'multicast.events',
   // wave-BC: F-dashboard-prom-alarms
   'alarm.events',
   // F-bruteforce-block

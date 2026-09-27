@@ -71,6 +71,7 @@ import { dashboardPromAlarmsValidators } from './dashboard-prom-alarms.js'; // w
 import { multiwanValidators } from './multiwan.js'; // F-multiwan (unanchored)
 import { aaaValidators } from './aaa.js'; // wave-BC: F-aaa
 import { autoBlockValidators } from './auto-block.js'; // F-bruteforce-block
+import { igmpMfibValidators } from './igmp-mfib.js'; // wave-BC: F-igmp-mfib
 
 export * from './registry.js';
 
@@ -110,6 +111,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
+  ...igmpMfibValidators,
   // wave-BC: F-ha-state-sync
   // wave-A: F-bonding
   ...bondingValidators,

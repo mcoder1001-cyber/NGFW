@@ -1455,6 +1455,141 @@ module vrx-routing {
         }
       }
     }
+    container multicast {
+      description "IPv4 multicast: IGMPv3, static multicast routes, and PIM-SM via FRR";
+      container igmp {
+        list interfaces {
+          key "name";
+          leaf name {
+            type string;
+            description "The map key.";
+          }
+          leaf mode {
+            type enumeration {
+              enum "host";
+              enum "router";
+            }
+            default "router";
+            description "host = the box joins groups itself (static joins); router = it snoops membership (IGMPv3 querier)";
+          }
+          list joins {
+            // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+            ordered-by user;
+            description "host-mode only; groups the interface joins with their included sources";
+            leaf group {
+              type string {
+                pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+              }
+              mandatory true;
+              description "IPv4 multicast group in 224.0.0.0/4 (not the 224.0.0.0/24 link-local range)";
+            }
+            leaf-list sources {
+              type string {
+                pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+              }
+              description "source addresses to include; VPP 26.06 supports INCLUDE only, so at least one is required";
+            }
+          }
+        }
+        leaf-list ssmRanges {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+          }
+          description "source-specific multicast ranges; a join to a group here must name its sources";
+        }
+        list proxies {
+          key "name";
+          leaf name {
+            type string;
+            description "The map key.";
+          }
+          description "keyed by VRF; forward membership from downstream interfaces to the upstream";
+          leaf upstream {
+            type string {
+              pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+              length "1..63";
+            }
+            mandatory true;
+          }
+          leaf-list downstream {
+            type string {
+              pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+              length "1..63";
+            }
+          }
+        }
+      }
+      list mroutes {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          default "default";
+          description "routing table this object belongs to; `default` is table 0";
+        }
+        leaf group {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+          description "IPv4 multicast group in 224.0.0.0/4 (not the 224.0.0.0/24 link-local range)";
+        }
+        leaf source {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          description "a specific source for an (S,G) route; omit for a (*,G) route";
+        }
+        list paths {
+          // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+          ordered-by user;
+          leaf interface {
+            type string {
+              pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+              length "1..63";
+            }
+            mandatory true;
+          }
+          leaf flags {
+            type enumeration {
+              enum "accept";
+              enum "forward";
+            }
+            default "forward";
+            description "accept = the incoming (RPF) interface; forward = an outgoing interface";
+          }
+        }
+      }
+      container pim {
+        leaf-list interfaces {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          description "interfaces running PIM-SM (via FRR pimd over the linux-cp pairs)";
+        }
+        list rp {
+          // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+          ordered-by user;
+          description "static RP configuration (bootstrap-router RPs are out of scope)";
+          leaf address {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+            mandatory true;
+          }
+          leaf-list groups {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+            }
+            description "multicast group ranges this RP serves";
+          }
+        }
+      }
+    }
     container l2 {
       description "Bridge domains, L2/L3 cross-connects and the time-range MAC filter.";
       list bridgeDomains {

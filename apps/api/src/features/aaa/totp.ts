@@ -46,22 +46,39 @@ export function totpCode(secret: string, atMs: number = Date.now(), stepMs = 30_
   return (bin % 1_000_000).toString().padStart(6, '0');
 }
 
-/** Verify `code` against `secret`, accepting the current step and one step either side (clock skew). */
+/**
+ * Verify `code` against `secret` and return the TIME STEP it matched, or null.
+ *
+ * The step is what makes a code single-use: the caller records the highest step it has accepted for that user and
+ * refuses anything at or below it, so a code observed inside the skew window cannot be replayed (F-aaa-login).
+ * The current step and one either side are accepted, for clock skew.
+ */
+export function verifyTotpCounter(
+  secret: string,
+  code: string,
+  atMs: number = Date.now(),
+  stepMs = 30_000,
+): number | null {
+  const trimmed = code.trim();
+  if (!/^[0-9]{6}$/.test(trimmed)) return null;
+  for (const d of [-1, 0, 1]) {
+    const at = atMs + d * stepMs;
+    const expected = totpCode(secret, at, stepMs);
+    const a = Buffer.from(expected);
+    const b = Buffer.from(trimmed);
+    if (a.length === b.length && timingSafeEqual(a, b)) return Math.floor(at / stepMs);
+  }
+  return null;
+}
+
+/** Whether `code` is currently valid for `secret`. Prefer `verifyTotpCounter` where replay has to be prevented. */
 export function verifyTotp(
   secret: string,
   code: string,
   atMs: number = Date.now(),
   stepMs = 30_000,
 ): boolean {
-  const trimmed = code.trim();
-  if (!/^[0-9]{6}$/.test(trimmed)) return false;
-  for (const d of [-1, 0, 1]) {
-    const expected = totpCode(secret, atMs + d * stepMs, stepMs);
-    const a = Buffer.from(expected);
-    const b = Buffer.from(trimmed);
-    if (a.length === b.length && timingSafeEqual(a, b)) return true;
-  }
-  return false;
+  return verifyTotpCounter(secret, code, atMs, stepMs) !== null;
 }
 
 /** The otpauth:// URI an authenticator app scans. */

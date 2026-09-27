@@ -3972,8 +3972,7 @@ tasks:
   prompt: ''
   wbs: []
   scope: 'LDAP backend (ldapts bind+search, groupAttr -> roleMap) behind the aaa.ldap contract that already exists; then OIDC, TACACS+, SAML (these need the reserved proto fields 5/6 -> a contract(proto)
-    change, so they need a host/CI with buf); web: login MFA prompt + enrolment screen + AAA test panel on the Management AAA screen, en + fa; MFA hardening: per-user TOTP last-used counter + compare-and-set
-    so a code cannot verify twice inside its 90 s skew window (docs/status/tasks/F-aaa-login.md, Known and accepted); D-102 finish (drop the old Users password route)'
+    change, so they need a host/CI with buf); web: login MFA prompt + enrolment screen + AAA test panel on the Management AAA screen, en + fa; D-102 finish (drop the old Users password route)'
   files_owned: apps/api/src/features/aaa/**, apps/web/src/domains/system/aaa/**, apps/web/src/locales/{en,fa}/aaa.json
   notes: 'follow-up to F-aaa-login (PR 51): the order walk, shadow accounts and MFA shipped; AaaService.authenticate() answers unsupported for ldap/tacacs and the walk treats that as a method that did not
     answer, so adding the backend is a drop-in. The API surface the web needs is complete and in the generated client.'

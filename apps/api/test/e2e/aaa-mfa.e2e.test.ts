@@ -40,14 +40,13 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
     h.call(undefined, 'POST', '/api/v1/auth/login/mfa', { ticket, code });
   const row = async (username: string) =>
     (await h.db.select().from(appUser).where(eq(appUser.username, username)))[0];
-  /** Log in an account that owes a code, using its TOTP secret. */
-  const loginWithCode = async (username: string, password: string, secret: string) => {
-    const first = await login(username, password);
-    expect(first.body.mfa, first.raw).toBe('code');
-    const done = await second(first.body.ticket as string, totpCode(secret));
-    expect(done.status, done.raw).toBe(200);
-    return done.body.accessToken as string;
-  };
+  /**
+   * A code for the NEXT time step. The server accepts the current step and one either side, and refuses any step at
+   * or below the one it already spent for that user (single-use, RFC 6238 §5.2) — so a real user waits for a new code,
+   * and a test that needs a second TOTP use inside the same 30 s window asks for the next step instead. One of these
+   * per user per window: two would collide on the same step.
+   */
+  const codeAfter = (secret: string) => totpCode(secret, Date.now() + 30_000);
 
   beforeAll(async () => {
     // this file logs in many times over (each step of the two-step flow), so the per-client login budget is raised
@@ -64,6 +63,7 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
     const put = await h.call(admin, 'PUT', '/api/v1/config/management/users', [
       { username: 'admin', role: 'admin' },
       { username: 'ana', role: 'admin', passwordHash: await hashPassword(ANA_PW) },
+      { username: 'ana2', role: 'admin', passwordHash: await hashPassword(ANA_PW) },
       { username: 'op1', role: 'operator', passwordHash: await hashPassword(OP_PW) },
     ]);
     expect(put.status, put.raw).toBe(200);
@@ -148,7 +148,7 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
       expect(first.body).toMatchObject({ mfa: 'code', expiresIn: 180, attemptsLeft: 3 });
       expect(first.body.accessToken).toBeUndefined();
       expect(first.headers['set-cookie']).toBeUndefined();
-      const done = await second(first.body.ticket as string, totpCode(anaSecret));
+      const done = await second(first.body.ticket as string, codeAfter(anaSecret));
       expect(done.status, done.raw).toBe(200);
       expect(done.body.user).toMatchObject({ username: 'ana', role: 'admin' });
       expect(done.body.accessToken).toBeTypeOf('string');
@@ -171,6 +171,35 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
       expect(r3.status, r3.raw).toBe(401);
     });
 
+    it('a TOTP code cannot be replayed inside its own validity window', async () => {
+      // Its own account: the spent-step counter is per user, and every other test here has already spent this one.
+      // ana2 is an unenrolled admin while `admins` is in force, so it enrols the only way it can — through the
+      // enrol ticket, which also confirms that path leaves a usable factor behind.
+      const challenge = await login('ana2', ANA_PW);
+      expect(challenge.body.mfa, challenge.raw).toBe('enrol');
+      const start = await h.call(undefined, 'POST', '/api/v1/auth/login/mfa/enroll', {
+        ticket: challenge.body.ticket,
+      });
+      expect(start.status, start.raw).toBe(200);
+      const secret = start.body.secret as string;
+      const enrolled = await h.call(undefined, 'POST', '/api/v1/auth/login/mfa/verify', {
+        ticket: start.body.ticket,
+        code: totpCode(secret),
+      });
+      expect(enrolled.status, enrolled.raw).toBe(200);
+      const code = codeAfter(secret);
+      const first = await login('ana2', ANA_PW);
+      const ok = await second(first.body.ticket as string, code);
+      expect(ok.status, ok.raw).toBe(200);
+      expect(ok.body.accessToken).toBeTypeOf('string');
+      // the very same code, still inside its +/-1-step window, must not verify a second time
+      const again = await login('ana2', ANA_PW);
+      const replay = await second(again.body.ticket as string, code);
+      expect(replay.status, replay.raw).toBe(200);
+      expect(replay.body).toMatchObject({ mfa: 'code', attemptsLeft: 2 });
+      expect(replay.body.accessToken).toBeUndefined();
+    });
+
     it('a recovery code logs in once and is then spent', async () => {
       const code = anaRecovery[0] as string;
       const first = await login('ana', ANA_PW);
@@ -182,8 +211,12 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
       const reuse = await second(again.body.ticket as string, code);
       expect(reuse.status, reuse.raw).toBe(200);
       expect(reuse.body).toMatchObject({ mfa: 'code', attemptsLeft: 2 });
-      const token = await loginWithCode('ana', ANA_PW, anaSecret);
-      expect((await h.call(token, 'GET', '/api/v1/auth/mfa')).body.recoveryCodesLeft).toBe(9);
+      // read the status through a second recovery code, so this test spends no TOTP step of its own
+      const third = await login('ana', ANA_PW);
+      const byRecovery = await second(third.body.ticket as string, anaRecovery[1] as string);
+      expect(byRecovery.status, byRecovery.raw).toBe(200);
+      const token = byRecovery.body.accessToken as string;
+      expect((await h.call(token, 'GET', '/api/v1/auth/mfa')).body.recoveryCodesLeft).toBe(8);
     });
   });
 
@@ -280,7 +313,7 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
       const token = f.body.accessToken as string;
       const bad = await h.call(token, 'DELETE', '/api/v1/auth/mfa', { code: '000000' });
       expect(bad.status, bad.raw).toBe(403);
-      const ok = await h.call(token, 'DELETE', '/api/v1/auth/mfa', { code: totpCode(op1Secret) });
+      const ok = await h.call(token, 'DELETE', '/api/v1/auth/mfa', { code: codeAfter(op1Secret) });
       expect(ok.status, ok.raw).toBe(204);
       expect((await h.call(token, 'GET', '/api/v1/auth/mfa')).body.enrolled).toBe(false);
     });

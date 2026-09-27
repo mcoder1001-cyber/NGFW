@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, lt, or } from 'drizzle-orm';
 import { problems } from '../../common/problem.js';
 import { DB, type Db } from '../../db/db.js';
 import { appUser, userMfaRecovery, type Role } from '../../db/schema.js';
 import { SecretsService } from '../../secrets/secrets.service.js';
-import { generateSecret, otpauthUri, recoveryCodes, verifyTotp } from './totp.js';
+import { generateSecret, otpauthUri, recoveryCodes, verifyTotpCounter } from './totp.js';
 
 /** How many recovery codes an enrolment gets. */
 const RECOVERY_CODES = 10;
@@ -116,7 +116,8 @@ export class MfaService {
     if (u?.pending == null) {
       throw problems.badRequest('no enrolment is in progress for this account; start one first');
     }
-    if (!verifyTotp(this.secrets.decrypt(u.pending, seedRef(userId)), code)) {
+    const step = verifyTotpCounter(this.secrets.decrypt(u.pending, seedRef(userId)), code);
+    if (step === null) {
       throw problems.forbidden(
         'that code does not match the enrolment; check the authenticator clock',
       );
@@ -126,7 +127,13 @@ export class MfaService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(appUser)
-        .set({ mfaSecret: pending, mfaPendingSecret: null, mfaEnrolledAt: new Date() })
+        .set({
+          mfaSecret: pending,
+          mfaPendingSecret: null,
+          mfaEnrolledAt: new Date(),
+          // the code that proved the enrolment is spent by it, so it cannot double as the first login's factor
+          mfaLastCounter: step,
+        })
         .where(eq(appUser.id, userId));
       await tx.delete(userMfaRecovery).where(eq(userMfaRecovery.userId, userId));
       await tx
@@ -137,8 +144,11 @@ export class MfaService {
   }
 
   /**
-   * Verify a second factor: the current TOTP code, or one unused recovery code — which is spent in the same statement
-   * that finds it, so two parallel logins cannot both redeem it.
+   * Verify a second factor: the current TOTP code, or one unused recovery code.
+   *
+   * Both are single-use, and in both cases the spending is the same statement that finds it, so two parallel logins
+   * cannot both redeem one. For TOTP that means claiming the matched time step: the `UPDATE` only succeeds while
+   * `mfa_last_counter` is below it, so a code captured inside the +/-1-step skew window is refused the second time.
    */
   async verify(userId: number, code: string): Promise<boolean> {
     const [u] = await this.db
@@ -146,7 +156,20 @@ export class MfaService {
       .from(appUser)
       .where(eq(appUser.id, userId));
     if (u?.secret == null) return false;
-    if (verifyTotp(this.secrets.decrypt(u.secret, seedRef(userId)), code)) return true;
+    const step = verifyTotpCounter(this.secrets.decrypt(u.secret, seedRef(userId)), code);
+    if (step !== null) {
+      const claimed = await this.db
+        .update(appUser)
+        .set({ mfaLastCounter: step })
+        .where(
+          and(
+            eq(appUser.id, userId),
+            or(isNull(appUser.mfaLastCounter), lt(appUser.mfaLastCounter, step)),
+          ),
+        )
+        .returning({ id: appUser.id });
+      return claimed.length > 0;
+    }
     const spent = await this.db
       .update(userMfaRecovery)
       .set({ usedAt: new Date() })
@@ -180,7 +203,12 @@ export class MfaService {
     await this.db.transaction(async (tx) => {
       await tx
         .update(appUser)
-        .set({ mfaSecret: null, mfaPendingSecret: null, mfaEnrolledAt: null })
+        .set({
+          mfaSecret: null,
+          mfaPendingSecret: null,
+          mfaEnrolledAt: null,
+          mfaLastCounter: null,
+        })
         .where(eq(appUser.id, userId));
       await tx.delete(userMfaRecovery).where(eq(userMfaRecovery.userId, userId));
     });

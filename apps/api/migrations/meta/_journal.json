@@ -57,6 +57,13 @@
       "when": 1790528475006,
       "tag": "0007_f_aaa_mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790535829761,
+      "tag": "0008_f_aaa_mfa_replay",
+      "breakpoints": true
     }
   ]
 }

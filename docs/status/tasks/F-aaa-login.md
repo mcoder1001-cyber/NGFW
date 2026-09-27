@@ -44,6 +44,12 @@ config user sync does (TD-10b). An existing **local** account of the same name i
 - **Forced enrolment**: when the policy requires MFA and the account has no factor, the challenge is
   `mfa: 'enrol'` and that ticket buys enrolment and nothing else. So `mfa.required` can be switched on without locking
   anyone out, and is not merely advisory — there is no session until a factor exists and has been proved.
+- **A code is single-use** (migration `0008_f_aaa_mfa_replay`, RFC 6238 §5.2). `verifyTotpCounter` returns the time
+  step a code matched, and `verify()` claims it with `UPDATE ... WHERE mfa_last_counter IS NULL OR < step`: the same
+  statement that finds the code spends it, so a code captured inside the ±1-step (90 s) skew window is refused the
+  second time, and two parallel logins cannot both redeem one. Confirming an enrolment spends its own step too, so
+  the code that proved the factor cannot double as the first login's. The counter is cleared on (re-)enrolment and on
+  reset. `verifyTotp` stays as a boolean wrapper (increment 1's tests use it).
 - **Routes**: `POST auth/login/mfa`, `POST auth/login/mfa/{enroll,verify}` (public: the ticket is the credential),
   `GET auth/mfa`, `POST auth/mfa/{enroll,verify}`, `DELETE auth/mfa` (self, readonly may — own credentials, like the
   password change; a current code is required to turn MFA off, so a stolen session cannot strip a factor it cannot
@@ -92,13 +98,17 @@ New suites inside those totals:
 `tsc -p tsconfig.json` and `eslint src test` clean. `route-guard.test.ts` (P06 acceptance: no route without a guard)
 passes with the three new public ticket routes and the admin reset added to its reviewed tables.
 
-Two e2e assertions worth naming, because they are the security claims rather than the happy path:
+Three e2e assertions worth naming, because they are the security claims rather than the happy path:
 - *"a local user is decided locally — the directory is never consulted"*: the fake RADIUS server records every
   username it is asked about, and the test asserts it saw **none** after a correct *and* an incorrect local password.
   The account is also configured on the RADIUS side with a different password, so a fall-through would have let it in
   with the wrong role.
 - *"a wrong code costs one of three tries, and a ticket is single-use"*: the spent ticket is replayed with a **good**
   code and must still be refused.
+- *"a TOTP code cannot be replayed inside its own validity window"*: the same code, still inside its ±1-step window,
+  must not verify twice. Adding this guard made four existing tests fail, which was the guard working — they had been
+  reusing one code across several logins inside one 30 s window. They now either take their own account or ask for the
+  next step (`codeAfter`), which is what a real user does by waiting for a new code.
 
 ## Decisions taken here (FAST MODE: decide and log)
 1. **The first method that answers wins** (`reject` stops the walk). The alternative — try every method until one
@@ -120,11 +130,6 @@ Two e2e assertions worth naming, because they are the security claims rather tha
 - A wrong MFA code is audited as `auth.mfa`, not `auth.login`, so it does not feed the auto-block detector
   (F-bruteforce-block counts `auth.login` failures). Deliberate: a user reaching for their phone is not a brute-force
   attempt, and code guessing is already bounded at 3 per ticket plus the rate-limited, lockout-counted password path.
-- **A TOTP code can be reused inside its own validity window.** `verifyTotp` accepts the current step and one either
-  side (90 s, increment 1's engine, for clock skew), and no last-used counter is kept, so a code observed and replayed
-  within that window would verify again — but only together with the account's password, on a fresh ticket. Closing it
-  needs a per-user last-used-counter column and a compare-and-set on it; worth doing when the web client lands
-  (noted on `F-aaa-login-2`), not worth a schema change here for a window that already requires the first factor.
 
 ## Not done here → follow-up row `F-aaa-login-2` (increment 3)
 - **LDAP** (`ldapts` bind + search, group → role). The contract landed in increment 1; the backend answers
@@ -133,8 +138,6 @@ Two e2e assertions worth naming, because they are the security claims rather tha
   container has no `buf`/`protoc`, so proto cannot be regenerated here (see below).
 - **Web**: the login MFA prompt, the enrolment screen and the AAA test panel. The API surface they need is complete
   and in the generated client.
-- **TOTP replay window**: a per-user last-used-counter column + compare-and-set, so a code cannot verify twice inside
-  its 90 s window (see "Known and accepted").
 - **D-102**: moving the Users password change to `POST /users/{name}/password` (that route already exists;
   the move is removing the old one, which is `apps/api/src/users/**` — not this row's files).
 

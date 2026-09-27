@@ -104,6 +104,10 @@ ticket with `attemptsLeft` one lower; after three wrong codes the login is over 
 again (and that path is rate-limited and counts toward the lockout). A recovery code may be used in place of the
 TOTP code; it is spent in the process.
 
+**A code is single-use.** Once a TOTP code has been accepted it will not be accepted again, even though it is still
+inside the 90-second window the clock-skew tolerance allows (RFC 6238 §5.2). Logging in twice in quick succession
+therefore means waiting for the authenticator to show the next code.
+
 ### When MFA is required but not yet enrolled
 
 The login answers `{ "mfa": "enrol", … }`. That ticket buys **enrolment and nothing else**:

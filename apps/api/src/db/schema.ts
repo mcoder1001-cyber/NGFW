@@ -46,6 +46,11 @@ export const appUser = pgTable(
     mfaSecret: text('mfa_secret'),
     mfaPendingSecret: text('mfa_pending_secret'),
     mfaEnrolledAt: ts('mfa_enrolled_at'),
+    /**
+     * Highest TOTP time step already accepted for this user. A code is refused at or below it, so a code seen
+     * inside the +/-1-step skew window cannot be replayed. Cleared when the factor is (re-)enrolled or reset.
+     */
+    mfaLastCounter: integer('mfa_last_counter'),
     disabled: boolean('disabled').notNull().default(false),
     lastLogin: ts('last_login'),
     failedLogins: integer('failed_logins').notNull().default(0),

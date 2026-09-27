@@ -18,6 +18,7 @@ import { startHarness, type Harness } from '../support/harness.js';
 const MP = { 'content-type': 'application/merge-patch+json' };
 const RSECRET = 'VRX_TEST_PSK_FAAA_RADIUS';
 const LSECRET = 'VRX_TEST_PSK_FAAA_LDAP';
+const SEC_PW = 'W1sec-long-password-9';
 
 function decodePw(enc: Buffer, secret: string, auth: Buffer): string {
   const out = Buffer.alloc(enc.length);
@@ -265,7 +266,47 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
     const tok = await h.call(admin, 'POST', '/api/v1/auth/mfa/users/admin/enrolment-token');
     expect(tok.status, tok.raw).toBe(200);
     const token = tok.body.token as string;
-    await setAaa({ mfa: { required: 'admins' } });
+    // F-aaa-mfa-lockout: the raise needs an enrolled admin and an MFA-verified committer session — a second admin
+    // (w1sec) enrols voluntarily and commits it; `admin` itself stays unenrolled (stale session, login-time enrolment)
+    const refused = await h.call(
+      admin,
+      'PATCH',
+      '/api/v1/config/management',
+      {
+        aaa: { mfa: { required: 'admins' } },
+      },
+      MP,
+    );
+    expect(refused.status, refused.raw).toBe(200);
+    const rc0 = await h.call(admin, 'POST', '/api/v1/config/commit');
+    expect(rc0.status, rc0.raw).toBe(400);
+    expect(rc0.body.errors[0].pointer).toBe('/management/aaa/mfa/required');
+    expect((await h.call(admin, 'POST', '/api/v1/config/discard')).status).toBe(200);
+    await h.createUsers(admin, [{ username: 'w1sec', role: 'admin', password: SEC_PW }]);
+    const sec = await h.login('w1sec', SEC_PW);
+    const secTok = await h.call(admin, 'POST', '/api/v1/auth/mfa/users/w1sec/enrolment-token');
+    expect(secTok.status, secTok.raw).toBe(200);
+    const su = await h.call(sec, 'POST', '/api/v1/auth/mfa/setup', {
+      current: SEC_PW,
+      token: secTok.body.token,
+    });
+    expect(su.status, su.raw).toBe(200);
+    const act = await h.call(sec, 'POST', '/api/v1/auth/mfa/activate', {
+      code: totpCode(su.body.secret as string),
+    });
+    expect(act.status, act.raw).toBe(200);
+    const p = await h.call(
+      sec,
+      'PATCH',
+      '/api/v1/config/management',
+      {
+        aaa: { mfa: { required: 'admins' } },
+      },
+      MP,
+    );
+    expect(p.status, p.raw).toBe(200);
+    const c = await h.call(sec, 'POST', '/api/v1/config/commit?comment=aaa');
+    expect(c.status, c.raw).toBe(200);
     // the policy cache is refreshed by the next login; the old session (no second factor) stops working
     const first = await login('admin', h.adminPassword);
     expect(first.status, first.raw).toBe(200);

@@ -86,7 +86,8 @@
     "output": "ACLهای خروجی",
     "macip": "MACIP",
     "expected": "پیکربندی‌شده",
-    "inSync": "وضعیت"
+    "inSync": "وضعیت",
+    "expiresAt": "انقضا"
   },
   "target": {
     "zone": "ناحیهٔ {{zone}}"
@@ -186,7 +187,8 @@
     "empty": "با چیزی تطبیق ندارد",
     "unknown": "نامعلوم",
     "notCommitted": "اعمال نشده",
-    "notApplied": "در موتور نیست"
+    "notApplied": "در موتور نیست",
+    "expired": "منقضی شده"
   },
   "bulk": {
     "label": "عملیات گروهی",
@@ -424,5 +426,12 @@
       "title": "پیشوند مبدأ",
       "help": "خالی = هر نشانی"
     }
+  },
+  "expiry": {
+    "expired": "منقضی شده",
+    "soon": "به‌زودی منقضی می‌شود",
+    "extend": "تمدید ۷ روزه",
+    "extended": "قانون {{sequence}} اکنون در {{at}} منقضی می‌شود.",
+    "by": "مالک: {{owner}} · تیکت: {{ticket}}"
   }
 }

@@ -35,6 +35,7 @@ import (
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems/ruleexpiry"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -338,6 +339,20 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 			x.s.Errorf(rp+"/action", "acl.rule-action", "unknown action %q", r.GetAction())
 			failed = true
 			continue
+		}
+		// F-rule-expiry: an expired rule is not rendered (the configuration keeps it); a later expiry is noted so
+		// the rule is removed at that instant by a re-projection, without a commit
+		if expired, at, err := ruleexpiry.Expired(r.GetExpiresAt(), x.env.Now()); err != nil {
+			x.s.Errorf(rp+"/expiresAt", "rule.expires-at", "%v", err)
+			failed = true
+			continue
+		} else if expired {
+			x.s.Warnf(rp, RuleExpired, "rule %d expired at %s: not rendered (extend or delete it)", r.GetSequence(), r.GetExpiresAt())
+			info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED
+			exp.Rules = append(exp.Rules, info)
+			continue
+		} else if !at.IsZero() {
+			ruleexpiry.Note(at)
 		}
 		if sname := r.GetSchedule(); sname != "" {
 			if !x.needObjects(rp+"/schedule", fmt.Sprintf("schedule %q", sname)) {

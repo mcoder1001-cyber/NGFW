@@ -48,7 +48,7 @@ export interface LiveList {
 }
 
 export interface LiveRule {
-  status: 'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'unknown';
+  status: 'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'expired' | 'unknown'; // expired: F-rule-expiry
   vppRules: number;
   packets: number;
   bytes: number;
@@ -59,6 +59,7 @@ const STATUS: Record<number, LiveRule['status']> = {
   [AclRuleStatus.ACL_RULE_STATUS_DISABLED]: 'disabled',
   [AclRuleStatus.ACL_RULE_STATUS_SCHEDULE_INACTIVE]: 'schedule-inactive',
   [AclRuleStatus.ACL_RULE_STATUS_EMPTY]: 'empty',
+  [AclRuleStatus.ACL_RULE_STATUS_EXPIRED]: 'expired', // F-rule-expiry
 };
 
 export interface AgentView<T> {

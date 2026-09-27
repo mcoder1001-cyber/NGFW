@@ -343,6 +343,7 @@ const COVERAGE_RULES = new Set([
   'agent.unimplemented-domain',
   'agent.write-only-field', // D-147 (F-host-stack): applied, but VPP has no dump/getter
   'agent.write-only',
+  'rule.expired', // F-rule-expiry: kept in the configuration, removed from the data plane at its expiresAt
 ]);
 
 function isEmptyContainer(v: unknown): boolean {

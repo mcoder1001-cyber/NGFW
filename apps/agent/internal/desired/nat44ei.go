@@ -71,6 +71,9 @@ func nat44EI(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	}
 	pools := nat44EIPools(s, nat.GetPools(), vrfID)
 	for i, m := range nat.GetStaticMappings() {
+		if natMappingExpired(s, m, i) {
+			continue
+		}
 		nat44EIStatic(s, m, i, pools, nat.GetStaticMappingOnly(), vrfID)
 	}
 	for i, m := range nat.GetIdentityMappings() {

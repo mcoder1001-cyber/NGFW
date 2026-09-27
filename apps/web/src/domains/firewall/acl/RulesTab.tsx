@@ -4,6 +4,7 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import EditIcon from '@mui/icons-material/Edit';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import MoreTimeIcon from '@mui/icons-material/MoreTime';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -27,6 +28,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useFormatters } from '@ngfw/ui-kit';
+import { ExpiryChip } from '../ExpiryChip';
 import {
   ServerDataGrid,
   type GridColDef,
@@ -46,6 +48,8 @@ import {
   emptySelection,
   MAX_SEQUENCE,
   nextSequence,
+  extendedExpiry,
+  expiryState,
   planDrop,
   ruleCounters,
   RULE_PAGE_SIZES,
@@ -344,6 +348,31 @@ function RuleEditor({ list }: { list: string }) {
     }
   };
 
+  // F-rule-expiry: extend a rule's expiry by 7 days from the later of now and its current expiry (a candidate edit)
+  const extend = useCallback(
+    async (row: RuleRow) => {
+      setError(null);
+      setNotice(null);
+      const at = extendedExpiry(row.rule.expiresAt, Date.now(), 7);
+      try {
+        await edit.mutateAsync({
+          method: 'PATCH',
+          path: ['acl', 'lists', list, 'rules', row.index],
+          body: { expiresAt: at },
+        });
+        setNotice(
+          t('expiry.extended', {
+            sequence: fmt.number(row.sequence, { useGrouping: false }),
+            at: fmt.dateTime(at),
+          }),
+        );
+      } catch (err) {
+        setError(err);
+      }
+    },
+    [edit, list, fmt, t],
+  );
+
   const columns = useMemo<GridColDef<RuleRow>[]>(() => {
     const seq = (v: number) => fmt.number(v, { useGrouping: false });
     const any = (
@@ -463,6 +492,34 @@ function RuleEditor({ list }: { list: string }) {
           ),
       },
       {
+        // F-rule-expiry: the expiry with its state (expired / expires soon), owner and ticket, and "extend by 7 days"
+        field: 'expiresAt',
+        headerName: t('col.expiresAt'),
+        width: 230,
+        sortable: false,
+        renderCell: (p) => {
+          const r = p.row.rule;
+          const state = expiryState(r.expiresAt, Date.now());
+          if (state === null) return '—';
+          return (
+            <Stack direction="row" gap={0.5} alignItems="center">
+              <ExpiryChip expiresAt={r.expiresAt} owner={r.owner} ticket={r.ticket} />
+              {state !== 'later' && !readOnly ? (
+                <Tooltip title={t('expiry.extend')}>
+                  <IconButton
+                    size="small"
+                    aria-label={`${t('expiry.extend')} ${p.row.sequence}`}
+                    onClick={() => void extend(p.row)}
+                  >
+                    <MoreTimeIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
+            </Stack>
+          );
+        },
+      },
+      {
         field: 'description',
         headerName: t('col.description'),
         minWidth: 140,
@@ -571,7 +628,7 @@ function RuleEditor({ list }: { list: string }) {
       },
     ];
     return cols.map((c) => ({ ...c, sortable: false, filterable: false }));
-  }, [t, fmt, readOnly, source, applied, countersAvailable, countersReason]);
+  }, [t, fmt, readOnly, source, applied, countersAvailable, countersReason, extend]);
 
   const n = (v: number) => fmt.integer(v);
   return (

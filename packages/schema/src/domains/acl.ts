@@ -20,6 +20,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
 }
 import { ipPrefix, ServiceSpecSchema } from './objects.js';
 import { HostAclSettingsSchema } from './ext/host-acl-nftables.js'; // F-host-acl-nftables (C1)
+import { ruleExpiryFields } from './ext/rule-expiry.js'; // F-rule-expiry
 
 /**
  * `acl` — access control (WBS D5.2, D5.3; TNSR "ACL", "MACIP ACL" and "host ACL" are the reference).
@@ -128,6 +129,7 @@ export const AclRuleSchema = withUi(
       help: 'objects.schedules; omit = always',
     }).optional(),
     log: withUi(z.boolean().default(false), { title: 'Log' }),
+    ...ruleExpiryFields, // F-rule-expiry: expiresAt, owner, ticket
   }),
   { title: 'ACL rule' },
 );
@@ -190,6 +192,7 @@ export const HostRuleSchema = withUi(
     service: ServiceMatchSchema.default(anyService),
     interface: linuxInterfaceName.optional(),
     log: withUi(z.boolean().default(false), { title: 'Log' }),
+    ...ruleExpiryFields, // F-rule-expiry: expiresAt, owner, ticket
   }),
   { title: 'Host ACL rule' },
 );

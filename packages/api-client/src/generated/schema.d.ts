@@ -3531,6 +3531,15 @@ export interface components {
          * @default false
          */
         out2inOnly: boolean;
+        /**
+         * Expires at
+         * Format: date-time
+         */
+        expiresAt?: string;
+        /** Owner */
+        owner?: string;
+        /** Ticket */
+        ticket?: string;
       }[];
       /**
        * Identity mappings
@@ -4676,6 +4685,15 @@ export interface components {
              * @default false
              */
             log: boolean;
+            /**
+             * Expires at
+             * Format: date-time
+             */
+            expiresAt?: string;
+            /** Owner */
+            owner?: string;
+            /** Ticket */
+            ticket?: string;
           }[];
         };
       };
@@ -4900,6 +4918,15 @@ export interface components {
              * @default false
              */
             log: boolean;
+            /**
+             * Expires at
+             * Format: date-time
+             */
+            expiresAt?: string;
+            /** Owner */
+            owner?: string;
+            /** Ticket */
+            ticket?: string;
           }[];
         };
       };
@@ -13339,7 +13366,8 @@ export interface operations {
               pending: ('added' | 'changed') | null;
               live: {
                 /** @enum {string} */
-                status: 'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'unknown';
+                status:
+                  'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'expired' | 'unknown';
                 vppRules: number;
                 packets: number;
                 bytes: number;

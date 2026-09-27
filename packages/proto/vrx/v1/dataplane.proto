@@ -2793,6 +2793,12 @@ message NatStaticMapping {
   optional bool self_twice_nat = 8;
   // Out-to-in only.
   optional bool out2in_only = 9;
+  // F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+  optional string expires_at = 10;
+  // F-rule-expiry: who asked for the rule (metadata only).
+  optional string owner = 11;
+  // F-rule-expiry: change/ticket reference (metadata only).
+  optional string ticket = 12;
 }
 
 // NatIdentityMapping mirrors one entry of `nat.identityMappings`.
@@ -3383,6 +3389,12 @@ message AclRule {
   optional string schedule = 9;
   // Log matches.
   optional bool log = 10;
+  // F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+  optional string expires_at = 11;
+  // F-rule-expiry: who asked for the rule (metadata only).
+  optional string owner = 12;
+  // F-rule-expiry: change/ticket reference (metadata only).
+  optional string ticket = 13;
 }
 
 // AclList mirrors `acl.lists.<name>`.
@@ -3443,6 +3455,12 @@ message HostRule {
   optional string interface = 9;
   // Log matches.
   optional bool log = 10;
+  // F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+  optional string expires_at = 11;
+  // F-rule-expiry: who asked for the rule (metadata only).
+  optional string owner = 12;
+  // F-rule-expiry: change/ticket reference (metadata only).
+  optional string ticket = 13;
 }
 
 // HostList mirrors `acl.host.<name>`.
@@ -4697,6 +4715,8 @@ enum AclRuleStatus {
   ACL_RULE_STATUS_SCHEDULE_INACTIVE = 3;
   // Expanded to nothing (e.g. an FQDN object without addresses, or no common address family).
   ACL_RULE_STATUS_EMPTY = 4;
+  // F-rule-expiry: its expiresAt has passed — not rendered; the configuration keeps it (extend or delete it).
+  ACL_RULE_STATUS_EXPIRED = 5;
 }
 
 // AclRuleState is the runtime state of one configuration rule.

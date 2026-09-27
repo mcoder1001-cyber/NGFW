@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,40 +10,38 @@ import { CERT_POINTER, KEY_POINTER, validateTlsMaterial } from './validator.js';
 
 function hasOpenssl(): boolean {
   try {
-    execFileSync('openssl', ['version'], { stdio: 'ignore' });
+    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
     return true;
   } catch {
     return false;
   }
 }
 
+const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+
 /** Fresh EC P-256 certificates generated per run (no key material is committed to the repository). */
 function makePair(dir: string, name: string, cn: string) {
   const key = join(dir, `${name}.key`);
   const crt = join(dir, `${name}.crt`);
-  execFileSync(
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-newkey',
-      'ec',
-      '-pkeyopt',
-      'ec_paramgen_curve:P-256',
-      '-nodes',
-      '-keyout',
-      key,
-      '-out',
-      crt,
-      '-days',
-      '30',
-      '-subj',
-      `/CN=${cn}`,
-      '-addext',
-      `subjectAltName=DNS:${cn},IP:192.0.2.1`,
-    ],
-    { stdio: 'ignore' },
-  );
+  openssl([
+    'req',
+    '-x509',
+    '-newkey',
+    'ec',
+    '-pkeyopt',
+    'ec_paramgen_curve:P-256',
+    '-nodes',
+    '-keyout',
+    key,
+    '-out',
+    crt,
+    '-days',
+    '30',
+    '-subj',
+    `/CN=${cn}`,
+    '-addext',
+    `subjectAltName=DNS:${cn},IP:192.0.2.1`,
+  ]);
   return { cert: readFileSync(crt, 'utf8'), key: readFileSync(key, 'utf8') };
 }
 

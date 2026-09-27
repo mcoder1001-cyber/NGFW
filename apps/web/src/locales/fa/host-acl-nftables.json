@@ -65,7 +65,8 @@
     "actions": "کنش‌ها",
     "list": "فهرست",
     "chain": "قلاب",
-    "priority": "اولویت"
+    "priority": "اولویت",
+    "expiresAt": "انقضا"
   },
   "action": {
     "accept": "پذیرش",

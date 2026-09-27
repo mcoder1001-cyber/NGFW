@@ -481,6 +481,8 @@ const (
 	AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE AclRuleStatus = 3
 	// Expanded to nothing (e.g. an FQDN object without addresses, or no common address family).
 	AclRuleStatus_ACL_RULE_STATUS_EMPTY AclRuleStatus = 4
+	// F-rule-expiry: its expiresAt has passed — not rendered; the configuration keeps it (extend or delete it).
+	AclRuleStatus_ACL_RULE_STATUS_EXPIRED AclRuleStatus = 5
 )
 
 // Enum value maps for AclRuleStatus.
@@ -491,6 +493,7 @@ var (
 		2: "ACL_RULE_STATUS_DISABLED",
 		3: "ACL_RULE_STATUS_SCHEDULE_INACTIVE",
 		4: "ACL_RULE_STATUS_EMPTY",
+		5: "ACL_RULE_STATUS_EXPIRED",
 	}
 	AclRuleStatus_value = map[string]int32{
 		"ACL_RULE_STATUS_UNSPECIFIED":       0,
@@ -498,6 +501,7 @@ var (
 		"ACL_RULE_STATUS_DISABLED":          2,
 		"ACL_RULE_STATUS_SCHEDULE_INACTIVE": 3,
 		"ACL_RULE_STATUS_EMPTY":             4,
+		"ACL_RULE_STATUS_EXPIRED":           5,
 	}
 )
 
@@ -10938,7 +10942,13 @@ type NatStaticMapping struct {
 	// Twice-NAT only when the source is the external address.
 	SelfTwiceNat *bool `protobuf:"varint,8,opt,name=self_twice_nat,json=selfTwiceNat,proto3,oneof" json:"self_twice_nat,omitempty"`
 	// Out-to-in only.
-	Out2InOnly    *bool `protobuf:"varint,9,opt,name=out2in_only,json=out2inOnly,proto3,oneof" json:"out2in_only,omitempty"`
+	Out2InOnly *bool `protobuf:"varint,9,opt,name=out2in_only,json=out2inOnly,proto3,oneof" json:"out2in_only,omitempty"`
+	// F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+	ExpiresAt *string `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	// F-rule-expiry: who asked for the rule (metadata only).
+	Owner *string `protobuf:"bytes,11,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	// F-rule-expiry: change/ticket reference (metadata only).
+	Ticket        *string `protobuf:"bytes,12,opt,name=ticket,proto3,oneof" json:"ticket,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -11034,6 +11044,27 @@ func (x *NatStaticMapping) GetOut2InOnly() bool {
 		return *x.Out2InOnly
 	}
 	return false
+}
+
+func (x *NatStaticMapping) GetExpiresAt() string {
+	if x != nil && x.ExpiresAt != nil {
+		return *x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *NatStaticMapping) GetOwner() string {
+	if x != nil && x.Owner != nil {
+		return *x.Owner
+	}
+	return ""
+}
+
+func (x *NatStaticMapping) GetTicket() string {
+	if x != nil && x.Ticket != nil {
+		return *x.Ticket
+	}
+	return ""
 }
 
 // NatIdentityMapping mirrors one entry of `nat.identityMappings`.
@@ -13328,7 +13359,13 @@ type AclRule struct {
 	// Name from objects.schedules; unset = always.
 	Schedule *string `protobuf:"bytes,9,opt,name=schedule,proto3,oneof" json:"schedule,omitempty"`
 	// Log matches.
-	Log           *bool `protobuf:"varint,10,opt,name=log,proto3,oneof" json:"log,omitempty"`
+	Log *bool `protobuf:"varint,10,opt,name=log,proto3,oneof" json:"log,omitempty"`
+	// F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+	ExpiresAt *string `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	// F-rule-expiry: who asked for the rule (metadata only).
+	Owner *string `protobuf:"bytes,12,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	// F-rule-expiry: change/ticket reference (metadata only).
+	Ticket        *string `protobuf:"bytes,13,opt,name=ticket,proto3,oneof" json:"ticket,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -13431,6 +13468,27 @@ func (x *AclRule) GetLog() bool {
 		return *x.Log
 	}
 	return false
+}
+
+func (x *AclRule) GetExpiresAt() string {
+	if x != nil && x.ExpiresAt != nil {
+		return *x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *AclRule) GetOwner() string {
+	if x != nil && x.Owner != nil {
+		return *x.Owner
+	}
+	return ""
+}
+
+func (x *AclRule) GetTicket() string {
+	if x != nil && x.Ticket != nil {
+		return *x.Ticket
+	}
+	return ""
 }
 
 // AclList mirrors `acl.lists.<name>`.
@@ -13674,7 +13732,13 @@ type HostRule struct {
 	// Linux interface name (≤ 15 chars); unset = any.
 	Interface *string `protobuf:"bytes,9,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
 	// Log matches.
-	Log           *bool `protobuf:"varint,10,opt,name=log,proto3,oneof" json:"log,omitempty"`
+	Log *bool `protobuf:"varint,10,opt,name=log,proto3,oneof" json:"log,omitempty"`
+	// F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never.
+	ExpiresAt *string `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3,oneof" json:"expires_at,omitempty"`
+	// F-rule-expiry: who asked for the rule (metadata only).
+	Owner *string `protobuf:"bytes,12,opt,name=owner,proto3,oneof" json:"owner,omitempty"`
+	// F-rule-expiry: change/ticket reference (metadata only).
+	Ticket        *string `protobuf:"bytes,13,opt,name=ticket,proto3,oneof" json:"ticket,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -13777,6 +13841,27 @@ func (x *HostRule) GetLog() bool {
 		return *x.Log
 	}
 	return false
+}
+
+func (x *HostRule) GetExpiresAt() string {
+	if x != nil && x.ExpiresAt != nil {
+		return *x.ExpiresAt
+	}
+	return ""
+}
+
+func (x *HostRule) GetOwner() string {
+	if x != nil && x.Owner != nil {
+		return *x.Owner
+	}
+	return ""
+}
+
+func (x *HostRule) GetTicket() string {
+	if x != nil && x.Ticket != nil {
+		return *x.Ticket
+	}
+	return ""
 }
 
 // HostList mirrors `acl.host.<name>`.
@@ -37789,7 +37874,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\n" +
 	"_twice_natB\f\n" +
 	"\n" +
-	"_interface\"\xb6\x05\n" +
+	"_interface\"\xb6\x06\n" +
 	"\x10NatStaticMapping\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
@@ -37800,7 +37885,12 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\ttwice_nat\x18\a \x01(\bH\x04R\btwiceNat\x88\x01\x01\x12)\n" +
 	"\x0eself_twice_nat\x18\b \x01(\bH\x05R\fselfTwiceNat\x88\x01\x01\x12$\n" +
 	"\vout2in_only\x18\t \x01(\bH\x06R\n" +
-	"out2inOnly\x88\x01\x01\x1aE\n" +
+	"out2inOnly\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\tH\aR\texpiresAt\x88\x01\x01\x12\x19\n" +
+	"\x05owner\x18\v \x01(\tH\bR\x05owner\x88\x01\x01\x12\x1b\n" +
+	"\x06ticket\x18\f \x01(\tH\tR\x06ticket\x88\x01\x01\x1aE\n" +
 	"\x05Local\x12\x13\n" +
 	"\x02ip\x18\x01 \x01(\tH\x00R\x02ip\x88\x01\x01\x12\x17\n" +
 	"\x04port\x18\x02 \x01(\rH\x01R\x04port\x88\x01\x01B\x05\n" +
@@ -37823,7 +37913,10 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\n" +
 	"_twice_natB\x11\n" +
 	"\x0f_self_twice_natB\x0e\n" +
-	"\f_out2in_only\"\x87\x02\n" +
+	"\f_out2in_onlyB\r\n" +
+	"\v_expires_atB\b\n" +
+	"\x06_ownerB\t\n" +
+	"\a_ticket\"\x87\x02\n" +
 	"\x12NatIdentityMapping\x12%\n" +
 	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x13\n" +
 	"\x02ip\x18\x02 \x01(\tH\x01R\x02ip\x88\x01\x01\x12!\n" +
@@ -38251,7 +38344,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tH\x01R\x04name\x88\x01\x01\x12'\n" +
 	"\x04spec\x18\x03 \x01(\v2\x13.vrx.v1.ServiceSpecR\x04specB\a\n" +
 	"\x05_kindB\a\n" +
-	"\x05_name\"\xd7\x03\n" +
+	"\x05_name\"\xd7\x04\n" +
 	"\aAclRule\x12\x1f\n" +
 	"\bsequence\x18\x01 \x01(\rH\x00R\bsequence\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
@@ -38264,7 +38357,11 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\aservice\x18\b \x01(\v2\x14.vrx.v1.ServiceMatchR\aservice\x12\x1f\n" +
 	"\bschedule\x18\t \x01(\tH\x05R\bschedule\x88\x01\x01\x12\x15\n" +
 	"\x03log\x18\n" +
-	" \x01(\bH\x06R\x03log\x88\x01\x01B\v\n" +
+	" \x01(\bH\x06R\x03log\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"expires_at\x18\v \x01(\tH\aR\texpiresAt\x88\x01\x01\x12\x19\n" +
+	"\x05owner\x18\f \x01(\tH\bR\x05owner\x88\x01\x01\x12\x1b\n" +
+	"\x06ticket\x18\r \x01(\tH\tR\x06ticket\x88\x01\x01B\v\n" +
 	"\t_sequenceB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
@@ -38272,7 +38369,10 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\a_actionB\r\n" +
 	"\v_ip_versionB\v\n" +
 	"\t_scheduleB\x06\n" +
-	"\x04_log\"{\n" +
+	"\x04_logB\r\n" +
+	"\v_expires_atB\b\n" +
+	"\x06_ownerB\t\n" +
+	"\a_ticket\"{\n" +
 	"\aAclList\x12%\n" +
 	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\x02 \x03(\tR\x04tags\x12%\n" +
@@ -38296,7 +38396,7 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\x02 \x03(\tR\x04tags\x12'\n" +
 	"\x05rules\x18\x03 \x03(\v2\x11.vrx.v1.MacipRuleR\x05rulesB\x0e\n" +
-	"\f_description\"\xdb\x03\n" +
+	"\f_description\"\xdb\x04\n" +
 	"\bHostRule\x12\x1f\n" +
 	"\bsequence\x18\x01 \x01(\rH\x00R\bsequence\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x02 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1d\n" +
@@ -38309,7 +38409,11 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\aservice\x18\b \x01(\v2\x14.vrx.v1.ServiceMatchR\aservice\x12!\n" +
 	"\tinterface\x18\t \x01(\tH\x05R\tinterface\x88\x01\x01\x12\x15\n" +
 	"\x03log\x18\n" +
-	" \x01(\bH\x06R\x03log\x88\x01\x01B\v\n" +
+	" \x01(\bH\x06R\x03log\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"expires_at\x18\v \x01(\tH\aR\texpiresAt\x88\x01\x01\x12\x19\n" +
+	"\x05owner\x18\f \x01(\tH\bR\x05owner\x88\x01\x01\x12\x1b\n" +
+	"\x06ticket\x18\r \x01(\tH\tR\x06ticket\x88\x01\x01B\v\n" +
 	"\t_sequenceB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
@@ -38318,7 +38422,10 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\v_ip_versionB\f\n" +
 	"\n" +
 	"_interfaceB\x06\n" +
-	"\x04_log\"}\n" +
+	"\x04_logB\r\n" +
+	"\v_expires_atB\b\n" +
+	"\x06_ownerB\t\n" +
+	"\a_ticket\"}\n" +
 	"\bHostList\x12%\n" +
 	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x12\n" +
 	"\x04tags\x18\x02 \x03(\tR\x04tags\x12&\n" +
@@ -40478,13 +40585,14 @@ const file_vrx_v1_dataplane_proto_rawDesc = "" +
 	"\x1dCAPTURE_DIRECTION_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14CAPTURE_DIRECTION_RX\x10\x01\x12\x18\n" +
 	"\x14CAPTURE_DIRECTION_TX\x10\x02\x12\x1a\n" +
-	"\x16CAPTURE_DIRECTION_BOTH\x10\x03*\xad\x01\n" +
+	"\x16CAPTURE_DIRECTION_BOTH\x10\x03*\xca\x01\n" +
 	"\rAclRuleStatus\x12\x1f\n" +
 	"\x1bACL_RULE_STATUS_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17ACL_RULE_STATUS_APPLIED\x10\x01\x12\x1c\n" +
 	"\x18ACL_RULE_STATUS_DISABLED\x10\x02\x12%\n" +
 	"!ACL_RULE_STATUS_SCHEDULE_INACTIVE\x10\x03\x12\x19\n" +
-	"\x15ACL_RULE_STATUS_EMPTY\x10\x04*\x8f\x01\n" +
+	"\x15ACL_RULE_STATUS_EMPTY\x10\x04\x12\x1b\n" +
+	"\x17ACL_RULE_STATUS_EXPIRED\x10\x05*\x8f\x01\n" +
 	"\x11NatSessionVariant\x12#\n" +
 	"\x1fNAT_SESSION_VARIANT_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16NAT_SESSION_VARIANT_ED\x10\x01\x12\x1a\n" +

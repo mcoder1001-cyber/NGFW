@@ -65,7 +65,8 @@
     "actions": "Actions",
     "list": "List",
     "chain": "Hook",
-    "priority": "Priority"
+    "priority": "Priority",
+    "expiresAt": "Expires"
   },
   "action": {
     "accept": "accept",

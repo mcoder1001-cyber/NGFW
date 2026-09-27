@@ -43,6 +43,7 @@ export const RULE_COLUMNS = [
   'log',
   'enabled',
   'description',
+  'expiresAt', // F-rule-expiry
   'packets',
   'bytes',
 ] as const;

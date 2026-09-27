@@ -501,3 +501,51 @@ describe('ACL screen', () => {
     },
   );
 });
+
+describe('ACL screen: rule expiry (F-rule-expiry)', () => {
+  it(
+    'shows expired / expires soon with owner and ticket, and extends by 7 days',
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi();
+      withAcl(api);
+      const soon = new Date(Date.now() + 86_400_000).toISOString();
+      items.push(
+        {
+          index: 3,
+          sequence: 30,
+          rule: rule(30, { expiresAt: '2020-01-01T00:00:00Z', owner: 'netops', ticket: 'CHG-7' }),
+          pending: null,
+          live: { status: 'expired', vppRules: 0, packets: 0, bytes: 0 },
+        },
+        {
+          index: 4,
+          sequence: 40,
+          rule: rule(40, { expiresAt: soon }),
+          pending: null,
+          live: { status: 'applied', vppRules: 1, packets: 0, bytes: 0 },
+        },
+      );
+      try {
+        const patches: { url: string; body: unknown }[] = [];
+        api.on('PATCH /api/v1/config/acl/lists/web-in/rules/3', (req, body) => {
+          patches.push({ url: req.url, body });
+          return { body: { pointer: '/acl/lists/web-in/rules/3', before: null, after: null } };
+        });
+        const grid = await openEditor(api);
+        expect(
+          await within(grid).findByText(/^expired · /, {}, { timeout: 15_000 }),
+        ).toBeInTheDocument();
+        expect(within(grid).getByText(/^expires soon · /)).toBeInTheDocument();
+        expect(within(grid).getAllByText('expired').length).toBeGreaterThan(0); // live status column
+        fireEvent.click(within(grid).getByRole('button', { name: 'Extend by 7 days 30' }));
+        await waitFor(() => expect(patches).toHaveLength(1));
+        const at = Date.parse((patches[0]!.body as { expiresAt: string }).expiresAt);
+        expect(at - Date.now()).toBeGreaterThan(6.9 * 86_400_000);
+        expect(await screen.findByText(/^Rule 30 now expires at /)).toBeInTheDocument();
+      } finally {
+        items.splice(3);
+      }
+    },
+  );
+});

@@ -3581,15 +3581,15 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 20
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: IP-only block lists, uploaded or fetched from a URL, per-interface; domains/Geo-IP stay in plan/backlog.yaml
   files_owned: '- packages/schema/src/domains/ext/global-blocking.ts, apps/agent/internal/descriptors/globalblock/**, apps/api/src/features/global-blocking/**, apps/web/src/domains/security/global-blocking/**'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26) | product owner asked for URL download + per-interface selection (est 14 → 20)
 - template: ''
@@ -3754,7 +3754,7 @@ tasks:
   - F-object-model
   priority: 3
   est_hours: 6
-  state: running
+  state: merged
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3763,7 +3763,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-26'
   notes: promoted from backlog BL-SEC-20 by the product owner (2026-09-27)
 - id: F-bruteforce-block
   title: Brute-force and scan detection (web/API, SSH, VPN auth, port scan) with automatic temporary blocking via Global Blocking
@@ -3826,3 +3826,23 @@ tasks:
   scope: 'found by SEC-auth-fix running the full API e2e on a local PostgreSQL 16 + Redis; the cloud ports merged without the lab e2e'
   files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
   notes: ''
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-rule-expiry-host
+  title: 'F-rule-expiry host run: traffic passes, then drops at expiresAt without a commit; agent restart does not re-install (slot rig)'
+  stage: S4
+  deps:
+  - F-rule-expiry
+  priority: 3
+  est_hours: 2
+  scope: 'F-rule-expiry acceptance 1-2 on real VPP (fake-VPP proof in TestACLRuleRemovedAtExpiryWithoutACommit)'
+  files_owned: docs/status/tasks/F-rule-expiry-host*
+  notes: 'topology test on a slot; NRestarts before/after'

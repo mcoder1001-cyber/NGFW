@@ -139,7 +139,14 @@ const RulesOut = z.object({
       pending: z.enum(['added', 'changed']).nullable(),
       live: z
         .object({
-          status: z.enum(['applied', 'disabled', 'schedule-inactive', 'empty', 'unknown']),
+          status: z.enum([
+            'applied',
+            'disabled',
+            'schedule-inactive',
+            'empty',
+            'expired',
+            'unknown',
+          ]),
           vppRules: z.number().int(),
           packets: z.number(),
           bytes: z.number(),

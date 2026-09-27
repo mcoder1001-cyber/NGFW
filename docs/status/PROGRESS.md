@@ -2,17 +2,17 @@
 
 Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 66.9% by hours (889.0/1328.5 h), 65.1% by tasks (99/152)**
+**Overall: 67.3% by hours (899.0/1336.5 h), 65.4% by tasks (100/153)**
 
 | state | tasks |
 |---|---|
-| merged | 99 |
+| merged | 100 |
 | review | 12 |
-| running | 3 |
-| ready | 16 |
+| running | 2 |
+| ready | 18 |
 | parked | 2 |
 | failed | 0 |
-| todo | 20 |
+| todo | 19 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,8 +20,8 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 492.0 / 761.0 | 64.7% | 56/92 | 1 | 15 | 0 |
-| S5 | 38 / 147.5 | 25.8% | 4/15 | 2 | 1 | 0 |
+| S4 | 492.0 / 769.0 | 64.0% | 56/93 | 1 | 17 | 0 |
+| S5 | 48 / 147.5 | 32.5% | 5/15 | 1 | 1 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
@@ -33,7 +33,6 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (review, cloud session modest-keller)
 - F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (review, cloud session modest-keller)
 - F-capture-trace — Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG (running, cloud session modest-keller)
-- F-aaa — RADIUS/TACACS+/LDAP/SAML/OIDC + MFA (running, cloud session charming-johnson)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - WEB-4a — Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status (review, cloud session modest-keller)
 - WEB-4b — Pre-built HA/VRRP + cluster screens merged UNROUTED (review, cloud session modest-keller)

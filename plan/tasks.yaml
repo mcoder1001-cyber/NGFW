@@ -1978,7 +1978,7 @@ tasks:
   - SEC-auth
   priority: 6
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D10.2
@@ -1988,7 +1988,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md | D-102: Users page password change moves from config staging to POST /users/{name}/password'
 - id: F-backup-restore
   title: backup/restore, scheduled export, templates, support bundle, upgrade UI
@@ -3776,7 +3776,7 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 8
-  state: todo
+  state: ready
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3928,6 +3928,29 @@ tasks:
   - F-multiwan
   priority: 3
   est_hours: 2
-  scope: 'lab host only (needs VPP + two WAN netns): agent wiring (per-link probing, default-route/ECMP install, per-member source NAT + sticky sessions + clear dead-link sessions on failover, ABF pinning, WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
+  scope: 'lab host only (needs VPP + two WAN netns): agent wiring (per-link probing, default-route/ECMP install, per-member source NAT + sticky sessions + clear dead-link sessions on failover, ABF pinning,
+    WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
   files_owned: docs/status/tasks/F-multiwan*
-  notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here'
+  notes: follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here
+- id: F-aaa-login
+  title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
+  stage: S4
+  deps:
+  - F-aaa
+  priority: 6
+  est_hours: 8
+  state: ready
+  owner: ''
+  branch: ''
+  worktree: ''
+  parked_on: ''
+  started: ''
+  finished: ''
+  template: ''
+  prompt: ''
+  wbs: []
+  scope: 'login-order integration on POST /auth/login (external success -> roleMap -> session via a shadow local user, fallbackLocal); MFA enrolment + two-step login + enforcement by mfa.required (DB migration
+    f_aaa_mfa: encrypted TOTP seed, recovery-code hashes, external identity link); LDAP (ldapts bind+search), then OIDC, TACACS+, SAML (proto oidc/saml fields 5/6); web login MFA prompt + AAA test panel;
+    move Users password change to POST /users/{name}/password (D-102)'
+  files_owned: apps/api/src/features/aaa/**, apps/api/src/auth/**, apps/web/src/domains/system/aaa/**
+  notes: increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md

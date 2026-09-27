@@ -172,12 +172,13 @@ describe('App frame', () => {
   });
 
   it('placeholder titles follow a language switch without navigating (review L3)', async () => {
+    // F-capture-trace: /tools was the last placeholder; it now redirects to the capture page, whose title follows too
     render(app('/tools'));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Tools' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Packet capture and trace' })).toBeInTheDocument();
     await act(async () => {
       await i18n.changeLanguage('fa');
     });
-    expect(await screen.findByRole('heading', { level: 2, name: i18n.t('nav:tools', { lng: 'fa' }) })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: i18n.t('capture-trace:title', { lng: 'fa' }) })).toBeInTheDocument();
   });
 
   it('renders a not-found page for unknown paths', async () => {

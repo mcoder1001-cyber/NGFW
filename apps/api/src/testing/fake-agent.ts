@@ -38,6 +38,7 @@ import {
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
+import { captureTraceFake } from '../features/capture-trace/fake.js'; // F-capture-trace
 import { dataplaneFake } from '../features/dataplane/fake.js'; // F-dataplane-ui (unanchored)
 import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { unboundChronySyslogFake } from '../features/unbound-chrony-syslog/fake.js';
@@ -802,6 +803,7 @@ export class FakeAgent {
       // wave-BC: F-ipfix-sflow
       ipfixState: ipfixStateFake(this),
       // wave-BC: F-capture-trace
+      ...captureTraceFake(),
       // wave-BC: F-srv6
       srv6State: srv6FakeState(this), // features/srv6/fake.ts
       // wave-BC: F-lisp

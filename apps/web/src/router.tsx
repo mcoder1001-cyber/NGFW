@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } from 'react-router';
 import { DEV_ROUTES } from './build-flags';
 import { BUILT_DOMAINS, domainPath } from './nav/nav';
@@ -6,15 +5,8 @@ import { domains } from './schema/registry';
 import { RequireAuth } from './auth/RequireAuth';
 import { LoginPage } from './pages/LoginPage';
 import { AppShell } from './shell/AppShell';
-import { NotAvailablePage } from './shell/NotAvailablePage';
 import { NotFoundPage } from './shell/NotFoundPage';
 import { RouteErrorPage } from './shell/RouteErrorPage';
-
-/** Subscribes to the language (review L3): the title follows a language switch without navigating away. */
-function NotAvailableByKey({ labelKey }: { labelKey: string }) {
-  const { t } = useTranslation();
-  return <NotAvailablePage title={t(labelKey)} />;
-}
 
 /**
  * Developer demos (code-split). `DEV_ROUTES` is a build-time literal: in a production build this list is empty and the
@@ -86,6 +78,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-mpls-srmpls
         { path: 'routing/mpls', lazy: async () => ({ Component: (await import('./domains/routing/mpls-srmpls/MplsPage')).MplsPage }) },
         // wave-BC: F-capture-trace
+        { path: 'tools/capture', lazy: async () => ({ Component: (await import('./domains/tools/capture-trace/CapturePage')).CapturePage }) },
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-igmp-mfib
         // wave-BC: F-hardening-lite
@@ -136,7 +129,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-licensing (unanchored)
         { path: 'system/licensing', lazy: async () => ({ Component: (await import('./domains/system/licensing/LicensingPage')).LicensingPage }) },
         { path: 'system/revisions', lazy: async () => ({ Component: (await import('./pages/RevisionsPage')).RevisionsPage }) },
-        { path: 'tools', element: <NotAvailableByKey labelKey="nav:tools" /> },
+        { path: 'tools', element: <Navigate to="/tools/capture" replace /> }, // F-capture-trace
         ...(devRoutes ? DEV_ROUTE_OBJECTS : []),
         { path: '*', element: <NotFoundPage /> },
       ],

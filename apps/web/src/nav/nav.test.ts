@@ -109,6 +109,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-hardening-lite
       // wave-BC: F-licensing (unanchored)
       'licensing',
+      'capture', // F-capture-trace (tools group, pushed before nsim)
       'nsim', // F-loopback-bvi-gso-lldp-span: the Tools group comes after System (no anchor there)
       // web: WEB-2
       'dev-schema-form',

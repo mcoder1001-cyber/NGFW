@@ -9,7 +9,7 @@ the client's IPv4 address in its last 32 bits (RFC 6052) — so the server's log
 `/api/v1/config/nat` routes, plus two read-only routes.
 
 > Stateless 1:1 only. A pool of IPv4 addresses shared by many IPv6 servers (stateful NAT46) is not available: the
-> data plane has no such translator (decision D-159).
+> data plane has no such translator (decision D-160).
 
 ## Configuration
 

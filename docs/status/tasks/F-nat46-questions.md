@@ -11,7 +11,7 @@
   Commits use the harness trailer.
 
 ## Answers (part B)
-- Q1: answered by the manager — stateful NAT46 out of scope → D-159 + `docs/vpp-code-track.md` "V-new (F-nat46)".
+- Q1: answered by the manager — stateful NAT46 out of scope → D-160 + `docs/vpp-code-track.md` "V-new (F-nat46)".
 - Q2: done in part B (this branch): contract, builder, API, UI, docs.
 - Q3: done — both directions of the `nat46-` guard (schema + agent), shared map-t interface = one key emitted by
   nat.map, owners split on Retrieve by the stored desired state (no false drift).

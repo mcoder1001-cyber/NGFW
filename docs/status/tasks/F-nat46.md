@@ -56,7 +56,7 @@ Cloud container: **no VPP host, no PostgreSQL** — the fake VPP client only; `T
 3. **API**: config through the generic `/config/nat` routes; guarded read-only `GET /state/nat/nat46` and
    `GET /state/nat/nat46/client?ipv4=`; unit test + e2e. CLI operation table regenerated.
 4. **UI**: NAT46 tab after NPTv6 (schema form + client-address helper), en/fa, jsdom test; locale parity covers it.
-5. **Docs**: `docs/user/firewall/nat46.md`; D-159 (stateful NAT46 out of scope) + `docs/vpp-code-track.md` note.
+5. **Docs**: `docs/user/firewall/nat46.md`; D-160 (stateful NAT46 out of scope) + `docs/vpp-code-track.md` note.
 
 ## Verification (cloud)
 ```

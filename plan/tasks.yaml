@@ -3581,15 +3581,15 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 20
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: IP-only block lists, uploaded or fetched from a URL, per-interface; domains/Geo-IP stay in plan/backlog.yaml
   files_owned: '- packages/schema/src/domains/ext/global-blocking.ts, apps/agent/internal/descriptors/globalblock/**, apps/api/src/features/global-blocking/**, apps/web/src/domains/security/global-blocking/**'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26) | product owner asked for URL download + per-interface selection (est 14 → 20)
 - template: ''

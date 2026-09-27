@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>فهرست قابلیت‌های VRX</title>
+<title>فهرست قابلیت‌های فایروال</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700;800&display=swap">
 <style>
 :root{--bg:#EEF2F4;--paper:#FFFFFF;--ink:#132029;--muted:#5A6B77;--line:#D5DEE4;--accent:#0B6E78}
@@ -17,10 +17,21 @@ h2{margin:0 0 6px;font-size:16px;color:var(--accent)}
 ul{margin:0;padding-inline-start:18px}
 li{padding-block:2px}
 li::marker{color:var(--muted)}
+@page{size:A4 landscape;margin:10mm}
+@media print{
+  :root,:root[data-theme="dark"]{color-scheme:light;--bg:#FFFFFF;--paper:#FFFFFF;--ink:#132029;--muted:#5A6B77;--line:#D5DEE4;--accent:#0B6E78}
+  body{padding:0;font-size:9.6pt;line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wrap{gap:8px;max-width:none}
+  h1{font-size:18pt}
+  .cols{columns:4;column-gap:8px}
+  section{padding:7px 11px;margin-block-end:8px;border-radius:6px}
+  h2{font-size:11pt;margin-bottom:2px}
+  li{padding-block:0}
+}
 </style>
 
 <div class="wrap" dir="rtl" lang="fa">
-<h1>فهرست قابلیت‌های VRX</h1>
+<h1>فهرست قابلیت‌های فایروال</h1>
 <div class="cols">
 
 <section><h2>هسته و پیکربندی</h2><ul>
@@ -29,31 +40,31 @@ li::marker{color:var(--muted)}
 <li>confirmed commit با بازگشت خودکار</li>
 <li>تاریخچهٔ revision و قفل نویسنده</li>
 <li>اعتبارسنجی ساختاری، معنایی و dry-run</li>
-<li>بازسازی خودکار دیتاپلین پس از ری‌استارت VPP</li>
-<li>مولد startup.conf (hugepage، worker، RSS، NUMA)</li>
-<li>تنظیمات Dataplane: پلاگین‌ها، صف NIC، هسته‌ها</li>
+<li>بازسازی خودکار دیتاپلین پس از ری‌استارت</li>
+<li>تنظیم خودکار hugepage، هسته‌ها، RSS و NUMA</li>
+<li>تنظیمات دیتاپلین: ماژول‌ها، صف کارت شبکه، هسته‌ها</li>
 <li>احراز هویت، RBAC، کلید API و لاگ ممیزی</li>
 <li>رمزنگاری secret ها</li>
 <li>رابط وب فارسی/انگلیسی، RTL، تم تیره و روشن</li>
 <li>ویرایشگر پیشرفتهٔ پیکربندی</li>
 <li>CLI</li>
 <li>RESTCONF / NETCONF و YANG</li>
-<li>Terraform provider و Python SDK</li>
+<li>SDK و زیرساخت به‌عنوان کد</li>
 <li>مجوز (لایسنس)</li>
 </ul></section>
 
 <section><h2>اینترفیس‌ها و لایهٔ ۲</h2><ul>
-<li>موجودی NIC و bind درایور DPDK</li>
+<li>موجودی کارت‌های شبکه و انتخاب درایور</li>
 <li>MTU، MAC، وضعیت up/down، آدرس IPv4/IPv6، unnumbered</li>
 <li>VLAN 802.1q و QinQ</li>
 <li>Bonding: LACP، XOR، round-robin، active-backup</li>
 <li>Bridge domain، L2XC / L3XC، split-horizon</li>
 <li>Loopback و BVI</li>
-<li>memif، tap، af_packet</li>
+<li>اینترفیس‌های مجازی</li>
 <li>GSO / offload</li>
 <li>LLDP</li>
 <li>SPAN / ERSPAN</li>
-<li>nsim</li>
+<li>شبیه‌ساز شرایط شبکه</li>
 <li>کلاینت PPPoE روی WAN با MSS clamping</li>
 </ul></section>
 
@@ -72,18 +83,18 @@ li::marker{color:var(--muted)}
 <li>Redistribution و route-map</li>
 <li>MPLS ایستا، SR-MPLS و LDP</li>
 <li>SRv6 و service chaining</li>
-<li>LISP / LISP-GPE</li>
+<li>LISP</li>
 <li>IGMPv3، multicast ایستا و BIER</li>
 <li>Multi-WAN با failover و تقسیم بار</li>
 </ul></section>
 
 <section><h2>فایروال و امنیت</h2><ul>
 <li>اشیا: آدرس، گروه، FQDN، سرویس، زمان‌بندی، zone، برچسب</li>
-<li>ACL لایهٔ ۲، ۳ و ۴ (MACIP / L3 / L4)</li>
+<li>ACL لایهٔ ۲، ۳ و ۴</li>
 <li>شمارندهٔ hit قوانین</li>
 <li>ویرایشگر ۱۰۰ هزار قانون</li>
-<li>ADL و Auto-SDL</li>
-<li>محافظت از خود دستگاه (host ACL / nftables)</li>
+<li>فیلتر خودکار آدرس‌های مخرب</li>
+<li>محافظت از خود دستگاه (host firewall)</li>
 <li>Global Blocking با لیست IP و به‌روزرسانی زمان‌بندی‌شده</li>
 <li>قوانین موقت با تاریخ انقضا</li>
 <li>تشخیص brute-force و اسکن با مسدودسازی خودکار</li>
@@ -94,17 +105,17 @@ li::marker{color:var(--muted)}
 <li>NAT 1:1</li>
 <li>Port-forward</li>
 <li>مرورگر session و قطع session</li>
-<li>NAT44-EI</li>
+<li>NAT44 مستقل از مقصد (EI)</li>
 <li>NAT64، NAT66، NAT46</li>
 <li>NPTv6</li>
-<li>CGNAT (DET44)</li>
+<li>CGNAT قطعی</li>
 <li>MAP-E / MAP-T، DS-Lite، LW4o6، 464XLAT</li>
-<li>CNAT</li>
+<li>NAT برای سرویس‌ها (CNAT)</li>
 </ul></section>
 
 <section><h2>VPN و تونل</h2><ul>
 <li>IPsec site-to-site (IKEv1 / IKEv2)</li>
-<li>IKEv2 بومی VPP</li>
+<li>IKEv2 بومی</li>
 <li>VPN دسترسی از راه دور (IKEv2 + EAP)</li>
 <li>WireGuard</li>
 <li>PKI: CA، CSR، CRL / OCSP</li>
@@ -115,10 +126,10 @@ li::marker{color:var(--muted)}
 </ul></section>
 
 <section><h2>سرویس‌های شبکه</h2><ul>
-<li>DHCPv4 / DHCPv6 سرور (Kea)</li>
+<li>سرور DHCPv4 / DHCPv6</li>
 <li>DHCP relay و کلاینت</li>
-<li>DNS resolver / forwarder (Unbound)</li>
-<li>NTP (chrony)</li>
+<li>DNS resolver / forwarder</li>
+<li>NTP</li>
 <li>SNMP v2c / v3</li>
 <li>IPFIX و sFlow</li>
 <li>Syslog</li>
@@ -134,7 +145,7 @@ li::marker{color:var(--muted)}
 <li>ضبط بسته (pcap) و فیلتر BPF</li>
 <li>Packet trace و Trace Path</li>
 <li>مرورگر لاگ</li>
-<li>Prometheus</li>
+<li>خروجی متریک برای سامانهٔ پایش</li>
 <li>هشدارها و رویدادها</li>
 <li>اعلان: ایمیل، تلگرام، webhook</li>
 <li>Backup / restore و export زمان‌بندی‌شده</li>
@@ -158,7 +169,7 @@ li::marker{color:var(--muted)}
 </ul></section>
 
 <section><h2>نصب و ارتقا</h2><ul>
-<li>بستهٔ Debian و مخزن APT</li>
+<li>بستهٔ نصبی و مخزن به‌روزرسانی</li>
 <li>ISO نصب خودکار</li>
 <li>ارتقای A/B با rollback</li>
 <li>ایمیج VM و ابری</li>

@@ -8,8 +8,8 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 104 |
 | review | 14 |
-| running | 2 |
-| ready | 15 |
+| running | 3 |
+| ready | 14 |
 | parked | 2 |
 | failed | 0 |
 | todo | 19 |
@@ -20,12 +20,13 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 520.0 / 775.0 | 67.1% | 59/96 | 1 | 15 | 0 |
+| S4 | 520.0 / 775.0 | 67.1% | 59/96 | 2 | 14 | 0 |
 | S5 | 58 / 147.5 | 39.3% | 6/15 | 1 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
 
+- F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, unassigned)
 - F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, unassigned)
 - F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (review, cloud session modest-keller)
 - F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (review, cloud session modest-keller)

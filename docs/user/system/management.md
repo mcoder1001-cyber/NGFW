@@ -1,0 +1,65 @@
+# Management: users, AAA, API TLS, remote syslog
+
+**Screen:** System › Management (`/system/management`), one tab per part of the `management` configuration domain.
+The old address `/system/users` opens the **Users** tab. **API:** the generic configuration routes on `/management`
+(`PATCH /api/v1/config/management`, then commit), plus `GET /api/v1/state/management/tls` for the certificate in use.
+
+| tab | what it edits | status |
+|---|---|---|
+| Users | `management.users` — local accounts, roles, SSH keys (admin only) | available |
+| AAA | `management.aaa` — RADIUS / TACACS+ login | **not yet available** (F-aaa). The tab says so. Only local users can log in |
+| API TLS | `management.tls` — certificate and key for the API, minimum TLS version | available |
+| Remote syslog | `management.syslog` — collectors the router forwards its log to | available. The same screen as Services › Logging |
+
+## API TLS
+
+The certificate and its private key are never typed into the configuration. You store them in the secret store
+(**System › Secrets**, kinds `cert` and `key`) and the configuration holds only references such as `cert/api` and `key/api`.
+
+1. Store the PEM certificate chain (leaf first) as a `cert` secret and the unencrypted PEM private key as a `key` secret.
+2. On the **API TLS** tab, choose both references and the minimum version (1.2 or 1.3), then **Save to candidate**.
+3. Commit with the pending-change bar.
+
+At commit time the pair is checked before anything is stored:
+
+- both secrets exist and parse as PEM
+- the private key matches the certificate
+- the certificate is valid now (not expired, not before its start date)
+- the TLS library accepts them with the chosen minimum version
+
+A failure is refused with `400` and a pointer to the field (`/management/tls/privateKeyRef` for a key that does not
+match, `/management/tls/certificateRef` for an expired certificate). The message never contains key material.
+
+After a commit, a confirm or a revert, the API re-reads the running configuration and swaps the certificate in place.
+New connections get the new certificate and protocol floor. Open connections and the service keep running, with no restart.
+If a committed certificate cannot be loaded later (for example the secret was replaced by a bad value), the previous
+certificate stays in use and the tab shows the error.
+
+The right-hand panel shows the certificate in use: subject, issuer, alternative names, validity, days left, SHA-256
+fingerprint and the revision it was loaded from. The private key is never returned by any route.
+
+### HTTPS listener
+
+The API serves HTTPS with this certificate only when `VRX_HTTPS_PORT` is set in its environment (same bind address as
+`VRX_HTTP_HOST`). Without it, the certificate is still checked and loaded, and the tab says that HTTPS is not being
+served. If no certificate is configured, the HTTPS listener does not start. No self-signed certificate is generated in
+this release. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
+
+## Remote syslog
+
+Each collector has an address, port, transport (UDP, TCP or TLS), minimum severity and VRF, plus the forwarding
+options described in [Services › Logging](../services/unbound-chrony-syslog.md). The tab is the same screen as
+Services › Logging, including live forwarding counters.
+
+## Example
+
+```sh
+# store the pair (admin; POST /api/v1/secrets, the value is write-only)
+jq -n --rawfile v api.crt '{kind:"cert",name:"api",value:$v}' | \
+  curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- http://127.0.0.1:3000/api/v1/secrets
+jq -n --rawfile v api.key '{kind:"key",name:"api",value:$v}' | \
+  curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- http://127.0.0.1:3000/api/v1/secrets
+vrx configure merge management '{"tls":{"certificateRef":"cert/api","privateKeyRef":"key/api","minVersion":"1.3"}}'
+vrx commit
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/v1/state/management/tls   # certificate in use (never the key)
+```

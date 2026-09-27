@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { createBrowserRouter, createMemoryRouter, type RouteObject } from 'react-router';
+import { createBrowserRouter, createMemoryRouter, Navigate, type RouteObject } from 'react-router';
 import { DEV_ROUTES } from './build-flags';
 import { BUILT_DOMAINS, domainPath } from './nav/nav';
 import { domains } from './schema/registry';
@@ -123,7 +123,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'routing/bgp', lazy: async () => ({ Component: (await import('./domains/routing/bgp/BgpPage')).BgpPage }) },
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
-        { path: 'system/users', lazy: async () => ({ Component: (await import('./pages/UsersPage')).UsersPage }) },
+        // F-management-ui (unanchored): users live in the Management page's Users tab; the old address redirects there
+        { path: 'system/users', element: <Navigate to={`${domainPath('management')}?tab=users`} replace /> },
+        { path: domainPath('management').slice(1), lazy: async () => ({ Component: (await import('./domains/system/management/ManagementPage')).ManagementPage }) },
         // F-dataplane-ui (unanchored)
         { path: domainPath('dataplane').slice(1), lazy: async () => ({ Component: (await import('./domains/system/dataplane/DataplanePage')).DataplanePage }) },
         // F-system-identity (unanchored)

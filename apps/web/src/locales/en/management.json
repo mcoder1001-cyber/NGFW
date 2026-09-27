@@ -1,0 +1,48 @@
+{
+  "title": "Management",
+  "tabs": "Management sections",
+  "loading": "Loading…",
+  "tab": {
+    "users": "Users",
+    "aaa": "AAA",
+    "tls": "API TLS",
+    "syslog": "Remote syslog"
+  },
+  "aaa": {
+    "notAvailable": "RADIUS and TACACS+ login are not built yet (F-aaa). Only local users can log in today."
+  },
+  "tls": {
+    "configTitle": "Certificate configuration",
+    "intro": "Pick a certificate and its private key from the secret store (System › Secrets). A key that does not match, or an expired certificate, is refused when you commit. A good pair is loaded without restarting the API.",
+    "save": "Save to candidate",
+    "pending": "uncommitted",
+    "activeTitle": "Certificate in use",
+    "noListener": "The API is not serving HTTPS on this device (VRX_HTTPS_PORT is not set). The certificate is still checked and loaded, and is used as soon as the HTTPS listener is enabled.",
+    "loadError": "The committed certificate could not be loaded; the previous one is still in use: {{error}}",
+    "none": "No certificate is configured.",
+    "subject": "Subject",
+    "issuer": "Issuer",
+    "sans": "Alternative names",
+    "notBefore": "Valid from",
+    "notAfter": "Expires",
+    "daysLeft": "Days left",
+    "fingerprint": "SHA-256 fingerprint",
+    "minVersion": "Minimum version",
+    "revision": "Loaded from revision"
+  },
+  "field": {
+    "tls": {
+      "certificateRef": {
+        "title": "Certificate",
+        "help": "PEM certificate chain in the secret store, e.g. cert/api"
+      },
+      "privateKeyRef": {
+        "title": "Private key",
+        "help": "The matching private key in the secret store, e.g. key/api"
+      },
+      "minVersion": {
+        "title": "Minimum TLS version"
+      }
+    }
+  }
+}

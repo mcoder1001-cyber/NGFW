@@ -49,6 +49,7 @@ import { hostStackFeature } from './features/host-stack/index.js';
 // wave-BC: F-snmp
 import { snmpFeature } from './features/snmp/index.js';
 import { dataplaneFeature } from './features/dataplane/index.js'; // F-dataplane-ui (unanchored)
+import { mgmtTlsFeature } from './features/mgmt-tls/index.js'; // F-management-ui (unanchored)
 // wave-BC: F-ipfix-sflow
 import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
@@ -159,6 +160,7 @@ export class AppModule {
         // wave-BC: F-snmp
         ...snmpFeature.controllers,
         ...dataplaneFeature.controllers, // F-dataplane-ui (unanchored)
+        ...mgmtTlsFeature.controllers, // F-management-ui (unanchored)
         // wave-BC: F-ipfix-sflow
         ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
@@ -271,6 +273,7 @@ export class AppModule {
         // wave-BC: F-aaa
         // wave-BC: F-licensing
         ...licensingFeature.providers,
+        ...mgmtTlsFeature.providers, // F-management-ui (unanchored)
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
         // wave-BC: F-ab-upgrade

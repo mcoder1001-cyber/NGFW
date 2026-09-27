@@ -1849,7 +1849,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D8.2
@@ -1878,7 +1878,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 16
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D9.1
@@ -1887,10 +1887,10 @@ tasks:
   scope: VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI
   files_owned: '- gap-only (DF-7 / RF-4 built them; edit for a proven defect or the mapper/stand-in wiring, name the test): apps/agent/internal/descriptors/vrrp/**, docs/agent/descriptors/vrrp.md, apps/agent/internal/renderers/keepalived/**,
     docs/agent/renderers/keepalived.md'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md'
 - id: P13

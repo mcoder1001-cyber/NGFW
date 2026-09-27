@@ -112,7 +112,7 @@ func TestChronyIntegration(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
-	port := uint16(3000 + slot*100 + 23) //nolint:gosec // slots 1–12
+	port := uint16(vpptest.SubPort(slot, 23, 3000+slot*100+23)) //nolint:gosec // slots 1–12, 14–32
 	ctx := context.Background()
 	secrets := func(ref string) ([]byte, error) {
 		if ref == "key/rig" {

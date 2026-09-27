@@ -125,6 +125,8 @@ describe('FakeAgent action dispatch', () => {
           seconds: 0,
           direction: 0,
           snaplen: 0,
+          drop: false,
+          errorFilter: '',
         },
       },
       { deadline: Date.now() + DEADLINE_MS },

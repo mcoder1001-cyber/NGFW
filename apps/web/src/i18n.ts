@@ -34,6 +34,8 @@ import enTunnels from './locales/en/tunnels.json';
 import faTunnels from './locales/fa/tunnels.json';
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
+import enHa from './locales/en/ha.json';
+import faHa from './locales/fa/ha.json';
 // wave-BC: F-pki
 // wave-BC: F-ikev2-native
 // wave-BC: F-ospf
@@ -66,6 +68,8 @@ import faSnmp from './locales/fa/snmp.json';
 import enIpfixSflow from './locales/en/ipfix-sflow.json';
 import faIpfixSflow from './locales/fa/ipfix-sflow.json';
 // wave-BC: F-capture-trace
+import enCaptureTrace from './locales/en/capture-trace.json';
+import faCaptureTrace from './locales/fa/capture-trace.json';
 // wave-BC: F-srv6
 import enSrv6 from './locales/en/srv6.json';
 import faSrv6 from './locales/fa/srv6.json';
@@ -179,6 +183,7 @@ export const NAMESPACES = [
   'tunnels',
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  'ha',
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -201,6 +206,7 @@ export const NAMESPACES = [
   // wave-BC: F-ipfix-sflow
   'ipfix-sflow',
   // wave-BC: F-capture-trace
+  'capture-trace',
   // wave-BC: F-srv6
   'srv6',
   // wave-BC: F-lisp
@@ -283,6 +289,7 @@ const en = {
   tunnels: enTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  ha: enHa,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -305,6 +312,7 @@ const en = {
   // wave-BC: F-ipfix-sflow
   'ipfix-sflow': enIpfixSflow,
   // wave-BC: F-capture-trace
+  'capture-trace': enCaptureTrace,
   // wave-BC: F-srv6
   srv6: enSrv6,
   // wave-BC: F-lisp
@@ -384,6 +392,7 @@ const fa = {
   tunnels: faTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  ha: faHa,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -406,6 +415,7 @@ const fa = {
   // wave-BC: F-ipfix-sflow
   'ipfix-sflow': faIpfixSflow,
   // wave-BC: F-capture-trace
+  'capture-trace': faCaptureTrace,
   // wave-BC: F-srv6
   srv6: faSrv6,
   // wave-BC: F-lisp

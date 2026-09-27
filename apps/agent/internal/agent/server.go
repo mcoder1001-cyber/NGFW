@@ -121,6 +121,8 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync
 	// wave-BC: F-capture-trace
+	case *vrxv1.ActionRequest_Capture:
+		return g.actionCapture(req.GetCapture(), stream)
 	// wave-BC: F-backup-restore
 	// wave-A: F-vrf-static-ecmp
 	case *vrxv1.ActionRequest_Ping:

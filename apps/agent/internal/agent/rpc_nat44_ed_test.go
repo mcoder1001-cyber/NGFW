@@ -274,7 +274,8 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 		t.Fatalf("kill without the external endpoint: %v", err)
 	}
 	// an action no feature implements is still Unimplemented (the A4 switch's default; ping is F-vrf-static-ecmp's now)
-	st, err := c.Action(ctx, &vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Capture{Capture: &vrxv1.CaptureAction{Interface: "host-w7w0"}}})
+	// (capture is F-capture-trace's now: an empty request hits the default)
+	st, err := c.Action(ctx, &vrxv1.ActionRequest{})
 	if err == nil {
 		_, err = st.Recv()
 	}

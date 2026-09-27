@@ -124,8 +124,11 @@ manager decide.
 
 ## Shared host rules (summary — the full text is `docs/lab/shared-host-rules.md`)
 
-Up to 12 workers share one VPP, PostgreSQL, Valkey and disk. Your envelope gives you a slot `N`: prefix everything you create with
-`VRX_TEST_PREFIX=w<N>`, use your ports (`3<N>00`, `5<N>00`, `91<N>1`), your table range and your database. Only your worktree and
+Up to 30 developer workers (slots 1–11 and 14–32; 12 is CI, 13 does not exist — D-156) share one VPP, PostgreSQL, Valkey and disk.
+Your envelope gives you a slot `N`: prefix everything you create with `VRX_TEST_PREFIX=w<N>`, use your ports (from
+`eval "$(tools/lab env <N>)"`: `3<N>00`/`5<N>00` for slots 1–12, `10000+100·N`/`14000+100·N` for 14–32, metrics `9100+10·N+1`),
+your table range and your database. Extra ports: `VRX_HTTP_PORT + x`, never built from the slot number
+(`python3 tools/slot-check.py` proves the scheme). Only your worktree and
 branch; never `/root/ngfw`, other worktrees, `/etc/vpp`, `/root/vpp`. Kill only PIDs you spawned. No VPP restarts while
 `docs/lab/host-vrx-a.md` says `handover: pending`. Integration tests only with `VRX_INTEGRATION=1` under the shared lock; `pnpm test`
 and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.

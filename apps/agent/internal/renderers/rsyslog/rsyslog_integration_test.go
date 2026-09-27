@@ -34,6 +34,8 @@ func TestRsyslogIntegration(t *testing.T) {
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
 	port := func(suffix string) uint32 {
 		n, _ := strconv.Atoi(fmt.Sprintf("3%d%s", slot, suffix))
+		off, _ := strconv.Atoi(suffix)
+		n = vpptest.SubPort(slot, off, n)
 		return uint32(n) //nolint:gosec // slot ports
 	}
 	inTCP, udpPort, tcpPort := port("14"), port("15"), port("16")
@@ -274,6 +276,7 @@ func TestRsyslogHostImpstatsIntegration(t *testing.T) {
 	vpptest.LockLab(t)
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
 	n, _ := strconv.Atoi(fmt.Sprintf("3%d17", slot))
+	n = vpptest.SubPort(slot, 17, n)
 	colPort := uint32(n) //nolint:gosec // slot port
 	hostPID := rsyslogUnitPID(t)
 	ctx := context.Background()

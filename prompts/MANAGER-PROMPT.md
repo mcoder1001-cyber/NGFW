@@ -47,7 +47,7 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   TASK ENVELOPE
   id: <id>   branch: task/<id>   worktree: /root/ngfw-wt/<id>
   merged deps you can rely on: <ids>
-  slot: <N 1-12>  → exports from docs/lab/shared-host-rules.md (VRX_TEST_PREFIX=w<N>, ports 3<N>00/5<N>00/91<N>1, tables <N>000-<N>999, own DB); daemon-owner: <none|frr|kea|…>
+  slot: <N: 1-11 or 14-32; 12 = CI, 13 does not exist>  → exports from `tools/lab env <N>` (docs/lab/shared-host-rules.md §1: VRX_TEST_PREFIX=w<N>, HTTP/web ports, metrics 9100+10N+1, tables <N>000-<N>999, own DB); daemon-owner: <none|frr|kea|…>
   files you own exclusively: <globs>   files you must not touch: <globs>
   commit WIP at least every 45 min and keep docs/status/tasks/<id>-wip.md current — you may be killed by a usage limit at any time and respawned with a CONTINUE envelope
   time box: <hours>  — when exceeded, stop, commit WIP, write docs/status/tasks/<id>.md with what is left
@@ -58,8 +58,15 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   Spawn with the Agent tool (prompt = 00-CONTEXT + task prompt + envelope, first line `cd /root/ngfw-wt/<id>`), or the tmux fallback:
   `tmux new -d -s <id> "cd /root/ngfw-wt/<id> && cat /root/ngfw/prompts/00-CONTEXT.md /root/ngfw/prompts/<file> /root/ngfw-wt/<id>.envelope.md > /root/ngfw-wt/<id>.prompt && claude -p --permission-mode acceptEdits --output-format text < /root/ngfw-wt/<id>.prompt > /root/ngfw-wt/logs/<id>.log 2>&1; echo EXIT:\$? >> /root/ngfw-wt/logs/<id>.log"`
   — the EXIT marker is how you poll. Keep the exact command in the board `notes:`.
-- **Concurrency:** start with 6 workers; raise to 10–12 while load (`awk '{print $1}' /proc/loadavg`) < 20, available RAM (`free -g | awk '/Mem/{print $7}'`) > 10 and free disk (`df -BG --output=avail / | tail -1`) > 40 G. Never more than one worker per package when they would edit the same files; declare `files_owned` in envelopes (the board carries it).
-- **Review:** on `review`, spawn a fresh agent with `REVIEW-PROMPT.md` on the branch. BLOCK → hand findings to the worker (max 2 rounds; then you decide and log). APPROVE → merge.
+- **Concurrency:** start with 6 workers; raise step by step up to **30 developer workers** (D-156) while load (`awk '{print $1}' /proc/loadavg`) < 20, available RAM (`free -g | awk '/Mem/{print $7}'`) > 10 and free disk (`df -BG --output=avail / | tail -1`) > 40 G. Never more than one worker per package when they would edit the same files; declare `files_owned` in envelopes (the board carries it).
+- **Review and test (D-156):** on `review`, spawn a fresh agent with `REVIEW-PROMPT.md` on the branch: it names the reviewer panel
+  (`prompts/reviewers/`) the diff needs and you spawn those reviewers in parallel; at the same time spawn the tester(s) the change
+  needs (`TESTER-PROMPT.md`, T1 always). Merge only when the combined verdict is APPROVE and every tester report is PASS
+  (rules in `REVIEW-PROMPT.md` and `TESTER-PROMPT.md`). BLOCK or FAIL → hand findings to the worker (max 2 rounds).
+- **Conflicts go to the arbiters (D-156):** a developer disputing a finding, a failure disputed as flake/env, reviewers who
+  contradict each other, two workers needing the same files, slot/daemon/lock contention, or a third review round → write
+  `docs/status/tasks/<id>-dispute.md` and spawn the arbiter for that area (`ARBITER-PROMPT.md`, A1/A2/A3). You do not
+  re-argue a ruling; you only overrule one when it breaks a rule in §9/§12 or decision-policy, and you log that.
 - **Merge:** `git -C /root/ngfw status --porcelain` must be empty (commit board/status first). In the worker's worktree run
   **squash + rebase first (D-112)**: `cd /root/ngfw-wt/<id> && git update-ref refs/archive/<id> HEAD` (keeps the reviewed SHAs
   resolvable), `git reset --soft "$(git merge-base main HEAD)" && git commit` with one Conventional-Commits subject
@@ -75,6 +82,17 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   Integration (`tools/ci.sh full`, needs VPP + rig) runs on `main` serialized under `flock /run/lock/vrx-lab.lock`, at most once per
   hour and never while a worker's envelope says it is in its integration phase — record the result in status. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged, status entry.
 - **Status:** `docs/status/<YYYY-MM-DD>-<HHMM>.md` every cycle, ≤ 25 lines: Persian 5-line summary first, then merged / running / parked (with PENDING id) / decisions taken / risks / next. Commit.
+
+## 2b. Team roster (D-156; full table in `prompts/README.md`)
+| role | how many | prompt | reports to |
+|---|---|---|---|
+| lead manager (you) | 1 | `MANAGER-PROMPT.md` | product owner |
+| arbiters (internal managers) | 3 — A1 contracts/API/web, A2 data-plane/agent/daemons, A3 process/CI/packaging and scheduling | `ARBITER-PROMPT.md` | you |
+| developers | ≤ 30 at once, one slot each | task prompt + `WORKER-OPS.md` | you |
+| reviewers | panel of 8 aspects, spawned per diff | `REVIEW-PROMPT.md` → `reviewers/R*.md` | you (verdict); disputes → arbiter |
+| testers | 4 — T1 unit/contract/CI gate, T2 API/e2e, T3 data-plane/topology/traffic, T4 web e2e/screenshots/regression | `TESTER-PROMPT.md` | you (verdict); disputes → arbiter |
+Every role is a one-shot agent spawned by you; the count is the maximum running at once. Reviewers, testers and arbiters never
+write feature code; developers never merge.
 
 ## 3. Priorities
 While S1 is open: **P02s → P02a/b/c and P03 first (they gate all of S2), P05a in parallel (it gates the factories), then P04, then P09**.
@@ -100,7 +118,8 @@ forever:
   refresh board: todo → ready when all deps merged
   while running < MAX and ready: spawn highest priority
   poll workers every 10–15 min:
-    finished → review → merge → board → status
+    finished → review panel + testers (parallel) → combined verdict → merge → board → status
+    dispute file present → arbiter for its area; ruling in docs/status/tasks/<id>-ruling.md; act on it
     questions file → if you can answer within policy: write docs/status/tasks/<id>-answer.md into its worktree, tell it to continue
                     else → PENDING file, park, reassign the worker to the next ready task
     time box exceeded → collect WIP, decide: extend once, split, or reassign

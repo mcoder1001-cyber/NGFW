@@ -60,6 +60,7 @@ import { mgmtTlsFeature } from './features/mgmt-tls/index.js'; // F-management-u
 // wave-BC: F-ipfix-sflow
 import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
+import { captureTraceFeature } from './features/capture-trace/index.js';
 // wave-BC: F-srv6
 import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
@@ -173,6 +174,7 @@ export class AppModule {
         // wave-BC: F-ipfix-sflow
         ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
+        ...captureTraceFeature.controllers,
         // wave-BC: F-srv6
         ...srv6Feature.controllers,
         // wave-BC: F-lisp

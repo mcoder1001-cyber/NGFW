@@ -38,8 +38,12 @@ func slotFromEnv(t *testing.T) slot {
 		t.Fatalf("VRX_TEST_PREFIX=%q: needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
-	if n < 1 || n > 12 { // review L4: w0/w00 would take the product stack's ports (3000, 5000, 9101)
-		t.Fatalf("VRX_TEST_PREFIX=%q: slot %d outside 1..12", p, n)
+	if n < 1 || n > 32 || n == 13 { // review L4: w0/w00 would take the product stack's ports (3000, 5000, 9101); 13 = tools/app (D-156)
+		t.Fatalf("VRX_TEST_PREFIX=%q: slot %d outside 1..12, 14..32", p, n)
+	}
+	httpBase, webBase := 3000, 5000 // slots 14-32: 10000/14000 (D-156, tools/lab env)
+	if n > 12 {
+		httpBase, webBase = 10000, 14000
 	}
 	env := func(k, def string) string {
 		if v := os.Getenv(k); v != "" {
@@ -49,8 +53,8 @@ func slotFromEnv(t *testing.T) slot {
 	}
 	s := slot{
 		prefix: p, num: n,
-		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(3000+100*n)),
-		webPort:     env("VRX_WEB_PORT", strconv.Itoa(5000+100*n)),
+		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(httpBase+100*n)),
+		webPort:     env("VRX_WEB_PORT", strconv.Itoa(webBase+100*n)),
 		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
 		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
 		runDir:      "/run/vrx-test/" + p,
@@ -61,7 +65,13 @@ func slotFromEnv(t *testing.T) slot {
 }
 
 // port returns the slot port 3<slot><suffix> (3<N>53 unbound, 3<N>23 NTP server, 3<N>16 syslog collector …).
-func (s slot) port(suffix int) int { return 3000 + 100*s.num + suffix }
+// Slots 14–32 (D-156) use the 10000+100·N block: the 3<N> formula collides with slots 1–12 there.
+func (s slot) port(suffix int) int {
+	if s.num > 12 {
+		return 10000 + 100*s.num + suffix
+	}
+	return 3000 + 100*s.num + suffix
+}
 
 func repoRoot(t *testing.T) string {
 	t.Helper()

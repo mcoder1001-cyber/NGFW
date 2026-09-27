@@ -1,0 +1,52 @@
+{
+  "nav": "ضبط بسته",
+  "title": "ضبط و ردیابی بسته",
+  "tabs": "ابزارها",
+  "tab": {
+    "capture": "ضبط",
+    "trace": "ردیابی",
+    "pg": "مولد بسته"
+  },
+  "loading": "در حال بارگذاری",
+  "notAvailable": "در این نسخه در دسترس نیست.",
+  "running": "ضبط {{id}} روی {{iface}}: {{elapsed}} از {{seconds}} ثانیه",
+  "progress": "پیشرفت ضبط",
+  "started": "ضبط {{id}} آغاز شد",
+  "interface": "رابط",
+  "interfaceHelp": "نام رابط VPP یا \"any\"",
+  "direction": "جهت",
+  "dir": {
+    "both": "دریافت و ارسال",
+    "rx": "دریافت",
+    "tx": "ارسال"
+  },
+  "drop": "بسته‌های دورریخته‌شده را هم ضبط کن",
+  "bpf": "فیلتر BPF",
+  "bpfHelp": "عبارت pcap-filter، مثلاً icmp and host 10.0.0.1 (خالی = همه)",
+  "bpfInvalid": "فقط نویسه‌های pcap-filter مجازند: بدون نقل‌قول، ; $ یا بک‌اسلش",
+  "maxPackets": "حداکثر بسته",
+  "maxPacketsHelp": "۱ تا ۱۰۰۰۰۰",
+  "seconds": "ثانیه",
+  "secondsHelp": "۱ تا ۶۰۰",
+  "snaplen": "بایت در هر بسته",
+  "snaplenHelp": "۳۲ تا ۹۰۰۰",
+  "start": "آغاز ضبط",
+  "files": "ضبط‌های نگه‌داشته‌شده (حداکثر {{max}})",
+  "col": {
+    "id": "شناسه",
+    "state": "وضعیت",
+    "interface": "رابط",
+    "packets": "بسته‌ها",
+    "size": "بایت",
+    "actions": "کنش‌ها"
+  },
+  "state": {
+    "running": "در حال اجرا",
+    "done": "پایان‌یافته",
+    "empty": "بدون بسته",
+    "interrupted": "قطع‌شده"
+  },
+  "download": "دریافت",
+  "delete": "حذف",
+  "adminOnly": "فقط مدیران می‌توانند فایل‌های ضبط را دریافت یا حذف کنند."
+}

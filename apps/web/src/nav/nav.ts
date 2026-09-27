@@ -118,6 +118,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
   // the feature's namespace (wave-A-hotspots W2).
   // wave-BC: F-ospf
+  groups.get('routing')!.push({ id: 'ospf', path: '/routing/ospf', labelKey: 'routingIgp:ospf.title', fallbackLabel: 'OSPF', available: true });
   // wave-BC: F-isis-rip
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-mpls-srmpls

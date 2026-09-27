@@ -1929,7 +1929,7 @@ tasks:
   - SEC-auth
   priority: 6
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D8.8
@@ -1978,7 +1978,7 @@ tasks:
   - SEC-auth
   priority: 6
   est_hours: 10
-  state: todo
+  state: ready
   parked_on: ''
   wbs:
   - D10.2
@@ -3181,7 +3181,7 @@ tasks:
   - TD-10b
   priority: 3
   est_hours: 5
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.9
@@ -3192,7 +3192,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-26'
   notes: D-125 | dep of F-aaa, F-restconf-yang and SECURITY-REVIEW
 - id: UI-domain-editor
   title: 'Advanced configuration editor: generic schema-driven page for any domain path'
@@ -3787,3 +3787,23 @@ tasks:
   started: ''
   finished: ''
   notes: promoted from backlog BL-SEC-16 by the product owner (2026-09-27)
+- template: ''
+  parked_on: ''
+  branch: claude/charming-johnson-9k2puh
+  worktree: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
+  finished: ''
+  state: running
+  wbs: []
+  prompt: ''
+  id: SEC-auth-fix
+  title: 'SEC-auth findings: an API-key-minted key never outlives its caller key (M1); secret master key read through readKeyFile (L1)'
+  stage: S4
+  deps:
+  - SEC-auth
+  priority: 3
+  est_hours: 2
+  scope: docs/status/tasks/SEC-auth-review.md M1, L1
+  files_owned: apps/api/src/auth/auth.service.ts (createApiKey) apps/api/src/secrets/secrets.service.ts (masterKey) docs/status/tasks/SEC-auth-fix*
+  notes: ''

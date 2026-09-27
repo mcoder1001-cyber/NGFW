@@ -132,7 +132,83 @@ describe('F-global-blocking e2e (PostgreSQL + fake agent)', () => {
     expect(att.status).toBe(200);
   });
 
+  it('a list with credentials: its URL is admin-only; a fetched file is not echoed back', async () => {
+    const admin = await h.login('admin', h.adminPassword);
+    const tok = await h.call(admin, 'POST', '/api/v1/secrets', {
+      kind: 'token',
+      name: 'feed',
+      value: 'feed-secret',
+    });
+    expect(tok.status, tok.raw).toBe(200);
+    const add = await h.call(
+      admin,
+      'PATCH',
+      '/api/v1/config/acl',
+      {
+        globalBlocking: {
+          lists: {
+            cred: { allInterfaces: true, source: { kind: 'url', url, authRef: 'token/feed' } },
+          },
+        },
+      },
+      MP,
+    );
+    expect(add.status, add.raw).toBe(200);
+    file = {
+      status: 200,
+      body: `192.0.2.7\nsecret internal page\n${Array.from({ length: 12 }, (_, i) => `198.51.100.${i}`).join('\n')}\n`,
+    };
+    const f = await h.call(admin, 'POST', '/api/v1/security/global-blocking/lists/cred/fetch');
+    expect(f.status, f.raw).toBe(200);
+    expect(f.body.invalid).toEqual([{ line: 2, text: '', reason: expect.any(String) }]);
+    const c = await h.call(admin, 'POST', '/api/v1/config/commit?comment=cred');
+    expect(c.status, c.raw).toBe(200);
+
+    // an operator may not re-point it (the credential would go to the new server)
+    const moved = await h.call(
+      op,
+      'PATCH',
+      '/api/v1/config/acl',
+      {
+        globalBlocking: { lists: { cred: { source: { url: 'https://collector.example.net/' } } } },
+      },
+      MP,
+    );
+    expect(moved.status, moved.raw).toBe(403);
+    expect(moved.raw).toContain('/acl/globalBlocking/lists/cred/source/url');
+    const insecure = await h.call(
+      op,
+      'PATCH',
+      '/api/v1/config/acl',
+      {
+        globalBlocking: { lists: { cred: { source: { verifyTls: false } } } },
+      },
+      MP,
+    );
+    expect(insecure.status, insecure.raw).toBe(403);
+    // … but may edit anything else of it
+    const desc = await h.call(
+      op,
+      'PATCH',
+      '/api/v1/config/acl',
+      { globalBlocking: { lists: { cred: { description: 'ok' } } } },
+      MP,
+    );
+    expect(desc.status, desc.raw).toBe(200);
+    expect((await h.call(op, 'POST', '/api/v1/config/discard')).status).toBe(200);
+    const del = await h.call(
+      admin,
+      'PATCH',
+      '/api/v1/config/acl',
+      { globalBlocking: { lists: { cred: null } } },
+      MP,
+    );
+    expect(del.status, del.raw).toBe(200);
+    expect((await h.call(admin, 'POST', '/api/v1/config/commit?comment=nocred')).status).toBe(200);
+  });
+
   it('fetches a URL now, refreshes it on schedule as a system change and keeps the last good list on failures', async () => {
+    file = { status: 200, body: '192.0.2.7\n198.51.100.0/24\n' };
     const p = await h.call(
       op,
       'PATCH',

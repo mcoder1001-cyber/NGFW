@@ -369,8 +369,40 @@ export function privilegedChanges(before: Doc, after: Doc): string[] {
   const refPointers = new Set<string>();
   for (const [p, ref] of a) if (b.get(p) !== ref) refPointers.add(p);
   for (const [p, ref] of b) if (a.get(p) !== ref) refPointers.add(p);
-  for (const p of [...refPointers].sort()) {
+  for (const p of [...refPointers, ...credentialTargetChanges(before, after)].sort()) {
     if (!out.some((o) => p === o || p.startsWith(o + '/'))) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * F-global-blocking: where a block list's credential (`source.authRef`) is sent is as privileged as the credential —
+ * otherwise a non-admin could point a list that an admin gave credentials at their own server and collect them. A
+ * changed `source.url` or `source.verifyTls` of a list that has an authRef (before or after) is admin-only (with
+ * verification off, anyone on the path could collect the credential).
+ */
+function credentialTargetChanges(before: Doc, after: Doc): string[] {
+  type Source = { url?: unknown; authRef?: unknown; verifyTls?: unknown };
+  const lists = (d: Doc): Record<string, unknown> => {
+    const l = getAt(d, '/acl/globalBlocking/lists');
+    return l !== null && typeof l === 'object' && !Array.isArray(l)
+      ? (l as Record<string, unknown>)
+      : {};
+  };
+  const src = (l: unknown): Source =>
+    l !== null && typeof l === 'object'
+      ? (((l as Record<string, unknown>)['source'] ?? {}) as Source)
+      : {};
+  const a = lists(before);
+  const b = lists(after);
+  const out: string[] = [];
+  for (const name of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const x = src(a[name]);
+    const y = src(b[name]);
+    if (x.authRef === undefined && y.authRef === undefined) continue;
+    const base = `/acl/globalBlocking/lists/${name.replace(/~/g, '~0').replace(/\//g, '~1')}/source`;
+    if (x.url !== y.url) out.push(`${base}/url`);
+    if ((x.verifyTls ?? true) !== (y.verifyTls ?? true)) out.push(`${base}/verifyTls`);
   }
   return out;
 }

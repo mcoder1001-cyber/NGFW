@@ -35,6 +35,9 @@ The box normalises every entry, removes duplicates, and folds prefixes covered b
 - Credentials are secret references: `token/<name>` is sent as `Authorization: Bearer …`; `password/<name>` holds
   `user:pass` for basic authentication. Never type a password into the list itself.
 - The download is capped at 20 MB and 30 s; redirects are not followed.
+- A list with credentials: only an **admin** may change its server URL or turn certificate verification off (the
+  credential would otherwise go to another server). Other settings stay open to operators.
+- The preview of a download shows invalid lines by line number and reason only, never their text.
 - Without `refreshSec` the list is downloaded only when you press **Fetch now**.
 
 ## Importing

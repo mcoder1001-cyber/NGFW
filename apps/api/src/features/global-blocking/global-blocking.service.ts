@@ -263,7 +263,13 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
   // ---- import / fetch / export ----------------------------------------------------------------------------------------
 
   /** Parses `text` against the candidate's list; stages the entries when `dryRun` is false. */
-  async importText(user: Principal, name: string, text: string, dryRun: boolean): Promise<Preview> {
+  async importText(
+    user: Principal,
+    name: string,
+    text: string,
+    dryRun: boolean,
+    fromServer = false,
+  ): Promise<Preview> {
     const candidate = await this.doc('candidate');
     const list = listsOf(candidate)[name];
     if (list === undefined)
@@ -271,6 +277,9 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
         `block list '${name}' does not exist in the candidate; create it first`,
       );
     const p = this.preview(name, text, entriesOf(list), dryRun);
+    // a server's answer is not echoed (only line numbers and reasons): the preview must not become a way to read
+    // arbitrary internal HTTP resources through the box
+    if (fromServer) p.invalid = p.invalid.map((i) => ({ ...i, text: '' }));
     const others = Object.entries(listsOf(candidate))
       .filter(([n]) => n !== name)
       .reduce((n, [, l]) => n + entriesOf(l).length, 0);
@@ -336,7 +345,7 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
       await this.failed(name, bad, 'manual');
       throw problems.badRequest(`the downloaded file is refused: ${bad}; the list is unchanged`);
     }
-    const p = await this.importText(user, name, r.text, dryRun);
+    const p = await this.importText(user, name, r.text, dryRun, true);
     if (!dryRun) {
       await this.setFetchState(name, {
         lastFetchAt: this.now().toISOString(),

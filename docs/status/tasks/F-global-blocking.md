@@ -26,6 +26,17 @@ interfaces ahead of the access lists and, optionally, on traffic to the box itse
   kind `system` with a null author, only when the candidate has no uncommitted edits and no confirm-timer commit is
   pending (else *deferred*, retried at the next check). It does not touch secret versions.
 
+## Security review before merge (adversarial re-read of the diff)
+- **Fixed — credential redirection:** secret references are admin-only (P06 §6), but an operator could re-point the
+  `source.url` of a list whose admin-set `authRef` exists (or set `verifyTls: false`) and the box would send the
+  token/password to that server on the next fetch. `privilegedChanges` now treats `source.url` / `source.verifyTls` of
+  a list with an authRef as admin-only (edit and commit). e2e: 403 at `/acl/globalBlocking/lists/cred/source/url` and
+  `…/verifyTls` for an operator; other fields still editable.
+- **Fixed — reading internal HTTP through the preview:** a download's invalid lines are returned by line number and
+  reason only (the upload preview still shows the text the user sent). e2e asserts `text: ''`.
+- Kept by design: http:// URLs are allowed (schema) for internal feeds; no redirect is followed; downloads are capped
+  (20 MB, 30 s) and never replace a list with an empty or mostly invalid file.
+
 ## Built
 - Schema/semantics (31ce01a9): `global-blocking.ts`, the one parser `global-blocking-parse.ts` (normalise, dedupe,
   collapse, invalid lines with line numbers), `acl.global-blocking-interfaces-exist`.

@@ -24,6 +24,7 @@ import {
   type HealthResponse,
   type InterfaceState,
   type InterfaceStateRequest,
+  type PppoeSessionState,
   type InterfaceStateResponse,
   IssueSeverity,
   ObjectResultCode,
@@ -690,6 +691,27 @@ export class FakeAgent {
       const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;
       const out: InterfaceState[] = [];
       let idx = 1;
+      const pppoeSessionOf = (c: Json): PppoeSessionState | undefined => {
+        const p = c['pppoe'] as Json | undefined;
+        if (p === undefined || p === null) return undefined;
+        if (p['enabled'] === false) {
+          return { phase: 'down', sessionId: 0, acMac: '', acName: '', localIpv4: '', peerIpv4: '', ipv6: '', dns: [], since: undefined, failCount: 0, lastError: '' };
+        }
+        // a fake dialled session (the real state comes from pppd on the box)
+        return {
+          phase: 'up',
+          sessionId: 42,
+          acMac: '02:ac:00:00:00:01',
+          acName: 'fake-ac',
+          localIpv4: '203.0.113.5/32',
+          peerIpv4: '203.0.113.1',
+          ipv6: p['ipv6'] === 'off' || p['ipv6'] === undefined ? '' : '2001:db8:1::2/64',
+          dns: p['dnsFromPeer'] === true ? ['203.0.113.53', '203.0.113.54'] : [],
+          since: new Date('2026-09-27T00:00:00.000Z'),
+          failCount: 0,
+          lastError: '',
+        };
+      };
       const row = (name: string, c: Json, parent: string, vlanId: number): InterfaceState => ({
         name,
         vppName: name,
@@ -711,6 +733,7 @@ export class FakeAgent {
         linkSpeedKbps: '0',
         rxMode: 'interrupt',
         description: typeof c['description'] === 'string' ? c['description'] : '',
+        pppoe: pppoeSessionOf(c),
       });
       for (const name of Object.keys(ifs).sort()) {
         const c = ifs[name]!;

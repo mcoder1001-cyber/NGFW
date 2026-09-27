@@ -2131,6 +2131,67 @@ export interface components {
           /** Network namespace */
           netns?: string;
         };
+        /** PPPoE client */
+        pppoe?: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Dial over interface */
+          parent?: string;
+          /** Username */
+          username: string;
+          /** Password */
+          passwordRef: string;
+          /** Service name */
+          serviceName?: string;
+          /**
+           * MTU
+           * @default 1492
+           */
+          mtu: number;
+          /**
+           * Clamp TCP MSS
+           * @default true
+           */
+          mssClamp: boolean;
+          /**
+           * Default route from peer
+           * @default true
+           */
+          defaultRoute: boolean;
+          /**
+           * Use peer DNS
+           * @default false
+           */
+          dnsFromPeer: boolean;
+          /**
+           * IPv6
+           * @default off
+           * @enum {string}
+           */
+          ipv6: 'off' | 'slaac' | 'dhcpv6';
+          /**
+           * Reconnect
+           * @default {
+           *       "holdoffSec": 5,
+           *       "maxFail": 0
+           *     }
+           */
+          reconnect: {
+            /**
+             * Hold-off (seconds)
+             * @default 5
+             */
+            holdoffSec: number;
+            /**
+             * Max consecutive failures
+             * @default 0
+             */
+            maxFail: number;
+          };
+        };
       };
     };
     /**

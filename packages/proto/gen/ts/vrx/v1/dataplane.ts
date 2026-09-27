@@ -1189,6 +1189,8 @@ export interface InterfaceState {
   rxMode: string;
   /** Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none. */
   description: string;
+  /** PPPoE client session on this interface (F-pppoe-client); unset = not a PPPoE client. */
+  pppoe: PppoeSessionState | undefined;
 }
 
 /**
@@ -1464,7 +1466,11 @@ export interface Interface {
   /** Mirror sessions with this interface as the source (sw_interface_span_enable_disable; F-loopback-bvi-gso-lldp-span). */
   mirror: MirrorSession[];
   /** linux-cp pair of this interface (lcp_itf_pair_add_del_v3, P12); present = the pair exists. */
-  lcp: InterfaceLcp | undefined;
+  lcp:
+    | InterfaceLcp
+    | undefined;
+  /** PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client. */
+  pppoe: Pppoe | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -7190,6 +7196,93 @@ export interface InterfaceLcp {
     | undefined;
   /** Network namespace of the host interface; unset = the linux-cp default namespace. */
   netns?: string | undefined;
+}
+
+/**
+ * Pppoe mirrors `interfaces.<name>.pppoe` (F-pppoe-client): a PPPoE client dialled by pppd on a linux-cp tap of the
+ * parent, the ISP-assigned address/routes mirrored into VPP. The password is a secret reference, never inline.
+ */
+export interface Pppoe {
+  /** Dial the session; Zod default true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Engine interface the session runs over; unset = this interface (set for a VLAN sub-interface WAN). */
+  parent?:
+    | string
+    | undefined;
+  /** PPP username (PAP/CHAP). */
+  username?:
+    | string
+    | undefined;
+  /** Reference to a stored password secret ("password/<name>"); never the password. */
+  passwordRef?:
+    | string
+    | undefined;
+  /** RFC 2516 Service-Name to request; unset = accept any AC. */
+  serviceName?:
+    | string
+    | undefined;
+  /** PPPoE payload MTU; Zod default 1492. */
+  mtu?:
+    | number
+    | undefined;
+  /** Clamp forwarded TCP MSS to fit the MTU; Zod default true. */
+  mssClamp?:
+    | boolean
+    | undefined;
+  /** Install a default route via the session; Zod default true. */
+  defaultRoute?:
+    | boolean
+    | undefined;
+  /** Use the DNS servers the peer sends (IPCP); Zod default false. */
+  dnsFromPeer?:
+    | boolean
+    | undefined;
+  /** IPv6: "off" | "slaac" | "dhcpv6"; Zod default "off". */
+  ipv6?:
+    | string
+    | undefined;
+  /** Reconnect policy. */
+  reconnect: PppoeReconnect | undefined;
+}
+
+/** PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`. */
+export interface PppoeReconnect {
+  /** Seconds to wait before redialling after the session drops; Zod default 5. */
+  holdoffSec?:
+    | number
+    | undefined;
+  /** Give up after this many failed dials in a row; 0 = forever; Zod default 0. */
+  maxFail?: number | undefined;
+}
+
+/** PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState. */
+export interface PppoeSessionState {
+  /** "down" | "dialing" | "up" | "failed". */
+  phase: string;
+  /** PPPoE session id (RFC 2516) once negotiated; 0 when down. */
+  sessionId: number;
+  /** MAC of the access concentrator (peer); empty when down. */
+  acMac: string;
+  /** AC name from the PADO tag; empty when unknown. */
+  acName: string;
+  /** Local (ISP-assigned) IPv4 address in CIDR, e.g. "203.0.113.5/32"; empty when none. */
+  localIpv4: string;
+  /** Peer (gateway) IPv4 address; empty when none. */
+  peerIpv4: string;
+  /** ISP-assigned IPv6 address/prefix; empty when none. */
+  ipv6: string;
+  /** DNS servers the peer sent (IPCP), sorted; empty when none. */
+  dns: string[];
+  /** When the current session came up (agent clock); unset when down. */
+  since:
+    | Date
+    | undefined;
+  /** Consecutive failed dials since the last success. */
+  failCount: number;
+  /** Last error text (pppd exit reason), empty when none. */
+  lastError: string;
 }
 
 /** RoutingStateRequest selects the parts of RoutingState to read (the BGP table, counts and pairs are always returned). */
@@ -12974,6 +13067,7 @@ function createBaseInterfaceState(): InterfaceState {
     linkSpeedKbps: "0",
     rxMode: "",
     description: "",
+    pppoe: undefined,
   };
 }
 
@@ -13038,6 +13132,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     }
     if (message.description !== "") {
       writer.uint32(162).string(message.description);
+    }
+    if (message.pppoe !== undefined) {
+      PppoeSessionState.encode(message.pppoe, writer.uint32(170).fork()).join();
     }
     return writer;
   },
@@ -13215,6 +13312,14 @@ export const InterfaceState: MessageFns<InterfaceState> = {
             message.description = reader.string();
             continue;
           }
+          case 21: {
+            if (tag !== 170) {
+              break;
+            }
+
+            message.pppoe = PppoeSessionState.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -13293,6 +13398,7 @@ export const InterfaceState: MessageFns<InterfaceState> = {
         ? globalThis.String(object.rx_mode)
         : "",
       description: isSet(object.description) ? globalThis.String(object.description) : "",
+      pppoe: isSet(object.pppoe) ? PppoeSessionState.fromJSON(object.pppoe) : undefined,
     };
   },
 
@@ -13358,6 +13464,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     if (message.description !== "") {
       obj.description = message.description;
     }
+    if (message.pppoe !== undefined) {
+      obj.pppoe = PppoeSessionState.toJSON(message.pppoe);
+    }
     return obj;
   },
 
@@ -13386,6 +13495,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     message.linkSpeedKbps = object.linkSpeedKbps ?? "0";
     message.rxMode = object.rxMode ?? "";
     message.description = object.description ?? "";
+    message.pppoe = (object.pppoe !== undefined && object.pppoe !== null)
+      ? PppoeSessionState.fromPartial(object.pppoe)
+      : undefined;
     return message;
   },
 };
@@ -14979,6 +15091,7 @@ function createBaseInterface(): Interface {
     gso: undefined,
     mirror: [],
     lcp: undefined,
+    pppoe: undefined,
   };
 }
 
@@ -15049,6 +15162,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.lcp !== undefined) {
       InterfaceLcp.encode(message.lcp, writer.uint32(178).fork()).join();
+    }
+    if (message.pppoe !== undefined) {
+      Pppoe.encode(message.pppoe, writer.uint32(186).fork()).join();
     }
     return writer;
   },
@@ -15245,6 +15361,14 @@ export const Interface: MessageFns<Interface> = {
             message.lcp = InterfaceLcp.decode(reader, reader.uint32());
             continue;
           }
+          case 23: {
+            if (tag !== 186) {
+              break;
+            }
+
+            message.pppoe = Pppoe.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -15316,6 +15440,7 @@ export const Interface: MessageFns<Interface> = {
         ? object.mirror.map((e: any) => MirrorSession.fromJSON(e))
         : [],
       lcp: isSet(object.lcp) ? InterfaceLcp.fromJSON(object.lcp) : undefined,
+      pppoe: isSet(object.pppoe) ? Pppoe.fromJSON(object.pppoe) : undefined,
     };
   },
 
@@ -15393,6 +15518,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.lcp !== undefined) {
       obj.lcp = InterfaceLcp.toJSON(message.lcp);
     }
+    if (message.pppoe !== undefined) {
+      obj.pppoe = Pppoe.toJSON(message.pppoe);
+    }
     return obj;
   },
 
@@ -15437,6 +15565,7 @@ export const Interface: MessageFns<Interface> = {
     message.gso = object.gso ?? undefined;
     message.mirror = object.mirror?.map((e) => MirrorSession.fromPartial(e)) || [];
     message.lcp = (object.lcp !== undefined && object.lcp !== null) ? InterfaceLcp.fromPartial(object.lcp) : undefined;
+    message.pppoe = (object.pppoe !== undefined && object.pppoe !== null) ? Pppoe.fromPartial(object.pppoe) : undefined;
     return message;
   },
 };
@@ -61383,6 +61512,633 @@ export const InterfaceLcp: MessageFns<InterfaceLcp> = {
     message.hostIfName = object.hostIfName ?? undefined;
     message.hostIfType = object.hostIfType ?? undefined;
     message.netns = object.netns ?? undefined;
+    return message;
+  },
+};
+
+function createBasePppoe(): Pppoe {
+  return {
+    enabled: undefined,
+    parent: undefined,
+    username: undefined,
+    passwordRef: undefined,
+    serviceName: undefined,
+    mtu: undefined,
+    mssClamp: undefined,
+    defaultRoute: undefined,
+    dnsFromPeer: undefined,
+    ipv6: undefined,
+    reconnect: undefined,
+  };
+}
+
+export const Pppoe: MessageFns<Pppoe> = {
+  encode(message: Pppoe, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.parent !== undefined) {
+      writer.uint32(18).string(message.parent);
+    }
+    if (message.username !== undefined) {
+      writer.uint32(26).string(message.username);
+    }
+    if (message.passwordRef !== undefined) {
+      writer.uint32(34).string(message.passwordRef);
+    }
+    if (message.serviceName !== undefined) {
+      writer.uint32(42).string(message.serviceName);
+    }
+    if (message.mtu !== undefined) {
+      writer.uint32(48).uint32(message.mtu);
+    }
+    if (message.mssClamp !== undefined) {
+      writer.uint32(56).bool(message.mssClamp);
+    }
+    if (message.defaultRoute !== undefined) {
+      writer.uint32(64).bool(message.defaultRoute);
+    }
+    if (message.dnsFromPeer !== undefined) {
+      writer.uint32(72).bool(message.dnsFromPeer);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(82).string(message.ipv6);
+    }
+    if (message.reconnect !== undefined) {
+      PppoeReconnect.encode(message.reconnect, writer.uint32(90).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Pppoe {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoe();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.parent = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.username = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.passwordRef = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.serviceName = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.mtu = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.mssClamp = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.defaultRoute = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.dnsFromPeer = reader.bool();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.reconnect = PppoeReconnect.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Pppoe {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : undefined,
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
+      passwordRef: isSet(object.passwordRef)
+        ? globalThis.String(object.passwordRef)
+        : isSet(object.password_ref)
+        ? globalThis.String(object.password_ref)
+        : undefined,
+      serviceName: isSet(object.serviceName)
+        ? globalThis.String(object.serviceName)
+        : isSet(object.service_name)
+        ? globalThis.String(object.service_name)
+        : undefined,
+      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
+      mssClamp: isSet(object.mssClamp)
+        ? globalThis.Boolean(object.mssClamp)
+        : isSet(object.mss_clamp)
+        ? globalThis.Boolean(object.mss_clamp)
+        : undefined,
+      defaultRoute: isSet(object.defaultRoute)
+        ? globalThis.Boolean(object.defaultRoute)
+        : isSet(object.default_route)
+        ? globalThis.Boolean(object.default_route)
+        : undefined,
+      dnsFromPeer: isSet(object.dnsFromPeer)
+        ? globalThis.Boolean(object.dnsFromPeer)
+        : isSet(object.dns_from_peer)
+        ? globalThis.Boolean(object.dns_from_peer)
+        : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
+      reconnect: isSet(object.reconnect) ? PppoeReconnect.fromJSON(object.reconnect) : undefined,
+    };
+  },
+
+  toJSON(message: Pppoe): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.parent !== undefined) {
+      obj.parent = message.parent;
+    }
+    if (message.username !== undefined) {
+      obj.username = message.username;
+    }
+    if (message.passwordRef !== undefined) {
+      obj.passwordRef = message.passwordRef;
+    }
+    if (message.serviceName !== undefined) {
+      obj.serviceName = message.serviceName;
+    }
+    if (message.mtu !== undefined) {
+      obj.mtu = Math.round(message.mtu);
+    }
+    if (message.mssClamp !== undefined) {
+      obj.mssClamp = message.mssClamp;
+    }
+    if (message.defaultRoute !== undefined) {
+      obj.defaultRoute = message.defaultRoute;
+    }
+    if (message.dnsFromPeer !== undefined) {
+      obj.dnsFromPeer = message.dnsFromPeer;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.reconnect !== undefined) {
+      obj.reconnect = PppoeReconnect.toJSON(message.reconnect);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Pppoe>): Pppoe {
+    return Pppoe.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Pppoe>): Pppoe {
+    const message = createBasePppoe();
+    message.enabled = object.enabled ?? undefined;
+    message.parent = object.parent ?? undefined;
+    message.username = object.username ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
+    message.serviceName = object.serviceName ?? undefined;
+    message.mtu = object.mtu ?? undefined;
+    message.mssClamp = object.mssClamp ?? undefined;
+    message.defaultRoute = object.defaultRoute ?? undefined;
+    message.dnsFromPeer = object.dnsFromPeer ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
+    message.reconnect = (object.reconnect !== undefined && object.reconnect !== null)
+      ? PppoeReconnect.fromPartial(object.reconnect)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePppoeReconnect(): PppoeReconnect {
+  return { holdoffSec: undefined, maxFail: undefined };
+}
+
+export const PppoeReconnect: MessageFns<PppoeReconnect> = {
+  encode(message: PppoeReconnect, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.holdoffSec !== undefined) {
+      writer.uint32(8).uint32(message.holdoffSec);
+    }
+    if (message.maxFail !== undefined) {
+      writer.uint32(16).uint32(message.maxFail);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnect {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnect();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.holdoffSec = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.maxFail = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnect {
+    return {
+      holdoffSec: isSet(object.holdoffSec)
+        ? globalThis.Number(object.holdoffSec)
+        : isSet(object.holdoff_sec)
+        ? globalThis.Number(object.holdoff_sec)
+        : undefined,
+      maxFail: isSet(object.maxFail)
+        ? globalThis.Number(object.maxFail)
+        : isSet(object.max_fail)
+        ? globalThis.Number(object.max_fail)
+        : undefined,
+    };
+  },
+
+  toJSON(message: PppoeReconnect): unknown {
+    const obj: any = {};
+    if (message.holdoffSec !== undefined) {
+      obj.holdoffSec = Math.round(message.holdoffSec);
+    }
+    if (message.maxFail !== undefined) {
+      obj.maxFail = Math.round(message.maxFail);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnect>): PppoeReconnect {
+    return PppoeReconnect.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnect>): PppoeReconnect {
+    const message = createBasePppoeReconnect();
+    message.holdoffSec = object.holdoffSec ?? undefined;
+    message.maxFail = object.maxFail ?? undefined;
+    return message;
+  },
+};
+
+function createBasePppoeSessionState(): PppoeSessionState {
+  return {
+    phase: "",
+    sessionId: 0,
+    acMac: "",
+    acName: "",
+    localIpv4: "",
+    peerIpv4: "",
+    ipv6: "",
+    dns: [],
+    since: undefined,
+    failCount: 0,
+    lastError: "",
+  };
+}
+
+export const PppoeSessionState: MessageFns<PppoeSessionState> = {
+  encode(message: PppoeSessionState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.phase !== "") {
+      writer.uint32(10).string(message.phase);
+    }
+    if (message.sessionId !== 0) {
+      writer.uint32(16).uint32(message.sessionId);
+    }
+    if (message.acMac !== "") {
+      writer.uint32(26).string(message.acMac);
+    }
+    if (message.acName !== "") {
+      writer.uint32(34).string(message.acName);
+    }
+    if (message.localIpv4 !== "") {
+      writer.uint32(42).string(message.localIpv4);
+    }
+    if (message.peerIpv4 !== "") {
+      writer.uint32(50).string(message.peerIpv4);
+    }
+    if (message.ipv6 !== "") {
+      writer.uint32(58).string(message.ipv6);
+    }
+    for (const v of message.dns) {
+      writer.uint32(66).string(v!);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(74).fork()).join();
+    }
+    if (message.failCount !== 0) {
+      writer.uint32(80).uint32(message.failCount);
+    }
+    if (message.lastError !== "") {
+      writer.uint32(90).string(message.lastError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeSessionState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeSessionState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.phase = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.sessionId = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.acMac = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.acName = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.localIpv4 = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.peerIpv4 = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.dns.push(reader.string());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.failCount = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.lastError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeSessionState {
+    return {
+      phase: isSet(object.phase) ? globalThis.String(object.phase) : "",
+      sessionId: isSet(object.sessionId)
+        ? globalThis.Number(object.sessionId)
+        : isSet(object.session_id)
+        ? globalThis.Number(object.session_id)
+        : 0,
+      acMac: isSet(object.acMac)
+        ? globalThis.String(object.acMac)
+        : isSet(object.ac_mac)
+        ? globalThis.String(object.ac_mac)
+        : "",
+      acName: isSet(object.acName)
+        ? globalThis.String(object.acName)
+        : isSet(object.ac_name)
+        ? globalThis.String(object.ac_name)
+        : "",
+      localIpv4: isSet(object.localIpv4)
+        ? globalThis.String(object.localIpv4)
+        : isSet(object.local_ipv4)
+        ? globalThis.String(object.local_ipv4)
+        : "",
+      peerIpv4: isSet(object.peerIpv4)
+        ? globalThis.String(object.peerIpv4)
+        : isSet(object.peer_ipv4)
+        ? globalThis.String(object.peer_ipv4)
+        : "",
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : "",
+      dns: globalThis.Array.isArray(object?.dns)
+        ? object.dns.map((e: any) => globalThis.String(e))
+        : [],
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      failCount: isSet(object.failCount)
+        ? globalThis.Number(object.failCount)
+        : isSet(object.fail_count)
+        ? globalThis.Number(object.fail_count)
+        : 0,
+      lastError: isSet(object.lastError)
+        ? globalThis.String(object.lastError)
+        : isSet(object.last_error)
+        ? globalThis.String(object.last_error)
+        : "",
+    };
+  },
+
+  toJSON(message: PppoeSessionState): unknown {
+    const obj: any = {};
+    if (message.phase !== "") {
+      obj.phase = message.phase;
+    }
+    if (message.sessionId !== 0) {
+      obj.sessionId = Math.round(message.sessionId);
+    }
+    if (message.acMac !== "") {
+      obj.acMac = message.acMac;
+    }
+    if (message.acName !== "") {
+      obj.acName = message.acName;
+    }
+    if (message.localIpv4 !== "") {
+      obj.localIpv4 = message.localIpv4;
+    }
+    if (message.peerIpv4 !== "") {
+      obj.peerIpv4 = message.peerIpv4;
+    }
+    if (message.ipv6 !== "") {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.dns?.length) {
+      obj.dns = message.dns;
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.failCount !== 0) {
+      obj.failCount = Math.round(message.failCount);
+    }
+    if (message.lastError !== "") {
+      obj.lastError = message.lastError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeSessionState>): PppoeSessionState {
+    return PppoeSessionState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeSessionState>): PppoeSessionState {
+    const message = createBasePppoeSessionState();
+    message.phase = object.phase ?? "";
+    message.sessionId = object.sessionId ?? 0;
+    message.acMac = object.acMac ?? "";
+    message.acName = object.acName ?? "";
+    message.localIpv4 = object.localIpv4 ?? "";
+    message.peerIpv4 = object.peerIpv4 ?? "";
+    message.ipv6 = object.ipv6 ?? "";
+    message.dns = object.dns?.map((e) => e) || [];
+    message.since = object.since ?? undefined;
+    message.failCount = object.failCount ?? 0;
+    message.lastError = object.lastError ?? "";
     return message;
   },
 };

@@ -907,6 +907,8 @@ message InterfaceState {
   string rx_mode = 19;
   // Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none.
   string description = 20;
+  // PPPoE client session on this interface (F-pppoe-client); unset = not a PPPoE client.
+  PppoeSessionState pppoe = 21;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1113,6 +1115,11 @@ message Interface {
 
   // linux-cp pair of this interface (lcp_itf_pair_add_del_v3, P12); present = the pair exists.
   InterfaceLcp lcp = 22;
+
+  // F-pppoe-client (unanchored)
+
+  // PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client.
+  Pppoe pppoe = 23;
 }
 
 // DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
@@ -5178,6 +5185,67 @@ message InterfaceLcp {
   optional string host_if_type = 2;
   // Network namespace of the host interface; unset = the linux-cp default namespace.
   optional string netns = 3;
+}
+
+// Pppoe mirrors `interfaces.<name>.pppoe` (F-pppoe-client): a PPPoE client dialled by pppd on a linux-cp tap of the
+// parent, the ISP-assigned address/routes mirrored into VPP. The password is a secret reference, never inline.
+message Pppoe {
+  // Dial the session; Zod default true.
+  optional bool enabled = 1;
+  // Engine interface the session runs over; unset = this interface (set for a VLAN sub-interface WAN).
+  optional string parent = 2;
+  // PPP username (PAP/CHAP).
+  optional string username = 3;
+  // Reference to a stored password secret ("password/<name>"); never the password.
+  optional string password_ref = 4;
+  // RFC 2516 Service-Name to request; unset = accept any AC.
+  optional string service_name = 5;
+  // PPPoE payload MTU; Zod default 1492.
+  optional uint32 mtu = 6;
+  // Clamp forwarded TCP MSS to fit the MTU; Zod default true.
+  optional bool mss_clamp = 7;
+  // Install a default route via the session; Zod default true.
+  optional bool default_route = 8;
+  // Use the DNS servers the peer sends (IPCP); Zod default false.
+  optional bool dns_from_peer = 9;
+  // IPv6: "off" | "slaac" | "dhcpv6"; Zod default "off".
+  optional string ipv6 = 10;
+  // Reconnect policy.
+  PppoeReconnect reconnect = 11;
+}
+
+// PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`.
+message PppoeReconnect {
+  // Seconds to wait before redialling after the session drops; Zod default 5.
+  optional uint32 holdoff_sec = 1;
+  // Give up after this many failed dials in a row; 0 = forever; Zod default 0.
+  optional uint32 max_fail = 2;
+}
+
+// PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState.
+message PppoeSessionState {
+  // "down" | "dialing" | "up" | "failed".
+  string phase = 1;
+  // PPPoE session id (RFC 2516) once negotiated; 0 when down.
+  uint32 session_id = 2;
+  // MAC of the access concentrator (peer); empty when down.
+  string ac_mac = 3;
+  // AC name from the PADO tag; empty when unknown.
+  string ac_name = 4;
+  // Local (ISP-assigned) IPv4 address in CIDR, e.g. "203.0.113.5/32"; empty when none.
+  string local_ipv4 = 5;
+  // Peer (gateway) IPv4 address; empty when none.
+  string peer_ipv4 = 6;
+  // ISP-assigned IPv6 address/prefix; empty when none.
+  string ipv6 = 7;
+  // DNS servers the peer sent (IPCP), sorted; empty when none.
+  repeated string dns = 8;
+  // When the current session came up (agent clock); unset when down.
+  google.protobuf.Timestamp since = 9;
+  // Consecutive failed dials since the last success.
+  uint32 fail_count = 10;
+  // Last error text (pppd exit reason), empty when none.
+  string last_error = 11;
 }
 
 // RoutingStateRequest selects the parts of RoutingState to read (the BGP table, counts and pairs are always returned).

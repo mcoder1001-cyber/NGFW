@@ -7,8 +7,8 @@ import { closeSync, constants, fstatSync, openSync, readFileSync, type Stats } f
  * problem — never the content.
  * Review L7: the file is opened ONCE (O_NOFOLLOW) and checked and read through that descriptor (fstat), so a path swap
  * between the check and the read cannot slip another file in.
- * Used for the JWT key ring (VRX_JWT_KEY_FILE); the secret store's master key (VRX_SECRET_KEY_FILE,
- * secrets.service.ts) should call it too — that file belongs to TD-10a (TD-10b questions).
+ * Used for the JWT key ring (VRX_JWT_KEY_FILE) and the secret store's master key (VRX_SECRET_KEY_FILE,
+ * secrets.service.ts, readKeyFileBytes — SEC-auth L1).
  */
 export class KeyFileError extends Error {
   constructor(path: string, problem: string) {
@@ -88,6 +88,14 @@ function withKeyFile<T>(path: string, owners: KeyFileOwners, fn: (fd: number, st
 /** Check a key file (owner, mode, type) — the stat of the file that was checked. */
 export function checkKeyFile(path: string, owners: KeyFileOwners = processOwners()): Stats {
   return withKeyFile(path, owners, (_fd, st) => st);
+}
+
+/** Check and read a binary key file through one descriptor (SEC-auth L1: the secret store's master key). */
+export function readKeyFileBytes(
+  path: string,
+  owners: KeyFileOwners = processOwners(),
+): { bytes: Buffer; st: Stats } {
+  return withKeyFile(path, owners, (fd, st) => ({ bytes: readFileSync(fd), st }));
 }
 
 /** Check and read a key file through one descriptor. */

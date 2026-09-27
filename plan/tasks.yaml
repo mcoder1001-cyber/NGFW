@@ -3754,15 +3754,15 @@ tasks:
   - F-object-model
   priority: 3
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/agent/internal/subsystems/ruleexpiry/**'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from backlog BL-SEC-20 by the product owner (2026-09-27)
 - id: F-bruteforce-block
@@ -3793,8 +3793,8 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
-  state: running
+  finished: '2026-09-26'
+  state: merged
   wbs: []
   prompt: ''
   id: SEC-auth-fix
@@ -3806,4 +3806,23 @@ tasks:
   est_hours: 2
   scope: docs/status/tasks/SEC-auth-review.md M1, L1
   files_owned: apps/api/src/auth/auth.service.ts (createApiKey) apps/api/src/secrets/secrets.service.ts (masterKey) docs/status/tasks/SEC-auth-fix*
+  notes: ''
+- template: ''
+  parked_on: ''
+  branch: claude/charming-johnson-9k2puh
+  worktree: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
+  finished: '2026-09-26'
+  state: merged
+  wbs: []
+  prompt: ''
+  id: E2E-red-main
+  title: 'API e2e red on main: 8 tests in bgp, config (actions 501), neighbors-ra (arp-flush), unbound-chrony-syslog (dns-lookup), wireguard'
+  stage: S4
+  deps: []
+  priority: 2
+  est_hours: 3
+  scope: 'found by SEC-auth-fix running the full API e2e on a local PostgreSQL 16 + Redis; the cloud ports merged without the lab e2e'
+  files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
   notes: ''

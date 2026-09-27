@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { bgpFakeState } from '../../src/features/bgp/fake.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
+import { useTestLicense } from '../support/license.js';
 
 const PW = { op: runSecret(), ro: runSecret() };
 const MP = { 'content-type': 'application/merge-patch+json' };
@@ -17,7 +18,10 @@ describe('P12 BGP e2e (PostgreSQL + fake agent)', () => {
   let op: string;
   let ro: string;
 
+  let restoreLicense: (() => void) | undefined;
   beforeAll(async () => {
+    // a gated feature since F-licensing (E2E-red-main): licensed for this file only
+    restoreLicense = useTestLicense(['bgp']);
     h = await startHarness({});
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
@@ -27,7 +31,10 @@ describe('P12 BGP e2e (PostgreSQL + fake agent)', () => {
     op = await h.login('op1', PW.op);
     ro = await h.login('ro1', PW.ro);
   });
-  afterAll(async () => h?.close());
+  afterAll(async () => {
+    restoreLicense?.();
+    await h?.close();
+  });
 
   const interfaces = {
     loop111: { enabled: true, ipv4: ['10.1.111.1/24'], lcp: { hostIfName: 'w1-l111' } },

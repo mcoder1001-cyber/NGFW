@@ -3,6 +3,7 @@ import { EventKind } from '@ngfw/proto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { setFakeWireguardPeer } from '../../src/features/wireguard/fake.js';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
+import { useTestLicense } from '../support/license.js';
 
 const PW = { op: runSecret(), ro: runSecret() };
 const MP = { 'content-type': 'application/merge-patch+json' };
@@ -21,7 +22,10 @@ describe('F-wireguard e2e (PostgreSQL + fake agent)', () => {
   let pubB = '';
   const PEER_PUB = 'HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw=';
 
+  let restoreLicense: (() => void) | undefined;
   beforeAll(async () => {
+    // a gated feature since F-licensing (E2E-red-main): licensed for this file only
+    restoreLicense = useTestLicense(['wireguard'], { wireguardInterfaces: 16 });
     h = await startHarness({});
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
@@ -31,7 +35,10 @@ describe('F-wireguard e2e (PostgreSQL + fake agent)', () => {
     op = await h.login('op1', PW.op);
     ro = await h.login('ro1', PW.ro);
   });
-  afterAll(async () => h?.close());
+  afterAll(async () => {
+    restoreLicense?.();
+    await h?.close();
+  });
 
   it('key pair: stores key/<name>, returns the reference and the public key only (admin)', async () => {
     const r = await h.call(admin, 'POST', '/api/v1/actions/vpn/wireguard/keypair', {

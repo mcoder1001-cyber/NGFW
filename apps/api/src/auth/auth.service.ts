@@ -485,6 +485,14 @@ export class AuthService {
     }
     const token = newApiKeyToken();
     const scope = role === undefined ? user.role : lowerRole(user.role, role);
+    // SEC-auth M1: a key minted by an expiring API key never outlives it — without this a leaked 7-day key could mint a
+    // key that never expires (and survives the deletion of the leaked one). A key without expiry mints as before.
+    const requested =
+      expiresInDays === undefined ? null : new Date(Date.now() + expiresInDays * 86400_000);
+    const callerExp =
+      user.via === 'apikey' && user.exp !== undefined ? new Date(user.exp * 1000) : null;
+    const expiresAt =
+      callerExp !== null && (requested === null || requested > callerExp) ? callerExp : requested;
     const row = await this.db.transaction(async (tx) => {
       const [u] = await tx
         .select({
@@ -521,8 +529,7 @@ export class AuthService {
           name,
           hash: apiKeyHash(token),
           scopes: [scope],
-          expiresAt:
-            expiresInDays === undefined ? null : new Date(Date.now() + expiresInDays * 86400_000),
+          expiresAt,
         })
         .returning();
       return r!;

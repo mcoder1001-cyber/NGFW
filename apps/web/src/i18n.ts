@@ -49,6 +49,9 @@ import faQosFlat from './locales/fa/qos-flat.json';
 // wave-BC: F-host-stack
 import enHostStack from './locales/en/host-stack.json';
 import faHostStack from './locales/fa/host-stack.json';
+// F-dataplane-ui (unanchored)
+import enDataplane from './locales/en/dataplane.json';
+import faDataplane from './locales/fa/dataplane.json';
 // F-system-identity (unanchored)
 import enSystemIdentity from './locales/en/system-identity.json';
 import faSystemIdentity from './locales/fa/system-identity.json';
@@ -168,6 +171,7 @@ export const NAMESPACES = [
   'host-stack',
   // F-system-identity (unanchored)
   'system-identity',
+  'dataplane', // F-dataplane-ui (unanchored)
   // wave-BC: F-snmp
   'snmp',
   // wave-BC: F-ipfix-sflow
@@ -262,6 +266,7 @@ const en = {
   'host-stack': enHostStack,
   // F-system-identity (unanchored)
   'system-identity': enSystemIdentity,
+  dataplane: enDataplane, // F-dataplane-ui (unanchored)
   // wave-BC: F-snmp
   snmp: enSnmp,
   // wave-BC: F-ipfix-sflow
@@ -353,6 +358,7 @@ const fa = {
   'host-stack': faHostStack,
   // F-system-identity (unanchored)
   'system-identity': faSystemIdentity,
+  dataplane: faDataplane, // F-dataplane-ui (unanchored)
   // wave-BC: F-snmp
   snmp: faSnmp,
   // wave-BC: F-ipfix-sflow

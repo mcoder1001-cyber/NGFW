@@ -38,6 +38,7 @@ import {
 } from '@ngfw/proto';
 import { deepEqual, escapePointerSegment, ROOT_KEYS } from '@ngfw/schema';
 import { snmpStateFake } from '../features/snmp/fake.js'; // F-snmp (unanchored import)
+import { dataplaneFake } from '../features/dataplane/fake.js'; // F-dataplane-ui (unanchored)
 import { ipfixStateFake } from '../features/ipfix-sflow/fake.js'; // F-ipfix-sflow
 import { unboundChronySyslogFake } from '../features/unbound-chrony-syslog/fake.js';
 import { lbFake } from '../features/lb/fake.js';
@@ -849,6 +850,7 @@ export class FakeAgent {
       // wave-A: F-kea-dhcp-relay
       dhcpLeases: dhcpLeases(this),
       // wave-A: F-unbound-chrony-syslog
+      ...dataplaneFake(), // F-dataplane-ui (unanchored)
       ...unboundChronySyslogFake(this), // DnsState/NtpState/SyslogState/SyslogEntries + Action dns_lookup (others UNIMPLEMENTED)
     };
   }

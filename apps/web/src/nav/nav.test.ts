@@ -91,6 +91,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // F-qos-flat (unanchored)
       'services',
       'system', // F-system-identity (system group, schema domain first)
+      'dataplane', // F-dataplane-ui (system group, schema domain)
       'users',
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:

@@ -32,7 +32,7 @@ describe('SecretsService master key file (SEC-auth L1)', () => {
       err = e;
     }
     expect(err).toBeInstanceOf(ProblemError);
-    expect((err as ProblemError).status).toBe(503);
+    expect((err as ProblemError).getStatus()).toBe(503);
     expect((err as Error).message).toMatch(why);
   };
 

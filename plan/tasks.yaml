@@ -3632,7 +3632,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: '2026-09-26'
+  finished: '2026-09-27'
   notes: promoted from backlog BL-NET-01 by the product owner (2026-09-26)
 - id: F-multiwan
   title: Multi-WAN failover and weighted load sharing with ICMP/HTTP/DNS link health monitors

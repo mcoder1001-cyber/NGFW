@@ -1176,6 +1176,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/security/global-blocking': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Block lists with source, last download, next refresh and hit counters */
+    get: operations['GlobalBlocking_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview an uploaded block-list file; with dryRun=false stage it into the candidate */
+    post: operations['GlobalBlocking_import'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/fetch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Download the list from its server URL now; preview, or stage with dryRun=false */
+    post: operations['GlobalBlocking_fetch'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export a block list in the import format (one entry per line) */
+    get: operations['GlobalBlocking_export'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host-acl': {
     parameters: {
       query?: never;
@@ -13820,6 +13888,354 @@ export interface operations {
       };
       /** @description Conflict (candidate locked by another user, commit pending, …) */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            maxEntries: number;
+            /** @description entries over all lists (candidate) */
+            totalEntries: number;
+            /** @description why hits are null (agent unavailable) */
+            countersError: string | null;
+            lists: {
+              name: string;
+              description: string | null;
+              enabled: boolean;
+              /** @description candidate vs running */
+              pending: ('added' | 'changed' | 'deleted') | null;
+              source: {
+                /** @enum {string} */
+                kind: 'upload' | 'url';
+                url: string | null;
+                refreshSec: number | null;
+              };
+              allInterfaces: boolean;
+              interfaces: string[];
+              direction: string;
+              protectHost: boolean;
+              /** @description candidate */
+              entries: number;
+              runningEntries: number;
+              /** @description the last download (URL sources) */
+              fetch: {
+                lastFetchAt: string;
+                /** @enum {string} */
+                lastResult: 'ok' | 'unchanged' | 'failed' | 'deferred';
+                lastError: string | null;
+                etag?: string;
+                lastModified?: string;
+                entries?: number;
+              } | null;
+              nextRefreshAt: string | null;
+              hits: {
+                dataplanePackets: number;
+                dataplaneBytes: number;
+                /** @description drops of traffic to the box (protectHost) */
+                hostPackets: number;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_import: {
+    parameters: {
+      query?: {
+        dryRun?: boolean;
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'text/plain': string;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            dryRun: boolean;
+            lines: number;
+            /** @description valid entries after normalising, deduplicating and collapsing */
+            entries: number;
+            added: number;
+            removed: number;
+            unchanged: number;
+            /** @description entries whose host bits were masked */
+            normalised: number;
+            /** @description duplicates and entries covered by a wider one */
+            collapsed: number;
+            invalidCount: number;
+            /** @description first 200 invalid lines (skipped) */
+            invalid: {
+              line: number;
+              text: string;
+              reason: string;
+            }[];
+            /** @description first 100 */
+            addedSample: string[];
+            /** @description first 100 */
+            removedSample: string[];
+            /** @description the entries were written to the candidate */
+            staged: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_fetch: {
+    parameters: {
+      query?: {
+        dryRun?: boolean;
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            dryRun: boolean;
+            lines: number;
+            /** @description valid entries after normalising, deduplicating and collapsing */
+            entries: number;
+            added: number;
+            removed: number;
+            unchanged: number;
+            /** @description entries whose host bits were masked */
+            normalised: number;
+            /** @description duplicates and entries covered by a wider one */
+            collapsed: number;
+            invalidCount: number;
+            /** @description first 200 invalid lines (skipped) */
+            invalid: {
+              line: number;
+              text: string;
+              reason: string;
+            }[];
+            /** @description first 100 */
+            addedSample: string[];
+            /** @description first 100 */
+            removedSample: string[];
+            /** @description the entries were written to the candidate */
+            staged: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_export: {
+    parameters: {
+      query?: {
+        source?: 'running' | 'candidate';
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/plain': string;
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };

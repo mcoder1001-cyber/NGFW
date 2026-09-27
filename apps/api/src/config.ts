@@ -128,6 +128,8 @@ const Env = z.object({
   VRX_RULE_EXPIRY_WARN_DAYS: z.coerce.number().int().min(0).max(365).default(3),
   /** F-rule-expiry: how often the running configuration is scanned for expiring/expired rules (seconds). */
   VRX_RULE_EXPIRY_CHECK_SEC: z.coerce.number().int().min(5).max(86_400).default(300),
+  /** F-global-blocking: how often URL-sourced block lists are checked for a due refresh (seconds; 0 = never). */
+  VRX_GLOBAL_BLOCKING_CHECK_SEC: z.coerce.number().int().min(0).max(86_400).default(60),
   /** `production` in the packaged unit (P10): development switches such as VRX_DEV_WEAK_PASSWORDS are refused. */
   NODE_ENV: z.string().optional(),
 }).superRefine((env, ctx) => {

@@ -44,6 +44,13 @@ import { commitBudget, type CommitBudget } from './budget.js';
 import { PgAdvisoryLock, poolOf } from './pg-lock.js';
 import { planEntry, ValidationService, type PlanEntry } from './validation.service.js';
 
+/** The author of system changes (no app_user row: revisions and pending commits store a null author). */
+export const SYSTEM_PRINCIPAL: Principal = { id: 0, username: 'system', role: 'admin', via: 'jwt' };
+
+function authorOf(user: Principal): number | null {
+  return user.id > 0 ? user.id : null;
+}
+
 export interface CommitOptions {
   /** Seconds until the agent self-reverts unless confirmed (P06 §4, proto.md §4). 0/undefined = no timer. */
   confirmSec?: number;
@@ -529,6 +536,39 @@ export class CommitService implements OnApplicationShutdown {
     });
   }
 
+  /**
+   * F-global-blocking: a system change (a scheduled block-list refresh) — running with `change` applied, committed as
+   * revision kind `system` without an author. Only while nobody edits: with uncommitted candidate changes or a pending
+   * (confirm-timer) commit it returns `deferred` and the caller tries again later; a busy commit lock is `deferred` too.
+   * `change` returns null when there is nothing to change.
+   */
+  async systemCommit(
+    change: (running: Doc) => Doc | null,
+    comment: string,
+  ): Promise<{ status: 'deferred'; reason: string } | { status: 'unchanged' } | CommitResult> {
+    try {
+      return await this.lock.tryRun(async () => {
+        if ((await this.repo.pending()) !== null)
+          return { status: 'deferred' as const, reason: 'a commit is waiting for confirmation' };
+        const c = await this.repo.candidate();
+        if (c.payload !== null)
+          return { status: 'deferred' as const, reason: 'the candidate has uncommitted changes' };
+        const running = await this.repo.latestRevision();
+        const next = change(structuredClone(running?.payload ?? emptyDocument()));
+        if (next === null) return { status: 'unchanged' as const };
+        return this.applyDocument(SYSTEM_PRINCIPAL, next, {
+          comment,
+          kind: 'system',
+          parentId: running?.id ?? null,
+        });
+      }, this.budget.lockWaitMs);
+    } catch (e) {
+      if (e instanceof LockBusyError)
+        return { status: 'deferred', reason: 'another commit is in progress' };
+      throw e;
+    }
+  }
+
   /** New revision whose payload is revision `rev`'s, applied through the agent (P06 §4). */
   rollback(user: Principal, rev: number, opts: CommitOptions): Promise<CommitResult> {
     return this.userSection(async () => {
@@ -746,7 +786,7 @@ export class CommitService implements OnApplicationShutdown {
     const stored = stagedHashesOnly(v.config as Doc, doc);
     const confirmSec = opts.confirmSec ?? 0;
     const meta = {
-      authorId: user.id,
+      authorId: authorOf(user),
       comment: opts.comment ?? '',
       kind: opts.kind,
       clearPending: false,
@@ -846,7 +886,7 @@ export class CommitService implements OnApplicationShutdown {
           txnId,
           payload: stored,
           hash: documentHash(redact(v.config)),
-          authorId: user.id,
+          authorId: authorOf(user),
           comment: opts.comment ?? '',
           parentId: opts.parentId,
           kind: opts.kind,

@@ -5,14 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"sort"
 	"strings"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // VRFDescriptor manages one VRF = an IPv4 and an IPv6 FIB table with the same id, named
@@ -143,6 +146,9 @@ func (d *VRFDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 		return nil, fmt.Errorf("%w %T", ErrBadValue, obj)
 	}
 	created, err := d.ensure(ctx, v)
+	if err == nil {
+		d.forgetKept(v.GetId())
+	}
 	if err != nil {
 		if len(created) > 0 {
 			// do not leave half a VRF behind — only what this call created
@@ -162,6 +168,9 @@ func (d *VRFDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message
 		return nil, scheduler.ErrRecreate
 	}
 	_, err := d.ensure(ctx, n)
+	if err == nil {
+		d.forgetKept(n.GetId())
+	}
 	return meta, err
 }
 
@@ -174,8 +183,110 @@ func (d *VRFDescriptor) Reapply(ctx context.Context, obj proto.Message, _ any) e
 }
 
 // Delete implements scheduler.Descriptor: only families still named "<owner>:<vrf>".
+//
+// TD-26 (V-new (c) of F-nat44-ei-64-66-nptv6): ip_table_add_del(del) removes only the API lock
+// (fib_table_lock_clear); a table another VPP source still locks (nat64 never releases the locks
+// its prefixes and static BIB entries take) survives, still named "<owner>:<vrf>", until VPP
+// restarts. The agent cannot remove it, so it must not fail the transaction ("still present" in
+// verify → rollback, or DEGRADED on every resync): the families that survive the delete are
+// recorded for this VPP boot (D-080), warned about, and hidden from Retrieve. A later Create or
+// Update of the same VRF re-asserts the table (a new API lock) and drops the record; a new VPP
+// boot expires it.
 func (d *VRFDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
-	return d.remove(ctx, asTable(obj))
+	v := asTable(obj)
+	if err := d.remove(ctx, v); err != nil {
+		return err
+	}
+	name, err := TableName(d.Owner, v.GetVrf())
+	if err != nil {
+		return err
+	}
+	have, err := d.families(ctx, v.GetId())
+	if err != nil {
+		return err
+	}
+	var left []bool
+	for _, v6 := range []bool{false, true} {
+		if n, ok := have[v6]; ok && n == name {
+			left = append(left, v6)
+		}
+	}
+	if len(left) == 0 {
+		d.forgetKept(v.GetId())
+		return nil
+	}
+	boot, err := bootid.Current(ctx, d.Client)
+	if err != nil {
+		return fmt.Errorf("vrf/%d: table kept alive by VPP after delete, boot identity unknown: %w", v.GetId(), err)
+	}
+	keptMu.Lock()
+	keptTables[d.keptKey(v.GetId())] = keptTable{name: name, fams: left, boot: boot}
+	keptMu.Unlock()
+	slog.Warn("vrf: VPP keeps the deleted FIB table locked (e.g. nat64 never unlocks it); left in VPP until it restarts, hidden from Retrieve",
+		"table_id", v.GetId(), "name", name, "ipv6_only", len(left) == 1 && left[0], "boot", boot.String())
+	return nil
+}
+
+// keptTable is one TD-26 record: families of a VRF we deleted that VPP keeps alive, bound to the
+// VPP boot identity they were seen on (D-080).
+type keptTable struct {
+	name string
+	fams []bool
+	boot bootid.Identity
+}
+
+type keptKey struct {
+	client vpp.Client
+	owner  string
+	id     uint32
+}
+
+// The records live per VPP connection and owner (the descriptor value itself is registered by
+// core.Register and carries only Env). In memory only: an agent restart forgets them, and the
+// next resync plans the delete again, which records them again.
+var (
+	keptMu     sync.Mutex
+	keptTables = map[keptKey]keptTable{}
+)
+
+func (d *VRFDescriptor) keptKey(id uint32) keptKey {
+	return keptKey{client: d.Client, owner: d.Owner, id: id}
+}
+
+func (d *VRFDescriptor) forgetKept(id uint32) {
+	keptMu.Lock()
+	delete(keptTables, d.keptKey(id))
+	keptMu.Unlock()
+}
+
+// kept returns this owner's records valid on the running VPP boot; records of another boot are
+// expired. nil when there are none (no control_ping then).
+func (d *VRFDescriptor) kept(ctx context.Context) (map[uint32]keptTable, error) {
+	keptMu.Lock()
+	var mine map[uint32]keptTable
+	for k, r := range keptTables {
+		if k.client == d.Client && k.owner == d.Owner {
+			if mine == nil {
+				mine = map[uint32]keptTable{}
+			}
+			mine[k.id] = r
+		}
+	}
+	keptMu.Unlock()
+	if mine == nil {
+		return nil, nil
+	}
+	boot, err := bootid.Current(ctx, d.Client)
+	if err != nil {
+		return nil, err
+	}
+	for id, r := range mine {
+		if !r.boot.Equal(boot) {
+			delete(mine, id)
+			d.forgetKept(id)
+		}
+	}
+	return mine, nil
 }
 
 // Retrieve implements scheduler.Descriptor: tables named "<owner>:<vrf>", both families merged.
@@ -194,6 +305,10 @@ func (d *VRFDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 }
 
 func (d *VRFDescriptor) dump(ctx context.Context) ([]*Table, error) {
+	kept, err := d.kept(ctx)
+	if err != nil {
+		return nil, err
+	}
 	stream, err := ip.NewServiceClient(d.Client).IPTableDump(ctx, &ip.IPTableDump{})
 	if err != nil {
 		return nil, fmt.Errorf("ip_table_dump: %w", err)
@@ -217,6 +332,9 @@ func (d *VRFDescriptor) dump(ctx context.Context) ([]*Table, error) {
 		if !ok || t.Table.TableID == 0 || strings.ContainsAny(vrf, "\x00:") {
 			continue
 		}
+		if r, isKept := kept[t.Table.TableID]; isKept && r.name == trimNul(t.Table.Name) && hasFam(r.fams, t.Table.IsIP6) {
+			continue // TD-26: deleted by us, kept alive by VPP on this boot
+		}
 		f := byID[t.Table.TableID]
 		if f == nil {
 			f = &fam{vrf: vrf}
@@ -239,4 +357,13 @@ func (d *VRFDescriptor) dump(ctx context.Context) ([]*Table, error) {
 		out = append(out, &Table{Id: id, Vrf: f.vrf, MissingIp4: !f.v4, MissingIp6: !f.v6})
 	}
 	return out, nil
+}
+
+func hasFam(fams []bool, v6 bool) bool {
+	for _, f := range fams {
+		if f == v6 {
+			return true
+		}
+	}
+	return false
 }

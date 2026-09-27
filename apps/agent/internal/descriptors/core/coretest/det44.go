@@ -173,7 +173,7 @@ func (v *VPP) installDet44() *Det44 {
 		}
 		ratio := uint32(1) << (uint32(r.OutPlen) - uint32(r.InPlen))
 		d.Maps = append(d.Maps, &det44.Det44MapDetails{InAddr: r.InAddr, InPlen: r.InPlen, OutAddr: r.OutAddr, OutPlen: r.OutPlen,
-			SharingRatio: ratio, PortsPerHost: uint16((65535 - 1023) / ratio)})
+			SharingRatio: ratio, PortsPerHost: uint16((65535 - 1023) / ratio)}) //nolint:gosec // ratio ≥ 1: ≤ 64512
 		return one(&det44.Det44AddDelMapReply{})
 	})
 	v.On("det44_map_dump", func(api.Message) ([]api.Message, error) {

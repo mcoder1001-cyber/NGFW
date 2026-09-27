@@ -95,6 +95,10 @@ New suites inside those totals:
  ✓ src/features/aaa/mfa.test.ts   (3 tests)      # who mfa.required covers
 ```
 
+After merging current main into the branch (20 commits, no conflicts; the generated api-client was **regenerated**
+rather than hand-merged and came out byte-identical to the textual merge) the whole suite still passes, now including
+main's own tests: **57 files / 346 unit** and **52 files / 270 e2e**.
+
 `tsc -p tsconfig.json` and `eslint src test` clean. `route-guard.test.ts` (P06 acceptance: no route without a guard)
 passes with the three new public ticket routes and the admin reset added to its reviewed tables.
 

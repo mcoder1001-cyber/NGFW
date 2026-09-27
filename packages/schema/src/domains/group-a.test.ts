@@ -460,6 +460,7 @@ describe('routing', () => {
     expect(RoutingSchema.parse({})).toEqual({
       static: [],
       policy: { prefixLists: {}, routeMaps: {} },
+      wanGroups: [], // F-multiwan
     });
     expect(failPath(RoutingSchema, { prefixLists: {} })).toEqual([]);
     expect(
@@ -532,6 +533,11 @@ describe('management', () => {
       order: ['local'],
       radius: { servers: [] },
       tacacs: { servers: [] },
+      // F-aaa: external backends added to the AAA envelope
+      ldap: { servers: [] },
+      roleMap: [],
+      mfa: { required: 'none', issuer: 'vrx' },
+      fallbackLocal: true,
     });
     expect(failPath(AaaSchema, { order: ['local', 'local'] })).toEqual(['order']);
     expect(failPath(AaaSchema, { order: ['radius', 'local'] })).toEqual(['radius', 'servers']);

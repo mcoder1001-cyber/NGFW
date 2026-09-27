@@ -12,6 +12,7 @@ import { TunnelsSchema } from './domains/tunnels.js';
 import { ServicesSchema } from './domains/services.js';
 import { HaSchema } from './domains/ha.js';
 import { ManagementSchema } from './domains/management.js';
+import { SecuritySchema } from './domains/security.js';
 
 /**
  * Root configuration document — the single JSON object stored as `config_revision.payload`
@@ -41,6 +42,7 @@ export const RootConfig = z.strictObject({
   services: ServicesSchema.prefault({}),
   ha: HaSchema.prefault({}),
   management: ManagementSchema.prefault({}),
+  security: SecuritySchema.prefault({}),
 });
 
 export type RootConfig = z.infer<typeof RootConfig>;
@@ -67,6 +69,7 @@ export * from './domains/tunnels.js';
 export * from './domains/services.js';
 export * from './domains/ha.js';
 export * from './domains/management.js';
+export * from './domains/security.js'; // F-bruteforce-block
 // Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
 // wave-BC: F-det44-map-dslite-cnat
 // wave-BC: F-pki

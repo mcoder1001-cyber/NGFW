@@ -249,5 +249,32 @@ export const alarm = pgTable(
   ],
 );
 // wave-BC: F-aaa
+// F-bruteforce-block: the live auto-block set (runtime state, not part of the committed document). One row per
+// blocked source; `expires_at` drives expiry, `offences` drives escalation. Manual entries have origin 'manual'.
+export const autoBlock = pgTable(
+  'auto_block',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    // The blocked source, canonical (a bare address is stored as /32 or /128).
+    source: text('source').notNull(),
+    // Which detector caught it (webLogin | ssh | vpnAuth | portScan | manual).
+    reason: text('reason').notNull(),
+    // Failures counted in the window that tripped the block (0 for a manual block).
+    hits: integer('hits').notNull().default(0),
+    // How many times this source has been blocked (drives escalation of the block time).
+    offences: integer('offences').notNull().default(1),
+    // 'auto' (a detector) or 'manual' (an admin blocked it by hand).
+    origin: text('origin').notNull().default('auto'),
+    note: text('note').notNull().default(''),
+    firstSeen: ts('first_seen').notNull().defaultNow(),
+    blockedAt: ts('blocked_at').notNull().defaultNow(),
+    expiresAt: ts('expires_at').notNull(),
+  },
+  (t) => [
+    // one live row per source: a repeat offence updates it (bumps offences, extends expiry)
+    uniqueIndex('auto_block_source_uq').on(t.source),
+    index('auto_block_expires_idx').on(t.expiresAt),
+  ],
+);
 // wave-BC: F-licensing
 // wave-BC: F-backup-restore

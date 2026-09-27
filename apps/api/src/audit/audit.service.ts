@@ -47,11 +47,35 @@ export class AuditService {
   private folded = 0;
   private lastFailureEvent = 0;
   private window = { minute: -1, counts: new Map<string, number>() };
+  private readonly observers: ((e: AuditEntry) => void)[] = [];
 
   constructor(
     @Inject(DB) private readonly db: Db,
     private readonly events: SystemEventsService,
   ) {}
+
+  /**
+   * Watch every audited entry as it is written (F-bruteforce-block: the auto-block detector reads failed logins from
+   * here, so the security-critical login path is not touched). Observers run synchronously, best-effort — an observer
+   * that throws can never affect the audit write or the request that triggered it. Returns an unsubscribe.
+   */
+  onEntry(fn: (e: AuditEntry) => void): () => void {
+    this.observers.push(fn);
+    return () => {
+      const i = this.observers.indexOf(fn);
+      if (i >= 0) this.observers.splice(i, 1);
+    };
+  }
+
+  private notify(e: AuditEntry): void {
+    for (const fn of this.observers) {
+      try {
+        fn(e);
+      } catch (err) {
+        this.log.warn(`audit observer threw: ${String(err)}`);
+      }
+    }
+  }
 
   /** Audit writes that failed since the process started (TD-10b counter; also in each AUDIT_WRITE_FAILED event). */
   get writeFailures(): number {
@@ -73,6 +97,8 @@ export class AuditService {
   }
 
   async write(e: AuditEntry): Promise<void> {
+    // Notify observers first, so a detector (F-bruteforce-block) sees the event even if the DB write below fails.
+    this.notify(e);
     try {
       await this.db.insert(auditLog).values(this.values(e));
     } catch (err) {

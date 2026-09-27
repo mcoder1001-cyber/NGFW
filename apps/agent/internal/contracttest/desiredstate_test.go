@@ -26,7 +26,7 @@ const (
 // rootKeys mirrors ROOT_KEYS in packages/schema/src/index.ts (documented order, docs/04).
 var rootKeys = []string{
 	"system", "dataplane", "interfaces", "vrfs", "routing", "nat", "objects",
-	"acl", "vpn", "tunnels", "services", "ha", "management",
+	"acl", "vpn", "tunnels", "services", "ha", "management", "security",
 }
 
 // strict is the decoder the agent must use for documents coming from the API: unknown fields are
@@ -471,6 +471,10 @@ func TestTypedConstruction(t *testing.T) {
 		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}},
 		Ha:         &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"lan": {}}},
 		Management: &vrxv1.ManagementConfig{Users: []*vrxv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin"), Scope: proto.String("*"), SshKeys: []string{"ssh-ed25519 AAAAC3 test"}}}},
+		Security: &vrxv1.SecurityConfig{AutoBlock: &vrxv1.AutoBlock{Enabled: proto.Bool(true), MaxEntries: proto.Uint32(10000),
+			Allowlist: []string{"10.0.0.0/8"},
+			Rules: []*vrxv1.AutoBlockRule{{Source: proto.String("webLogin"), Enabled: proto.Bool(true), Threshold: proto.Uint32(5),
+				WindowSec: proto.Uint32(60), BlockSec: proto.Uint32(900), Escalate: proto.Bool(true), MaxBlockSec: proto.Uint32(86400)}}}},
 	}
 	// Every root key is populated in this literal.
 	m := ds.ProtoReflect()

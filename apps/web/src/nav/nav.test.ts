@@ -60,6 +60,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'adl',
       'host-acl', // F-host-acl-nftables (firewall group, after adl)
       'global-blocking', // F-global-blocking (firewall group, after host-acl)
+      'auto-block', // F-bruteforce-block (firewall group, after global-blocking)
       // wave-A: P12
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-object-model

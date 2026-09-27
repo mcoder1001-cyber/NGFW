@@ -124,7 +124,7 @@ describe('F-aaa e2e (PostgreSQL + fake agent)', () => {
 
   it('501 for a not-yet-implemented backend, 403 for an operator', async () => {
     const ni = await h.call(admin, 'POST', '/api/v1/actions/aaa/test', {
-      method: 'ldap',
+      method: 'tacacs',
       username: 'x',
       password: 'y',
     });

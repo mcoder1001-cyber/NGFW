@@ -46,6 +46,16 @@ function accountLocked(): ProblemError {
   );
 }
 
+/** F-aaa-hardening: an API key minted without MFA while the policy now covers its owner. */
+export function mfaRequiredKey(): ProblemError {
+  return new ProblemError(
+    401,
+    'mfa-required',
+    'Second factor required',
+    'this API key was not minted from a login session that passed the second factor, and management.aaa.mfa.required now covers its owner; mint a new key from an MFA-verified session',
+  );
+}
+
 /**
  * F-aaa-login: an external identity has no local password, so a password step-up (API-key creation, own MFA
  * set-up) cannot be satisfied from its login session. Refused (D-100 option (b); re-authenticating against the
@@ -616,6 +626,19 @@ export class AuthService {
     }
     if (!mfaRequiredFor(policy.mfaRequired, role)) return false;
     return !(await this.sidHasMfa(sid));
+  }
+
+  /**
+   * F-aaa-hardening: refuse-at-use (no revocation on a policy raise — lowering the policy again revives the keys).
+   * The policy covers the key OWNER's role (not the key's cap). Fail closed like mfaMissing: an unreadable policy
+   * refuses keys that were not minted under MFA.
+   */
+  private async keyMfaMissing(role: Role): Promise<boolean> {
+    try {
+      return mfaRequiredFor((await this.aaa.cachedPolicy()).mfaRequired, role);
+    } catch {
+      return true;
+    }
   }
 
   /** Resolve a login challenge (not consumed); null when unknown/expired or the account changed since. */
@@ -1226,6 +1249,8 @@ export class AuthService {
     if (row === undefined) return null;
     const now = new Date();
     if (row.user.disabled || (row.key.expiresAt !== null && row.key.expiresAt <= now)) return null;
+    // F-aaa-hardening: a key minted without an MFA-verified session does not bypass a policy raised since
+    if (!row.key.mfaVerified && (await this.keyMfaMissing(row.user.role))) throw mfaRequiredKey();
     void this.db
       .update(apiKey)
       .set({ lastUsed: now })
@@ -1302,6 +1327,8 @@ export class AuthService {
       user.via === 'apikey' && user.exp !== undefined ? new Date(user.exp * 1000) : null;
     const expiresAt =
       callerExp !== null && (requested === null || requested > callerExp) ? callerExp : requested;
+    // F-aaa-hardening: MFA state at mint time — a session that passed MFA, or a key that was minted so
+    let mfaVerified = user.via === 'jwt' && (await this.sidHasMfa(user.sid));
     const row = await this.db.transaction(async (tx) => {
       const [u] = await tx
         .select({
@@ -1326,8 +1353,12 @@ export class AuthService {
         const [k] =
           user.keyId === undefined
             ? []
-            : await tx.select({ id: apiKey.id }).from(apiKey).where(eq(apiKey.id, user.keyId));
+            : await tx
+                .select({ id: apiKey.id, mfa: apiKey.mfaVerified })
+                .from(apiKey)
+                .where(eq(apiKey.id, user.keyId));
         if (k === undefined) throw problems.unauthorized('the API key was revoked');
+        mfaVerified = k.mfa;
       } else if (!this.tokens.sessionCurrent(user, u.gen)) {
         throw problems.unauthorized('the password was changed; log in again');
       }
@@ -1339,6 +1370,7 @@ export class AuthService {
           hash: apiKeyHash(token),
           scopes: [scope],
           expiresAt,
+          mfaVerified,
         })
         .returning();
       return r!;

@@ -16,6 +16,7 @@ describe('F-aaa-mfa-lockout e2e (PostgreSQL + fake agent)', () => {
   let apiKey: string;
 
   const asKey = { authorization: '' };
+  const mfaKey = { authorization: '' };
   const stage = (token: string | undefined, required: string, headers?: Record<string, string>) =>
     h.call(
       token,
@@ -85,6 +86,21 @@ describe('F-aaa-mfa-lockout e2e (PostgreSQL + fake agent)', () => {
     expect(c.status, c.raw).toBe(200);
     expect(await running()).toBe('admins');
     expect((await h.call(admin, 'GET', '/api/v1/auth/me')).status).toBe(200);
+
+    // F-aaa-hardening: the key minted before the raise (no MFA session) no longer bypasses the policy …
+    // (the login policy is cached for up to 5 s, as for Bearer sessions)
+    const me = () => h.call(undefined, 'GET', '/api/v1/auth/me', undefined, asKey);
+    await expect.poll(async () => (await me()).status, { timeout: 8000, interval: 250 }).toBe(401);
+    const old = await me();
+    expect(old.body.type).toMatch(/mfa-required$/);
+    // … a key minted from this MFA-verified session works
+    const k2 = await h.call(admin, 'POST', '/api/v1/auth/api-keys', {
+      name: 'automation-mfa',
+      current: h.adminPassword,
+    });
+    expect(k2.status, k2.raw).toBe(201);
+    mfaKey.authorization = `ApiKey ${k2.body.key as string}`;
+    expect((await h.call(undefined, 'GET', '/api/v1/auth/me', undefined, mfaKey)).status).toBe(200);
   });
 
   it('lowering is always allowed — even with no admin enrolled and no MFA session', async () => {
@@ -92,15 +108,22 @@ describe('F-aaa-mfa-lockout e2e (PostgreSQL + fake agent)', () => {
     const r = await h.call(admin, 'DELETE', '/api/v1/auth/mfa/users/admin');
     expect(r.status, r.raw).toBe(204);
     // raising further (admins → all) from the API key is refused …
-    expect((await stage(undefined, 'all', asKey)).status).toBe(200);
-    const up = await commit(undefined, asKey);
+    expect((await stage(undefined, 'all', mfaKey)).status).toBe(200);
+    const up = await commit(undefined, mfaKey);
     expect(up.status, up.raw).toBe(400);
     expect(up.body.errors[0].pointer).toBe(POINTER);
     // … lowering (admins → none) is not
-    expect((await stage(undefined, 'none', asKey)).status).toBe(200);
-    const down = await commit(undefined, asKey);
+    expect((await stage(undefined, 'none', mfaKey)).status).toBe(200);
+    const down = await commit(undefined, mfaKey);
     expect(down.status, down.raw).toBe(200);
     admin = await h.login('admin', h.adminPassword); // no factor needed any more
     expect(await running()).toBe('none');
+    // refuse-at-use, not revocation: with the policy lowered the pre-MFA key works again
+    await expect
+      .poll(
+        async () => (await h.call(undefined, 'GET', '/api/v1/auth/me', undefined, asKey)).status,
+        { timeout: 8000, interval: 250 },
+      )
+      .toBe(200);
   });
 });

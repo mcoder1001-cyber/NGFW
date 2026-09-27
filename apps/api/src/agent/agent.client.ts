@@ -18,6 +18,7 @@ import {
   type PppoeReconnectResponse,
   type WanStateResponse,
   type MulticastStateResponse,
+  type MplsLdpStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
@@ -234,6 +235,11 @@ export class AgentClient implements OnModuleDestroy {
   /** F-igmp-mfib: live IGMP groups, mFIB and PIM neighbours; an agent without multicast answers 501. */
   multicastState(): Promise<MulticastStateResponse> {
     return this.unary(this.c.multicastState, { owner: this.owner });
+  }
+
+  /** F-mpls-ldp: live LDP neighbours, LIB bindings and the FRR→VPP sync status; an agent without LDP answers 501. */
+  mplsLdpState(): Promise<MplsLdpStateResponse> {
+    return this.unary(this.c.mplsLdpState, { owner: this.owner });
   }
 
   /** F-pppoe-client: redial a PPPoE client now; an agent without PPPoE support answers 501. */

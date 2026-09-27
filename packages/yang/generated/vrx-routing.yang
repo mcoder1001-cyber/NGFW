@@ -1454,6 +1454,60 @@ module vrx-routing {
           }
         }
       }
+      container ldp {
+        description "LDP label distribution (FRR ldpd; the agent syncs labels into the VPP MPLS FIB)";
+        leaf routerId {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+          description "the LDP router-id (an IPv4 address, usually a loopback)";
+        }
+        leaf transportAddress {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+          description "the address LDP sessions are established over; must be configured on a default-VRF interface or loopback";
+        }
+        leaf-list interfaces {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          description "interfaces LDP runs on; each must be MPLS-enabled (listed in routing.mpls.interfaces) and in the default VRF";
+        }
+        list neighbors {
+          key "name";
+          leaf name {
+            type string;
+            description "The map key.";
+          }
+          description "per-peer settings keyed by the peer LSR-ID";
+          leaf passwordRef {
+            type string {
+              pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            description "password/<name> for the LDP session (TCP-MD5); never the password itself";
+          }
+        }
+        container labelRange {
+          description "the block LDP allocates local labels from; omit for FRR’s default";
+          leaf min {
+            type uint32 {
+              range "16..1048575";
+            }
+            default "16";
+          }
+          leaf max {
+            type uint32 {
+              range "16..1048575";
+            }
+            default "1048575";
+          }
+        }
+      }
     }
     container multicast {
       description "IPv4 multicast: IGMPv3, static multicast routes, and PIM-SM via FRR";

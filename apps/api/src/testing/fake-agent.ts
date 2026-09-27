@@ -872,6 +872,28 @@ export class FakeAgent {
           pimNeighbors: [],
         });
       },
+      mplsLdpState: (call, cb) => {
+        if (!this.checkCommon('MplsLdpState', call.request, cb)) return;
+        const routing = (this.current['routing'] ?? {}) as Json;
+        const mpls = (routing['mpls'] ?? {}) as Json;
+        const ldp = mpls['ldp'] as Json | undefined;
+        // the fake reports one OPERATIONAL neighbour per configured neighbour key, no bindings, an idle sync
+        const neighbors = ldp
+          ? Object.keys((ldp['neighbors'] as Record<string, Json>) ?? {}).map((lsr) => ({
+              lsrId: lsr,
+              address: lsr,
+              state: 'OPERATIONAL',
+              uptimeSec: 0,
+            }))
+          : [];
+        cb(null, {
+          owner: this.owner,
+          retrievedAt: new Date('2026-09-27T00:00:00.000Z'),
+          neighbors,
+          bindings: [],
+          sync: { lastSyncAt: undefined, installed: 0, conflicts: 0, lastError: '', source: ldp ? 'ldp-bindings' : '' },
+        });
+      },
       pppoeReconnect: (call, cb) => {
         if (!this.checkCommon('PppoeReconnect', call.request, cb)) return;
         const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;

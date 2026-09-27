@@ -1,0 +1,26 @@
+{
+  "tab": "LDP",
+  "intro": "LDP (RFC 5036) label distribution: FRR ldpd runs the protocol and the box syncs the labels into the VPP MPLS FIB. Configure LDP under Config → Routing → MPLS.",
+  "refresh": "Refresh",
+  "loading": "Loading LDP state",
+  "agentError": "Live LDP state is unavailable: {{error}}",
+  "sync": {
+    "title": "FRR → VPP label sync",
+    "ok": "Synced",
+    "idle": "Idle",
+    "error": "Error",
+    "detail": "{{installed}} routes installed, {{conflicts}} conflicts; source: {{source}}"
+  },
+  "neighbors": {
+    "title": "Neighbours",
+    "empty": "No LDP neighbours.",
+    "col": { "lsrId": "LSR-ID", "address": "Address", "state": "State", "uptime": "Uptime (s)" }
+  },
+  "bindings": {
+    "title": "Label bindings (LIB)",
+    "empty": "No label bindings.",
+    "yes": "yes",
+    "no": "no",
+    "col": { "prefix": "Prefix", "localLabel": "Local label", "peer": "Peer", "remoteLabel": "Remote label", "inUse": "In use" }
+  }
+}

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ipFamily } from '../../ip.js';
 import { ipAddress, ipNetwork, vppInterfaceName, vrfName } from '../../primitives.js';
 import { withUi } from '../../ui.js';
+import { mplsLdpField } from './mpls-ldp.js'; // wave-BC: F-mpls-ldp
 
 /**
  * F-mpls-srmpls sub-schemas (wave-A-hotspots C1; WBS D2.8): the `routing` domain object carries one key line under its
@@ -298,6 +299,7 @@ export const MplsSchema = z.strictObject({
   sr: withUi(MplsSrSchema.prefault({}), { title: 'SR-MPLS', order: 6 }),
   // Keys added by later tasks (additive, one key line each):
   // wave-BC: F-mpls-ldp
+  ldp: mplsLdpField,
 });
 export type MplsConfig = z.infer<typeof MplsSchema>;
 

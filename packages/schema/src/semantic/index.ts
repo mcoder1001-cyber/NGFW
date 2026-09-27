@@ -72,6 +72,7 @@ import { multiwanValidators } from './multiwan.js'; // F-multiwan (unanchored)
 import { aaaValidators } from './aaa.js'; // wave-BC: F-aaa
 import { autoBlockValidators } from './auto-block.js'; // F-bruteforce-block
 import { igmpMfibValidators } from './igmp-mfib.js'; // wave-BC: F-igmp-mfib
+import { mplsLdpValidators } from './mpls-ldp.js'; // wave-BC: F-mpls-ldp
 
 export * from './registry.js';
 
@@ -110,6 +111,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
+  ...mplsLdpValidators,
   // wave-BC: F-igmp-mfib
   ...igmpMfibValidators,
   // wave-BC: F-ha-state-sync

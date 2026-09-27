@@ -68,6 +68,7 @@ import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
+import { mplsLdpFeature } from './features/mpls-ldp/index.js';
 // wave-BC: F-igmp-mfib
 import { igmpMfibFeature } from './features/igmp-mfib/index.js';
 // wave-BC: F-dashboard-prom-alarms
@@ -181,6 +182,7 @@ export class AppModule {
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
+        ...mplsLdpFeature.controllers,
         // wave-BC: F-igmp-mfib
         ...igmpMfibFeature.controllers,
         // wave-BC: F-dashboard-prom-alarms
@@ -288,6 +290,7 @@ export class AppModule {
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
+        ...mplsLdpFeature.providers,
         // wave-BC: F-igmp-mfib
         ...igmpMfibFeature.providers,
         // wave-BC: F-dashboard-prom-alarms

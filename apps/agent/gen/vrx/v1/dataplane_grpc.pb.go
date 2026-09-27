@@ -90,6 +90,7 @@ const (
 	Dataplane_PppoeReconnect_FullMethodName          = "/vrx.v1.Dataplane/PppoeReconnect"
 	Dataplane_WanState_FullMethodName                = "/vrx.v1.Dataplane/WanState"
 	Dataplane_MulticastState_FullMethodName          = "/vrx.v1.Dataplane/MulticastState"
+	Dataplane_MplsLdpState_FullMethodName            = "/vrx.v1.Dataplane/MplsLdpState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -272,6 +273,10 @@ type DataplaneClient interface {
 	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
 	// an agent without multicast (→ 501).
 	MulticastState(ctx context.Context, in *MulticastStateRequest, opts ...grpc.CallOption) (*MulticastStateResponse, error)
+	// wave-BC: F-mpls-ldp
+	// MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
+	// agent without LDP (→ 501).
+	MplsLdpState(ctx context.Context, in *MplsLdpStateRequest, opts ...grpc.CallOption) (*MplsLdpStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -758,6 +763,16 @@ func (c *dataplaneClient) MulticastState(ctx context.Context, in *MulticastState
 	return out, nil
 }
 
+func (c *dataplaneClient) MplsLdpState(ctx context.Context, in *MplsLdpStateRequest, opts ...grpc.CallOption) (*MplsLdpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MplsLdpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_MplsLdpState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -938,6 +953,10 @@ type DataplaneServer interface {
 	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
 	// an agent without multicast (→ 501).
 	MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error)
+	// wave-BC: F-mpls-ldp
+	// MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
+	// agent without LDP (→ 501).
+	MplsLdpState(context.Context, *MplsLdpStateRequest) (*MplsLdpStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -1079,6 +1098,9 @@ func (UnimplementedDataplaneServer) WanState(context.Context, *WanStateRequest) 
 }
 func (UnimplementedDataplaneServer) MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MulticastState not implemented")
+}
+func (UnimplementedDataplaneServer) MplsLdpState(context.Context, *MplsLdpStateRequest) (*MplsLdpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MplsLdpState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1865,6 +1887,24 @@ func _Dataplane_MulticastState_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_MplsLdpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MplsLdpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).MplsLdpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_MplsLdpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).MplsLdpState(ctx, req.(*MplsLdpStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2031,6 +2071,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MulticastState",
 			Handler:    _Dataplane_MulticastState_Handler,
+		},
+		{
+			MethodName: "MplsLdpState",
+			Handler:    _Dataplane_MplsLdpState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -1849,7 +1849,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.2
@@ -1859,10 +1859,10 @@ tasks:
     (new, on descriptors/dfkit) docs/agent/descriptors/pcap.md docs/agent/descriptors/trace.md docs/agent/descriptors/pg.md apps/agent/internal/actions/capture-trace/** apps/agent/internal/subsystems/capture_trace*.go
     apps/agent/internal/agent/rpc_capture_trace*.go apps/api/src/features/capture-trace/** apps/api/test/e2e/capture-trace* apps/web/src/domains/tools/capture-trace/** apps/web/src/locales/{en,fa}/capture-trace.json
     docs/user/tools/capture-trace.md test/topology/capture-trace/** docs/status/tasks/F-capture-trace*'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-vpp-debs (tracedump/tracenode build flag, V18) then manager binapi regen — docs/status/tasks/prompts-s4.md'
 - id: F-vrrp-config-sync

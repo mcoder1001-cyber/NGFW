@@ -3407,12 +3407,12 @@ tasks:
     2->2); review running | review APPROVE f39560f3; merger: TD-10a → TD-11c → TD-8b → TD-9'
 - template: ''
   parked_on: ''
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
-  state: ready
+  state: running
   wbs: *id002
   prompt: ''
   id: TD-21

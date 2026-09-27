@@ -1,0 +1,1001 @@
+module vrx-nat {
+  yang-version 1.1;
+  namespace "urn:vrx:nat";
+  prefix vrx-nat;
+
+  organization "VRX";
+  contact "https://vrx.dev";
+  description "Configuration of the 'nat' domain, generated from the VRX Zod schema (F-restconf-yang).";
+
+  revision 2026-01-01 {
+    description "Generated from the VRX schema.";
+  }
+
+  container nat {
+    description "NAT44 (ED/EI) with pools, static/port-forward/identity/load-balanced mappings; NAT64, NAT66, NPTv6, DET44 CGNAT, DS-Lite, MAP-E/T, lw4o6 and CNAT.";
+    leaf enabled {
+      type boolean;
+      description "Omit = on when interfaces, pools or mappings are configured; false = keep the configuration but disable NAT44";
+    }
+    leaf mode {
+      type enumeration {
+        enum "ed";
+        enum "ei";
+      }
+      default "ed";
+      description "ed = endpoint-dependent (nat44-ed), ei = endpoint-independent (nat44-ei)";
+    }
+    leaf-list inside {
+      type string {
+        pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+        length "1..63";
+      }
+      description "Local side";
+    }
+    leaf-list outside {
+      type string {
+        pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+        length "1..63";
+      }
+      description "Public side";
+    }
+    leaf-list outputFeature {
+      type string {
+        pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+        length "1..63";
+      }
+      description "NAT applied on the output path (post-routing)";
+    }
+    leaf insideVrf {
+      type string {
+        pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+        length "1..63";
+      }
+    }
+    leaf outsideVrf {
+      type string {
+        pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+        length "1..63";
+      }
+    }
+    leaf forwarding {
+      type boolean;
+      default "false";
+      description "Forward traffic that matches no NAT session";
+    }
+    leaf staticMappingOnly {
+      type boolean;
+      default "false";
+    }
+    leaf connectionTracking {
+      type boolean;
+      default "false";
+    }
+    leaf sessionLimit {
+      type uint32 {
+        range "1024..2147483647";
+      }
+      description "Max sessions per worker thread; omit = engine default";
+    }
+    leaf-list pools {
+      type union {
+        type string;
+        type string;
+      }
+    }
+    list staticMappings {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf name {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf protocol {
+        type enumeration {
+          enum "tcp";
+          enum "udp";
+          enum "icmp";
+        }
+      }
+      container local {
+        leaf ip {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+        }
+        leaf port {
+          type uint32 {
+            range "1..65535";
+          }
+        }
+      }
+      container external {
+        leaf ip {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          description "Exactly one of ip / pool / interface";
+        }
+        leaf pool {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          description "Name of an entry in nat.pools; a range pool contributes its start address, an interface pool its interface address";
+        }
+        leaf interface {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          description "Use this interface’s address";
+        }
+        leaf port {
+          type uint32 {
+            range "1..65535";
+          }
+          description "Requires protocol and local.port";
+        }
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+      }
+      leaf twiceNat {
+        type boolean;
+        default "false";
+      }
+      leaf selfTwiceNat {
+        type boolean;
+        default "false";
+        description "Twice-NAT only when the source is the external address";
+      }
+      leaf out2inOnly {
+        type boolean;
+        default "false";
+      }
+      leaf expiresAt {
+        type string {
+          pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+        }
+        description "RFC 3339; the rule stops matching at this time without a commit and stays in the configuration marked expired";
+      }
+      leaf owner {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "1..64";
+        }
+        description "who asked for this rule";
+      }
+      leaf ticket {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "1..64";
+        }
+        description "change or ticket reference, e.g. CHG-1234";
+      }
+    }
+    list identityMappings {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf ip {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+        }
+      }
+      leaf interface {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "Exactly one of ip / interface";
+      }
+      leaf protocol {
+        type enumeration {
+          enum "tcp";
+          enum "udp";
+          enum "icmp";
+        }
+      }
+      leaf port {
+        type uint32 {
+          range "1..65535";
+        }
+        description "Requires protocol";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+      }
+    }
+    list loadBalancedMappings {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf name {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf protocol {
+        type enumeration {
+          enum "tcp";
+          enum "udp";
+        }
+        mandatory true;
+      }
+      container external {
+        leaf ip {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+        }
+        leaf port {
+          type uint32 {
+            range "1..65535";
+          }
+          mandatory true;
+        }
+      }
+      list locals {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf ip {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          mandatory true;
+        }
+        leaf port {
+          type uint32 {
+            range "1..65535";
+          }
+          mandatory true;
+        }
+        leaf probability {
+          type uint32 {
+            range "1..255";
+          }
+          default "1";
+        }
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+      }
+      leaf affinity {
+        type uint32 {
+          range "0..2147483647";
+        }
+        default "0";
+        description "Client affinity in seconds; 0 = none";
+      }
+      leaf twiceNat {
+        type boolean;
+        default "false";
+      }
+      leaf selfTwiceNat {
+        type boolean;
+        default "false";
+      }
+      leaf out2inOnly {
+        type boolean;
+        default "false";
+      }
+    }
+    container timeouts {
+      leaf udp {
+        type uint32 {
+          range "1..2147483647";
+        }
+        default "300";
+        description "seconds";
+      }
+      leaf tcpEstablished {
+        type uint32 {
+          range "1..2147483647";
+        }
+        default "7440";
+        description "seconds";
+      }
+      leaf tcpTransitory {
+        type uint32 {
+          range "1..2147483647";
+        }
+        default "240";
+        description "seconds";
+      }
+      leaf icmp {
+        type uint32 {
+          range "1..2147483647";
+        }
+        default "60";
+        description "seconds";
+      }
+    }
+    container ipfix {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf domainId {
+        type uint32 {
+          range "1..4294967295";
+        }
+      }
+      leaf sourcePort {
+        type uint32 {
+          range "1..65535";
+        }
+      }
+    }
+    container nat64 {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf-list inside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "IPv6-only side";
+      }
+      leaf-list outside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "IPv4 side";
+      }
+      list prefixes {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf prefix {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Network prefix, RFC 6052 length 32/40/48/56/64/96; default 64:ff9b::/96";
+        }
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+      }
+      list pools {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf range {
+          type string {
+            pattern "(\\d{1,3}(\\.\\d{1,3}){3})(-(\\d{1,3}(\\.\\d{1,3}){3}))?";
+          }
+          mandatory true;
+          description "10.0.0.10-10.0.0.20";
+        }
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+      }
+      list staticBibs {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf protocol {
+          type enumeration {
+            enum "tcp";
+            enum "udp";
+            enum "icmp";
+          }
+          mandatory true;
+        }
+        container inside {
+          leaf ip {
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+            }
+            mandatory true;
+          }
+          leaf port {
+            type uint32 {
+              range "1..65535";
+            }
+            mandatory true;
+          }
+        }
+        container outside {
+          leaf ip {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+            mandatory true;
+          }
+          leaf port {
+            type uint32 {
+              range "1..65535";
+            }
+            mandatory true;
+          }
+        }
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+      }
+      container timeouts {
+        leaf udp {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "300";
+          description "seconds";
+        }
+        leaf tcpEstablished {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "7440";
+          description "seconds";
+        }
+        leaf tcpTransitory {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "240";
+          description "seconds";
+        }
+        leaf icmp {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "60";
+          description "seconds";
+        }
+      }
+    }
+    container nat66 {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf-list inside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+      }
+      leaf-list outside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+      }
+      list staticMappings {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf local {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+          mandatory true;
+        }
+        leaf external {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+          mandatory true;
+        }
+        leaf vrf {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+      }
+    }
+    container nptv6 {
+      list bindings {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf interface {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf internal {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Network prefix — host bits must be zero";
+        }
+        leaf external {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Network prefix — host bits must be zero";
+        }
+      }
+    }
+    container det44 {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf-list inside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+      }
+      leaf-list outside {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+      }
+      leaf insideVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+      }
+      leaf outsideVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+      }
+      list mappings {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf inside {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+          }
+          mandatory true;
+          description "Network prefix — host bits must be zero";
+        }
+        leaf outside {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+          }
+          mandatory true;
+          description "Network prefix (no host bits); length ≥ inside length; ≤ 15 bits difference";
+        }
+      }
+      container timeouts {
+        leaf udp {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "300";
+          description "seconds";
+        }
+        leaf tcpEstablished {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "7440";
+          description "seconds";
+        }
+        leaf tcpTransitory {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "240";
+          description "seconds";
+        }
+        leaf icmp {
+          type uint32 {
+            range "1..2147483647";
+          }
+          default "60";
+          description "seconds";
+        }
+      }
+    }
+    container dslite {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      container aftr {
+        leaf ipv6 {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+          mandatory true;
+        }
+        leaf ipv4 {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+        }
+      }
+      container b4 {
+        leaf ipv6 {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+          mandatory true;
+        }
+        leaf ipv4 {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+        }
+      }
+      list pools {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf range {
+          type string {
+            pattern "(\\d{1,3}(\\.\\d{1,3}){3})(-(\\d{1,3}(\\.\\d{1,3}){3}))?";
+          }
+          mandatory true;
+          description "10.0.0.10-10.0.0.20";
+        }
+      }
+    }
+    container map {
+      list interfaces {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        description "MAP runs only on these interfaces (map_if_enable_disable)";
+        leaf interface {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf mode {
+          type enumeration {
+            enum "map-e";
+            enum "map-t";
+          }
+          mandatory true;
+          description "map-e = encapsulation (MAP-E and lw4o6 domains); map-t = translation (engine is_translation)";
+        }
+      }
+      list domains {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf name {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf mode {
+          type enumeration {
+            enum "map-e";
+            enum "map-t";
+            enum "lw4o6";
+          }
+          mandatory true;
+          description "map-e / lw4o6: ipv6Source is the BR address (/128); map-t: ipv6Source is the DMR prefix (/64 or /96). Interfaces pick encapsulation vs translation in map.interfaces";
+        }
+        leaf ipv4Prefix {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+          }
+          mandatory true;
+          description "Network prefix — host bits must be zero";
+        }
+        leaf ipv6Prefix {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Network prefix — host bits must be zero";
+        }
+        leaf ipv6Source {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Engine map_add_domain.ip6_src: /128 for MAP-E and lw4o6, /64 or /96 for MAP-T";
+        }
+        leaf eaBitsLength {
+          type uint32 {
+            range "0..64";
+          }
+          default "0";
+          description "ipv6Prefix length + EA bits ≤ 64";
+        }
+        leaf psidOffset {
+          type uint32 {
+            range "0..16";
+          }
+          default "0";
+        }
+        leaf psidLength {
+          type uint32 {
+            range "0..16";
+          }
+          default "0";
+          description "offset + length ≤ 16";
+        }
+        leaf mtu {
+          type uint32 {
+            range "1280..9216";
+          }
+        }
+        list rules {
+          // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+          ordered-by user;
+          description "Per-PSID destinations (lw4o6 / MAP-E with rules)";
+          leaf psid {
+            type uint32 {
+              range "0..65535";
+            }
+            mandatory true;
+          }
+          leaf ipv6Destination {
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+            }
+            mandatory true;
+          }
+        }
+      }
+      container parameters {
+        container fragmentation {
+          leaf inner {
+            type boolean;
+            default "false";
+          }
+          leaf ignoreDf {
+            type boolean;
+            default "false";
+          }
+        }
+        leaf icmpSourceAddress {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+        }
+        leaf icmp6Unreachables {
+          type boolean;
+          default "false";
+        }
+        container securityCheck {
+          leaf enabled {
+            type boolean;
+            default "false";
+          }
+          leaf fragments {
+            type boolean;
+            default "false";
+          }
+        }
+        leaf tcpMss {
+          type uint32 {
+            range "0..65535";
+          }
+        }
+        container trafficClass {
+          leaf copy {
+            type boolean;
+            default "false";
+          }
+          leaf value {
+            type uint32 {
+              range "0..255";
+            }
+          }
+        }
+        container preResolve {
+          leaf ipv4 {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf ipv6 {
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+            }
+          }
+        }
+      }
+    }
+    container cnat {
+      list translations {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf name {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf protocol {
+          type enumeration {
+            enum "tcp";
+            enum "udp";
+          }
+          mandatory true;
+        }
+        container vip {
+          leaf ip {
+            type union {
+              type string {
+                pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+              }
+              type string {
+                pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+              }
+            }
+            mandatory true;
+          }
+          leaf port {
+            type uint32 {
+              range "1..65535";
+            }
+            mandatory true;
+          }
+        }
+        list backends {
+          // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+          ordered-by user;
+          leaf ip {
+            type union {
+              type string {
+                pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+              }
+              type string {
+                pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+              }
+            }
+            mandatory true;
+          }
+          leaf port {
+            type uint32 {
+              range "1..65535";
+            }
+            mandatory true;
+          }
+        }
+        leaf lbType {
+          type enumeration {
+            enum "default";
+            enum "maglev";
+          }
+          default "default";
+        }
+      }
+      container snat {
+        leaf policy {
+          type enumeration {
+            enum "none";
+            enum "interface";
+            enum "k8s";
+          }
+          default "none";
+          description "interface = SNAT on outside interfaces; k8s = Kubernetes semantics";
+        }
+        container addresses {
+          leaf ipv4 {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf ipv6 {
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+            }
+          }
+          leaf interface {
+            type string {
+              pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+              length "1..63";
+            }
+            description "Take the SNAT addresses from this interface (cnat_set_snat_addresses.sw_if_index)";
+          }
+        }
+        list interfaces {
+          // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+          ordered-by user;
+          description "One entry per (interface, table)";
+          leaf interface {
+            type string {
+              pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+              length "1..63";
+            }
+            mandatory true;
+          }
+          leaf table {
+            type enumeration {
+              enum "include-v4";
+              enum "include-v6";
+              enum "pod";
+              enum "host";
+            }
+            mandatory true;
+            description "include-v4 / include-v6: interfaces whose IPv4 / IPv6 traffic is SNATed (policy \"interface\"); pod / host: Kubernetes pod-facing / host interfaces (policy \"k8s\")";
+          }
+        }
+        leaf-list excludePrefixes {
+          type union {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+            }
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+            }
+          }
+        }
+      }
+    }
+  }
+}

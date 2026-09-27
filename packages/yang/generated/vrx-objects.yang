@@ -1,0 +1,132 @@
+module vrx-objects {
+  yang-version 1.1;
+  namespace "urn:vrx:objects";
+  prefix vrx-objects;
+
+  organization "VRX";
+  contact "https://vrx.dev";
+  description "Configuration of the 'objects' domain, generated from the VRX Zod schema (F-restconf-yang).";
+
+  revision 2026-01-01 {
+    description "Generated from the VRX schema.";
+  }
+
+  container objects {
+    description "Reusable address, address-group, service, service-group, schedule, zone and tag objects referenced by ACL and NAT.";
+    list addresses {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+    }
+    list addressGroups {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      leaf-list members {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names from objects.addresses or objects.addressGroups; may be empty while the group is being built, but an ACL rule may not reference an empty group";
+      }
+    }
+    list services {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+    }
+    list serviceGroups {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      leaf-list members {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names from objects.services or objects.serviceGroups; may be empty while the group is being built, but an ACL rule may not reference an empty group";
+      }
+    }
+    list schedules {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+    }
+    list zones {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      leaf-list interfaces {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+      }
+    }
+    list tags {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf color {
+        type string {
+          pattern "#[0-9a-fA-F]{6}";
+        }
+      }
+    }
+  }
+}

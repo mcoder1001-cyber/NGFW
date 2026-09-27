@@ -220,6 +220,9 @@ importers:
       '@ngfw/schema':
         specifier: workspace:*
         version: link:../../packages/schema
+      '@ngfw/yang':
+        specifier: workspace:*
+        version: link:../../packages/yang
       '@node-rs/argon2':
         specifier: ^2.2.1
         version: 2.2.1
@@ -502,6 +505,25 @@ importers:
       ws:
         specifier: ^8
         version: 8.21.3
+
+  packages/yang:
+    dependencies:
+      '@ngfw/schema':
+        specifier: workspace:*
+        version: link:../schema
+      zod:
+        specifier: ^4
+        version: 4.6.5
+    devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.4
+      typescript:
+        specifier: ^5.6
+        version: 5.9.3
+      vitest:
+        specifier: ^3
+        version: 3.2.7(@types/node@22.20.4)(jsdom@26.1.0(supports-color@10.2.2))(supports-color@10.2.2)(tsx@4.23.15)
 
 packages:
 

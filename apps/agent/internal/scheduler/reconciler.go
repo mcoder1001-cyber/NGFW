@@ -16,6 +16,7 @@ package scheduler
 // depend on).
 
 import (
+	"container/heap"
 	"context"
 	"errors"
 	"fmt"
@@ -706,21 +707,22 @@ func (s *Scheduler) topoThrough(nodes, through map[Key]KV) (order []Key, cycle [
 		}
 		return a < b
 	}
-	var ready []Key
+	// TD-21: a min-heap on less instead of re-sorting the whole ready set per pop (was O(n² log n)).
+	// less is a total order (keys are unique), so the order is identical to the sorted version.
+	ready := &keyHeap{less: less}
 	for k := range nodes {
 		if len(deps[k]) == 0 {
-			ready = append(ready, k)
+			ready.keys = append(ready.keys, k)
 		}
 	}
-	for len(ready) > 0 {
-		sort.Slice(ready, func(i, j int) bool { return less(ready[i], ready[j]) })
-		k := ready[0]
-		ready = ready[1:]
+	heap.Init(ready)
+	for ready.Len() > 0 {
+		k := heap.Pop(ready).(Key)
 		order = append(order, k)
 		for _, u := range users[k] {
 			delete(deps[u], k)
 			if len(deps[u]) == 0 {
-				ready = append(ready, u)
+				heap.Push(ready, u)
 			}
 		}
 		delete(deps, k)
@@ -1173,25 +1175,29 @@ func (x *executor) dependents(key Key, value proto.Message) []Key {
 		k Key
 		v proto.Message
 	}
+	// TD-21: index the live objects by the keys they depend on once per call, instead of scanning
+	// (and sorting) every live object for every frontier item (was O(n²) in the dependent count).
+	byDep := make(map[Key][]Key)
+	for k, kv := range x.live {
+		if k == key {
+			continue
+		}
+		for _, dep := range x.descriptor(k).Dependencies(kv.Value) {
+			byDep[dep.Key] = append(byDep[dep.Key], k)
+		}
+	}
 	frontier := []item{{key, value}}
 	for len(frontier) > 0 {
 		cur := frontier[0]
 		frontier = frontier[1:]
-		provided := provides(cur.k, cur.v)
-		for _, k := range sortedKeys(x.live) {
-			if k == key {
-				continue
-			}
-			if _, seen := users[k]; seen {
-				continue
-			}
-			kv := x.live[k]
-			for _, dep := range x.descriptor(k).Dependencies(kv.Value) {
-				if provided[dep.Key] {
-					users[k] = kv
-					frontier = append(frontier, item{k, kv.Value})
-					break
+		for p := range provides(cur.k, cur.v) {
+			for _, k := range byDep[p] {
+				if _, seen := users[k]; seen {
+					continue
 				}
+				kv := x.live[k]
+				users[k] = kv
+				frontier = append(frontier, item{k, kv.Value})
 			}
 		}
 	}
@@ -1252,4 +1258,21 @@ func sortedKVs(m map[Key]KV) []KV {
 
 func sortIssues(is []Issue) {
 	sort.SliceStable(is, func(i, j int) bool { return is[i].Key < is[j].Key })
+}
+
+// keyHeap is a container/heap of keys ordered by less (TD-21).
+type keyHeap struct {
+	keys []Key
+	less func(a, b Key) bool
+}
+
+func (h *keyHeap) Len() int           { return len(h.keys) }
+func (h *keyHeap) Less(i, j int) bool { return h.less(h.keys[i], h.keys[j]) }
+func (h *keyHeap) Swap(i, j int)      { h.keys[i], h.keys[j] = h.keys[j], h.keys[i] }
+func (h *keyHeap) Push(x any)         { h.keys = append(h.keys, x.(Key)) }
+func (h *keyHeap) Pop() any {
+	n := len(h.keys) - 1
+	k := h.keys[n]
+	h.keys = h.keys[:n]
+	return k
 }

@@ -72,6 +72,8 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-BC: F-ipfix-sflow (unanchored)
   // F-qos-flat (unanchored)
   'services',
+  // F-system-identity (unanchored): the System screen, no longer "soon" (DEC-system-identity)
+  'system',
 ]);
 
 export function domainPath(key: RootKey): string {

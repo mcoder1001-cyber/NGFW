@@ -12,6 +12,7 @@
 // apps/agent/internal/contracttest). The Zod→proto drift guard is P03b's: JSON Schema ⊆ proto fields
 // in Go (contracttest drift_test.go) and `RootConfig.parse()`d documents in parsed-documents.test.ts.
 import { readdirSync, readFileSync } from 'node:fs';
+import { ROOT_KEYS } from '@ngfw/schema';
 import { describe, expect, it } from 'vitest';
 import {
   ActionOutput,
@@ -31,22 +32,6 @@ import {
   type StaticRoute,
 } from '../gen/ts/vrx/v1/dataplane.js';
 
-/** Mirrors ROOT_KEYS in packages/schema/src/index.ts (documented order, docs/04). */
-const ROOT_KEYS = [
-  'system',
-  'dataplane',
-  'interfaces',
-  'vrfs',
-  'routing',
-  'nat',
-  'objects',
-  'acl',
-  'vpn',
-  'tunnels',
-  'services',
-  'ha',
-  'management',
-] as const;
 
 /** Document corpora: the schema package's examples plus the proto-local fixtures. */
 const corpora = {
@@ -76,9 +61,20 @@ const corpus: { name: string; doc: unknown }[] = [
 ];
 
 describe('DesiredState mirrors RootConfig', () => {
-  it('has exactly the 13 root keys in ROOT_KEYS order', () => {
-    // createBase* lists the fields in declaration (= field number) order.
-    expect(Object.keys(DesiredState.fromPartial({}))).toEqual([...ROOT_KEYS]);
+  it('has exactly the schema ROOT_KEYS as fields, in ROOT_KEYS order', () => {
+    // Drift guard: the expected set is derived from packages/schema (RootConfig.shape), never a
+    // hand-kept copy. createBase* lists the fields in declaration (= field number) order.
+    const protoKeys = Object.keys(DesiredState.fromPartial({}));
+    const schemaKeys: string[] = [...ROOT_KEYS];
+    const drift = {
+      missingFromProto: schemaKeys.filter((k) => !protoKeys.includes(k)),
+      missingFromSchema: protoKeys.filter((k) => !schemaKeys.includes(k)),
+    };
+    expect(drift, 'schema ROOT_KEYS vs proto DesiredState fields').toEqual({
+      missingFromProto: [],
+      missingFromSchema: [],
+    });
+    expect(protoKeys, 'DesiredState field order must follow ROOT_KEYS').toEqual(schemaKeys);
   });
 
   it('corpus covers the schema examples and the all-domains fixture', () => {
@@ -346,6 +342,7 @@ describe('DesiredState mirrors RootConfig', () => {
       management: {
         users: [{ username: 'admin', role: 'admin', scope: '*', sshKeys: [], disabled: false }],
       },
+      security: { autoBlock: { enabled: false } },
     });
     for (const key of ROOT_KEYS) {
       expect(ds[key], key).toBeDefined();

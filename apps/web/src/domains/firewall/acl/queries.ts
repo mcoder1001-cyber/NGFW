@@ -95,7 +95,7 @@ export function pointerUrl(
 const auth = authMiddleware(session);
 const absolute = (url: string) => `${globalThis.location?.origin ?? ''}${url}`;
 
-async function asResult(
+export async function asResult(
   response: Response,
 ): Promise<{ data?: unknown; error?: unknown; response: Response }> {
   const text = await response.text();
@@ -212,7 +212,7 @@ export function useBulk(list: string) {
 export const CSV_TIMEOUT_MS = 300_000;
 
 /** The token handling of api.ts's middleware (bearer + one refresh on 401) with the CSV deadline. */
-async function longRequest(url: string, init: RequestInit, ms = CSV_TIMEOUT_MS): Promise<Response> {
+export async function longRequest(url: string, init: RequestInit, ms = CSV_TIMEOUT_MS): Promise<Response> {
   const make = (token: string | null) => {
     const headers = new Headers(init.headers);
     if (token !== null) headers.set('authorization', `Bearer ${token}`);

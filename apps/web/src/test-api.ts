@@ -42,7 +42,7 @@ export function installFakeApi(role: 'admin' | 'operator' | 'readonly' = 'admin'
   vi.stubGlobal('fetch', async (input: Request) => {
     const url = new URL(input.url, 'http://localhost');
     const text = input.method === 'GET' || input.method === 'HEAD' ? '' : await input.clone().text();
-    const body = text ? (JSON.parse(text) as unknown) : undefined;
+    const body = !text ? undefined : (input.headers.get('content-type') ?? '').startsWith('text/') ? text : (JSON.parse(text) as unknown);
     api.calls.push({ method: input.method, path: url.pathname, search: url.search, body, auth: input.headers.get('authorization') });
     const h = handlers.get(`${input.method} ${url.pathname}`);
     if (!h) return json(404, { type: 'https://vrx.dev/problems/not-found', title: 'Not found', status: 404 });

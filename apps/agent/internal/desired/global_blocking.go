@@ -89,8 +89,6 @@ type gbPlan struct {
 	pointer map[string]string         // interface → the list that first selected it (object pointer)
 }
 
-func (p *gbPlan) empty() bool { return p == nil || len(p.in)+len(p.out) == 0 }
-
 // globalBlocking emits the block-list ACLs of ds.acl.globalBlocking and returns what they add to the
 // bindings. A list with an error emits nothing (the transaction fails on the error anyway).
 func (x *aclExpander) globalBlocking(ds *vrxv1.DesiredState) *gbPlan {

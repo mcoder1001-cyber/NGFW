@@ -221,7 +221,7 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 		switch vrrpEngine(v) {
 		case vrrpEngineKeepal:
 			if f := v.GetVrf(); f != "" && f != "default" {
-				s.Errorf(Ptr("ha", "vrrp", name, "vrf"), vrrpRule, "the keepalived engine supports only the default VRF (got %q)", f)
+				s.Warnf(Ptr("ha", "vrrp", name, "vrf"), "ha.vrrp-keepalived-vrf", "keepalived instance %s is skipped: the keepalived engine supports only the default VRF (got %q)", name, f)
 				continue
 			}
 			if _, ok := lcp[v.GetInterface()]; !ok {

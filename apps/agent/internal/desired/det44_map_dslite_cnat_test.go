@@ -7,7 +7,11 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/internal/descriptors/mapnat"
+	"ngfw/agent/internal/descriptors/nat46"
+	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/desired"
+	"ngfw/agent/internal/scheduler"
 )
 
 func TestDet44Projection(t *testing.T) {
@@ -72,7 +76,7 @@ func TestMapProjection(t *testing.T) {
 	s = newSink()
 	desired.Nat(s, natDoc(t, `{"map": {"domains": [
 	  {"name": "a", "mode": "map-t", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128"},
-	  {"name": "b", "mode": "lw4o6", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128", "eaBitsLength": 8},
+	  {"name": "b", "mode": "lw4o6", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128", "eaBitsLength": 8, "rules": [{"psid": 0, "ipv6Destination": "fd00:9::9"}]},
 	  {"name": "c", "mode": "map-e", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128", "psidLength": 2, "rules": [{"psid": 4, "ipv6Destination": "fd00:9::4"}]}]}}`), vrfID)
 	want = "/nat/map/domains/0/ipv6Source nat.map-valid,/nat/map/domains/1/eaBitsLength nat.map-valid,/nat/map/domains/2/rules/0/psid nat.map-valid"
 	if got := strings.Join(s.errs, ","); got != want {
@@ -126,5 +130,33 @@ func TestCgnatRoundTrip(t *testing.T) {
 		gj, _ := protojson.Marshal(got)
 		wj, _ := protojson.Marshal(want)
 		t.Fatalf("round trip\n got %s\nwant %s", gj, wj)
+	}
+}
+
+func TestMapDomainNamesAndLw4o6Rules(t *testing.T) {
+	s := newSink()
+	desired.Nat(s, natDoc(t, `{"map": {"domains": [
+	  {"name": "", "mode": "map-e", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128"},
+	  {"name": "nat46-x", "mode": "map-e", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128"},
+	  {"name": "lw", "mode": "lw4o6", "ipv4Prefix": "10.9.65.0/24", "ipv6Prefix": "fd00:9:65::/64", "ipv6Source": "fd00:9::1/128", "psidLength": 4}]}}`), vrfID)
+	want := "/nat/map/domains/0/name nat.map-valid,/nat/map/domains/1/name nat.map-valid,/nat/map/domains/2/rules nat.map-valid"
+	if got := strings.Join(s.errs, ","); got != want || len(s.kvs) != 0 {
+		t.Fatalf("errs %s keys %v", got, s.keys())
+	}
+	// a nat46-owned domain (and its rules) is never assembled into nat.map
+	s = newSink()
+	desired.Nat(s, natDoc(t, `{"map": {"domains": [{"name": "keep", "mode": "map-e", "ipv4Prefix": "10.9.64.0/24", "ipv6Prefix": "fd00:9:64::/48", "ipv6Source": "fd00:9::1/128"}]}}`), vrfID)
+	kvs := append([]scheduler.KV{}, s.kvs...)
+	for _, kv := range s.kvs {
+		v, _ := natcommon.Decode[mapnat.DomainSpec](kv.Value)
+		v.Name = nat46.DomainPrefix + "m"
+		e, _ := natcommon.Encode(&v)
+		kvs = append(kvs, scheduler.KV{Key: scheduler.Join(mapnat.NameDomain, v.Name), Value: e})
+		r, _ := natcommon.Encode(&mapnat.RuleSpec{Domain: v.Name, PSID: 1, IP6Dst: "fd00:9::5"})
+		kvs = append(kvs, scheduler.KV{Key: scheduler.Join(mapnat.NameRule, v.Name+"/1"), Value: r})
+	}
+	m := desired.AssembleNat(kvs, tableName).GetMap()
+	if len(m.GetDomains()) != 1 || m.GetDomains()[0].GetName() != "keep" {
+		t.Fatalf("assembled domains %v", m.GetDomains())
 	}
 }

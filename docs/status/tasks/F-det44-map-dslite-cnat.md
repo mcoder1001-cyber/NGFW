@@ -15,6 +15,14 @@ from the fake VPP (coretest models); real-VPP integration tests (`*_integration_
 | tests | builder unit tests + round trip (`desired/det44_map_dslite_cnat_test.go`), service on the fake (`agent/rpc_det44_test.go`): commit → Retrieve == canonical → empty re-apply → loss + **agent restart** (fresh Service, same state dir) + resync → all back, MAP domain not duplicated → rollback: models empty, det44 still enabled, 0 disables, AFTR and SNAT entry untouched, 0 V10 crash calls; slot agent refuses an AFTR it does not own and never writes it |
 | docs | `docs/user/firewall/det44-map-dslite-cnat.md`, `docs/vpp-code-track.md` V-new (F-det44-map-dslite-cnat) (a) |
 
+## Review round 1 (merge of origin/main incl. F-nat46)
+
+- `nat.map` refuses empty domain names and names starting with `nat46.DomainPrefix` (pointer `/nat/map/domains/<i>/name`);
+  `assembleMap` skips `nat46-` domains and their rules (they belong to the nat46 assembler).
+- An lw4o6 domain without rules is refused (pointer `/nat/map/domains/<i>/rules`): it would round-trip as map-e.
+- cnat's `snat-policy`, `snat-interface`, `snat-exclude-prefix` (write-only, D-063) and the derived
+  `interface-feature` are never read back into `nat.cnat`. This is documented in `docs/agent/descriptors/dslite.md`.
+
 ## Not built (remaining — follow-up row suggested, D-099)
 
 - **Contract**: `contract(schema): nat.pnat` (NatConfig 27), `contract(proto): Det44Sessions, Det44Lookup,

@@ -14,3 +14,12 @@ with `natcommon.WithGlobalsOwner(env.GlobalsOwner)` and `natcommon.WithClaims(Wi
 | `dslite.pool` | `<first>-<last>` | `dslite_add_del_pool_addr_range(start, end, is_add)`; delete of a missing range is a no-op | recreate | `dslite_address_dump` (single addresses) merged back into contiguous ranges, filtered by the slot's IPv4 range | none | Claim-store ownership like nat64 pools: a production owner (`All`) reports a range only when its key is claimed in the persisted `nat` store. |
 
 Hazards: none known to crash VPP. The AFTR / B4 getters answer on a fresh VPP with all-zero addresses.
+
+## Projection notes (F-det44-map-dslite-cnat, other families)
+
+- cnat: `cnat.snat-policy`, `cnat.snat-interface` and `cnat.snat-exclude-prefix` are write-only (D-063, no VPP
+  getter), and `cnat.interface-feature` is derived from `nat.cnat.snat.interfaces`. None of the four is read back
+  into `nat.cnat`: after a commit they appear neither in Retrieve nor in drift.
+- map: domain names starting with `nat46-` (`nat46.DomainPrefix`) belong to F-nat46 in the same `map.domain` tag
+  space. `nat.map` refuses them and the `nat.map` assembler skips them. An lw4o6 domain needs at least one rule,
+  because without rules it would round-trip as map-e.

@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"ngfw/agent/internal/descriptors/cnat"
 	"strings"
 	"testing"
 
@@ -11,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/gso"
 	"ngfw/agent/internal/descriptors/lldp"

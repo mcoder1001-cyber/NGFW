@@ -15,11 +15,13 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/descriptors/mapnat"
+	"ngfw/agent/internal/descriptors/nat46"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
 )
@@ -125,6 +127,15 @@ func mapDomain(s Sink, d *vrxv1.MapDomain, i int) {
 	src, e3 := netip.ParsePrefix(d.GetIpv6Source())
 	mode := d.GetMode()
 	switch {
+	case d.GetName() == "":
+		s.Errorf(pt+"/name", "nat.map-valid", "a MAP domain needs a name")
+		return
+	case strings.HasPrefix(d.GetName(), nat46.DomainPrefix):
+		s.Errorf(pt+"/name", "nat.map-valid", "domain names starting with %q are reserved for NAT46 (nat.nat46)", nat46.DomainPrefix)
+		return
+	case mode == MapModeLW4o6 && len(d.GetRules()) == 0:
+		s.Errorf(pt+"/rules", "nat.map-valid", "an lw4o6 domain needs at least one per-PSID rule")
+		return
 	case mode != MapModeE && mode != MapModeT && mode != MapModeLW4o6:
 		s.Errorf(pt+"/mode", "nat.map-valid", "mode %q is not map-e, map-t or lw4o6", mode)
 		return
@@ -203,11 +214,11 @@ func assembleMap(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 				params = &v
 			}
 		case mapnat.NameDomain:
-			if v, err := natcommon.Decode[mapnat.DomainSpec](kv.Value); err == nil {
+			if v, err := natcommon.Decode[mapnat.DomainSpec](kv.Value); err == nil && !strings.HasPrefix(v.Name, nat46.DomainPrefix) {
 				domains = append(domains, v)
 			}
 		case mapnat.NameRule:
-			if v, err := natcommon.Decode[mapnat.RuleSpec](kv.Value); err == nil {
+			if v, err := natcommon.Decode[mapnat.RuleSpec](kv.Value); err == nil && !strings.HasPrefix(v.Domain, nat46.DomainPrefix) {
 				rules[v.Domain] = append(rules[v.Domain], v)
 			}
 		case mapnat.NameInterface:

@@ -127,6 +127,16 @@ service Dataplane {
   rpc IpfixState(IpfixStateRequest) returns (IpfixStateResponse);
 
   // wave-BC: F-capture-trace
+
+  // CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+  // retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+  // generator are available on this build (F-capture-trace). Never mutates.
+  rpc CaptureList(CaptureListRequest) returns (CaptureListResponse);
+  // CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header).
+  rpc CaptureRead(CaptureReadRequest) returns (stream CaptureChunk);
+  // CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+  // for the running capture (stop it by cancelling its Action stream).
+  rpc CaptureDelete(CaptureDeleteRequest) returns (CaptureDeleteResponse);
   // wave-BC: F-srv6
 
   // Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
@@ -762,12 +772,15 @@ enum CaptureDirection {
   CAPTURE_DIRECTION_BOTH = 3;
 }
 
-// CaptureAction captures packets on one interface and streams them as pcap chunks.
+// CaptureAction captures packets on one interface. The agent streams `line`s (the first is
+// "capture <id> started") and a `done`; the file is kept by the agent and read with CaptureRead
+// (F-capture-trace: no pcap_chunk is sent).
 message CaptureAction {
   // VPP interface name to capture on.
   string interface = 1;
-  // Classifier filter in VPP `pcap trace` / BPF-like syntax as the agent documents it; "" = all.
-  // Validated as a token list, never passed to a shell.
+  // pcap-filter(7) expression applied through VPP's bpf_trace_filter plugin; "" = all. Restricted
+  // to the pcap-filter alphabet (no quotes, ";", "$", backslash), never passed to a shell; needs the
+  // globals-owner agent (D-071), otherwise FAILED_PRECONDITION.
   string bpf = 2;
   // Stop after this many packets; 0 = 1000; max 100000.
   uint32 max_packets = 3;
@@ -775,10 +788,15 @@ message CaptureAction {
   uint32 seconds = 4;
   // Direction; UNSPECIFIED = BOTH.
   CaptureDirection direction = 5;
-  // Bytes captured per packet; 0 = 65535.
+  // Bytes captured per packet; 0 = 9000; 32..9000 (VPP's pcap limit).
   uint32 snaplen = 6;
 
   // wave-BC: F-capture-trace
+
+  // Also capture dropped packets (VPP's drop capture); with direction UNSPECIFIED and drop set, only drops.
+  bool drop = 7;
+  // Drop capture restricted to one error counter, "node/error" (e.g. "ip4-input/ttl_expired"); "" = any.
+  string error_filter = 8;
 }
 
 // ActionOutput is one streamed chunk of an action. The stream ends with exactly one `done`.
@@ -6414,6 +6432,76 @@ message IpfixCounter {
 }
 
 // ----- F-capture-trace -----
+
+message CaptureListRequest {
+  // Expected agent owner; empty = any.
+  string owner = 1;
+}
+
+// CaptureFile is one pcap file the agent keeps (or the running capture, state "running").
+message CaptureFile {
+  // Agent-assigned id ("<owner>-<yyyymmddThhmmss>-<n>"), [A-Za-z0-9._-] only.
+  string id = 1;
+  // "running", "done" (file kept), "empty" (stopped, no packet captured: no file), "interrupted" (agent
+  // restart or VPP restart during the capture; the file is kept when VPP wrote one).
+  string state = 2;
+  // Interface captured on ("any" = every interface).
+  string interface = 3;
+  // "rx", "tx", "drop" joined by "," as captured.
+  string direction = 4;
+  // BPF expression ("" = none).
+  string bpf = 5;
+  google.protobuf.Timestamp started_at = 6;
+  // Unset while running.
+  google.protobuf.Timestamp stopped_at = 7;
+  // File size in bytes (0 while running / empty).
+  uint64 size = 8;
+  // Packets in the file (counted from the pcap records).
+  uint64 packets = 9;
+  // Hex sha256 of the file ("" while running / empty).
+  string sha256 = 10;
+  // Requested limits.
+  uint32 max_packets = 11;
+  uint32 seconds = 12;
+  uint32 snaplen = 13;
+  // Why the capture stopped ("timeout", "cancelled", "agent-restart", "vpp-restart").
+  string reason = 14;
+}
+
+message CaptureListResponse {
+  // Newest first; the running capture (if any) first.
+  repeated CaptureFile captures = 1;
+  // Retention caps the agent applies after every capture (oldest files removed first).
+  uint32 max_files = 2;
+  uint64 max_bytes = 3;
+  // Packet trace (tracedump) is not available: D-128/TD-20 bans trace on the shared VPP and the
+  // tracedump binapi is not built (V18). Always false on this build; `trace_reason` says why.
+  bool trace_available = 4;
+  string trace_reason = 5;
+  // Packet-generator streams cannot be defined through the binary API (no stream message); always false.
+  bool pg_available = 6;
+  string pg_reason = 7;
+}
+
+message CaptureReadRequest {
+  string owner = 1;
+  string id = 2;
+}
+
+message CaptureChunk {
+  // Next bytes of the file.
+  bytes data = 1;
+}
+
+message CaptureDeleteRequest {
+  string owner = 1;
+  string id = 2;
+}
+
+message CaptureDeleteResponse {
+  // Bytes freed.
+  uint64 size = 1;
+}
 
 // ----- F-srv6 -----
 

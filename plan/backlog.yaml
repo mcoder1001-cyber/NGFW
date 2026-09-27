@@ -275,7 +275,7 @@ tasks:
 - id: BL-SEC-16
   title: 'Brute-force and scan detection on management services (auto-block via Global Blocking)'
   labels: [backlog-idea, security]
-  state: icebox
+  state: promoted  # now F-bruteforce-block in plan/tasks.yaml
   deps: []
   est_hours: 8
   notes: 'Feeds F-global-blocking with a local dynamic list.'
@@ -358,14 +358,14 @@ tasks:
 - id: BL-SEC-20
   title: 'Temporary rules with expiry (TTL) and rule owner/ticket fields'
   labels: [backlog-idea, security]
-  state: icebox
+  state: promoted  # now F-rule-expiry in plan/tasks.yaml
   deps: []
   est_hours: 6
   notes: 'Cheap; helps rule hygiene with the policy analyzer (BL-SEC-04).'
 - id: BL-OPS-10
   title: 'First-boot setup wizard (WAN, LAN, admin password, time zone, updates)'
   labels: [backlog-idea, ops]
-  state: icebox
+  state: promoted  # now F-setup-wizard in plan/tasks.yaml
   deps: []
   est_hours: 10
   notes: 'Big win for small-office buyers.'

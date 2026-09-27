@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-09-26'
+updated: '2026-09-27'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1242,7 +1242,9 @@ tasks:
   owner: cloud session
   started: 2026-09-26T19:20
   finished: '2026-09-26'
-  notes: 'Added 2026-09-26 at the product owner''s request (dashboard in parallel, better visuals; D-153). Inline SVG charts, no new dependency; en + fa; host metrics route GET /api/v1/state/host (D-154); UI says the engine, never VPP (D-155); 15 unit tests; screenshots in docs/user/dashboard/ taken against a scripted stand-in (no VPP in the cloud container) — a real-stack screenshot is still owed on vrx-a.'
+  notes: Added 2026-09-26 at the product owner's request (dashboard in parallel, better visuals; D-153). Inline SVG charts, no new dependency; en + fa; host metrics route GET /api/v1/state/host (D-154);
+    UI says the engine, never VPP (D-155); 15 unit tests; screenshots in docs/user/dashboard/ taken against a scripted stand-in (no VPP in the cloud container) — a real-stack screenshot is still owed on
+    vrx-a.
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md
@@ -1832,7 +1834,8 @@ tasks:
   started: ''
   finished: ''
   notes: 'prompts-s4: suggested deps soft +F-startup-gen only if the VPP prom plugin path is chosen — docs/status/tasks/prompts-s4.md | D-125 envelope: POST /api/v1/actions/clear-counters through the generic
-    Action bridge (review 6.3b, +1 h) | 2026-09-26 (D-153): the dashboard page belongs to WEB-dashboard (merged); this row adds its alarms card through apps/web/src/domains/dashboard/overview/cards.ts and keeps Prometheus export, the alarm engine and Grafana'
+    Action bridge (review 6.3b, +1 h) | 2026-09-26 (D-153): the dashboard page belongs to WEB-dashboard (merged); this row adds its alarms card through apps/web/src/domains/dashboard/overview/cards.ts and
+    keeps Prometheus export, the alarm engine and Grafana'
 - id: F-capture-trace
   title: 'Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG'
   prompt: prompts/features/F-capture-trace.md
@@ -3715,3 +3718,72 @@ tasks:
   scope: 'F-mpls-srmpls review H1: the merge was reviewed in a cloud session without VPP; the pending host steps of docs/status/tasks/F-mpls-srmpls.md'
   files_owned: docs/status/tasks/F-mpls-srmpls-host*
   notes: vppctl show mpls fib / show sr mpls policies before and after rollback; NRestarts before/after
+- id: F-setup-wizard
+  title: 'First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit'
+  prompt: prompts/features/F-setup-wizard.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-system-identity
+  - F-management-ui
+  - F-kea-dhcp-relay
+  - F-nat44-ed-sessions
+  - F-host-acl-nftables
+  priority: 3
+  est_hours: 10
+  state: todo
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-OPS-10 by the product owner (2026-09-27)
+- id: F-rule-expiry
+  title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
+  prompt: prompts/features/F-rule-expiry.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-acl
+  - F-host-acl-nftables
+  - F-nat44-ed-sessions
+  - F-object-model
+  priority: 3
+  est_hours: 6
+  state: ready
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/agent/internal/subsystems/ruleexpiry/**'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-SEC-20 by the product owner (2026-09-27)
+- id: F-bruteforce-block
+  title: Brute-force and scan detection (web/API, SSH, VPN auth, port scan) with automatic temporary blocking via Global Blocking
+  prompt: prompts/features/F-bruteforce-block.md
+  template: prompts/FEATURE-TEMPLATE.md
+  stage: S4
+  deps:
+  - F-global-blocking
+  - F-aaa
+  - F-host-acl-nftables
+  priority: 3
+  est_hours: 8
+  state: todo
+  parked_on: ''
+  wbs: []
+  scope: see prompt
+  files_owned: '- apps/api/src/features/auto-block/**, docs/user/security/auto-block.md'
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  notes: promoted from backlog BL-SEC-16 by the product owner (2026-09-27)

@@ -128,6 +128,23 @@ func BindingsFingerprint(bindings []descacl.InterfaceBinding, macip []descacl.Ma
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// GlobalBlockingFingerprint identifies the block-list ACLs (name → rules) and the block-list part of
+// each interface's binding (interface → input names, output names, in order).
+func GlobalBlockingFingerprint(acls map[string][]descacl.Rule, binds []descacl.InterfaceBinding) string {
+	names := make([]string, 0, len(acls))
+	for n := range acls {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	h := sha256.New()
+	for _, n := range names {
+		writeString(h, "a:"+n)
+		writeString(h, Fingerprint(acls[n]))
+	}
+	writeString(h, BindingsFingerprint(binds, nil))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 type hashWriter interface{ Write([]byte) (int, error) }
 
 func writeString(h hashWriter, s string) {
@@ -151,6 +168,7 @@ type Record struct {
 	acls     map[string][]*Expansion // name → newest first
 	macips   map[string][]*MacipExpansion
 	bindings []*Attachments    // newest first
+	blocking []*Attachments    // global blocking sets (F-global-blocking), newest first
 	pinned   map[string]string // "acl/<name>", "macip/<name>", "attachments" → applied configuration hash
 	maxRules int
 }
@@ -167,7 +185,10 @@ const (
 func pinACL(name string) string   { return "acl/" + name }
 func pinMacip(name string) string { return "macip/" + name }
 
-const pinAttachments = "attachments"
+const (
+	pinAttachments    = "attachments"
+	pinGlobalBlocking = "global-blocking"
+)
 
 // NewRecord returns an empty record bounded by maxRules configuration rules (≤ 0: DefaultMaxRules).
 func NewRecord(maxRules int) *Record {
@@ -325,10 +346,35 @@ func (r *Record) Macip(name, fp, configHash string) (*MacipExpansion, bool) {
 func (r *Record) PutAttachments(a *Attachments) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	applied := r.pinned[pinAttachments]
+	r.bindings = putSet(r.bindings, a, r.pinned[pinAttachments])
+}
+
+// PutGlobalBlocking records which acl.globalBlocking configuration produced a set of block-list ACLs
+// and their interface bindings (Fingerprint: GlobalBlockingFingerprint).
+func (r *Record) PutGlobalBlocking(a *Attachments) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.blocking = putSet(r.blocking, a, r.pinned[pinGlobalBlocking])
+}
+
+// GlobalBlocking reports whether the block-list set with this fingerprint was produced by the
+// acl.globalBlocking configuration with this hash.
+func (r *Record) GlobalBlocking(fp, configHash string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, a := range r.blocking {
+		if a.Fingerprint == fp && a.ConfigHash == configHash {
+			return true
+		}
+	}
+	return false
+}
+
+// putSet puts a in front of sets, keeping the applied configuration's entries and keepSets others.
+func putSet(sets []*Attachments, a *Attachments, applied string) []*Attachments {
 	list := []*Attachments{a}
 	n := 0
-	for _, old := range r.bindings {
+	for _, old := range sets {
 		if old.Fingerprint == a.Fingerprint && old.ConfigHash == a.ConfigHash {
 			continue
 		}
@@ -339,7 +385,7 @@ func (r *Record) PutAttachments(a *Attachments) {
 			list = append(list, old)
 		}
 	}
-	r.bindings = list
+	return list
 }
 
 // Attachments reports whether the binding set with this fingerprint was produced by the attachments

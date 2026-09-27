@@ -406,7 +406,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	w.registerLb(r)
-	w.registerRuleExpiry() // F-rule-expiry (unanchored)
+	w.registerRuleExpiry()         // F-rule-expiry (unanchored)
 	registerSystemIdentity(r, env) // F-system-identity (unanchored)
 	return w, nil
 }

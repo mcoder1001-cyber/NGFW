@@ -36,7 +36,7 @@ func TestWatcherFiresAtTheEarliestNote(t *testing.T) {
 	x := Start(func() { n.Add(1) }, nil)
 	t0 := time.Now()
 	Note(t0.Add(300 * time.Millisecond))
-	Note(t0.Add(150 * time.Millisecond))                   // earlier: re-arms
+	Note(t0.Add(150 * time.Millisecond))                      // earlier: re-arms
 	Note(t0.Add(150*time.Millisecond + 500*time.Microsecond)) // within coalesce of an earlier one: no timer of its own
 	if p := Pending(); len(p) != 1 {
 		// 300 ms and 150 ms are within `coalesce`: one instant, the earlier (the resync at 150 ms re-projects and notes

@@ -26,6 +26,7 @@ const (
 	configList        = "list"
 	configMacip       = "macip"
 	configAttachments = "attachments"
+	configBlocking    = "global-blocking"
 )
 
 // KeyConfigList is the key of the applied configuration of L3/L4 list name.
@@ -36,6 +37,9 @@ func KeyConfigMacip(name string) scheduler.Key { return scheduler.Join(NameConfi
 
 // KeyConfigAttachments is the key of the applied attachments (acl.attachments + acl.macipAttachments).
 var KeyConfigAttachments = scheduler.Join(NameConfig, configAttachments)
+
+// KeyConfigGlobalBlocking is the key of the applied acl.globalBlocking (F-global-blocking).
+var KeyConfigGlobalBlocking = scheduler.Join(NameConfig, configBlocking)
 
 // ConfigList is the acl.config value of list name.
 func ConfigList(name string, l *vrxv1.AclList) *vrxv1.AclConfig {
@@ -52,7 +56,12 @@ func ConfigAttachments(a []*vrxv1.AclAttachment, m []*vrxv1.MacipAttachment) *vr
 	return &vrxv1.AclConfig{Attachments: a, MacipAttachments: m}
 }
 
-var errConfigValue = errors.New("acl.config: value must hold exactly one list, one MACIP list, or the attachments")
+// ConfigGlobalBlocking is the acl.config value of acl.globalBlocking.
+func ConfigGlobalBlocking(g *vrxv1.GlobalBlocking) *vrxv1.AclConfig {
+	return &vrxv1.AclConfig{GlobalBlocking: g}
+}
+
+var errConfigValue = errors.New("acl.config: value must hold exactly one list, one MACIP list, the attachments or the global blocking lists")
 
 // configKeyOf returns the key of an acl.config value and the pin key of its configuration.
 func configKeyOf(obj proto.Message) (scheduler.Key, string, error) {
@@ -61,7 +70,12 @@ func configKeyOf(obj proto.Message) (scheduler.Key, string, error) {
 		return "", "", fmt.Errorf("%w: %T", errConfigValue, obj)
 	}
 	n := len(c.GetLists()) + len(c.GetMacip()) + len(c.GetHost()) + len(c.GetHostAttachments())
+	if c.GetGlobalBlocking() != nil {
+		n++
+	}
 	switch {
+	case c.GetGlobalBlocking() != nil && n == 1 && len(c.GetAttachments())+len(c.GetMacipAttachments()) == 0:
+		return KeyConfigGlobalBlocking, pinGlobalBlocking, nil
 	case len(c.GetLists()) == 1 && n == 1 && len(c.GetAttachments())+len(c.GetMacipAttachments()) == 0:
 		for name := range c.GetLists() {
 			return KeyConfigList(name), pinACL(name), nil
@@ -97,6 +111,9 @@ func entryHash(c *vrxv1.AclConfig) string {
 	}
 	for _, l := range c.GetMacip() {
 		return ConfigHash(l)
+	}
+	if g := c.GetGlobalBlocking(); g != nil {
+		return ConfigHash(g)
 	}
 	return ConfigHash(ConfigAttachments(c.GetAttachments(), c.GetMacipAttachments()))
 }

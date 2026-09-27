@@ -168,3 +168,9 @@ Items above that are not ticked keep their text; this table gives each one an ow
   Incidental, fixed in the same PR (ci.sh check is diff-scoped, so these latent failures slipped past earlier merges):
   the group-a/index schema tests were refreshed for the already-merged multiwan `wanGroups` and aaa envelope fields,
   and `renderers/pppoe` (F-pppoe-client) was registered in the agent TD-11a reachability table (pending; maxPending 20→21).
+- F-restconf-yang (merged PR #50): complete in-container, but two manager/infra follow-ups remain. (1) `tools/ci.sh`
+  `GEN_PATHS` does not include `packages/yang/generated`, so the shared gen-drift gate does not cover the YANG modules;
+  the `packages/yang` golden test covers drift instead — add the path to GEN_PATHS when convenient. (2) `pyang`/
+  `yanglint` are not installed on the build image, so YANG 1.1 validity is a manual gate; install one to make it
+  automatic. Deviations documented in docs/user/system/restconf-yang.md: keyless lists for keyless schema arrays, XSD
+  patterns dropped where JS regex is not expressible, top-node-only module qualification.

@@ -49,6 +49,12 @@ The domain `mode` is a label for validation (VPP's `map_add_domain` has no mode)
 in `map.interfaces` with their mode. `parameters.tcpMss` and `parameters.preResolve` are write-only in VPP 26.06 and are
 not applied (a warning). MAP parameters are VPP-wide.
 
+**Q3 default flip — existing documents.** `nat.map.parameters.securityCheck.enabled` and `trafficClass.copy` now
+default to `true` (VPP's defaults). Documents already stored were parsed with the old defaults when saved, so they keep
+an explicit `false`; only imports, restores and hand-written candidates that omit the leaves get `true`. There is no
+migration: on an existing configuration, reset `securityCheck.enabled` / `trafficClass.copy` by hand if you want VPP's
+defaults.
+
 ## DS-Lite
 
 `dslite.aftr {ipv6, ipv4?}` sets the AFTR tunnel endpoint (the IPv4 address sources ICMP errors), `dslite.pools[]` the

@@ -218,8 +218,9 @@ func (s *Service) det44SessionClose(ctx context.Context, a *vrxv1.Det44SessionCl
 	case "out":
 		rv, rerr := c.Det44Reverse(ctx, &det44.Det44Reverse{OutAddr: addr.As4(), OutPort: p})
 		if rerr != nil {
-			err = rerr
-			break
+			// no mapping (or an invalid port): NotFound without echoing the endpoint, so the answer leaks nothing
+			// about which outside endpoints exist
+			return status.Error(codes.NotFound, "no DET44 session")
 		}
 		if oerr := s.det44Owned(netip.AddrFrom4(rv.InAddr)); oerr != nil {
 			return oerr

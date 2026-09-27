@@ -125,6 +125,9 @@ func TestDet44StateOnFake(t *testing.T) {
 	if out, err = actionRun(t, c, closeReq("out", "10.7.2.200", 6065)); err != nil || out[0].GetDone().GetExitCode() != 0 {
 		t.Fatalf("close out: %v %v", out, err)
 	}
+	if _, err = actionRun(t, c, closeReq("out", "10.7.9.9", 6065)); grpcCode(err) != codes.NotFound || strings.Contains(err.Error(), "10.7.9.9") {
+		t.Fatalf("close out, unmapped: %v (want NotFound without the endpoint)", err)
+	}
 	if _, err = actionRun(t, c, closeReq("sideways", "10.7.1.5", 1)); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("bad direction: %v", err)
 	}

@@ -11,6 +11,9 @@ Numbers from `docs/status/wave-BC-numbers.md` § F-det44-map-dslite-cnat, verifi
   an existing binding, no duplicate attachment, one match mask per (interface, point).
 - Manager answer Q3: `nat.map.parameters.securityCheck.enabled` and `trafficClass.copy` now default to `true` (VPP's
   defaults). This changes a default value, not the shape; a document that omits them now asks for VPP's defaults.
+  Stored documents keep their explicit `false` (they were parsed with the old defaults on save); only imports, restores
+  and hand-written candidates get `true`. No migration: operators reset `securityCheck.enabled` /
+  `trafficClass.copy` by hand on existing documents.
 - Semantic rules (`semantic/det44-map-dslite-cnat.ts`, mirroring the agent): `nat.det44-map-dslite-cnat-cnat-snat-address`,
   `…-cnat-nat44-interface`, `…-map-domain-name` (`nat46-` reserved), `…-lw4o6-rules`, `…-pnat-interfaces`.
 

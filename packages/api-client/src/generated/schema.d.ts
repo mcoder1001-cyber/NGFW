@@ -3588,6 +3588,95 @@ export interface components {
           family: 'ipv4' | 'ipv6';
         }[];
       };
+      /**
+       * WAN groups (multi-WAN)
+       * @default []
+       */
+      wanGroups: {
+        /** Name */
+        name: string;
+        /**
+         * Mode
+         * @default failover
+         * @enum {string}
+         */
+        mode: 'failover' | 'balance';
+        /**
+         * Sticky sessions
+         * @default true
+         */
+        stickySessions: boolean;
+        /**
+         * Members
+         * @default []
+         */
+        members: {
+          /** Interface */
+          interface: string;
+          /**
+           * Next hop
+           * @default dhcp
+           * @enum {string}
+           */
+          nextHop: 'gateway' | 'dhcp' | 'pppoe';
+          /** Gateway */
+          gateway?: string;
+          /**
+           * Weight
+           * @default 1
+           */
+          weight: number;
+          /**
+           * Priority
+           * @default 100
+           */
+          priority: number;
+        }[];
+        /**
+         * Health monitors
+         * @default []
+         */
+        monitors: {
+          /**
+           * Type
+           * @default icmp
+           * @enum {string}
+           */
+          type: 'icmp' | 'http' | 'dns';
+          /** Target */
+          target: string;
+          /**
+           * Interval (ms)
+           * @default 1000
+           */
+          intervalMs: number;
+          /**
+           * Timeout (ms)
+           * @default 1000
+           */
+          timeoutMs: number;
+          /**
+           * Loss threshold (%)
+           * @default 100
+           */
+          lossPct: number;
+          /**
+           * Latency threshold (ms)
+           * @default 0
+           */
+          latencyMs: number;
+          /**
+           * Down after
+           * @default 3
+           */
+          downAfter: number;
+          /**
+           * Up after
+           * @default 3
+           */
+          upAfter: number;
+        }[];
+      }[];
     };
     /**
      * NAT

@@ -1252,6 +1252,10 @@ message RoutingConfig {
 
   // Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none.
   PbrConfig pbr = 11;
+
+  // F-multiwan (unanchored)
+  // Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
+  repeated WanGroup wan_groups = 12;
 }
 
 // StaticRoute mirrors one entry of `routing.static`.
@@ -6930,6 +6934,56 @@ message AlarmTarget {
   optional string secret_ref = 3;
   // email: the recipient address.
   optional string address = 4;
+}
+
+// ----- F-multiwan -----
+
+// WanGroup mirrors `routing.wanGroups[]` (F-multiwan).
+message WanGroup {
+  // Group name.
+  optional string name = 1;
+  // "failover" | "balance"; Zod default "failover".
+  optional string mode = 2;
+  // Keep a flow on its member while up; clear the dead link's NAT sessions on failover. Zod default true.
+  optional bool sticky_sessions = 3;
+  // Member links (>= 1).
+  repeated WanMember members = 4;
+  // Health monitors (>= 1).
+  repeated WanMonitor monitors = 5;
+}
+
+// WanMember mirrors `routing.wanGroups[].members[]`.
+message WanMember {
+  // Member interface.
+  optional string interface = 1;
+  // "gateway" | "dhcp" | "pppoe"; Zod default "dhcp".
+  optional string next_hop = 2;
+  // Static gateway (required when next_hop is "gateway").
+  optional string gateway = 3;
+  // Balance-mode weight; Zod default 1.
+  optional uint32 weight = 4;
+  // Failover priority (lower wins); Zod default 100.
+  optional uint32 priority = 5;
+}
+
+// WanMonitor mirrors `routing.wanGroups[].monitors[]`.
+message WanMonitor {
+  // "icmp" | "http" | "dns"; Zod default "icmp".
+  optional string type = 1;
+  // Probe target (address/host; a host for http).
+  optional string target = 2;
+  // Probe interval (ms); Zod default 1000.
+  optional uint32 interval_ms = 3;
+  // Probe timeout (ms); Zod default 1000.
+  optional uint32 timeout_ms = 4;
+  // Loss threshold percent; Zod default 100.
+  optional uint32 loss_pct = 5;
+  // Latency threshold (ms); 0 = no latency check. Zod default 0.
+  optional uint32 latency_ms = 6;
+  // Consecutive failing checks before down; Zod default 3.
+  optional uint32 down_after = 7;
+  // Consecutive passing checks before up; Zod default 3.
+  optional uint32 up_after = 8;
 }
 
 // ----- F-aaa -----

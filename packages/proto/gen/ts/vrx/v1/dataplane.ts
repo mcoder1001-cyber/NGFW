@@ -1618,7 +1618,14 @@ export interface RoutingConfig {
     | NeighborsConfig
     | undefined;
   /** Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none. */
-  pbr: PbrConfig | undefined;
+  pbr:
+    | PbrConfig
+    | undefined;
+  /**
+   * F-multiwan (unanchored)
+   * Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
+   */
+  wanGroups: WanGroup[];
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -9244,6 +9251,82 @@ export interface AlarmTarget {
   address?: string | undefined;
 }
 
+/** WanGroup mirrors `routing.wanGroups[]` (F-multiwan). */
+export interface WanGroup {
+  /** Group name. */
+  name?:
+    | string
+    | undefined;
+  /** "failover" | "balance"; Zod default "failover". */
+  mode?:
+    | string
+    | undefined;
+  /** Keep a flow on its member while up; clear the dead link's NAT sessions on failover. Zod default true. */
+  stickySessions?:
+    | boolean
+    | undefined;
+  /** Member links (>= 1). */
+  members: WanMember[];
+  /** Health monitors (>= 1). */
+  monitors: WanMonitor[];
+}
+
+/** WanMember mirrors `routing.wanGroups[].members[]`. */
+export interface WanMember {
+  /** Member interface. */
+  interface?:
+    | string
+    | undefined;
+  /** "gateway" | "dhcp" | "pppoe"; Zod default "dhcp". */
+  nextHop?:
+    | string
+    | undefined;
+  /** Static gateway (required when next_hop is "gateway"). */
+  gateway?:
+    | string
+    | undefined;
+  /** Balance-mode weight; Zod default 1. */
+  weight?:
+    | number
+    | undefined;
+  /** Failover priority (lower wins); Zod default 100. */
+  priority?: number | undefined;
+}
+
+/** WanMonitor mirrors `routing.wanGroups[].monitors[]`. */
+export interface WanMonitor {
+  /** "icmp" | "http" | "dns"; Zod default "icmp". */
+  type?:
+    | string
+    | undefined;
+  /** Probe target (address/host; a host for http). */
+  target?:
+    | string
+    | undefined;
+  /** Probe interval (ms); Zod default 1000. */
+  intervalMs?:
+    | number
+    | undefined;
+  /** Probe timeout (ms); Zod default 1000. */
+  timeoutMs?:
+    | number
+    | undefined;
+  /** Loss threshold percent; Zod default 100. */
+  lossPct?:
+    | number
+    | undefined;
+  /** Latency threshold (ms); 0 = no latency check. Zod default 0. */
+  latencyMs?:
+    | number
+    | undefined;
+  /** Consecutive failing checks before down; Zod default 3. */
+  downAfter?:
+    | number
+    | undefined;
+  /** Consecutive passing checks before up; Zod default 3. */
+  upAfter?: number | undefined;
+}
+
 export interface DataplaneStartupStateRequest {
   /** Expected agent owner; empty = any. */
   owner: string;
@@ -16359,6 +16442,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     srv6: undefined,
     neighbors: undefined,
     pbr: undefined,
+    wanGroups: [],
   };
 }
 
@@ -16399,6 +16483,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.pbr !== undefined) {
       PbrConfig.encode(message.pbr, writer.uint32(90).fork()).join();
+    }
+    for (const v of message.wanGroups) {
+      WanGroup.encode(v!, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -16512,6 +16599,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.pbr = PbrConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.wanGroups.push(WanGroup.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -16538,6 +16633,11 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       srv6: isSet(object.srv6) ? Srv6Config.fromJSON(object.srv6) : undefined,
       neighbors: isSet(object.neighbors) ? NeighborsConfig.fromJSON(object.neighbors) : undefined,
       pbr: isSet(object.pbr) ? PbrConfig.fromJSON(object.pbr) : undefined,
+      wanGroups: globalThis.Array.isArray(object?.wanGroups)
+        ? object.wanGroups.map((e: any) => WanGroup.fromJSON(e))
+        : globalThis.Array.isArray(object?.wan_groups)
+        ? object.wan_groups.map((e: any) => WanGroup.fromJSON(e))
+        : [],
     };
   },
 
@@ -16579,6 +16679,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.pbr !== undefined) {
       obj.pbr = PbrConfig.toJSON(message.pbr);
     }
+    if (message.wanGroups?.length) {
+      obj.wanGroups = message.wanGroups.map((e) => WanGroup.toJSON(e));
+    }
     return obj;
   },
 
@@ -16611,6 +16714,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       ? NeighborsConfig.fromPartial(object.neighbors)
       : undefined;
     message.pbr = (object.pbr !== undefined && object.pbr !== null) ? PbrConfig.fromPartial(object.pbr) : undefined;
+    message.wanGroups = object.wanGroups?.map((e) => WanGroup.fromPartial(e)) || [];
     return message;
   },
 };
@@ -82111,6 +82215,496 @@ export const AlarmTarget: MessageFns<AlarmTarget> = {
     message.url = object.url ?? undefined;
     message.secretRef = object.secretRef ?? undefined;
     message.address = object.address ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWanGroup(): WanGroup {
+  return { name: undefined, mode: undefined, stickySessions: undefined, members: [], monitors: [] };
+}
+
+export const WanGroup: MessageFns<WanGroup> = {
+  encode(message: WanGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.mode !== undefined) {
+      writer.uint32(18).string(message.mode);
+    }
+    if (message.stickySessions !== undefined) {
+      writer.uint32(24).bool(message.stickySessions);
+    }
+    for (const v of message.members) {
+      WanMember.encode(v!, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.monitors) {
+      WanMonitor.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanGroup();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.stickySessions = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.members.push(WanMember.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.monitors.push(WanMonitor.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanGroup {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+      stickySessions: isSet(object.stickySessions)
+        ? globalThis.Boolean(object.stickySessions)
+        : isSet(object.sticky_sessions)
+        ? globalThis.Boolean(object.sticky_sessions)
+        : undefined,
+      members: globalThis.Array.isArray(object?.members) ? object.members.map((e: any) => WanMember.fromJSON(e)) : [],
+      monitors: globalThis.Array.isArray(object?.monitors)
+        ? object.monitors.map((e: any) => WanMonitor.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WanGroup): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.mode !== undefined) {
+      obj.mode = message.mode;
+    }
+    if (message.stickySessions !== undefined) {
+      obj.stickySessions = message.stickySessions;
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => WanMember.toJSON(e));
+    }
+    if (message.monitors?.length) {
+      obj.monitors = message.monitors.map((e) => WanMonitor.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanGroup>): WanGroup {
+    return WanGroup.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanGroup>): WanGroup {
+    const message = createBaseWanGroup();
+    message.name = object.name ?? undefined;
+    message.mode = object.mode ?? undefined;
+    message.stickySessions = object.stickySessions ?? undefined;
+    message.members = object.members?.map((e) => WanMember.fromPartial(e)) || [];
+    message.monitors = object.monitors?.map((e) => WanMonitor.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanMember(): WanMember {
+  return { interface: undefined, nextHop: undefined, gateway: undefined, weight: undefined, priority: undefined };
+}
+
+export const WanMember: MessageFns<WanMember> = {
+  encode(message: WanMember, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.nextHop !== undefined) {
+      writer.uint32(18).string(message.nextHop);
+    }
+    if (message.gateway !== undefined) {
+      writer.uint32(26).string(message.gateway);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(40).uint32(message.priority);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMember {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMember();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.gateway = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMember {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      gateway: isSet(object.gateway) ? globalThis.String(object.gateway) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+    };
+  },
+
+  toJSON(message: WanMember): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.gateway !== undefined) {
+      obj.gateway = message.gateway;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMember>): WanMember {
+    return WanMember.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMember>): WanMember {
+    const message = createBaseWanMember();
+    message.interface = object.interface ?? undefined;
+    message.nextHop = object.nextHop ?? undefined;
+    message.gateway = object.gateway ?? undefined;
+    message.weight = object.weight ?? undefined;
+    message.priority = object.priority ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWanMonitor(): WanMonitor {
+  return {
+    type: undefined,
+    target: undefined,
+    intervalMs: undefined,
+    timeoutMs: undefined,
+    lossPct: undefined,
+    latencyMs: undefined,
+    downAfter: undefined,
+    upAfter: undefined,
+  };
+}
+
+export const WanMonitor: MessageFns<WanMonitor> = {
+  encode(message: WanMonitor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.target !== undefined) {
+      writer.uint32(18).string(message.target);
+    }
+    if (message.intervalMs !== undefined) {
+      writer.uint32(24).uint32(message.intervalMs);
+    }
+    if (message.timeoutMs !== undefined) {
+      writer.uint32(32).uint32(message.timeoutMs);
+    }
+    if (message.lossPct !== undefined) {
+      writer.uint32(40).uint32(message.lossPct);
+    }
+    if (message.latencyMs !== undefined) {
+      writer.uint32(48).uint32(message.latencyMs);
+    }
+    if (message.downAfter !== undefined) {
+      writer.uint32(56).uint32(message.downAfter);
+    }
+    if (message.upAfter !== undefined) {
+      writer.uint32(64).uint32(message.upAfter);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMonitor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMonitor();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.target = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.intervalMs = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.timeoutMs = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.lossPct = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.latencyMs = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.downAfter = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.upAfter = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMonitor {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      target: isSet(object.target) ? globalThis.String(object.target) : undefined,
+      intervalMs: isSet(object.intervalMs)
+        ? globalThis.Number(object.intervalMs)
+        : isSet(object.interval_ms)
+        ? globalThis.Number(object.interval_ms)
+        : undefined,
+      timeoutMs: isSet(object.timeoutMs)
+        ? globalThis.Number(object.timeoutMs)
+        : isSet(object.timeout_ms)
+        ? globalThis.Number(object.timeout_ms)
+        : undefined,
+      lossPct: isSet(object.lossPct)
+        ? globalThis.Number(object.lossPct)
+        : isSet(object.loss_pct)
+        ? globalThis.Number(object.loss_pct)
+        : undefined,
+      latencyMs: isSet(object.latencyMs)
+        ? globalThis.Number(object.latencyMs)
+        : isSet(object.latency_ms)
+        ? globalThis.Number(object.latency_ms)
+        : undefined,
+      downAfter: isSet(object.downAfter)
+        ? globalThis.Number(object.downAfter)
+        : isSet(object.down_after)
+        ? globalThis.Number(object.down_after)
+        : undefined,
+      upAfter: isSet(object.upAfter)
+        ? globalThis.Number(object.upAfter)
+        : isSet(object.up_after)
+        ? globalThis.Number(object.up_after)
+        : undefined,
+    };
+  },
+
+  toJSON(message: WanMonitor): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.target !== undefined) {
+      obj.target = message.target;
+    }
+    if (message.intervalMs !== undefined) {
+      obj.intervalMs = Math.round(message.intervalMs);
+    }
+    if (message.timeoutMs !== undefined) {
+      obj.timeoutMs = Math.round(message.timeoutMs);
+    }
+    if (message.lossPct !== undefined) {
+      obj.lossPct = Math.round(message.lossPct);
+    }
+    if (message.latencyMs !== undefined) {
+      obj.latencyMs = Math.round(message.latencyMs);
+    }
+    if (message.downAfter !== undefined) {
+      obj.downAfter = Math.round(message.downAfter);
+    }
+    if (message.upAfter !== undefined) {
+      obj.upAfter = Math.round(message.upAfter);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMonitor>): WanMonitor {
+    return WanMonitor.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMonitor>): WanMonitor {
+    const message = createBaseWanMonitor();
+    message.type = object.type ?? undefined;
+    message.target = object.target ?? undefined;
+    message.intervalMs = object.intervalMs ?? undefined;
+    message.timeoutMs = object.timeoutMs ?? undefined;
+    message.lossPct = object.lossPct ?? undefined;
+    message.latencyMs = object.latencyMs ?? undefined;
+    message.downAfter = object.downAfter ?? undefined;
+    message.upAfter = object.upAfter ?? undefined;
     return message;
   },
 };

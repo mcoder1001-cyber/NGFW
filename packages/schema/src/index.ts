@@ -105,6 +105,8 @@ export * from './domains/ext/host-stack.js'; // F-host-stack (unanchored)
 export * from './domains/ext/syslog.js';
 export * from './domains/ext/lb.js';
 export * from './domains/ext/rule-expiry.js'; // F-rule-expiry
+export * from './domains/ext/global-blocking.js'; // F-global-blocking
+export * from './domains/ext/global-blocking-parse.js'; // F-global-blocking
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

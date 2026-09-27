@@ -65,6 +65,7 @@ import { ipfixSflowValidators } from './ipfix-sflow.js';
 import { qosFlatValidators } from './qos-flat.js';
 import { unboundChronySyslogValidators } from './unbound-chrony-syslog.js';
 import { lbValidators } from './lb.js';
+import { globalBlockingValidators } from './global-blocking.js'; // F-global-blocking
 
 export * from './registry.js';
 
@@ -138,6 +139,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...qosFlatValidators,
   ...unboundChronySyslogValidators,
   ...lbValidators,
+  ...globalBlockingValidators, // F-global-blocking
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

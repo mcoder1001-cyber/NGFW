@@ -3345,6 +3345,52 @@ message AclConfig {
 
   // Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults.
   HostAclSettings host_settings = 8;
+  // F-global-blocking: IP block lists enforced ahead of the access lists; unset = none.
+  GlobalBlocking global_blocking = 9;
+}
+
+// GlobalBlocking mirrors `acl.globalBlocking` (F-global-blocking).
+message GlobalBlocking {
+  // Block lists by name.
+  map<string, GlobalBlockingList> lists = 1;
+}
+
+// GlobalBlockingSource mirrors `acl.globalBlocking.lists.<name>.source` (discriminated union, flattened).
+message GlobalBlockingSource {
+  // "upload" | "url".
+  optional string kind = 1;
+  // url: http(s) URL the API downloads the list from.
+  optional string url = 2;
+  // url: download-and-apply interval in seconds; unset = only on "Fetch now".
+  optional uint32 refresh_sec = 3;
+  // url: verify the server certificate (Zod default true).
+  optional bool verify_tls = 4;
+  // url: secret reference of a private CA (cert/<name>).
+  optional string ca_ref = 5;
+  // url: secret reference of the credentials (token/<name> or password/<name>).
+  optional string auth_ref = 6;
+}
+
+// GlobalBlockingList mirrors `acl.globalBlocking.lists.<name>`.
+message GlobalBlockingList {
+  // List enabled (Zod default true).
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // Where the entries come from (the API imports them; the agent only renders entries).
+  GlobalBlockingSource source = 3;
+  // Every L3 interface, including later ones.
+  optional bool all_interfaces = 4;
+  // Interfaces the list is enforced on (when not all_interfaces).
+  repeated string interfaces = 5;
+  // "both" | "inbound" | "outbound".
+  optional string direction = 6;
+  // Also drop traffic from listed addresses to the box itself (nftables).
+  optional bool protect_host = 7;
+  // Log matches.
+  optional bool log = 8;
+  // Canonical IPv4/IPv6 prefixes.
+  repeated string entries = 9;
 }
 
 // AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened.

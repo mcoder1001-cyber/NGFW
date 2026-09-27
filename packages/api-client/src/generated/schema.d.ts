@@ -5056,6 +5056,86 @@ export interface components {
           ports: number[];
         };
       };
+      /**
+       * Global blocking
+       * @description IP block lists enforced before the access lists.
+       */
+      globalBlocking?: {
+        /**
+         * Block lists
+         * @default {}
+         */
+        lists: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * Source
+             * @default {
+             *       "kind": "upload"
+             *     }
+             */
+            source:
+              | {
+                  /** @constant */
+                  kind: 'upload';
+                }
+              | {
+                  /** @constant */
+                  kind: 'url';
+                  /** Server URL */
+                  url: string;
+                  /** Refresh (seconds) */
+                  refreshSec?: number;
+                  /**
+                   * Verify the server certificate
+                   * @default true
+                   */
+                  verifyTls: boolean;
+                  /** Private CA */
+                  caRef?: string;
+                  /** Credentials */
+                  authRef?: string;
+                };
+            /**
+             * All interfaces
+             * @default false
+             */
+            allInterfaces: boolean;
+            /**
+             * Interfaces
+             * @default []
+             */
+            interfaces: string[];
+            /**
+             * Direction
+             * @default both
+             * @enum {string}
+             */
+            direction: 'both' | 'inbound' | 'outbound';
+            /**
+             * Protect the box
+             * @default true
+             */
+            protectHost: boolean;
+            /**
+             * Log
+             * @default false
+             */
+            log: boolean;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: string[];
+          };
+        };
+      };
     };
     /**
      * VPN

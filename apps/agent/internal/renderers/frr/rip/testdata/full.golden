@@ -1,0 +1,19 @@
+frr version 10.7.1
+frr defaults traditional
+log syslog informational
+service integrated-vtysh-config
+!
+router rip
+ version 2
+ default-metric 2
+ network 10.8.0.0/16
+ network 192.0.2.0/24
+ network w8-l0
+ network w8-lo
+ passive-interface w8-lo
+ redistribute connected metric 3
+ redistribute static
+ redistribute bgp route-map rm-in
+exit
+!
+end

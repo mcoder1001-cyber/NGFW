@@ -78,7 +78,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
 
 /**
  * Routing › IS-IS and RIP (WEB-4a, D-123): schema-driven `routing.isis` / `routing.rip` forms with interface summaries.
- * Merged UNROUTED — F-isis-rip adds the route/nav entry and live adjacency state.
+ * Routed at /routing/isis-rip by F-isis-rip (live adjacency state not yet wired).
  */
 export function IsisRipPage() {
   const { t } = useTranslation([NS, 'config']);

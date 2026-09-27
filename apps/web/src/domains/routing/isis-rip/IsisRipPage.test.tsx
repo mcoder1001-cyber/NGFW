@@ -4,6 +4,8 @@ import { createMemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
+import { buildNav } from '../../../nav/nav';
+import { domains } from '../../../schema/registry';
 import { installFakeApi, resetSession, signIn } from '../../../test-api';
 import { IsisRipPage } from './IsisRipPage';
 
@@ -35,7 +37,12 @@ afterEach(async () => {
   await i18n.changeLanguage('en');
 });
 
-describe('Routing → IS-IS and RIP (WEB-4a, unrouted)', () => {
+describe('Routing → IS-IS and RIP (WEB-4a, routed by F-isis-rip)', () => {
+  it('is reachable from nav at /routing/isis-rip', () => {
+    const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
+    expect(items.find((i) => i.id === 'isis-rip')).toMatchObject({ path: '/routing/isis-rip', available: true });
+  });
+
   it('shows IS-IS interfaces and an unconfigured RIP tab', async () => {
     const api = installFakeApi('admin');
     api.on('GET /api/v1/config/candidate/routing', () => ({ body: CAND }));

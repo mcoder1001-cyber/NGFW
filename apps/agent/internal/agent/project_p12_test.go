@@ -189,7 +189,7 @@ func TestP12RoutingWarningTable(t *testing.T) {
 			ptrs = append(ptrs, is.pointer)
 		}
 	}
-	if strings.Join(ptrs, " ") != "/routing/isis /routing/bfd" {
+	if strings.Join(ptrs, " ") != "/routing/bfd" {
 		t.Fatalf("warnings %v (bgp is handled by P12)", ptrs)
 	}
 }

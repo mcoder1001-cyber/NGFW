@@ -3112,7 +3112,7 @@ tasks:
   - TD-7
   priority: 5
   est_hours: 6
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.6

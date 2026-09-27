@@ -74,10 +74,40 @@ the PLAT's /96 and whose rule prefix covers the CLAT's IPv4 host address. No ext
 - A translation needs at least one backend of the VIP's address family (V10: VPP 26.06 crashes on an empty one).
 - `snat.policy` `interface` / `k8s`, policy interfaces and excluded prefixes **need `snat.addresses`** (the default
   SNAT entry): without it the commit is refused with a pointer at `/nat/cnat/snat/addresses` (V10: VPP would crash).
-- The cnat feature is enabled on every policy interface.
+- The cnat feature is enabled on every policy interface; the commit's validation report names those interfaces in an
+  info notice (`nat.det44-map-dslite-cnat-cnat-interface-feature`).
 - CNAT and NAT44-ED on the **same interface** are refused (no supported feature ordering in VPP 26.06).
 - The SNAT policy, policy interfaces and excluded prefixes are write-only in VPP (not shown by Retrieve / drift);
   the SNAT addresses and policy are VPP-wide.
+
+## PNAT — policy 1:1 NAT
+
+```json
+"pnat": {
+  "bindings": [{"name": "dns", "match": {"proto": "udp", "dst": "198.51.100.53", "dport": 53},
+    "rewrite": {"dst": "10.0.0.53", "dport": 5353}}],
+  "attachments": [{"binding": "dns", "interface": "ge0/0/0", "point": "input"}]}
+```
+
+- IPv4 only. A match needs at least one field, a rewrite at least one; ports only with protocol `tcp`/`udp`.
+- The match is the binding's identity: two bindings with the same match are refused. Binding names are labels only
+  (the data plane keeps none), so the applied state names them `pnat-1`, `pnat-2`, … in match order.
+- All bindings on one interface and point must match the same fields (VPP refuses mixed masks).
+- V11: the agent never looks up or detaches a PNAT flow while no interface has an attachment (that crashes VPP 26.06).
+
+## Live state and actions (API / UI)
+
+| what | API | role |
+|---|---|---|
+| one subscriber's DET44 sessions + its outside address and port block | `GET /api/v1/state/nat/det44/sessions?user=<ip>&page&pageSize` | readonly |
+| DET44 lookup for CGNAT logging (inside → outside + ports, or outside + port → inside) | `POST /api/v1/actions/nat/det44/lookup` `{inside}` / `{outside, port}` | operator |
+| close one DET44 session (audited) | `POST /api/v1/actions/nat/det44/sessions/close` `{direction: in\|out, address, port, externalAddress, externalPort}` | operator |
+| CNAT sessions | `GET /api/v1/state/nat/cnat/sessions?page&pageSize` | readonly |
+| purge the CNAT session table (VPP-wide: only the globals-owner agent does it; a test-slot agent answers 403) | `POST /api/v1/actions/nat/cnat/sessions/purge` | admin |
+
+The NAT page has four tabs for this: **CGNAT** (DET44 + DS-Lite forms, the port-block calculator — enter the inside
+and outside prefixes to see the sharing ratio, ports per host and the block of any host —, sessions of one subscriber
+and the lookup), **MAP**, **CNAT** (form, sessions, purge for admins) and **PNAT**.
 
 ## CLI equivalent
 

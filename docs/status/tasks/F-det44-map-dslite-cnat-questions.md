@@ -23,3 +23,18 @@ Written and kept going (never waited). Defaults taken are marked **default**.
   exactly once per boot identity" was not possible (no VPP host).
 - **Q7 trailer.** The manager envelope's commit trailer names "Claude Fable 5.1"; the session's system attribution
   names "Claude Opus 5.5" (the model that actually ran). Commits use the session attribution.
+
+## Part B (task/F-det44-b)
+
+- **Q3 answered (manager):** schema defaults of `securityCheck.enabled` / `trafficClass.copy` now `true` (VPP's). Done in
+  the contract commit.
+- **Q4 answered (manager):** kept derived; an info-level notice names the interfaces. The Sink interface has no info
+  level, so an optional `desired.InfoSink` was added and `projected.Infof` (ISSUE_SEVERITY_INFO) implements it.
+- **Q5 done:** contract, PNAT, RPCs and actions built in part B.
+- **Q8 CNAT sessions are VPP-global.** `CnatSessions` returns the whole table to any agent (no owner tag exists in
+  `cnat_session_details`); only the purge is restricted (globals owner, D-071, same rule as F-capture-trace's
+  `captureGlobalsOwner`). **Default: read allowed for all, purge globals-owner only.**
+- **Q9 PNAT names.** VPP keeps no binding name; Retrieve names bindings `pnat-<n>` in match-tuple order, so drift shows
+  a rename when the document uses other names. **Default: accepted and documented**; alternative: the API could compare
+  PNAT by match tuple.
+- **Q10 pre-existing red gate:** `@ngfw/proto` test "has exactly the 13 root keys" fails on origin/main (not this task).

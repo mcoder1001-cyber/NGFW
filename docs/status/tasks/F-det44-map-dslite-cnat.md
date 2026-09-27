@@ -23,19 +23,51 @@ from the fake VPP (coretest models); real-VPP integration tests (`*_integration_
 - cnat's `snat-policy`, `snat-interface`, `snat-exclude-prefix` (write-only, D-063) and the derived
   `interface-feature` are never read back into `nat.cnat`. This is documented in `docs/agent/descriptors/dslite.md`.
 
-## Not built (remaining — follow-up row suggested, D-099)
+## Part B (branch `task/F-det44-b`, base `origin/main@a302de71`) — the follow-ups
 
-- **Contract**: `contract(schema): nat.pnat` (NatConfig 27), `contract(proto): Det44Sessions, Det44Lookup,
-  CnatSessions` + ActionRequest 9 `det44_session_close` / 10 `cnat_session_purge`; the TS semantic rules
-  (`nat.det44-map-dslite-cnat-…`) mirroring the agent's two new checks.
-- **PNAT** projection (`desired/pnat.go`) and wiring — needs the contract; `pnat` stays `pending` in reachability.
-- **State/actions**: `rpc_det44*.go` / `rpc_cnat*.go` (DET44 paged per-user sessions + close, det44 forward/reverse
-  lookup, CNAT paged sessions + purge), `actions/det44-map-dslite-cnat/**`, server.go Action cases.
-- **API** `features/det44-map-dslite-cnat/**` + e2e; **UI** tabs CGNAT/MAP/CNAT/PNAT + port-block calculator, en/fa
-  locales; screenshots.
+Commits (not pushed): `bf4ab04a` contract · `f3b7fc2a` PNAT + wiring + Q4 · `9654d282` state/actions (agent) ·
+`eaf87ad5` API + fake agent + e2e · `ad5474fb` UI · (this file / user doc in the last commit).
+
+| layer | built |
+|---|---|
+| contract | `nat.pnat` (NatConfig **27**, verified free: max was 24) + `PnatConfig/Binding/Match/Rewrite/Attachment`; RPCs `Det44Sessions`, `Det44Lookup`, `CnatSessions`; `ActionRequest` **9** `det44_session_close`, **10** `cnat_session_purge` (both were free). Schema `ext/det44-map-dslite-cnat.ts` (optional, refinements); TS semantic rules `nat.det44-map-dslite-cnat-{cnat-snat-address,cnat-nat44-interface,map-domain-name,lw4o6-rules,pnat-interfaces}`; Q3: MAP `securityCheck.enabled` / `trafficClass.copy` default `true`. Regenerated Go/TS/YANG/api-client (timestamp.ts restored). See `-contract.md`. |
+| PNAT | `desired/pnat.go` (projection + assembler; names → `pnat-<n>`), registered in `subsystems/det44_map_dslite_cnat.go`; reachability `pnat` → wired, `maxPending` 16 → 15; coretest pnat model (V11 crash calls recorded); service test `agent/rpc_det44_pnat_test.go` (commit → Retrieve == canonical → empty re-apply → loss + restart + resync → rollback empty, 0 crash calls). `service_test.go` read-only allowlists gain `pnat_bindings_get` / `pnat_interfaces_get`. |
+| Q4 | info notice `nat.det44-map-dslite-cnat-cnat-interface-feature` naming the derived interfaces (ISSUE_SEVERITY_INFO through the optional `desired.InfoSink`; `projected.Infof` added in `agent/projection.go`). |
+| state/actions | `agent/rpc_det44.go` (sessions per user, paged, port block via det44_forward; lookup forward/reverse; close in/out, exit 1 = none; slot scope → PERMISSION_DENIED), `agent/rpc_cnat.go` (paged, cap → truncated; purge globals-owner only), server.go cases under the anchor; coretest det44 gains VPP's forward/reverse formulas + sessions. Tests over the gRPC server (`rpc_det44_state_test.go`). |
+| API | `features/det44-map-dslite-cnat/**`: `GET state/nat/det44/sessions`, `POST actions/nat/det44/lookup`, `POST actions/nat/det44/sessions/close` (audited), `GET state/nat/cnat/sessions`, `POST actions/nat/cnat/sessions/purge` (`@MinRole('admin')`, in ADMIN_ONLY); NOT_FOUND → 404, PERMISSION_DENIED → 403. Fake agent handlers (`fake.ts`), unit test over gRPC + commit engine (CNAT policy without addresses → 400 `/nat/cnat/snat/addresses`, agent not asked). **e2e** `test/e2e/det44-map-dslite-cnat.e2e.test.ts` written, **not run: no PostgreSQL in this container** (typechecked only). CLI operation table regenerated. |
+| UI | NAT page tabs CGNAT / MAP / CNAT / PNAT (natTabs anchor), port-block calculator, per-user sessions, lookup, CNAT sessions + admin purge; en + fa (`locales.test.ts` parity green). Form field titles come from the schema (English); screenshots not taken (no browser here). |
+
+Shared hunks (part B): `packages/schema/src/{domains/nat.ts (key line + import + Q3 defaults),index.ts,semantic/index.ts}`,
+`dataplane.proto` anchors, `apps/api/src/{app.module.ts,agent/agent.client.ts,testing/fake-agent.ts,auth/route-guard.test.ts}`,
+`apps/web/src/{i18n.ts,domains/firewall/nat44-ed-sessions/tabs.ts}`, `NatV6Tabs.test.tsx` (its exact tab list → its own
+slice, two lines), `desired/nat.go` (two lines), `agent/{server.go,projection.go,service_test.go}`, reachability test.
+
+### Gates part B (2026-09-27, cloud container, pasted)
+
+```
+apps/agent: gofmt -l (touched pkgs) → (empty); go vet ./... → vet-ok
+go test -race ./... → 122 ok, 0 FAIL
+  --- PASS: TestPnatDomainOnFake / TestDet44StateOnFake / TestCnatStateOnFake / TestCgnatDomainOnFake / TestCgnatSlotRequiresGlobals
+  --- PASS: TestPnatProjection / TestPnatRoundTrip / TestCnatFeatureInfo / TestReachabilityTable
+golangci-lint run ./... → 2 issues, both gosec G115 in internal/subsystems/snmp_integration_test.go (pre-existing, not this task)
+apps/cli: go test ./... → all ok
+turbo lint typecheck test (schema, proto, api, web, api-client), --continue:
+  @ngfw/schema  Test Files 72 passed, Tests 1565 passed
+  @ngfw/api     Test Files 56 passed, Tests 340 passed
+  @ngfw/web     Test Files 89 passed, Tests 521 passed (lint clean after the fix commit)
+  @ngfw/proto   1 failed | 103 passed: "DesiredState mirrors RootConfig > has exactly the 13 root keys" —
+                PRE-EXISTING on origin/main (reproduced with this branch's changes stashed), not this task's
+tools/ci.sh check → check PASSED (gitleaks: no leaks found)
+```
+
+## Not built (remaining — for the host / later)
+
 - **Host evidence** (every acceptance packet line, `show map domain`, `show cnat translation`, `show dslite …`,
   NRestarts before/after): needs a VPP host / manager window (`VRX_FDET44_DET44_HOST=1`, `VRX_FDET44_GLOBALS=1`).
-  `test/topology/det44-map-dslite-cnat/` not written.
+  `test/topology/det44-map-dslite-cnat/` not written. Real-VPP integration tests skip without `VRX_INTEGRATION`.
+- **e2e on PostgreSQL**: `pnpm --filter @ngfw/api test:e2e test/e2e/det44-map-dslite-cnat.e2e.test.ts` on the host.
+- **UI screenshot** (acceptance line) and localized field titles of the schema forms (fa shows the schema's English titles).
+- `actions/det44-map-dslite-cnat/**` directory not used: the actions live in `agent/rpc_{det44,cnat}.go` like F-nat44-ed-sessions.
 
 ## Acceptance
 
@@ -46,8 +78,8 @@ from the fake VPP (coretest models); real-VPP integration tests (`*_integration_
       re-applied without duplicates (fake). Host part not run.
 - [x] Rollback removes the owner's objects (Retrieve empty, models empty); det44 stays enabled (V9, 0 disable calls).
       NRestarts: n/a (no host).
-- [~] cnat SNAT policy without an SNAT address → refused with pointer `/nat/cnat/snat/addresses` by the agent
-      (DryRun/commit); the API 400 path is not tested here. `tools/ci.sh` — see below. UI screenshot — not built.
+- [~] cnat SNAT policy without an SNAT address → 400 with pointer `/nat/cnat/snat/addresses` from the TS semantic rule
+      (API unit test over the commit engine; e2e written, not run — no PostgreSQL) and refused by the agent too. `tools/ci.sh` — see below. UI screenshot — not built.
 
 ## Shared hunks
 

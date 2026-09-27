@@ -4800,7 +4800,7 @@ export interface components {
           securityCheck?: {
             /**
              * Enabled
-             * @default false
+             * @default true
              */
             enabled?: boolean;
             /**
@@ -4818,7 +4818,7 @@ export interface components {
           trafficClass?: {
             /**
              * Copy traffic class
-             * @default false
+             * @default true
              */
             copy?: boolean;
             /** Value */
@@ -4930,6 +4930,71 @@ export interface components {
            */
           excludePrefixes: string[];
         };
+      };
+      /** PNAT (policy 1:1 NAT) */
+      pnat?: {
+        /**
+         * Bindings
+         * @default []
+         */
+        bindings: {
+          /** Name */
+          name: string;
+          /** Match */
+          match: {
+            /**
+             * Protocol
+             * @enum {string}
+             */
+            proto?: 'tcp' | 'udp' | 'icmp';
+            /**
+             * Source address
+             * Format: ipv4
+             */
+            src?: string;
+            /** Source port */
+            sport?: number;
+            /**
+             * Destination address
+             * Format: ipv4
+             */
+            dst?: string;
+            /** Destination port */
+            dport?: number;
+          };
+          /** Rewrite */
+          rewrite: {
+            /**
+             * New source address
+             * Format: ipv4
+             */
+            src?: string;
+            /** New source port */
+            sport?: number;
+            /**
+             * New destination address
+             * Format: ipv4
+             */
+            dst?: string;
+            /** New destination port */
+            dport?: number;
+          };
+        }[];
+        /**
+         * Attachments
+         * @default []
+         */
+        attachments: {
+          /** Binding */
+          binding: string;
+          /** Interface */
+          interface: string;
+          /**
+           * Point
+           * @enum {string}
+           */
+          point: 'input' | 'output';
+        }[];
       };
     };
     /**

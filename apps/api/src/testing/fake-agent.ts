@@ -910,6 +910,15 @@ export class FakeAgent {
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
       // wave-BC: F-det44-map-dslite-cnat
+      det44Sessions: (call, cb) =>
+        this.checkCommon('Det44Sessions', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method Det44Sessions' }),
+      det44Lookup: (call, cb) =>
+        this.checkCommon('Det44Lookup', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method Det44Lookup' }),
+      cnatSessions: (call, cb) =>
+        this.checkCommon('CnatSessions', call.request, cb) &&
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method CnatSessions' }),
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-pki

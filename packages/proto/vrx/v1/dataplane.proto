@@ -70,6 +70,15 @@ service Dataplane {
   // code (the same rule for the field/value anchors in the messages below). New messages go in your
   // `// ----- <task-id> -----` section at the end of this file; numbers only from wave-A-hotspots.md §2.
   // wave-BC: F-det44-map-dslite-cnat
+
+  // Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only).
+  rpc Det44Sessions(Det44SessionsRequest) returns (Det44SessionsResponse);
+  // Det44Lookup maps an inside address to its outside address and port block, or an outside
+  // address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+  rpc Det44Lookup(Det44LookupRequest) returns (Det44LookupResponse);
+  // CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
+  rpc CnatSessions(CnatSessionsRequest) returns (CnatSessionsResponse);
+
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
@@ -740,6 +749,12 @@ message ActionRequest {
     CaptureAction capture = 3;
 
     // wave-BC: F-det44-map-dslite-cnat
+
+    // Close one DET44 session (det44_close_session_in / _out; F-det44-map-dslite-cnat).
+    Det44SessionCloseAction det44_session_close = 9;
+    // Purge the CNAT session table (cnat_session_purge; globals owner only; F-det44-map-dslite-cnat).
+    CnatSessionPurgeAction cnat_session_purge = 10;
+
     // wave-BC: F-ikev2-native
     // wave-BC: F-ra-vpn
     // wave-BC: F-ha-state-sync
@@ -2928,6 +2943,9 @@ message NatConfig {
   CnatConfig cnat = 24;
 
   // wave-BC: F-det44-map-dslite-cnat
+
+  // PNAT policy 1:1 NAT (F-det44-map-dslite-cnat; IPv4 only).
+  PnatConfig pnat = 27;
 }
 
 // NatTimeouts mirrors `nat.timeouts` (seconds).
@@ -6000,6 +6018,194 @@ message SyslogEntry {
 }
 
 // ----- F-det44-map-dslite-cnat -----
+
+// PnatConfig mirrors `nat.pnat` (VPP pnat plugin; IPv4 only).
+message PnatConfig {
+  // Bindings (match tuple → rewrite tuple).
+  repeated PnatBinding bindings = 1;
+  // Bindings attached to an interface's input or output path.
+  repeated PnatAttachment attachments = 2;
+}
+
+// PnatBinding is one named binding; the agent keys it by its match tuple.
+message PnatBinding {
+  // Binding name (configuration-only label; attachments reference it).
+  optional string name = 1;
+  // Match tuple; unset fields are wildcards.
+  PnatMatch match = 2;
+  // Rewrite tuple; unset fields are unchanged.
+  PnatRewrite rewrite = 3;
+}
+
+// PnatMatch is the match tuple of a binding.
+message PnatMatch {
+  // "tcp" | "udp" | "icmp"; unset = any.
+  optional string proto = 1;
+  // Source IPv4 address; unset = any.
+  optional string src = 2;
+  // Source port (tcp/udp only); unset = any.
+  optional uint32 sport = 3;
+  // Destination IPv4 address; unset = any.
+  optional string dst = 4;
+  // Destination port (tcp/udp only); unset = any.
+  optional uint32 dport = 5;
+}
+
+// PnatRewrite is the rewrite tuple of a binding.
+message PnatRewrite {
+  // New source IPv4 address.
+  optional string src = 1;
+  // New source port.
+  optional uint32 sport = 2;
+  // New destination IPv4 address.
+  optional string dst = 3;
+  // New destination port.
+  optional uint32 dport = 4;
+}
+
+// PnatAttachment applies a binding on an interface.
+message PnatAttachment {
+  // Binding name (PnatBinding.name).
+  optional string binding = 1;
+  // VPP interface name.
+  optional string interface = 2;
+  // "input" | "output".
+  optional string point = 3;
+}
+
+// Det44SessionsRequest selects one page of one inside user's DET44 sessions.
+message Det44SessionsRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Inside IPv4 address of the user (required: VPP dumps sessions per user).
+  string user = 2;
+  // Index of the first session of the page in VPP's order.
+  uint32 offset = 3;
+  // Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT.
+  uint32 limit = 4;
+}
+
+// Det44Session is one DET44 session as VPP reports it.
+message Det44Session {
+  // Inside L4 port.
+  uint32 inside_port = 1;
+  // Outside (translated) L4 port.
+  uint32 outside_port = 2;
+  // External (remote) host.
+  string external_address = 3;
+  // External host port.
+  uint32 external_port = 4;
+  // VPP session state ("unknown" | "udp-active" | "tcp-syn-sent" | "tcp-established" | "tcp-fin-wait" |
+  // "tcp-close-wait" | "tcp-closing" | "tcp-last-ack" | "tcp-closed" | "icmp-active", else the number).
+  string state = 5;
+  // Expiry (VPP time, seconds).
+  uint32 expire = 6;
+}
+
+// Det44SessionsResponse is one page.
+message Det44SessionsResponse {
+  // The page.
+  repeated Det44Session sessions = 1;
+  // Offset of the next page; unset on the last page.
+  optional uint32 next_offset = 2;
+  // Sessions of this user.
+  uint64 total_sessions = 3;
+  // The user's outside address (det44_forward).
+  string outside_address = 4;
+  // First port of the user's outside port block.
+  uint32 port_lo = 5;
+  // Last port of the user's outside port block.
+  uint32 port_hi = 6;
+  // The owner whose view was returned.
+  string owner = 7;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 8;
+}
+
+// Det44LookupRequest is a forward (inside → outside) or reverse (outside → inside) lookup.
+message Det44LookupRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Forward: the inside IPv4 address. Exactly one of inside_address / outside_address.
+  optional string inside_address = 2;
+  // Reverse: the outside IPv4 address.
+  optional string outside_address = 3;
+  // Reverse: the outside port (required with outside_address).
+  optional uint32 outside_port = 4;
+}
+
+// Det44LookupResponse is the deterministic mapping.
+message Det44LookupResponse {
+  // Inside IPv4 address.
+  string inside_address = 1;
+  // Outside IPv4 address.
+  string outside_address = 2;
+  // First port of the inside address's outside block (forward only; 0 on reverse).
+  uint32 port_lo = 3;
+  // Last port of that block (forward only; 0 on reverse).
+  uint32 port_hi = 4;
+}
+
+// CnatSessionsRequest selects one page of the CNAT session table.
+message CnatSessionsRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Index of the first session of the page in VPP's order.
+  uint32 offset = 2;
+  // Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT.
+  uint32 limit = 3;
+}
+
+// CnatSession is one CNAT session (its 5-tuple as VPP keys it).
+message CnatSession {
+  // Destination address (the VIP for a forward session).
+  string dst_address = 1;
+  // Destination port.
+  uint32 dst_port = 2;
+  // Source address.
+  string src_address = 3;
+  // Source port.
+  uint32 src_port = 4;
+  // "tcp" | "udp" | "icmp" | the protocol number in decimal.
+  string protocol = 5;
+  // Index of the translation that created it (~0 = none).
+  uint32 translation_index = 6;
+  // VPP session flags.
+  uint32 flags = 7;
+}
+
+// CnatSessionsResponse is one page. CNAT sessions are a VPP-global table (no owner filter is possible).
+message CnatSessionsResponse {
+  // The page.
+  repeated CnatSession sessions = 1;
+  // Offset of the next page; unset on the last page.
+  optional uint32 next_offset = 2;
+  // Sessions in the table (a lower bound when truncated).
+  uint64 total_sessions = 3;
+  // The per-call cap stopped the dump.
+  bool truncated = 4;
+  // The owner whose view was returned.
+  string owner = 5;
+  // When the dump was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 6;
+}
+
+// Det44SessionCloseAction closes one DET44 session.
+message Det44SessionCloseAction {
+  // "in" (by the inside endpoint, det44_close_session_in) | "out" (by the outside endpoint, det44_close_session_out).
+  string direction = 1;
+  // Inside (direction in) or outside (direction out) IPv4 address.
+  string address = 2;
+  // Inside or outside port.
+  uint32 port = 3;
+  // External (remote) host IPv4 address.
+  string external_address = 4;
+  // External host port.
+  uint32 external_port = 5;
+}
+
+// CnatSessionPurgeAction purges every CNAT session (a VPP-global table; the globals owner only).
+message CnatSessionPurgeAction {}
 
 // ----- F-tunnels -----
 

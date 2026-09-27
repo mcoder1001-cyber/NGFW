@@ -15,6 +15,7 @@ import { haValidators } from './ha.js';
 import { managementValidators } from './management.js';
 // Feature rule files (semantic/<slug>.ts exporting `<slug>Validators`): one import under the feature's anchor.
 // wave-BC: F-det44-map-dslite-cnat
+import { det44MapDsliteCnatValidators } from './det44-map-dslite-cnat.js';
 // wave-BC: F-tunnels
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
@@ -96,6 +97,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
   // wave-BC: F-det44-map-dslite-cnat
+  ...det44MapDsliteCnatValidators,
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki

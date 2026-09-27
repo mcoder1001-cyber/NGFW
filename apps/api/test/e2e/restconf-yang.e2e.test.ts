@@ -15,7 +15,7 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     h = await startHarness({});
     admin = await h.login('admin', h.adminPassword);
     // a user with a password hash, to prove secret leaves are never returned by RESTCONF
-    await h.createUsers(admin, [{ username: 'bob', role: 'operator', password: 'Bob-pw-1234567890' }]);
+    await h.createUsers(admin, [{ username: 'bob', role: 'operator', password: 'Bob-pw-1234567890' }]); // gitleaks:allow — test fixture (dummy password / RFC 6238 test vector), never a real secret
   });
   afterAll(async () => {
     await h?.close();

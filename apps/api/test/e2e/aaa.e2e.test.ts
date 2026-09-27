@@ -33,7 +33,7 @@ describe('F-aaa e2e (PostgreSQL + fake agent)', () => {
     h = await startHarness({});
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
-      { username: 'op1', role: 'operator', password: 'Op1-pw-1234567890' },
+      { username: 'op1', role: 'operator', password: 'Op1-pw-1234567890' }, // gitleaks:allow — test fixture (dummy password / RFC 6238 test vector), never a real secret
     ]);
     op = await h.login('op1', 'Op1-pw-1234567890');
     // a local RADIUS server: accepts bob/bob-pw, replies Class=netadmins

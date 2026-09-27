@@ -3939,12 +3939,12 @@ tasks:
   - F-aaa
   priority: 6
   est_hours: 8
-  state: ready
-  owner: ''
-  branch: ''
+  state: running
+  owner: cloud session eloquent-wozniak
+  branch: claude/eloquent-wozniak-tmokcq
   worktree: ''
   parked_on: ''
-  started: ''
+  started: '2026-09-27'
   finished: ''
   template: ''
   prompt: ''

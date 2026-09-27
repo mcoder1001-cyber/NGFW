@@ -539,3 +539,98 @@ tasks:
   deps: []
   est_hours: 12
   notes: 'Sales enabler; based on benchmark results.'
+# --- More ideas (brainstorm 2026-09-27, round 5) ---
+- id: BL-NET-19
+  title: 'BNG (Broadband Network Gateway): PPPoE/IPoE subscriber termination, RADIUS auth/accounting, per-subscriber QoS and CoA'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 80
+  notes: 'Big market for ISPs; builds on the PPPoE server, CGNAT and policer. Needs a scope decision.'
+- id: BL-NET-20
+  title: 'Dynamic multipoint VPN (DMVPN-style hub-and-spoke with on-demand spoke-to-spoke tunnels)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 40
+  notes: 'strongSwan + NHRP (FRR nhrpd).'
+- id: BL-NET-21
+  title: 'L2 loop protection: STP/RSTP or BPDU guard and loop detection on bridge domains'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'VPP bridge domains have no STP today.'
+- id: BL-NET-22
+  title: 'NAT reflection (hairpin): reach port-forwarded servers by public IP from inside'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 6
+  notes: 'Frequent small-office request; check what NAT44-ED already gives.'
+- id: BL-NET-23
+  title: 'L2VPN services: VPLS / EoMPLS pseudowires and EVPN-VPWS'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 30
+  notes: 'Complements the MPLS/SR work.'
+- id: BL-SEC-25
+  title: 'CGNAT compliance logging: port-block allocation logs with long retention and lawful lookup (IP+port+time → subscriber)'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Legal requirement for ISP deployments; builds on DET44/NAT logging.'
+- id: BL-SEC-26
+  title: 'Supply-chain security: SBOM per release, CVE feed matching installed packages, security advisories page'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 12
+- id: BL-SEC-27
+  title: 'Encryption of config and secrets at rest (TPM or passphrase unlock) and secret rotation workflow'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Pairs with platform trust (BL-SEC-14).'
+- id: BL-SEC-28
+  title: 'Security posture score: best-practice checks (default passwords, any-any rules, exposed management, weak ciphers) with fixes'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Lighter sibling of compliance reports (BL-OPS-05).'
+- id: BL-SEC-29
+  title: 'SMTP anti-spam proxy (greylisting, RBL, SPF/DKIM checks) for small offices hosting mail'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 20
+- id: BL-OPS-27
+  title: 'Remote support tunnel: admin-approved, time-limited, audited access for vendor support'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+- id: BL-OPS-28
+  title: 'Opt-in anonymous usage and health telemetry (phone-home) for product decisions'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 8
+  notes: 'Privacy review required.'
+- id: BL-OPS-29
+  title: 'Demo/lab mode: virtual appliance with sample traffic and pre-built scenarios for sales and training'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 16
+- id: BL-OPS-30
+  title: 'Compare configs across devices or revisions (side-by-side diff of two boxes)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 6
+  notes: 'Revisions diff exists per box; this compares two boxes.'

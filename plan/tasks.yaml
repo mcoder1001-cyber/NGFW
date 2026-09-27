@@ -3646,15 +3646,15 @@ tasks:
   - F-dashboard-prom-alarms
   priority: 3
   est_hours: 20
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/agent/internal/subsystems/wanmon/**, apps/web/src/domains/routing/wan-groups/**, docs/user/network/multi-wan.md'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from backlog BL-NET-03 by the product owner (2026-09-26)
 - id: F-notifications

@@ -1207,17 +1207,17 @@ tasks:
   - F-unbound-chrony-syslog
   priority: 4
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.9
   - D0.10
   scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
   files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
     apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'

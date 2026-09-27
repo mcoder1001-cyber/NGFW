@@ -871,3 +871,14 @@ Configuration is `RoutingConfig.mpls = 15` (`MplsConfig`; field 10 is F-mpls-ldp
 - `Retrieve` (§5) reports `routing.mpls.interfaces`, `tables`, `labelRoutes` and `tunnels`; `ipBindings` and `sr` are
   write-only in VPP 26.06 (no dump, D-063) and are never part of a Retrieve result — they are re-applied on every resync
   (D-076) and show in the running-vs-actual diff as absent.
+
+<!-- F-capture-trace (unanchored) -->
+### F-capture-trace: CaptureList, CaptureRead, CaptureDelete; CaptureAction drop/error_filter
+
+`Action{capture}` runs one pcap capture (one per VPP; busy → `ABORTED`, invalid → `INVALID_ARGUMENT` with
+`<field>: …`, BPF without the globals owner → `FAILED_PRECONDITION`). It streams `line`s, the first is
+`capture <id> started`, then one `done` (`stats`: id, packets, bytes, sha256, state, reason). No `pcap_chunk` is sent:
+the agent keeps the file (0600, `VRX_CAPTURE_DIR`, retention by count and bytes). `CaptureAction.drop = 7`,
+`error_filter = 8`. `CaptureList` returns the kept files plus the running capture, with `trace_available`/`pg_available`
+(false on this build, with reasons). `CaptureRead` streams one file. `CaptureDelete` removes one (`NOT_FOUND`; running →
+`FAILED_PRECONDITION`).

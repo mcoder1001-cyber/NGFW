@@ -116,7 +116,11 @@ func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.Server
 func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
 	switch req.GetAction().(type) {
 	// wave-BC: F-det44-map-dslite-cnat
+	case *vrxv1.ActionRequest_Det44SessionClose:
+		return g.det44SessionClose(req, stream)
 	// wave-BC: F-det44-map-dslite-cnat
+	case *vrxv1.ActionRequest_CnatSessionPurge:
+		return g.cnatSessionPurge(req, stream)
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync

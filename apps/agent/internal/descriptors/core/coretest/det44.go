@@ -27,6 +27,9 @@ type Det44 struct {
 	Timeouts det44.Det44GetTimeoutsReply
 	Ifaces   map[uint32]*det44.Det44InterfaceDetails
 	Maps     []*det44.Det44MapDetails
+	// Sessions per inside user (det44_session_dump / close); tests seed them.
+	Sessions map[netip.Addr][]det44.Det44SessionDetails
+	Closes   int
 }
 
 // Lock guards the exported fields.
@@ -79,7 +82,7 @@ func (v *VPP) Dslite() *Dslite {
 }
 
 func (v *VPP) installDet44() *Det44 {
-	d := &Det44{v: v, Ifaces: map[uint32]*det44.Det44InterfaceDetails{},
+	d := &Det44{v: v, Ifaces: map[uint32]*det44.Det44InterfaceDetails{}, Sessions: map[netip.Addr][]det44.Det44SessionDetails{},
 		Timeouts: det44.Det44GetTimeoutsReply{UDP: 300, TCPEstablished: 7440, TCPTransitory: 240, ICMP: 60}}
 	one := func(m api.Message) ([]api.Message, error) { return []api.Message{m}, nil }
 	rv := func(e api.VPPApiError) int32 { return int32(e) }
@@ -176,6 +179,78 @@ func (v *VPP) installDet44() *Det44 {
 			SharingRatio: ratio, PortsPerHost: uint16((65535 - 1023) / ratio)}) //nolint:gosec // ratio ≥ 1: ≤ 64512
 		return one(&det44.Det44AddDelMapReply{})
 	})
+	v.On("det44_forward", func(m api.Message) ([]api.Message, error) {
+		in := netip.AddrFrom4(m.(*det44.Det44Forward).InAddr)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		dm := d.byUser(in)
+		if dm == nil {
+			return one(&det44.Det44ForwardReply{Retval: rv(api.NO_SUCH_ENTRY)})
+		}
+		out, lo := det44Forward(dm, in)
+		return one(&det44.Det44ForwardReply{OutAddr: out.As4(), OutPortLo: lo, OutPortHi: lo + dm.PortsPerHost - 1})
+	})
+	v.On("det44_reverse", func(m api.Message) ([]api.Message, error) {
+		r := m.(*det44.Det44Reverse)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if r.OutPort < 1024 {
+			return one(&det44.Det44ReverseReply{Retval: rv(api.INVALID_VALUE)})
+		}
+		in, ok := d.reverse(netip.AddrFrom4(r.OutAddr), r.OutPort)
+		if !ok {
+			return one(&det44.Det44ReverseReply{Retval: rv(api.NO_SUCH_ENTRY)})
+		}
+		return one(&det44.Det44ReverseReply{InAddr: in.As4()})
+	})
+	v.On("det44_session_dump", func(m api.Message) ([]api.Message, error) {
+		u := netip.AddrFrom4(m.(*det44.Det44SessionDump).UserAddr)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		if d.byUser(u) == nil {
+			return nil, nil
+		}
+		out := make([]api.Message, 0, len(d.Sessions[u]))
+		for _, x := range d.Sessions[u] {
+			c := x
+			out = append(out, &c)
+		}
+		return out, nil
+	})
+	closeOne := func(user netip.Addr, match func(det44.Det44SessionDetails) bool) int32 {
+		for i, x := range d.Sessions[user] {
+			if match(x) {
+				d.Sessions[user] = append(d.Sessions[user][:i], d.Sessions[user][i+1:]...)
+				d.Closes++
+				return 0
+			}
+		}
+		return rv(api.NO_SUCH_ENTRY)
+	}
+	v.On("det44_close_session_in", func(m api.Message) ([]api.Message, error) {
+		r := m.(*det44.Det44CloseSessionIn)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		u := netip.AddrFrom4(r.InAddr)
+		if d.byUser(u) == nil {
+			return one(&det44.Det44CloseSessionInReply{Retval: rv(api.NO_SUCH_ENTRY)})
+		}
+		return one(&det44.Det44CloseSessionInReply{Retval: closeOne(u, func(x det44.Det44SessionDetails) bool {
+			return x.InPort == r.InPort && x.ExtAddr == r.ExtAddr && x.ExtPort == r.ExtPort
+		})})
+	})
+	v.On("det44_close_session_out", func(m api.Message) ([]api.Message, error) {
+		r := m.(*det44.Det44CloseSessionOut)
+		d.mu.Lock()
+		defer d.mu.Unlock()
+		u, ok := d.reverse(netip.AddrFrom4(r.OutAddr), r.OutPort)
+		if !ok {
+			return one(&det44.Det44CloseSessionOutReply{Retval: rv(api.NO_SUCH_ENTRY)})
+		}
+		return one(&det44.Det44CloseSessionOutReply{Retval: closeOne(u, func(x det44.Det44SessionDetails) bool {
+			return x.OutPort == r.OutPort && x.ExtAddr == r.ExtAddr && x.ExtPort == r.ExtPort
+		})})
+	})
 	v.On("det44_map_dump", func(api.Message) ([]api.Message, error) {
 		d.mu.Lock()
 		defer d.mu.Unlock()
@@ -187,6 +262,48 @@ func (v *VPP) installDet44() *Det44 {
 		return out, nil
 	})
 	return d
+}
+
+// byUser is VPP's det44_map_by_user (caller holds d.mu).
+func (d *Det44) byUser(in netip.Addr) *det44.Det44MapDetails {
+	for _, m := range d.Maps {
+		if netip.PrefixFrom(netip.AddrFrom4(m.InAddr), int(m.InPlen)).Contains(in) {
+			return m
+		}
+	}
+	return nil
+}
+
+func ip4u(a netip.Addr) uint32 {
+	b := a.As4()
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+}
+
+func u2ip4(u uint32) netip.Addr {
+	return netip.AddrFrom4([4]byte{byte(u >> 24), byte(u >> 16), byte(u >> 8), byte(u)}) //nolint:gosec // byte extraction
+}
+
+// det44Forward is VPP's snat_det_forward: the outside address and first port of an inside host.
+func det44Forward(m *det44.Det44MapDetails, in netip.Addr) (netip.Addr, uint16) {
+	off := ip4u(in) - ip4u(netip.AddrFrom4(m.InAddr))
+	out := u2ip4(ip4u(netip.AddrFrom4(m.OutAddr)) + off/m.SharingRatio)
+	return out, uint16(1024 + uint32(m.PortsPerHost)*(off%m.SharingRatio)) //nolint:gosec // < 65536 by construction
+}
+
+// reverse is VPP's det44_map_by_out + snat_det_reverse (caller holds d.mu).
+func (d *Det44) reverse(out netip.Addr, port uint16) (netip.Addr, bool) {
+	for _, m := range d.Maps {
+		if !netip.PrefixFrom(netip.AddrFrom4(m.OutAddr), int(m.OutPlen)).Contains(out) || port < 1024 {
+			continue
+		}
+		off := ip4u(out) - ip4u(netip.AddrFrom4(m.OutAddr))
+		po := uint32(port-1024) / uint32(m.PortsPerHost)
+		if po >= m.SharingRatio {
+			return netip.Addr{}, false
+		}
+		return u2ip4(ip4u(netip.AddrFrom4(m.InAddr)) + off*m.SharingRatio + po), true
+	}
+	return netip.Addr{}, false
 }
 
 func (v *VPP) installDslite() *Dslite {

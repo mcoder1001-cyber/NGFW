@@ -1615,7 +1615,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D2.9
@@ -1625,7 +1625,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed'
 - id: F-srv6
   title: 'Wave C (day 13-15): SRv6 policies, network programming, service chaining proxies, SRv6-mobile'
@@ -3974,3 +3974,23 @@ tasks:
   scope: 'enforce the API auto-block set on VPP acl + nftables local-in; add SSH/IKE/port-scan detectors that call the same observe() path over the agent bridge; live topology test (10 bad logins -> blocked on local-in and through; expiry -> unblocked; allow-listed never blocked)'
   files_owned: apps/agent/internal/**
   notes: 'follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host)'
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-igmp-mfib-host
+  title: 'IPv4 multicast data-plane: VPP mFIB programming (ip_mroute_add_del), FRR pim renderer + frrsync/pim (PIM->mFIB), live IGMP WatchEvents; BIER optional'
+  stage: S4
+  deps:
+  - F-igmp-mfib
+  priority: 3
+  est_hours: 2
+  scope: 'project routing.multicast onto DF-7 IGMP objects + new mfib.route descriptor (ip_mroute_add_del/dump, owned tables); FRR pim section + frrsync/pim translating (S,G)/(*,G)+OIL via LCP mapping through seam S1; feed VPP IGMP WatchEvents into multicast.events; host topology test (static (S,G) in show ip mfib, PIM (S,G) via frrsync, restart re-applies within 30s)'
+  files_owned: apps/agent/internal/**
+  notes: 'follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090)'

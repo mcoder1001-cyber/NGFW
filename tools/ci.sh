@@ -399,6 +399,13 @@ do_forbidden() {
 # command strings, argv lists (Go `vppctl(t, "show", "trace")`, TS/Python arrays) and the tracedump binary API (trace_dump
 # formats the same records). Prose is exempt (docs/, prompts/, wbs/, plan/, *.md, comment-only lines), as are the generated
 # bindings (apps/agent/binapi). No escape hatch: the ban holds until VPP carries the fix.
+do_slot_check() {  # D-156: 30 developer slots - every per-slot port/table/db is unique and matches `tools/lab env`
+  step "slot resource scheme (1..32, no collisions)"
+  CUR_LOG=""
+  local out; out=$(python3 tools/slot-check.py 2>&1) || fail "slot scheme collision (docs/lab/shared-host-rules.md §1):\n$(sed 's/^/    /' <<<"$out")"
+  say "$out"
+}
+
 do_trace_ban() {
   step "packet-trace ban on the shared VPP (D-128)"
   CUR_LOG=""  # a static grep, no step log: a failure must not print the previous step's log
@@ -483,7 +490,9 @@ slot_env() {
     done < <(tools/lab env "$n" 2>/dev/null || true)
   fi
   # same arithmetic as `tools/lab env` (D-025: metrics = 9100 + 10·N + 1, so slots 10–12 stay valid ports)
-  declare -A def=([VRX_SLOT]=$n [VRX_TEST_PREFIX]=w$n [VRX_HTTP_PORT]=$((3000 + n * 100)) [VRX_WEB_PORT]=$((5000 + n * 100))
+  # slots 14-32 (D-156): HTTP 10000 + 100*N, web 14000 + 100*N; 1-12 unchanged (tools/slot-check.py proves no collision)
+  local hb=3000 wb=5000; (( n <= 12 )) || { hb=10000; wb=14000; }
+  declare -A def=([VRX_SLOT]=$n [VRX_TEST_PREFIX]=w$n [VRX_HTTP_PORT]=$((hb + n * 100)) [VRX_WEB_PORT]=$((wb + n * 100))
                   [VRX_METRICS_PORT]=$((9100 + n * 10 + 1)) [VRX_AGENT_SOCKET]=/run/vrx-test/w$n/agent.sock
                   [VRX_PG_DATABASE]=vrx_w$n [VRX_VALKEY_DB]=$n [VRX_VPP_TABLE_BASE]=$((n * 1000)))
   for k in "${!def[@]}"; do [[ -n ${got[$k]:-} ]] || export "$k=${def[$k]}"; done
@@ -687,7 +696,7 @@ case $MODE in
   gen-check)
     init_logs; do_gen_check; end_step; say "gen-check PASSED ($(fmt_dur "$SECONDS"))" ;;
   check)
-    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
+    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; do_slot_check; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
   quick|full)
     init_logs
     preflight
@@ -697,6 +706,7 @@ case $MODE in
     do_gen_check
     do_forbidden
     do_trace_ban
+    do_slot_check
     do_turbo
     do_agent
     do_cli

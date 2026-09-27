@@ -251,13 +251,17 @@ cmd_lock() {
 
 # ---------------------------------------------------------------- env <slot>
 cmd_env() {
-  local n="${1:-}"
-  [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= 12 )) || die "env <slot>: slot must be 1..12 (docs/lab/shared-host-rules.md §1)"
+  local n="${1:-}" http web
+  # slots 1-11 workers, 12 CI, 13 does not exist (13000-13999 = tools/app), 14-32 workers (D-156): 30 developer slots
+  [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= 32 && n != 13 )) \
+    || die "env <slot>: slot must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"
+  if (( n <= 12 )); then http=$(( 3000 + n * 100 )); web=$(( 5000 + n * 100 ))    # unchanged for the running slots
+  else http=$(( 10000 + n * 100 )); web=$(( 14000 + n * 100 )); fi                # 3<N>00 would hit 5<M>00 of slots 1-12
   cat <<EOV
 export VRX_SLOT=$n
 export VRX_TEST_PREFIX=w$n
-export VRX_HTTP_PORT=$(( 3000 + n * 100 ))
-export VRX_WEB_PORT=$(( 5000 + n * 100 ))
+export VRX_HTTP_PORT=$http
+export VRX_WEB_PORT=$web
 export VRX_METRICS_PORT=$(( 9100 + n * 10 + 1 ))
 export VRX_AGENT_SOCKET=/run/vrx-test/w$n/agent.sock
 export VRX_PG_DATABASE=vrx_w$n
@@ -283,9 +287,9 @@ rig_resolve_slot() {  # <strict 0|1> → SLOT + addresses. w<N>: the prefix deci
     [[ -z "${VRX_SLOT:-}" || "$VRX_SLOT" == "$SLOT" ]] || warn "rig: prefix $P means slot $SLOT — ignoring VRX_SLOT=$VRX_SLOT (the prefix wins)"
   elif [[ -n "${VRX_SLOT:-}" ]]; then
     SLOT="$VRX_SLOT"
-    [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT <= 12 )) && warn "rig: VRX_SLOT=$SLOT is worker slot w$SLOT's range (10.$SLOT.x.x) — its rig and yours cannot coexist"
+    [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT <= 32 )) && warn "rig: VRX_SLOT=$SLOT is worker/CI slot w$SLOT's range (10.$SLOT.x.x) — its rig and yours cannot coexist"
   elif (( strict )); then
-    die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export VRX_SLOT=<13..254> (10.<slot>.{1,2}.0/24); no hash fallback"
+    die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export VRX_SLOT=<33..254> (10.<slot>.{1,2}.0/24); no hash fallback"
   else return 0; fi
   [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )) || die "rig: slot '$SLOT' out of range 1..254"
   LAN_GW="10.$SLOT.1.1"; LAN_IP="10.$SLOT.1.2"; WAN_GW="10.$SLOT.2.1"; WAN_IP="10.$SLOT.2.2"

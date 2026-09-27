@@ -94,6 +94,16 @@ func Name(t testing.TB, suffix string) string {
 	return n
 }
 
+// SubPort returns this slot's test port with offset off (1-99). Slots 1-12 keep the port their test always used
+// (legacy, e.g. 3000+100*N+53 or the string-built "3<N>61"); slots 14-32 (D-156) take VRX_HTTP_PORT's block,
+// 10000+100*N+off, because the legacy formulas collide with slots 1-12 there (tools/slot-check.py).
+func SubPort(slot, off, legacy int) int {
+	if slot <= 12 {
+		return legacy
+	}
+	return 10000 + 100*slot + off
+}
+
 // LoopbackInstance returns the loopback instance number for index i (0–99) in this slot's
 // range: slot*100 + i, so VPP names the interface loop<slot><ii>.
 func LoopbackInstance(t testing.TB, i int) uint32 {
@@ -115,7 +125,7 @@ func TableBase(t testing.TB) uint32 {
 		}
 		return uint32(n)
 	}
-	return uint32(Slot(t) * 1000) //nolint:gosec // slots are 1–12
+	return uint32(Slot(t) * 1000) //nolint:gosec // slots are 1–12, 14–32 (13 = tools/app)
 }
 
 // NATPool returns this slot's NAT address block "10.<slot>.0.0/16".

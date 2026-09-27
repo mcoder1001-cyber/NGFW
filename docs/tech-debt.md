@@ -151,3 +151,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
   are not wired into the running agent yet (promexport package + API alarm engine are done and tested). Email alarm
   targets are modelled but not delivered (webhook only) — left to F-notifications. Owner: F-dashboard-prom-alarms-host
   / F-notifications.
+- F-multiwan (this row): the agent host-side wiring (per-link probing, default-route/ECMP install via VPP, per-member
+  source NAT + sticky sessions + clearing the dead link's sessions on failover, ABF pinning, the WanState RPC handler)
+  is not wired into the running agent yet (the health hysteresis + failover/balance selection are done and unit-tested;
+  the RPC returns 501). Owner: F-multiwan-host.

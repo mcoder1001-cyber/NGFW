@@ -1312,6 +1312,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/wan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live multi-WAN group member health */
+    get: operations['Multiwan_wan'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host-acl': {
     parameters: {
       query?: never;
@@ -3588,6 +3605,95 @@ export interface components {
           family: 'ipv4' | 'ipv6';
         }[];
       };
+      /**
+       * WAN groups (multi-WAN)
+       * @default []
+       */
+      wanGroups: {
+        /** Name */
+        name: string;
+        /**
+         * Mode
+         * @default failover
+         * @enum {string}
+         */
+        mode: 'failover' | 'balance';
+        /**
+         * Sticky sessions
+         * @default true
+         */
+        stickySessions: boolean;
+        /**
+         * Members
+         * @default []
+         */
+        members: {
+          /** Interface */
+          interface: string;
+          /**
+           * Next hop
+           * @default dhcp
+           * @enum {string}
+           */
+          nextHop: 'gateway' | 'dhcp' | 'pppoe';
+          /** Gateway */
+          gateway?: string;
+          /**
+           * Weight
+           * @default 1
+           */
+          weight: number;
+          /**
+           * Priority
+           * @default 100
+           */
+          priority: number;
+        }[];
+        /**
+         * Health monitors
+         * @default []
+         */
+        monitors: {
+          /**
+           * Type
+           * @default icmp
+           * @enum {string}
+           */
+          type: 'icmp' | 'http' | 'dns';
+          /** Target */
+          target: string;
+          /**
+           * Interval (ms)
+           * @default 1000
+           */
+          intervalMs: number;
+          /**
+           * Timeout (ms)
+           * @default 1000
+           */
+          timeoutMs: number;
+          /**
+           * Loss threshold (%)
+           * @default 100
+           */
+          lossPct: number;
+          /**
+           * Latency threshold (ms)
+           * @default 0
+           */
+          latencyMs: number;
+          /**
+           * Down after
+           * @default 3
+           */
+          downAfter: number;
+          /**
+           * Up after
+           * @default 3
+           */
+          upAfter: number;
+        }[];
+      }[];
     };
     /**
      * NAT
@@ -14712,6 +14818,62 @@ export interface operations {
             agent: {
               reachable: boolean;
             };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Multiwan_wan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            groups: {
+              name: string;
+              mode: string;
+              /** @description interface carrying the default route (failover); empty in balance or when all down */
+              active: string;
+              members: {
+                interface: string;
+                up: boolean;
+                lossPct: number;
+                latencyMs: number;
+                weight: number;
+                priority: number;
+                since: string | null;
+              }[];
+            }[];
           };
         };
       };

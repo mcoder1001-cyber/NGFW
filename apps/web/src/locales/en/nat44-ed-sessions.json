@@ -84,6 +84,7 @@
     "conflict": "This entry changed in the candidate since the list was loaded (another session). Nothing was saved; the list shows the current candidate."
   },
   "col": {
+    "expiresAt": "Expires",
     "name": "Name",
     "kind": "Kind",
     "protocol": "Protocol",

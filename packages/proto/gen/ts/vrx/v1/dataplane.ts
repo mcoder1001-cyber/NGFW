@@ -521,6 +521,8 @@ export enum AclRuleStatus {
   ACL_RULE_STATUS_SCHEDULE_INACTIVE = 3,
   /** ACL_RULE_STATUS_EMPTY - Expanded to nothing (e.g. an FQDN object without addresses, or no common address family). */
   ACL_RULE_STATUS_EMPTY = 4,
+  /** ACL_RULE_STATUS_EXPIRED - F-rule-expiry: its expiresAt has passed — not rendered; the configuration keeps it (extend or delete it). */
+  ACL_RULE_STATUS_EXPIRED = 5,
   UNRECOGNIZED = -1,
 }
 
@@ -541,6 +543,9 @@ export function aclRuleStatusFromJSON(object: any): AclRuleStatus {
     case 4:
     case "ACL_RULE_STATUS_EMPTY":
       return AclRuleStatus.ACL_RULE_STATUS_EMPTY;
+    case 5:
+    case "ACL_RULE_STATUS_EXPIRED":
+      return AclRuleStatus.ACL_RULE_STATUS_EXPIRED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -560,6 +565,8 @@ export function aclRuleStatusToJSON(object: AclRuleStatus): string {
       return "ACL_RULE_STATUS_SCHEDULE_INACTIVE";
     case AclRuleStatus.ACL_RULE_STATUS_EMPTY:
       return "ACL_RULE_STATUS_EMPTY";
+    case AclRuleStatus.ACL_RULE_STATUS_EXPIRED:
+      return "ACL_RULE_STATUS_EXPIRED";
     case AclRuleStatus.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -3947,7 +3954,19 @@ export interface NatStaticMapping {
     | boolean
     | undefined;
   /** Out-to-in only. */
-  out2inOnly?: boolean | undefined;
+  out2inOnly?:
+    | boolean
+    | undefined;
+  /** F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never. */
+  expiresAt?:
+    | string
+    | undefined;
+  /** F-rule-expiry: who asked for the rule (metadata only). */
+  owner?:
+    | string
+    | undefined;
+  /** F-rule-expiry: change/ticket reference (metadata only). */
+  ticket?: string | undefined;
 }
 
 /** Local endpoint. */
@@ -4842,7 +4861,19 @@ export interface AclRule {
     | string
     | undefined;
   /** Log matches. */
-  log?: boolean | undefined;
+  log?:
+    | boolean
+    | undefined;
+  /** F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never. */
+  expiresAt?:
+    | string
+    | undefined;
+  /** F-rule-expiry: who asked for the rule (metadata only). */
+  owner?:
+    | string
+    | undefined;
+  /** F-rule-expiry: change/ticket reference (metadata only). */
+  ticket?: string | undefined;
 }
 
 /** AclList mirrors `acl.lists.<name>`. */
@@ -4934,7 +4965,19 @@ export interface HostRule {
     | string
     | undefined;
   /** Log matches. */
-  log?: boolean | undefined;
+  log?:
+    | boolean
+    | undefined;
+  /** F-rule-expiry: RFC 3339 with offset; at that instant the agent stops rendering the rule (no commit). Unset = never. */
+  expiresAt?:
+    | string
+    | undefined;
+  /** F-rule-expiry: who asked for the rule (metadata only). */
+  owner?:
+    | string
+    | undefined;
+  /** F-rule-expiry: change/ticket reference (metadata only). */
+  ticket?: string | undefined;
 }
 
 /** HostList mirrors `acl.host.<name>`. */
@@ -33904,6 +33947,9 @@ function createBaseNatStaticMapping(): NatStaticMapping {
     twiceNat: undefined,
     selfTwiceNat: undefined,
     out2inOnly: undefined,
+    expiresAt: undefined,
+    owner: undefined,
+    ticket: undefined,
   };
 }
 
@@ -33935,6 +33981,15 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
     }
     if (message.out2inOnly !== undefined) {
       writer.uint32(72).bool(message.out2inOnly);
+    }
+    if (message.expiresAt !== undefined) {
+      writer.uint32(82).string(message.expiresAt);
+    }
+    if (message.owner !== undefined) {
+      writer.uint32(90).string(message.owner);
+    }
+    if (message.ticket !== undefined) {
+      writer.uint32(98).string(message.ticket);
     }
     return writer;
   },
@@ -34024,6 +34079,30 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
             message.out2inOnly = reader.bool();
             continue;
           }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.expiresAt = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.ticket = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -34059,6 +34138,13 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
         : isSet(object.out2in_only)
         ? globalThis.Boolean(object.out2in_only)
         : undefined,
+      expiresAt: isSet(object.expiresAt)
+        ? globalThis.String(object.expiresAt)
+        : isSet(object.expires_at)
+        ? globalThis.String(object.expires_at)
+        : undefined,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : undefined,
+      ticket: isSet(object.ticket) ? globalThis.String(object.ticket) : undefined,
     };
   },
 
@@ -34091,6 +34177,15 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
     if (message.out2inOnly !== undefined) {
       obj.out2inOnly = message.out2inOnly;
     }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt;
+    }
+    if (message.owner !== undefined) {
+      obj.owner = message.owner;
+    }
+    if (message.ticket !== undefined) {
+      obj.ticket = message.ticket;
+    }
     return obj;
   },
 
@@ -34112,6 +34207,9 @@ export const NatStaticMapping: MessageFns<NatStaticMapping> = {
     message.twiceNat = object.twiceNat ?? undefined;
     message.selfTwiceNat = object.selfTwiceNat ?? undefined;
     message.out2inOnly = object.out2inOnly ?? undefined;
+    message.expiresAt = object.expiresAt ?? undefined;
+    message.owner = object.owner ?? undefined;
+    message.ticket = object.ticket ?? undefined;
     return message;
   },
 };
@@ -41286,6 +41384,9 @@ function createBaseAclRule(): AclRule {
     service: undefined,
     schedule: undefined,
     log: undefined,
+    expiresAt: undefined,
+    owner: undefined,
+    ticket: undefined,
   };
 }
 
@@ -41320,6 +41421,15 @@ export const AclRule: MessageFns<AclRule> = {
     }
     if (message.log !== undefined) {
       writer.uint32(80).bool(message.log);
+    }
+    if (message.expiresAt !== undefined) {
+      writer.uint32(90).string(message.expiresAt);
+    }
+    if (message.owner !== undefined) {
+      writer.uint32(98).string(message.owner);
+    }
+    if (message.ticket !== undefined) {
+      writer.uint32(106).string(message.ticket);
     }
     return writer;
   },
@@ -41417,6 +41527,30 @@ export const AclRule: MessageFns<AclRule> = {
             message.log = reader.bool();
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.expiresAt = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.ticket = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -41445,6 +41579,13 @@ export const AclRule: MessageFns<AclRule> = {
       service: isSet(object.service) ? ServiceMatch.fromJSON(object.service) : undefined,
       schedule: isSet(object.schedule) ? globalThis.String(object.schedule) : undefined,
       log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
+      expiresAt: isSet(object.expiresAt)
+        ? globalThis.String(object.expiresAt)
+        : isSet(object.expires_at)
+        ? globalThis.String(object.expires_at)
+        : undefined,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : undefined,
+      ticket: isSet(object.ticket) ? globalThis.String(object.ticket) : undefined,
     };
   },
 
@@ -41480,6 +41621,15 @@ export const AclRule: MessageFns<AclRule> = {
     if (message.log !== undefined) {
       obj.log = message.log;
     }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt;
+    }
+    if (message.owner !== undefined) {
+      obj.owner = message.owner;
+    }
+    if (message.ticket !== undefined) {
+      obj.ticket = message.ticket;
+    }
     return obj;
   },
 
@@ -41504,6 +41654,9 @@ export const AclRule: MessageFns<AclRule> = {
       : undefined;
     message.schedule = object.schedule ?? undefined;
     message.log = object.log ?? undefined;
+    message.expiresAt = object.expiresAt ?? undefined;
+    message.owner = object.owner ?? undefined;
+    message.ticket = object.ticket ?? undefined;
     return message;
   },
 };
@@ -41890,6 +42043,9 @@ function createBaseHostRule(): HostRule {
     service: undefined,
     interface: undefined,
     log: undefined,
+    expiresAt: undefined,
+    owner: undefined,
+    ticket: undefined,
   };
 }
 
@@ -41924,6 +42080,15 @@ export const HostRule: MessageFns<HostRule> = {
     }
     if (message.log !== undefined) {
       writer.uint32(80).bool(message.log);
+    }
+    if (message.expiresAt !== undefined) {
+      writer.uint32(90).string(message.expiresAt);
+    }
+    if (message.owner !== undefined) {
+      writer.uint32(98).string(message.owner);
+    }
+    if (message.ticket !== undefined) {
+      writer.uint32(106).string(message.ticket);
     }
     return writer;
   },
@@ -42021,6 +42186,30 @@ export const HostRule: MessageFns<HostRule> = {
             message.log = reader.bool();
             continue;
           }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.expiresAt = reader.string();
+            continue;
+          }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.ticket = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -42049,6 +42238,13 @@ export const HostRule: MessageFns<HostRule> = {
       service: isSet(object.service) ? ServiceMatch.fromJSON(object.service) : undefined,
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
+      expiresAt: isSet(object.expiresAt)
+        ? globalThis.String(object.expiresAt)
+        : isSet(object.expires_at)
+        ? globalThis.String(object.expires_at)
+        : undefined,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : undefined,
+      ticket: isSet(object.ticket) ? globalThis.String(object.ticket) : undefined,
     };
   },
 
@@ -42084,6 +42280,15 @@ export const HostRule: MessageFns<HostRule> = {
     if (message.log !== undefined) {
       obj.log = message.log;
     }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt;
+    }
+    if (message.owner !== undefined) {
+      obj.owner = message.owner;
+    }
+    if (message.ticket !== undefined) {
+      obj.ticket = message.ticket;
+    }
     return obj;
   },
 
@@ -42108,6 +42313,9 @@ export const HostRule: MessageFns<HostRule> = {
       : undefined;
     message.interface = object.interface ?? undefined;
     message.log = object.log ?? undefined;
+    message.expiresAt = object.expiresAt ?? undefined;
+    message.owner = object.owner ?? undefined;
+    message.ticket = object.ticket ?? undefined;
     return message;
   },
 };

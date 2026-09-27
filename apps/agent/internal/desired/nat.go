@@ -40,6 +40,7 @@ import (
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems/ruleexpiry"
 )
 
 // NAT44 modes (`nat.mode`).
@@ -173,6 +174,9 @@ func nat44ED(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 
 	pools := natPools(s, nat.GetPools(), vrfID)
 	for i, m := range nat.GetStaticMappings() {
+		if natMappingExpired(s, m, i) {
+			continue
+		}
 		natStatic(s, m, i, pools, vrfID)
 	}
 	for i, m := range nat.GetIdentityMappings() {
@@ -580,4 +584,26 @@ func natAddrLess(a, b string) bool {
 		return a < b
 	}
 	return x.Less(y)
+}
+
+// RuleExpired is the DryRun note of a rule whose expiresAt has passed (F-rule-expiry): it is not rendered, the
+// configuration keeps it, and /state/drift does not compare it (the API's coverage rules).
+const RuleExpired = "rule.expired"
+
+// natMappingExpired reports whether static mapping i has expired (F-rule-expiry): then it is left out of the
+// projection with a RuleExpired note; a later expiry is noted for the re-projection at that instant.
+func natMappingExpired(s Sink, m *vrxv1.NatStaticMapping, i int) bool {
+	pt := Ptr("nat", "staticMappings", strconv.Itoa(i))
+	expired, at, err := ruleexpiry.Expired(m.GetExpiresAt(), ruleexpiry.Now())
+	switch {
+	case err != nil:
+		s.Errorf(pt+"/expiresAt", "rule.expires-at", "%v", err)
+		return true
+	case expired:
+		s.Warnf(pt, RuleExpired, "static mapping %q expired at %s: not rendered (extend or delete it)", m.GetName(), m.GetExpiresAt())
+		return true
+	case !at.IsZero():
+		ruleexpiry.Note(at)
+	}
+	return false
 }

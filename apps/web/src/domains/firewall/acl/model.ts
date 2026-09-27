@@ -467,3 +467,25 @@ export function interfaceChoices(
   }
   return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
+
+/** F-rule-expiry: days before expiresAt a rule shows "expires soon" (the API warns at the same default). */
+export const EXPIRY_WARN_DAYS = 3;
+
+/** F-rule-expiry: where a rule's expiresAt stands at `now` (null: no expiry). */
+export function expiryState(
+  expiresAt: string | undefined,
+  now: number,
+): 'expired' | 'soon' | 'later' | null {
+  if (!expiresAt) return null;
+  const t = Date.parse(expiresAt);
+  if (!Number.isFinite(t)) return null;
+  if (t <= now) return 'expired';
+  return t - now <= EXPIRY_WARN_DAYS * 86_400_000 ? 'soon' : 'later';
+}
+
+/** F-rule-expiry: the expiry `days` after the later of now and the current expiry (the "extend" action), RFC 3339 UTC. */
+export function extendedExpiry(expiresAt: string | undefined, now: number, days: number): string {
+  const t = expiresAt ? Date.parse(expiresAt) : NaN;
+  const from = Number.isFinite(t) ? Math.max(t, now) : now;
+  return new Date(from + days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}

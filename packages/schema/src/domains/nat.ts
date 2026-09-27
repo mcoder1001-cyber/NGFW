@@ -19,6 +19,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
   });
 }
 import { ipPrefix, l4PortNumber } from './objects.js';
+import { ruleExpiryFields } from './ext/rule-expiry.js'; // F-rule-expiry
 
 /**
  * `nat` — every translator VPP 26.06 offers (WBS D4.1–D4.7; TNSR "NAT" is the reference).
@@ -219,6 +220,7 @@ export const NatStaticMappingSchema = withUi(
     twiceNat: flag('Twice-NAT'),
     selfTwiceNat: flag('Self twice-NAT', 'Twice-NAT only when the source is the external address'),
     out2inOnly: flag('Out-to-in only'),
+    ...ruleExpiryFields, // F-rule-expiry: expiresAt, owner, ticket
   }),
   { title: 'Static mapping' },
 );

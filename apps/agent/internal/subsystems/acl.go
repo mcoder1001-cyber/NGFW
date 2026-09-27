@@ -193,7 +193,8 @@ func (w *aclWatcher) scheduleChanged(now time.Time) (string, bool) {
 			continue
 		}
 		for _, r := range exp.Rules {
-			if r.Schedule == "" || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_UNSPECIFIED {
+			if r.Schedule == "" || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_UNSPECIFIED ||
+				r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED { // F-rule-expiry: never rendered again, whatever its schedule
 				continue
 			}
 			on, err := objects.Active(exp.Schedules[r.Schedule], now, w.loc)

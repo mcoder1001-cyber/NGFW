@@ -23,6 +23,8 @@ import {
   selectedIds,
   serviceText,
   targetText,
+  expiryState,
+  extendedExpiry,
 } from './model';
 import { pointerUrl } from './queries';
 
@@ -244,5 +246,20 @@ describe('ACL rule editor helpers', () => {
     ).toEqual(['host-w3l0', 'host-w3l0.100', 'host-w3w0', 'loop0']);
     expect(isAclTab('macip')).toBe(true);
     expect(isAclTab('adl')).toBe(false);
+  });
+});
+
+describe('F-rule-expiry helpers', () => {
+  const now = Date.parse('2026-09-27T12:00:00Z');
+  it('expiryState: none, expired (at the instant too), soon (within 3 days), later', () => {
+    expect(expiryState(undefined, now)).toBeNull();
+    expect(expiryState('2026-09-27T12:00:00Z', now)).toBe('expired');
+    expect(expiryState('2026-09-30T11:59:59Z', now)).toBe('soon');
+    expect(expiryState('2026-10-01T00:00:00Z', now)).toBe('later');
+  });
+  it('extendedExpiry: 7 days from the later of now and the current expiry', () => {
+    expect(extendedExpiry('2026-09-20T00:00:00Z', now, 7)).toBe('2026-10-04T12:00:00Z'); // expired: from now
+    expect(extendedExpiry('2026-09-29T00:00:00Z', now, 7)).toBe('2026-10-06T00:00:00Z'); // soon: from its expiry
+    expect(extendedExpiry(undefined, now, 7)).toBe('2026-10-04T12:00:00Z');
   });
 });

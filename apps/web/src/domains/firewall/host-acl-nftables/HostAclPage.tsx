@@ -1,4 +1,5 @@
 import AddIcon from '@mui/icons-material/Add';
+import { ExpiryChip } from '../ExpiryChip'; // F-rule-expiry
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -347,7 +348,7 @@ function ListsPanel({
                   <TableBody>
                     {list.rules.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={13}>
+                        <TableCell colSpan={RULE_COLUMNS.length + 1}>
                           <Typography color="text.secondary">{t('rules.empty')}</Typography>
                         </TableCell>
                       </TableRow>
@@ -451,6 +452,9 @@ function RuleRow({
       <TableCell>{rule.log ? t('yes') : t('no')}</TableCell>
       <TableCell>{rule.enabled ? t('yes') : t('no')}</TableCell>
       <TableCell>{rule.description}</TableCell>
+      <TableCell>
+        <ExpiryChip expiresAt={rule.expiresAt} owner={rule.owner} ticket={rule.ticket} />
+      </TableCell>
       <TableCell>
         {counters ? (
           <Tooltip title={t('rules.nftRules', { count: counters.nftRules })}>

@@ -86,7 +86,8 @@
     "output": "Output ACLs",
     "macip": "MACIP",
     "expected": "Configured",
-    "inSync": "State"
+    "inSync": "State",
+    "expiresAt": "Expires"
   },
   "target": {
     "zone": "zone {{zone}}"
@@ -186,7 +187,8 @@
     "empty": "matches nothing",
     "unknown": "unknown",
     "notCommitted": "not committed",
-    "notApplied": "not applied"
+    "notApplied": "not applied",
+    "expired": "expired"
   },
   "bulk": {
     "label": "Bulk actions",
@@ -424,5 +426,12 @@
       "title": "Source prefix",
       "help": "empty = any address"
     }
+  },
+  "expiry": {
+    "expired": "expired",
+    "soon": "expires soon",
+    "extend": "Extend by 7 days",
+    "extended": "Rule {{sequence}} now expires at {{at}}.",
+    "by": "Owner: {{owner}} · ticket: {{ticket}}"
   }
 }

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { allowedUrl, authorizationUrl, identityOf, pkce } from './oidc.js';
+import { allowedUrl, authorizationUrl, identityOf, jwksFor, pkce } from './oidc.js';
 
 const cfg = {
   issuer: 'https://idp.example.net',
@@ -12,6 +12,14 @@ const cfg = {
 };
 
 describe('oidc helpers', () => {
+  it('JWKS: one instance per issuer reused by later callbacks; a changed jwks_uri replaces it', () => {
+    const a = jwksFor('https://j.example.net', 'https://j.example.net/keys');
+    expect(jwksFor('https://j.example.net', 'https://j.example.net/keys')).toBe(a);
+    const b = jwksFor('https://j.example.net', 'https://j.example.net/keys2');
+    expect(b).not.toBe(a);
+    expect(jwksFor('https://j.example.net', 'https://j.example.net/keys2')).toBe(b);
+    expect(jwksFor('https://other.example.net', 'https://j.example.net/keys2')).not.toBe(b);
+  });
   it('PKCE S256: challenge = base64url(sha256(verifier))', () => {
     const p = pkce();
     expect(p.verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);

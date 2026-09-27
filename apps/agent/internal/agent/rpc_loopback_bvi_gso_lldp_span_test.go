@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/gso"
 	"ngfw/agent/internal/descriptors/lldp"
@@ -27,6 +28,8 @@ func withoutWriteOnly(kvs []scheduler.KV) []scheduler.KV {
 	for _, kv := range kvs {
 		switch kv.Key.Descriptor() {
 		case lldp.NameGlobal, lldp.NameInterface, nsim.ConfigName, nsim.CrossConnectName, nsim.OutputName:
+			continue
+		case cnat.NameSnatPolicy, cnat.NameSnatInterface, cnat.NameSnatExcludePfx, cnat.NameInterfaceFeature: // F-det44-map-dslite-cnat: write-only (D-063) / derived from them
 			continue
 		}
 		out = append(out, kv)

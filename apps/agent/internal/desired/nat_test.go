@@ -199,11 +199,11 @@ func TestNatBuilderOffDefaultsAndSiblings(t *testing.T) {
 	desired.Nat(s, natDoc(t, `{"mode": "ei", "inside": ["host-w4l0"],
 	  "ipfix": {"enabled": false}, "nat64": {"enabled": false}, "nat66": {"inside": ["x"]}, "nptv6": {"bindings": []},
 	  "det44": {"enabled": true}, "dslite": {"enabled": false}, "map": {"domains": []}, "cnat": {"translations": []}}`), vrfID)
-	if strings.Join(s.keys(), ",") != "nat44-ei.enable/global,nat44-ei.interface-feature/host-w4l0/inside" {
+	if strings.Join(s.keys(), ",") != "det44.enable/global,nat44-ei.enable/global,nat44-ei.interface-feature/host-w4l0/inside" { // det44: F-det44-map-dslite-cnat
 		t.Fatalf("mode ei projected %v", s.keys())
 	}
 	want := []string{
-		"/nat/ipfix agent.unsupported-field", "/nat/det44 agent.unsupported-field", "/nat/dslite agent.unsupported-field",
+		"/nat/ipfix agent.unsupported-field", // det44/dslite/map/cnat: projected by F-det44-map-dslite-cnat
 	}
 	sort.Strings(want)
 	sort.Strings(s.warns)

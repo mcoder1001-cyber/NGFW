@@ -685,8 +685,9 @@ func (s *Service) runQuarantining(ctx context.Context, mg *srcMerge, scope sched
 // (caller holds txn). When a source cannot be merged, it is left out. When the merged transaction
 // fails because of dynamic objects, they are quarantined one by one and it runs again (V1); when that
 // cannot settle it, it runs once more without the sources (review R2). left lists every source and
-// every key left out.
-func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope scheduler.Scope, domains []string, view *vrxv1.DesiredState, opts scheduler.ApplyOptions) (res *scheduler.TxnResult, left []leftOut) {
+// every key left out. twoPhase (the resync) applies the configuration first and the sources after it
+// (TD-8c, applyTwoPhase).
+func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope scheduler.Scope, domains []string, view *vrxv1.DesiredState, opts scheduler.ApplyOptions, twoPhase bool) (res *scheduler.TxnResult, left []leftOut) {
 	active := s.activeSources()
 	if len(active) == 0 {
 		return s.sched.ApplyWith(ctx, kvs, scope, opts), nil
@@ -695,6 +696,11 @@ func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope sc
 	left = mg.left
 	if len(mg.merged) == 0 {
 		return s.sched.ApplyWith(ctx, kvs, scope, opts), left
+	}
+	if twoPhase {
+		if res, more, ok := s.applyTwoPhase(ctx, kvs, scope, mg, opts); ok {
+			return res, append(left, more...)
+		}
 	}
 	res, held, whole := s.runQuarantining(ctx, mg, mg.scope(domains), opts, s.log)
 	left = append(left, held...)
@@ -710,6 +716,93 @@ func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope sc
 	s.log.Warn("transaction failed because of a dynamic object: running it again without the dynamic sources",
 		"source", whole.src.Name, "key", whole.key, "cause", whole.cause, "first_outcome", res.Outcome.String())
 	return s.sched.ApplyWith(ctx, kvs, scope, opts), left
+}
+
+// applyTwoPhase is the resync of TD-8c (TD-8b review C1). After a VPP restart the plan is the whole
+// configuration, and a merged run rolls back everything created before a failing dynamic Create (the
+// dynamic descriptors register last): every quarantine rerun re-created and deleted every interface.
+// So the resync runs in two phases:
+//
+//  1. the configuration alone (the sources out of scope, as when they are out of sync);
+//  2. the sources alone — their objects, their descriptors in scope — on top of the configuration
+//     that now exists. Its reruns and rollbacks touch only dynamic objects; the configuration
+//     satisfies their dependencies from VPP (the planner retrieves every descriptor), and its
+//     write-only objects are re-applied once, in phase 1.
+//
+// ok is false when phase 1 cannot run without the sources: its plan would delete a configuration
+// object that a live dynamic object depends on ("cannot delete … depends on it"), which only a merged
+// run can order. The caller then runs today's merged transaction; nothing was sent.
+func (s *Service) applyTwoPhase(ctx context.Context, kvs []scheduler.KV, scope scheduler.Scope, mg *srcMerge, opts scheduler.ApplyOptions) (res *scheduler.TxnResult, left []leftOut, ok bool) {
+	first := s.sched.ApplyWith(ctx, kvs, scope, opts)
+	if first.Outcome != scheduler.OutcomeApplied {
+		if blockedByDynamic(first, mg) {
+			s.log.Info("resync: the configuration alone would delete what a dynamic object depends on; running it merged")
+			return nil, nil, false
+		}
+		return first, nil, true // the configuration failed on its own: the sources are not at fault
+	}
+	cfg := make(map[scheduler.Key]bool, len(kvs))
+	for _, kv := range kvs {
+		cfg[kv.Key] = true
+	}
+	dyn := &srcMerge{names: mg.names, merged: mg.merged, owner: mg.owner, want: mg.want, released: mg.released}
+	for _, kv := range mg.kvs {
+		if !cfg[kv.Key] {
+			dyn.kvs = append(dyn.kvs, kv)
+		}
+	}
+	second, held, whole := s.runQuarantining(ctx, dyn, scheduler.Only(mg.names...), opts, s.log)
+	left = held
+	if whole != nil {
+		// the configuration is applied; phase 2 rolled back its own (dynamic) operations only
+		left = append(left, *whole)
+		for _, ds := range mg.merged {
+			if ds != whole.src {
+				left = append(left, leftOut{src: ds})
+			}
+		}
+		s.log.Warn("resync: a dynamic object failed; the configuration is applied, the dynamic sources are left out",
+			"source", whole.src.Name, "key", whole.key, "cause", whole.cause, "dynamic_outcome", second.Outcome.String())
+		return first, left, true
+	}
+	return joinResults(first, second), left, true
+}
+
+// blockedByDynamic reports whether res failed at the plan stage only because it would delete an
+// object that one of mg's dynamic objects depends on.
+func blockedByDynamic(res *scheduler.TxnResult, mg *srcMerge) bool {
+	if res.Plan == nil || len(res.Plan.Issues) == 0 || len(res.Results) > 0 {
+		return false
+	}
+	for _, is := range res.Plan.Issues {
+		if is.Code != scheduler.CodeDependencyMissing || !strings.HasPrefix(is.Message, "cannot delete: ") {
+			return false
+		}
+		dependent := strings.TrimPrefix(is.Message, "cannot delete: ")
+		if i := strings.Index(dependent, " "); i >= 0 {
+			dependent = dependent[:i]
+		}
+		if mg.owner[scheduler.Key(dependent).Descriptor()] == nil {
+			return false // a configuration object outside the transaction: not the sources'
+		}
+	}
+	return true
+}
+
+// joinResults is one TxnResult for the two phases of a resync: phase 1 (applied) then phase 2, whose
+// outcome, plan and error decide.
+func joinResults(first, second *scheduler.TxnResult) *scheduler.TxnResult {
+	out := *second
+	out.Results = append(append([]scheduler.OpResult(nil), first.Results...), second.Results...)
+	out.Summary = scheduler.Summary{
+		Created: first.Summary.Created + second.Summary.Created, Updated: first.Summary.Updated + second.Summary.Updated,
+		Deleted: first.Summary.Deleted + second.Summary.Deleted, Unchanged: first.Summary.Unchanged + second.Summary.Unchanged,
+		Failed: first.Summary.Failed + second.Summary.Failed, Reverted: first.Summary.Reverted + second.Summary.Reverted,
+	}
+	out.Duration = first.Duration + second.Duration
+	out.Reapplied, out.ReapplyErrors = first.Reapplied+second.Reapplied, first.ReapplyErrors+second.ReapplyErrors
+	out.Uncertain = first.Uncertain || second.Uncertain
+	return &out
 }
 
 // planSources is DryRun's plan (no lock, no state change): what Apply would do, with the sources in

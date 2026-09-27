@@ -782,6 +782,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/management/tls': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** API TLS certificate in force: subject, SANs, expiry, fingerprint (never the key) */
+    get: operations['MgmtTls_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/ipfix': {
     parameters: {
       query?: never;
@@ -11547,6 +11564,71 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MgmtTls_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description running `management.tls` names a certificate and key */
+            configured: boolean;
+            certificateRef: string | null;
+            /** @enum {string} */
+            minVersion: '1.2' | '1.3';
+            /** @description the certificate new TLS handshakes use (never the key); null = none loaded */
+            active: {
+              subject: string;
+              issuer: string;
+              subjectAltNames: string[];
+              serialNumber: string;
+              notBefore: string;
+              notAfter: string;
+              fingerprintSha256: string;
+              chainLength: number;
+              daysLeft: number;
+            } | null;
+            listener: {
+              /** @description VRX_HTTPS_PORT is set: the API serves HTTPS with this certificate */
+              enabled: boolean;
+              port: number | null;
+            };
+            /** @description running revision the certificate was loaded from */
+            loadedRevision: number | null;
+            loadedAt: string | null;
+            /** @description why the running certificate could not be loaded (previous one kept) */
+            error: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

@@ -8,8 +8,8 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 97 |
 | review | 12 |
-| running | 2 |
-| ready | 16 |
+| running | 3 |
+| ready | 15 |
 | parked | 2 |
 | failed | 0 |
 | todo | 21 |
@@ -20,7 +20,7 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 462.0 / 757.0 | 61.0% | 54/90 | 1 | 14 | 0 |
+| S4 | 462.0 / 757.0 | 61.0% | 54/90 | 2 | 13 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 2 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -32,6 +32,7 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (review, cloud session modest-keller)
 - F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (review, cloud session modest-keller)
 - F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (review, cloud session modest-keller)
+- F-dashboard-prom-alarms — Wave C (day 13-15): dashboard, Prometheus exporter/prom plugin, alarms/events, tunnel dashboards (running, cloud session charming-johnson)
 - F-capture-trace — Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG (running, cloud session modest-keller)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - WEB-4a — Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status (review, cloud session modest-keller)

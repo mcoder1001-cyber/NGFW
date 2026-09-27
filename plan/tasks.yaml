@@ -1816,7 +1816,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.1
@@ -1828,10 +1828,10 @@ tasks:
     packages/schema/src/domains/ext/dashboard-prom-alarms*.ts packages/schema/src/semantic/dashboard-prom-alarms*.ts packages/schema/examples/dashboard-prom-alarms-*.json packages/proto/test/fixtures/dashboard-prom-alarms-*.json
     apps/api/src/features/dashboard-prom-alarms/** apps/api/test/e2e/dashboard-prom-alarms* apps/web/src/domains/dashboard/dashboard-prom-alarms/** apps/web/src/pages/DashboardPage.tsx apps/web/src/locales/{en,fa}/dashboard-prom-alarms.json
     docs/user/dashboard/dashboard-prom-alarms.md test/topology/dashboard-prom-alarms/** docs/status/tasks/F-dashboard-prom-alarms*
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps soft +F-startup-gen only if the VPP prom plugin path is chosen — docs/status/tasks/prompts-s4.md | D-125 envelope: POST /api/v1/actions/clear-counters through the generic
     Action bridge (review 6.3b, +1 h) | 2026-09-26 (D-153): the dashboard page belongs to WEB-dashboard (merged); this row adds its alarms card through apps/web/src/domains/dashboard/overview/cards.ts and

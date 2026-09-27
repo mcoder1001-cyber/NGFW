@@ -1878,7 +1878,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 16
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D9.1

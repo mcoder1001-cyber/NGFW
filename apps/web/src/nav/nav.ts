@@ -55,6 +55,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-BC: F-tunnels
   'tunnels',
   // wave-BC: F-vrrp-config-sync
+  'ha',
   // wave-BC: F-srv6 ('vpn' is already built: F-lisp's entry below)
   // wave-BC: F-lisp
   'vpn',

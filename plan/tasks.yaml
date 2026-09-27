@@ -3646,7 +3646,7 @@ tasks:
   - F-dashboard-prom-alarms
   priority: 3
   est_hours: 20
-  state: running
+  state: merged
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3655,7 +3655,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: promoted from backlog BL-NET-03 by the product owner (2026-09-26)
 - id: F-notifications
   title: 'Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state'
@@ -3911,3 +3911,23 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-multiwan-host
+  title: 'Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT'
+  stage: S4
+  deps:
+  - F-multiwan
+  priority: 3
+  est_hours: 2
+  scope: 'lab host only (needs VPP + two WAN netns): agent wiring (per-link probing, default-route/ECMP install, per-member source NAT + sticky sessions + clear dead-link sessions on failover, ABF pinning, WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
+  files_owned: docs/status/tasks/F-multiwan*
+  notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here'

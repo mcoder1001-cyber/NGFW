@@ -7969,7 +7969,7 @@ export interface components {
          *       "local"
          *     ]
          */
-        order: ('local' | 'radius' | 'tacacs')[];
+        order: ('local' | 'radius' | 'tacacs' | 'ldap')[];
         /**
          * RADIUS
          * @default {}
@@ -8037,6 +8037,76 @@ export interface components {
             vrf: string;
           }[];
         };
+        /**
+         * LDAP
+         * @default {}
+         */
+        ldap: {
+          /**
+           * Servers
+           * @default []
+           */
+          servers: {
+            /** Server URL */
+            url: string;
+            /** Bind DN */
+            bindDn: string;
+            /** Bind password */
+            bindPasswordRef: string;
+            /** Base DN */
+            baseDn: string;
+            /**
+             * User filter
+             * @default (uid=%s)
+             */
+            userFilter: string;
+            /**
+             * Group attribute
+             * @default memberOf
+             */
+            groupAttr: string;
+            /**
+             * StartTLS
+             * @default false
+             */
+            startTls: boolean;
+          }[];
+        };
+        /**
+         * Role mapping
+         * @default []
+         */
+        roleMap: {
+          /** External group */
+          group: string;
+          /**
+           * Role
+           * @enum {string}
+           */
+          role: 'admin' | 'operator' | 'readonly';
+        }[];
+        /**
+         * MFA
+         * @default {}
+         */
+        mfa: {
+          /**
+           * Require MFA
+           * @default none
+           * @enum {string}
+           */
+          required: 'none' | 'admins' | 'all';
+          /**
+           * Issuer
+           * @default vrx
+           */
+          issuer: string;
+        };
+        /**
+         * Local fallback
+         * @default true
+         */
+        fallbackLocal: boolean;
       };
       /**
        * TLS

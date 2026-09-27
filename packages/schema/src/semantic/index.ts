@@ -69,6 +69,7 @@ import { globalBlockingValidators } from './global-blocking.js'; // F-global-blo
 import { pppoeValidators } from './pppoe.js'; // F-pppoe-client (unanchored)
 import { dashboardPromAlarmsValidators } from './dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 import { multiwanValidators } from './multiwan.js'; // F-multiwan (unanchored)
+import { aaaValidators } from './aaa.js'; // wave-BC: F-aaa
 
 export * from './registry.js';
 
@@ -146,6 +147,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...pppoeValidators, // F-pppoe-client (unanchored)
   ...dashboardPromAlarmsValidators, // wave-BC: F-dashboard-prom-alarms
   ...multiwanValidators, // F-multiwan (unanchored)
+  ...aaaValidators, // wave-BC: F-aaa
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

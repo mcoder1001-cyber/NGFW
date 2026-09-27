@@ -1,0 +1,37 @@
+{
+  "nav": "Alarms",
+  "title": "Alarms",
+  "card": {
+    "title": "Active alarms",
+    "viewAll": "View all",
+    "none": "No active alarms.",
+    "unavailable": "Unavailable"
+  },
+  "intro": "Threshold alarms raised by the API from the data-plane metric stream. Rules and notification targets are configured under Config → Management → Alarms; metrics are also exported to Prometheus at the appliance's /metrics endpoint.",
+  "tabsLabel": "Alarm views",
+  "tabs": {
+    "active": "Active",
+    "all": "All"
+  },
+  "refresh": "Refresh",
+  "loading": "Loading",
+  "empty": "No alarms.",
+  "ack": "Acknowledge",
+  "col": {
+    "severity": "Severity",
+    "rule": "Rule",
+    "message": "Detail",
+    "raised": "Raised",
+    "state": "State",
+    "ack": "Acknowledged by"
+  },
+  "severity": {
+    "critical": "critical",
+    "warning": "warning",
+    "info": "info"
+  },
+  "state": {
+    "active": "active",
+    "cleared": "cleared"
+  }
+}

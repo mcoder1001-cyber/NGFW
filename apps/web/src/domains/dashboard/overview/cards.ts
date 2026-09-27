@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { lazy, type ComponentType } from 'react';
 
 /** A card a feature adds to the dashboard's bottom row (it fetches its own data and renders "not available" itself). */
 export interface DashboardCard {
@@ -12,6 +12,7 @@ export interface DashboardCard {
  */
 export const dashboardCards: readonly DashboardCard[] = [
   // wave-BC: F-dashboard-prom-alarms (active alarms card)
+  { id: 'alarms', Component: lazy(() => import('../dashboard-prom-alarms/AlarmsCard').then((m) => ({ default: m.AlarmsCard }))) },
   // wave-BC: F-tunnels (tunnel health card)
   // wave-A: P11 (IPsec SA card)
   // wave-BC: F-vrrp-config-sync (HA / cluster card)

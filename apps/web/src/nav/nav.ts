@@ -142,6 +142,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-A: F-host-acl-nftables
   groups.get('firewall')!.push({ id: 'host-acl', path: '/firewall/host-acl', labelKey: 'host-acl-nftables:nav', fallbackLabel: 'Host ACL', available: true });
   groups.get('firewall')!.push({ id: 'global-blocking', path: '/firewall/global-blocking', labelKey: 'global-blocking:nav', fallbackLabel: 'Global blocking', available: true }); // F-global-blocking (unanchored)
+  groups.get('system')!.push({ id: 'alarms', path: '/system/alarms', labelKey: 'dashboard-prom-alarms:nav', fallbackLabel: 'Alarms', available: true }); // wave-BC: F-dashboard-prom-alarms
   // wave-A: P12
   groups.get('routing')!.push({ id: 'bgp', path: '/routing/bgp', labelKey: 'bgp:nav.bgp', fallbackLabel: 'BGP', available: true });
   // web: WEB-2

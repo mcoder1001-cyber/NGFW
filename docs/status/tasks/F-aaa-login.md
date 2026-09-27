@@ -103,6 +103,10 @@ stopped afterwards): 17 files / 117 tests green (aaa-login 10, aaa-oidc 7, aaa 3
 sec-auth, dev-weak, config). `tools/ci.sh check`: gitleaks FAILS on 5 findings, all in commits already on origin/main
 (4e595289, 5b33b153, 5a2d88d8, 3bd18dd2) — none in this branch's commits.
 
+## Follow-ups
+(a) mfa.required lock-out guard — **done in F-aaa-mfa-lockout** (a raise needs an enrolled admin and an MFA-verified
+committer session; 400 `/management/aaa/mfa/required`; lowering never blocked).
+
 ## Out of scope (not built)
 TACACS+ and SAML backends (`order: [tacacs]` is skipped at login; test route 501); `GET /state/aaa/servers`
 reachability chips; SchemaForm AAA settings page (settings stay in the Management domain editor); QR-code rendering

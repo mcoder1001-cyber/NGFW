@@ -83,6 +83,11 @@ over TLS (or from loopback) — `403 tls-required` otherwise. The OIDC login is 
   code. Your other sessions are signed out.
 - **Before switching `mfa.required` on**, enrol the admins (an admin can issue a token for themselves), otherwise an
   unenrolled admin needs another admin to issue a token.
+- **Lock-out guard**: a commit (or validate / rollback) that *raises* `mfa.required` (`none` → `admins` → `all`) is
+  refused with `400` and the pointer `/management/aaa/mfa/required` unless **(a)** at least one enabled admin account
+  has an active second factor and **(b)** your own login session passed the second factor (an API key never has).
+  Remedy: issue yourself an enrolment token (Users page), set up *My second factor*, and commit from that session
+  (or sign in again with the code). Lowering the policy is never refused.
 - **Stale sessions**: raising `mfa.required` ends the use of sessions that never passed the second factor (checked on
   every request and every refresh). If the policy cannot be read, only MFA-verified sessions are accepted (fail
   closed).

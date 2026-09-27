@@ -34,6 +34,8 @@ import enTunnels from './locales/en/tunnels.json';
 import faTunnels from './locales/fa/tunnels.json';
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
+import enHa from './locales/en/ha.json';
+import faHa from './locales/fa/ha.json';
 // wave-BC: F-pki
 // wave-BC: F-ikev2-native
 // wave-BC: F-ospf
@@ -179,6 +181,7 @@ export const NAMESPACES = [
   'tunnels',
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  'ha',
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -283,6 +286,7 @@ const en = {
   tunnels: enTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  ha: enHa,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -384,6 +388,7 @@ const fa = {
   tunnels: faTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
+  ha: faHa,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf

@@ -38,3 +38,15 @@ Stand-ins (D-055): `ha.keepalived.*` and `ha.vrrp.<name>.keepalived.*` (RF-4-que
 Never rendered: `vrrp_strict`, `use_vmac`, `no_accept`, `include`, `$VAR`, `@…`. Retrieve per instance: notify
 `state`/`since` and the whitelisted dump view (`state`, `interface`, `vrid`, `version`, `basePriority`,
 `effectivePriority`, `vipsSet`, `vips`, counters) — never `auth_data`.
+
+## Wired by F-vrrp-config-sync
+
+`internal/subsystems/keepalived.go` registers the renderer as the singleton stage `keepalived.config/vrx` (domain
+`ha`, pattern of F-snmp's `snmpd.config`). The projection (`internal/desired/vrrp.go`) puts every `engine: keepalived`
+instance whose interface has a linux-cp pair (`interfaces.<if>.lcp`, P12) into the stage's value together with those
+pairs; the stage sets P12's `lcpmap.Mapper` from that value before every render, so the renderer's `InterfaceMapper`
+is the linux-cp mapping (no longer `NoMapper`). An instance without a pair is skipped with the DryRun warning
+`ha.vrrp-keepalived-no-lcp`; one in a non-default VRF with `ha.vrrp-keepalived-vrf`. With `VRX_TEST_PREFIX` the stage uses
+`TestPaths(prefix, $VRX_KEEPALIVED_BIN_DIR, $VRX_KEEPALIVED_NETNS)` and a pidfile controller
+(`<conf dir>/keepalived.pid`). No secret resolver is passed (no API→agent secret channel; the D-086 stand-ins are not
+contract fields yet). No change to the renderer package itself.

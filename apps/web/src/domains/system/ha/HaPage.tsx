@@ -19,7 +19,7 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { domainSchemas } from '../../../schema/registry';
 import { PageHeader } from '../../../shell/PageHeader';
-import { NS, registerHaLocale } from './locale';
+import { NS } from './locale';
 import {
   useCandidateHa,
   usePatchHa,
@@ -29,7 +29,6 @@ import {
   type VrrpRouter,
 } from './queries';
 
-registerHaLocale();
 
 const VRRP = 'vrrp' as const;
 const CLUSTER = 'cluster' as const;

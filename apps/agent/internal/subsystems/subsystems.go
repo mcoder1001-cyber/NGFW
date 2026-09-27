@@ -163,7 +163,7 @@ var Domains = map[string][]string{
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
 	// wave-BC: F-tunnels (gre/ipip/vxlan tunnels + tunnels.meta are appended to F-lisp's Tunnels entry by tunnels.go init)
-	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-vrrp-config-sync (ha: vrrp.* + vrrp.meta + keepalived.config are added by vrrp.go init)
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-lb (services: lb.* are in the one services entry below)
@@ -322,6 +322,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-BC: F-vrrp-config-sync
+	if err := registerVrrp(r, w); err != nil { // DF-7 vrrp family + vrrp.meta + keepalived stage (vrrp.go, keepalived.go)
+		return nil, err
+	}
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-ospf

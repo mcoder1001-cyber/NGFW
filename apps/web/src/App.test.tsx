@@ -58,10 +58,10 @@ describe('App frame', () => {
   });
 
   it('shows "not yet available" for unbuilt domain screens, with the schema title and no data', async () => {
-    render(app('/system/ha')); // F-management-ui built /system/management; ha has no screen yet
-    expect(await screen.findByRole('heading', { level: 2, name: 'High availability' })).toBeInTheDocument();
+    render(app('/firewall/security')); // F-vrrp-config-sync built /system/ha; the security domain has no screen yet
+    expect(await screen.findByRole('heading', { level: 2, name: 'Security' })).toBeInTheDocument();
     expect(screen.getByText('Not yet available')).toBeInTheDocument();
-    expect(screen.getByText('Configuration domain: High availability')).toBeInTheDocument();
+    expect(screen.getByText('Configuration domain: Security')).toBeInTheDocument();
     expect(screen.queryByRole('grid')).toBeNull();
   });
 

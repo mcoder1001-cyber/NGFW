@@ -70,6 +70,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'vpn/tunnels', lazy: async () => ({ Component: (await import('./domains/vpn/tunnels/TunnelsPage')).TunnelsPage }) },
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
+        { path: 'system/ha', lazy: async () => ({ Component: (await import('./domains/system/ha/HaPage')).HaPage }) },
         // wave-BC: F-ospf
         { path: 'routing/ospf', lazy: async () => ({ Component: (await import('./domains/routing/ospf/OspfPage')).OspfPage }) },
         // wave-BC: F-isis-rip

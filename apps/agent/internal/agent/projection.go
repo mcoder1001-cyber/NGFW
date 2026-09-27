@@ -407,7 +407,7 @@ var routingLeaves = []routingLeaf{
 	{name: "bgp", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBgp() != nil }, handled: true},       // P12
 	{name: "policy", present: func(r *vrxv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
 	// wave-BC: F-ospf
-	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }},
+	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
 	// wave-BC: F-isis-rip
 	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }},
 	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }},

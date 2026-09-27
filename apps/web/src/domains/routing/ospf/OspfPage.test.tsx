@@ -53,10 +53,11 @@ afterEach(async () => {
   await i18n.changeLanguage('en');
 });
 
-describe('Routing → OSPF (WEB-4a, unrouted)', () => {
-  it('is not reachable from nav yet (F-ospf routes it)', () => {
+describe('Routing → OSPF (WEB-4a, routed by F-ospf)', () => {
+  it('is reachable from nav at /routing/ospf; IS-IS, RIP and BFD are not yet', () => {
     const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
-    for (const id of ['ospf', 'isis', 'rip', 'bfd'])
+    expect(items.find((i) => i.id === 'ospf')).toMatchObject({ path: '/routing/ospf', available: true });
+    for (const id of ['isis', 'rip', 'bfd'])
       expect(items.find((i) => i.id === id)?.available).not.toBe(true);
   });
 

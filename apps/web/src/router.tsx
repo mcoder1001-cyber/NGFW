@@ -78,6 +78,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-ospf
+        { path: 'routing/ospf', lazy: async () => ({ Component: (await import('./domains/routing/ospf/OspfPage')).OspfPage }) },
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls

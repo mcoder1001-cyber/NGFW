@@ -270,7 +270,8 @@ func TestVrfStaticEcmpRPCs(t *testing.T) {
 	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Traceroute{Traceroute: &vrxv1.TracerouteAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("traceroute: %v", err)
 	}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Capture{Capture: &vrxv1.CaptureAction{Interface: "loop201"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
+	// capture is F-capture-trace's now (invalid snaplen → INVALID_ARGUMENT before any VPP call)
+	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Capture{Capture: &vrxv1.CaptureAction{Interface: "loop201", Snaplen: 1}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("capture: %v", err)
 	}
 }

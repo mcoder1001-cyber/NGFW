@@ -2822,7 +2822,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: running
+  state: review
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
   branch: claude/modest-keller-upaw4m

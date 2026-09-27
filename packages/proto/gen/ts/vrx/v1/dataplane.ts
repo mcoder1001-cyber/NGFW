@@ -3643,6 +3643,15 @@ export interface ManagementConfig {
     | undefined;
   /** Remote syslog targets (rsyslog renderer). */
   syslog: SyslogTarget[];
+  /**
+   * wave-BC: F-dashboard-prom-alarms
+   * The agent's external Prometheus listener (the loopback /metrics endpoint is always on).
+   */
+  prometheus:
+    | ManagementPrometheus
+    | undefined;
+  /** Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard). */
+  alarms: ManagementAlarms | undefined;
 }
 
 /** ManagementUser mirrors one entry of `management.users`. */
@@ -9141,6 +9150,98 @@ export interface LispStateResponse {
   /** VNIs that have LISP-GPE forwarding entries. */
   gpeVnis: number[];
   retrievedAt: Date | undefined;
+}
+
+/** ManagementPrometheus mirrors `management.prometheus`: the agent's external Prometheus listener. */
+export interface ManagementPrometheus {
+  /** Open the external listener (the loopback /metrics endpoint is always on); Zod default false. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Address the external listener binds to; Zod default "0.0.0.0". */
+  listen?:
+    | string
+    | undefined;
+  /** Port of the external listener; Zod default 9101. */
+  port?:
+    | number
+    | undefined;
+  /** CIDRs allowed to scrape (empty = any source that reaches the listener). */
+  allow: string[];
+}
+
+/** ManagementAlarms mirrors `management.alarms` (consumed by the API; carried here for the drift guard). */
+export interface ManagementAlarms {
+  /** Alarm rules by name. */
+  rules: { [key: string]: AlarmRule };
+  /** Notification targets by name. */
+  targets: { [key: string]: AlarmTarget };
+}
+
+export interface ManagementAlarms_RulesEntry {
+  key: string;
+  value: AlarmRule | undefined;
+}
+
+export interface ManagementAlarms_TargetsEntry {
+  key: string;
+  value: AlarmTarget | undefined;
+}
+
+/** AlarmRule mirrors `management.alarms.rules.<name>`. */
+export interface AlarmRule {
+  /** Metric family (ALARM_METRICS): "interface_rx_bps" | … | "node_error_rate". */
+  metric?:
+    | string
+    | undefined;
+  /** Comparison: "gt" | "ge" | "lt" | "le" | "eq"; Zod default "gt". */
+  op?:
+    | string
+    | undefined;
+  /** Threshold compared against the metric. */
+  threshold?:
+    | number
+    | undefined;
+  /** Seconds the condition must hold before raising (hysteresis); Zod default 0. */
+  forSec?:
+    | number
+    | undefined;
+  /** "info" | "warning" | "critical"; Zod default "warning". */
+  severity?:
+    | string
+    | undefined;
+  /** Limit an interface metric to this interface; unset = every interface. */
+  interface?:
+    | string
+    | undefined;
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Rule enabled; Zod default true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Names of management.alarms.targets to notify. */
+  targets: string[];
+}
+
+/** AlarmTarget mirrors `management.alarms.targets.<name>` (discriminated union on kind, flattened). */
+export interface AlarmTarget {
+  /** "webhook" | "email". */
+  kind?:
+    | string
+    | undefined;
+  /** webhook: the URL the alarm JSON is POSTed to. */
+  url?:
+    | string
+    | undefined;
+  /** webhook: reference to a bearer token secret ("token/<name>"). */
+  secretRef?:
+    | string
+    | undefined;
+  /** email: the recipient address. */
+  address?: string | undefined;
 }
 
 export interface DataplaneStartupStateRequest {
@@ -32191,7 +32292,7 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
 };
 
 function createBaseManagementConfig(): ManagementConfig {
-  return { users: [], aaa: undefined, tls: undefined, syslog: [] };
+  return { users: [], aaa: undefined, tls: undefined, syslog: [], prometheus: undefined, alarms: undefined };
 }
 
 export const ManagementConfig: MessageFns<ManagementConfig> = {
@@ -32207,6 +32308,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     }
     for (const v of message.syslog) {
       SyslogTarget.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.prometheus !== undefined) {
+      ManagementPrometheus.encode(message.prometheus, writer.uint32(42).fork()).join();
+    }
+    if (message.alarms !== undefined) {
+      ManagementAlarms.encode(message.alarms, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -32256,6 +32363,22 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
             message.syslog.push(SyslogTarget.decode(reader, reader.uint32()));
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.prometheus = ManagementPrometheus.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.alarms = ManagementAlarms.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -32274,6 +32397,8 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
       aaa: isSet(object.aaa) ? ManagementAaa.fromJSON(object.aaa) : undefined,
       tls: isSet(object.tls) ? ManagementTls.fromJSON(object.tls) : undefined,
       syslog: globalThis.Array.isArray(object?.syslog) ? object.syslog.map((e: any) => SyslogTarget.fromJSON(e)) : [],
+      prometheus: isSet(object.prometheus) ? ManagementPrometheus.fromJSON(object.prometheus) : undefined,
+      alarms: isSet(object.alarms) ? ManagementAlarms.fromJSON(object.alarms) : undefined,
     };
   },
 
@@ -32291,6 +32416,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     if (message.syslog?.length) {
       obj.syslog = message.syslog.map((e) => SyslogTarget.toJSON(e));
     }
+    if (message.prometheus !== undefined) {
+      obj.prometheus = ManagementPrometheus.toJSON(message.prometheus);
+    }
+    if (message.alarms !== undefined) {
+      obj.alarms = ManagementAlarms.toJSON(message.alarms);
+    }
     return obj;
   },
 
@@ -32303,6 +32434,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     message.aaa = (object.aaa !== undefined && object.aaa !== null) ? ManagementAaa.fromPartial(object.aaa) : undefined;
     message.tls = (object.tls !== undefined && object.tls !== null) ? ManagementTls.fromPartial(object.tls) : undefined;
     message.syslog = object.syslog?.map((e) => SyslogTarget.fromPartial(e)) || [];
+    message.prometheus = (object.prometheus !== undefined && object.prometheus !== null)
+      ? ManagementPrometheus.fromPartial(object.prometheus)
+      : undefined;
+    message.alarms = (object.alarms !== undefined && object.alarms !== null)
+      ? ManagementAlarms.fromPartial(object.alarms)
+      : undefined;
     return message;
   },
 };
@@ -81206,6 +81343,774 @@ export const LispStateResponse: MessageFns<LispStateResponse> = {
     message.mapServers = object.mapServers?.map((e) => e) || [];
     message.gpeVnis = object.gpeVnis?.map((e) => e) || [];
     message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseManagementPrometheus(): ManagementPrometheus {
+  return { enabled: undefined, listen: undefined, port: undefined, allow: [] };
+}
+
+export const ManagementPrometheus: MessageFns<ManagementPrometheus> = {
+  encode(message: ManagementPrometheus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.listen !== undefined) {
+      writer.uint32(18).string(message.listen);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(24).uint32(message.port);
+    }
+    for (const v of message.allow) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementPrometheus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementPrometheus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.listen = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.allow.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementPrometheus {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      listen: isSet(object.listen) ? globalThis.String(object.listen) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      allow: globalThis.Array.isArray(object?.allow) ? object.allow.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: ManagementPrometheus): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.listen !== undefined) {
+      obj.listen = message.listen;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.allow?.length) {
+      obj.allow = message.allow;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementPrometheus>): ManagementPrometheus {
+    return ManagementPrometheus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementPrometheus>): ManagementPrometheus {
+    const message = createBaseManagementPrometheus();
+    message.enabled = object.enabled ?? undefined;
+    message.listen = object.listen ?? undefined;
+    message.port = object.port ?? undefined;
+    message.allow = object.allow?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseManagementAlarms(): ManagementAlarms {
+  return { rules: {}, targets: {} };
+}
+
+export const ManagementAlarms: MessageFns<ManagementAlarms> = {
+  encode(message: ManagementAlarms, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.rules).forEach(([key, value]: [string, AlarmRule]) => {
+      ManagementAlarms_RulesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    globalThis.Object.entries(message.targets).forEach(([key, value]: [string, AlarmTarget]) => {
+      ManagementAlarms_TargetsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = ManagementAlarms_RulesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.rules[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = ManagementAlarms_TargetsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.targets[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms {
+    return {
+      rules: isObject(object.rules)
+        ? (globalThis.Object.entries(object.rules) as [string, any][]).reduce(
+          (acc: { [key: string]: AlarmRule }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: AlarmRule.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      targets: isObject(object.targets)
+        ? (globalThis.Object.entries(object.targets) as [string, any][]).reduce(
+          (acc: { [key: string]: AlarmTarget }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: AlarmTarget.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: ManagementAlarms): unknown {
+    const obj: any = {};
+    if (message.rules) {
+      const entries = globalThis.Object.entries(message.rules) as [string, AlarmRule][];
+      if (entries.length > 0) {
+        obj.rules = {};
+        entries.forEach(([k, v]) => {
+          obj.rules[k] = AlarmRule.toJSON(v);
+        });
+      }
+    }
+    if (message.targets) {
+      const entries = globalThis.Object.entries(message.targets) as [string, AlarmTarget][];
+      if (entries.length > 0) {
+        obj.targets = {};
+        entries.forEach(([k, v]) => {
+          obj.targets[k] = AlarmTarget.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms>): ManagementAlarms {
+    return ManagementAlarms.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms>): ManagementAlarms {
+    const message = createBaseManagementAlarms();
+    message.rules = (globalThis.Object.entries(object.rules ?? {}) as [string, AlarmRule][]).reduce(
+      (acc: { [key: string]: AlarmRule }, [key, value]: [string, AlarmRule]) => {
+        if (value !== undefined) {
+          acc[key] = AlarmRule.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.targets = (globalThis.Object.entries(object.targets ?? {}) as [string, AlarmTarget][]).reduce(
+      (acc: { [key: string]: AlarmTarget }, [key, value]: [string, AlarmTarget]) => {
+        if (value !== undefined) {
+          acc[key] = AlarmTarget.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseManagementAlarms_RulesEntry(): ManagementAlarms_RulesEntry {
+  return { key: "", value: undefined };
+}
+
+export const ManagementAlarms_RulesEntry: MessageFns<ManagementAlarms_RulesEntry> = {
+  encode(message: ManagementAlarms_RulesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      AlarmRule.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms_RulesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms_RulesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = AlarmRule.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms_RulesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? AlarmRule.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ManagementAlarms_RulesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = AlarmRule.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms_RulesEntry>): ManagementAlarms_RulesEntry {
+    return ManagementAlarms_RulesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms_RulesEntry>): ManagementAlarms_RulesEntry {
+    const message = createBaseManagementAlarms_RulesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? AlarmRule.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseManagementAlarms_TargetsEntry(): ManagementAlarms_TargetsEntry {
+  return { key: "", value: undefined };
+}
+
+export const ManagementAlarms_TargetsEntry: MessageFns<ManagementAlarms_TargetsEntry> = {
+  encode(message: ManagementAlarms_TargetsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      AlarmTarget.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms_TargetsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms_TargetsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = AlarmTarget.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms_TargetsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? AlarmTarget.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ManagementAlarms_TargetsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = AlarmTarget.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms_TargetsEntry>): ManagementAlarms_TargetsEntry {
+    return ManagementAlarms_TargetsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms_TargetsEntry>): ManagementAlarms_TargetsEntry {
+    const message = createBaseManagementAlarms_TargetsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? AlarmTarget.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAlarmRule(): AlarmRule {
+  return {
+    metric: undefined,
+    op: undefined,
+    threshold: undefined,
+    forSec: undefined,
+    severity: undefined,
+    interface: undefined,
+    description: undefined,
+    enabled: undefined,
+    targets: [],
+  };
+}
+
+export const AlarmRule: MessageFns<AlarmRule> = {
+  encode(message: AlarmRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.metric !== undefined) {
+      writer.uint32(10).string(message.metric);
+    }
+    if (message.op !== undefined) {
+      writer.uint32(18).string(message.op);
+    }
+    if (message.threshold !== undefined) {
+      writer.uint32(25).double(message.threshold);
+    }
+    if (message.forSec !== undefined) {
+      writer.uint32(32).uint32(message.forSec);
+    }
+    if (message.severity !== undefined) {
+      writer.uint32(42).string(message.severity);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(50).string(message.interface);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(58).string(message.description);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(64).bool(message.enabled);
+    }
+    for (const v of message.targets) {
+      writer.uint32(74).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AlarmRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAlarmRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.metric = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.op = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 25) {
+              break;
+            }
+
+            message.threshold = reader.double();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.forSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.targets.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AlarmRule {
+    return {
+      metric: isSet(object.metric) ? globalThis.String(object.metric) : undefined,
+      op: isSet(object.op) ? globalThis.String(object.op) : undefined,
+      threshold: isSet(object.threshold) ? globalThis.Number(object.threshold) : undefined,
+      forSec: isSet(object.forSec)
+        ? globalThis.Number(object.forSec)
+        : isSet(object.for_sec)
+        ? globalThis.Number(object.for_sec)
+        : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      targets: globalThis.Array.isArray(object?.targets) ? object.targets.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: AlarmRule): unknown {
+    const obj: any = {};
+    if (message.metric !== undefined) {
+      obj.metric = message.metric;
+    }
+    if (message.op !== undefined) {
+      obj.op = message.op;
+    }
+    if (message.threshold !== undefined) {
+      obj.threshold = message.threshold;
+    }
+    if (message.forSec !== undefined) {
+      obj.forSec = Math.round(message.forSec);
+    }
+    if (message.severity !== undefined) {
+      obj.severity = message.severity;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.targets?.length) {
+      obj.targets = message.targets;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AlarmRule>): AlarmRule {
+    return AlarmRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AlarmRule>): AlarmRule {
+    const message = createBaseAlarmRule();
+    message.metric = object.metric ?? undefined;
+    message.op = object.op ?? undefined;
+    message.threshold = object.threshold ?? undefined;
+    message.forSec = object.forSec ?? undefined;
+    message.severity = object.severity ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.description = object.description ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.targets = object.targets?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseAlarmTarget(): AlarmTarget {
+  return { kind: undefined, url: undefined, secretRef: undefined, address: undefined };
+}
+
+export const AlarmTarget: MessageFns<AlarmTarget> = {
+  encode(message: AlarmTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== undefined) {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.url !== undefined) {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.secretRef !== undefined) {
+      writer.uint32(26).string(message.secretRef);
+    }
+    if (message.address !== undefined) {
+      writer.uint32(34).string(message.address);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AlarmTarget {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAlarmTarget();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AlarmTarget {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+    };
+  },
+
+  toJSON(message: AlarmTarget): unknown {
+    const obj: any = {};
+    if (message.kind !== undefined) {
+      obj.kind = message.kind;
+    }
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AlarmTarget>): AlarmTarget {
+    return AlarmTarget.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AlarmTarget>): AlarmTarget {
+    const message = createBaseAlarmTarget();
+    message.kind = object.kind ?? undefined;
+    message.url = object.url ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
+    message.address = object.address ?? undefined;
     return message;
   },
 };

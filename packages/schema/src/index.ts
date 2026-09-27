@@ -108,6 +108,7 @@ export * from './domains/ext/rule-expiry.js'; // F-rule-expiry
 export * from './domains/ext/global-blocking.js'; // F-global-blocking
 export * from './domains/ext/global-blocking-parse.js'; // F-global-blocking
 export * from './domains/ext/pppoe.js'; // F-pppoe-client (unanchored)
+export * from './domains/ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

@@ -126,6 +126,9 @@ import faHostAclNftables from './locales/fa/host-acl-nftables.json';
 // F-global-blocking (unanchored)
 import enGlobalBlocking from './locales/en/global-blocking.json';
 import faGlobalBlocking from './locales/fa/global-blocking.json';
+// wave-BC: F-dashboard-prom-alarms
+import enDashPromAlarms from './locales/en/dashboard-prom-alarms.json';
+import faDashPromAlarms from './locales/fa/dashboard-prom-alarms.json';
 // wave-A: F-nat44-ed-sessions
 import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
 import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
@@ -228,6 +231,7 @@ export const NAMESPACES = [
   // wave-A: F-host-acl-nftables
   'host-acl-nftables',
   'global-blocking', // F-global-blocking (unanchored)
+  'dashboard-prom-alarms', // wave-BC: F-dashboard-prom-alarms
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -326,6 +330,7 @@ const en = {
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': enHostAclNftables,
   'global-blocking': enGlobalBlocking,
+  'dashboard-prom-alarms': enDashPromAlarms,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -421,6 +426,7 @@ const fa = {
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': faHostAclNftables,
   'global-blocking': faGlobalBlocking,
+  'dashboard-prom-alarms': faDashPromAlarms,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6

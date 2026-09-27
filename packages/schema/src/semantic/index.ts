@@ -67,6 +67,7 @@ import { unboundChronySyslogValidators } from './unbound-chrony-syslog.js';
 import { lbValidators } from './lb.js';
 import { globalBlockingValidators } from './global-blocking.js'; // F-global-blocking
 import { pppoeValidators } from './pppoe.js'; // F-pppoe-client (unanchored)
+import { dashboardPromAlarmsValidators } from './dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 
 export * from './registry.js';
 
@@ -142,6 +143,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...lbValidators,
   ...globalBlockingValidators, // F-global-blocking
   ...pppoeValidators, // F-pppoe-client (unanchored)
+  ...dashboardPromAlarmsValidators, // wave-BC: F-dashboard-prom-alarms
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

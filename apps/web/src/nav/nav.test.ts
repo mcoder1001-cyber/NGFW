@@ -97,6 +97,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'system', // F-system-identity (system group, schema domain first)
       'dataplane', // F-dataplane-ui (system group, schema domain)
       'management', // F-management-ui (system group, schema domain)
+      'alarms', // wave-BC: F-dashboard-prom-alarms (system group)
       'users',
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:

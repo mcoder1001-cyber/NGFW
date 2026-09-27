@@ -2574,6 +2574,10 @@ message ManagementConfig {
   repeated SyslogTarget syslog = 4;
 
   // wave-BC: F-dashboard-prom-alarms
+  // The agent's external Prometheus listener (the loopback /metrics endpoint is always on).
+  ManagementPrometheus prometheus = 5;
+  // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
+  ManagementAlarms alarms = 6;
   // wave-BC: F-backup-restore
 }
 
@@ -6873,6 +6877,60 @@ message LispStateResponse {
 // ----- F-igmp-mfib -----
 
 // ----- F-dashboard-prom-alarms -----
+
+// ManagementPrometheus mirrors `management.prometheus`: the agent's external Prometheus listener.
+message ManagementPrometheus {
+  // Open the external listener (the loopback /metrics endpoint is always on); Zod default false.
+  optional bool enabled = 1;
+  // Address the external listener binds to; Zod default "0.0.0.0".
+  optional string listen = 2;
+  // Port of the external listener; Zod default 9101.
+  optional uint32 port = 3;
+  // CIDRs allowed to scrape (empty = any source that reaches the listener).
+  repeated string allow = 4;
+}
+
+// ManagementAlarms mirrors `management.alarms` (consumed by the API; carried here for the drift guard).
+message ManagementAlarms {
+  // Alarm rules by name.
+  map<string, AlarmRule> rules = 1;
+  // Notification targets by name.
+  map<string, AlarmTarget> targets = 2;
+}
+
+// AlarmRule mirrors `management.alarms.rules.<name>`.
+message AlarmRule {
+  // Metric family (ALARM_METRICS): "interface_rx_bps" | … | "node_error_rate".
+  optional string metric = 1;
+  // Comparison: "gt" | "ge" | "lt" | "le" | "eq"; Zod default "gt".
+  optional string op = 2;
+  // Threshold compared against the metric.
+  optional double threshold = 3;
+  // Seconds the condition must hold before raising (hysteresis); Zod default 0.
+  optional uint32 for_sec = 4;
+  // "info" | "warning" | "critical"; Zod default "warning".
+  optional string severity = 5;
+  // Limit an interface metric to this interface; unset = every interface.
+  optional string interface = 6;
+  // Free-text description.
+  optional string description = 7;
+  // Rule enabled; Zod default true.
+  optional bool enabled = 8;
+  // Names of management.alarms.targets to notify.
+  repeated string targets = 9;
+}
+
+// AlarmTarget mirrors `management.alarms.targets.<name>` (discriminated union on kind, flattened).
+message AlarmTarget {
+  // "webhook" | "email".
+  optional string kind = 1;
+  // webhook: the URL the alarm JSON is POSTed to.
+  optional string url = 2;
+  // webhook: reference to a bearer token secret ("token/<name>").
+  optional string secret_ref = 3;
+  // email: the recipient address.
+  optional string address = 4;
+}
 
 // ----- F-aaa -----
 

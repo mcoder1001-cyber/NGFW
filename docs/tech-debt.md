@@ -146,3 +146,8 @@ Items above that are not ticked keep their text; this table gives each one an ow
   subsystem registry yet (renderer + supervisor + state reader are done and unit-tested; the RPC returns 501). Owner:
   F-pppoe-client-host. Also: MSS clamp mechanism on the WAN (VPP vs nftables on the tap) to be decided with the live
   stack.
+- F-dashboard-prom-alarms (this row): the agent exporter's real govpp StatsSource (VPP stats segment) and the
+  registration of the metrics collector + the management.prometheus listener descriptor under Domains["management"]
+  are not wired into the running agent yet (promexport package + API alarm engine are done and tested). Email alarm
+  targets are modelled but not delivered (webhook only) — left to F-notifications. Owner: F-dashboard-prom-alarms-host
+  / F-notifications.

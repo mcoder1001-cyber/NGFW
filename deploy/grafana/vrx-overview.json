@@ -1,0 +1,60 @@
+{
+  "__inputs": [
+    { "name": "DS_PROMETHEUS", "label": "Prometheus", "description": "Prometheus scraping the vrx agent /metrics", "type": "datasource", "pluginId": "prometheus", "pluginName": "Prometheus" }
+  ],
+  "title": "VRX Overview",
+  "uid": "vrx-overview",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": ["vrx"],
+  "time": { "from": "now-1h", "to": "now" },
+  "templating": {
+    "list": [
+      { "name": "interface", "type": "query", "datasource": "${DS_PROMETHEUS}", "query": "label_values(vrx_interface_rx_bytes_total, interface)", "includeAll": true, "multi": true, "refresh": 2 }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "timeseries", "title": "Interface throughput (bit/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "bps" }, "overrides": [] },
+      "targets": [
+        { "expr": "rate(vrx_interface_rx_bytes_total{interface=~\"$interface\"}[1m]) * 8", "legendFormat": "rx {{interface}}", "refId": "A" },
+        { "expr": "rate(vrx_interface_tx_bytes_total{interface=~\"$interface\"}[1m]) * 8", "legendFormat": "tx {{interface}}", "refId": "B" }
+      ]
+    },
+    {
+      "id": 2, "type": "timeseries", "title": "Interface drops (pkt/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "pps" }, "overrides": [] },
+      "targets": [
+        { "expr": "rate(vrx_interface_rx_drops_total{interface=~\"$interface\"}[1m])", "legendFormat": "rx drops {{interface}}", "refId": "A" },
+        { "expr": "rate(vrx_interface_tx_drops_total{interface=~\"$interface\"}[1m])", "legendFormat": "tx drops {{interface}}", "refId": "B" }
+      ]
+    },
+    {
+      "id": 3, "type": "timeseries", "title": "Worker load (vectors per call)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [ { "expr": "vrx_worker_vectors_per_call", "legendFormat": "{{worker}}", "refId": "A" } ]
+    },
+    {
+      "id": 4, "type": "timeseries", "title": "Buffer usage (%)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "percent", "max": 100 }, "overrides": [] },
+      "targets": [ { "expr": "vrx_buffer_used_percent", "legendFormat": "{{pool}}", "refId": "A" } ]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "Interface link state",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "bool", "max": 1, "min": 0 }, "overrides": [] },
+      "targets": [ { "expr": "vrx_interface_link_up{interface=~\"$interface\"}", "legendFormat": "{{interface}}", "refId": "A" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Node errors (rate)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [ { "expr": "topk(10, rate(vrx_node_errors_total[5m]))", "legendFormat": "{{node}}/{{reason}}", "refId": "A" } ]
+    }
+  ]
+}

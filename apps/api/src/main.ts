@@ -5,6 +5,7 @@ import { CommitService } from './commit/commit.service.js';
 import { loadEnv } from './config.js';
 import { DB, runMigrations, type Db } from './db/db.js';
 import { RelayService } from './telemetry/relay.service.js';
+import { AlarmsService } from './features/dashboard-prom-alarms/index.js';
 
 const env = loadEnv();
 const app = await createApp({ env });
@@ -17,6 +18,8 @@ await app.get(TokensService).loadRevocations();
 await app.get(CommitService).resumePending();
 await app.get(CommitService).resumeSync();
 app.get(RelayService).start();
+// F-dashboard-prom-alarms: load alarm rules and open the engine's stats subscription
+await app.get(AlarmsService).start();
 await app.listen({ port: env.VRX_HTTP_PORT, host: env.VRX_HTTP_HOST });
 console.log(
   `vrx-api listening on http://${env.VRX_HTTP_HOST}:${env.VRX_HTTP_PORT} (docs at /api/docs)`,

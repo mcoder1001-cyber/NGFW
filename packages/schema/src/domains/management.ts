@@ -11,6 +11,7 @@ import {
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { syslogTargetExtKeys } from './ext/syslog.js'; // F-unbound-chrony-syslog (SY4)
+import { managementAlarmsField, managementPrometheusField } from './ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 
 /**
  * `management` — local users, AAA (RADIUS / TACACS+), TLS for the API and remote syslog (docs/04-api-datamodel.md).
@@ -223,6 +224,8 @@ export const ManagementSchema = withUi(
     }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-BC: F-dashboard-prom-alarms
+    prometheus: managementPrometheusField,
+    alarms: managementAlarmsField,
     // wave-BC: F-backup-restore
   }),
   {

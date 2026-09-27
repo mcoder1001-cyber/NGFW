@@ -5081,6 +5081,40 @@ export interface components {
           point: 'input' | 'output';
         }[];
       };
+      /** NAT46 (stateless SIIT 1:1) */
+      nat46?: {
+        /**
+         * Client prefix
+         * Format: cidrv6
+         * @default 64:ff9b::/96
+         */
+        clientPrefix: string;
+        /**
+         * Interfaces
+         * @default []
+         */
+        interfaces: string[];
+        /**
+         * Mappings
+         * @default []
+         */
+        mappings: {
+          /** Name */
+          name: string;
+          /**
+           * IPv4 service address
+           * Format: ipv4
+           */
+          ipv4: string;
+          /**
+           * IPv6 server
+           * Format: ipv6
+           */
+          ipv6: string;
+          /** IPv6 MTU */
+          mtu?: number;
+        }[];
+      };
     };
     /**
      * Objects

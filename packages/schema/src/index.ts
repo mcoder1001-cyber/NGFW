@@ -73,6 +73,7 @@ export * from './domains/security.js'; // F-bruteforce-block
 // Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
 // wave-BC: F-det44-map-dslite-cnat
 export * from './domains/ext/det44-map-dslite-cnat.js';
+export * from './domains/ext/nat46.js'; // F-nat46 (unanchored)
 // wave-BC: F-pki
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip

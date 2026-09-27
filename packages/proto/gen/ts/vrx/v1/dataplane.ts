@@ -4134,7 +4134,11 @@ export interface NatConfig {
     | CnatConfig
     | undefined;
   /** PNAT policy 1:1 NAT (F-det44-map-dslite-cnat; IPv4 only). */
-  pnat: PnatConfig | undefined;
+  pnat:
+    | PnatConfig
+    | undefined;
+  /** Stateless NAT46 (SIIT 1:1 over MAP-T; F-nat46). */
+  nat46: Nat46Config | undefined;
 }
 
 /** NatTimeouts mirrors `nat.timeouts` (seconds). */
@@ -10167,6 +10171,39 @@ export interface DataplaneStartupPreviewResponse {
   warnings: string[];
   /** Hex sha256 of `rendered`. */
   sha256: string;
+}
+
+/**
+ * Nat46Config mirrors `nat.nat46`: stateless NAT46 (RFC 7915 SIIT, 1:1), projected by the agent onto MAP-T
+ * domains `nat46-<name>` (IPv4 /32 <-> IPv6 /128, ea_bits_len 0) plus MAP-T translation on the interfaces.
+ */
+export interface Nat46Config {
+  /** RFC 6052 /96 representing IPv4 clients on the IPv6 side (default 64:ff9b::/96). */
+  clientPrefix?:
+    | string
+    | undefined;
+  /** VPP interface names MAP-T translation runs on (IPv4- and IPv6-facing). */
+  interfaces: string[];
+  /** 1:1 mappings. */
+  mappings: Nat46Mapping[];
+}
+
+/** Nat46Mapping is one IPv4 service address in front of one IPv6-only server. */
+export interface Nat46Mapping {
+  /** Mapping name; the VPP domain is "nat46-<name>". */
+  name?:
+    | string
+    | undefined;
+  /** IPv4 service address clients connect to. */
+  ipv4?:
+    | string
+    | undefined;
+  /** IPv6 server address. */
+  ipv6?:
+    | string
+    | undefined;
+  /** IPv6-side MTU; unset = VPP default. */
+  mtu?: number | undefined;
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -36079,6 +36116,7 @@ function createBaseNatConfig(): NatConfig {
     map: undefined,
     cnat: undefined,
     pnat: undefined,
+    nat46: undefined,
   };
 }
 
@@ -36158,6 +36196,9 @@ export const NatConfig: MessageFns<NatConfig> = {
     }
     if (message.pnat !== undefined) {
       PnatConfig.encode(message.pnat, writer.uint32(218).fork()).join();
+    }
+    if (message.nat46 !== undefined) {
+      Nat46Config.encode(message.nat46, writer.uint32(226).fork()).join();
     }
     return writer;
   },
@@ -36375,6 +36416,14 @@ export const NatConfig: MessageFns<NatConfig> = {
             message.pnat = PnatConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 28: {
+            if (tag !== 226) {
+              break;
+            }
+
+            message.nat46 = Nat46Config.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -36452,6 +36501,7 @@ export const NatConfig: MessageFns<NatConfig> = {
       map: isSet(object.map) ? MapConfig.fromJSON(object.map) : undefined,
       cnat: isSet(object.cnat) ? CnatConfig.fromJSON(object.cnat) : undefined,
       pnat: isSet(object.pnat) ? PnatConfig.fromJSON(object.pnat) : undefined,
+      nat46: isSet(object.nat46) ? Nat46Config.fromJSON(object.nat46) : undefined,
     };
   },
 
@@ -36532,6 +36582,9 @@ export const NatConfig: MessageFns<NatConfig> = {
     if (message.pnat !== undefined) {
       obj.pnat = PnatConfig.toJSON(message.pnat);
     }
+    if (message.nat46 !== undefined) {
+      obj.nat46 = Nat46Config.toJSON(message.nat46);
+    }
     return obj;
   },
 
@@ -36582,6 +36635,9 @@ export const NatConfig: MessageFns<NatConfig> = {
       : undefined;
     message.pnat = (object.pnat !== undefined && object.pnat !== null)
       ? PnatConfig.fromPartial(object.pnat)
+      : undefined;
+    message.nat46 = (object.nat46 !== undefined && object.nat46 !== null)
+      ? Nat46Config.fromPartial(object.nat46)
       : undefined;
     return message;
   },
@@ -91263,6 +91319,232 @@ export const DataplaneStartupPreviewResponse: MessageFns<DataplaneStartupPreview
     message.changed = object.changed ?? false;
     message.warnings = object.warnings?.map((e) => e) || [];
     message.sha256 = object.sha256 ?? "";
+    return message;
+  },
+};
+
+function createBaseNat46Config(): Nat46Config {
+  return { clientPrefix: undefined, interfaces: [], mappings: [] };
+}
+
+export const Nat46Config: MessageFns<Nat46Config> = {
+  encode(message: Nat46Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.clientPrefix !== undefined) {
+      writer.uint32(10).string(message.clientPrefix);
+    }
+    for (const v of message.interfaces) {
+      writer.uint32(18).string(v!);
+    }
+    for (const v of message.mappings) {
+      Nat46Mapping.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Nat46Config {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNat46Config();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.clientPrefix = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.mappings.push(Nat46Mapping.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Nat46Config {
+    return {
+      clientPrefix: isSet(object.clientPrefix)
+        ? globalThis.String(object.clientPrefix)
+        : isSet(object.client_prefix)
+        ? globalThis.String(object.client_prefix)
+        : undefined,
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      mappings: globalThis.Array.isArray(object?.mappings)
+        ? object.mappings.map((e: any) => Nat46Mapping.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: Nat46Config): unknown {
+    const obj: any = {};
+    if (message.clientPrefix !== undefined) {
+      obj.clientPrefix = message.clientPrefix;
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.mappings?.length) {
+      obj.mappings = message.mappings.map((e) => Nat46Mapping.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Nat46Config>): Nat46Config {
+    return Nat46Config.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Nat46Config>): Nat46Config {
+    const message = createBaseNat46Config();
+    message.clientPrefix = object.clientPrefix ?? undefined;
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.mappings = object.mappings?.map((e) => Nat46Mapping.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseNat46Mapping(): Nat46Mapping {
+  return { name: undefined, ipv4: undefined, ipv6: undefined, mtu: undefined };
+}
+
+export const Nat46Mapping: MessageFns<Nat46Mapping> = {
+  encode(message: Nat46Mapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.ipv4 !== undefined) {
+      writer.uint32(18).string(message.ipv4);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(26).string(message.ipv6);
+    }
+    if (message.mtu !== undefined) {
+      writer.uint32(32).uint32(message.mtu);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Nat46Mapping {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNat46Mapping();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ipv4 = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.mtu = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Nat46Mapping {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      ipv4: isSet(object.ipv4) ? globalThis.String(object.ipv4) : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
+      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
+    };
+  },
+
+  toJSON(message: Nat46Mapping): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.ipv4 !== undefined) {
+      obj.ipv4 = message.ipv4;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.mtu !== undefined) {
+      obj.mtu = Math.round(message.mtu);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Nat46Mapping>): Nat46Mapping {
+    return Nat46Mapping.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Nat46Mapping>): Nat46Mapping {
+    const message = createBaseNat46Mapping();
+    message.name = object.name ?? undefined;
+    message.ipv4 = object.ipv4 ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
+    message.mtu = object.mtu ?? undefined;
     return message;
   },
 };

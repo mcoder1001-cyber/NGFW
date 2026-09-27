@@ -113,6 +113,7 @@ describe('mpls model', () => {
       'ipBindings',
       'tunnels',
       'sr',
+      'ldp', // F-mpls-ldp
     ]);
     expect(Object.keys(itemSchema('labelRoutes').properties ?? {})).toEqual([
       'table',
@@ -133,7 +134,7 @@ describe('mpls model', () => {
     ]);
     const keyed = keyedSchema(itemSchema('tunnels'), { type: 'string' });
     expect(Object.keys(keyed.properties ?? {})).toEqual(['name', 'paths', 'l2Only']);
-    expect(mplsTabs.map((t) => t.id)).toEqual(['interfaces', 'routes', 'tunnels', 'sr', 'fib']);
+    expect(mplsTabs.map((t) => t.id)).toEqual(['interfaces', 'routes', 'tunnels', 'sr', 'fib', 'ldp']);
   });
 
   it('writes a merge patch that removes deleted record entries and replaces arrays whole', () => {

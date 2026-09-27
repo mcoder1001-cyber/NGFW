@@ -75,6 +75,8 @@ import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
+import enMplsLdp from './locales/en/mpls-ldp.json';
+import faMplsLdp from './locales/fa/mpls-ldp.json';
 // wave-BC: F-igmp-mfib
 import enIgmpMfib from './locales/en/igmp-mfib.json';
 import faIgmpMfib from './locales/fa/igmp-mfib.json';
@@ -206,6 +208,7 @@ export const NAMESPACES = [
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
+  'mpls-ldp',
   // wave-BC: F-igmp-mfib
   'igmp-mfib',
   // wave-BC: F-dashboard-prom-alarms
@@ -309,6 +312,7 @@ const en = {
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
+  'mpls-ldp': enMplsLdp,
   // wave-BC: F-igmp-mfib
   'igmp-mfib': enIgmpMfib,
   // wave-BC: F-dashboard-prom-alarms
@@ -409,6 +413,7 @@ const fa = {
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
+  'mpls-ldp': faMplsLdp,
   // wave-BC: F-igmp-mfib
   'igmp-mfib': faIgmpMfib,
   // wave-BC: F-dashboard-prom-alarms

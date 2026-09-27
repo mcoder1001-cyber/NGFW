@@ -32,4 +32,9 @@ export const mplsTabs: readonly DomainTab[] = [
     Component: lazy(async () => ({ default: (await import('./FibTab')).FibTab })),
   },
   // wave-BC: F-mpls-ldp
+  {
+    id: 'ldp',
+    labelKey: 'mpls-ldp:tab',
+    Component: lazy(async () => ({ default: (await import('../mpls-ldp/LdpTab')).LdpTab })),
+  },
 ];

@@ -1,0 +1,26 @@
+{
+  "tab": "LDP",
+  "intro": "توزیع برچسب LDP (RFC 5036): FRR ldpd پروتکل را اجرا می‌کند و دستگاه برچسب‌ها را با جدول MPLS FIB در VPP همگام می‌کند. LDP را در پیکربندی ← مسیریابی ← MPLS تنظیم کنید.",
+  "refresh": "به‌روزرسانی",
+  "loading": "در حال بارگذاری وضعیت LDP",
+  "agentError": "وضعیت زندهٔ LDP در دسترس نیست: {{error}}",
+  "sync": {
+    "title": "همگام‌سازی برچسب FRR ← VPP",
+    "ok": "همگام",
+    "idle": "بی‌کار",
+    "error": "خطا",
+    "detail": "{{installed}} مسیر نصب‌شده، {{conflicts}} تعارض؛ منبع: {{source}}"
+  },
+  "neighbors": {
+    "title": "همسایه‌ها",
+    "empty": "هیچ همسایهٔ LDP وجود ندارد.",
+    "col": { "lsrId": "LSR-ID", "address": "نشانی", "state": "وضعیت", "uptime": "زمان فعالیت (ث)" }
+  },
+  "bindings": {
+    "title": "پیوندهای برچسب (LIB)",
+    "empty": "هیچ پیوند برچسبی وجود ندارد.",
+    "yes": "بله",
+    "no": "خیر",
+    "col": { "prefix": "پیشوند", "localLabel": "برچسب محلی", "peer": "همتا", "remoteLabel": "برچسب دور", "inUse": "در حال استفاده" }
+  }
+}

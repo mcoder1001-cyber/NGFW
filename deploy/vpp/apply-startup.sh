@@ -51,6 +51,10 @@
 #       unit only once).
 #   apply-startup.sh --stage run|rollback|hold --work <dir>     internal
 #
+# Modes (TD-17): --mode lab (default; VRX_APPLY_MODE) = the above: binaries from /root/ngfw/apps/agent/bin, handover or
+#   PENDING approval gate. --mode product = the appliance: binaries from /usr/lib/vrx/bin (VRX_LIB_BIN), no docs/lab,
+#   PENDING or LOG file is read; --apply needs --approve-rendering <sum> equal to --expect-new-sha256; the dead-man, the
+#   locks, the checks and the rollback are the same as in lab mode.
 # Options: --vm NAME (vrx-a) · --window S (60, ≥ --interval) · --interval S (5, > 0) · --settle S (10) ·
 #   --api-wait S (60) · --cmd-timeout S (10) · --svc-timeout S (120) · --lock-timeout S (600) ·
 #   --deadman-lock-timeout S (60) · --mgmt-if IF (repeatable) · --mgmt-peer IP (the client of $SSH_CONNECTION is
@@ -91,8 +95,10 @@ HERE="$(dirname "$SELF")"
 : "${VRX_NETWORKCTL:=networkctl}"
 : "${VRX_LOGGER:=logger}"
 : "${VRX_LSLOCKS:=lslocks}"
-: "${VRX_VPPCHECK:=/root/ngfw/apps/agent/bin/vrx-vppcheck}"
-: "${VRX_STARTUPGEN:=/root/ngfw/apps/agent/bin/vrx-startupgen}"
+: "${VRX_APPLY_MODE:=lab}"                            # lab (repo checkout, handover gate) | product (TD-17)
+: "${VRX_LIB_BIN:=/usr/lib/vrx/bin}"                    # product mode: installed binaries (P10)
+: "${VRX_VPPCHECK:=}"                                   # empty: the mode's default (resolve_mode)
+: "${VRX_STARTUPGEN:=}"
 : "${VRX_HANDOVER_EXTRA:=}"                             # extra handover docs: can only make the gate stricter
 : "${VRX_TEST_ROOT:=}"
 : "${VRX_MGMT_PEERS:=}"
@@ -102,13 +108,14 @@ SETTINGS_VARS=(VRX_STARTUP_CONF VRX_SYSFS VRX_ETC VRX_APPLY_STATE VRX_LAB_LOCK V
   VRX_SYSTEMCTL VRX_SYSTEMD_RUN VRX_IP VRX_SS VRX_PING VRX_TCPCONNECT VRX_DRIVERCTL VRX_NETPLAN VRX_IFUP VRX_NETWORKCTL
   VRX_LOGGER VRX_LSLOCKS VRX_VPPCHECK VRX_STARTUPGEN VRX_HANDOVER_EXTRA VRX_TEST_ROOT VRX_MGMT_PEERS VRX_MGMT_IFS
   VRX_MGMT_PROBE WINDOW INTERVAL SETTLE API_WAIT CMD_TIMEOUT SVC_TIMEOUT LOCK_TIMEOUT DEADMAN_LOCK_TIMEOUT
-  EXPECT EXPECT_NEW VM APPROVAL GATE_REPO)
+  EXPECT EXPECT_NEW VM APPROVAL GATE_REPO VRX_APPLY_MODE VRX_LIB_BIN APPROVE_RENDERING)
 UNIT_PREFIX="vrx-startup-apply"
 
 DOC="" APPLY=0 EXPECT="" EXPECT_NEW="" WINDOW=60 INTERVAL=5 SETTLE=10 LOCK_TIMEOUT=600 DEADMAN_LOCK_TIMEOUT=60 API_WAIT=60
 CMD_TIMEOUT=10 SVC_TIMEOUT=120 FOREGROUND=0 CONSOLE=0 STAGE="" WORK="" VM="vrx-a" APPROVAL="" GATE="" GATE_REPO=""
+APPROVE_RENDERING=""
 GEN_ARGS=()
-STARTUPGEN_BIN="$VRX_STARTUPGEN" VPPCHECK_BIN="$VRX_VPPCHECK"
+STARTUPGEN_BIN="" VPPCHECK_BIN=""
 OWN_LOCKS=0      # 1 while this process itself has fds 8/9 open (the holder is gone: dead-man or the run's rollback)
 LOCKS_SECURED=0  # secure_locks ran (taken, the holder's, or FORCED)
 RUN_LOCKED=0 RUN_INSTALLED=0 RB_MINE=0   # the run's EXIT trap: what this process has done so far
@@ -158,6 +165,8 @@ parse_args() {
       --mgmt-peer) VRX_MGMT_PEERS="${VRX_MGMT_PEERS:+$VRX_MGMT_PEERS }${2:?}"; shift ;;
       --mgmt-probe) VRX_MGMT_PROBE="${2:?}"; shift ;;
       --i-have-product-owner-approval) APPROVAL="${2:?}"; shift ;;
+      --mode) VRX_APPLY_MODE="${2:?}"; shift ;;
+      --approve-rendering) APPROVE_RENDERING="${2:?}"; shift ;;
       --foreground) FOREGROUND=1 ;;
       --console) CONSOLE=1 ;;
       --stage) STAGE="${2:?}"; shift ;;
@@ -179,8 +188,25 @@ parse_args() {
     die "--i-have-product-owner-approval needs a PENDING-<slug> id (docs/decisions/PENDING-<slug>.md), got '$APPROVAL'"
   [[ $VRX_MGMT_PROBE =~ ^(auto|neigh|gateway-ping|tcp:(\[[0-9A-Fa-f:.]+\]|[0-9A-Za-z.-]+):[0-9]{1,5})$ ]] ||
     die "--mgmt-probe must be auto, neigh, gateway-ping or tcp:HOST:PORT"
+  [[ $VRX_APPLY_MODE == lab || $VRX_APPLY_MODE == product ]] || die "--mode must be lab or product"
+  if [[ $VRX_APPLY_MODE == product ]]; then
+    [[ -z $APPROVAL ]] || die "--i-have-product-owner-approval is a lab-mode gate; product mode takes --approve-rendering <sha256>"
+    [[ -z $APPROVE_RENDERING || $APPROVE_RENDERING =~ ^[0-9a-f]{64}$ ]] || die "--approve-rendering needs the rendering's sha256"
+  else
+    [[ -z $APPROVE_RENDERING ]] || die "--approve-rendering is a product-mode gate (--mode product)"
+  fi
+  resolve_mode
   for w in $VRX_MGMT_IFS; do [[ $w =~ ^[A-Za-z0-9_.@-]{1,15}$ ]] || die "--mgmt-if '$w' is not an interface name"; done
   for w in $VRX_MGMT_PEERS; do [[ $w =~ ^[0-9A-Fa-f:.]+$ ]] || die "--mgmt-peer '$w' is not an IP address"; done
+}
+
+resolve_mode() {  # TD-17: binary defaults per mode — lab = the manager's checkout, product = installed paths (P10)
+  if [[ $VRX_APPLY_MODE == product ]]; then
+    : "${VRX_STARTUPGEN:=$VRX_LIB_BIN/vrx-startupgen}" "${VRX_VPPCHECK:=$VRX_LIB_BIN/vrx-vppcheck}"
+  else
+    : "${VRX_STARTUPGEN:=/root/ngfw/apps/agent/bin/vrx-startupgen}" "${VRX_VPPCHECK:=/root/ngfw/apps/agent/bin/vrx-vppcheck}"
+  fi
+  STARTUPGEN_BIN="$VRX_STARTUPGEN" VPPCHECK_BIN="$VRX_VPPCHECK"
 }
 
 sha() { sha256sum "$1" | awk '{print $1}'; }
@@ -396,7 +422,19 @@ approval_ref() {  # APPROVAL → "PENDING file @blob + D-nnn for rendering <sha>
   done
   echo "$file@${blob:0:12} + LOG ${ds% } for rendering $EXPECT_NEW"
 }
+product_gate() {  # TD-17 appliance gate: reads no docs/lab, PENDING or LOG file — an explicit approval of exactly this
+  # rendering (--approve-rendering == --expect-new-sha256); the mandatory dead-man (armed by the run, refuse if it cannot be)
+  # is the safety net, the live-file sum (--expect-sha256) binds it to the file it replaces
+  if [[ -z $APPROVE_RENDERING ]]; then
+    echo "REFUSED: product mode needs --approve-rendering <sha256 of the rendering> (the appliance approval of exactly this change)"; return 3
+  fi
+  if [[ $APPROVE_RENDERING != "$EXPECT_NEW" ]]; then
+    echo "REFUSED: --approve-rendering $APPROVE_RENDERING does not match the rendering (sha256 $EXPECT_NEW) — the approval does not cover this change"; return 3
+  fi
+  echo "gate: product mode — appliance approval of rendering $APPROVE_RENDERING (dead-man mandatory)"
+}
 gate() {  # → the gate record (deterministic: the run recomputes and compares it); returns 3 when --apply is not allowed
+  if [[ $VRX_APPLY_MODE == product ]]; then product_gate; return; fi
   local st="done" src s summary="" ref
   while read -r src s; do summary+="${summary:+ · }$src=$s"; [[ $s == "done" ]] || st=pending; done < <(handover_sources)
   [[ -n $summary ]] || { st=pending; summary="no handover source could be read"; }   # never "done" by default
@@ -443,7 +481,8 @@ dry_run() {
   echo "== VPP preflight (read-only: vrx-vppcheck ifaces local0, bootid)"
   if ! vppcheck ifaces local0 2>&1 | sed 's/^/  /'; then echo "  VPP preflight FAILED — --apply will refuse"; rc=3; fi
   vppcheck bootid 2>&1 | sed 's/^/  boot identity: /' || true
-  echo "== handover gate (--apply only; an approval must name the rendering's sha256 below)"
+  if [[ $VRX_APPLY_MODE == product ]]; then echo "== appliance approval gate (--apply only; --approve-rendering must be the rendering's sha256 below)"
+  else echo "== handover gate (--apply only; an approval must name the rendering's sha256 below)"; fi
   [[ -n $EXPECT_NEW ]] || EXPECT_NEW="$(sha "$tmp/new.conf")"
   if ! gate | sed 's/^/  /'; then rc=3; fi   # TD-6 V9: exit 3 = --apply would refuse, the gate included
   command -v "$VRX_SYSTEMD_RUN" >/dev/null 2>&1 || { echo "  systemd-run not found — --apply will refuse"; rc=3; }
@@ -1038,15 +1077,15 @@ main() {
     hold) stage_hold ;;
     "")
       [[ -n $DOC && -f $DOC ]] || die "--doc <document.json> is required"
-      [[ -x $STARTUPGEN_BIN ]] || die "$STARTUPGEN_BIN not found (cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen)"
-      [[ -x $VPPCHECK_BIN ]] || die "$VPPCHECK_BIN not found (cd apps/agent && go build -o bin/vrx-vppcheck ./cmd/vrx-vppcheck)"
+      [[ -x $STARTUPGEN_BIN ]] || die "$STARTUPGEN_BIN not found ($( [[ $VRX_APPLY_MODE == product ]] && echo "install the vrx-agent package" || echo "cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen"))"
+      [[ -x $VPPCHECK_BIN ]] || die "$VPPCHECK_BIN not found ($( [[ $VRX_APPLY_MODE == product ]] && echo "install the vrx-agent package" || echo "cd apps/agent && go build -o bin/vrx-vppcheck ./cmd/vrx-vppcheck"))"
       command -v jq >/dev/null 2>&1 || die "jq is required (management snapshot)"
-      canon_root >/dev/null
+      [[ $VRX_APPLY_MODE == product ]] || canon_root >/dev/null
       if [[ -n ${SSH_CONNECTION:-} ]]; then
         VRX_MGMT_PEERS="${VRX_MGMT_PEERS:+$VRX_MGMT_PEERS }${SSH_CONNECTION%% *}"
         ((!FOREGROUND || CONSOLE)) || die "--foreground over SSH would die with the session; run detached (default) or pass --console on a real console"
       fi
-      GATE_REPO="$(cd "$HERE/../.." 2>/dev/null && pwd || true)"
+      [[ $VRX_APPLY_MODE == product ]] || GATE_REPO="$(cd "$HERE/../.." 2>/dev/null && pwd || true)"
       if ((APPLY)); then
         [[ $EXPECT =~ ^[0-9a-f]{64}$ ]] || die "--apply needs --expect-sha256 <live sum printed by the dry run>"
         [[ $EXPECT_NEW =~ ^[0-9a-f]{64}$ ]] || die "--apply needs --expect-new-sha256 <rendered sum printed by the dry run>"

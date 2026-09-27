@@ -907,6 +907,38 @@ ok '[[ -n $c && -n $s ]] && (( c < s ))' "the rollback disarmed the armed dead-m
 ok '[[ $RC1 == 1 && -e $W/rolled-back ]] && unchanged && grep -q "lock holder $HOLD still owns the locks" "$T/rb1.out" && ! kill -0 "$RUNPID" 2>/dev/null && ! kill -0 "$HOLD" 2>/dev/null && locks_free' "the first one killed the run and rolled back alone (exit $RC1) under the holder's locks, then released them"
 ok '[[ $STOPS == 1 && $STARTS == 1 ]]' "VPP stopped and started exactly once (stops=$STOPS starts=$STARTS)"
 fi
+if scen 44; then
+echo "== 44. TD-17 product mode: installed binaries (VRX_LIB_BIN), appliance approval bound to the rendering's sha256, no docs/lab or PENDING read; lab-only flags refused"
+setup
+mkdir -p "$T/lib"; cp "$GEN" "$T/lib/vrx-startupgen"; cp "$T/bin/vrx-vppcheck" "$T/lib/vrx-vppcheck"
+prod() { env -u VRX_STARTUPGEN -u VRX_VPPCHECK VRX_LIB_BIN="$T/lib" "$SCRIPT" --mode product "$@"; }
+rc=0; "$SCRIPT" --doc "$DOCF" --approve-rendering "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]] && grep -q "product-mode gate" "$T/out"' "--approve-rendering in lab mode refused (exit $rc)"
+rc=0; prod --doc "$DOCF" "${APPROVE[@]}" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]] && grep -q "lab-mode gate" "$T/out"' "--i-have-product-owner-approval in product mode refused (exit $rc)"
+rc=0; prod --doc "$DOCF" --mode bogus "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]]' "unknown --mode refused (exit $rc)"
+rc=0; env -u VRX_STARTUPGEN -u VRX_VPPCHECK VRX_LIB_BIN="$T/nolib" "$SCRIPT" --mode product --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]] && grep -q "$T/nolib/vrx-startupgen not found (install the vrx-agent package)" "$T/out"' "product mode looks for the installed binaries under VRX_LIB_BIN (exit $rc)"
+mv "$CANON" "$CANON.off"   # product mode must not need the canonical repo, docs/lab, PENDING or LOG files
+rc=0; out="$(prod --doc "$DOCF" --cmd-timeout "$CT" "${HOSTARGS[@]}" 2>&1)" || rc=$?
+ok '[[ $rc == 3 ]] && grep -q "appliance approval gate" <<<"$out" && grep -q "REFUSED: product mode needs --approve-rendering" <<<"$out" && ! grep -qE "handover gate|docs/lab/host-" <<<"$out"' "dry run without approval: exit $rc, appliance gate shown, no handover gate"
+rc=0; out="$(prod --doc "$DOCF" --cmd-timeout "$CT" --approve-rendering "$NEW" "${HOSTARGS[@]}" 2>&1)" || rc=$?
+ok '[[ $rc == 0 ]] && grep -q "gate: product mode — appliance approval of rendering $NEW" <<<"$out" && unchanged' "dry run with the approval: exit $rc, nothing changed"
+rc=0; prod --doc "$DOCF" --apply --foreground "${TIMING[@]}" --approve-rendering "$ORIG" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 3 ]] && unchanged && [[ -z $(work) ]] && grep -q "does not match the rendering" "$T/out"' "approval of another sum: exit $rc, no work dir"
+rc=0; prod --doc "$DOCF" --apply --foreground "${TIMING[@]}" --approve-rendering "$NEW" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+W="$(work)"
+mv "$CANON.off" "$CANON"
+ok '[[ $rc == 0 && -e $W/committed ]] && cmp -s "$T/etc/vpp/startup.conf" "$W/new.conf" && grep -q "gate: product mode" "$W/gate"' "product apply with the approval commits (exit $rc); gate recorded"
+ok 'grep -qx "VRX_APPLY_MODE=product" "$W/settings" && grep -qx "VRX_STARTUPGEN=$T/lib/vrx-startupgen" "$W/settings" && cmp -s "$W/bin/vrx-startupgen" "$T/lib/vrx-startupgen"' "mode and installed binary paths recorded and pinned in the work dir"
+ok 'grep -q "systemd-run --unit=vrx-startup-apply-deadman-.* --on-active=.*--setenv=VRX_APPLY_MODE=product.* --stage rollback" "$T/calls" && grep -q "systemctl stop vrx-startup-apply-deadman-.*\.timer" "$T/calls" && locks_free && [[ $(restarts) == 1 ]]' "dead-man armed (in product mode) and cancelled after the commit; locks released; one VPP restart"
+setup
+mkdir -p "$T/lib"; cp "$GEN" "$T/lib/vrx-startupgen"; cp "$T/bin/vrx-vppcheck" "$T/lib/vrx-vppcheck"
+touch "$T/state/timer-fail"
+rc=0; prod --doc "$DOCF" --apply --foreground "${TIMING[@]}" --approve-rendering "$NEW" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 3 ]] && unchanged && [[ $(restarts) == 0 ]]' "product mode: the dead-man cannot be armed → refused (exit $rc), VPP not restarted"
+fi
 
 echo
 echo "apply-startup tests: $PASS passed, $FAIL failed"

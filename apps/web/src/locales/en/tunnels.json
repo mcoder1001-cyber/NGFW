@@ -1,0 +1,41 @@
+{
+  "title": "Tunnels",
+  "intro": "GRE, VXLAN and IPIP tunnel interfaces. Each tunnel needs a fixed instance: it names the engine interface (gre<n>, vxlan_tunnel<n>, ipip<n>) and must lie in this agent's id range. Addresses, MTU and VRF are set on the tunnel itself; L2 tunnels join a bridge domain by its numeric id.",
+  "kinds": "Tunnel kinds",
+  "kind": { "gre": "GRE", "vxlan": "VXLAN", "ipip": "IPIP" },
+  "item": "{{kind}} tunnel {{name}}",
+  "add": "Add {{kind}} tunnel",
+  "noInstance": "no instance",
+  "col": {
+    "name": "Name",
+    "engineName": "Engine interface",
+    "src": "Source",
+    "dst": "Destination",
+    "vni": "VNI",
+    "type": "Type",
+    "mode": "Mode",
+    "status": "Status"
+  },
+  "field": {
+    "enabled": { "title": "Enabled" },
+    "description": { "title": "Description" },
+    "instance": { "title": "Instance", "help": "Fixes the engine interface name; required by this build and inside the agent's id range" },
+    "src": { "title": "Source address", "help": "Must be configured on an interface in the underlay VRF" },
+    "dst": { "title": "Destination address" },
+    "underlayVrf": { "title": "Underlay VRF", "help": "FIB used to reach the tunnel destination" },
+    "vrf": { "title": "VRF", "help": "FIB the tunnel interface belongs to (overlay)" },
+    "mtu": { "title": "MTU" },
+    "ipv4": { "title": "IPv4 addresses" },
+    "ipv6": { "title": "IPv6 addresses" },
+    "bridgeDomain": { "title": "Bridge domain", "help": "L2 tunnels only: numeric id of the bridge domain" },
+    "type": { "title": "Type", "help": "l3 = IP over GRE, teb = Ethernet over GRE, erspan = ERSPAN type II", "enum": { "l3": "L3", "teb": "TEB (L2)", "erspan": "ERSPAN" } },
+    "sessionId": { "title": "ERSPAN session id" },
+    "mode": { "title": "Mode", "help": "p2mp has no fixed destination", "enum": { "p2p": "Point-to-point", "p2mp": "Point-to-multipoint" } },
+    "dscp": { "title": "Outer DSCP", "help": "Omit to copy the inner DSCP" },
+    "vni": { "title": "VNI" },
+    "srcPort": { "title": "Source UDP port" },
+    "dstPort": { "title": "Destination UDP port" },
+    "mcastInterface": { "title": "Multicast interface", "help": "Interface used to join the multicast group (multicast destination only)" },
+    "decap": { "title": "Decapsulation", "help": "l2 bridges the inner frame; ip4/ip6 route the inner packet in the tunnel VRF", "enum": { "l2": "L2 (bridge)", "ip4": "IPv4", "ip6": "IPv6" } }
+  }
+}

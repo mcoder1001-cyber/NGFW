@@ -8957,6 +8957,66 @@ export interface LispStateResponse {
   retrievedAt: Date | undefined;
 }
 
+export interface DataplaneStartupStateRequest {
+  /** Expected agent owner; empty = any. */
+  owner: string;
+}
+
+export interface DataplaneStartupStateResponse {
+  /** Path of the installed start-up file the agent read. */
+  startupPath: string;
+  /** False when the file does not exist (then the fields below that come from it are empty). */
+  startupPresent: boolean;
+  /** `cpu { workers N }` of the installed file (unset when absent). */
+  workers?:
+    | number
+    | undefined;
+  /** `cpu { corelist-workers … }` of the installed file, as written ("" when absent). */
+  corelistWorkers: string;
+  /** `cpu { main-core N }` of the installed file (unset when absent). */
+  mainCore?:
+    | number
+    | undefined;
+  /** `plugins { plugin <file> { enable|disable } }` switches of the installed file. */
+  plugins: { [key: string]: boolean };
+  /** Online CPUs of the host, CPU-list notation ("0-7"). */
+  onlineCpus: string;
+  /** HugePages_Total × Hugepagesize in bytes. */
+  hugepagesTotalBytes: string;
+  /** HugePages_Free × Hugepagesize in bytes. */
+  hugepagesFreeBytes: string;
+  /** Why part of the state could not be read ("" = everything was read). */
+  error: string;
+  retrievedAt: Date | undefined;
+}
+
+export interface DataplaneStartupStateResponse_PluginsEntry {
+  key: string;
+  value: boolean;
+}
+
+export interface DataplaneStartupPreviewRequest {
+  /** Expected agent owner; empty = any. */
+  owner: string;
+  /** The candidate `dataplane` domain to render (unset = the empty domain). */
+  dataplane: DataplaneConfig | undefined;
+}
+
+export interface DataplaneStartupPreviewResponse {
+  /** The rendered startup.conf. */
+  rendered: string;
+  /** Path of the installed file compared against. */
+  startupPath: string;
+  /** Unified diff installed → rendered ("" = identical or no installed file). */
+  diff: string;
+  /** True when the rendering differs from the installed file (a VPP restart would change something). */
+  changed: boolean;
+  /** Non-fatal generator findings. */
+  warnings: string[];
+  /** Hex sha256 of `rendered`. */
+  sha256: string;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return { txnId: "", desiredState: undefined, subsystems: [], confirmTimeoutSec: 0, confirmTxnId: "", owner: "" };
 }
@@ -79531,6 +79591,703 @@ export const LispStateResponse: MessageFns<LispStateResponse> = {
   },
 };
 
+function createBaseDataplaneStartupStateRequest(): DataplaneStartupStateRequest {
+  return { owner: "" };
+}
+
+export const DataplaneStartupStateRequest: MessageFns<DataplaneStartupStateRequest> = {
+  encode(message: DataplaneStartupStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneStartupStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneStartupStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneStartupStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: DataplaneStartupStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneStartupStateRequest>): DataplaneStartupStateRequest {
+    return DataplaneStartupStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneStartupStateRequest>): DataplaneStartupStateRequest {
+    const message = createBaseDataplaneStartupStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseDataplaneStartupStateResponse(): DataplaneStartupStateResponse {
+  return {
+    startupPath: "",
+    startupPresent: false,
+    workers: undefined,
+    corelistWorkers: "",
+    mainCore: undefined,
+    plugins: {},
+    onlineCpus: "",
+    hugepagesTotalBytes: "0",
+    hugepagesFreeBytes: "0",
+    error: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResponse> = {
+  encode(message: DataplaneStartupStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.startupPath !== "") {
+      writer.uint32(10).string(message.startupPath);
+    }
+    if (message.startupPresent !== false) {
+      writer.uint32(16).bool(message.startupPresent);
+    }
+    if (message.workers !== undefined) {
+      writer.uint32(24).uint32(message.workers);
+    }
+    if (message.corelistWorkers !== "") {
+      writer.uint32(34).string(message.corelistWorkers);
+    }
+    if (message.mainCore !== undefined) {
+      writer.uint32(40).uint32(message.mainCore);
+    }
+    globalThis.Object.entries(message.plugins).forEach(([key, value]: [string, boolean]) => {
+      DataplaneStartupStateResponse_PluginsEntry.encode({ key: key as any, value }, writer.uint32(50).fork()).join();
+    });
+    if (message.onlineCpus !== "") {
+      writer.uint32(58).string(message.onlineCpus);
+    }
+    if (message.hugepagesTotalBytes !== "0") {
+      writer.uint32(64).uint64(message.hugepagesTotalBytes);
+    }
+    if (message.hugepagesFreeBytes !== "0") {
+      writer.uint32(72).uint64(message.hugepagesFreeBytes);
+    }
+    if (message.error !== "") {
+      writer.uint32(82).string(message.error);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(90).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneStartupStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneStartupStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.startupPath = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.startupPresent = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.workers = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.corelistWorkers = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.mainCore = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            const entry6 = DataplaneStartupStateResponse_PluginsEntry.decode(reader, reader.uint32());
+            if (entry6.value !== undefined) {
+              message.plugins[entry6.key] = entry6.value;
+            }
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.onlineCpus = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.hugepagesTotalBytes = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.hugepagesFreeBytes = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneStartupStateResponse {
+    return {
+      startupPath: isSet(object.startupPath)
+        ? globalThis.String(object.startupPath)
+        : isSet(object.startup_path)
+        ? globalThis.String(object.startup_path)
+        : "",
+      startupPresent: isSet(object.startupPresent)
+        ? globalThis.Boolean(object.startupPresent)
+        : isSet(object.startup_present)
+        ? globalThis.Boolean(object.startup_present)
+        : false,
+      workers: isSet(object.workers) ? globalThis.Number(object.workers) : undefined,
+      corelistWorkers: isSet(object.corelistWorkers)
+        ? globalThis.String(object.corelistWorkers)
+        : isSet(object.corelist_workers)
+        ? globalThis.String(object.corelist_workers)
+        : "",
+      mainCore: isSet(object.mainCore)
+        ? globalThis.Number(object.mainCore)
+        : isSet(object.main_core)
+        ? globalThis.Number(object.main_core)
+        : undefined,
+      plugins: isObject(object.plugins)
+        ? (globalThis.Object.entries(object.plugins) as [string, any][]).reduce(
+          (acc: { [key: string]: boolean }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: globalThis.Boolean(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      onlineCpus: isSet(object.onlineCpus)
+        ? globalThis.String(object.onlineCpus)
+        : isSet(object.online_cpus)
+        ? globalThis.String(object.online_cpus)
+        : "",
+      hugepagesTotalBytes: isSet(object.hugepagesTotalBytes)
+        ? globalThis.String(object.hugepagesTotalBytes)
+        : isSet(object.hugepages_total_bytes)
+        ? globalThis.String(object.hugepages_total_bytes)
+        : "0",
+      hugepagesFreeBytes: isSet(object.hugepagesFreeBytes)
+        ? globalThis.String(object.hugepagesFreeBytes)
+        : isSet(object.hugepages_free_bytes)
+        ? globalThis.String(object.hugepages_free_bytes)
+        : "0",
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: DataplaneStartupStateResponse): unknown {
+    const obj: any = {};
+    if (message.startupPath !== "") {
+      obj.startupPath = message.startupPath;
+    }
+    if (message.startupPresent !== false) {
+      obj.startupPresent = message.startupPresent;
+    }
+    if (message.workers !== undefined) {
+      obj.workers = Math.round(message.workers);
+    }
+    if (message.corelistWorkers !== "") {
+      obj.corelistWorkers = message.corelistWorkers;
+    }
+    if (message.mainCore !== undefined) {
+      obj.mainCore = Math.round(message.mainCore);
+    }
+    if (message.plugins) {
+      const entries = globalThis.Object.entries(message.plugins) as [string, boolean][];
+      if (entries.length > 0) {
+        obj.plugins = {};
+        entries.forEach(([k, v]) => {
+          obj.plugins[k] = v;
+        });
+      }
+    }
+    if (message.onlineCpus !== "") {
+      obj.onlineCpus = message.onlineCpus;
+    }
+    if (message.hugepagesTotalBytes !== "0") {
+      obj.hugepagesTotalBytes = message.hugepagesTotalBytes;
+    }
+    if (message.hugepagesFreeBytes !== "0") {
+      obj.hugepagesFreeBytes = message.hugepagesFreeBytes;
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneStartupStateResponse>): DataplaneStartupStateResponse {
+    return DataplaneStartupStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneStartupStateResponse>): DataplaneStartupStateResponse {
+    const message = createBaseDataplaneStartupStateResponse();
+    message.startupPath = object.startupPath ?? "";
+    message.startupPresent = object.startupPresent ?? false;
+    message.workers = object.workers ?? undefined;
+    message.corelistWorkers = object.corelistWorkers ?? "";
+    message.mainCore = object.mainCore ?? undefined;
+    message.plugins = (globalThis.Object.entries(object.plugins ?? {}) as [string, boolean][]).reduce(
+      (acc: { [key: string]: boolean }, [key, value]: [string, boolean]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.Boolean(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.onlineCpus = object.onlineCpus ?? "";
+    message.hugepagesTotalBytes = object.hugepagesTotalBytes ?? "0";
+    message.hugepagesFreeBytes = object.hugepagesFreeBytes ?? "0";
+    message.error = object.error ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDataplaneStartupStateResponse_PluginsEntry(): DataplaneStartupStateResponse_PluginsEntry {
+  return { key: "", value: false };
+}
+
+export const DataplaneStartupStateResponse_PluginsEntry: MessageFns<DataplaneStartupStateResponse_PluginsEntry> = {
+  encode(message: DataplaneStartupStateResponse_PluginsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== false) {
+      writer.uint32(16).bool(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneStartupStateResponse_PluginsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneStartupStateResponse_PluginsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.value = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneStartupStateResponse_PluginsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.Boolean(object.value) : false,
+    };
+  },
+
+  toJSON(message: DataplaneStartupStateResponse_PluginsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== false) {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneStartupStateResponse_PluginsEntry>): DataplaneStartupStateResponse_PluginsEntry {
+    return DataplaneStartupStateResponse_PluginsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(
+    object: DeepPartial<DataplaneStartupStateResponse_PluginsEntry>,
+  ): DataplaneStartupStateResponse_PluginsEntry {
+    const message = createBaseDataplaneStartupStateResponse_PluginsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? false;
+    return message;
+  },
+};
+
+function createBaseDataplaneStartupPreviewRequest(): DataplaneStartupPreviewRequest {
+  return { owner: "", dataplane: undefined };
+}
+
+export const DataplaneStartupPreviewRequest: MessageFns<DataplaneStartupPreviewRequest> = {
+  encode(message: DataplaneStartupPreviewRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.dataplane !== undefined) {
+      DataplaneConfig.encode(message.dataplane, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneStartupPreviewRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneStartupPreviewRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.dataplane = DataplaneConfig.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneStartupPreviewRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      dataplane: isSet(object.dataplane) ? DataplaneConfig.fromJSON(object.dataplane) : undefined,
+    };
+  },
+
+  toJSON(message: DataplaneStartupPreviewRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.dataplane !== undefined) {
+      obj.dataplane = DataplaneConfig.toJSON(message.dataplane);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneStartupPreviewRequest>): DataplaneStartupPreviewRequest {
+    return DataplaneStartupPreviewRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneStartupPreviewRequest>): DataplaneStartupPreviewRequest {
+    const message = createBaseDataplaneStartupPreviewRequest();
+    message.owner = object.owner ?? "";
+    message.dataplane = (object.dataplane !== undefined && object.dataplane !== null)
+      ? DataplaneConfig.fromPartial(object.dataplane)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseDataplaneStartupPreviewResponse(): DataplaneStartupPreviewResponse {
+  return { rendered: "", startupPath: "", diff: "", changed: false, warnings: [], sha256: "" };
+}
+
+export const DataplaneStartupPreviewResponse: MessageFns<DataplaneStartupPreviewResponse> = {
+  encode(message: DataplaneStartupPreviewResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.rendered !== "") {
+      writer.uint32(10).string(message.rendered);
+    }
+    if (message.startupPath !== "") {
+      writer.uint32(18).string(message.startupPath);
+    }
+    if (message.diff !== "") {
+      writer.uint32(26).string(message.diff);
+    }
+    if (message.changed !== false) {
+      writer.uint32(32).bool(message.changed);
+    }
+    for (const v of message.warnings) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.sha256 !== "") {
+      writer.uint32(50).string(message.sha256);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneStartupPreviewResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneStartupPreviewResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.rendered = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.startupPath = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.diff = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.changed = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.warnings.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.sha256 = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneStartupPreviewResponse {
+    return {
+      rendered: isSet(object.rendered) ? globalThis.String(object.rendered) : "",
+      startupPath: isSet(object.startupPath)
+        ? globalThis.String(object.startupPath)
+        : isSet(object.startup_path)
+        ? globalThis.String(object.startup_path)
+        : "",
+      diff: isSet(object.diff) ? globalThis.String(object.diff) : "",
+      changed: isSet(object.changed) ? globalThis.Boolean(object.changed) : false,
+      warnings: globalThis.Array.isArray(object?.warnings) ? object.warnings.map((e: any) => globalThis.String(e)) : [],
+      sha256: isSet(object.sha256) ? globalThis.String(object.sha256) : "",
+    };
+  },
+
+  toJSON(message: DataplaneStartupPreviewResponse): unknown {
+    const obj: any = {};
+    if (message.rendered !== "") {
+      obj.rendered = message.rendered;
+    }
+    if (message.startupPath !== "") {
+      obj.startupPath = message.startupPath;
+    }
+    if (message.diff !== "") {
+      obj.diff = message.diff;
+    }
+    if (message.changed !== false) {
+      obj.changed = message.changed;
+    }
+    if (message.warnings?.length) {
+      obj.warnings = message.warnings;
+    }
+    if (message.sha256 !== "") {
+      obj.sha256 = message.sha256;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneStartupPreviewResponse>): DataplaneStartupPreviewResponse {
+    return DataplaneStartupPreviewResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneStartupPreviewResponse>): DataplaneStartupPreviewResponse {
+    const message = createBaseDataplaneStartupPreviewResponse();
+    message.rendered = object.rendered ?? "";
+    message.startupPath = object.startupPath ?? "";
+    message.diff = object.diff ?? "";
+    message.changed = object.changed ?? false;
+    message.warnings = object.warnings?.map((e) => e) || [];
+    message.sha256 = object.sha256 ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -80061,6 +80818,39 @@ export const DataplaneService = {
       Buffer.from(SyslogEntriesResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): SyslogEntriesResponse => SyslogEntriesResponse.decode(value),
   },
+  /**
+   * DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+   * startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+   * generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+   */
+  dataplaneStartupState: {
+    path: "/vrx.v1.Dataplane/DataplaneStartupState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DataplaneStartupStateRequest): Buffer =>
+      Buffer.from(DataplaneStartupStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DataplaneStartupStateRequest => DataplaneStartupStateRequest.decode(value),
+    responseSerialize: (value: DataplaneStartupStateResponse): Buffer =>
+      Buffer.from(DataplaneStartupStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DataplaneStartupStateResponse => DataplaneStartupStateResponse.decode(value),
+  },
+  /**
+   * DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+   * renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+   * and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+   */
+  dataplaneStartupPreview: {
+    path: "/vrx.v1.Dataplane/DataplaneStartupPreview" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: DataplaneStartupPreviewRequest): Buffer =>
+      Buffer.from(DataplaneStartupPreviewRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): DataplaneStartupPreviewRequest => DataplaneStartupPreviewRequest.decode(value),
+    responseSerialize: (value: DataplaneStartupPreviewResponse): Buffer =>
+      Buffer.from(DataplaneStartupPreviewResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): DataplaneStartupPreviewResponse =>
+      DataplaneStartupPreviewResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -80278,6 +81068,18 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
    */
   syslogEntries: handleUnaryCall<SyslogEntriesRequest, SyslogEntriesResponse>;
+  /**
+   * DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+   * startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+   * generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+   */
+  dataplaneStartupState: handleUnaryCall<DataplaneStartupStateRequest, DataplaneStartupStateResponse>;
+  /**
+   * DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+   * renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+   * and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+   */
+  dataplaneStartupPreview: handleUnaryCall<DataplaneStartupPreviewRequest, DataplaneStartupPreviewResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -80971,6 +81773,46 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: SyslogEntriesResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+   * startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+   * generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+   */
+  dataplaneStartupState(
+    request: DataplaneStartupStateRequest,
+    callback: (error: ServiceError | null, response: DataplaneStartupStateResponse) => void,
+  ): ClientUnaryCall;
+  dataplaneStartupState(
+    request: DataplaneStartupStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DataplaneStartupStateResponse) => void,
+  ): ClientUnaryCall;
+  dataplaneStartupState(
+    request: DataplaneStartupStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DataplaneStartupStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+   * renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+   * and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+   */
+  dataplaneStartupPreview(
+    request: DataplaneStartupPreviewRequest,
+    callback: (error: ServiceError | null, response: DataplaneStartupPreviewResponse) => void,
+  ): ClientUnaryCall;
+  dataplaneStartupPreview(
+    request: DataplaneStartupPreviewRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: DataplaneStartupPreviewResponse) => void,
+  ): ClientUnaryCall;
+  dataplaneStartupPreview(
+    request: DataplaneStartupPreviewRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: DataplaneStartupPreviewResponse) => void,
   ): ClientUnaryCall;
 }
 

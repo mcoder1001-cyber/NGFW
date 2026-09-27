@@ -128,6 +128,7 @@ var rendererReach = map[string]reachEntry{
 	"nftables":   {wired, "F-host-acl-nftables"},
 	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},
+	"sysident":   {wired, "F-system-identity"},
 	"unbound":    {wired, "F-unbound-chrony-syslog"},
 	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},
 }

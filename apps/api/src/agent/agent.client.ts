@@ -43,6 +43,9 @@ import {
   type HostStackStateResponse,
   // wave-BC: F-snmp
   type SnmpStateResponse,
+  type DataplaneStartupPreviewRequest, // F-dataplane-ui (unanchored)
+  type DataplaneStartupPreviewResponse, // F-dataplane-ui (unanchored)
+  type DataplaneStartupStateResponse, // F-dataplane-ui (unanchored)
   // wave-BC: F-ipfix-sflow
   type IpfixStateResponse,
   // wave-BC: F-capture-trace
@@ -462,6 +465,15 @@ export class AgentClient implements OnModuleDestroy {
   /** F-unbound-chrony-syslog: one page of the log explorer (bounded journal query). */
   syslogEntries(req: Omit<SyslogEntriesRequest, 'owner'>): Promise<SyslogEntriesResponse> {
     return this.unary(this.c.syslogEntries, { ...req, owner: this.owner });
+  }
+  // F-dataplane-ui (unanchored): installed VPP start-up file + host facts; startup.conf preview (read-only).
+  dataplaneStartupState(): Promise<DataplaneStartupStateResponse> {
+    return this.unary(this.c.dataplaneStartupState, { owner: this.owner });
+  }
+  dataplaneStartupPreview(
+    req: Omit<DataplaneStartupPreviewRequest, 'owner'>,
+  ): Promise<DataplaneStartupPreviewResponse> {
+    return this.unary(this.c.dataplaneStartupPreview, { ...req, owner: this.owner });
   }
   /** F-unbound-chrony-syslog: ActionRequest.dns_lookup; collects the whole (short) output stream. */
   dnsLookup(

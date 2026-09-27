@@ -1156,7 +1156,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.14
@@ -1167,7 +1167,7 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
@@ -1181,17 +1181,17 @@ tasks:
   - F-startup-apply
   priority: 4
   est_hours: 6
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D0.6
   scope: UI + API state/preview for the `dataplane` domain; the apply button stays disabled until TD-17 merges
   files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
-  finished: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
+  finished: '2026-09-27'
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
     route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav
     entry.'
@@ -1207,17 +1207,17 @@ tasks:
   - F-unbound-chrony-syslog
   priority: 4
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.9
   - D0.10
   scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
   files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
     apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'

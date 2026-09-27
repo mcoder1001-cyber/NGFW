@@ -264,6 +264,17 @@ service Dataplane {
   // SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
   // (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
   rpc SyslogEntries(SyslogEntriesRequest) returns (SyslogEntriesResponse);
+
+  // wave-BC: F-dataplane-ui
+
+  // DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+  // startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+  // generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+  rpc DataplaneStartupState(DataplaneStartupStateRequest) returns (DataplaneStartupStateResponse);
+  // DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+  // renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+  // and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+  rpc DataplaneStartupPreview(DataplaneStartupPreviewRequest) returns (DataplaneStartupPreviewResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -6731,3 +6742,56 @@ message LispStateResponse {
 // ----- F-ha-state-sync -----
 
 // ----- F-backup-restore -----
+
+// ----- F-dataplane-ui -----
+
+message DataplaneStartupStateRequest {
+  // Expected agent owner; empty = any.
+  string owner = 1;
+}
+
+message DataplaneStartupStateResponse {
+  // Path of the installed start-up file the agent read.
+  string startup_path = 1;
+  // False when the file does not exist (then the fields below that come from it are empty).
+  bool startup_present = 2;
+  // `cpu { workers N }` of the installed file (unset when absent).
+  optional uint32 workers = 3;
+  // `cpu { corelist-workers … }` of the installed file, as written ("" when absent).
+  string corelist_workers = 4;
+  // `cpu { main-core N }` of the installed file (unset when absent).
+  optional uint32 main_core = 5;
+  // `plugins { plugin <file> { enable|disable } }` switches of the installed file.
+  map<string, bool> plugins = 6;
+  // Online CPUs of the host, CPU-list notation ("0-7").
+  string online_cpus = 7;
+  // HugePages_Total × Hugepagesize in bytes.
+  uint64 hugepages_total_bytes = 8;
+  // HugePages_Free × Hugepagesize in bytes.
+  uint64 hugepages_free_bytes = 9;
+  // Why part of the state could not be read ("" = everything was read).
+  string error = 10;
+  google.protobuf.Timestamp retrieved_at = 11;
+}
+
+message DataplaneStartupPreviewRequest {
+  // Expected agent owner; empty = any.
+  string owner = 1;
+  // The candidate `dataplane` domain to render (unset = the empty domain).
+  DataplaneConfig dataplane = 2;
+}
+
+message DataplaneStartupPreviewResponse {
+  // The rendered startup.conf.
+  string rendered = 1;
+  // Path of the installed file compared against.
+  string startup_path = 2;
+  // Unified diff installed → rendered ("" = identical or no installed file).
+  string diff = 3;
+  // True when the rendering differs from the installed file (a VPP restart would change something).
+  bool changed = 4;
+  // Non-fatal generator findings.
+  repeated string warnings = 5;
+  // Hex sha256 of `rendered`.
+  string sha256 = 6;
+}

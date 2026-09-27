@@ -46,42 +46,44 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_Apply_FullMethodName             = "/vrx.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName          = "/vrx.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName            = "/vrx.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName       = "/vrx.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName      = "/vrx.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName            = "/vrx.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName            = "/vrx.v1.Dataplane/Health"
-	Dataplane_InterfaceState_FullMethodName    = "/vrx.v1.Dataplane/InterfaceState"
-	Dataplane_MplsState_FullMethodName         = "/vrx.v1.Dataplane/MplsState"
-	Dataplane_LbState_FullMethodName           = "/vrx.v1.Dataplane/LbState"
-	Dataplane_LbFlushVip_FullMethodName        = "/vrx.v1.Dataplane/LbFlushVip"
-	Dataplane_QosPolicerState_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerState"
-	Dataplane_QosPolicerReset_FullMethodName   = "/vrx.v1.Dataplane/QosPolicerReset"
-	Dataplane_HostStackState_FullMethodName    = "/vrx.v1.Dataplane/HostStackState"
-	Dataplane_SnmpState_FullMethodName         = "/vrx.v1.Dataplane/SnmpState"
-	Dataplane_IpfixState_FullMethodName        = "/vrx.v1.Dataplane/IpfixState"
-	Dataplane_Srv6State_FullMethodName         = "/vrx.v1.Dataplane/Srv6State"
-	Dataplane_LispState_FullMethodName         = "/vrx.v1.Dataplane/LispState"
-	Dataplane_BondState_FullMethodName         = "/vrx.v1.Dataplane/BondState"
-	Dataplane_BridgeDomainState_FullMethodName = "/vrx.v1.Dataplane/BridgeDomainState"
-	Dataplane_BridgeDomainMacs_FullMethodName  = "/vrx.v1.Dataplane/BridgeDomainMacs"
-	Dataplane_LldpNeighbors_FullMethodName     = "/vrx.v1.Dataplane/LldpNeighbors"
-	Dataplane_ListRoutes_FullMethodName        = "/vrx.v1.Dataplane/ListRoutes"
-	Dataplane_ListNeighbors_FullMethodName     = "/vrx.v1.Dataplane/ListNeighbors"
-	Dataplane_FqdnObjectState_FullMethodName   = "/vrx.v1.Dataplane/FqdnObjectState"
-	Dataplane_AclState_FullMethodName          = "/vrx.v1.Dataplane/AclState"
-	Dataplane_HostAclState_FullMethodName      = "/vrx.v1.Dataplane/HostAclState"
-	Dataplane_NatSessions_FullMethodName       = "/vrx.v1.Dataplane/NatSessions"
-	Dataplane_NatSummary_FullMethodName        = "/vrx.v1.Dataplane/NatSummary"
-	Dataplane_WireguardState_FullMethodName    = "/vrx.v1.Dataplane/WireguardState"
-	Dataplane_RoutingState_FullMethodName      = "/vrx.v1.Dataplane/RoutingState"
-	Dataplane_DhcpLeases_FullMethodName        = "/vrx.v1.Dataplane/DhcpLeases"
-	Dataplane_DnsState_FullMethodName          = "/vrx.v1.Dataplane/DnsState"
-	Dataplane_NtpState_FullMethodName          = "/vrx.v1.Dataplane/NtpState"
-	Dataplane_SyslogState_FullMethodName       = "/vrx.v1.Dataplane/SyslogState"
-	Dataplane_SyslogEntries_FullMethodName     = "/vrx.v1.Dataplane/SyslogEntries"
+	Dataplane_Apply_FullMethodName                   = "/vrx.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName                = "/vrx.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName                  = "/vrx.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName             = "/vrx.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName            = "/vrx.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName                  = "/vrx.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName                  = "/vrx.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName          = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_MplsState_FullMethodName               = "/vrx.v1.Dataplane/MplsState"
+	Dataplane_LbState_FullMethodName                 = "/vrx.v1.Dataplane/LbState"
+	Dataplane_LbFlushVip_FullMethodName              = "/vrx.v1.Dataplane/LbFlushVip"
+	Dataplane_QosPolicerState_FullMethodName         = "/vrx.v1.Dataplane/QosPolicerState"
+	Dataplane_QosPolicerReset_FullMethodName         = "/vrx.v1.Dataplane/QosPolicerReset"
+	Dataplane_HostStackState_FullMethodName          = "/vrx.v1.Dataplane/HostStackState"
+	Dataplane_SnmpState_FullMethodName               = "/vrx.v1.Dataplane/SnmpState"
+	Dataplane_IpfixState_FullMethodName              = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_Srv6State_FullMethodName               = "/vrx.v1.Dataplane/Srv6State"
+	Dataplane_LispState_FullMethodName               = "/vrx.v1.Dataplane/LispState"
+	Dataplane_BondState_FullMethodName               = "/vrx.v1.Dataplane/BondState"
+	Dataplane_BridgeDomainState_FullMethodName       = "/vrx.v1.Dataplane/BridgeDomainState"
+	Dataplane_BridgeDomainMacs_FullMethodName        = "/vrx.v1.Dataplane/BridgeDomainMacs"
+	Dataplane_LldpNeighbors_FullMethodName           = "/vrx.v1.Dataplane/LldpNeighbors"
+	Dataplane_ListRoutes_FullMethodName              = "/vrx.v1.Dataplane/ListRoutes"
+	Dataplane_ListNeighbors_FullMethodName           = "/vrx.v1.Dataplane/ListNeighbors"
+	Dataplane_FqdnObjectState_FullMethodName         = "/vrx.v1.Dataplane/FqdnObjectState"
+	Dataplane_AclState_FullMethodName                = "/vrx.v1.Dataplane/AclState"
+	Dataplane_HostAclState_FullMethodName            = "/vrx.v1.Dataplane/HostAclState"
+	Dataplane_NatSessions_FullMethodName             = "/vrx.v1.Dataplane/NatSessions"
+	Dataplane_NatSummary_FullMethodName              = "/vrx.v1.Dataplane/NatSummary"
+	Dataplane_WireguardState_FullMethodName          = "/vrx.v1.Dataplane/WireguardState"
+	Dataplane_RoutingState_FullMethodName            = "/vrx.v1.Dataplane/RoutingState"
+	Dataplane_DhcpLeases_FullMethodName              = "/vrx.v1.Dataplane/DhcpLeases"
+	Dataplane_DnsState_FullMethodName                = "/vrx.v1.Dataplane/DnsState"
+	Dataplane_NtpState_FullMethodName                = "/vrx.v1.Dataplane/NtpState"
+	Dataplane_SyslogState_FullMethodName             = "/vrx.v1.Dataplane/SyslogState"
+	Dataplane_SyslogEntries_FullMethodName           = "/vrx.v1.Dataplane/SyslogEntries"
+	Dataplane_DataplaneStartupState_FullMethodName   = "/vrx.v1.Dataplane/DataplaneStartupState"
+	Dataplane_DataplaneStartupPreview_FullMethodName = "/vrx.v1.Dataplane/DataplaneStartupPreview"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -236,6 +238,14 @@ type DataplaneClient interface {
 	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
 	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
 	SyslogEntries(ctx context.Context, in *SyslogEntriesRequest, opts ...grpc.CallOption) (*SyslogEntriesResponse, error)
+	// DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+	// startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+	// generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+	DataplaneStartupState(ctx context.Context, in *DataplaneStartupStateRequest, opts ...grpc.CallOption) (*DataplaneStartupStateResponse, error)
+	// DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+	// renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+	// and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+	DataplaneStartupPreview(ctx context.Context, in *DataplaneStartupPreviewRequest, opts ...grpc.CallOption) (*DataplaneStartupPreviewResponse, error)
 }
 
 type dataplaneClient struct {
@@ -633,6 +643,26 @@ func (c *dataplaneClient) SyslogEntries(ctx context.Context, in *SyslogEntriesRe
 	return out, nil
 }
 
+func (c *dataplaneClient) DataplaneStartupState(ctx context.Context, in *DataplaneStartupStateRequest, opts ...grpc.CallOption) (*DataplaneStartupStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DataplaneStartupStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_DataplaneStartupState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) DataplaneStartupPreview(ctx context.Context, in *DataplaneStartupPreviewRequest, opts ...grpc.CallOption) (*DataplaneStartupPreviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DataplaneStartupPreviewResponse)
+	err := c.cc.Invoke(ctx, Dataplane_DataplaneStartupPreview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -785,6 +815,14 @@ type DataplaneServer interface {
 	// SyslogEntries is the log explorer: one bounded, paged, read-only query of the local journal
 	// (fixed-argv journalctl -o json; filters are validated values, never a pattern or shell text).
 	SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error)
+	// DataplaneStartupState reports what the VPP start-up configuration currently holds (the installed
+	// startup.conf read by the agent: workers, corelist, main core, plugin switches) plus the host facts the
+	// generator uses (online CPUs, hugepages reserved/free). Read-only; never restarts VPP.
+	DataplaneStartupState(context.Context, *DataplaneStartupStateRequest) (*DataplaneStartupStateResponse, error)
+	// DataplaneStartupPreview renders startup.conf for a candidate `dataplane` domain with the F-startup-gen
+	// renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
+	// and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
+	DataplaneStartupPreview(context.Context, *DataplaneStartupPreviewRequest) (*DataplaneStartupPreviewResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -902,6 +940,12 @@ func (UnimplementedDataplaneServer) SyslogState(context.Context, *SyslogStateReq
 }
 func (UnimplementedDataplaneServer) SyslogEntries(context.Context, *SyslogEntriesRequest) (*SyslogEntriesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SyslogEntries not implemented")
+}
+func (UnimplementedDataplaneServer) DataplaneStartupState(context.Context, *DataplaneStartupStateRequest) (*DataplaneStartupStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DataplaneStartupState not implemented")
+}
+func (UnimplementedDataplaneServer) DataplaneStartupPreview(context.Context, *DataplaneStartupPreviewRequest) (*DataplaneStartupPreviewResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DataplaneStartupPreview not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1551,6 +1595,42 @@ func _Dataplane_SyslogEntries_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_DataplaneStartupState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DataplaneStartupStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).DataplaneStartupState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_DataplaneStartupState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).DataplaneStartupState(ctx, req.(*DataplaneStartupStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_DataplaneStartupPreview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DataplaneStartupPreviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).DataplaneStartupPreview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_DataplaneStartupPreview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).DataplaneStartupPreview(ctx, req.(*DataplaneStartupPreviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1689,6 +1769,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SyslogEntries",
 			Handler:    _Dataplane_SyslogEntries_Handler,
+		},
+		{
+			MethodName: "DataplaneStartupState",
+			Handler:    _Dataplane_DataplaneStartupState_Handler,
+		},
+		{
+			MethodName: "DataplaneStartupPreview",
+			Handler:    _Dataplane_DataplaneStartupPreview_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

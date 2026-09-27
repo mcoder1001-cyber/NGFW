@@ -1,0 +1,3 @@
+[Resolve]
+DNS=192.0.2.53 2001:db8::53
+Domains=lab.example

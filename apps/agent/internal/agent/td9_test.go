@@ -417,14 +417,19 @@ func TestApplyAnswersCarryWarnings(t *testing.T) {
 	warned := func(resp *vrxv1.ApplyResponse) bool {
 		rep := resp.GetValidation()
 		return rep.GetOk() && len(rep.GetErrors()) == 1 && rep.GetErrors()[0].GetRule() == "agent.unimplemented-domain" &&
-			rep.GetErrors()[0].GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING && rep.GetErrors()[0].GetPointer() == "/system"
+			rep.GetErrors()[0].GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING && rep.GetErrors()[0].GetPointer() == "/dataplane"
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}) // sampleDoc has "system"
+	withDataplane := func() *vrxv1.DesiredState { // "dataplane" is not implemented by the agent (F-system-identity implements "system")
+		d := doc(t, sampleDoc)
+		d.Dataplane = &vrxv1.DataplaneConfig{Workers: proto.Uint32(2)}
+		return d
+	}
+	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: withDataplane()})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !warned(resp) {
 		t.Fatalf("APPLIED without the warning: %v", resp.GetValidation())
 	}
-	bad := doc(t, sampleDoc)
+	bad := withDataplane()
 	bad.Interfaces["loop703"] = &vrxv1.Interface{Vrf: proto.String("red"), Ipv4: []string{"10.7.1.2/24"}}
 	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: bad})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)

@@ -1244,6 +1244,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/actions/interfaces/{name}/pppoe/reconnect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Redial a PPPoE client now (ignores the hold-off); the session comes up asynchronously */
+    post: operations['Pppoe_reconnect'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host-acl': {
     parameters: {
       query?: never;
@@ -2130,6 +2147,67 @@ export interface components {
           hostIfType: 'tap' | 'tun';
           /** Network namespace */
           netns?: string;
+        };
+        /** PPPoE client */
+        pppoe?: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Dial over interface */
+          parent?: string;
+          /** Username */
+          username: string;
+          /** Password */
+          passwordRef: string;
+          /** Service name */
+          serviceName?: string;
+          /**
+           * MTU
+           * @default 1492
+           */
+          mtu: number;
+          /**
+           * Clamp TCP MSS
+           * @default true
+           */
+          mssClamp: boolean;
+          /**
+           * Default route from peer
+           * @default true
+           */
+          defaultRoute: boolean;
+          /**
+           * Use peer DNS
+           * @default false
+           */
+          dnsFromPeer: boolean;
+          /**
+           * IPv6
+           * @default off
+           * @enum {string}
+           */
+          ipv6: 'off' | 'slaac' | 'dhcpv6';
+          /**
+           * Reconnect
+           * @default {
+           *       "holdoffSec": 5,
+           *       "maxFail": 0
+           *     }
+           */
+          reconnect: {
+            /**
+             * Hold-off (seconds)
+             * @default 5
+             */
+            holdoffSec: number;
+            /**
+             * Max consecutive failures
+             * @default 0
+             */
+            maxFail: number;
+          };
         };
       };
     };
@@ -10043,6 +10121,20 @@ export interface operations {
                 linkSpeedKbps: string;
                 rxMode: string;
                 description: string;
+                pppoe?: {
+                  /** @description "down" | "dialing" | "up" | "failed" */
+                  phase: string;
+                  sessionId: number;
+                  acMac: string;
+                  acName: string;
+                  localIpv4: string;
+                  peerIpv4: string;
+                  ipv6: string;
+                  dns: string[];
+                  since: string | null;
+                  failCount: number;
+                  lastError: string;
+                } | null;
               } | null;
               /** @description what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, a configured one the data plane does not have yet, or one only in the candidate) */
               config: {
@@ -14236,6 +14328,85 @@ export interface operations {
       };
       /** @description Not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pppoe_reconnect: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description the PPPoE client interface name */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            accepted: boolean;
+            message: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

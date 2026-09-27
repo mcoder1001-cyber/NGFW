@@ -76,6 +76,23 @@ const LiveStateOut = z
     linkSpeedKbps: z.string(),
     rxMode: z.string(),
     description: z.string(),
+    // F-pppoe-client: the live PPPoE session on this interface (absent when it is not a PPPoE client)
+    pppoe: z
+      .object({
+        phase: z.string().describe('"down" | "dialing" | "up" | "failed"'),
+        sessionId: z.number().int(),
+        acMac: z.string(),
+        acName: z.string(),
+        localIpv4: z.string(),
+        peerIpv4: z.string(),
+        ipv6: z.string(),
+        dns: z.array(z.string()),
+        since: z.string().nullable(),
+        failCount: z.number().int(),
+        lastError: z.string(),
+      })
+      .nullable()
+      .optional(),
   })
   .describe('live state from the agent (InterfaceState RPC, dumped from VPP)');
 const InterfaceItemOut = z.object({
@@ -395,7 +412,13 @@ function flattenInterfaces(v: unknown): Map<string, { value: Json; parent: strin
 
 /** InterfaceState as JSON with every field present (ts-proto's toJSON drops defaults such as false/0). */
 function liveJson(s: InterfaceState): Json {
-  return { ...s, linkSpeedKbps: String(s.linkSpeedKbps) };
+  const p = s.pppoe;
+  return {
+    ...s,
+    linkSpeedKbps: String(s.linkSpeedKbps),
+    // F-pppoe-client: normalise the session timestamp to ISO (the RPC gives a Date); null when not a client
+    pppoe: p ? { ...p, since: p.since ? p.since.toISOString() : null } : null,
+  };
 }
 
 function countersJson(c: InterfaceCounters): Json {

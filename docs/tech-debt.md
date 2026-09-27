@@ -141,3 +141,8 @@ Items above that are not ticked keep their text; this table gives each one an ow
   transaction; (3) per-interface drop counters need per-interface bucket ACLs or the ACL plugin's per-interface stats;
   (4) the download does not yet use the management VRF/interface (it uses the API host's routing). Owner:
   F-global-blocking follow-up.
+- F-pppoe-client (this row): the agent-side live Apply (unit supervision, pppd exit tracking, VPP FIB mirror of the
+  negotiated address/route, MSS clamp) and the real `PppoeReconnect` RPC handler are not wired into the agent
+  subsystem registry yet (renderer + supervisor + state reader are done and unit-tested; the RPC returns 501). Owner:
+  F-pppoe-client-host. Also: MSS clamp mechanism on the WAN (VPP vs nftables on the tap) to be decided with the live
+  stack.

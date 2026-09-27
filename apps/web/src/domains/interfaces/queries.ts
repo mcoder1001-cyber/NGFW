@@ -44,3 +44,19 @@ export function useFreshCandidate() {
   const qc = useQueryClient();
   return () => qc.fetchQuery({ queryKey: qk.candidate('interfaces'), queryFn: ({ signal }) => fetchCandidateInterfaces(signal), staleTime: 0 });
 }
+
+/** F-pppoe-client: redial the PPPoE client on `name` now; the live table refreshes afterwards. */
+export function usePppoeReconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      (
+        await call(
+          api.POST('/api/v1/actions/interfaces/{name}/pppoe/reconnect', {
+            params: { path: { name } },
+          }),
+        )
+      ).data,
+    onSettled: () => qc.invalidateQueries({ queryKey: ifaceKeys.state }),
+  });
+}

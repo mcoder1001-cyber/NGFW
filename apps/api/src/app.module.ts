@@ -43,6 +43,7 @@ import { mplsSrmplsFeature } from './features/mpls-srmpls/index.js';
 import { lbFeature } from './features/lb/index.js';
 import { ruleExpiryFeature } from './features/rule-expiry/index.js'; // F-rule-expiry (unanchored)
 import { globalBlockingFeature } from './features/global-blocking/index.js'; // F-global-blocking (unanchored)
+import { pppoeFeature } from './features/pppoe/index.js'; // F-pppoe-client (unanchored)
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -202,6 +203,7 @@ export class AppModule {
         // wave-A: F-acl
         ...aclFeature.controllers,
         ...globalBlockingFeature.controllers, // F-global-blocking (unanchored)
+        ...pppoeFeature.controllers, // F-pppoe-client (unanchored)
         // wave-A: F-host-acl-nftables
         ...hostAclNftablesFeature.controllers,
         // wave-A: F-nat44-ed-sessions

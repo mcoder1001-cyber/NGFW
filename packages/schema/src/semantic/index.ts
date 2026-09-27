@@ -66,6 +66,7 @@ import { qosFlatValidators } from './qos-flat.js';
 import { unboundChronySyslogValidators } from './unbound-chrony-syslog.js';
 import { lbValidators } from './lb.js';
 import { globalBlockingValidators } from './global-blocking.js'; // F-global-blocking
+import { pppoeValidators } from './pppoe.js'; // F-pppoe-client (unanchored)
 
 export * from './registry.js';
 
@@ -140,6 +141,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...unboundChronySyslogValidators,
   ...lbValidators,
   ...globalBlockingValidators, // F-global-blocking
+  ...pppoeValidators, // F-pppoe-client (unanchored)
 ];
 
 /** Process-wide registry populated from {@link SEMANTIC_VALIDATORS}. */

@@ -86,6 +86,7 @@ describe('routing.mpls schema', () => {
       'ipBindings',
       'tunnels',
       'sr',
+      'ldp', // F-mpls-ldp
     ]);
   });
 

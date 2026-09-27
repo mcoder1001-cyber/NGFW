@@ -293,6 +293,11 @@ service Dataplane {
   // MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
   // an agent without multicast (→ 501).
   rpc MulticastState(MulticastStateRequest) returns (MulticastStateResponse);
+
+  // wave-BC: F-mpls-ldp
+  // MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
+  // agent without LDP (→ 501).
+  rpc MplsLdpState(MplsLdpStateRequest) returns (MplsLdpStateResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -681,6 +686,10 @@ enum EventKind {
   // An IGMP group membership changed on a router-mode interface (VPP igmp WatchEvents). Attributes: `source` "igmp",
   // `interface`, `group`, and the sources; used to drive the multicast group state.
   EVENT_KIND_IGMP_GROUP_CHANGED = 24;
+
+  // wave-BC: F-mpls-ldp
+  // An LDP neighbour changed state (FRR ldpd poll). Attributes: `source` "ldp", `peer` (LSR-ID), `old`, `new`.
+  EVENT_KIND_LDP_NEIGHBOR_CHANGED = 23;
 }
 
 // Event is one asynchronous notification. Events on one stream are delivered in observation
@@ -6003,8 +6012,9 @@ message MplsConfig {
   // SR-MPLS (sr_mpls plugin; write-only in VPP 26.06, never in a Retrieve result).
   MplsSr sr = 6;
 
-  // 10 reserved: ldp (F-mpls-ldp)
+  // LDP label distribution (`routing.mpls.ldp`, F-mpls-ldp); unset = LDP not configured.
   // wave-BC: F-mpls-ldp
+  MplsLdp ldp = 10;
 }
 
 // MplsTable mirrors `routing.mpls.tables.<id>`: an additional MPLS FIB (no settings yet).
@@ -7031,6 +7041,77 @@ message LispStateResponse {
 // ----- F-ra-vpn -----
 
 // ----- F-mpls-ldp -----
+
+// MplsLdp mirrors `routing.mpls.ldp`.
+message MplsLdp {
+  // LDP router-id (IPv4).
+  optional string router_id = 1;
+  // Address LDP sessions are established over (IPv4).
+  optional string transport_address = 2;
+  // Interfaces LDP runs on.
+  repeated string interfaces = 3;
+  // Per-neighbour settings keyed by the peer LSR-ID.
+  map<string, LdpNeighbor> neighbors = 4;
+  // The dynamic label block.
+  LdpLabelRange label_range = 5;
+}
+
+// LdpNeighbor mirrors one entry of `routing.mpls.ldp.neighbors`.
+message LdpNeighbor {
+  // Reference to the MD5 password secret ("password/<name>").
+  optional string password_ref = 1;
+}
+
+// LdpLabelRange mirrors `routing.mpls.ldp.labelRange`.
+message LdpLabelRange {
+  optional uint32 min = 1;
+  optional uint32 max = 2;
+}
+
+// MplsLdpStateRequest asks for the live LDP state.
+message MplsLdpStateRequest {
+  string owner = 1;
+}
+
+// MplsLdpStateResponse is the live LDP state (neighbours, LIB bindings, and the FRR→VPP sync status).
+message MplsLdpStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated LdpNeighborState neighbors = 3;
+  repeated LdpBindingState bindings = 4;
+  LdpSyncState sync = 5;
+}
+
+// LdpNeighborState is one LDP neighbour.
+message LdpNeighborState {
+  string lsr_id = 1;
+  string address = 2;
+  // FRR state name (e.g. OPERATIONAL).
+  string state = 3;
+  uint32 uptime_sec = 4;
+}
+
+// LdpBindingState is one label binding from the LIB.
+message LdpBindingState {
+  string prefix = 1;
+  uint32 local_label = 2;
+  string peer = 3;
+  uint32 remote_label = 4;
+  bool in_use = 5;
+}
+
+// LdpSyncState is the FRR→VPP label-sync status (V5).
+message LdpSyncState {
+  google.protobuf.Timestamp last_sync_at = 1;
+  // Routes installed in the MPLS FIB by the sync.
+  uint32 installed = 2;
+  // Label collisions the sync could not install.
+  uint32 conflicts = 3;
+  // Last sync error, empty when healthy.
+  string last_error = 4;
+  // The source in use ("zebra-lfib" | "ldp-bindings").
+  string source = 5;
+}
 
 // ----- F-igmp-mfib -----
 

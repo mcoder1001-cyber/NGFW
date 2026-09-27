@@ -83,6 +83,7 @@ export * from './domains/ext/srv6.js';
 export * from './domains/ext/lisp.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-mpls-ldp
+export * from './domains/ext/mpls-ldp.js';
 // wave-BC: F-igmp-mfib
 export * from './domains/ext/igmp-mfib.js';
 // wave-A: F-bonding

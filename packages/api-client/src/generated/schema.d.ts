@@ -3364,6 +3364,47 @@ export interface components {
             vpnLabel?: number;
           }[];
         };
+        /** LDP */
+        ldp?: {
+          /**
+           * Router ID
+           * Format: ipv4
+           */
+          routerId: string;
+          /**
+           * Transport address
+           * Format: ipv4
+           */
+          transportAddress: string;
+          /**
+           * Interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Neighbours
+           * @default {}
+           */
+          neighbors: {
+            [key: string]: {
+              /** MD5 password */
+              passwordRef?: string;
+            };
+          };
+          /** Dynamic label range */
+          labelRange?: {
+            /**
+             * Minimum label
+             * @default 16
+             */
+            min: number;
+            /**
+             * Maximum label
+             * @default 1048575
+             */
+            max: number;
+          };
+        };
       };
       /** Multicast (IGMP / mFIB / PIM) */
       multicast?: {

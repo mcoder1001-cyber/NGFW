@@ -41,11 +41,19 @@ management.aaa:
 `POST /api/v1/auth/login` walks `order`:
 - **local** answers for users that exist locally with a password; a name unknown locally falls through to the next
   method.
+- **ldap**: a name the directory does not know ("user not found") is not an answer either — the next method is tried
+  (so a local break-glass admin stays reachable behind an LDAP-first order).
 - **radius** / **ldap**: each configured server is tried in turn until one *answers* (failover only when a server is
   unreachable). An answer is final: **a reject is not retried with another method** (and not with local).
 - **oidc** is not a password method: it enables the "Sign in with single sign-on" button on the login page.
 - **fallbackLocal**: when `local` is not in `order` and every external method was unreachable, local users can still
   log in (break-glass). Keep `local` in `order` or leave `fallbackLocal` on so you cannot lock yourself out.
+
+External login names are case-insensitive (folded to lower case). An account belongs to an **identity**, not to a
+name: RADIUS by its user name, LDAP by the entry DN, OIDC by the IdP issuer + `sub`. The first login binds the name;
+afterwards a different identity presenting the same name (for example another OIDC subject with the same
+`preferred_username`, or the same person via another method) is refused. A configured (local) user cannot reuse an
+external account's name either: the commit answers `400` with a pointer to `/management/users/<i>/username`.
 
 An accepted external identity is mapped through `roleMap`; with several matching groups the **highest** role wins.
 No match → `403 no-role-mapping` (and any earlier sessions of that user end). The first successful login creates a
@@ -54,20 +62,30 @@ external name can never take over a local user of the same name. Every external 
 (`auth.external`: method, server, result — never the password). External attempts are rate-limited per client and
 per login name, and failures count toward the lockout.
 
-External users cannot create API keys from their login session (there is no local password to confirm with:
-`403 external-principal`).
+External users have no local password: API-key creation from their session, a password change and an admin password
+reset all answer `403 external-principal`. Every login step (password, MFA, OIDC start/callback) is accepted only
+over TLS (or from loopback) — `403 tls-required` otherwise. The OIDC login is bound to the browser that started it
+(short-lived httpOnly cookie); a callback link opened in another browser is refused.
 
 ## Two-factor authentication (TOTP)
 - `mfa.required`: `none`, `admins` (admin role) or `all`. A user who enrolled voluntarily always needs the code.
 - When a factor is needed, login answers `{ mfaRequired: true, challenge, enrolled }` instead of a session. The web
   UI then asks for the 6-digit code (`POST /api/v1/auth/mfa/verify`). The challenge is single use, lives 5 minutes
   and takes 5 wrong answers; each code is accepted only once.
-- **Enrolment at login**: if the policy requires a factor the user has not set up, the login step shows a new secret
-  once (`POST /api/v1/auth/mfa/enroll`); the first code enables it and ten **recovery codes** are shown once.
-- **Voluntary enrolment**: user menu → *My second factor* (`/system/aaa`): current password, then the first code.
-  Your other sessions are signed out.
+- **Enrolment is admin-issued (D-159)**: an admin opens the Users page → *MFA enrolment token* for the user
+  (`POST /api/v1/auth/mfa/users/{name}/enrolment-token`, admin only) and hands the one-time token (valid 24 h, voided by
+  a password reset, a new one replaces it; *Revoke* = `DELETE …/enrolment-token`) to the user over a trusted channel.
+  Knowing the password alone never binds an authenticator.
+- **Enrolment at login**: if the policy requires a factor the user has not set up, the login step asks for the token
+  (`POST /api/v1/auth/mfa/enroll` — one attempt per sign-in), then shows the new secret once; the first code enables
+  it and ten **recovery codes** are shown once.
+- **Voluntary enrolment**: user menu → *My second factor* (`/system/aaa`): current password + token, then the first
+  code. Your other sessions are signed out.
+- **Before switching `mfa.required` on**, enrol the admins (an admin can issue a token for themselves), otherwise an
+  unenrolled admin needs another admin to issue a token.
 - **Stale sessions**: raising `mfa.required` ends the use of sessions that never passed the second factor (checked on
-  every request and every refresh).
+  every request and every refresh). If the policy cannot be read, only MFA-verified sessions are accepted (fail
+  closed).
 - **Lost device**: sign in with a recovery code (each works once), or an admin uses *Reset second factor* on the Users
   page (`DELETE /api/v1/auth/mfa/users/{name}`) — the user's sessions end and they enrol again at the next login.
 - TOTP secrets are stored encrypted (secret-store master key); recovery codes only as argon2id hashes. They are

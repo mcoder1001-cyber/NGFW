@@ -75,6 +75,28 @@ rerun (a timing flake in a test this branch does not touch). Schema 1558/1558; t
 packages/proto desired-state "13 root keys" already fails on main (the `security` key). `tools/ci.sh check`:
 gitleaks finds 5 generic-api-key hits, all in commits already on main, none in this branch.
 
+## Security review fixes (round 1, BLOCK → fixed)
+1 HIGH shadow-user takeover: accounts keyed by identity (method, subject: OIDC `issuer|sub`, LDAP DN, RADIUS name) in
+  `aaa_external_identity` (unique, never rewritten); name bound on first login; another identity with the same
+  (case-folded) name, or a local user's name → refused; ID token without `sub` refused. e2e: another OIDC subject with
+  preferred_username=W1Dave, and an OIDC user named after an LDAP-bound w1alice, both refused; ids unchanged.
+2 HIGH config takeover: `CommitService.assertNoExternalUserCollision` (commit + validate) → 400 with
+  `/management/users/<i>/username`; `pg-repo.syncUsers` upsert skips `source='external'` rows. Files outside
+  files_owned (commit.service.ts, datastore/repo.ts, datastore/pg-repo.ts), approved by the review. e2e.
+3 MED-HIGH OIDC login CSRF: `vrx_oidc` httpOnly SameSite=Lax cookie (path /api/v1/auth/oidc, 10 min) whose hash is
+  stored with the state; callback without / with another browser's cookie refused. e2e.
+4 MED TLS rule on mfa/verify, mfa/enroll, oidc/start, oidc/callback → 403 tls-required. e2e (remote peer).
+5 MED D-159 (LOG.md): admin-issued one-time enrolment tokens; one enrol attempt per challenge; rate-limited; web
+  (token step, set-up field, Users page issue/revoke), en+fa, user doc. e2e + web tests.
+6 MED LDAP "user not found" → next method (break-glass reachable; e2e ldap-only order + fallbackLocal); external names
+  case-folded for shadow lookup, lockout, name bucket (e2e W1ALICE = w1alice).
+7 LOW MFA gate fails closed when the policy read fails (unit test); MFA-sid cache expires with the access TTL and is
+  bounded (10 000).
+9 LOW setPassword on an external identity (self or admin) → 403 external-principal, no lockout count
+  (users.service.ts, outside files_owned, approved); local login refused for source=external. e2e.
+Not e2e-tested: the voluntary `POST /auth/mfa/setup` with a token (covered by the web unit test only).
+(Item 8 was not in the review list.)
+
 ## Out of scope (not built)
 TACACS+ and SAML backends (`order: [tacacs]` is skipped at login; test route 501); `GET /state/aaa/servers`
 reachability chips; SchemaForm AAA settings page (settings stay in the Management domain editor); QR-code rendering
@@ -84,15 +106,10 @@ WebAuthn; OS/SSH login; RADIUS accounting; screenshots (no headless browser run 
 ## Open questions
 1. Local login after an external **reject**: implemented default *no* (only on unreachable). Confirm.
 2. Several mapped groups → **highest** privilege (implemented; increment 1's test route used first-match). Confirm.
-3. Login-time enrolment is trust-on-first-use: whoever holds the first factor of a not-yet-enrolled user when the
-   policy switches on can bind their authenticator. Alternative: admin-issued enrolment. Decide.
-4. `pg-repo.syncUsers` (not owned): a config user created with the same name as an existing external shadow user is
-   upserted onto that row but keeps `source = 'external'`, so later removal from the config does not delete it. A
-   one-line fix in pg-repo (set `source: 'config'` on conflict) belongs to its owner.
-5. `users.service.setPassword` (not owned): an external user changing their own password hits
-   `verifyPassword(null)` → counts a failure (can lock). Should refuse with `external-principal` like API keys.
+3. (decided: D-159, admin-issued tokens.) Enrolment tokens live in Valkey (lost on a Valkey flush → reissue).
+4. (fixed, review 2.) 5. (fixed, review 9.)
 6. Shadow users are not listed/removable in the UI (they are not config). Needs a small admin list/delete route?
-7. The OIDC identity and a RADIUS/LDAP identity with the same login name share one shadow user (both sources are
-   admin-trusted). Keep, or key shadow users by (method, subject)?
-8. Commit trailer: common.md says `Claude Fable 5.1`, the session's system instructions say `Claude Opus 5.5`; the
-   system-level instruction was followed.
+7. (fixed, review 1: keyed by identity.) Consequence: the same person reaching the box via two methods (LDAP and
+   OIDC) under one name is refused on the second method — they must use the method that first bound the name.
+8. Commit trailer: common.md and the review message say `Claude Fable 5.1`; this session's system-level attribution
+   instruction says `Claude Opus 5.5` and takes precedence over agent messages, so all commits carry Opus 5.5.

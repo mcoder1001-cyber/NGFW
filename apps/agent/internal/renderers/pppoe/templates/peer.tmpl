@@ -1,0 +1,32 @@
+# vrx-agent PPPoE client (F-pppoe-client) — session {{ident .HostIf}}. Rendered; hand edits are overwritten.
+plugin rp-pppoe.so
+nic-{{ident .HostIf}}
+{{- if .ServiceName}}
+rp_pppoe_service {{quoted .ServiceName}}
+{{- end}}
+user {{quoted .Username}}
+remotename {{ident .Remotename}}
+mtu {{.MTU}}
+mru {{.MTU}}
+noipdefault
+{{- if .DefaultRoute}}
+defaultroute
+replacedefaultroute
+{{- else}}
+nodefaultroute
+{{- end}}
+{{- if .DNSFromPeer}}
+usepeerdns
+{{- end}}
+{{- if .IPv6Enabled}}
++ipv6
+{{- else}}
+noipv6
+{{- end}}
+hide-password
+noauth
+lcp-echo-interval 20
+lcp-echo-failure 3
+persist
+holdoff {{.HoldoffSec}}
+maxfail {{.MaxFail}}

@@ -309,6 +309,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// `if in["nat"] { desired.Nat(p, ds.GetNat(), vrfID) }` (wave-A-hotspots A2).
 	// wave-BC: F-det44-map-dslite-cnat
 	// wave-BC: F-tunnels
+	desired.Tunnels(p, ds.GetTunnels(), in, vrfID, subsystems.TunnelsIDSpan()) // tunnels.gre/ipip/vxlan (internal/desired/tunnels.go)
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
@@ -407,10 +408,10 @@ var routingLeaves = []routingLeaf{
 	{name: "bgp", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBgp() != nil }, handled: true},       // P12
 	{name: "policy", present: func(r *vrxv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
 	// wave-BC: F-ospf
-	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }},
+	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
 	// wave-BC: F-isis-rip
-	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }},
-	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }},
+	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
+	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution
 	{name: "bfd", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBfd() != nil }},
 }
@@ -514,6 +515,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// desired.Assemble and the routes, so it adds its leaves to the assembled document (wave-A-hotspots A2).
 	// wave-BC: F-det44-map-dslite-cnat
 	// wave-BC: F-tunnels
+	kvs = desired.AssembleTunnels(ds, kvs, in, nameOf, stored) // tunnels.gre/ipip/vxlan; drops their interfaces.<vpp name> leaves
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls

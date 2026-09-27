@@ -11,3 +11,13 @@ Model `vxlan.Tunnel`: `instance`, `src`, `dst` (unicast or multicast group), `mc
 multicast), `vni`, `encap_vrf_id`, `src_port`/`dst_port` (0 = 4789, canonicalised back to 0), `is_l3`.
 
 Notes: `vxlan_offload_rx` (hardware) is out of scope; VXLAN interfaces are bridged by DF-1.
+
+F-tunnels (product wiring)
+- Wired by `internal/subsystems/tunnels.go` and projected from `tunnels.<kind>` by `internal/desired/tunnels.go`
+  (tunnel + `tunnels.meta` + `interface/<vpp name>` alias + admin state, MTU, VRF, addresses, bridge membership).
+- TD-11b: the descriptor declares `RecordsNoOwnership()` — ownership is the `<owner>:<id>` tag VPP carries on the
+  interface; no claim or boot store is written.
+- TD-11c: the package maps its VPP device class to its creator (`iface.RegisterKind` in `register.go`), so the
+  interface's attributes are deleted before the tunnel.
+- TD-8b: the projection accepts only instances inside the agent's VPP id range (none configured → every tunnel is
+  refused with `tunnels.instance-range`).

@@ -15,3 +15,13 @@ Notes / limitations
 - `ipip_tunnel_dump` lists 6RD tunnels without their 6RD prefixes, so `ipip.sixrd` cannot be read back (partial,
   DF-6-questions Q4). `ipip.tunnel` ignores 6RD records (tag ids never collide).
 - P11 / DF-5 add tunnel protection on `ipip<instance>`.
+
+F-tunnels (product wiring)
+- Wired by `internal/subsystems/tunnels.go` and projected from `tunnels.<kind>` by `internal/desired/tunnels.go`
+  (tunnel + `tunnels.meta` + `interface/<vpp name>` alias + admin state, MTU, VRF, addresses, bridge membership).
+- TD-11b: the descriptor declares `RecordsNoOwnership()` — ownership is the `<owner>:<id>` tag VPP carries on the
+  interface; no claim or boot store is written.
+- TD-11c: the package maps its VPP device class to its creator (`iface.RegisterKind` in `register.go`), so the
+  interface's attributes are deleted before the tunnel.
+- TD-8b: the projection accepts only instances inside the agent's VPP id range (none configured → every tunnel is
+  refused with `tunnels.instance-range`).

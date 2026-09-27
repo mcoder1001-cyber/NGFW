@@ -30,6 +30,8 @@ import faAdvanced from './locales/fa/advanced.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
 // wave-BC: F-det44-map-dslite-cnat
 // wave-BC: F-tunnels
+import enTunnels from './locales/en/tunnels.json';
+import faTunnels from './locales/fa/tunnels.json';
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
@@ -159,6 +161,7 @@ export const NAMESPACES = [
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   // wave-BC: F-tunnels
+  'tunnels',
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
@@ -256,6 +259,7 @@ const en = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   // wave-BC: F-tunnels
+  tunnels: enTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
@@ -350,6 +354,7 @@ const fa = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   // wave-BC: F-tunnels
+  tunnels: faTunnels,
   // wave-BC: P10
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki

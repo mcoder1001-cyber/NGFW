@@ -52,6 +52,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // Feature domains: one line under the feature's anchor (wave-A-hotspots W2).
   'services', // F-snmp (unanchored: no wave-BC: F-snmp anchor in BUILT_DOMAINS)
   // wave-BC: F-tunnels
+  'tunnels',
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-srv6 ('vpn' is already built: F-lisp's entry below)
   // wave-BC: F-lisp
@@ -118,7 +119,9 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
   // the feature's namespace (wave-A-hotspots W2).
   // wave-BC: F-ospf
+  groups.get('routing')!.push({ id: 'ospf', path: '/routing/ospf', labelKey: 'routingIgp:ospf.title', fallbackLabel: 'OSPF', available: true });
   // wave-BC: F-isis-rip
+  groups.get('routing')!.push({ id: 'isis-rip', path: '/routing/isis-rip', labelKey: 'routingIgp:isisRip.title', fallbackLabel: 'IS-IS and RIP', available: true });
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-mpls-srmpls
   groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });

@@ -75,10 +75,13 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'config/*', lazy: async () => ({ Component: (await import('./domains/advanced/AdvancedEditorPage')).AdvancedEditorPage }) },
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
         // wave-BC: F-tunnels
+        { path: 'vpn/tunnels', lazy: async () => ({ Component: (await import('./domains/vpn/tunnels/TunnelsPage')).TunnelsPage }) },
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-ospf
+        { path: 'routing/ospf', lazy: async () => ({ Component: (await import('./domains/routing/ospf/OspfPage')).OspfPage }) },
         // wave-BC: F-isis-rip
+        { path: 'routing/isis-rip', lazy: async () => ({ Component: (await import('./domains/routing/isis-rip/IsisRipPage')).IsisRipPage }) },
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         { path: 'routing/mpls', lazy: async () => ({ Component: (await import('./domains/routing/mpls-srmpls/MplsPage')).MplsPage }) },

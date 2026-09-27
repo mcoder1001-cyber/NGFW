@@ -181,7 +181,7 @@ func TestP12AssembleFRR(t *testing.T) {
 }
 
 func TestP12RoutingWarningTable(t *testing.T) {
-	ds := doc(t, `{"routing":{"bgp":{"asn":1},"ospf":{},"bfd":{}}}`)
+	ds := doc(t, `{"routing":{"bgp":{"asn":1},"isis":{},"bfd":{}}}`)
 	pj := project(ds, []string{"routing"}, nil, nil)
 	var ptrs []string
 	for _, is := range pj.issues {
@@ -189,7 +189,7 @@ func TestP12RoutingWarningTable(t *testing.T) {
 			ptrs = append(ptrs, is.pointer)
 		}
 	}
-	if strings.Join(ptrs, " ") != "/routing/ospf /routing/bfd" {
+	if strings.Join(ptrs, " ") != "/routing/bfd" {
 		t.Fatalf("warnings %v (bgp is handled by P12)", ptrs)
 	}
 }

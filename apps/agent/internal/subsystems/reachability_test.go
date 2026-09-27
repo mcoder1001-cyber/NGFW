@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 23
+const maxPending = 20
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -68,7 +68,7 @@ var descriptorReach = map[string]reachEntry{
 	"dhcp":                {wired, "P08"},
 	"dns":                 {pending, "F-unbound-chrony-syslog"},
 	"flowprobe":           {wired, "F-ipfix-sflow"},
-	"gre":                 {pending, "F-tunnels"},
+	"gre":                 {wired, "F-tunnels"},
 	"gtpu":                {pending, "F-tunnels"},
 	"igmp":                {pending, "F-igmp-mfib"},
 	"ikev2":               {pending, "F-ikev2-native"},
@@ -78,7 +78,7 @@ var descriptorReach = map[string]reachEntry{
 	"ip_neighbor":         {wired, "F-neighbors-ra"},
 	"ip_session_redirect": {pending, "F-rpf-adl-pbr"},
 	"ipfix":               {wired, "F-ipfix-sflow"},
-	"ipip":                {pending, "F-tunnels"},
+	"ipip":                {wired, "F-tunnels"},
 	"ipsec":               {pending, "P11"},
 	"l2":                  {wired, "F-bridge-l2"},
 	"l2tp":                {pending, "F-tunnels"},
@@ -113,7 +113,7 @@ var descriptorReach = map[string]reachEntry{
 	"urpf":                {wired, "F-rpf-adl-pbr"},
 	"vpn":                 {library, "DF-5 shared types, secret contract, keyer"},
 	"vrrp":                {pending, "F-vrrp-config-sync"},
-	"vxlan":               {pending, "F-tunnels"},
+	"vxlan":               {wired, "F-tunnels"},
 	"vxlan_gpe":           {pending, "F-tunnels"},
 	"wireguard":           {wired, "F-wireguard"},
 }

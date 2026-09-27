@@ -12,12 +12,14 @@ import (
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 )
 
 // TestProjectSchemaExamples projects every valid example document of packages/schema: no panic,
 // no ERROR issue, and assemble(project(doc)) round-trips the implemented domains of the document
 // modulo the leaves the core descriptors cannot represent.
 func TestProjectSchemaExamples(t *testing.T) {
+	t.Setenv(subsystems.EnvIDRange, subsystems.IDRangeAll) // F-tunnels: tunnel instances must lie in the agent's id range (TD-8b)
 	// F-snmp: no daemon parse run / secret resolution here (the examples hold refs only); restore after.
 	saved := desired.SnapshotSnmpChecks()
 	desired.RestoreSnmpChecks(nil)

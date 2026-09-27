@@ -1343,16 +1343,16 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D6.6
   scope: GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE
   files_owned: '- gap-only (DF-6 built them): apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/**, docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md'
 - id: F-pki
@@ -1427,17 +1427,17 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D3.4
   - D3.5
   scope: OSPFv2/v3 via FRR
   files_owned: '- apps/agent/internal/renderers/frr/ospf/** (both sections `ospf` and `ospf6`: orders 440/450 per wave-BC-numbers.md), docs/agent/renderers/frr-ospf.md'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: ''
 - id: F-isis-rip
@@ -1451,17 +1451,17 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: ready
+  state: review
   parked_on: ''
   wbs:
   - D3.6
   - D3.7
   scope: IS-IS, RIPv2/RIPng via FRR
   files_owned: '- apps/agent/internal/renderers/frr/{isis,rip}/** (sections `isis` 470, `rip` 420, `ripng` 430 — RIPng lives in the rip package), docs/agent/renderers/frr-{isis,rip}.md'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: ''
 - id: F-bfd-redistribution
@@ -1849,7 +1849,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D8.2
@@ -1859,10 +1859,10 @@ tasks:
     (new, on descriptors/dfkit) docs/agent/descriptors/pcap.md docs/agent/descriptors/trace.md docs/agent/descriptors/pg.md apps/agent/internal/actions/capture-trace/** apps/agent/internal/subsystems/capture_trace*.go
     apps/agent/internal/agent/rpc_capture_trace*.go apps/api/src/features/capture-trace/** apps/api/test/e2e/capture-trace* apps/web/src/domains/tools/capture-trace/** apps/web/src/locales/{en,fa}/capture-trace.json
     docs/user/tools/capture-trace.md test/topology/capture-trace/** docs/status/tasks/F-capture-trace*'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-vpp-debs (tracedump/tracenode build flag, V18) then manager binapi regen — docs/status/tasks/prompts-s4.md'
 - id: F-vrrp-config-sync
@@ -2822,13 +2822,13 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: ready
+  state: review
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   notes: D-123
 - template: ''
   parked_on: ''
@@ -2843,7 +2843,7 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: running
+  state: review
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
   branch: claude/modest-keller-upaw4m

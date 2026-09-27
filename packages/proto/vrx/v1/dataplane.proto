@@ -671,6 +671,11 @@ enum EventKind {
   // A BGP neighbour changed state (1 Hz poll, P12). Attributes: `source` "frr", `vrf`, `peer`, `old`, `new` (FRR state
   // names: Idle, Connect, Active, OpenSent, OpenConfirm, Established; "" = the neighbour appeared/disappeared).
   EVENT_KIND_BGP_NEIGHBOR_CHANGED = 15;
+
+  // wave-BC: F-igmp-mfib
+  // An IGMP group membership changed on a router-mode interface (VPP igmp WatchEvents). Attributes: `source` "igmp",
+  // `interface`, `group`, and the sources; used to drive the multicast group state.
+  EVENT_KIND_IGMP_GROUP_CHANGED = 24;
 }
 
 // Event is one asynchronous notification. Events on one stream are delivered in observation
@@ -1242,6 +1247,8 @@ message RoutingConfig {
   MplsConfig mpls = 15;
 
   // wave-BC: F-igmp-mfib
+  // IPv4 multicast: IGMPv3, static mFIB routes and PIM (`routing.multicast`); unset = not configured.
+  MulticastConfig multicast = 16;
   // wave-BC: F-srv6
   // wave-A: F-bridge-l2
 
@@ -1264,6 +1271,88 @@ message RoutingConfig {
   // F-multiwan (unanchored)
   // Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
   repeated WanGroup wan_groups = 12;
+}
+
+// ----- multicast (F-igmp-mfib, mirrors packages/schema/src/domains/ext/igmp-mfib.ts) -----
+
+// MulticastConfig mirrors `routing.multicast`.
+message MulticastConfig {
+  // IGMPv3 host/router interfaces, SSM ranges and proxies.
+  IgmpConfig igmp = 1;
+  // Static multicast routes (mFIB).
+  repeated Mroute mroutes = 2;
+  // PIM-SM (FRR pimd).
+  PimConfig pim = 3;
+}
+
+// IgmpConfig mirrors `routing.multicast.igmp`.
+message IgmpConfig {
+  // Keyed by VPP interface name.
+  map<string, IgmpInterface> interfaces = 1;
+  // Source-specific multicast ranges (CIDRs).
+  repeated string ssm_ranges = 2;
+  // IGMP proxies keyed by VRF.
+  map<string, IgmpProxy> proxies = 3;
+}
+
+// IgmpInterface mirrors one entry of `routing.multicast.igmp.interfaces`.
+message IgmpInterface {
+  // "host" | "router".
+  optional string mode = 1;
+  // Static joins (host mode).
+  repeated IgmpJoin joins = 2;
+}
+
+// IgmpJoin mirrors one entry of an interface's `joins`.
+message IgmpJoin {
+  // IPv4 multicast group.
+  optional string group = 1;
+  // Included sources (INCLUDE-only; at least one).
+  repeated string sources = 2;
+}
+
+// IgmpProxy mirrors one entry of `routing.multicast.igmp.proxies`.
+message IgmpProxy {
+  // Upstream (querier-side) interface.
+  optional string upstream = 1;
+  // Downstream (member-side) interfaces.
+  repeated string downstream = 2;
+}
+
+// Mroute mirrors one entry of `routing.multicast.mroutes`.
+message Mroute {
+  // VRF the route lives in.
+  optional string vrf = 1;
+  // Multicast group.
+  optional string group = 2;
+  // Source for an (S,G) route; unset for (*,G).
+  optional string source = 3;
+  // Accept/forward interfaces.
+  repeated MroutePath paths = 4;
+}
+
+// MroutePath mirrors one entry of an mroute's `paths`.
+message MroutePath {
+  // VPP interface name.
+  optional string interface = 1;
+  // "accept" | "forward".
+  optional string flags = 2;
+}
+
+// PimConfig mirrors `routing.multicast.pim`.
+message PimConfig {
+  // Interfaces running PIM-SM.
+  repeated string interfaces = 1;
+  // Static rendezvous points.
+  repeated PimRp rp = 2;
+}
+
+// PimRp mirrors one entry of `routing.multicast.pim.rp`.
+message PimRp {
+  // RP address.
+  optional string address = 1;
+  // Group ranges this RP serves (CIDRs).
+  repeated string groups = 2;
 }
 
 // StaticRoute mirrors one entry of `routing.static`.

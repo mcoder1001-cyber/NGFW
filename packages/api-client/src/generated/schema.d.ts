@@ -3314,6 +3314,120 @@ export interface components {
           }[];
         };
       };
+      /** Multicast (IGMP / mFIB / PIM) */
+      multicast?: {
+        /**
+         * IGMP
+         * @default {}
+         */
+        igmp: {
+          /**
+           * IGMP interfaces
+           * @default {}
+           */
+          interfaces: {
+            [key: string]: {
+              /**
+               * Mode
+               * @default router
+               * @enum {string}
+               */
+              mode: 'host' | 'router';
+              /**
+               * Static joins
+               * @default []
+               */
+              joins: {
+                /**
+                 * Group
+                 * Format: ipv4
+                 */
+                group: string;
+                /** Sources */
+                sources: string[];
+              }[];
+            };
+          };
+          /**
+           * SSM ranges
+           * @default [
+           *       "232.0.0.0/8"
+           *     ]
+           */
+          ssmRanges: string[];
+          /**
+           * IGMP proxies
+           * @default {}
+           */
+          proxies: {
+            [key: string]: {
+              /** Upstream */
+              upstream: string;
+              /** Downstream */
+              downstream: string[];
+            };
+          };
+        };
+        /**
+         * Static multicast routes
+         * @default []
+         */
+        mroutes: {
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Group
+           * Format: ipv4
+           */
+          group: string;
+          /**
+           * Source
+           * Format: ipv4
+           */
+          source?: string;
+          /**
+           * Paths
+           * @default []
+           */
+          paths: {
+            /** Interface */
+            interface: string;
+            /**
+             * Role
+             * @default forward
+             * @enum {string}
+             */
+            flags: 'accept' | 'forward';
+          }[];
+        }[];
+        /**
+         * PIM-SM
+         * @default {}
+         */
+        pim: {
+          /**
+           * PIM interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Rendezvous points
+           * @default []
+           */
+          rp: {
+            /**
+             * RP address
+             * Format: ipv4
+             */
+            address: string;
+            /** Group ranges */
+            groups: string[];
+          }[];
+        };
+      };
       /**
        * L2 switching
        * @description Bridge domains, L2/L3 cross-connects and the time-range MAC filter.

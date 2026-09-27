@@ -21,6 +21,7 @@ import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
 import { neighborsField } from './ext/neighbors-ra.js';
 import { pbrField } from './ext/rpf-adl-pbr.js';
 import { wanGroupsField } from './ext/multiwan.js'; // F-multiwan (unanchored)
+import { multicastField } from './ext/igmp-mfib.js'; // wave-BC: F-igmp-mfib
 import { staticRouteTag } from './ext/frr-linuxcp.js'; // wave-A: P12
 import { srv6Field } from './ext/srv6.js';
 
@@ -724,6 +725,7 @@ export const RoutingSchema = withUi(
     // wave-BC: F-mpls-srmpls
     mpls: routingMpls,
     // wave-BC: F-igmp-mfib
+    multicast: multicastField,
     // wave-BC: F-srv6
     // wave-A: F-bridge-l2
     l2: routingL2Field,

@@ -14,6 +14,7 @@ import { TunnelsSchema } from './tunnels.js';
 import { ServicesSchema } from './services.js';
 import { HaSchema } from './ha.js';
 import { ManagementSchema } from './management.js';
+import { SecuritySchema } from './security.js';
 
 const DOMAINS = {
   system: SystemSchema,
@@ -29,10 +30,11 @@ const DOMAINS = {
   services: ServicesSchema,
   ha: HaSchema,
   management: ManagementSchema,
+  security: SecuritySchema,
 } satisfies Record<RootKey, z.ZodType>;
 
 describe('domain schemas', () => {
-  it('exist for exactly the 13 root keys', () => {
+  it('exist for exactly the 14 root keys', () => {
     expect(Object.keys(DOMAINS).sort()).toEqual([...ROOT_KEYS].sort());
   });
 

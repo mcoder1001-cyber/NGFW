@@ -1244,7 +1244,11 @@ export interface DesiredState {
     | HaConfig
     | undefined;
   /** `management` — local users, AAA, TLS, syslog. */
-  management: ManagementConfig | undefined;
+  management:
+    | ManagementConfig
+    | undefined;
+  /** `security` — the box's own defensive policy (brute-force / scan auto-block). */
+  security: SecurityConfig | undefined;
 }
 
 export interface DesiredState_InterfacesEntry {
@@ -3659,6 +3663,64 @@ export interface ManagementConfig {
     | undefined;
   /** Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard). */
   alarms: ManagementAlarms | undefined;
+}
+
+/** SecurityConfig mirrors `security`. */
+export interface SecurityConfig {
+  /** `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking. */
+  autoBlock: AutoBlock | undefined;
+}
+
+/**
+ * AutoBlock mirrors `security.autoBlock`. The thresholds, allow-list and caps are the contract the API and host
+ * detectors share; the blocked entries themselves are runtime state (a system-owned Global Blocking list), never
+ * part of the committed document, so they have no field here.
+ */
+export interface AutoBlock {
+  /** Master switch; when off no source is auto-blocked. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** One rule per source. */
+  rules: AutoBlockRule[];
+  /** Addresses / networks (bare address = /32 or /128) that are never blocked. */
+  allowlist: string[];
+  /** Cap on the live auto-block set. */
+  maxEntries?:
+    | number
+    | undefined;
+  /** Optional free-text description. */
+  description?: string | undefined;
+}
+
+/** AutoBlockRule mirrors one entry of `security.autoBlock.rules`. */
+export interface AutoBlockRule {
+  /** Detector: "webLogin" | "ssh" | "vpnAuth" | "portScan". */
+  source?:
+    | string
+    | undefined;
+  /** Whether this detector is active. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Failures (portScan: distinct ports) from one source within the window before it is blocked. */
+  threshold?:
+    | number
+    | undefined;
+  /** The sliding window the threshold is counted over. */
+  windowSec?:
+    | number
+    | undefined;
+  /** How long a first offence is blocked. */
+  blockSec?:
+    | number
+    | undefined;
+  /** Double the block time on each repeat offence, up to the cap. */
+  escalate?:
+    | boolean
+    | undefined;
+  /** The escalation cap; a single block never lasts longer than this. */
+  maxBlockSec?: number | undefined;
 }
 
 /** ManagementUser mirrors one entry of `management.users`. */
@@ -13842,6 +13904,7 @@ function createBaseDesiredState(): DesiredState {
     services: undefined,
     ha: undefined,
     management: undefined,
+    security: undefined,
   };
 }
 
@@ -13885,6 +13948,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     }
     if (message.management !== undefined) {
       ManagementConfig.encode(message.management, writer.uint32(106).fork()).join();
+    }
+    if (message.security !== undefined) {
+      SecurityConfig.encode(message.security, writer.uint32(114).fork()).join();
     }
     return writer;
   },
@@ -14012,6 +14078,14 @@ export const DesiredState: MessageFns<DesiredState> = {
             message.management = ManagementConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.security = SecurityConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -14065,6 +14139,7 @@ export const DesiredState: MessageFns<DesiredState> = {
       services: isSet(object.services) ? ServicesConfig.fromJSON(object.services) : undefined,
       ha: isSet(object.ha) ? HaConfig.fromJSON(object.ha) : undefined,
       management: isSet(object.management) ? ManagementConfig.fromJSON(object.management) : undefined,
+      security: isSet(object.security) ? SecurityConfig.fromJSON(object.security) : undefined,
     };
   },
 
@@ -14121,6 +14196,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     if (message.management !== undefined) {
       obj.management = ManagementConfig.toJSON(message.management);
     }
+    if (message.security !== undefined) {
+      obj.security = SecurityConfig.toJSON(message.security);
+    }
     return obj;
   },
 
@@ -14171,6 +14249,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     message.ha = (object.ha !== undefined && object.ha !== null) ? HaConfig.fromPartial(object.ha) : undefined;
     message.management = (object.management !== undefined && object.management !== null)
       ? ManagementConfig.fromPartial(object.management)
+      : undefined;
+    message.security = (object.security !== undefined && object.security !== null)
+      ? SecurityConfig.fromPartial(object.security)
       : undefined;
     return message;
   },
@@ -32669,6 +32750,405 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     message.alarms = (object.alarms !== undefined && object.alarms !== null)
       ? ManagementAlarms.fromPartial(object.alarms)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseSecurityConfig(): SecurityConfig {
+  return { autoBlock: undefined };
+}
+
+export const SecurityConfig: MessageFns<SecurityConfig> = {
+  encode(message: SecurityConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.autoBlock !== undefined) {
+      AutoBlock.encode(message.autoBlock, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SecurityConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSecurityConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.autoBlock = AutoBlock.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SecurityConfig {
+    return {
+      autoBlock: isSet(object.autoBlock)
+        ? AutoBlock.fromJSON(object.autoBlock)
+        : isSet(object.auto_block)
+        ? AutoBlock.fromJSON(object.auto_block)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SecurityConfig): unknown {
+    const obj: any = {};
+    if (message.autoBlock !== undefined) {
+      obj.autoBlock = AutoBlock.toJSON(message.autoBlock);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SecurityConfig>): SecurityConfig {
+    return SecurityConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SecurityConfig>): SecurityConfig {
+    const message = createBaseSecurityConfig();
+    message.autoBlock = (object.autoBlock !== undefined && object.autoBlock !== null)
+      ? AutoBlock.fromPartial(object.autoBlock)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlock(): AutoBlock {
+  return { enabled: undefined, rules: [], allowlist: [], maxEntries: undefined, description: undefined };
+}
+
+export const AutoBlock: MessageFns<AutoBlock> = {
+  encode(message: AutoBlock, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    for (const v of message.rules) {
+      AutoBlockRule.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.allowlist) {
+      writer.uint32(26).string(v!);
+    }
+    if (message.maxEntries !== undefined) {
+      writer.uint32(32).uint32(message.maxEntries);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(42).string(message.description);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlock {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlock();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.rules.push(AutoBlockRule.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.allowlist.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.maxEntries = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlock {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => AutoBlockRule.fromJSON(e)) : [],
+      allowlist: globalThis.Array.isArray(object?.allowlist)
+        ? object.allowlist.map((e: any) => globalThis.String(e))
+        : [],
+      maxEntries: isSet(object.maxEntries)
+        ? globalThis.Number(object.maxEntries)
+        : isSet(object.max_entries)
+        ? globalThis.Number(object.max_entries)
+        : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+    };
+  },
+
+  toJSON(message: AutoBlock): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => AutoBlockRule.toJSON(e));
+    }
+    if (message.allowlist?.length) {
+      obj.allowlist = message.allowlist;
+    }
+    if (message.maxEntries !== undefined) {
+      obj.maxEntries = Math.round(message.maxEntries);
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlock>): AutoBlock {
+    return AutoBlock.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlock>): AutoBlock {
+    const message = createBaseAutoBlock();
+    message.enabled = object.enabled ?? undefined;
+    message.rules = object.rules?.map((e) => AutoBlockRule.fromPartial(e)) || [];
+    message.allowlist = object.allowlist?.map((e) => e) || [];
+    message.maxEntries = object.maxEntries ?? undefined;
+    message.description = object.description ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlockRule(): AutoBlockRule {
+  return {
+    source: undefined,
+    enabled: undefined,
+    threshold: undefined,
+    windowSec: undefined,
+    blockSec: undefined,
+    escalate: undefined,
+    maxBlockSec: undefined,
+  };
+}
+
+export const AutoBlockRule: MessageFns<AutoBlockRule> = {
+  encode(message: AutoBlockRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== undefined) {
+      writer.uint32(10).string(message.source);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    if (message.threshold !== undefined) {
+      writer.uint32(24).uint32(message.threshold);
+    }
+    if (message.windowSec !== undefined) {
+      writer.uint32(32).uint32(message.windowSec);
+    }
+    if (message.blockSec !== undefined) {
+      writer.uint32(40).uint32(message.blockSec);
+    }
+    if (message.escalate !== undefined) {
+      writer.uint32(48).bool(message.escalate);
+    }
+    if (message.maxBlockSec !== undefined) {
+      writer.uint32(56).uint32(message.maxBlockSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlockRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlockRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.threshold = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.windowSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.blockSec = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.escalate = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.maxBlockSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlockRule {
+    return {
+      source: isSet(object.source) ? globalThis.String(object.source) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      threshold: isSet(object.threshold) ? globalThis.Number(object.threshold) : undefined,
+      windowSec: isSet(object.windowSec)
+        ? globalThis.Number(object.windowSec)
+        : isSet(object.window_sec)
+        ? globalThis.Number(object.window_sec)
+        : undefined,
+      blockSec: isSet(object.blockSec)
+        ? globalThis.Number(object.blockSec)
+        : isSet(object.block_sec)
+        ? globalThis.Number(object.block_sec)
+        : undefined,
+      escalate: isSet(object.escalate) ? globalThis.Boolean(object.escalate) : undefined,
+      maxBlockSec: isSet(object.maxBlockSec)
+        ? globalThis.Number(object.maxBlockSec)
+        : isSet(object.max_block_sec)
+        ? globalThis.Number(object.max_block_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AutoBlockRule): unknown {
+    const obj: any = {};
+    if (message.source !== undefined) {
+      obj.source = message.source;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.threshold !== undefined) {
+      obj.threshold = Math.round(message.threshold);
+    }
+    if (message.windowSec !== undefined) {
+      obj.windowSec = Math.round(message.windowSec);
+    }
+    if (message.blockSec !== undefined) {
+      obj.blockSec = Math.round(message.blockSec);
+    }
+    if (message.escalate !== undefined) {
+      obj.escalate = message.escalate;
+    }
+    if (message.maxBlockSec !== undefined) {
+      obj.maxBlockSec = Math.round(message.maxBlockSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlockRule>): AutoBlockRule {
+    return AutoBlockRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlockRule>): AutoBlockRule {
+    const message = createBaseAutoBlockRule();
+    message.source = object.source ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.threshold = object.threshold ?? undefined;
+    message.windowSec = object.windowSec ?? undefined;
+    message.blockSec = object.blockSec ?? undefined;
+    message.escalate = object.escalate ?? undefined;
+    message.maxBlockSec = object.maxBlockSec ?? undefined;
     return message;
   },
 };

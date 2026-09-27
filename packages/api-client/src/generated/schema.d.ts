@@ -1329,6 +1329,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/actions/aaa/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin: test an external AAA backend with a credential (no session issued) */
+    post: operations['Aaa_test'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host-acl': {
     parameters: {
       query?: never;
@@ -8315,6 +8332,78 @@ export interface components {
         };
       };
     };
+    /**
+     * Security
+     * @description defensive policy for the box’s own management and control planes
+     * @default {}
+     */
+    SecurityConfig: {
+      /**
+       * Auto-block
+       * @description brute-force / scan detection with automatic temporary blocking via Global Blocking
+       * @default {}
+       */
+      autoBlock: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Detectors
+         * @default []
+         */
+        rules: {
+          /**
+           * Detector
+           * @enum {string}
+           */
+          source: 'webLogin' | 'ssh' | 'vpnAuth' | 'portScan';
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /**
+           * Threshold
+           * @default 5
+           */
+          threshold: number;
+          /**
+           * Window (seconds)
+           * @default 60
+           */
+          windowSec: number;
+          /**
+           * Block (seconds)
+           * @default 900
+           */
+          blockSec: number;
+          /**
+           * Escalate on repeat
+           * @default true
+           */
+          escalate: boolean;
+          /**
+           * Maximum block (seconds)
+           * @default 86400
+           */
+          maxBlockSec: number;
+        }[];
+        /**
+         * Allow list
+         * @default []
+         */
+        allowlist: (string | string)[];
+        /**
+         * Maximum blocked entries
+         * @default 10000
+         */
+        maxEntries: number;
+        /** Description */
+        description?: string;
+      };
+    };
     /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */
     RootConfig: {
       system?: components['schemas']['SystemConfig'];
@@ -8330,6 +8419,7 @@ export interface components {
       services?: components['schemas']['ServicesConfig'];
       ha?: components['schemas']['HaConfig'];
       management?: components['schemas']['ManagementConfig'];
+      security?: components['schemas']['SecurityConfig'];
     };
     /** @description RFC 9457 problem details */
     Problem: {
@@ -14958,6 +15048,72 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Aaa_test: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            method: string;
+            reachable: boolean;
+            authenticated: boolean;
+            groups: string[];
+            role: ('admin' | 'operator' | 'readonly') | null;
+            detail: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
         headers: {
           [name: string]: unknown;
         };

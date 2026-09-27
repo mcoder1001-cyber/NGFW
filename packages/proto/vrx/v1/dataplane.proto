@@ -971,6 +971,8 @@ message DesiredState {
   HaConfig ha = 12;
   // `management` — local users, AAA, TLS, syslog.
   ManagementConfig management = 13;
+  // `security` — the box's own defensive policy (brute-force / scan auto-block).
+  SecurityConfig security = 14;
 }
 
 // ----- system (P02a, mirrors packages/schema/src/domains/system.ts) -----
@@ -2589,6 +2591,48 @@ message ManagementConfig {
   // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
   ManagementAlarms alarms = 6;
   // wave-BC: F-backup-restore
+}
+
+// ----- security (F-bruteforce-block, mirrors packages/schema/src/domains/security.ts) -----
+
+// SecurityConfig mirrors `security`.
+message SecurityConfig {
+  // `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking.
+  AutoBlock auto_block = 1;
+}
+
+// AutoBlock mirrors `security.autoBlock`. The thresholds, allow-list and caps are the contract the API and host
+// detectors share; the blocked entries themselves are runtime state (a system-owned Global Blocking list), never
+// part of the committed document, so they have no field here.
+message AutoBlock {
+  // Master switch; when off no source is auto-blocked.
+  optional bool enabled = 1;
+  // One rule per source.
+  repeated AutoBlockRule rules = 2;
+  // Addresses / networks (bare address = /32 or /128) that are never blocked.
+  repeated string allowlist = 3;
+  // Cap on the live auto-block set.
+  optional uint32 max_entries = 4;
+  // Optional free-text description.
+  optional string description = 5;
+}
+
+// AutoBlockRule mirrors one entry of `security.autoBlock.rules`.
+message AutoBlockRule {
+  // Detector: "webLogin" | "ssh" | "vpnAuth" | "portScan".
+  optional string source = 1;
+  // Whether this detector is active.
+  optional bool enabled = 2;
+  // Failures (portScan: distinct ports) from one source within the window before it is blocked.
+  optional uint32 threshold = 3;
+  // The sliding window the threshold is counted over.
+  optional uint32 window_sec = 4;
+  // How long a first offence is blocked.
+  optional uint32 block_sec = 5;
+  // Double the block time on each repeat offence, up to the cap.
+  optional bool escalate = 6;
+  // The escalation cap; a single block never lasts longer than this.
+  optional uint32 max_block_sec = 7;
 }
 
 // ManagementUser mirrors one entry of `management.users`.

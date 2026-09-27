@@ -1181,16 +1181,16 @@ tasks:
   - F-startup-apply
   priority: 4
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.6
   scope: UI + API state/preview for the `dataplane` domain; the apply button stays disabled until TD-17 merges
   files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
     route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav

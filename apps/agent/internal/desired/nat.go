@@ -102,7 +102,7 @@ func Nat(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	dsliteBuild(s, nat.GetDslite())
 	mapBuild(s, nat.GetMap())
 	cnatBuild(s, nat)
-	// pnat (NatConfig 27, F-det44-map-dslite-cnat): its builder call goes here.
+	pnatBuild(s, nat.GetPnat())
 }
 
 // natUnsupported warns about a present, non-empty translator this build does not apply.
@@ -401,6 +401,7 @@ func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.NatCo
 	assembleDslite(out, kvs)
 	assembleMap(out, kvs)
 	assembleCnat(out, kvs)
+	assemblePnat(out, kvs)
 	return out
 }
 

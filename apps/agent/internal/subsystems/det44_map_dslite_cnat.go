@@ -2,8 +2,8 @@ package subsystems
 
 // F-det44-map-dslite-cnat: the `nat` domain's CGNAT and transition families — DF-3's descriptors/{det44,mapnat,cnat}
 // and the new descriptors/dslite — with the persisted NAT claim store and the D-071 globals flag. subsystems.go
-// carries only the registration lines under this task's anchors. PNAT (descriptors/pnat) has no contract leaf yet
-// (nat.pnat, NatConfig 27) and stays unwired.
+// carries only the registration lines under this task's anchors. PNAT (descriptors/pnat, nat.pnat = NatConfig 27) is
+// registered with the same claims.
 
 import (
 	"ngfw/agent/internal/descriptors/cnat"
@@ -11,6 +11,7 @@ import (
 	"ngfw/agent/internal/descriptors/dslite"
 	"ngfw/agent/internal/descriptors/mapnat"
 	"ngfw/agent/internal/descriptors/natcommon"
+	"ngfw/agent/internal/descriptors/pnat"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -33,6 +34,8 @@ var det44MapDsliteCnatDescriptors = []string{
 	cnat.NameSnatInterface,
 	cnat.NameSnatExcludePfx,
 	cnat.NameInterfaceFeature,
+	pnat.NameBinding,
+	pnat.NameAttachment,
 }
 
 // registerDet44MapDsliteCnat registers the four families with the persisted claims of the "nat" family (claim keys
@@ -48,5 +51,6 @@ func (w *Wiring) registerDet44MapDsliteCnat(r scheduler.Registry) error {
 	dslite.Register(r, w.env.Client, w.env.Owner, opts...)
 	mapnat.Register(r, w.env.Client, w.env.Owner, opts...)
 	cnat.Register(r, w.env.Client, w.env.Owner, opts...)
+	pnat.Register(r, w.env.Client, w.env.Owner, opts...)
 	return nil
 }

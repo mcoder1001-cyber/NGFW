@@ -696,6 +696,19 @@ push channel without linking it, RF-1); a change is published once, never repeat
 
 <!-- wave-A: F-unbound-chrony-syslog -->
 
+<!-- F-dataplane-ui (unanchored) -->
+### F-dataplane-ui: DataplaneStartupState, DataplaneStartupPreview
+
+`rpc DataplaneStartupState(DataplaneStartupStateRequest) returns (DataplaneStartupStateResponse)` — the installed VPP
+start-up file (`startup_path`, `startup_present`, its `cpu { workers | corelist-workers | main-core }` and plugin
+switches) plus host facts (`online_cpus`, hugepages total/free in bytes); `error` names what could not be read.
+`rpc DataplaneStartupPreview(DataplaneStartupPreviewRequest) returns (DataplaneStartupPreviewResponse)` renders
+startup.conf for the given `DataplaneConfig` with the F-startup-gen renderer (internal/renderers/vppstartup) on this
+host's facts and returns `rendered`, a unified `diff` against the installed file, `changed`, `warnings`, `sha256`.
+Document errors → `INVALID_ARGUMENT`; unreadable host facts or installed file → `FAILED_PRECONDITION`. Both are
+read-only: nothing is written, VPP is never restarted (installing is apply-startup.sh, gated by TD-17). Paths:
+`VRX_VPP_STARTUP_CONF`, `VRX_VPP_PLUGIN_DIR`, `VRX_SYS_ROOT` (test/slot overrides).
+
 <!-- F-snmp (unanchored: no wave-BC anchor in this list) -->
 ### F-snmp: SnmpState
 

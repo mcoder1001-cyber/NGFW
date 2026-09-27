@@ -748,6 +748,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/dataplane': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Installed VPP start-up configuration (workers, cores, plugin switches) and host facts (CPUs, hugepages) */
+    get: operations['Dataplane_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/dataplane/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Render startup.conf for the candidate `dataplane` domain and diff it against the installed file (read-only) */
+    post: operations['Dataplane_preview'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/ipfix': {
     parameters: {
       query?: never;
@@ -11324,6 +11358,195 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Dataplane_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description installed VPP start-up file the agent read */
+            startupPath: string;
+            startupPresent: boolean;
+            /** @description cpu { workers N } of the installed file */
+            workers: number | null;
+            /** @description cpu { corelist-workers … } of the installed file */
+            corelistWorkers: string;
+            /** @description cpu { main-core N } of the installed file */
+            mainCore: number | null;
+            /** @description plugin switches of the installed file */
+            plugins: {
+              [key: string]: boolean;
+            };
+            /** @description online CPUs of the host (CPU-list notation) */
+            onlineCpus: string;
+            /** @description uint64 as decimal string (D-039) */
+            hugepagesTotalBytes: string;
+            /** @description uint64 as decimal string (D-039) */
+            hugepagesFreeBytes: string;
+            /** @description what could not be read; empty = everything was read */
+            error: string;
+            retrievedAt: string | null;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Dataplane_preview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description startup.conf rendered from the candidate `dataplane` domain */
+            rendered: string;
+            startupPath: string;
+            /** @description unified diff installed → rendered; empty = identical */
+            diff: string;
+            /** @description applying would change the installed file (VPP restart) */
+            changed: boolean;
+            warnings: string[];
+            sha256: string;
+            /**
+             * @description these settings only take effect after a VPP restart
+             * @constant
+             */
+            restartRequired: true;
+            /**
+             * @description installing the file (apply-startup.sh) is a manager step gated by TD-17
+             * @constant
+             */
+            applyAvailable: false;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

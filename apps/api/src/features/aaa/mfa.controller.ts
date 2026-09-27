@@ -232,6 +232,10 @@ export class MfaController {
     @Req() req: VrxRequest,
   ): Promise<void> {
     req.audit = { resource: `user/${name}`, after: { mfaReset: true } };
-    await this.auth.mfaReset(name);
+    const r = await this.auth.mfaReset(name);
+    req.audit = {
+      resource: `user/${name}`,
+      after: { mfaReset: true, apiKeysMfaCleared: r.apiKeysMfaCleared },
+    };
   }
 }

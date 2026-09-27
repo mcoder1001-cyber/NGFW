@@ -69,11 +69,12 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-mpls-srmpls ('mpls' is listed after 'routing' above: nav.ts pushes it before the wave-A routing items)
       // wave-BC: F-igmp-mfib
       // wave-BC: F-capture-trace
-      // wave-BC: F-tunnels
+      // wave-BC: F-tunnels ('tunnels' is listed after 'vpn' below: schema order within the vpn group)
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-srv6 ('vpn' already listed by F-lisp below)
       // wave-BC: F-lisp
       'vpn', // F-lisp: vpn group, after the interfaces/routing/firewall items above
+      'tunnels', // F-tunnels: vpn group, after vpn
       // wave-A: F-bonding
       // wave-A: F-bridge-l2
       // wave-A: F-loopback-bvi-gso-lldp-span

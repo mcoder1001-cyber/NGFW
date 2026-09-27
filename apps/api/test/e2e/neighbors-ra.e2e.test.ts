@@ -243,7 +243,8 @@ describe('neighbors-ra e2e (PostgreSQL + fake agent)', () => {
       before: { interface: L, family: 'ipv4' },
       after: { deleted: 1, interfaces: 1, exitCode: 0 },
     });
-    // the generic action route still owns the other names
-    expect((await h.call(admin, 'POST', '/api/v1/actions/ping')).status).toBe(501);
+    // the generic action route still owns the other names (ping is its own feature's since F-vrf-static-ecmp; reboot has
+    // no agent action yet)
+    expect((await h.call(admin, 'POST', '/api/v1/actions/reboot')).status).toBe(501);
   });
 });

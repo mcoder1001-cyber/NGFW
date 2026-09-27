@@ -7,6 +7,7 @@ import { DatastoreService } from '../../datastore/datastore.service.js';
 import { DB, type Db } from '../../db/db.js';
 import { secret, type Role } from '../../db/schema.js';
 import { ldapAuthenticate, type LdapClientFactory } from './ldap.js';
+import type { OidcConfig } from './oidc.js';
 import { radiusAuthenticate } from './radius.js';
 
 type Json = Record<string, unknown>;
@@ -227,6 +228,32 @@ export class AaaService {
       return { status: 'reject', method: 'ldap', server, message: r.message };
     }
     return { status: 'accept', method: 'ldap', server, groups: r.groups };
+  }
+
+  /**
+   * F-aaa-login: the OpenID Connect settings when `oidc` is in the login order and configured, else null. The client
+   * secret is NOT part of this (see `oidcClientSecret`, read only for the token request).
+   */
+  async oidcConfig(): Promise<(OidcConfig & { clientSecretRef: string }) | null> {
+    const aaa = await this.aaa();
+    const order = Array.isArray(aaa['order']) ? (aaa['order'] as unknown[]) : [];
+    const o = isPlainObject(aaa['oidc']) ? (aaa['oidc'] as Json) : null;
+    if (o === null || !order.includes('oidc')) return null;
+    return {
+      issuer: String(o['issuer']),
+      clientId: String(o['clientId']),
+      clientSecretRef: String(o['clientSecretRef']),
+      redirectUri: String(o['redirectUri']),
+      scopes: Array.isArray(o['scopes']) ? (o['scopes'] as unknown[]).map(String) : ['openid'],
+      usernameClaim:
+        typeof o['usernameClaim'] === 'string' ? o['usernameClaim'] : 'preferred_username',
+      roleClaim: typeof o['roleClaim'] === 'string' ? o['roleClaim'] : 'groups',
+    };
+  }
+
+  /** The OIDC client secret, resolved from the secret store at use time (never cached). */
+  async oidcClientSecret(ref: string): Promise<string | null> {
+    return this.readSecret(ref);
   }
 
   /** Admin route: validate a configured backend by authenticating (username, password) against it; no session. */

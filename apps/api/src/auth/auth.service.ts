@@ -18,6 +18,7 @@ import {
   type LoginPolicy,
 } from '../features/aaa/aaa.service.js';
 import { MfaService } from '../features/aaa/mfa.service.js';
+import { authorizationUrl, discover, newState, pkce, redeem } from '../features/aaa/oidc.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { Lockout, type LockSubject } from './lockout.js';
 import { hashPassword, verifyPassword } from './password.js';
@@ -69,6 +70,8 @@ export interface KeyStepUp {
 /** F-aaa-login: a login challenge lives this long (seconds) and takes this many wrong answers. */
 const MFA_CHALLENGE_SEC = 300;
 const MFA_CHALLENGE_TRIES = 5;
+/** F-aaa-login: an OIDC authorisation request (state, PKCE verifier, nonce) lives this long (seconds). */
+const OIDC_STATE_SEC = 600;
 
 const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex');
 const b64url = (n: number) => randomBytes(n).toString('base64url');
@@ -316,7 +319,7 @@ export class AuthService {
    */
   private async provision(
     username: string,
-    method: ExternalMethod,
+    method: string,
     groups: string[],
     ip: string,
     fail: ReturnType<AuthService['failer']>,
@@ -643,6 +646,92 @@ export class AuthService {
       true,
     );
     return recoveryCodes === undefined ? s : { ...s, recoveryCodes };
+  }
+
+  /** F-aaa-login: is OpenID Connect single sign-on offered (the login page shows the button)? */
+  async oidcEnabled(): Promise<boolean> {
+    return (await this.aaa.oidcConfig()) !== null;
+  }
+
+  /**
+   * `GET /auth/oidc/start`: the IdP authorisation URL (code flow + PKCE S256 + nonce). The state is single use, 10 min,
+   * kept server-side with the PKCE verifier and the nonce. Rate-limited with the password logins of this client.
+   */
+  async oidcStart(ip: string): Promise<string> {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const cfg = await this.aaa.oidcConfig();
+    if (cfg === null) throw problems.notFound('OpenID Connect login is not configured');
+    let d;
+    try {
+      d = await discover(cfg.issuer);
+    } catch (e) {
+      throw problems.unavailable(
+        `the identity provider cannot be reached (${(e as Error).message})`,
+      );
+    }
+    const { state, nonce } = newState();
+    const p = pkce();
+    await this.kv.set(
+      `oidcst:${sha256hex(state)}`,
+      JSON.stringify({ verifier: p.verifier, nonce }),
+      'EX',
+      OIDC_STATE_SEC,
+    );
+    return authorizationUrl(d, cfg, { state, nonce, challenge: p.challenge });
+  }
+
+  /**
+   * `GET /auth/oidc/callback`: the state is consumed (GETDEL — single use), the code redeemed with the PKCE verifier,
+   * the ID token verified; its user → roleMap → shadow user → `finish()` (so the MFA policy applies to SSO logins
+   * too). Every outcome is audited as `auth.external` / `auth.login` with method `oidc`; the caller only gets a slug.
+   */
+  async oidcCallback(
+    code: string | undefined,
+    state: string | undefined,
+    ip: string,
+  ): Promise<LoginResult | MfaChallenge> {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const fail = this.failer('(oidc)', ip);
+    if (!code || !state || !/^[A-Za-z0-9_-]{16,128}$/.test(state) || code.length > 2048) {
+      throw await fail('oidc-bad-callback', null);
+    }
+    const raw = await this.kv.getdel(`oidcst:${sha256hex(state)}`);
+    if (raw === null) throw await fail('oidc-unknown-state', null);
+    const st = JSON.parse(raw) as { verifier: string; nonce: string };
+    const cfg = await this.aaa.oidcConfig();
+    if (cfg === null) throw await fail('oidc-not-configured', null);
+    const secretVal = await this.aaa.oidcClientSecret(cfg.clientSecretRef);
+    if (secretVal === null) {
+      await this.auditExternal(
+        '(oidc)',
+        ip,
+        'oidc',
+        cfg.issuer,
+        'unreachable',
+        `secret ${cfg.clientSecretRef} not found`,
+      );
+      throw await fail('oidc-secret-missing', null);
+    }
+    let who;
+    try {
+      who = await redeem(await discover(cfg.issuer), cfg, secretVal, code, st.verifier, st.nonce);
+    } catch (e) {
+      await this.auditExternal('(oidc)', ip, 'oidc', cfg.issuer, 'reject', (e as Error).message);
+      throw await fail('oidc-token-refused', null);
+    }
+    await this.auditExternal(who.username, ip, 'oidc', cfg.issuer, 'accept', null);
+    const u = await this.provision(
+      who.username,
+      'oidc',
+      who.groups,
+      ip,
+      this.failer(who.username, ip),
+    );
+    return this.finish(u, ip, await this.aaa.policy(), 'oidc');
   }
 
   /** `GET /auth/mfa`: the caller's second-factor state and the policy that applies to them. */

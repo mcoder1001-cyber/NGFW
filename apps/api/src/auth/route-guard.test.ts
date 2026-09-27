@@ -23,6 +23,9 @@ const PUBLIC = new Set([
   // wave-BC: F-aaa
   'POST /api/v1/auth/mfa/verify', // F-aaa-login: authorised by the single-use login challenge
   'POST /api/v1/auth/mfa/enroll', // F-aaa-login: authorised by the single-use login challenge
+  'GET /api/v1/auth/methods', // F-aaa-login: whether the login page shows the SSO button
+  'GET /api/v1/auth/oidc/start', // F-aaa-login: redirect to the IdP
+  'GET /api/v1/auth/oidc/callback', // F-aaa-login: redirect back from the IdP (state + PKCE)
   // wave-BC: F-restconf-yang
 ]);
 

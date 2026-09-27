@@ -3112,17 +3112,17 @@ tasks:
   - TD-7
   priority: 5
   est_hours: 6
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.6
   scope: 'review 6.4 item 3: installed binary paths (e.g. /usr/lib/vrx/bin); an appliance approval gate bound to the sha256 plus the dead-man, reading no docs/lab or PENDING files; the lab gate kept as
     a mode'
   files_owned: deploy/vpp/apply-startup.sh docs/status/tasks/TD-17*
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'D-125 (review plan id TD-12, renumbered: board TD-12 is the de-flake row, D-121) | until TD-17 merges, P10 ships the script disabled'
 - id: TD-18

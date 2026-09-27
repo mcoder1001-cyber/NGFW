@@ -199,6 +199,7 @@ var Domains = map[string][]string{
 		// wave-A: F-nat44-ei-64-66-nptv6
 		nat44EI6466NptDescriptors,
 		// wave-BC: F-det44-map-dslite-cnat
+		det44MapDsliteCnatDescriptors,
 	),
 	// wave-A: P11
 	// wave-A: F-wireguard
@@ -317,6 +318,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// Feature families: one `<pkg>.Register(r, c, owner, opts…)` line under the feature's anchor; store
 	// options only through the Wiring methods (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
+	if err := w.registerDet44MapDsliteCnat(r); err != nil { // det44/dslite/map/cnat (det44_map_dslite_cnat.go)
+		return nil, err
+	}
 	// wave-BC: F-tunnels
 	if err := registerTunnels(r, w); err != nil { // DF-6 gre/ipip/vxlan tunnels + tunnels.meta (tunnels.go)
 		return nil, err

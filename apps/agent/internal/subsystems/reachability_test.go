@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 19
+const maxPending = 16
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -56,9 +56,9 @@ var descriptorReach = map[string]reachEntry{
 	"bfd":                 {pending, "F-bfd-redistribution"},
 	"bond":                {wired, "F-bonding"},
 	"classify":            {pending, "F-rpf-adl-pbr"},
-	"cnat":                {pending, "F-det44-map-dslite-cnat"},
+	"cnat":                {wired, "F-det44-map-dslite-cnat"},
 	"core":                {wired, "P08"},
-	"det44":               {pending, "F-det44-map-dslite-cnat"},
+	"det44":               {wired, "F-det44-map-dslite-cnat"},
 	"df2":                 {library, "DF-2 shared helpers (keys, claims, canonicalisation)"},
 	"df6":                 {library, "DF-6 shared helpers"},
 	"df7":                 {library, "DF-7 shared helpers (codec, boot store, registry)"},
@@ -67,6 +67,7 @@ var descriptorReach = map[string]reachEntry{
 	"kit":                 {library, "TD-16 shared helpers (atomic write, ParsePrefix, Register) — no descriptors"},
 	"dhcp":                {wired, "P08"},
 	"dns":                 {pending, "F-unbound-chrony-syslog"},
+	"dslite":              {wired, "F-det44-map-dslite-cnat"},
 	"flowprobe":           {wired, "F-ipfix-sflow"},
 	"gre":                 {wired, "F-tunnels"},
 	"gtpu":                {pending, "F-tunnels"},
@@ -88,7 +89,7 @@ var descriptorReach = map[string]reachEntry{
 	"lisp":                {wired, "F-lisp"},
 	"lldp":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"mactime":             {wired, "F-bridge-l2"},
-	"mapnat":              {pending, "F-det44-map-dslite-cnat"},
+	"mapnat":              {wired, "F-det44-map-dslite-cnat"},
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
 	"mpls":                {wired, "F-mpls-srmpls"},
 	"nat44ed":             {wired, "F-nat44-ed-sessions"},

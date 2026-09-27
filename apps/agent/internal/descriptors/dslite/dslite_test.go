@@ -80,7 +80,6 @@ func newFakeDS() *fakeDS {
 
 func ep(v6, v4 string) *dslite.EndpointSpec { return &dslite.EndpointSpec{IPv6: v6, IPv4: v4} }
 
-
 func TestGlobalsOwnerSetsRetrievesResets(t *testing.T) {
 	f := newFakeDS()
 	p := dslite.New(f, "w9", natcommon.WithGlobalsOwner(true))

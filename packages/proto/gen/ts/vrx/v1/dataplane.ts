@@ -3902,7 +3902,7 @@ export interface ManagementUser {
 
 /** ManagementAaa mirrors `management.aaa`. */
 export interface ManagementAaa {
-  /** Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"]. */
+  /** Authentication methods in order: "local" | "radius" | "tacacs" | "ldap" | "oidc"; Zod default ["local"]. */
   order: string[];
   /** RADIUS servers. */
   radius:
@@ -3919,8 +3919,11 @@ export interface ManagementAaa {
   ldap:
     | AaaLdap
     | undefined;
+  /** OpenID Connect single sign-on (F-aaa-login). */
+  oidc:
+    | AaaOidc
+    | undefined;
   /**
-   * OIDC (reserved for a follow-up): field 5.
    * SAML (reserved for a follow-up): field 6.
    * External group -> local role.
    */
@@ -10110,6 +10113,34 @@ export interface AaaMfa {
     | undefined;
   /** Authenticator-app issuer label; Zod default "vrx". */
   issuer?: string | undefined;
+}
+
+/** AaaOidc mirrors `management.aaa.oidc` (F-aaa-login). */
+export interface AaaOidc {
+  /** IdP issuer URL (https; http only for a loopback host). */
+  issuer?:
+    | string
+    | undefined;
+  /** OAuth client id. */
+  clientId?:
+    | string
+    | undefined;
+  /** Reference to the client secret ("token/<name>"). */
+  clientSecretRef?:
+    | string
+    | undefined;
+  /** Redirect URI registered at the IdP (…/api/v1/auth/oidc/callback). */
+  redirectUri?:
+    | string
+    | undefined;
+  /** Requested scopes; Zod default ["openid","profile","email"]. */
+  scopes: string[];
+  /** ID-token claim used as the login name; Zod default "preferred_username". */
+  usernameClaim?:
+    | string
+    | undefined;
+  /** ID-token claim listing groups; Zod default "groups". */
+  roleClaim?: string | undefined;
 }
 
 export interface DataplaneStartupStateRequest {
@@ -35095,6 +35126,7 @@ function createBaseManagementAaa(): ManagementAaa {
     radius: undefined,
     tacacs: undefined,
     ldap: undefined,
+    oidc: undefined,
     roleMap: [],
     mfa: undefined,
     fallbackLocal: undefined,
@@ -35114,6 +35146,9 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
     if (message.ldap !== undefined) {
       AaaLdap.encode(message.ldap, writer.uint32(34).fork()).join();
+    }
+    if (message.oidc !== undefined) {
+      AaaOidc.encode(message.oidc, writer.uint32(42).fork()).join();
     }
     for (const v of message.roleMap) {
       AaaRoleMapping.encode(v!, writer.uint32(58).fork()).join();
@@ -35172,6 +35207,14 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
             message.ldap = AaaLdap.decode(reader, reader.uint32());
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.oidc = AaaOidc.decode(reader, reader.uint32());
+            continue;
+          }
           case 7: {
             if (tag !== 58) {
               break;
@@ -35214,6 +35257,7 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
       radius: isSet(object.radius) ? AaaRadius.fromJSON(object.radius) : undefined,
       tacacs: isSet(object.tacacs) ? AaaTacacs.fromJSON(object.tacacs) : undefined,
       ldap: isSet(object.ldap) ? AaaLdap.fromJSON(object.ldap) : undefined,
+      oidc: isSet(object.oidc) ? AaaOidc.fromJSON(object.oidc) : undefined,
       roleMap: globalThis.Array.isArray(object?.roleMap)
         ? object.roleMap.map((e: any) => AaaRoleMapping.fromJSON(e))
         : globalThis.Array.isArray(object?.role_map)
@@ -35242,6 +35286,9 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     if (message.ldap !== undefined) {
       obj.ldap = AaaLdap.toJSON(message.ldap);
     }
+    if (message.oidc !== undefined) {
+      obj.oidc = AaaOidc.toJSON(message.oidc);
+    }
     if (message.roleMap?.length) {
       obj.roleMap = message.roleMap.map((e) => AaaRoleMapping.toJSON(e));
     }
@@ -35267,6 +35314,7 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
       ? AaaTacacs.fromPartial(object.tacacs)
       : undefined;
     message.ldap = (object.ldap !== undefined && object.ldap !== null) ? AaaLdap.fromPartial(object.ldap) : undefined;
+    message.oidc = (object.oidc !== undefined && object.oidc !== null) ? AaaOidc.fromPartial(object.oidc) : undefined;
     message.roleMap = object.roleMap?.map((e) => AaaRoleMapping.fromPartial(e)) || [];
     message.mfa = (object.mfa !== undefined && object.mfa !== null) ? AaaMfa.fromPartial(object.mfa) : undefined;
     message.fallbackLocal = object.fallbackLocal ?? undefined;
@@ -90569,6 +90617,199 @@ export const AaaMfa: MessageFns<AaaMfa> = {
     const message = createBaseAaaMfa();
     message.required = object.required ?? undefined;
     message.issuer = object.issuer ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaOidc(): AaaOidc {
+  return {
+    issuer: undefined,
+    clientId: undefined,
+    clientSecretRef: undefined,
+    redirectUri: undefined,
+    scopes: [],
+    usernameClaim: undefined,
+    roleClaim: undefined,
+  };
+}
+
+export const AaaOidc: MessageFns<AaaOidc> = {
+  encode(message: AaaOidc, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.issuer !== undefined) {
+      writer.uint32(10).string(message.issuer);
+    }
+    if (message.clientId !== undefined) {
+      writer.uint32(18).string(message.clientId);
+    }
+    if (message.clientSecretRef !== undefined) {
+      writer.uint32(26).string(message.clientSecretRef);
+    }
+    if (message.redirectUri !== undefined) {
+      writer.uint32(34).string(message.redirectUri);
+    }
+    for (const v of message.scopes) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.usernameClaim !== undefined) {
+      writer.uint32(50).string(message.usernameClaim);
+    }
+    if (message.roleClaim !== undefined) {
+      writer.uint32(58).string(message.roleClaim);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaOidc {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaOidc();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.issuer = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.clientId = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.clientSecretRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.redirectUri = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.scopes.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.usernameClaim = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.roleClaim = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaOidc {
+    return {
+      issuer: isSet(object.issuer) ? globalThis.String(object.issuer) : undefined,
+      clientId: isSet(object.clientId)
+        ? globalThis.String(object.clientId)
+        : isSet(object.client_id)
+        ? globalThis.String(object.client_id)
+        : undefined,
+      clientSecretRef: isSet(object.clientSecretRef)
+        ? globalThis.String(object.clientSecretRef)
+        : isSet(object.client_secret_ref)
+        ? globalThis.String(object.client_secret_ref)
+        : undefined,
+      redirectUri: isSet(object.redirectUri)
+        ? globalThis.String(object.redirectUri)
+        : isSet(object.redirect_uri)
+        ? globalThis.String(object.redirect_uri)
+        : undefined,
+      scopes: globalThis.Array.isArray(object?.scopes) ? object.scopes.map((e: any) => globalThis.String(e)) : [],
+      usernameClaim: isSet(object.usernameClaim)
+        ? globalThis.String(object.usernameClaim)
+        : isSet(object.username_claim)
+        ? globalThis.String(object.username_claim)
+        : undefined,
+      roleClaim: isSet(object.roleClaim)
+        ? globalThis.String(object.roleClaim)
+        : isSet(object.role_claim)
+        ? globalThis.String(object.role_claim)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AaaOidc): unknown {
+    const obj: any = {};
+    if (message.issuer !== undefined) {
+      obj.issuer = message.issuer;
+    }
+    if (message.clientId !== undefined) {
+      obj.clientId = message.clientId;
+    }
+    if (message.clientSecretRef !== undefined) {
+      obj.clientSecretRef = message.clientSecretRef;
+    }
+    if (message.redirectUri !== undefined) {
+      obj.redirectUri = message.redirectUri;
+    }
+    if (message.scopes?.length) {
+      obj.scopes = message.scopes;
+    }
+    if (message.usernameClaim !== undefined) {
+      obj.usernameClaim = message.usernameClaim;
+    }
+    if (message.roleClaim !== undefined) {
+      obj.roleClaim = message.roleClaim;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaOidc>): AaaOidc {
+    return AaaOidc.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaOidc>): AaaOidc {
+    const message = createBaseAaaOidc();
+    message.issuer = object.issuer ?? undefined;
+    message.clientId = object.clientId ?? undefined;
+    message.clientSecretRef = object.clientSecretRef ?? undefined;
+    message.redirectUri = object.redirectUri ?? undefined;
+    message.scopes = object.scopes?.map((e) => e) || [];
+    message.usernameClaim = object.usernameClaim ?? undefined;
+    message.roleClaim = object.roleClaim ?? undefined;
     return message;
   },
 };

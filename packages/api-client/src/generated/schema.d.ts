@@ -30,7 +30,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Log in with a local user; sets the refresh cookie */
+    /** Log in (management.aaa.order: local, RADIUS, LDAP); sets the refresh cookie — or answers an MFA challenge (no cookie) when a second factor is needed */
     post: operations['Auth_login'];
     delete?: never;
     options?: never;
@@ -1595,6 +1595,177 @@ export interface paths {
     put?: never;
     /** Admin: test an external AAA backend with a credential (no session issued) */
     post: operations['Aaa_test'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/verify': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Second login step: a TOTP code or a recovery code for the login challenge; sets the refresh cookie */
+    post: operations['Mfa_verify'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/enroll': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Login-time enrolment: the MFA policy requires a factor this user has not set up (challenge with enrolled=false); the secret is shown once */
+    post: operations['Mfa_enroll'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The caller’s second-factor state */
+    get: operations['Mfa_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/setup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start a voluntary TOTP enrolment from a login session (current password required); the secret is shown once */
+    post: operations['Mfa_setup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/activate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Enable the factor being set up with its first code; the user’s other sessions end; recovery codes are shown once */
+    post: operations['Mfa_activate'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/users/{name}/enrolment-token': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin (D-159): issue a one-time MFA enrolment token for a user (shown once, 24 h; replaces an open one) */
+    post: operations['Mfa_issueToken'];
+    /** Admin (D-159): revoke a user’s open MFA enrolment token */
+    delete: operations['Mfa_revokeToken'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/mfa/users/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Admin: remove a user’s second factor (lost device); their sessions end */
+    delete: operations['Mfa_reset'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/methods': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Login methods the login page offers besides the password form */
+    get: operations['Oidc_methods'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/oidc/start': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Start an OpenID Connect login: 302 to the identity provider */
+    get: operations['Oidc_start'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/auth/oidc/callback': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** OpenID Connect redirect target: sets the session cookie (or hands over to the MFA step) */
+    get: operations['Oidc_callback'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -8546,7 +8717,7 @@ export interface components {
          *       "local"
          *     ]
          */
-        order: ('local' | 'radius' | 'tacacs' | 'ldap')[];
+        order: ('local' | 'radius' | 'tacacs' | 'ldap' | 'oidc')[];
         /**
          * RADIUS
          * @default {}
@@ -8648,6 +8819,36 @@ export interface components {
              */
             startTls: boolean;
           }[];
+        };
+        /** OpenID Connect */
+        oidc?: {
+          /** Issuer */
+          issuer: string;
+          /** Client ID */
+          clientId: string;
+          /** Client secret */
+          clientSecretRef: string;
+          /** Redirect URI */
+          redirectUri: string;
+          /**
+           * Scopes
+           * @default [
+           *       "openid",
+           *       "profile",
+           *       "email"
+           *     ]
+           */
+          scopes: string[];
+          /**
+           * Username claim
+           * @default preferred_username
+           */
+          usernameClaim: string;
+          /**
+           * Group claim
+           * @default groups
+           */
+          roleClaim: string;
         };
         /**
          * Role mapping
@@ -9054,19 +9255,30 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': {
-            accessToken: string;
-            /** @constant */
-            tokenType: 'Bearer';
-            /** @description seconds */
-            expiresIn: number;
-            user: {
-              id: number;
-              username: string;
-              /** @enum {string} */
-              role: 'admin' | 'operator' | 'readonly';
-            };
-          };
+          'application/json':
+            | {
+                accessToken: string;
+                /** @constant */
+                tokenType: 'Bearer';
+                /** @description seconds */
+                expiresIn: number;
+                user: {
+                  id: number;
+                  username: string;
+                  /** @enum {string} */
+                  role: 'admin' | 'operator' | 'readonly';
+                };
+              }
+            | {
+                /** @constant */
+                mfaRequired: true;
+                /** @description single use, valid `expiresIn` seconds: POST /api/v1/auth/mfa/verify */
+                challenge: string;
+                /** @description false: the MFA policy requires a factor not set up yet — POST /api/v1/auth/mfa/enroll first */
+                enrolled: boolean;
+                /** @description seconds */
+                expiresIn: number;
+              };
         };
       };
       /** @description Invalid request or configuration (errors[] with JSON pointers) */
@@ -9087,7 +9299,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
-      /** @description `tls-required` (D-100): the password was sent over plain HTTP from a remote peer — connect through https; the attempt is not counted as a failed login */
+      /** @description `tls-required` (D-100): the password was sent over plain HTTP from a remote peer — connect through https; the attempt is not counted as a failed login. `no-role-mapping` (F-aaa): the external identity source accepted the credentials but none of the user’s groups is in management.aaa.roleMap */
       403: {
         headers: {
           [name: string]: unknown;
@@ -16777,7 +16989,16 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          method: 'radius' | 'ldap' | 'tacacs';
+          username: string;
+          password: string;
+        };
+      };
+    };
     responses: {
       200: {
         headers: {
@@ -16833,6 +17054,535 @@ export interface operations {
         content: {
           'application/problem+json': components['schemas']['Problem'];
         };
+      };
+    };
+  };
+  Mfa_verify: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json':
+          | {
+              /** @description the `challenge` of the login answer */
+              challenge: string;
+              code: string;
+            }
+          | {
+              /** @description the `challenge` of the login answer */
+              challenge: string;
+              /** @description one of the recovery codes shown at enrolment (single use) */
+              recoveryCode: string;
+            };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            accessToken: string;
+            /** @constant */
+            tokenType: 'Bearer';
+            /** @description seconds */
+            expiresIn: number;
+            user: {
+              id: number;
+              username: string;
+              /** @enum {string} */
+              role: 'admin' | 'operator' | 'readonly';
+            };
+            /** @description only when this step enabled a new factor: single-use recovery codes, shown once */
+            recoveryCodes?: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_enroll: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description the `challenge` of the login answer */
+          challenge: string;
+          /** @description the one-time MFA enrolment token issued by an administrator (write-only) */
+          token: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description base32 TOTP secret — shown once; add it to an authenticator app */
+            secret: string;
+            /** @description the same secret as an otpauth:// URI (for a QR code) */
+            otpauthUri: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Invalid credentials */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            enrolled: boolean;
+            recoveryCodesLeft: number;
+            /** @description management.aaa.mfa.required covers the caller’s role */
+            required: boolean;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_setup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description the caller’s current password (step-up; write-only) */
+          current: string;
+          /** @description the one-time MFA enrolment token issued by an administrator (write-only) */
+          token: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description base32 TOTP secret — shown once; add it to an authenticator app */
+            secret: string;
+            /** @description the same secret as an otpauth:// URI (for a QR code) */
+            otpauthUri: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_activate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          code: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            recoveryCodes: string[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Rate limited */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_issueToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            token: string;
+            expiresIn: number;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_revokeToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Revoked */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_reset: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Oidc_methods: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description OpenID Connect single sign-on is offered (GET /api/v1/auth/oidc/start) */
+            oidc: boolean;
+          };
+        };
+      };
+    };
+  };
+  Oidc_start: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description redirect to the IdP authorisation endpoint */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  Oidc_callback: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description redirect to the web UI */
+      302: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

@@ -4,8 +4,9 @@ import { withUi } from '../../ui.js';
 
 /**
  * F-aaa: external AAA sub-schemas (LDAP, MFA, role mapping, local fallback) that widen `management.aaa`. RADIUS and
- * TACACS+ already live in `management.ts`. OIDC and SAML are reserved (envelope fields 5/6) for a follow-up. Bind
- * passwords are `password/<name>` secret references, never inline. Everything is enforced in the API (D-040).
+ * TACACS+ already live in `management.ts`. OIDC (F-aaa-login) is the browser single sign-on; SAML stays reserved
+ * (envelope field 6). Bind passwords and client secrets are `password/<name>` / `token/<name>` secret references,
+ * never inline. Everything is enforced in the API (D-040).
  */
 
 const GROUP = 'aaa';
@@ -122,4 +123,60 @@ export const aaaFallbackLocalField = withUi(z.boolean().default(true), {
   help: 'allow local-user login when every external server is unreachable',
   group: GROUP,
   order: 9,
+});
+
+/**
+ * http(s) URL; plain http only for a loopback host (a local development IdP) — a remote IdP is always https, so the
+ * authorisation code and the client secret never cross the network in clear.
+ */
+const oidcUrl = z
+  .string()
+  .max(255)
+  .regex(
+    /^(https:\/\/[^\s]+|http:\/\/(127\.0\.0\.1|localhost|\[::1\])(:[0-9]+)?(\/[^\s]*)?)$/,
+    'expected an https:// URL (http:// only for 127.0.0.1/localhost)',
+  );
+
+/** F-aaa-login: OpenID Connect (authorisation code + PKCE) single sign-on for the web UI. */
+export const AaaOidcSchema = z.strictObject({
+  issuer: withUi(oidcUrl, {
+    title: 'Issuer',
+    help: 'the IdP issuer URL; /.well-known/openid-configuration is read from it',
+    order: 1,
+  }),
+  clientId: withUi(z.string().min(1).max(255), { title: 'Client ID', order: 2 }),
+  clientSecretRef: withUi(secretRefOf('token'), {
+    title: 'Client secret',
+    help: 'token/<name> secret with the client secret; never the secret itself',
+    order: 3,
+  }),
+  redirectUri: withUi(oidcUrl, {
+    title: 'Redirect URI',
+    help: 'registered at the IdP: https://<this box>/api/v1/auth/oidc/callback',
+    order: 4,
+  }),
+  scopes: withUi(
+    z
+      .array(z.string().regex(/^[\x21\x23-\x5b\x5d-\x7e]{1,64}$/, 'a scope token'))
+      .max(16)
+      .default(['openid', 'profile', 'email']),
+    { title: 'Scopes', help: 'must include openid', order: 5 },
+  ),
+  usernameClaim: withUi(z.string().min(1).max(64).default('preferred_username'), {
+    title: 'Username claim',
+    help: 'ID-token claim used as the login name',
+    order: 6,
+  }),
+  roleClaim: withUi(z.string().min(1).max(64).default('groups'), {
+    title: 'Group claim',
+    help: 'ID-token claim listing the user’s groups (mapped to roles via roleMap)',
+    order: 7,
+  }),
+});
+export type AaaOidc = z.infer<typeof AaaOidcSchema>;
+
+export const aaaOidcField = withUi(AaaOidcSchema.optional(), {
+  title: 'OpenID Connect',
+  group: GROUP,
+  order: 5,
 });

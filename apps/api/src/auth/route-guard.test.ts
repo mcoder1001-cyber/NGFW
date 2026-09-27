@@ -1,9 +1,10 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyInstance, RouteOptions } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import { PRIVILEGED_ROUTES } from '../audit/audit.interceptor.js';
 import { loadEnv } from '../config.js';
+import { AaaService } from '../features/aaa/aaa.service.js';
 import { TokensService } from './tokens.service.js';
 
 /**
@@ -21,11 +22,21 @@ const PUBLIC = new Set([
   // Feature public routes: one line under the feature's anchor (SY1).
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-aaa
+  'POST /api/v1/auth/mfa/verify', // F-aaa-login: authorised by the single-use login challenge
+  'POST /api/v1/auth/mfa/enroll', // F-aaa-login: authorised by the single-use login challenge
+  'GET /api/v1/auth/methods', // F-aaa-login: whether the login page shows the SSO button
+  'GET /api/v1/auth/oidc/start', // F-aaa-login: redirect to the IdP
+  'GET /api/v1/auth/oidc/callback', // F-aaa-login: redirect back from the IdP (state + PKCE)
   // wave-BC: F-restconf-yang
 ]);
 
 /** Mutations a readonly user may call (own credentials only). */
-const READONLY_MAY = new Set(['POST /api/v1/auth/password', 'POST /api/v1/users/:name/password']);
+const READONLY_MAY = new Set([
+  'POST /api/v1/auth/password',
+  'POST /api/v1/users/:name/password',
+  'POST /api/v1/auth/mfa/setup', // F-aaa-login: own second factor
+  'POST /api/v1/auth/mfa/activate', // F-aaa-login: own second factor
+]);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
   'POST /api/v1/actions/aaa/test', // wave-BC: F-aaa
@@ -37,6 +48,9 @@ const ADMIN_ONLY = new Set([
   'DELETE /api/v1/secrets/:kind/:name',
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
+  'DELETE /api/v1/auth/mfa/users/:name', // F-aaa-login: MFA reset
+  'POST /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159: admin-issued enrolment
+  'DELETE /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159
   // wave-BC: F-backup-restore
   'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
@@ -60,6 +74,13 @@ describe('route guard', () => {
         for (const m of [r.method].flat())
           if (m !== 'HEAD' && m !== 'OPTIONS') routes.push({ method: m, url: r.url });
       },
+    });
+    // offline app: no datastore behind the MFA policy (which fails CLOSED on a read error — F-aaa-login review 7)
+    vi.spyOn(app.get(AaaService), 'cachedPolicy').mockResolvedValue({
+      order: ['local'],
+      fallbackLocal: true,
+      mfaRequired: 'none',
+      mfaIssuer: 'vrx',
     });
     const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
     await app.init();

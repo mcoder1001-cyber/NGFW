@@ -14,11 +14,15 @@ import TextField from '@mui/material/TextField';
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { api } from '../api';
 import { call } from '../api-problem';
 import { useAuth } from '../auth/AuthProvider';
 import { confirmStore } from '../config/confirm-store';
 import { ProblemAlert } from '../config/ProblemAlert';
+
+/** F-aaa-login: the page with the user's own second factor. */
+const AAA_PATH = '/system/aaa';
 
 /** P06 requires ≥ 12 characters for a new password (PasswordBody). */
 const MIN_PASSWORD = 12;
@@ -82,6 +86,7 @@ export function UserMenu() {
   const { session, state } = useAuth();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const [pw, setPw] = useState(false);
+  const navigate = useNavigate();
   if (!state.user) return null;
   const signOut = () => {
     setAnchor(null);
@@ -113,6 +118,15 @@ export function UserMenu() {
           }}
         >
           {t('password.title')}
+        </MenuItem>
+        {/* F-aaa-login: own second factor (enrolment, recovery codes) */}
+        <MenuItem
+          onClick={() => {
+            setAnchor(null);
+            void navigate(AAA_PATH);
+          }}
+        >
+          {t('aaa:mine.title')}
         </MenuItem>
         <MenuItem onClick={signOut}>{t('signOut')}</MenuItem>
       </Menu>

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { UserConfig } from '@ngfw/schema';
-import { and, count, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db, type DbTx } from '../db/db.js';
 import {
   apiKey,
@@ -296,7 +296,13 @@ class PgConfigTx implements ConfigTx {
       const [row] = await this.t
         .insert(appUser)
         .values({ username: u.username, source: 'config', ...set })
-        .onConflictDoUpdate({ target: appUser.username, set })
+        // F-aaa-login (review 2): never onto an external identity's shadow user (the commit refuses that collision
+        // first; this is the last line of defence — the row stays external, no hash lands on it)
+        .onConflictDoUpdate({
+          target: appUser.username,
+          set,
+          where: ne(appUser.source, 'external'),
+        })
         .returning({ id: appUser.id });
       const prev = before.get(u.username);
       if (row === undefined || prev === undefined) continue;
@@ -362,6 +368,15 @@ export class PgConfigRepo implements ConfigRepo {
   }
   latestRevision() {
     return readRevision(this.db);
+  }
+  async externalUsernames(names: readonly string[]): Promise<string[]> {
+    if (names.length === 0) return [];
+    const lower = names.map((n) => n.toLowerCase());
+    const rows = await this.db
+      .select({ username: appUser.username })
+      .from(appUser)
+      .where(and(eq(appUser.source, 'external'), inArray(sql`lower(${appUser.username})`, lower)));
+    return rows.map((r) => r.username);
   }
   revision(id: number) {
     return readRevision(this.db, id);

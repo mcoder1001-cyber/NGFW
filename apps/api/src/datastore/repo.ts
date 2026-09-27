@@ -153,4 +153,9 @@ export interface ConfigRepo extends ConfigReads {
   secretVersions(refs: readonly string[]): Promise<Record<string, number>>;
   getSync(): Promise<SyncStatus>;
   setSync(s: Omit<SyncStatus, 'since'>): Promise<void>;
+  /**
+   * F-aaa-login (review 2): the names among `names` (case-insensitive) that belong to an external identity's shadow
+   * user — a configured user may not take such an account over. Optional: repos without app_user return nothing.
+   */
+  externalUsernames?(names: readonly string[]): Promise<string[]>;
 }

@@ -92,6 +92,8 @@ import enDashboard from './locales/en/dashboard.json';
 import faDashboard from './locales/fa/dashboard.json';
 // wave-BC: F-hardening-lite
 // wave-BC: F-aaa
+import enAaa from './locales/en/aaa.json';
+import faAaa from './locales/fa/aaa.json';
 // wave-BC: F-licensing
 import enLicensing from './locales/en/licensing.json';
 import faLicensing from './locales/fa/licensing.json';
@@ -225,6 +227,7 @@ export const NAMESPACES = [
   'dashboard',
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
+  'aaa',
   // wave-BC: F-licensing
   'licensing',
   // wave-BC: F-restconf-yang
@@ -332,6 +335,7 @@ const en = {
   dashboard: enDashboard,
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
+  aaa: enAaa,
   // wave-BC: F-licensing
   licensing: enLicensing,
   // wave-BC: F-restconf-yang
@@ -436,6 +440,7 @@ const fa = {
   dashboard: faDashboard,
   // wave-BC: F-hardening-lite
   // wave-BC: F-aaa
+  aaa: faAaa,
   // wave-BC: F-licensing
   licensing: faLicensing,
   // wave-BC: F-restconf-yang

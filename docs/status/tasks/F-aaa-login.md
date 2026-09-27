@@ -97,6 +97,12 @@ gitleaks finds 5 generic-api-key hits, all in commits already on main, none in t
 Not e2e-tested: the voluntary `POST /auth/mfa/setup` with a token (covered by the web unit test only).
 (Item 8 was not in the review list.)
 
+### Gates after the review fixes
+turbo lint/typecheck/test api+web: api 351/351, web 524/524, 19/19 tasks. PostgreSQL e2e (temporary cluster + redis,
+stopped afterwards): 17 files / 117 tests green (aaa-login 10, aaa-oidc 7, aaa 3, auth, td2*, td4*, td10b*,
+sec-auth, dev-weak, config). `tools/ci.sh check`: gitleaks FAILS on 5 findings, all in commits already on origin/main
+(4e595289, 5b33b153, 5a2d88d8, 3bd18dd2) — none in this branch's commits.
+
 ## Out of scope (not built)
 TACACS+ and SAML backends (`order: [tacacs]` is skipped at login; test route 501); `GET /state/aaa/servers`
 reachability chips; SchemaForm AAA settings page (settings stay in the Management domain editor); QR-code rendering

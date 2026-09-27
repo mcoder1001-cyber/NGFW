@@ -3939,13 +3939,13 @@ tasks:
   - F-aaa
   priority: 6
   est_hours: 8
-  state: running
+  state: review
   owner: cloud session eloquent-wozniak
   branch: claude/eloquent-wozniak-tmokcq
   worktree: ''
   parked_on: ''
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   template: ''
   prompt: ''
   wbs: []
@@ -3953,7 +3953,29 @@ tasks:
     f_aaa_mfa: encrypted TOTP seed, recovery-code hashes, external identity link); LDAP (ldapts bind+search), then OIDC, TACACS+, SAML (proto oidc/saml fields 5/6); web login MFA prompt + AAA test panel;
     move Users password change to POST /users/{name}/password (D-102)'
   files_owned: apps/api/src/features/aaa/**, apps/api/src/auth/**, apps/web/src/domains/system/aaa/**
-  notes: increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md
+  notes: increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md | delivered the order walk + shadow accounts + MFA (docs/status/tasks/F-aaa-login.md, PR 51); LDAP/OIDC/TACACS+/SAML and the web screens are F-aaa-login-2
+- id: F-aaa-login-2
+  title: 'AAA increment 3: LDAP backend, OIDC/TACACS+/SAML, and the web MFA/AAA screens'
+  stage: S4
+  deps:
+  - F-aaa-login
+  priority: 6
+  est_hours: 10
+  state: todo
+  owner: ''
+  branch: ''
+  worktree: ''
+  parked_on: ''
+  started: ''
+  finished: ''
+  template: ''
+  prompt: ''
+  wbs: []
+  scope: 'LDAP backend (ldapts bind+search, groupAttr -> roleMap) behind the aaa.ldap contract that already exists; then OIDC, TACACS+, SAML (these need the reserved proto fields 5/6 -> a contract(proto) change,
+    so they need a host/CI with buf); web: login MFA prompt + enrolment screen + AAA test panel on the Management AAA screen, en + fa; D-102 finish (drop the old Users password route)'
+  files_owned: apps/api/src/features/aaa/**, apps/web/src/domains/system/aaa/**, apps/web/src/locales/{en,fa}/aaa.json
+  notes: 'follow-up to F-aaa-login (PR 51): the order walk, shadow accounts and MFA shipped; AaaService.authenticate() answers unsupported for ldap/tacacs and the walk treats that as a method that did not
+    answer, so adding the backend is a drop-in. The API surface the web needs is complete and in the generated client.'
 - template: ''
   parked_on: ''
   branch: ''

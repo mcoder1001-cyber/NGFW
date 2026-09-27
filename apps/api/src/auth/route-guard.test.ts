@@ -28,6 +28,7 @@ const PUBLIC = new Set([
 const READONLY_MAY = new Set(['POST /api/v1/auth/password', 'POST /api/v1/users/:name/password']);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
+  'POST /api/v1/actions/aaa/test', // wave-BC: F-aaa
   'DELETE /api/v1/config/lock',
   'GET /api/v1/audit',
   'POST /api/v1/secrets',

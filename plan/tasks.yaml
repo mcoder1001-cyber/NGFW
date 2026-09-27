@@ -3623,15 +3623,15 @@ tasks:
   - F-nat44-ed-sessions
   priority: 3
   est_hours: 16
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/agent/internal/renderers/pppoe/**, docs/user/network/pppoe.md'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from backlog BL-NET-01 by the product owner (2026-09-26)
 - id: F-multiwan

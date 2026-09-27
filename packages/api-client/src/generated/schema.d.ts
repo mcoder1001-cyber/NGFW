@@ -7974,6 +7974,119 @@ export interface components {
           permittedPeers?: string[];
         };
       }[];
+      /**
+       * Prometheus
+       * @default {}
+       */
+      prometheus: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Listen address
+         * @default 0.0.0.0
+         */
+        listen: string;
+        /**
+         * Port
+         * @default 9101
+         */
+        port: number;
+        /**
+         * Allow list
+         * @default []
+         */
+        allow: string[];
+      };
+      /**
+       * Alarms
+       * @default {}
+       */
+      alarms: {
+        /**
+         * Alarm rules
+         * @default {}
+         */
+        rules: {
+          [key: string]: {
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric:
+              | 'interface_rx_bps'
+              | 'interface_tx_bps'
+              | 'interface_rx_drops'
+              | 'interface_tx_drops'
+              | 'interface_link_down'
+              | 'worker_cpu_percent'
+              | 'buffer_used_percent'
+              | 'node_error_rate';
+            /**
+             * Comparison
+             * @default gt
+             * @enum {string}
+             */
+            op: 'gt' | 'ge' | 'lt' | 'le' | 'eq';
+            /** Threshold */
+            threshold: number;
+            /**
+             * For (seconds)
+             * @default 0
+             */
+            forSec: number;
+            /**
+             * Severity
+             * @default warning
+             * @enum {string}
+             */
+            severity: 'info' | 'warning' | 'critical';
+            /** Interface */
+            interface?: string;
+            /** Description */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Notify
+             * @default []
+             */
+            targets: string[];
+          };
+        };
+        /**
+         * Notification targets
+         * @default {}
+         */
+        targets: {
+          [key: string]:
+            | {
+                /** @constant */
+                kind: 'webhook';
+                /**
+                 * Webhook URL
+                 * Format: uri
+                 */
+                url: string;
+                /** Bearer token */
+                secretRef?: string;
+              }
+            | {
+                /** @constant */
+                kind: 'email';
+                /**
+                 * Email address
+                 * Format: email
+                 */
+                address: string;
+              };
+        };
+      };
     };
     /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */
     RootConfig: {

@@ -85,6 +85,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'routing/multicast', lazy: async () => ({ Component: (await import('./domains/routing/igmp-mfib/MulticastPage')).MulticastPage }) },
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
+        { path: 'system/aaa', lazy: async () => ({ Component: (await import('./domains/system/aaa/AaaPage')).AaaPage }) },
         // wave-BC: F-restconf-yang
         { path: 'system/restconf', lazy: async () => ({ Component: (await import('./domains/system/restconf-yang/RestconfYangPage')).RestconfYangPage }) },
         // wave-BC: F-ab-upgrade

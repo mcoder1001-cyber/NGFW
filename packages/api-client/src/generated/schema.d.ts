@@ -16334,7 +16334,16 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          method: 'radius' | 'ldap' | 'tacacs';
+          username: string;
+          password: string;
+        };
+      };
+    };
     responses: {
       200: {
         headers: {

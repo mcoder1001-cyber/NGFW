@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
 import type { VrxRequest } from '../../common/principal.js';
@@ -7,7 +7,7 @@ import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { AaaService } from './aaa.service.js';
 
-const TestBody = z.object({
+const TestBody = z.strictObject({
   method: z.enum(['radius', 'ldap', 'tacacs']),
   username: z.string().min(1).max(255),
   password: z.string().min(1).max(1024),
@@ -23,7 +23,7 @@ const TestOut = z.object({
 
 /**
  * F-aaa admin route: validate a configured external auth backend by authenticating a test credential against it
- * (no session is issued). The full login-order integration and MFA enforcement are the next increment.
+ * (no session is issued). RADIUS and LDAP (F-aaa-login); TACACS+ answers 501.
  */
 @ApiTags('aaa')
 @Controller('api/v1/actions/aaa')
@@ -37,6 +37,7 @@ export class AaaController {
   @ApiOperation({
     summary: 'Admin: test an external AAA backend with a credential (no session issued)',
   })
+  @ApiBody({ schema: openapi(TestBody) })
   @ApiOkResponse({ schema: openapi(TestOut, 'output') })
   async test(@Body(new ZodPipe(TestBody)) body: z.output<typeof TestBody>, @Req() req: VrxRequest) {
     const r = await this.aaa.test(body.method, body.username, body.password);

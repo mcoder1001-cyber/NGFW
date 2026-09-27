@@ -11,7 +11,10 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
-import type { LoginFailure } from '../auth/session';
+import type { LoginFailure, MfaStep } from '../auth/session';
+import { MfaLoginStep } from '../domains/system/aaa/MfaLoginStep';
+import { readSsoHandover } from '../domains/system/aaa/queries';
+import { SsoButton, ssoErrorKey } from '../domains/system/aaa/SsoButton';
 import { LANGUAGE_NAMES, SUPPORTED_LANGUAGES, isLanguage } from '../i18n-config';
 import { useUiSettings } from '../settings/UiSettings';
 
@@ -52,6 +55,9 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<LoginFailure | null>(null);
+  // F-aaa-login: the second factor (after the password, or handed over by the OIDC callback in the URL fragment)
+  const [handover] = useState(() => readSsoHandover());
+  const [mfa, setMfa] = useState<MfaStep | null>(handover.step ?? null);
   const next = safeNext(params.get('next'));
 
   if (state.status === 'authenticated') return <Navigate to={next} replace />;
@@ -62,6 +68,11 @@ export function LoginPage() {
     setFailure(null);
     const f = await session.login(username.trim(), password);
     setBusy(false);
+    if (f && 'mfa' in f) {
+      setPassword('');
+      setMfa(f);
+      return;
+    }
     if (f) {
       setFailure(f);
       setPassword('');
@@ -74,6 +85,9 @@ export function LoginPage() {
     <Box component="main" id="main" sx={{ display: 'grid', placeItems: 'center', minBlockSize: '100vh', p: 2, bgcolor: 'background.default' }}>
       <Card sx={{ inlineSize: '100%', maxInlineSize: 400 }} variant="outlined">
         <CardContent>
+          {mfa ? (
+            <MfaLoginStep step={mfa} onDone={() => void navigate(next, { replace: true })} onCancel={() => setMfa(null)} />
+          ) : (
           <Stack component="form" gap={2} onSubmit={(e) => void submit(e)} noValidate aria-labelledby="login-title">
             <Box>
               <Typography id="login-title" component="h1" variant="h5">
@@ -83,6 +97,7 @@ export function LoginPage() {
             </Box>
             {state.endReason === 'expired' && !failure && <Alert severity="warning">{t('sessionExpired')}</Alert>}
             {state.endReason === 'signedOut' && !failure && <Alert severity="info">{t('signedOut')}</Alert>}
+            {handover.error && !failure && <Alert severity="error">{t(ssoErrorKey(handover.error), { ns: 'aaa' })}</Alert>}
             {failure && (
               <Alert severity="error" role="alert">
                 {t(failureKey(failure))}
@@ -110,6 +125,7 @@ export function LoginPage() {
             <Button type="submit" variant="contained" disabled={busy || username.trim() === '' || password === ''}>
               {busy ? t('signingIn') : t('signIn')}
             </Button>
+            <SsoButton />
             <TextField
               select
               size="small"
@@ -126,6 +142,7 @@ export function LoginPage() {
               ))}
             </TextField>
           </Stack>
+          )}
         </CardContent>
       </Card>
     </Box>

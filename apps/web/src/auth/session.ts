@@ -42,6 +42,19 @@ export interface LoginFailure {
   detail: string | undefined;
 }
 
+/** F-aaa-login: the password was right; a second factor finishes the login. */
+export interface MfaStep {
+  mfa: true;
+  challenge: string;
+  /** false: the policy requires a factor the user has not set up — enrol first */
+  enrolled: boolean;
+}
+
+export interface MfaEnrolment {
+  secret: string;
+  otpauthUri: string;
+}
+
 interface SessionBody {
   accessToken: string;
   tokenType: 'Bearer';
@@ -159,16 +172,49 @@ export class Session {
     }
   }
 
-  async login(username: string, password: string): Promise<LoginFailure | null> {
+  /**
+   * Password login. `null` = signed in; a `LoginFailure`; or (F-aaa-login) an `MfaStep` — the password was right and
+   * a second factor is needed: no session exists yet, finish with `mfaVerify` (after `mfaEnroll` when not enrolled).
+   */
+  async login(username: string, password: string): Promise<LoginFailure | MfaStep | null> {
+    const r = await this.postAuth('login', { username, password });
+    if ('status' in r) return r;
+    const body = r.body as Partial<{ mfaRequired: boolean; challenge: string; enrolled: boolean }> | null;
+    if (body?.mfaRequired === true && typeof body.challenge === 'string') {
+      return { mfa: true, challenge: body.challenge, enrolled: body.enrolled === true };
+    }
+    return this.adopt(r.body);
+  }
+
+  /** F-aaa-login: login-time enrolment (the policy requires a factor not set up yet); the secret is shown once. */
+  async mfaEnroll(challenge: string): Promise<LoginFailure | MfaEnrolment> {
+    const r = await this.postAuth('mfa/enroll', { challenge });
+    if ('status' in r) return r;
+    const b = r.body as Partial<MfaEnrolment> | null;
+    if (typeof b?.secret !== 'string' || typeof b.otpauthUri !== 'string') return { status: 502, detail: undefined };
+    return { secret: b.secret, otpauthUri: b.otpauthUri };
+  }
+
+  /** F-aaa-login: the second login step. On success the session starts; `recoveryCodes` only when a factor was just enabled. */
+  async mfaVerify(challenge: string, answer: { code: string } | { recoveryCode: string }): Promise<LoginFailure | { recoveryCodes?: string[] }> {
+    const r = await this.postAuth('mfa/verify', { challenge, ...answer });
+    if ('status' in r) return r;
+    const f = this.adopt(r.body);
+    if (f) return f;
+    const codes = (r.body as { recoveryCodes?: unknown }).recoveryCodes;
+    return Array.isArray(codes) ? { recoveryCodes: codes.filter((c): c is string => typeof c === 'string') } : {};
+  }
+
+  private async postAuth(name: string, payload: unknown): Promise<LoginFailure | { body: unknown }> {
     let res: Response;
     try {
       res = await fetchWithTimeout(
         this.fetchImpl,
-        new Request(authUrl('login'), {
+        new Request(authUrl(name), {
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify(payload),
         }),
         TIMEOUTS.auth,
       );
@@ -176,12 +222,15 @@ export class Session {
       return { status: 0, detail: undefined };
     }
     if (!res.ok) return { status: res.status, detail: await problemDetail(res) };
-    let body: unknown;
     try {
-      body = await res.json();
+      return { body: (await res.json()) as unknown };
     } catch {
       return { status: 502, detail: undefined };
     }
+  }
+
+  /** A session body → signed in (and the other tabs told); anything else is a bad answer. */
+  private adopt(body: unknown): LoginFailure | null {
     if (!isSessionBody(body)) return { status: 502, detail: undefined };
     this.accept(body);
     this.post({ type: 'login', userId: body.user.id });

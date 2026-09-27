@@ -1615,16 +1615,16 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D2.9
   scope: IGMPv3, static mfib, BIER (PIM via agent-side sync, V5 fallback)
   files_owned: '- apps/agent/internal/descriptors/igmp/** and docs/agent/descriptors/igmp.md (gap-only), apps/agent/internal/descriptors/{mfib,bier}/** and docs/agent/descriptors/{mfib,bier}.md (new)'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed'
 - id: F-srv6

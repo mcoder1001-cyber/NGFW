@@ -3480,6 +3480,15 @@ export interface components {
          * @default false
          */
         out2inOnly: boolean;
+        /**
+         * Expires at
+         * Format: date-time
+         */
+        expiresAt?: string;
+        /** Owner */
+        owner?: string;
+        /** Ticket */
+        ticket?: string;
       }[];
       /**
        * Identity mappings
@@ -4625,6 +4634,15 @@ export interface components {
              * @default false
              */
             log: boolean;
+            /**
+             * Expires at
+             * Format: date-time
+             */
+            expiresAt?: string;
+            /** Owner */
+            owner?: string;
+            /** Ticket */
+            ticket?: string;
           }[];
         };
       };
@@ -4849,6 +4867,15 @@ export interface components {
              * @default false
              */
             log: boolean;
+            /**
+             * Expires at
+             * Format: date-time
+             */
+            expiresAt?: string;
+            /** Owner */
+            owner?: string;
+            /** Ticket */
+            ticket?: string;
           }[];
         };
       };

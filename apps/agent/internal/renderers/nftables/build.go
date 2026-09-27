@@ -15,6 +15,7 @@ import (
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/objects"
+	"ngfw/agent/internal/subsystems/ruleexpiry"
 )
 
 // Input of Build: the `acl` domain (only host, host_attachments and host_settings are read), the objects
@@ -283,6 +284,17 @@ func (b *builder) lists() map[string][]*nrule {
 			seq[r.GetSequence()] = i
 			if r.Enabled != nil && !r.GetEnabled() {
 				continue
+			}
+			// F-rule-expiry: an expired rule is not rendered (the configuration keeps it); a later expiry is noted so
+			// a re-projection removes it at that instant, without a commit
+			if expired, at, err := ruleexpiry.Expired(r.GetExpiresAt(), ruleexpiry.Now()); err != nil {
+				b.errorf(rp+"/expiresAt", RuleRule, "%v", err)
+				continue
+			} else if expired {
+				b.warnf(rp, "rule.expired", "rule %d expired at %s: not rendered (extend or delete it)", r.GetSequence(), r.GetExpiresAt())
+				continue
+			} else if !at.IsZero() {
+				ruleexpiry.Note(at)
 			}
 			rules = append(rules, &configRule{list: name, index: i, pointer: rp, rule: r})
 		}

@@ -1,0 +1,26 @@
+{
+  "nav": "Multi-WAN",
+  "title": "WAN groups",
+  "intro": "Multi-WAN failover and load balancing. Each group's members are monitored by health probes; in failover the lowest-priority healthy member carries the default route, in balance mode traffic is spread over healthy members by weight. Groups are configured under Config → Routing → WAN groups.",
+  "refresh": "Refresh",
+  "loading": "Loading",
+  "empty": "No WAN groups configured.",
+  "agentError": "Live state unavailable: {{error}}",
+  "mode": {
+    "failover": "failover",
+    "balance": "balance"
+  },
+  "activeMember": "active: {{iface}}",
+  "membersOf": "Members of {{name}}",
+  "active": "active",
+  "up": "up",
+  "down": "down",
+  "col": {
+    "interface": "Interface",
+    "health": "Health",
+    "loss": "Loss",
+    "latency": "Latency",
+    "weight": "Weight",
+    "priority": "Priority"
+  }
+}

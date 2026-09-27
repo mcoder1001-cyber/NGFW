@@ -84,6 +84,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-restconf-yang
+        { path: 'system/restconf', lazy: async () => ({ Component: (await import('./domains/system/restconf-yang/RestconfYangPage')).RestconfYangPage }) },
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
@@ -111,6 +112,14 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: domainPath('acl').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/acl/AclPage')).AclPage }) },
         // wave-A: F-host-acl-nftables
         { path: 'firewall/host-acl', lazy: async () => ({ Component: (await import('./domains/firewall/host-acl-nftables/HostAclPage')).HostAclPage }) },
+        // F-global-blocking (unanchored)
+        { path: 'firewall/global-blocking', lazy: async () => ({ Component: (await import('./domains/security/global-blocking/GlobalBlockingPage')).GlobalBlockingPage }) },
+        // F-bruteforce-block (unanchored)
+        { path: 'firewall/auto-block', lazy: async () => ({ Component: (await import('./domains/security/auto-block/AutoBlockPage')).AutoBlockPage }) },
+        // wave-BC: F-dashboard-prom-alarms
+        { path: 'system/alarms', lazy: async () => ({ Component: (await import('./domains/dashboard/dashboard-prom-alarms/AlarmsPage')).AlarmsPage }) },
+        // F-multiwan (unanchored)
+        { path: 'routing/wan', lazy: async () => ({ Component: (await import('./domains/routing/multiwan/WanGroupsPage')).WanGroupsPage }) },
         // wave-A: F-nat44-ed-sessions
         { path: domainPath('nat').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/nat44-ed-sessions/NatPage')).NatPage }) },
         // wave-A: P11

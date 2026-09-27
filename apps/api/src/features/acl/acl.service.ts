@@ -357,7 +357,8 @@ export class AclService implements OnModuleInit {
         const l = byName.get(name);
         const e = expected.get(name) ?? { input: [], output: [], macip: null };
         const ours = (xs: { name: string | null; foreign: boolean }[]) =>
-          xs.filter((x) => !x.foreign).map((x) => x.name);
+          // F-global-blocking: the block lists' _gb.* ACLs are shown on their own page
+          xs.filter((x) => !x.foreign && !(x.name ?? '').startsWith('_gb.')).map((x) => x.name);
         const inSync =
           live.value !== undefined &&
           sameJson(ours(l?.input ?? []), e.input) &&

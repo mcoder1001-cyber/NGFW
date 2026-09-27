@@ -135,5 +135,25 @@
     "encapsulation": "کپسوله‌سازی",
     "subinterfaces": "زیراینترفیس‌ها"
   },
-  "rateCell": "{{bps}} · {{pps}}"
+  "rateCell": "{{bps}} · {{pps}}",
+  "pppoe": {
+    "title": "نشست PPPoE",
+    "phase": "نشست",
+    "reconnect": "اتصال دوباره",
+    "reconnecting": "در حال شماره‌گیری دوباره…",
+    "local": "نشانی محلی",
+    "peer": "همتا (دروازه)",
+    "ipv6": "IPv6",
+    "dns": "DNS همتا",
+    "since": "فعال از",
+    "sessionId": "شناسهٔ نشست",
+    "failCount": "خطاهای پیاپی",
+    "lastError": "آخرین خطا",
+    "phases": {
+      "up": "برقرار",
+      "down": "قطع",
+      "dialing": "در حال شماره‌گیری",
+      "failed": "ناموفق"
+    }
+  }
 }

@@ -135,3 +135,42 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - **TD-10b:** `users.service.ts:134` password set uses `commits.exclusive` (waits without bound behind a commit); switch to `commits.userExclusive` (409 `commit-busy` after 1 s, like secret delete — D-TD10a-1, review M2). | owner: TD-10b
 - **apps/web/src/config/** (pending-change bar owner):** CommitDialog should follow a lost commit answer up with `followOutcome`/`applyOutcome` (net.ts, time-gated until the budget) as RevisionsPage does; the confirm banner should retry a confirm that got 409 `commit-busy` after `retryAfterSec` (review L5, else a confirm near the deadline can lose to a reconcile holding the lock). | owner: the row owning apps/web/src/config/**
 - **Secrets (D-TD10a-5):** deleting a secret removes every `secret_version`; a tombstone or "refuse while a revision pins it" would keep old revisions rollback-able (today: a clear 400 `secrets.ref-exists`). | owner: F-backup-restore or a secrets row
+- F-global-blocking (this row): (1) block-list entries live in the configuration document — a 200 000-entry list makes
+  every revision a few MB (store entries out of line, referenced by hash); (2) the nftables host part replaces the whole
+  table on a change (8 s for a one-entry change at 200 k) — incremental `add/delete element` in the same `nft -f`
+  transaction; (3) per-interface drop counters need per-interface bucket ACLs or the ACL plugin's per-interface stats;
+  (4) the download does not yet use the management VRF/interface (it uses the API host's routing). Owner:
+  F-global-blocking follow-up.
+- F-pppoe-client (this row): the agent-side live Apply (unit supervision, pppd exit tracking, VPP FIB mirror of the
+  negotiated address/route, MSS clamp) and the real `PppoeReconnect` RPC handler are not wired into the agent
+  subsystem registry yet (renderer + supervisor + state reader are done and unit-tested; the RPC returns 501). Owner:
+  F-pppoe-client-host. Also: MSS clamp mechanism on the WAN (VPP vs nftables on the tap) to be decided with the live
+  stack.
+- F-dashboard-prom-alarms (this row): the agent exporter's real govpp StatsSource (VPP stats segment) and the
+  registration of the metrics collector + the management.prometheus listener descriptor under Domains["management"]
+  are not wired into the running agent yet (promexport package + API alarm engine are done and tested). Email alarm
+  targets are modelled but not delivered (webhook only) — left to F-notifications. Owner: F-dashboard-prom-alarms-host
+  / F-notifications.
+- F-multiwan (this row): the agent host-side wiring (per-link probing, default-route/ECMP install via VPP, per-member
+  source NAT + sticky sessions + clearing the dead link's sessions on failover, ABF pinning, the WanState RPC handler)
+  is not wired into the running agent yet (the health hysteresis + failover/balance selection are done and unit-tested;
+  the RPC returns 501). Owner: F-multiwan-host.
+- F-aaa (increment 1 merged): the login-order integration (external login on POST /auth/login → roleMap → session via
+  a shadow user, fallbackLocal), MFA enrolment/enforcement (DB migration f_aaa_mfa, two-step login), and the LDAP/
+  OIDC/TACACS+/SAML backends are increment 2 (row F-aaa-login). The contract carries ldap/mfa/roleMap/fallbackLocal
+  and reserves oidc/saml proto fields 5/6; the RADIUS + TOTP engines and the admin actions/aaa/test route are done.
+  The login path is security-critical and was deliberately not rewritten in this session — it needs dedicated review.
+- F-bruteforce-block (merged PR #49): the data-plane enforcement of the auto-block set (VPP ACLs + nftables local-in)
+  and the host detectors (SSH journald, IKE/EAP auth, port-scan counters) are not wired into the running agent yet — the
+  API-side webLogin detector, the escalating block store (auto_block table), the allow-list/loopback guard, the expiry
+  sweep, the state/admin routes and the web page are done and tested. All host detectors funnel to the one
+  `AutoBlockService.observe(source, kind)` ingestion point. Owner: F-bruteforce-block-host.
+  Incidental, fixed in the same PR (ci.sh check is diff-scoped, so these latent failures slipped past earlier merges):
+  the group-a/index schema tests were refreshed for the already-merged multiwan `wanGroups` and aaa envelope fields,
+  and `renderers/pppoe` (F-pppoe-client) was registered in the agent TD-11a reachability table (pending; maxPending 20→21).
+- F-restconf-yang (merged PR #50): complete in-container, but two manager/infra follow-ups remain. (1) `tools/ci.sh`
+  `GEN_PATHS` does not include `packages/yang/generated`, so the shared gen-drift gate does not cover the YANG modules;
+  the `packages/yang` golden test covers drift instead — add the path to GEN_PATHS when convenient. (2) `pyang`/
+  `yanglint` are not installed on the build image, so YANG 1.1 validity is a manual gate; install one to make it
+  automatic. Deviations documented in docs/user/system/restconf-yang.md: keyless lists for keyless schema arrays, XSD
+  patterns dropped where JS regex is not expressible, top-node-only module qualification.

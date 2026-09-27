@@ -1244,6 +1244,261 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/security/global-blocking': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Block lists with source, last download, next refresh and hit counters */
+    get: operations['GlobalBlocking_status'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview an uploaded block-list file; with dryRun=false stage it into the candidate */
+    post: operations['GlobalBlocking_import'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/fetch': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Download the list from its server URL now; preview, or stage with dryRun=false */
+    post: operations['GlobalBlocking_fetch'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/security/global-blocking/lists/{name}/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export a block list in the import format (one entry per line) */
+    get: operations['GlobalBlocking_export'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/interfaces/{name}/pppoe/reconnect': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Redial a PPPoE client now (ignores the hold-off); the session comes up asynchronously */
+    post: operations['Pppoe_reconnect'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/alarms': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Active and historical alarms, newest first */
+    get: operations['Dashboard_listAlarms'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/alarms/{id}/ack': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Acknowledge an alarm (records who and when; does not clear it) */
+    post: operations['Dashboard_ack'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/dashboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Dashboard summary tile: active alarm counts and agent reachability */
+    get: operations['Dashboard_dashboard'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/wan': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live multi-WAN group member health */
+    get: operations['Multiwan_wan'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/aaa/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin: test an external AAA backend with a credential (no session issued) */
+    post: operations['Aaa_test'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/auto-block': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The live auto-block set (sources blocked now), newest first */
+    get: operations['AutoBlock_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/auto-block/unblock': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin: remove a source from the auto-block set */
+    post: operations['AutoBlock_unblock'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/auto-block/block': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin: block a source by hand (refused for an allow-listed source) */
+    post: operations['AutoBlock_block'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/system/yang': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the YANG modules generated from the configuration schema */
+    get: operations['Yang_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/system/yang/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The text of one generated YANG module */
+    get: operations['Yang_one'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host-acl': {
     parameters: {
       query?: never;
@@ -2130,6 +2385,67 @@ export interface components {
           hostIfType: 'tap' | 'tun';
           /** Network namespace */
           netns?: string;
+        };
+        /** PPPoE client */
+        pppoe?: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Dial over interface */
+          parent?: string;
+          /** Username */
+          username: string;
+          /** Password */
+          passwordRef: string;
+          /** Service name */
+          serviceName?: string;
+          /**
+           * MTU
+           * @default 1492
+           */
+          mtu: number;
+          /**
+           * Clamp TCP MSS
+           * @default true
+           */
+          mssClamp: boolean;
+          /**
+           * Default route from peer
+           * @default true
+           */
+          defaultRoute: boolean;
+          /**
+           * Use peer DNS
+           * @default false
+           */
+          dnsFromPeer: boolean;
+          /**
+           * IPv6
+           * @default off
+           * @enum {string}
+           */
+          ipv6: 'off' | 'slaac' | 'dhcpv6';
+          /**
+           * Reconnect
+           * @default {
+           *       "holdoffSec": 5,
+           *       "maxFail": 0
+           *     }
+           */
+          reconnect: {
+            /**
+             * Hold-off (seconds)
+             * @default 5
+             */
+            holdoffSec: number;
+            /**
+             * Max consecutive failures
+             * @default 0
+             */
+            maxFail: number;
+          };
         };
       };
     };
@@ -3459,6 +3775,95 @@ export interface components {
           family: 'ipv4' | 'ipv6';
         }[];
       };
+      /**
+       * WAN groups (multi-WAN)
+       * @default []
+       */
+      wanGroups: {
+        /** Name */
+        name: string;
+        /**
+         * Mode
+         * @default failover
+         * @enum {string}
+         */
+        mode: 'failover' | 'balance';
+        /**
+         * Sticky sessions
+         * @default true
+         */
+        stickySessions: boolean;
+        /**
+         * Members
+         * @default []
+         */
+        members: {
+          /** Interface */
+          interface: string;
+          /**
+           * Next hop
+           * @default dhcp
+           * @enum {string}
+           */
+          nextHop: 'gateway' | 'dhcp' | 'pppoe';
+          /** Gateway */
+          gateway?: string;
+          /**
+           * Weight
+           * @default 1
+           */
+          weight: number;
+          /**
+           * Priority
+           * @default 100
+           */
+          priority: number;
+        }[];
+        /**
+         * Health monitors
+         * @default []
+         */
+        monitors: {
+          /**
+           * Type
+           * @default icmp
+           * @enum {string}
+           */
+          type: 'icmp' | 'http' | 'dns';
+          /** Target */
+          target: string;
+          /**
+           * Interval (ms)
+           * @default 1000
+           */
+          intervalMs: number;
+          /**
+           * Timeout (ms)
+           * @default 1000
+           */
+          timeoutMs: number;
+          /**
+           * Loss threshold (%)
+           * @default 100
+           */
+          lossPct: number;
+          /**
+           * Latency threshold (ms)
+           * @default 0
+           */
+          latencyMs: number;
+          /**
+           * Down after
+           * @default 3
+           */
+          downAfter: number;
+          /**
+           * Up after
+           * @default 3
+           */
+          upAfter: number;
+        }[];
+      }[];
     };
     /**
      * NAT
@@ -5122,6 +5527,86 @@ export interface components {
            *     ]
            */
           ports: number[];
+        };
+      };
+      /**
+       * Global blocking
+       * @description IP block lists enforced before the access lists.
+       */
+      globalBlocking?: {
+        /**
+         * Block lists
+         * @default {}
+         */
+        lists: {
+          [key: string]: {
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Description */
+            description?: string;
+            /**
+             * Source
+             * @default {
+             *       "kind": "upload"
+             *     }
+             */
+            source:
+              | {
+                  /** @constant */
+                  kind: 'upload';
+                }
+              | {
+                  /** @constant */
+                  kind: 'url';
+                  /** Server URL */
+                  url: string;
+                  /** Refresh (seconds) */
+                  refreshSec?: number;
+                  /**
+                   * Verify the server certificate
+                   * @default true
+                   */
+                  verifyTls: boolean;
+                  /** Private CA */
+                  caRef?: string;
+                  /** Credentials */
+                  authRef?: string;
+                };
+            /**
+             * All interfaces
+             * @default false
+             */
+            allInterfaces: boolean;
+            /**
+             * Interfaces
+             * @default []
+             */
+            interfaces: string[];
+            /**
+             * Direction
+             * @default both
+             * @enum {string}
+             */
+            direction: 'both' | 'inbound' | 'outbound';
+            /**
+             * Protect the box
+             * @default true
+             */
+            protectHost: boolean;
+            /**
+             * Log
+             * @default false
+             */
+            log: boolean;
+            /**
+             * Entries
+             * @default []
+             */
+            entries: string[];
+          };
         };
       };
     };
@@ -7654,7 +8139,7 @@ export interface components {
          *       "local"
          *     ]
          */
-        order: ('local' | 'radius' | 'tacacs')[];
+        order: ('local' | 'radius' | 'tacacs' | 'ldap')[];
         /**
          * RADIUS
          * @default {}
@@ -7722,6 +8207,76 @@ export interface components {
             vrf: string;
           }[];
         };
+        /**
+         * LDAP
+         * @default {}
+         */
+        ldap: {
+          /**
+           * Servers
+           * @default []
+           */
+          servers: {
+            /** Server URL */
+            url: string;
+            /** Bind DN */
+            bindDn: string;
+            /** Bind password */
+            bindPasswordRef: string;
+            /** Base DN */
+            baseDn: string;
+            /**
+             * User filter
+             * @default (uid=%s)
+             */
+            userFilter: string;
+            /**
+             * Group attribute
+             * @default memberOf
+             */
+            groupAttr: string;
+            /**
+             * StartTLS
+             * @default false
+             */
+            startTls: boolean;
+          }[];
+        };
+        /**
+         * Role mapping
+         * @default []
+         */
+        roleMap: {
+          /** External group */
+          group: string;
+          /**
+           * Role
+           * @enum {string}
+           */
+          role: 'admin' | 'operator' | 'readonly';
+        }[];
+        /**
+         * MFA
+         * @default {}
+         */
+        mfa: {
+          /**
+           * Require MFA
+           * @default none
+           * @enum {string}
+           */
+          required: 'none' | 'admins' | 'all';
+          /**
+           * Issuer
+           * @default vrx
+           */
+          issuer: string;
+        };
+        /**
+         * Local fallback
+         * @default true
+         */
+        fallbackLocal: boolean;
       };
       /**
        * TLS
@@ -7816,6 +8371,191 @@ export interface components {
           permittedPeers?: string[];
         };
       }[];
+      /**
+       * Prometheus
+       * @default {}
+       */
+      prometheus: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Listen address
+         * @default 0.0.0.0
+         */
+        listen: string;
+        /**
+         * Port
+         * @default 9101
+         */
+        port: number;
+        /**
+         * Allow list
+         * @default []
+         */
+        allow: string[];
+      };
+      /**
+       * Alarms
+       * @default {}
+       */
+      alarms: {
+        /**
+         * Alarm rules
+         * @default {}
+         */
+        rules: {
+          [key: string]: {
+            /**
+             * Metric
+             * @enum {string}
+             */
+            metric:
+              | 'interface_rx_bps'
+              | 'interface_tx_bps'
+              | 'interface_rx_drops'
+              | 'interface_tx_drops'
+              | 'interface_link_down'
+              | 'worker_cpu_percent'
+              | 'buffer_used_percent'
+              | 'node_error_rate';
+            /**
+             * Comparison
+             * @default gt
+             * @enum {string}
+             */
+            op: 'gt' | 'ge' | 'lt' | 'le' | 'eq';
+            /** Threshold */
+            threshold: number;
+            /**
+             * For (seconds)
+             * @default 0
+             */
+            forSec: number;
+            /**
+             * Severity
+             * @default warning
+             * @enum {string}
+             */
+            severity: 'info' | 'warning' | 'critical';
+            /** Interface */
+            interface?: string;
+            /** Description */
+            description?: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Notify
+             * @default []
+             */
+            targets: string[];
+          };
+        };
+        /**
+         * Notification targets
+         * @default {}
+         */
+        targets: {
+          [key: string]:
+            | {
+                /** @constant */
+                kind: 'webhook';
+                /**
+                 * Webhook URL
+                 * Format: uri
+                 */
+                url: string;
+                /** Bearer token */
+                secretRef?: string;
+              }
+            | {
+                /** @constant */
+                kind: 'email';
+                /**
+                 * Email address
+                 * Format: email
+                 */
+                address: string;
+              };
+        };
+      };
+    };
+    /**
+     * Security
+     * @description defensive policy for the box’s own management and control planes
+     * @default {}
+     */
+    SecurityConfig: {
+      /**
+       * Auto-block
+       * @description brute-force / scan detection with automatic temporary blocking via Global Blocking
+       * @default {}
+       */
+      autoBlock: {
+        /**
+         * Enabled
+         * @default false
+         */
+        enabled: boolean;
+        /**
+         * Detectors
+         * @default []
+         */
+        rules: {
+          /**
+           * Detector
+           * @enum {string}
+           */
+          source: 'webLogin' | 'ssh' | 'vpnAuth' | 'portScan';
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /**
+           * Threshold
+           * @default 5
+           */
+          threshold: number;
+          /**
+           * Window (seconds)
+           * @default 60
+           */
+          windowSec: number;
+          /**
+           * Block (seconds)
+           * @default 900
+           */
+          blockSec: number;
+          /**
+           * Escalate on repeat
+           * @default true
+           */
+          escalate: boolean;
+          /**
+           * Maximum block (seconds)
+           * @default 86400
+           */
+          maxBlockSec: number;
+        }[];
+        /**
+         * Allow list
+         * @default []
+         */
+        allowlist: (string | string)[];
+        /**
+         * Maximum blocked entries
+         * @default 10000
+         */
+        maxEntries: number;
+        /** Description */
+        description?: string;
+      };
     };
     /** @description The whole configuration document (docs/04). Secret leaves are write-only and never returned. */
     RootConfig: {
@@ -7832,6 +8572,7 @@ export interface components {
       services?: components['schemas']['ServicesConfig'];
       ha?: components['schemas']['HaConfig'];
       management?: components['schemas']['ManagementConfig'];
+      security?: components['schemas']['SecurityConfig'];
     };
     /** @description RFC 9457 problem details */
     Problem: {
@@ -9963,6 +10704,20 @@ export interface operations {
                 linkSpeedKbps: string;
                 rxMode: string;
                 description: string;
+                pppoe?: {
+                  /** @description "down" | "dialing" | "up" | "failed" */
+                  phase: string;
+                  sessionId: number;
+                  acMac: string;
+                  acName: string;
+                  localIpv4: string;
+                  peerIpv4: string;
+                  ipv6: string;
+                  dns: string[];
+                  since: string | null;
+                  failCount: number;
+                  lastError: string;
+                } | null;
               } | null;
               /** @description what the agent retrieved as configured on the data plane (Retrieve), as before P08; null only on the rows P08 added (a live interface the agent does not manage, a configured one the data plane does not have yet, or one only in the candidate) */
               config: {
@@ -14184,6 +14939,999 @@ export interface operations {
       };
       /** @description Conflict (candidate locked by another user, commit pending, …) */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_status: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            maxEntries: number;
+            /** @description entries over all lists (candidate) */
+            totalEntries: number;
+            /** @description why hits are null (agent unavailable) */
+            countersError: string | null;
+            lists: {
+              name: string;
+              description: string | null;
+              enabled: boolean;
+              /** @description candidate vs running */
+              pending: ('added' | 'changed' | 'deleted') | null;
+              source: {
+                /** @enum {string} */
+                kind: 'upload' | 'url';
+                url: string | null;
+                refreshSec: number | null;
+              };
+              allInterfaces: boolean;
+              interfaces: string[];
+              direction: string;
+              protectHost: boolean;
+              /** @description candidate */
+              entries: number;
+              runningEntries: number;
+              /** @description the last download (URL sources) */
+              fetch: {
+                lastFetchAt: string;
+                /** @enum {string} */
+                lastResult: 'ok' | 'unchanged' | 'failed' | 'deferred';
+                lastError: string | null;
+                etag?: string;
+                lastModified?: string;
+                entries?: number;
+              } | null;
+              nextRefreshAt: string | null;
+              hits: {
+                dataplanePackets: number;
+                dataplaneBytes: number;
+                /** @description drops of traffic to the box (protectHost) */
+                hostPackets: number;
+              } | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_import: {
+    parameters: {
+      query?: {
+        dryRun?: boolean;
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'text/plain': string;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            dryRun: boolean;
+            lines: number;
+            /** @description valid entries after normalising, deduplicating and collapsing */
+            entries: number;
+            added: number;
+            removed: number;
+            unchanged: number;
+            /** @description entries whose host bits were masked */
+            normalised: number;
+            /** @description duplicates and entries covered by a wider one */
+            collapsed: number;
+            invalidCount: number;
+            /** @description first 200 invalid lines (skipped) */
+            invalid: {
+              line: number;
+              text: string;
+              reason: string;
+            }[];
+            /** @description first 100 */
+            addedSample: string[];
+            /** @description first 100 */
+            removedSample: string[];
+            /** @description the entries were written to the candidate */
+            staged: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_fetch: {
+    parameters: {
+      query?: {
+        dryRun?: boolean;
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            list: string;
+            dryRun: boolean;
+            lines: number;
+            /** @description valid entries after normalising, deduplicating and collapsing */
+            entries: number;
+            added: number;
+            removed: number;
+            unchanged: number;
+            /** @description entries whose host bits were masked */
+            normalised: number;
+            /** @description duplicates and entries covered by a wider one */
+            collapsed: number;
+            invalidCount: number;
+            /** @description first 200 invalid lines (skipped) */
+            invalid: {
+              line: number;
+              text: string;
+              reason: string;
+            }[];
+            /** @description first 100 */
+            addedSample: string[];
+            /** @description first 100 */
+            removedSample: string[];
+            /** @description the entries were written to the candidate */
+            staged: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  GlobalBlocking_export: {
+    parameters: {
+      query?: {
+        source?: 'running' | 'candidate';
+      };
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/plain': string;
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pppoe_reconnect: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description the PPPoE client interface name */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            accepted: boolean;
+            message: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Dashboard_listAlarms: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+        active?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            total: number;
+            items: {
+              id: number;
+              rule: string;
+              instance: string;
+              metric: string;
+              severity: string;
+              state: string;
+              value: string;
+              threshold: string;
+              message: string;
+              raisedAt: string;
+              clearedAt: string | null;
+              ackedAt: string | null;
+              ackedBy: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Dashboard_ack: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            acked: boolean;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Dashboard_dashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            alarms: {
+              active: number;
+              bySeverity: {
+                [key: string]: number;
+              };
+            };
+            agent: {
+              reachable: boolean;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Multiwan_wan: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            groups: {
+              name: string;
+              mode: string;
+              /** @description interface carrying the default route (failover); empty in balance or when all down */
+              active: string;
+              members: {
+                interface: string;
+                up: boolean;
+                lossPct: number;
+                latencyMs: number;
+                weight: number;
+                priority: number;
+                since: string | null;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Aaa_test: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            method: string;
+            reachable: boolean;
+            authenticated: boolean;
+            groups: string[];
+            role: ('admin' | 'operator' | 'readonly') | null;
+            detail: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  AutoBlock_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items: {
+              source: string;
+              reason: string;
+              hits: number;
+              offences: number;
+              origin: string;
+              note: string;
+              firstSeen: string;
+              blockedAt: string;
+              expiresAt: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  AutoBlock_unblock: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          source: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            unblocked: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  AutoBlock_block: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          source: string;
+          blockSec?: number;
+          /** @default  */
+          note?: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            source: string;
+            reason: string;
+            hits: number;
+            offences: number;
+            origin: string;
+            note: string;
+            firstSeen: string;
+            blockedAt: string;
+            expiresAt: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Yang_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            modules: {
+              name: string;
+              namespace: string;
+              revision: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Yang_one: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description module name, e.g. vrx-interfaces */
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            yang: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };

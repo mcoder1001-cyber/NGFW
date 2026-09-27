@@ -1,0 +1,17 @@
+{
+  "nav": "RESTCONF / YANG",
+  "title": "RESTCONF / YANG",
+  "intro": "The box exposes a RESTCONF (RFC 8040) API at /restconf, driven by YANG 1.1 modules generated from the configuration schema — one module per configuration domain. Use the same credentials as the REST API. Download the modules below for your NETCONF/RESTCONF tooling.",
+  "endpointTitle": "Endpoint",
+  "endpointHelp": "RESTCONF root (same host, same auth as this UI):",
+  "modulesTitle": "YANG modules",
+  "loading": "Loading modules",
+  "empty": "No modules.",
+  "download": "Download",
+  "downloadAll": "Download all",
+  "col": {
+    "name": "Module",
+    "namespace": "Namespace",
+    "revision": "Revision"
+  }
+}

@@ -11,6 +11,8 @@ import {
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { syslogTargetExtKeys } from './ext/syslog.js'; // F-unbound-chrony-syslog (SY4)
+import { aaaFallbackLocalField, aaaLdapField, aaaMfaField, aaaRoleMapField } from './ext/aaa.js'; // wave-BC: F-aaa
+import { managementAlarmsField, managementPrometheusField } from './ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 
 /**
  * `management` — local users, AAA (RADIUS / TACACS+), TLS for the API and remote syslog (docs/04-api-datamodel.md).
@@ -104,12 +106,12 @@ export const TacacsServerSchema = z.strictObject({
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 5 }),
 });
 
-export const AuthMethod = z.enum(['local', 'radius', 'tacacs']);
+export const AuthMethod = z.enum(['local', 'radius', 'tacacs', 'ldap']);
 export type AuthMethod = z.infer<typeof AuthMethod>;
 
 export const AaaSchema = z
   .strictObject({
-    order: withUi(z.array(AuthMethod).min(1).max(3).default(['local']), {
+    order: withUi(z.array(AuthMethod).min(1).max(6).default(['local']), {
       title: 'Authentication order',
       help: 'methods tried in order until one answers; `local` should stay in the list',
       order: 1,
@@ -139,6 +141,10 @@ export const AaaSchema = z
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // F-aaa also widens AuthMethod and order.max(3) in place (SY4).
     // wave-BC: F-aaa
+    ldap: aaaLdapField,
+    roleMap: aaaRoleMapField,
+    mfa: aaaMfaField,
+    fallbackLocal: aaaFallbackLocalField,
   })
   .refine((aaa) => new Set(aaa.order).size === aaa.order.length, {
     message: 'each authentication method may appear only once',
@@ -151,6 +157,10 @@ export const AaaSchema = z
   .refine((aaa) => !aaa.order.includes('tacacs') || aaa.tacacs.servers.length > 0, {
     message: 'tacacs is in the authentication order but no TACACS+ server is configured',
     path: ['tacacs', 'servers'],
+  })
+  .refine((aaa) => !aaa.order.includes('ldap') || aaa.ldap.servers.length > 0, {
+    message: 'ldap is in the authentication order but no LDAP server is configured',
+    path: ['ldap', 'servers'],
   });
 
 export const TlsSchema = z
@@ -223,6 +233,8 @@ export const ManagementSchema = withUi(
     }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-BC: F-dashboard-prom-alarms
+    prometheus: managementPrometheusField,
+    alarms: managementAlarmsField,
     // wave-BC: F-backup-restore
   }),
   {

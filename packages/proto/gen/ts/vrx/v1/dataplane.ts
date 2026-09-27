@@ -1198,6 +1198,8 @@ export interface InterfaceState {
   rxMode: string;
   /** Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none. */
   description: string;
+  /** PPPoE client session on this interface (F-pppoe-client); unset = not a PPPoE client. */
+  pppoe: PppoeSessionState | undefined;
 }
 
 /**
@@ -1251,7 +1253,11 @@ export interface DesiredState {
     | HaConfig
     | undefined;
   /** `management` — local users, AAA, TLS, syslog. */
-  management: ManagementConfig | undefined;
+  management:
+    | ManagementConfig
+    | undefined;
+  /** `security` — the box's own defensive policy (brute-force / scan auto-block). */
+  security: SecurityConfig | undefined;
 }
 
 export interface DesiredState_InterfacesEntry {
@@ -1473,7 +1479,11 @@ export interface Interface {
   /** Mirror sessions with this interface as the source (sw_interface_span_enable_disable; F-loopback-bvi-gso-lldp-span). */
   mirror: MirrorSession[];
   /** linux-cp pair of this interface (lcp_itf_pair_add_del_v3, P12); present = the pair exists. */
-  lcp: InterfaceLcp | undefined;
+  lcp:
+    | InterfaceLcp
+    | undefined;
+  /** PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client. */
+  pppoe: Pppoe | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
@@ -1621,7 +1631,14 @@ export interface RoutingConfig {
     | NeighborsConfig
     | undefined;
   /** Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none. */
-  pbr: PbrConfig | undefined;
+  pbr:
+    | PbrConfig
+    | undefined;
+  /**
+   * F-multiwan (unanchored)
+   * Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
+   */
+  wanGroups: WanGroup[];
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -3646,6 +3663,73 @@ export interface ManagementConfig {
     | undefined;
   /** Remote syslog targets (rsyslog renderer). */
   syslog: SyslogTarget[];
+  /**
+   * wave-BC: F-dashboard-prom-alarms
+   * The agent's external Prometheus listener (the loopback /metrics endpoint is always on).
+   */
+  prometheus:
+    | ManagementPrometheus
+    | undefined;
+  /** Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard). */
+  alarms: ManagementAlarms | undefined;
+}
+
+/** SecurityConfig mirrors `security`. */
+export interface SecurityConfig {
+  /** `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking. */
+  autoBlock: AutoBlock | undefined;
+}
+
+/**
+ * AutoBlock mirrors `security.autoBlock`. The thresholds, allow-list and caps are the contract the API and host
+ * detectors share; the blocked entries themselves are runtime state (a system-owned Global Blocking list), never
+ * part of the committed document, so they have no field here.
+ */
+export interface AutoBlock {
+  /** Master switch; when off no source is auto-blocked. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** One rule per source. */
+  rules: AutoBlockRule[];
+  /** Addresses / networks (bare address = /32 or /128) that are never blocked. */
+  allowlist: string[];
+  /** Cap on the live auto-block set. */
+  maxEntries?:
+    | number
+    | undefined;
+  /** Optional free-text description. */
+  description?: string | undefined;
+}
+
+/** AutoBlockRule mirrors one entry of `security.autoBlock.rules`. */
+export interface AutoBlockRule {
+  /** Detector: "webLogin" | "ssh" | "vpnAuth" | "portScan". */
+  source?:
+    | string
+    | undefined;
+  /** Whether this detector is active. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Failures (portScan: distinct ports) from one source within the window before it is blocked. */
+  threshold?:
+    | number
+    | undefined;
+  /** The sliding window the threshold is counted over. */
+  windowSec?:
+    | number
+    | undefined;
+  /** How long a first offence is blocked. */
+  blockSec?:
+    | number
+    | undefined;
+  /** Double the block time on each repeat offence, up to the cap. */
+  escalate?:
+    | boolean
+    | undefined;
+  /** The escalation cap; a single block never lasts longer than this. */
+  maxBlockSec?: number | undefined;
 }
 
 /** ManagementUser mirrors one entry of `management.users`. */
@@ -3681,7 +3765,28 @@ export interface ManagementAaa {
     | AaaRadius
     | undefined;
   /** TACACS+ servers. */
-  tacacs: AaaTacacs | undefined;
+  tacacs:
+    | AaaTacacs
+    | undefined;
+  /**
+   * wave-BC: F-aaa
+   * LDAP servers (F-aaa).
+   */
+  ldap:
+    | AaaLdap
+    | undefined;
+  /**
+   * OIDC (reserved for a follow-up): field 5.
+   * SAML (reserved for a follow-up): field 6.
+   * External group -> local role.
+   */
+  roleMap: AaaRoleMapping[];
+  /** Multi-factor policy. */
+  mfa:
+    | AaaMfa
+    | undefined;
+  /** Allow local login when every external server is unreachable; Zod default true. */
+  fallbackLocal?: boolean | undefined;
 }
 
 /** AaaRadius mirrors `management.aaa.radius`. */
@@ -4785,7 +4890,11 @@ export interface AclConfig {
   /** Attachments of `host` lists to host chains. */
   hostAttachments: HostAttachment[];
   /** Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults. */
-  hostSettings: HostAclSettings | undefined;
+  hostSettings:
+    | HostAclSettings
+    | undefined;
+  /** F-global-blocking: IP block lists enforced ahead of the access lists; unset = none. */
+  globalBlocking: GlobalBlocking | undefined;
 }
 
 export interface AclConfig_ListsEntry {
@@ -4801,6 +4910,79 @@ export interface AclConfig_MacipEntry {
 export interface AclConfig_HostEntry {
   key: string;
   value: HostList | undefined;
+}
+
+/** GlobalBlocking mirrors `acl.globalBlocking` (F-global-blocking). */
+export interface GlobalBlocking {
+  /** Block lists by name. */
+  lists: { [key: string]: GlobalBlockingList };
+}
+
+export interface GlobalBlocking_ListsEntry {
+  key: string;
+  value: GlobalBlockingList | undefined;
+}
+
+/** GlobalBlockingSource mirrors `acl.globalBlocking.lists.<name>.source` (discriminated union, flattened). */
+export interface GlobalBlockingSource {
+  /** "upload" | "url". */
+  kind?:
+    | string
+    | undefined;
+  /** url: http(s) URL the API downloads the list from. */
+  url?:
+    | string
+    | undefined;
+  /** url: download-and-apply interval in seconds; unset = only on "Fetch now". */
+  refreshSec?:
+    | number
+    | undefined;
+  /** url: verify the server certificate (Zod default true). */
+  verifyTls?:
+    | boolean
+    | undefined;
+  /** url: secret reference of a private CA (cert/<name>). */
+  caRef?:
+    | string
+    | undefined;
+  /** url: secret reference of the credentials (token/<name> or password/<name>). */
+  authRef?: string | undefined;
+}
+
+/** GlobalBlockingList mirrors `acl.globalBlocking.lists.<name>`. */
+export interface GlobalBlockingList {
+  /** List enabled (Zod default true). */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Where the entries come from (the API imports them; the agent only renders entries). */
+  source:
+    | GlobalBlockingSource
+    | undefined;
+  /** Every L3 interface, including later ones. */
+  allInterfaces?:
+    | boolean
+    | undefined;
+  /** Interfaces the list is enforced on (when not all_interfaces). */
+  interfaces: string[];
+  /** "both" | "inbound" | "outbound". */
+  direction?:
+    | string
+    | undefined;
+  /** Also drop traffic from listed addresses to the box itself (nftables). */
+  protectHost?:
+    | boolean
+    | undefined;
+  /** Log matches. */
+  log?:
+    | boolean
+    | undefined;
+  /** Canonical IPv4/IPv6 prefixes. */
+  entries: string[];
 }
 
 /** AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened. */
@@ -7124,6 +7306,109 @@ export interface InterfaceLcp {
   netns?: string | undefined;
 }
 
+/**
+ * Pppoe mirrors `interfaces.<name>.pppoe` (F-pppoe-client): a PPPoE client dialled by pppd on a linux-cp tap of the
+ * parent, the ISP-assigned address/routes mirrored into VPP. The password is a secret reference, never inline.
+ */
+export interface Pppoe {
+  /** Dial the session; Zod default true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Engine interface the session runs over; unset = this interface (set for a VLAN sub-interface WAN). */
+  parent?:
+    | string
+    | undefined;
+  /** PPP username (PAP/CHAP). */
+  username?:
+    | string
+    | undefined;
+  /** Reference to a stored password secret ("password/<name>"); never the password. */
+  passwordRef?:
+    | string
+    | undefined;
+  /** RFC 2516 Service-Name to request; unset = accept any AC. */
+  serviceName?:
+    | string
+    | undefined;
+  /** PPPoE payload MTU; Zod default 1492. */
+  mtu?:
+    | number
+    | undefined;
+  /** Clamp forwarded TCP MSS to fit the MTU; Zod default true. */
+  mssClamp?:
+    | boolean
+    | undefined;
+  /** Install a default route via the session; Zod default true. */
+  defaultRoute?:
+    | boolean
+    | undefined;
+  /** Use the DNS servers the peer sends (IPCP); Zod default false. */
+  dnsFromPeer?:
+    | boolean
+    | undefined;
+  /** IPv6: "off" | "slaac" | "dhcpv6"; Zod default "off". */
+  ipv6?:
+    | string
+    | undefined;
+  /** Reconnect policy. */
+  reconnect: PppoeReconnect | undefined;
+}
+
+/** PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`. */
+export interface PppoeReconnect {
+  /** Seconds to wait before redialling after the session drops; Zod default 5. */
+  holdoffSec?:
+    | number
+    | undefined;
+  /** Give up after this many failed dials in a row; 0 = forever; Zod default 0. */
+  maxFail?: number | undefined;
+}
+
+/** PppoeReconnectRequest asks the agent to redial one PPPoE client now. */
+export interface PppoeReconnectRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Configuration interface name of the PPPoE client (the `interfaces.<name>` key). */
+  interface: string;
+}
+
+/** PppoeReconnectResponse says whether the redial was accepted (the session comes up asynchronously). */
+export interface PppoeReconnectResponse {
+  /** The agent accepted the request and is redialling. */
+  accepted: boolean;
+  /** Human-readable detail ("no PPPoE client on 'eth0'", "redialling"…). */
+  message: string;
+}
+
+/** PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState. */
+export interface PppoeSessionState {
+  /** "down" | "dialing" | "up" | "failed". */
+  phase: string;
+  /** PPPoE session id (RFC 2516) once negotiated; 0 when down. */
+  sessionId: number;
+  /** MAC of the access concentrator (peer); empty when down. */
+  acMac: string;
+  /** AC name from the PADO tag; empty when unknown. */
+  acName: string;
+  /** Local (ISP-assigned) IPv4 address in CIDR, e.g. "203.0.113.5/32"; empty when none. */
+  localIpv4: string;
+  /** Peer (gateway) IPv4 address; empty when none. */
+  peerIpv4: string;
+  /** ISP-assigned IPv6 address/prefix; empty when none. */
+  ipv6: string;
+  /** DNS servers the peer sent (IPCP), sorted; empty when none. */
+  dns: string[];
+  /** When the current session came up (agent clock); unset when down. */
+  since:
+    | Date
+    | undefined;
+  /** Consecutive failed dials since the last success. */
+  failCount: number;
+  /** Last error text (pppd exit reason), empty when none. */
+  lastError: string;
+}
+
 /** RoutingStateRequest selects the parts of RoutingState to read (the BGP table, counts and pairs are always returned). */
 export interface RoutingStateRequest {
   /** Same rules as ApplyRequest.owner. */
@@ -9042,6 +9327,278 @@ export interface LispStateResponse {
   /** VNIs that have LISP-GPE forwarding entries. */
   gpeVnis: number[];
   retrievedAt: Date | undefined;
+}
+
+/** ManagementPrometheus mirrors `management.prometheus`: the agent's external Prometheus listener. */
+export interface ManagementPrometheus {
+  /** Open the external listener (the loopback /metrics endpoint is always on); Zod default false. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Address the external listener binds to; Zod default "0.0.0.0". */
+  listen?:
+    | string
+    | undefined;
+  /** Port of the external listener; Zod default 9101. */
+  port?:
+    | number
+    | undefined;
+  /** CIDRs allowed to scrape (empty = any source that reaches the listener). */
+  allow: string[];
+}
+
+/** ManagementAlarms mirrors `management.alarms` (consumed by the API; carried here for the drift guard). */
+export interface ManagementAlarms {
+  /** Alarm rules by name. */
+  rules: { [key: string]: AlarmRule };
+  /** Notification targets by name. */
+  targets: { [key: string]: AlarmTarget };
+}
+
+export interface ManagementAlarms_RulesEntry {
+  key: string;
+  value: AlarmRule | undefined;
+}
+
+export interface ManagementAlarms_TargetsEntry {
+  key: string;
+  value: AlarmTarget | undefined;
+}
+
+/** AlarmRule mirrors `management.alarms.rules.<name>`. */
+export interface AlarmRule {
+  /** Metric family (ALARM_METRICS): "interface_rx_bps" | … | "node_error_rate". */
+  metric?:
+    | string
+    | undefined;
+  /** Comparison: "gt" | "ge" | "lt" | "le" | "eq"; Zod default "gt". */
+  op?:
+    | string
+    | undefined;
+  /** Threshold compared against the metric. */
+  threshold?:
+    | number
+    | undefined;
+  /** Seconds the condition must hold before raising (hysteresis); Zod default 0. */
+  forSec?:
+    | number
+    | undefined;
+  /** "info" | "warning" | "critical"; Zod default "warning". */
+  severity?:
+    | string
+    | undefined;
+  /** Limit an interface metric to this interface; unset = every interface. */
+  interface?:
+    | string
+    | undefined;
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Rule enabled; Zod default true. */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Names of management.alarms.targets to notify. */
+  targets: string[];
+}
+
+/** AlarmTarget mirrors `management.alarms.targets.<name>` (discriminated union on kind, flattened). */
+export interface AlarmTarget {
+  /** "webhook" | "email". */
+  kind?:
+    | string
+    | undefined;
+  /** webhook: the URL the alarm JSON is POSTed to. */
+  url?:
+    | string
+    | undefined;
+  /** webhook: reference to a bearer token secret ("token/<name>"). */
+  secretRef?:
+    | string
+    | undefined;
+  /** email: the recipient address. */
+  address?: string | undefined;
+}
+
+/** WanGroup mirrors `routing.wanGroups[]` (F-multiwan). */
+export interface WanGroup {
+  /** Group name. */
+  name?:
+    | string
+    | undefined;
+  /** "failover" | "balance"; Zod default "failover". */
+  mode?:
+    | string
+    | undefined;
+  /** Keep a flow on its member while up; clear the dead link's NAT sessions on failover. Zod default true. */
+  stickySessions?:
+    | boolean
+    | undefined;
+  /** Member links (>= 1). */
+  members: WanMember[];
+  /** Health monitors (>= 1). */
+  monitors: WanMonitor[];
+}
+
+/** WanMember mirrors `routing.wanGroups[].members[]`. */
+export interface WanMember {
+  /** Member interface. */
+  interface?:
+    | string
+    | undefined;
+  /** "gateway" | "dhcp" | "pppoe"; Zod default "dhcp". */
+  nextHop?:
+    | string
+    | undefined;
+  /** Static gateway (required when next_hop is "gateway"). */
+  gateway?:
+    | string
+    | undefined;
+  /** Balance-mode weight; Zod default 1. */
+  weight?:
+    | number
+    | undefined;
+  /** Failover priority (lower wins); Zod default 100. */
+  priority?: number | undefined;
+}
+
+/** WanMonitor mirrors `routing.wanGroups[].monitors[]`. */
+export interface WanMonitor {
+  /** "icmp" | "http" | "dns"; Zod default "icmp". */
+  type?:
+    | string
+    | undefined;
+  /** Probe target (address/host; a host for http). */
+  target?:
+    | string
+    | undefined;
+  /** Probe interval (ms); Zod default 1000. */
+  intervalMs?:
+    | number
+    | undefined;
+  /** Probe timeout (ms); Zod default 1000. */
+  timeoutMs?:
+    | number
+    | undefined;
+  /** Loss threshold percent; Zod default 100. */
+  lossPct?:
+    | number
+    | undefined;
+  /** Latency threshold (ms); 0 = no latency check. Zod default 0. */
+  latencyMs?:
+    | number
+    | undefined;
+  /** Consecutive failing checks before down; Zod default 3. */
+  downAfter?:
+    | number
+    | undefined;
+  /** Consecutive passing checks before up; Zod default 3. */
+  upAfter?: number | undefined;
+}
+
+/** WanStateRequest selects WAN groups to report (empty = all). */
+export interface WanStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Group names to include; empty = all. */
+  groups: string[];
+}
+
+/** WanStateResponse is the live multi-WAN health. */
+export interface WanStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** One entry per configured WAN group, sorted by name. */
+  groups: WanGroupState[];
+}
+
+/** WanGroupState is the live state of one WAN group. */
+export interface WanGroupState {
+  /** Group name. */
+  name: string;
+  /** "failover" | "balance". */
+  mode: string;
+  /** Interface carrying the default route now (failover); empty in balance mode or when none is healthy. */
+  active: string;
+  /** Members, sorted by interface. */
+  members: WanMemberState[];
+}
+
+/** WanMemberState is the live health of one member link. */
+export interface WanMemberState {
+  /** Member interface. */
+  interface: string;
+  /** Health as the hysteresis sees it. */
+  up: boolean;
+  /** Probe loss over the last window, percent. */
+  lossPct: number;
+  /** Average probe latency over the last window, ms. */
+  latencyMs: number;
+  /** Weight (balance) and priority (failover) from the configuration. */
+  weight: number;
+  priority: number;
+  /** When this member last changed up/down state (agent clock); unset if never. */
+  since: Date | undefined;
+}
+
+/** AaaLdap mirrors `management.aaa.ldap`. */
+export interface AaaLdap {
+  servers: AaaLdapServer[];
+}
+
+/** AaaLdapServer mirrors `management.aaa.ldap.servers[]`. */
+export interface AaaLdapServer {
+  /** ldap:// or ldaps:// URL. */
+  url?:
+    | string
+    | undefined;
+  /** Bind DN (service account). */
+  bindDn?:
+    | string
+    | undefined;
+  /** Reference to the bind password secret ("password/<name>"). */
+  bindPasswordRef?:
+    | string
+    | undefined;
+  /** Base DN of the user search. */
+  baseDn?:
+    | string
+    | undefined;
+  /** User filter (%s = the login name); Zod default "(uid=%s)". */
+  userFilter?:
+    | string
+    | undefined;
+  /** Attribute listing the user's group DNs; Zod default "memberOf". */
+  groupAttr?:
+    | string
+    | undefined;
+  /** Upgrade an ldap:// connection with StartTLS; Zod default false. */
+  startTls?: boolean | undefined;
+}
+
+/** AaaRoleMapping mirrors `management.aaa.roleMap[]`. */
+export interface AaaRoleMapping {
+  /** External group name or DN. */
+  group?:
+    | string
+    | undefined;
+  /** "admin" | "operator" | "readonly". */
+  role?: string | undefined;
+}
+
+/** AaaMfa mirrors `management.aaa.mfa`. */
+export interface AaaMfa {
+  /** "none" | "admins" | "all"; Zod default "none". */
+  required?:
+    | string
+    | undefined;
+  /** Authenticator-app issuer label; Zod default "vrx". */
+  issuer?: string | undefined;
 }
 
 export interface DataplaneStartupStateRequest {
@@ -13020,6 +13577,7 @@ function createBaseInterfaceState(): InterfaceState {
     linkSpeedKbps: "0",
     rxMode: "",
     description: "",
+    pppoe: undefined,
   };
 }
 
@@ -13084,6 +13642,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     }
     if (message.description !== "") {
       writer.uint32(162).string(message.description);
+    }
+    if (message.pppoe !== undefined) {
+      PppoeSessionState.encode(message.pppoe, writer.uint32(170).fork()).join();
     }
     return writer;
   },
@@ -13261,6 +13822,14 @@ export const InterfaceState: MessageFns<InterfaceState> = {
             message.description = reader.string();
             continue;
           }
+          case 21: {
+            if (tag !== 170) {
+              break;
+            }
+
+            message.pppoe = PppoeSessionState.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -13339,6 +13908,7 @@ export const InterfaceState: MessageFns<InterfaceState> = {
         ? globalThis.String(object.rx_mode)
         : "",
       description: isSet(object.description) ? globalThis.String(object.description) : "",
+      pppoe: isSet(object.pppoe) ? PppoeSessionState.fromJSON(object.pppoe) : undefined,
     };
   },
 
@@ -13404,6 +13974,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     if (message.description !== "") {
       obj.description = message.description;
     }
+    if (message.pppoe !== undefined) {
+      obj.pppoe = PppoeSessionState.toJSON(message.pppoe);
+    }
     return obj;
   },
 
@@ -13432,6 +14005,9 @@ export const InterfaceState: MessageFns<InterfaceState> = {
     message.linkSpeedKbps = object.linkSpeedKbps ?? "0";
     message.rxMode = object.rxMode ?? "";
     message.description = object.description ?? "";
+    message.pppoe = (object.pppoe !== undefined && object.pppoe !== null)
+      ? PppoeSessionState.fromPartial(object.pppoe)
+      : undefined;
     return message;
   },
 };
@@ -13451,6 +14027,7 @@ function createBaseDesiredState(): DesiredState {
     services: undefined,
     ha: undefined,
     management: undefined,
+    security: undefined,
   };
 }
 
@@ -13494,6 +14071,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     }
     if (message.management !== undefined) {
       ManagementConfig.encode(message.management, writer.uint32(106).fork()).join();
+    }
+    if (message.security !== undefined) {
+      SecurityConfig.encode(message.security, writer.uint32(114).fork()).join();
     }
     return writer;
   },
@@ -13621,6 +14201,14 @@ export const DesiredState: MessageFns<DesiredState> = {
             message.management = ManagementConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.security = SecurityConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -13674,6 +14262,7 @@ export const DesiredState: MessageFns<DesiredState> = {
       services: isSet(object.services) ? ServicesConfig.fromJSON(object.services) : undefined,
       ha: isSet(object.ha) ? HaConfig.fromJSON(object.ha) : undefined,
       management: isSet(object.management) ? ManagementConfig.fromJSON(object.management) : undefined,
+      security: isSet(object.security) ? SecurityConfig.fromJSON(object.security) : undefined,
     };
   },
 
@@ -13730,6 +14319,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     if (message.management !== undefined) {
       obj.management = ManagementConfig.toJSON(message.management);
     }
+    if (message.security !== undefined) {
+      obj.security = SecurityConfig.toJSON(message.security);
+    }
     return obj;
   },
 
@@ -13780,6 +14372,9 @@ export const DesiredState: MessageFns<DesiredState> = {
     message.ha = (object.ha !== undefined && object.ha !== null) ? HaConfig.fromPartial(object.ha) : undefined;
     message.management = (object.management !== undefined && object.management !== null)
       ? ManagementConfig.fromPartial(object.management)
+      : undefined;
+    message.security = (object.security !== undefined && object.security !== null)
+      ? SecurityConfig.fromPartial(object.security)
       : undefined;
     return message;
   },
@@ -15025,6 +15620,7 @@ function createBaseInterface(): Interface {
     gso: undefined,
     mirror: [],
     lcp: undefined,
+    pppoe: undefined,
   };
 }
 
@@ -15095,6 +15691,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.lcp !== undefined) {
       InterfaceLcp.encode(message.lcp, writer.uint32(178).fork()).join();
+    }
+    if (message.pppoe !== undefined) {
+      Pppoe.encode(message.pppoe, writer.uint32(186).fork()).join();
     }
     return writer;
   },
@@ -15291,6 +15890,14 @@ export const Interface: MessageFns<Interface> = {
             message.lcp = InterfaceLcp.decode(reader, reader.uint32());
             continue;
           }
+          case 23: {
+            if (tag !== 186) {
+              break;
+            }
+
+            message.pppoe = Pppoe.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -15362,6 +15969,7 @@ export const Interface: MessageFns<Interface> = {
         ? object.mirror.map((e: any) => MirrorSession.fromJSON(e))
         : [],
       lcp: isSet(object.lcp) ? InterfaceLcp.fromJSON(object.lcp) : undefined,
+      pppoe: isSet(object.pppoe) ? Pppoe.fromJSON(object.pppoe) : undefined,
     };
   },
 
@@ -15439,6 +16047,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.lcp !== undefined) {
       obj.lcp = InterfaceLcp.toJSON(message.lcp);
     }
+    if (message.pppoe !== undefined) {
+      obj.pppoe = Pppoe.toJSON(message.pppoe);
+    }
     return obj;
   },
 
@@ -15483,6 +16094,7 @@ export const Interface: MessageFns<Interface> = {
     message.gso = object.gso ?? undefined;
     message.mirror = object.mirror?.map((e) => MirrorSession.fromPartial(e)) || [];
     message.lcp = (object.lcp !== undefined && object.lcp !== null) ? InterfaceLcp.fromPartial(object.lcp) : undefined;
+    message.pppoe = (object.pppoe !== undefined && object.pppoe !== null) ? Pppoe.fromPartial(object.pppoe) : undefined;
     return message;
   },
 };
@@ -16159,6 +16771,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     srv6: undefined,
     neighbors: undefined,
     pbr: undefined,
+    wanGroups: [],
   };
 }
 
@@ -16199,6 +16812,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.pbr !== undefined) {
       PbrConfig.encode(message.pbr, writer.uint32(90).fork()).join();
+    }
+    for (const v of message.wanGroups) {
+      WanGroup.encode(v!, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -16312,6 +16928,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.pbr = PbrConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.wanGroups.push(WanGroup.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -16338,6 +16962,11 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       srv6: isSet(object.srv6) ? Srv6Config.fromJSON(object.srv6) : undefined,
       neighbors: isSet(object.neighbors) ? NeighborsConfig.fromJSON(object.neighbors) : undefined,
       pbr: isSet(object.pbr) ? PbrConfig.fromJSON(object.pbr) : undefined,
+      wanGroups: globalThis.Array.isArray(object?.wanGroups)
+        ? object.wanGroups.map((e: any) => WanGroup.fromJSON(e))
+        : globalThis.Array.isArray(object?.wan_groups)
+        ? object.wan_groups.map((e: any) => WanGroup.fromJSON(e))
+        : [],
     };
   },
 
@@ -16379,6 +17008,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     if (message.pbr !== undefined) {
       obj.pbr = PbrConfig.toJSON(message.pbr);
     }
+    if (message.wanGroups?.length) {
+      obj.wanGroups = message.wanGroups.map((e) => WanGroup.toJSON(e));
+    }
     return obj;
   },
 
@@ -16411,6 +17043,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       ? NeighborsConfig.fromPartial(object.neighbors)
       : undefined;
     message.pbr = (object.pbr !== undefined && object.pbr !== null) ? PbrConfig.fromPartial(object.pbr) : undefined;
+    message.wanGroups = object.wanGroups?.map((e) => WanGroup.fromPartial(e)) || [];
     return message;
   },
 };
@@ -32092,7 +32725,7 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
 };
 
 function createBaseManagementConfig(): ManagementConfig {
-  return { users: [], aaa: undefined, tls: undefined, syslog: [] };
+  return { users: [], aaa: undefined, tls: undefined, syslog: [], prometheus: undefined, alarms: undefined };
 }
 
 export const ManagementConfig: MessageFns<ManagementConfig> = {
@@ -32108,6 +32741,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     }
     for (const v of message.syslog) {
       SyslogTarget.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.prometheus !== undefined) {
+      ManagementPrometheus.encode(message.prometheus, writer.uint32(42).fork()).join();
+    }
+    if (message.alarms !== undefined) {
+      ManagementAlarms.encode(message.alarms, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -32157,6 +32796,22 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
             message.syslog.push(SyslogTarget.decode(reader, reader.uint32()));
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.prometheus = ManagementPrometheus.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.alarms = ManagementAlarms.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -32175,6 +32830,8 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
       aaa: isSet(object.aaa) ? ManagementAaa.fromJSON(object.aaa) : undefined,
       tls: isSet(object.tls) ? ManagementTls.fromJSON(object.tls) : undefined,
       syslog: globalThis.Array.isArray(object?.syslog) ? object.syslog.map((e: any) => SyslogTarget.fromJSON(e)) : [],
+      prometheus: isSet(object.prometheus) ? ManagementPrometheus.fromJSON(object.prometheus) : undefined,
+      alarms: isSet(object.alarms) ? ManagementAlarms.fromJSON(object.alarms) : undefined,
     };
   },
 
@@ -32192,6 +32849,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     if (message.syslog?.length) {
       obj.syslog = message.syslog.map((e) => SyslogTarget.toJSON(e));
     }
+    if (message.prometheus !== undefined) {
+      obj.prometheus = ManagementPrometheus.toJSON(message.prometheus);
+    }
+    if (message.alarms !== undefined) {
+      obj.alarms = ManagementAlarms.toJSON(message.alarms);
+    }
     return obj;
   },
 
@@ -32204,6 +32867,411 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     message.aaa = (object.aaa !== undefined && object.aaa !== null) ? ManagementAaa.fromPartial(object.aaa) : undefined;
     message.tls = (object.tls !== undefined && object.tls !== null) ? ManagementTls.fromPartial(object.tls) : undefined;
     message.syslog = object.syslog?.map((e) => SyslogTarget.fromPartial(e)) || [];
+    message.prometheus = (object.prometheus !== undefined && object.prometheus !== null)
+      ? ManagementPrometheus.fromPartial(object.prometheus)
+      : undefined;
+    message.alarms = (object.alarms !== undefined && object.alarms !== null)
+      ? ManagementAlarms.fromPartial(object.alarms)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseSecurityConfig(): SecurityConfig {
+  return { autoBlock: undefined };
+}
+
+export const SecurityConfig: MessageFns<SecurityConfig> = {
+  encode(message: SecurityConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.autoBlock !== undefined) {
+      AutoBlock.encode(message.autoBlock, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SecurityConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSecurityConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.autoBlock = AutoBlock.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SecurityConfig {
+    return {
+      autoBlock: isSet(object.autoBlock)
+        ? AutoBlock.fromJSON(object.autoBlock)
+        : isSet(object.auto_block)
+        ? AutoBlock.fromJSON(object.auto_block)
+        : undefined,
+    };
+  },
+
+  toJSON(message: SecurityConfig): unknown {
+    const obj: any = {};
+    if (message.autoBlock !== undefined) {
+      obj.autoBlock = AutoBlock.toJSON(message.autoBlock);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SecurityConfig>): SecurityConfig {
+    return SecurityConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SecurityConfig>): SecurityConfig {
+    const message = createBaseSecurityConfig();
+    message.autoBlock = (object.autoBlock !== undefined && object.autoBlock !== null)
+      ? AutoBlock.fromPartial(object.autoBlock)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlock(): AutoBlock {
+  return { enabled: undefined, rules: [], allowlist: [], maxEntries: undefined, description: undefined };
+}
+
+export const AutoBlock: MessageFns<AutoBlock> = {
+  encode(message: AutoBlock, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    for (const v of message.rules) {
+      AutoBlockRule.encode(v!, writer.uint32(18).fork()).join();
+    }
+    for (const v of message.allowlist) {
+      writer.uint32(26).string(v!);
+    }
+    if (message.maxEntries !== undefined) {
+      writer.uint32(32).uint32(message.maxEntries);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(42).string(message.description);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlock {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlock();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.rules.push(AutoBlockRule.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.allowlist.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.maxEntries = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlock {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => AutoBlockRule.fromJSON(e)) : [],
+      allowlist: globalThis.Array.isArray(object?.allowlist)
+        ? object.allowlist.map((e: any) => globalThis.String(e))
+        : [],
+      maxEntries: isSet(object.maxEntries)
+        ? globalThis.Number(object.maxEntries)
+        : isSet(object.max_entries)
+        ? globalThis.Number(object.max_entries)
+        : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+    };
+  },
+
+  toJSON(message: AutoBlock): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => AutoBlockRule.toJSON(e));
+    }
+    if (message.allowlist?.length) {
+      obj.allowlist = message.allowlist;
+    }
+    if (message.maxEntries !== undefined) {
+      obj.maxEntries = Math.round(message.maxEntries);
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlock>): AutoBlock {
+    return AutoBlock.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlock>): AutoBlock {
+    const message = createBaseAutoBlock();
+    message.enabled = object.enabled ?? undefined;
+    message.rules = object.rules?.map((e) => AutoBlockRule.fromPartial(e)) || [];
+    message.allowlist = object.allowlist?.map((e) => e) || [];
+    message.maxEntries = object.maxEntries ?? undefined;
+    message.description = object.description ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlockRule(): AutoBlockRule {
+  return {
+    source: undefined,
+    enabled: undefined,
+    threshold: undefined,
+    windowSec: undefined,
+    blockSec: undefined,
+    escalate: undefined,
+    maxBlockSec: undefined,
+  };
+}
+
+export const AutoBlockRule: MessageFns<AutoBlockRule> = {
+  encode(message: AutoBlockRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== undefined) {
+      writer.uint32(10).string(message.source);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    if (message.threshold !== undefined) {
+      writer.uint32(24).uint32(message.threshold);
+    }
+    if (message.windowSec !== undefined) {
+      writer.uint32(32).uint32(message.windowSec);
+    }
+    if (message.blockSec !== undefined) {
+      writer.uint32(40).uint32(message.blockSec);
+    }
+    if (message.escalate !== undefined) {
+      writer.uint32(48).bool(message.escalate);
+    }
+    if (message.maxBlockSec !== undefined) {
+      writer.uint32(56).uint32(message.maxBlockSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlockRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlockRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.threshold = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.windowSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.blockSec = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.escalate = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.maxBlockSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlockRule {
+    return {
+      source: isSet(object.source) ? globalThis.String(object.source) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      threshold: isSet(object.threshold) ? globalThis.Number(object.threshold) : undefined,
+      windowSec: isSet(object.windowSec)
+        ? globalThis.Number(object.windowSec)
+        : isSet(object.window_sec)
+        ? globalThis.Number(object.window_sec)
+        : undefined,
+      blockSec: isSet(object.blockSec)
+        ? globalThis.Number(object.blockSec)
+        : isSet(object.block_sec)
+        ? globalThis.Number(object.block_sec)
+        : undefined,
+      escalate: isSet(object.escalate) ? globalThis.Boolean(object.escalate) : undefined,
+      maxBlockSec: isSet(object.maxBlockSec)
+        ? globalThis.Number(object.maxBlockSec)
+        : isSet(object.max_block_sec)
+        ? globalThis.Number(object.max_block_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AutoBlockRule): unknown {
+    const obj: any = {};
+    if (message.source !== undefined) {
+      obj.source = message.source;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.threshold !== undefined) {
+      obj.threshold = Math.round(message.threshold);
+    }
+    if (message.windowSec !== undefined) {
+      obj.windowSec = Math.round(message.windowSec);
+    }
+    if (message.blockSec !== undefined) {
+      obj.blockSec = Math.round(message.blockSec);
+    }
+    if (message.escalate !== undefined) {
+      obj.escalate = message.escalate;
+    }
+    if (message.maxBlockSec !== undefined) {
+      obj.maxBlockSec = Math.round(message.maxBlockSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlockRule>): AutoBlockRule {
+    return AutoBlockRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlockRule>): AutoBlockRule {
+    const message = createBaseAutoBlockRule();
+    message.source = object.source ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.threshold = object.threshold ?? undefined;
+    message.windowSec = object.windowSec ?? undefined;
+    message.blockSec = object.blockSec ?? undefined;
+    message.escalate = object.escalate ?? undefined;
+    message.maxBlockSec = object.maxBlockSec ?? undefined;
     return message;
   },
 };
@@ -32373,7 +33441,15 @@ export const ManagementUser: MessageFns<ManagementUser> = {
 };
 
 function createBaseManagementAaa(): ManagementAaa {
-  return { order: [], radius: undefined, tacacs: undefined };
+  return {
+    order: [],
+    radius: undefined,
+    tacacs: undefined,
+    ldap: undefined,
+    roleMap: [],
+    mfa: undefined,
+    fallbackLocal: undefined,
+  };
 }
 
 export const ManagementAaa: MessageFns<ManagementAaa> = {
@@ -32386,6 +33462,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
     if (message.tacacs !== undefined) {
       AaaTacacs.encode(message.tacacs, writer.uint32(26).fork()).join();
+    }
+    if (message.ldap !== undefined) {
+      AaaLdap.encode(message.ldap, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.roleMap) {
+      AaaRoleMapping.encode(v!, writer.uint32(58).fork()).join();
+    }
+    if (message.mfa !== undefined) {
+      AaaMfa.encode(message.mfa, writer.uint32(66).fork()).join();
+    }
+    if (message.fallbackLocal !== undefined) {
+      writer.uint32(72).bool(message.fallbackLocal);
     }
     return writer;
   },
@@ -32427,6 +33515,38 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
             message.tacacs = AaaTacacs.decode(reader, reader.uint32());
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.ldap = AaaLdap.decode(reader, reader.uint32());
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.roleMap.push(AaaRoleMapping.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.mfa = AaaMfa.decode(reader, reader.uint32());
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.fallbackLocal = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -32444,6 +33564,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
       order: globalThis.Array.isArray(object?.order) ? object.order.map((e: any) => globalThis.String(e)) : [],
       radius: isSet(object.radius) ? AaaRadius.fromJSON(object.radius) : undefined,
       tacacs: isSet(object.tacacs) ? AaaTacacs.fromJSON(object.tacacs) : undefined,
+      ldap: isSet(object.ldap) ? AaaLdap.fromJSON(object.ldap) : undefined,
+      roleMap: globalThis.Array.isArray(object?.roleMap)
+        ? object.roleMap.map((e: any) => AaaRoleMapping.fromJSON(e))
+        : globalThis.Array.isArray(object?.role_map)
+        ? object.role_map.map((e: any) => AaaRoleMapping.fromJSON(e))
+        : [],
+      mfa: isSet(object.mfa) ? AaaMfa.fromJSON(object.mfa) : undefined,
+      fallbackLocal: isSet(object.fallbackLocal)
+        ? globalThis.Boolean(object.fallbackLocal)
+        : isSet(object.fallback_local)
+        ? globalThis.Boolean(object.fallback_local)
+        : undefined,
     };
   },
 
@@ -32457,6 +33589,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
     if (message.tacacs !== undefined) {
       obj.tacacs = AaaTacacs.toJSON(message.tacacs);
+    }
+    if (message.ldap !== undefined) {
+      obj.ldap = AaaLdap.toJSON(message.ldap);
+    }
+    if (message.roleMap?.length) {
+      obj.roleMap = message.roleMap.map((e) => AaaRoleMapping.toJSON(e));
+    }
+    if (message.mfa !== undefined) {
+      obj.mfa = AaaMfa.toJSON(message.mfa);
+    }
+    if (message.fallbackLocal !== undefined) {
+      obj.fallbackLocal = message.fallbackLocal;
     }
     return obj;
   },
@@ -32473,6 +33617,10 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     message.tacacs = (object.tacacs !== undefined && object.tacacs !== null)
       ? AaaTacacs.fromPartial(object.tacacs)
       : undefined;
+    message.ldap = (object.ldap !== undefined && object.ldap !== null) ? AaaLdap.fromPartial(object.ldap) : undefined;
+    message.roleMap = object.roleMap?.map((e) => AaaRoleMapping.fromPartial(e)) || [];
+    message.mfa = (object.mfa !== undefined && object.mfa !== null) ? AaaMfa.fromPartial(object.mfa) : undefined;
+    message.fallbackLocal = object.fallbackLocal ?? undefined;
     return message;
   },
 };
@@ -40760,6 +41908,7 @@ function createBaseAclConfig(): AclConfig {
     macipAttachments: [],
     hostAttachments: [],
     hostSettings: undefined,
+    globalBlocking: undefined,
   };
 }
 
@@ -40785,6 +41934,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     }
     if (message.hostSettings !== undefined) {
       HostAclSettings.encode(message.hostSettings, writer.uint32(66).fork()).join();
+    }
+    if (message.globalBlocking !== undefined) {
+      GlobalBlocking.encode(message.globalBlocking, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -40867,6 +42019,14 @@ export const AclConfig: MessageFns<AclConfig> = {
             message.hostSettings = HostAclSettings.decode(reader, reader.uint32());
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.globalBlocking = GlobalBlocking.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -40941,6 +42101,11 @@ export const AclConfig: MessageFns<AclConfig> = {
         : isSet(object.host_settings)
         ? HostAclSettings.fromJSON(object.host_settings)
         : undefined,
+      globalBlocking: isSet(object.globalBlocking)
+        ? GlobalBlocking.fromJSON(object.globalBlocking)
+        : isSet(object.global_blocking)
+        ? GlobalBlocking.fromJSON(object.global_blocking)
+        : undefined,
     };
   },
 
@@ -40985,6 +42150,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     if (message.hostSettings !== undefined) {
       obj.hostSettings = HostAclSettings.toJSON(message.hostSettings);
     }
+    if (message.globalBlocking !== undefined) {
+      obj.globalBlocking = GlobalBlocking.toJSON(message.globalBlocking);
+    }
     return obj;
   },
 
@@ -41025,6 +42193,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     message.hostAttachments = object.hostAttachments?.map((e) => HostAttachment.fromPartial(e)) || [];
     message.hostSettings = (object.hostSettings !== undefined && object.hostSettings !== null)
       ? HostAclSettings.fromPartial(object.hostSettings)
+      : undefined;
+    message.globalBlocking = (object.globalBlocking !== undefined && object.globalBlocking !== null)
+      ? GlobalBlocking.fromPartial(object.globalBlocking)
       : undefined;
     return message;
   },
@@ -41287,6 +42458,583 @@ export const AclConfig_HostEntry: MessageFns<AclConfig_HostEntry> = {
     message.value = (object.value !== undefined && object.value !== null)
       ? HostList.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlocking(): GlobalBlocking {
+  return { lists: {} };
+}
+
+export const GlobalBlocking: MessageFns<GlobalBlocking> = {
+  encode(message: GlobalBlocking, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.lists).forEach(([key, value]: [string, GlobalBlockingList]) => {
+      GlobalBlocking_ListsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlocking {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlocking();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = GlobalBlocking_ListsEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.lists[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlocking {
+    return {
+      lists: isObject(object.lists)
+        ? (globalThis.Object.entries(object.lists) as [string, any][]).reduce(
+          (acc: { [key: string]: GlobalBlockingList }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: GlobalBlockingList.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: GlobalBlocking): unknown {
+    const obj: any = {};
+    if (message.lists) {
+      const entries = globalThis.Object.entries(message.lists) as [string, GlobalBlockingList][];
+      if (entries.length > 0) {
+        obj.lists = {};
+        entries.forEach(([k, v]) => {
+          obj.lists[k] = GlobalBlockingList.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlocking>): GlobalBlocking {
+    return GlobalBlocking.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlocking>): GlobalBlocking {
+    const message = createBaseGlobalBlocking();
+    message.lists = (globalThis.Object.entries(object.lists ?? {}) as [string, GlobalBlockingList][]).reduce(
+      (acc: { [key: string]: GlobalBlockingList }, [key, value]: [string, GlobalBlockingList]) => {
+        if (value !== undefined) {
+          acc[key] = GlobalBlockingList.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseGlobalBlocking_ListsEntry(): GlobalBlocking_ListsEntry {
+  return { key: "", value: undefined };
+}
+
+export const GlobalBlocking_ListsEntry: MessageFns<GlobalBlocking_ListsEntry> = {
+  encode(message: GlobalBlocking_ListsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      GlobalBlockingList.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlocking_ListsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlocking_ListsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = GlobalBlockingList.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlocking_ListsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? GlobalBlockingList.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: GlobalBlocking_ListsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = GlobalBlockingList.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlocking_ListsEntry>): GlobalBlocking_ListsEntry {
+    return GlobalBlocking_ListsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlocking_ListsEntry>): GlobalBlocking_ListsEntry {
+    const message = createBaseGlobalBlocking_ListsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? GlobalBlockingList.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlockingSource(): GlobalBlockingSource {
+  return {
+    kind: undefined,
+    url: undefined,
+    refreshSec: undefined,
+    verifyTls: undefined,
+    caRef: undefined,
+    authRef: undefined,
+  };
+}
+
+export const GlobalBlockingSource: MessageFns<GlobalBlockingSource> = {
+  encode(message: GlobalBlockingSource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== undefined) {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.url !== undefined) {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.refreshSec !== undefined) {
+      writer.uint32(24).uint32(message.refreshSec);
+    }
+    if (message.verifyTls !== undefined) {
+      writer.uint32(32).bool(message.verifyTls);
+    }
+    if (message.caRef !== undefined) {
+      writer.uint32(42).string(message.caRef);
+    }
+    if (message.authRef !== undefined) {
+      writer.uint32(50).string(message.authRef);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlockingSource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlockingSource();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.refreshSec = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.verifyTls = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.caRef = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.authRef = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlockingSource {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      refreshSec: isSet(object.refreshSec)
+        ? globalThis.Number(object.refreshSec)
+        : isSet(object.refresh_sec)
+        ? globalThis.Number(object.refresh_sec)
+        : undefined,
+      verifyTls: isSet(object.verifyTls)
+        ? globalThis.Boolean(object.verifyTls)
+        : isSet(object.verify_tls)
+        ? globalThis.Boolean(object.verify_tls)
+        : undefined,
+      caRef: isSet(object.caRef)
+        ? globalThis.String(object.caRef)
+        : isSet(object.ca_ref)
+        ? globalThis.String(object.ca_ref)
+        : undefined,
+      authRef: isSet(object.authRef)
+        ? globalThis.String(object.authRef)
+        : isSet(object.auth_ref)
+        ? globalThis.String(object.auth_ref)
+        : undefined,
+    };
+  },
+
+  toJSON(message: GlobalBlockingSource): unknown {
+    const obj: any = {};
+    if (message.kind !== undefined) {
+      obj.kind = message.kind;
+    }
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.refreshSec !== undefined) {
+      obj.refreshSec = Math.round(message.refreshSec);
+    }
+    if (message.verifyTls !== undefined) {
+      obj.verifyTls = message.verifyTls;
+    }
+    if (message.caRef !== undefined) {
+      obj.caRef = message.caRef;
+    }
+    if (message.authRef !== undefined) {
+      obj.authRef = message.authRef;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlockingSource>): GlobalBlockingSource {
+    return GlobalBlockingSource.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlockingSource>): GlobalBlockingSource {
+    const message = createBaseGlobalBlockingSource();
+    message.kind = object.kind ?? undefined;
+    message.url = object.url ?? undefined;
+    message.refreshSec = object.refreshSec ?? undefined;
+    message.verifyTls = object.verifyTls ?? undefined;
+    message.caRef = object.caRef ?? undefined;
+    message.authRef = object.authRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlockingList(): GlobalBlockingList {
+  return {
+    enabled: undefined,
+    description: undefined,
+    source: undefined,
+    allInterfaces: undefined,
+    interfaces: [],
+    direction: undefined,
+    protectHost: undefined,
+    log: undefined,
+    entries: [],
+  };
+}
+
+export const GlobalBlockingList: MessageFns<GlobalBlockingList> = {
+  encode(message: GlobalBlockingList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.source !== undefined) {
+      GlobalBlockingSource.encode(message.source, writer.uint32(26).fork()).join();
+    }
+    if (message.allInterfaces !== undefined) {
+      writer.uint32(32).bool(message.allInterfaces);
+    }
+    for (const v of message.interfaces) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.direction !== undefined) {
+      writer.uint32(50).string(message.direction);
+    }
+    if (message.protectHost !== undefined) {
+      writer.uint32(56).bool(message.protectHost);
+    }
+    if (message.log !== undefined) {
+      writer.uint32(64).bool(message.log);
+    }
+    for (const v of message.entries) {
+      writer.uint32(74).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlockingList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlockingList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.source = GlobalBlockingSource.decode(reader, reader.uint32());
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.allInterfaces = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.protectHost = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.log = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.entries.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlockingList {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      source: isSet(object.source) ? GlobalBlockingSource.fromJSON(object.source) : undefined,
+      allInterfaces: isSet(object.allInterfaces)
+        ? globalThis.Boolean(object.allInterfaces)
+        : isSet(object.all_interfaces)
+        ? globalThis.Boolean(object.all_interfaces)
+        : undefined,
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : undefined,
+      protectHost: isSet(object.protectHost)
+        ? globalThis.Boolean(object.protectHost)
+        : isSet(object.protect_host)
+        ? globalThis.Boolean(object.protect_host)
+        : undefined,
+      log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
+      entries: globalThis.Array.isArray(object?.entries) ? object.entries.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: GlobalBlockingList): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.source !== undefined) {
+      obj.source = GlobalBlockingSource.toJSON(message.source);
+    }
+    if (message.allInterfaces !== undefined) {
+      obj.allInterfaces = message.allInterfaces;
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.direction !== undefined) {
+      obj.direction = message.direction;
+    }
+    if (message.protectHost !== undefined) {
+      obj.protectHost = message.protectHost;
+    }
+    if (message.log !== undefined) {
+      obj.log = message.log;
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlockingList>): GlobalBlockingList {
+    return GlobalBlockingList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlockingList>): GlobalBlockingList {
+    const message = createBaseGlobalBlockingList();
+    message.enabled = object.enabled ?? undefined;
+    message.description = object.description ?? undefined;
+    message.source = (object.source !== undefined && object.source !== null)
+      ? GlobalBlockingSource.fromPartial(object.source)
+      : undefined;
+    message.allInterfaces = object.allInterfaces ?? undefined;
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.direction = object.direction ?? undefined;
+    message.protectHost = object.protectHost ?? undefined;
+    message.log = object.log ?? undefined;
+    message.entries = object.entries?.map((e) => e) || [];
     return message;
   },
 };
@@ -60829,6 +62577,803 @@ export const InterfaceLcp: MessageFns<InterfaceLcp> = {
     message.hostIfName = object.hostIfName ?? undefined;
     message.hostIfType = object.hostIfType ?? undefined;
     message.netns = object.netns ?? undefined;
+    return message;
+  },
+};
+
+function createBasePppoe(): Pppoe {
+  return {
+    enabled: undefined,
+    parent: undefined,
+    username: undefined,
+    passwordRef: undefined,
+    serviceName: undefined,
+    mtu: undefined,
+    mssClamp: undefined,
+    defaultRoute: undefined,
+    dnsFromPeer: undefined,
+    ipv6: undefined,
+    reconnect: undefined,
+  };
+}
+
+export const Pppoe: MessageFns<Pppoe> = {
+  encode(message: Pppoe, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.parent !== undefined) {
+      writer.uint32(18).string(message.parent);
+    }
+    if (message.username !== undefined) {
+      writer.uint32(26).string(message.username);
+    }
+    if (message.passwordRef !== undefined) {
+      writer.uint32(34).string(message.passwordRef);
+    }
+    if (message.serviceName !== undefined) {
+      writer.uint32(42).string(message.serviceName);
+    }
+    if (message.mtu !== undefined) {
+      writer.uint32(48).uint32(message.mtu);
+    }
+    if (message.mssClamp !== undefined) {
+      writer.uint32(56).bool(message.mssClamp);
+    }
+    if (message.defaultRoute !== undefined) {
+      writer.uint32(64).bool(message.defaultRoute);
+    }
+    if (message.dnsFromPeer !== undefined) {
+      writer.uint32(72).bool(message.dnsFromPeer);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(82).string(message.ipv6);
+    }
+    if (message.reconnect !== undefined) {
+      PppoeReconnect.encode(message.reconnect, writer.uint32(90).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Pppoe {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoe();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.parent = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.username = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.passwordRef = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.serviceName = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.mtu = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.mssClamp = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.defaultRoute = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.dnsFromPeer = reader.bool();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.reconnect = PppoeReconnect.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Pppoe {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      parent: isSet(object.parent) ? globalThis.String(object.parent) : undefined,
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
+      passwordRef: isSet(object.passwordRef)
+        ? globalThis.String(object.passwordRef)
+        : isSet(object.password_ref)
+        ? globalThis.String(object.password_ref)
+        : undefined,
+      serviceName: isSet(object.serviceName)
+        ? globalThis.String(object.serviceName)
+        : isSet(object.service_name)
+        ? globalThis.String(object.service_name)
+        : undefined,
+      mtu: isSet(object.mtu) ? globalThis.Number(object.mtu) : undefined,
+      mssClamp: isSet(object.mssClamp)
+        ? globalThis.Boolean(object.mssClamp)
+        : isSet(object.mss_clamp)
+        ? globalThis.Boolean(object.mss_clamp)
+        : undefined,
+      defaultRoute: isSet(object.defaultRoute)
+        ? globalThis.Boolean(object.defaultRoute)
+        : isSet(object.default_route)
+        ? globalThis.Boolean(object.default_route)
+        : undefined,
+      dnsFromPeer: isSet(object.dnsFromPeer)
+        ? globalThis.Boolean(object.dnsFromPeer)
+        : isSet(object.dns_from_peer)
+        ? globalThis.Boolean(object.dns_from_peer)
+        : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
+      reconnect: isSet(object.reconnect) ? PppoeReconnect.fromJSON(object.reconnect) : undefined,
+    };
+  },
+
+  toJSON(message: Pppoe): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.parent !== undefined) {
+      obj.parent = message.parent;
+    }
+    if (message.username !== undefined) {
+      obj.username = message.username;
+    }
+    if (message.passwordRef !== undefined) {
+      obj.passwordRef = message.passwordRef;
+    }
+    if (message.serviceName !== undefined) {
+      obj.serviceName = message.serviceName;
+    }
+    if (message.mtu !== undefined) {
+      obj.mtu = Math.round(message.mtu);
+    }
+    if (message.mssClamp !== undefined) {
+      obj.mssClamp = message.mssClamp;
+    }
+    if (message.defaultRoute !== undefined) {
+      obj.defaultRoute = message.defaultRoute;
+    }
+    if (message.dnsFromPeer !== undefined) {
+      obj.dnsFromPeer = message.dnsFromPeer;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.reconnect !== undefined) {
+      obj.reconnect = PppoeReconnect.toJSON(message.reconnect);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Pppoe>): Pppoe {
+    return Pppoe.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Pppoe>): Pppoe {
+    const message = createBasePppoe();
+    message.enabled = object.enabled ?? undefined;
+    message.parent = object.parent ?? undefined;
+    message.username = object.username ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
+    message.serviceName = object.serviceName ?? undefined;
+    message.mtu = object.mtu ?? undefined;
+    message.mssClamp = object.mssClamp ?? undefined;
+    message.defaultRoute = object.defaultRoute ?? undefined;
+    message.dnsFromPeer = object.dnsFromPeer ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
+    message.reconnect = (object.reconnect !== undefined && object.reconnect !== null)
+      ? PppoeReconnect.fromPartial(object.reconnect)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePppoeReconnect(): PppoeReconnect {
+  return { holdoffSec: undefined, maxFail: undefined };
+}
+
+export const PppoeReconnect: MessageFns<PppoeReconnect> = {
+  encode(message: PppoeReconnect, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.holdoffSec !== undefined) {
+      writer.uint32(8).uint32(message.holdoffSec);
+    }
+    if (message.maxFail !== undefined) {
+      writer.uint32(16).uint32(message.maxFail);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnect {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnect();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.holdoffSec = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.maxFail = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnect {
+    return {
+      holdoffSec: isSet(object.holdoffSec)
+        ? globalThis.Number(object.holdoffSec)
+        : isSet(object.holdoff_sec)
+        ? globalThis.Number(object.holdoff_sec)
+        : undefined,
+      maxFail: isSet(object.maxFail)
+        ? globalThis.Number(object.maxFail)
+        : isSet(object.max_fail)
+        ? globalThis.Number(object.max_fail)
+        : undefined,
+    };
+  },
+
+  toJSON(message: PppoeReconnect): unknown {
+    const obj: any = {};
+    if (message.holdoffSec !== undefined) {
+      obj.holdoffSec = Math.round(message.holdoffSec);
+    }
+    if (message.maxFail !== undefined) {
+      obj.maxFail = Math.round(message.maxFail);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnect>): PppoeReconnect {
+    return PppoeReconnect.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnect>): PppoeReconnect {
+    const message = createBasePppoeReconnect();
+    message.holdoffSec = object.holdoffSec ?? undefined;
+    message.maxFail = object.maxFail ?? undefined;
+    return message;
+  },
+};
+
+function createBasePppoeReconnectRequest(): PppoeReconnectRequest {
+  return { owner: "", interface: "" };
+}
+
+export const PppoeReconnectRequest: MessageFns<PppoeReconnectRequest> = {
+  encode(message: PppoeReconnectRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.interface !== "") {
+      writer.uint32(18).string(message.interface);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnectRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnectRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnectRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+    };
+  },
+
+  toJSON(message: PppoeReconnectRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnectRequest>): PppoeReconnectRequest {
+    return PppoeReconnectRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnectRequest>): PppoeReconnectRequest {
+    const message = createBasePppoeReconnectRequest();
+    message.owner = object.owner ?? "";
+    message.interface = object.interface ?? "";
+    return message;
+  },
+};
+
+function createBasePppoeReconnectResponse(): PppoeReconnectResponse {
+  return { accepted: false, message: "" };
+}
+
+export const PppoeReconnectResponse: MessageFns<PppoeReconnectResponse> = {
+  encode(message: PppoeReconnectResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.accepted !== false) {
+      writer.uint32(8).bool(message.accepted);
+    }
+    if (message.message !== "") {
+      writer.uint32(18).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnectResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnectResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.accepted = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.message = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnectResponse {
+    return {
+      accepted: isSet(object.accepted) ? globalThis.Boolean(object.accepted) : false,
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: PppoeReconnectResponse): unknown {
+    const obj: any = {};
+    if (message.accepted !== false) {
+      obj.accepted = message.accepted;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnectResponse>): PppoeReconnectResponse {
+    return PppoeReconnectResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnectResponse>): PppoeReconnectResponse {
+    const message = createBasePppoeReconnectResponse();
+    message.accepted = object.accepted ?? false;
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
+function createBasePppoeSessionState(): PppoeSessionState {
+  return {
+    phase: "",
+    sessionId: 0,
+    acMac: "",
+    acName: "",
+    localIpv4: "",
+    peerIpv4: "",
+    ipv6: "",
+    dns: [],
+    since: undefined,
+    failCount: 0,
+    lastError: "",
+  };
+}
+
+export const PppoeSessionState: MessageFns<PppoeSessionState> = {
+  encode(message: PppoeSessionState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.phase !== "") {
+      writer.uint32(10).string(message.phase);
+    }
+    if (message.sessionId !== 0) {
+      writer.uint32(16).uint32(message.sessionId);
+    }
+    if (message.acMac !== "") {
+      writer.uint32(26).string(message.acMac);
+    }
+    if (message.acName !== "") {
+      writer.uint32(34).string(message.acName);
+    }
+    if (message.localIpv4 !== "") {
+      writer.uint32(42).string(message.localIpv4);
+    }
+    if (message.peerIpv4 !== "") {
+      writer.uint32(50).string(message.peerIpv4);
+    }
+    if (message.ipv6 !== "") {
+      writer.uint32(58).string(message.ipv6);
+    }
+    for (const v of message.dns) {
+      writer.uint32(66).string(v!);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(74).fork()).join();
+    }
+    if (message.failCount !== 0) {
+      writer.uint32(80).uint32(message.failCount);
+    }
+    if (message.lastError !== "") {
+      writer.uint32(90).string(message.lastError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeSessionState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeSessionState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.phase = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.sessionId = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.acMac = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.acName = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.localIpv4 = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.peerIpv4 = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.ipv6 = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.dns.push(reader.string());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 10: {
+            if (tag !== 80) {
+              break;
+            }
+
+            message.failCount = reader.uint32();
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.lastError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeSessionState {
+    return {
+      phase: isSet(object.phase) ? globalThis.String(object.phase) : "",
+      sessionId: isSet(object.sessionId)
+        ? globalThis.Number(object.sessionId)
+        : isSet(object.session_id)
+        ? globalThis.Number(object.session_id)
+        : 0,
+      acMac: isSet(object.acMac)
+        ? globalThis.String(object.acMac)
+        : isSet(object.ac_mac)
+        ? globalThis.String(object.ac_mac)
+        : "",
+      acName: isSet(object.acName)
+        ? globalThis.String(object.acName)
+        : isSet(object.ac_name)
+        ? globalThis.String(object.ac_name)
+        : "",
+      localIpv4: isSet(object.localIpv4)
+        ? globalThis.String(object.localIpv4)
+        : isSet(object.local_ipv4)
+        ? globalThis.String(object.local_ipv4)
+        : "",
+      peerIpv4: isSet(object.peerIpv4)
+        ? globalThis.String(object.peerIpv4)
+        : isSet(object.peer_ipv4)
+        ? globalThis.String(object.peer_ipv4)
+        : "",
+      ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : "",
+      dns: globalThis.Array.isArray(object?.dns)
+        ? object.dns.map((e: any) => globalThis.String(e))
+        : [],
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+      failCount: isSet(object.failCount)
+        ? globalThis.Number(object.failCount)
+        : isSet(object.fail_count)
+        ? globalThis.Number(object.fail_count)
+        : 0,
+      lastError: isSet(object.lastError)
+        ? globalThis.String(object.lastError)
+        : isSet(object.last_error)
+        ? globalThis.String(object.last_error)
+        : "",
+    };
+  },
+
+  toJSON(message: PppoeSessionState): unknown {
+    const obj: any = {};
+    if (message.phase !== "") {
+      obj.phase = message.phase;
+    }
+    if (message.sessionId !== 0) {
+      obj.sessionId = Math.round(message.sessionId);
+    }
+    if (message.acMac !== "") {
+      obj.acMac = message.acMac;
+    }
+    if (message.acName !== "") {
+      obj.acName = message.acName;
+    }
+    if (message.localIpv4 !== "") {
+      obj.localIpv4 = message.localIpv4;
+    }
+    if (message.peerIpv4 !== "") {
+      obj.peerIpv4 = message.peerIpv4;
+    }
+    if (message.ipv6 !== "") {
+      obj.ipv6 = message.ipv6;
+    }
+    if (message.dns?.length) {
+      obj.dns = message.dns;
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    if (message.failCount !== 0) {
+      obj.failCount = Math.round(message.failCount);
+    }
+    if (message.lastError !== "") {
+      obj.lastError = message.lastError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeSessionState>): PppoeSessionState {
+    return PppoeSessionState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeSessionState>): PppoeSessionState {
+    const message = createBasePppoeSessionState();
+    message.phase = object.phase ?? "";
+    message.sessionId = object.sessionId ?? 0;
+    message.acMac = object.acMac ?? "";
+    message.acName = object.acName ?? "";
+    message.localIpv4 = object.localIpv4 ?? "";
+    message.peerIpv4 = object.peerIpv4 ?? "";
+    message.ipv6 = object.ipv6 ?? "";
+    message.dns = object.dns?.map((e) => e) || [];
+    message.since = object.since ?? undefined;
+    message.failCount = object.failCount ?? 0;
+    message.lastError = object.lastError ?? "";
     return message;
   },
 };
@@ -80588,6 +83133,2184 @@ export const LispStateResponse: MessageFns<LispStateResponse> = {
   },
 };
 
+function createBaseManagementPrometheus(): ManagementPrometheus {
+  return { enabled: undefined, listen: undefined, port: undefined, allow: [] };
+}
+
+export const ManagementPrometheus: MessageFns<ManagementPrometheus> = {
+  encode(message: ManagementPrometheus, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.listen !== undefined) {
+      writer.uint32(18).string(message.listen);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(24).uint32(message.port);
+    }
+    for (const v of message.allow) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementPrometheus {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementPrometheus();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.listen = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.allow.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementPrometheus {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      listen: isSet(object.listen) ? globalThis.String(object.listen) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      allow: globalThis.Array.isArray(object?.allow) ? object.allow.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: ManagementPrometheus): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.listen !== undefined) {
+      obj.listen = message.listen;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.allow?.length) {
+      obj.allow = message.allow;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementPrometheus>): ManagementPrometheus {
+    return ManagementPrometheus.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementPrometheus>): ManagementPrometheus {
+    const message = createBaseManagementPrometheus();
+    message.enabled = object.enabled ?? undefined;
+    message.listen = object.listen ?? undefined;
+    message.port = object.port ?? undefined;
+    message.allow = object.allow?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseManagementAlarms(): ManagementAlarms {
+  return { rules: {}, targets: {} };
+}
+
+export const ManagementAlarms: MessageFns<ManagementAlarms> = {
+  encode(message: ManagementAlarms, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.rules).forEach(([key, value]: [string, AlarmRule]) => {
+      ManagementAlarms_RulesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    globalThis.Object.entries(message.targets).forEach(([key, value]: [string, AlarmTarget]) => {
+      ManagementAlarms_TargetsEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = ManagementAlarms_RulesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.rules[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = ManagementAlarms_TargetsEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.targets[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms {
+    return {
+      rules: isObject(object.rules)
+        ? (globalThis.Object.entries(object.rules) as [string, any][]).reduce(
+          (acc: { [key: string]: AlarmRule }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: AlarmRule.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      targets: isObject(object.targets)
+        ? (globalThis.Object.entries(object.targets) as [string, any][]).reduce(
+          (acc: { [key: string]: AlarmTarget }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: AlarmTarget.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: ManagementAlarms): unknown {
+    const obj: any = {};
+    if (message.rules) {
+      const entries = globalThis.Object.entries(message.rules) as [string, AlarmRule][];
+      if (entries.length > 0) {
+        obj.rules = {};
+        entries.forEach(([k, v]) => {
+          obj.rules[k] = AlarmRule.toJSON(v);
+        });
+      }
+    }
+    if (message.targets) {
+      const entries = globalThis.Object.entries(message.targets) as [string, AlarmTarget][];
+      if (entries.length > 0) {
+        obj.targets = {};
+        entries.forEach(([k, v]) => {
+          obj.targets[k] = AlarmTarget.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms>): ManagementAlarms {
+    return ManagementAlarms.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms>): ManagementAlarms {
+    const message = createBaseManagementAlarms();
+    message.rules = (globalThis.Object.entries(object.rules ?? {}) as [string, AlarmRule][]).reduce(
+      (acc: { [key: string]: AlarmRule }, [key, value]: [string, AlarmRule]) => {
+        if (value !== undefined) {
+          acc[key] = AlarmRule.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.targets = (globalThis.Object.entries(object.targets ?? {}) as [string, AlarmTarget][]).reduce(
+      (acc: { [key: string]: AlarmTarget }, [key, value]: [string, AlarmTarget]) => {
+        if (value !== undefined) {
+          acc[key] = AlarmTarget.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseManagementAlarms_RulesEntry(): ManagementAlarms_RulesEntry {
+  return { key: "", value: undefined };
+}
+
+export const ManagementAlarms_RulesEntry: MessageFns<ManagementAlarms_RulesEntry> = {
+  encode(message: ManagementAlarms_RulesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      AlarmRule.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms_RulesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms_RulesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = AlarmRule.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms_RulesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? AlarmRule.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ManagementAlarms_RulesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = AlarmRule.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms_RulesEntry>): ManagementAlarms_RulesEntry {
+    return ManagementAlarms_RulesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms_RulesEntry>): ManagementAlarms_RulesEntry {
+    const message = createBaseManagementAlarms_RulesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? AlarmRule.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseManagementAlarms_TargetsEntry(): ManagementAlarms_TargetsEntry {
+  return { key: "", value: undefined };
+}
+
+export const ManagementAlarms_TargetsEntry: MessageFns<ManagementAlarms_TargetsEntry> = {
+  encode(message: ManagementAlarms_TargetsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      AlarmTarget.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementAlarms_TargetsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementAlarms_TargetsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = AlarmTarget.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementAlarms_TargetsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? AlarmTarget.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ManagementAlarms_TargetsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = AlarmTarget.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementAlarms_TargetsEntry>): ManagementAlarms_TargetsEntry {
+    return ManagementAlarms_TargetsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementAlarms_TargetsEntry>): ManagementAlarms_TargetsEntry {
+    const message = createBaseManagementAlarms_TargetsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? AlarmTarget.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseAlarmRule(): AlarmRule {
+  return {
+    metric: undefined,
+    op: undefined,
+    threshold: undefined,
+    forSec: undefined,
+    severity: undefined,
+    interface: undefined,
+    description: undefined,
+    enabled: undefined,
+    targets: [],
+  };
+}
+
+export const AlarmRule: MessageFns<AlarmRule> = {
+  encode(message: AlarmRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.metric !== undefined) {
+      writer.uint32(10).string(message.metric);
+    }
+    if (message.op !== undefined) {
+      writer.uint32(18).string(message.op);
+    }
+    if (message.threshold !== undefined) {
+      writer.uint32(25).double(message.threshold);
+    }
+    if (message.forSec !== undefined) {
+      writer.uint32(32).uint32(message.forSec);
+    }
+    if (message.severity !== undefined) {
+      writer.uint32(42).string(message.severity);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(50).string(message.interface);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(58).string(message.description);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(64).bool(message.enabled);
+    }
+    for (const v of message.targets) {
+      writer.uint32(74).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AlarmRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAlarmRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.metric = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.op = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 25) {
+              break;
+            }
+
+            message.threshold = reader.double();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.forSec = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.severity = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.targets.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AlarmRule {
+    return {
+      metric: isSet(object.metric) ? globalThis.String(object.metric) : undefined,
+      op: isSet(object.op) ? globalThis.String(object.op) : undefined,
+      threshold: isSet(object.threshold) ? globalThis.Number(object.threshold) : undefined,
+      forSec: isSet(object.forSec)
+        ? globalThis.Number(object.forSec)
+        : isSet(object.for_sec)
+        ? globalThis.Number(object.for_sec)
+        : undefined,
+      severity: isSet(object.severity) ? globalThis.String(object.severity) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      targets: globalThis.Array.isArray(object?.targets) ? object.targets.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: AlarmRule): unknown {
+    const obj: any = {};
+    if (message.metric !== undefined) {
+      obj.metric = message.metric;
+    }
+    if (message.op !== undefined) {
+      obj.op = message.op;
+    }
+    if (message.threshold !== undefined) {
+      obj.threshold = message.threshold;
+    }
+    if (message.forSec !== undefined) {
+      obj.forSec = Math.round(message.forSec);
+    }
+    if (message.severity !== undefined) {
+      obj.severity = message.severity;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.targets?.length) {
+      obj.targets = message.targets;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AlarmRule>): AlarmRule {
+    return AlarmRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AlarmRule>): AlarmRule {
+    const message = createBaseAlarmRule();
+    message.metric = object.metric ?? undefined;
+    message.op = object.op ?? undefined;
+    message.threshold = object.threshold ?? undefined;
+    message.forSec = object.forSec ?? undefined;
+    message.severity = object.severity ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.description = object.description ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.targets = object.targets?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseAlarmTarget(): AlarmTarget {
+  return { kind: undefined, url: undefined, secretRef: undefined, address: undefined };
+}
+
+export const AlarmTarget: MessageFns<AlarmTarget> = {
+  encode(message: AlarmTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== undefined) {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.url !== undefined) {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.secretRef !== undefined) {
+      writer.uint32(26).string(message.secretRef);
+    }
+    if (message.address !== undefined) {
+      writer.uint32(34).string(message.address);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AlarmTarget {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAlarmTarget();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AlarmTarget {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+    };
+  },
+
+  toJSON(message: AlarmTarget): unknown {
+    const obj: any = {};
+    if (message.kind !== undefined) {
+      obj.kind = message.kind;
+    }
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AlarmTarget>): AlarmTarget {
+    return AlarmTarget.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AlarmTarget>): AlarmTarget {
+    const message = createBaseAlarmTarget();
+    message.kind = object.kind ?? undefined;
+    message.url = object.url ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
+    message.address = object.address ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWanGroup(): WanGroup {
+  return { name: undefined, mode: undefined, stickySessions: undefined, members: [], monitors: [] };
+}
+
+export const WanGroup: MessageFns<WanGroup> = {
+  encode(message: WanGroup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.mode !== undefined) {
+      writer.uint32(18).string(message.mode);
+    }
+    if (message.stickySessions !== undefined) {
+      writer.uint32(24).bool(message.stickySessions);
+    }
+    for (const v of message.members) {
+      WanMember.encode(v!, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.monitors) {
+      WanMonitor.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanGroup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanGroup();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.stickySessions = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.members.push(WanMember.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.monitors.push(WanMonitor.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanGroup {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+      stickySessions: isSet(object.stickySessions)
+        ? globalThis.Boolean(object.stickySessions)
+        : isSet(object.sticky_sessions)
+        ? globalThis.Boolean(object.sticky_sessions)
+        : undefined,
+      members: globalThis.Array.isArray(object?.members) ? object.members.map((e: any) => WanMember.fromJSON(e)) : [],
+      monitors: globalThis.Array.isArray(object?.monitors)
+        ? object.monitors.map((e: any) => WanMonitor.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WanGroup): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.mode !== undefined) {
+      obj.mode = message.mode;
+    }
+    if (message.stickySessions !== undefined) {
+      obj.stickySessions = message.stickySessions;
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => WanMember.toJSON(e));
+    }
+    if (message.monitors?.length) {
+      obj.monitors = message.monitors.map((e) => WanMonitor.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanGroup>): WanGroup {
+    return WanGroup.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanGroup>): WanGroup {
+    const message = createBaseWanGroup();
+    message.name = object.name ?? undefined;
+    message.mode = object.mode ?? undefined;
+    message.stickySessions = object.stickySessions ?? undefined;
+    message.members = object.members?.map((e) => WanMember.fromPartial(e)) || [];
+    message.monitors = object.monitors?.map((e) => WanMonitor.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanMember(): WanMember {
+  return { interface: undefined, nextHop: undefined, gateway: undefined, weight: undefined, priority: undefined };
+}
+
+export const WanMember: MessageFns<WanMember> = {
+  encode(message: WanMember, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.nextHop !== undefined) {
+      writer.uint32(18).string(message.nextHop);
+    }
+    if (message.gateway !== undefined) {
+      writer.uint32(26).string(message.gateway);
+    }
+    if (message.weight !== undefined) {
+      writer.uint32(32).uint32(message.weight);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(40).uint32(message.priority);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMember {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMember();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.nextHop = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.gateway = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMember {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      nextHop: isSet(object.nextHop)
+        ? globalThis.String(object.nextHop)
+        : isSet(object.next_hop)
+        ? globalThis.String(object.next_hop)
+        : undefined,
+      gateway: isSet(object.gateway) ? globalThis.String(object.gateway) : undefined,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+    };
+  },
+
+  toJSON(message: WanMember): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.nextHop !== undefined) {
+      obj.nextHop = message.nextHop;
+    }
+    if (message.gateway !== undefined) {
+      obj.gateway = message.gateway;
+    }
+    if (message.weight !== undefined) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMember>): WanMember {
+    return WanMember.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMember>): WanMember {
+    const message = createBaseWanMember();
+    message.interface = object.interface ?? undefined;
+    message.nextHop = object.nextHop ?? undefined;
+    message.gateway = object.gateway ?? undefined;
+    message.weight = object.weight ?? undefined;
+    message.priority = object.priority ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWanMonitor(): WanMonitor {
+  return {
+    type: undefined,
+    target: undefined,
+    intervalMs: undefined,
+    timeoutMs: undefined,
+    lossPct: undefined,
+    latencyMs: undefined,
+    downAfter: undefined,
+    upAfter: undefined,
+  };
+}
+
+export const WanMonitor: MessageFns<WanMonitor> = {
+  encode(message: WanMonitor, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.target !== undefined) {
+      writer.uint32(18).string(message.target);
+    }
+    if (message.intervalMs !== undefined) {
+      writer.uint32(24).uint32(message.intervalMs);
+    }
+    if (message.timeoutMs !== undefined) {
+      writer.uint32(32).uint32(message.timeoutMs);
+    }
+    if (message.lossPct !== undefined) {
+      writer.uint32(40).uint32(message.lossPct);
+    }
+    if (message.latencyMs !== undefined) {
+      writer.uint32(48).uint32(message.latencyMs);
+    }
+    if (message.downAfter !== undefined) {
+      writer.uint32(56).uint32(message.downAfter);
+    }
+    if (message.upAfter !== undefined) {
+      writer.uint32(64).uint32(message.upAfter);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMonitor {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMonitor();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.target = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.intervalMs = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.timeoutMs = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.lossPct = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.latencyMs = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.downAfter = reader.uint32();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.upAfter = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMonitor {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      target: isSet(object.target) ? globalThis.String(object.target) : undefined,
+      intervalMs: isSet(object.intervalMs)
+        ? globalThis.Number(object.intervalMs)
+        : isSet(object.interval_ms)
+        ? globalThis.Number(object.interval_ms)
+        : undefined,
+      timeoutMs: isSet(object.timeoutMs)
+        ? globalThis.Number(object.timeoutMs)
+        : isSet(object.timeout_ms)
+        ? globalThis.Number(object.timeout_ms)
+        : undefined,
+      lossPct: isSet(object.lossPct)
+        ? globalThis.Number(object.lossPct)
+        : isSet(object.loss_pct)
+        ? globalThis.Number(object.loss_pct)
+        : undefined,
+      latencyMs: isSet(object.latencyMs)
+        ? globalThis.Number(object.latencyMs)
+        : isSet(object.latency_ms)
+        ? globalThis.Number(object.latency_ms)
+        : undefined,
+      downAfter: isSet(object.downAfter)
+        ? globalThis.Number(object.downAfter)
+        : isSet(object.down_after)
+        ? globalThis.Number(object.down_after)
+        : undefined,
+      upAfter: isSet(object.upAfter)
+        ? globalThis.Number(object.upAfter)
+        : isSet(object.up_after)
+        ? globalThis.Number(object.up_after)
+        : undefined,
+    };
+  },
+
+  toJSON(message: WanMonitor): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.target !== undefined) {
+      obj.target = message.target;
+    }
+    if (message.intervalMs !== undefined) {
+      obj.intervalMs = Math.round(message.intervalMs);
+    }
+    if (message.timeoutMs !== undefined) {
+      obj.timeoutMs = Math.round(message.timeoutMs);
+    }
+    if (message.lossPct !== undefined) {
+      obj.lossPct = Math.round(message.lossPct);
+    }
+    if (message.latencyMs !== undefined) {
+      obj.latencyMs = Math.round(message.latencyMs);
+    }
+    if (message.downAfter !== undefined) {
+      obj.downAfter = Math.round(message.downAfter);
+    }
+    if (message.upAfter !== undefined) {
+      obj.upAfter = Math.round(message.upAfter);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMonitor>): WanMonitor {
+    return WanMonitor.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMonitor>): WanMonitor {
+    const message = createBaseWanMonitor();
+    message.type = object.type ?? undefined;
+    message.target = object.target ?? undefined;
+    message.intervalMs = object.intervalMs ?? undefined;
+    message.timeoutMs = object.timeoutMs ?? undefined;
+    message.lossPct = object.lossPct ?? undefined;
+    message.latencyMs = object.latencyMs ?? undefined;
+    message.downAfter = object.downAfter ?? undefined;
+    message.upAfter = object.upAfter ?? undefined;
+    return message;
+  },
+};
+
+function createBaseWanStateRequest(): WanStateRequest {
+  return { owner: "", groups: [] };
+}
+
+export const WanStateRequest: MessageFns<WanStateRequest> = {
+  encode(message: WanStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.groups) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.groups.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: WanStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanStateRequest>): WanStateRequest {
+    return WanStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanStateRequest>): WanStateRequest {
+    const message = createBaseWanStateRequest();
+    message.owner = object.owner ?? "";
+    message.groups = object.groups?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseWanStateResponse(): WanStateResponse {
+  return { owner: "", retrievedAt: undefined, groups: [] };
+}
+
+export const WanStateResponse: MessageFns<WanStateResponse> = {
+  encode(message: WanStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.groups) {
+      WanGroupState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.groups.push(WanGroupState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => WanGroupState.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: WanStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups.map((e) => WanGroupState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanStateResponse>): WanStateResponse {
+    return WanStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanStateResponse>): WanStateResponse {
+    const message = createBaseWanStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.groups = object.groups?.map((e) => WanGroupState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanGroupState(): WanGroupState {
+  return { name: "", mode: "", active: "", members: [] };
+}
+
+export const WanGroupState: MessageFns<WanGroupState> = {
+  encode(message: WanGroupState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.mode !== "") {
+      writer.uint32(18).string(message.mode);
+    }
+    if (message.active !== "") {
+      writer.uint32(26).string(message.active);
+    }
+    for (const v of message.members) {
+      WanMemberState.encode(v!, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanGroupState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanGroupState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.active = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.members.push(WanMemberState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanGroupState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      active: isSet(object.active) ? globalThis.String(object.active) : "",
+      members: globalThis.Array.isArray(object?.members)
+        ? object.members.map((e: any) => WanMemberState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WanGroupState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.active !== "") {
+      obj.active = message.active;
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => WanMemberState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanGroupState>): WanGroupState {
+    return WanGroupState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanGroupState>): WanGroupState {
+    const message = createBaseWanGroupState();
+    message.name = object.name ?? "";
+    message.mode = object.mode ?? "";
+    message.active = object.active ?? "";
+    message.members = object.members?.map((e) => WanMemberState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanMemberState(): WanMemberState {
+  return { interface: "", up: false, lossPct: 0, latencyMs: 0, weight: 0, priority: 0, since: undefined };
+}
+
+export const WanMemberState: MessageFns<WanMemberState> = {
+  encode(message: WanMemberState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.up !== false) {
+      writer.uint32(16).bool(message.up);
+    }
+    if (message.lossPct !== 0) {
+      writer.uint32(24).uint32(message.lossPct);
+    }
+    if (message.latencyMs !== 0) {
+      writer.uint32(32).uint32(message.latencyMs);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(40).uint32(message.weight);
+    }
+    if (message.priority !== 0) {
+      writer.uint32(48).uint32(message.priority);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(58).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMemberState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMemberState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.up = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.lossPct = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.latencyMs = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMemberState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      up: isSet(object.up) ? globalThis.Boolean(object.up) : false,
+      lossPct: isSet(object.lossPct)
+        ? globalThis.Number(object.lossPct)
+        : isSet(object.loss_pct)
+        ? globalThis.Number(object.loss_pct)
+        : 0,
+      latencyMs: isSet(object.latencyMs)
+        ? globalThis.Number(object.latencyMs)
+        : isSet(object.latency_ms)
+        ? globalThis.Number(object.latency_ms)
+        : 0,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : 0,
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+    };
+  },
+
+  toJSON(message: WanMemberState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.up !== false) {
+      obj.up = message.up;
+    }
+    if (message.lossPct !== 0) {
+      obj.lossPct = Math.round(message.lossPct);
+    }
+    if (message.latencyMs !== 0) {
+      obj.latencyMs = Math.round(message.latencyMs);
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.priority !== 0) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMemberState>): WanMemberState {
+    return WanMemberState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMemberState>): WanMemberState {
+    const message = createBaseWanMemberState();
+    message.interface = object.interface ?? "";
+    message.up = object.up ?? false;
+    message.lossPct = object.lossPct ?? 0;
+    message.latencyMs = object.latencyMs ?? 0;
+    message.weight = object.weight ?? 0;
+    message.priority = object.priority ?? 0;
+    message.since = object.since ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaLdap(): AaaLdap {
+  return { servers: [] };
+}
+
+export const AaaLdap: MessageFns<AaaLdap> = {
+  encode(message: AaaLdap, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.servers) {
+      AaaLdapServer.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaLdap {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaLdap();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.servers.push(AaaLdapServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaLdap {
+    return {
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => AaaLdapServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AaaLdap): unknown {
+    const obj: any = {};
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => AaaLdapServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaLdap>): AaaLdap {
+    return AaaLdap.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaLdap>): AaaLdap {
+    const message = createBaseAaaLdap();
+    message.servers = object.servers?.map((e) => AaaLdapServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseAaaLdapServer(): AaaLdapServer {
+  return {
+    url: undefined,
+    bindDn: undefined,
+    bindPasswordRef: undefined,
+    baseDn: undefined,
+    userFilter: undefined,
+    groupAttr: undefined,
+    startTls: undefined,
+  };
+}
+
+export const AaaLdapServer: MessageFns<AaaLdapServer> = {
+  encode(message: AaaLdapServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.url !== undefined) {
+      writer.uint32(10).string(message.url);
+    }
+    if (message.bindDn !== undefined) {
+      writer.uint32(18).string(message.bindDn);
+    }
+    if (message.bindPasswordRef !== undefined) {
+      writer.uint32(26).string(message.bindPasswordRef);
+    }
+    if (message.baseDn !== undefined) {
+      writer.uint32(34).string(message.baseDn);
+    }
+    if (message.userFilter !== undefined) {
+      writer.uint32(42).string(message.userFilter);
+    }
+    if (message.groupAttr !== undefined) {
+      writer.uint32(50).string(message.groupAttr);
+    }
+    if (message.startTls !== undefined) {
+      writer.uint32(56).bool(message.startTls);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaLdapServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaLdapServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.bindDn = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.bindPasswordRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.baseDn = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.userFilter = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.groupAttr = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.startTls = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaLdapServer {
+    return {
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      bindDn: isSet(object.bindDn)
+        ? globalThis.String(object.bindDn)
+        : isSet(object.bind_dn)
+        ? globalThis.String(object.bind_dn)
+        : undefined,
+      bindPasswordRef: isSet(object.bindPasswordRef)
+        ? globalThis.String(object.bindPasswordRef)
+        : isSet(object.bind_password_ref)
+        ? globalThis.String(object.bind_password_ref)
+        : undefined,
+      baseDn: isSet(object.baseDn)
+        ? globalThis.String(object.baseDn)
+        : isSet(object.base_dn)
+        ? globalThis.String(object.base_dn)
+        : undefined,
+      userFilter: isSet(object.userFilter)
+        ? globalThis.String(object.userFilter)
+        : isSet(object.user_filter)
+        ? globalThis.String(object.user_filter)
+        : undefined,
+      groupAttr: isSet(object.groupAttr)
+        ? globalThis.String(object.groupAttr)
+        : isSet(object.group_attr)
+        ? globalThis.String(object.group_attr)
+        : undefined,
+      startTls: isSet(object.startTls)
+        ? globalThis.Boolean(object.startTls)
+        : isSet(object.start_tls)
+        ? globalThis.Boolean(object.start_tls)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AaaLdapServer): unknown {
+    const obj: any = {};
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.bindDn !== undefined) {
+      obj.bindDn = message.bindDn;
+    }
+    if (message.bindPasswordRef !== undefined) {
+      obj.bindPasswordRef = message.bindPasswordRef;
+    }
+    if (message.baseDn !== undefined) {
+      obj.baseDn = message.baseDn;
+    }
+    if (message.userFilter !== undefined) {
+      obj.userFilter = message.userFilter;
+    }
+    if (message.groupAttr !== undefined) {
+      obj.groupAttr = message.groupAttr;
+    }
+    if (message.startTls !== undefined) {
+      obj.startTls = message.startTls;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaLdapServer>): AaaLdapServer {
+    return AaaLdapServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaLdapServer>): AaaLdapServer {
+    const message = createBaseAaaLdapServer();
+    message.url = object.url ?? undefined;
+    message.bindDn = object.bindDn ?? undefined;
+    message.bindPasswordRef = object.bindPasswordRef ?? undefined;
+    message.baseDn = object.baseDn ?? undefined;
+    message.userFilter = object.userFilter ?? undefined;
+    message.groupAttr = object.groupAttr ?? undefined;
+    message.startTls = object.startTls ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaRoleMapping(): AaaRoleMapping {
+  return { group: undefined, role: undefined };
+}
+
+export const AaaRoleMapping: MessageFns<AaaRoleMapping> = {
+  encode(message: AaaRoleMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.group !== undefined) {
+      writer.uint32(10).string(message.group);
+    }
+    if (message.role !== undefined) {
+      writer.uint32(18).string(message.role);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaRoleMapping {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaRoleMapping();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.role = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaRoleMapping {
+    return {
+      group: isSet(object.group) ? globalThis.String(object.group) : undefined,
+      role: isSet(object.role) ? globalThis.String(object.role) : undefined,
+    };
+  },
+
+  toJSON(message: AaaRoleMapping): unknown {
+    const obj: any = {};
+    if (message.group !== undefined) {
+      obj.group = message.group;
+    }
+    if (message.role !== undefined) {
+      obj.role = message.role;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaRoleMapping>): AaaRoleMapping {
+    return AaaRoleMapping.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaRoleMapping>): AaaRoleMapping {
+    const message = createBaseAaaRoleMapping();
+    message.group = object.group ?? undefined;
+    message.role = object.role ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaMfa(): AaaMfa {
+  return { required: undefined, issuer: undefined };
+}
+
+export const AaaMfa: MessageFns<AaaMfa> = {
+  encode(message: AaaMfa, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.required !== undefined) {
+      writer.uint32(10).string(message.required);
+    }
+    if (message.issuer !== undefined) {
+      writer.uint32(18).string(message.issuer);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaMfa {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaMfa();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.required = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.issuer = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaMfa {
+    return {
+      required: isSet(object.required) ? globalThis.String(object.required) : undefined,
+      issuer: isSet(object.issuer) ? globalThis.String(object.issuer) : undefined,
+    };
+  },
+
+  toJSON(message: AaaMfa): unknown {
+    const obj: any = {};
+    if (message.required !== undefined) {
+      obj.required = message.required;
+    }
+    if (message.issuer !== undefined) {
+      obj.issuer = message.issuer;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaMfa>): AaaMfa {
+    return AaaMfa.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaMfa>): AaaMfa {
+    const message = createBaseAaaMfa();
+    message.required = object.required ?? undefined;
+    message.issuer = object.issuer ?? undefined;
+    return message;
+  },
+};
+
 function createBaseDataplaneStartupStateRequest(): DataplaneStartupStateRequest {
   return { owner: "" };
 }
@@ -81886,6 +86609,35 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): DataplaneStartupPreviewResponse =>
       DataplaneStartupPreviewResponse.decode(value),
   },
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect: {
+    path: "/vrx.v1.Dataplane/PppoeReconnect" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: PppoeReconnectRequest): Buffer =>
+      Buffer.from(PppoeReconnectRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): PppoeReconnectRequest => PppoeReconnectRequest.decode(value),
+    responseSerialize: (value: PppoeReconnectResponse): Buffer =>
+      Buffer.from(PppoeReconnectResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): PppoeReconnectResponse => PppoeReconnectResponse.decode(value),
+  },
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState: {
+    path: "/vrx.v1.Dataplane/WanState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: WanStateRequest): Buffer => Buffer.from(WanStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): WanStateRequest => WanStateRequest.decode(value),
+    responseSerialize: (value: WanStateResponse): Buffer => Buffer.from(WanStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): WanStateResponse => WanStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -82128,6 +86880,17 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
    */
   dataplaneStartupPreview: handleUnaryCall<DataplaneStartupPreviewRequest, DataplaneStartupPreviewResponse>;
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect: handleUnaryCall<PppoeReconnectRequest, PppoeReconnectResponse>;
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState: handleUnaryCall<WanStateRequest, WanStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -82907,6 +87670,45 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: DataplaneStartupPreviewResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState(
+    request: WanStateRequest,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
+  ): ClientUnaryCall;
+  wanState(
+    request: WanStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
+  ): ClientUnaryCall;
+  wanState(
+    request: WanStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
   ): ClientUnaryCall;
 }
 

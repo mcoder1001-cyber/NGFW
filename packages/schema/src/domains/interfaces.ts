@@ -18,6 +18,7 @@ import { interfaceGsoField, interfaceMirrorField } from './ext/loopback-bvi-gso-
 import { ipv6RaField, proxyArpField, proxyNdField } from './ext/neighbors-ra.js';
 import { adlField, urpfField } from './ext/rpf-adl-pbr.js';
 import { interfaceLcp } from './ext/frr-linuxcp.js';
+import { interfacePppoeField } from './ext/pppoe.js'; // F-pppoe-client (unanchored)
 
 /**
  * `interfaces` — record keyed by VPP interface name → interface settings (docs/04-api-datamodel.md; WBS D1.2–D1.4).
@@ -231,6 +232,8 @@ export const InterfaceSchema = z
     adl: adlField,
     // wave-A: P12
     lcp: interfaceLcp,
+    // F-pppoe-client (unanchored)
+    pppoe: interfacePppoeField,
   })
   .refine(noAddressesWhenUnnumbered, { message: UNNUMBERED_EXCLUSIVE, path: ['unnumbered'] });
 

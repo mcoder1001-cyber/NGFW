@@ -20,6 +20,9 @@ export const TOPICS = [
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
+  'alarm.events',
+  // F-bruteforce-block
+  'security.events',
   // wave-A: F-neighbors-ra
   'neighbor.events',
   // wave-A: F-object-model

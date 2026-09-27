@@ -272,7 +272,7 @@ func kindOf(comment string) string {
 	}
 	if id := m[1]; strings.HasPrefix(id, "@") {
 		switch k := id[1:]; k {
-		case KindEstablished, KindLoopback, KindICMP, KindAntiLockout:
+		case KindEstablished, KindLoopback, KindICMP, KindAntiLockout, KindGlobalBlocking:
 			return k
 		}
 		return KindUnknown

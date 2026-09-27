@@ -88,6 +88,8 @@ import faDashboard from './locales/fa/dashboard.json';
 import enLicensing from './locales/en/licensing.json';
 import faLicensing from './locales/fa/licensing.json';
 // wave-BC: F-restconf-yang
+import enRestconfYang from './locales/en/restconf-yang.json';
+import faRestconfYang from './locales/fa/restconf-yang.json';
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
@@ -125,6 +127,18 @@ import faAcl from './locales/fa/acl.json';
 // wave-A: F-host-acl-nftables
 import enHostAclNftables from './locales/en/host-acl-nftables.json';
 import faHostAclNftables from './locales/fa/host-acl-nftables.json';
+// F-global-blocking (unanchored)
+import enGlobalBlocking from './locales/en/global-blocking.json';
+import faGlobalBlocking from './locales/fa/global-blocking.json';
+// wave-BC: F-dashboard-prom-alarms
+import enDashPromAlarms from './locales/en/dashboard-prom-alarms.json';
+import faDashPromAlarms from './locales/fa/dashboard-prom-alarms.json';
+// F-multiwan (unanchored)
+import enMultiwan from './locales/en/multiwan.json';
+import faMultiwan from './locales/fa/multiwan.json';
+// F-bruteforce-block (unanchored)
+import enAutoBlock from './locales/en/auto-block.json';
+import faAutoBlock from './locales/fa/auto-block.json';
 // wave-A: F-nat44-ed-sessions
 import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
 import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
@@ -202,6 +216,7 @@ export const NAMESPACES = [
   // wave-BC: F-licensing
   'licensing',
   // wave-BC: F-restconf-yang
+  'restconf-yang',
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
@@ -227,6 +242,10 @@ export const NAMESPACES = [
   'acl',
   // wave-A: F-host-acl-nftables
   'host-acl-nftables',
+  'global-blocking', // F-global-blocking (unanchored)
+  'dashboard-prom-alarms', // wave-BC: F-dashboard-prom-alarms
+  'multiwan', // F-multiwan (unanchored)
+  'auto-block', // F-bruteforce-block (unanchored)
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -300,6 +319,7 @@ const en = {
   // wave-BC: F-licensing
   licensing: enLicensing,
   // wave-BC: F-restconf-yang
+  'restconf-yang': enRestconfYang,
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
@@ -325,6 +345,10 @@ const en = {
   acl: enAcl,
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': enHostAclNftables,
+  'global-blocking': enGlobalBlocking,
+  'dashboard-prom-alarms': enDashPromAlarms,
+  multiwan: enMultiwan,
+  'auto-block': enAutoBlock,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -395,6 +419,7 @@ const fa = {
   // wave-BC: F-licensing
   licensing: faLicensing,
   // wave-BC: F-restconf-yang
+  'restconf-yang': faRestconfYang,
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
@@ -420,6 +445,10 @@ const fa = {
   acl: faAcl,
   // wave-A: F-host-acl-nftables
   'host-acl-nftables': faHostAclNftables,
+  'global-blocking': faGlobalBlocking,
+  'dashboard-prom-alarms': faDashPromAlarms,
+  multiwan: faMultiwan,
+  'auto-block': faAutoBlock,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6

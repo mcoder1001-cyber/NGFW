@@ -15,6 +15,8 @@ import {
   type Event,
   type HealthResponse,
   type InterfaceStateResponse,
+  type PppoeReconnectResponse,
+  type WanStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
@@ -221,6 +223,16 @@ export class AgentClient implements OnModuleDestroy {
   /** Live interface table (P08, proto.md §8a); an agent without the RPC answers 501. */
   interfaceState(names: string[] = []): Promise<InterfaceStateResponse> {
     return this.unary(this.c.interfaceState, { names, owner: this.owner });
+  }
+
+  /** F-multiwan: live WAN group member health; an agent without multi-WAN answers 501. */
+  wanState(groups: string[] = []): Promise<WanStateResponse> {
+    return this.unary(this.c.wanState, { groups, owner: this.owner });
+  }
+
+  /** F-pppoe-client: redial a PPPoE client now; an agent without PPPoE support answers 501. */
+  pppoeReconnect(iface: string): Promise<PppoeReconnectResponse> {
+    return this.unary(this.c.pppoeReconnect, { interface: iface, owner: this.owner });
   }
 
   health(timeoutMs = 5000): Promise<HealthResponse> {

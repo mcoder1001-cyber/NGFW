@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RootConfig, ROOT_KEYS } from './index.js';
 
 describe('RootConfig', () => {
-  it('lists the 13 top-level keys in the documented order (docs/04-api-datamodel.md)', () => {
+  it('lists the 14 top-level keys in the documented order (docs/04-api-datamodel.md)', () => {
     expect(ROOT_KEYS).toEqual([
       'system',
       'dataplane',
@@ -17,6 +17,7 @@ describe('RootConfig', () => {
       'services',
       'ha',
       'management',
+      'security', // F-bruteforce-block
     ]);
   });
 

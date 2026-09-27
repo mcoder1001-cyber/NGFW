@@ -42,6 +42,13 @@ import { mplsSrmplsFeature } from './features/mpls-srmpls/index.js';
 // wave-BC: F-lb
 import { lbFeature } from './features/lb/index.js';
 import { ruleExpiryFeature } from './features/rule-expiry/index.js'; // F-rule-expiry (unanchored)
+import { globalBlockingFeature } from './features/global-blocking/index.js'; // F-global-blocking (unanchored)
+import { pppoeFeature } from './features/pppoe/index.js'; // F-pppoe-client (unanchored)
+import { dashboardPromAlarmsFeature } from './features/dashboard-prom-alarms/index.js'; // wave-BC: F-dashboard-prom-alarms
+import { multiwanFeature } from './features/multiwan/index.js'; // F-multiwan (unanchored)
+import { aaaFeature } from './features/aaa/index.js'; // wave-BC: F-aaa
+import { autoBlockFeature } from './features/auto-block/index.js'; // F-bruteforce-block (unanchored)
+import { restconfYangFeature } from './features/restconf-yang/index.js'; // wave-BC: F-restconf-yang
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -202,6 +209,13 @@ export class AppModule {
         ...objectModelFeature.controllers,
         // wave-A: F-acl
         ...aclFeature.controllers,
+        ...globalBlockingFeature.controllers, // F-global-blocking (unanchored)
+        ...pppoeFeature.controllers, // F-pppoe-client (unanchored)
+        ...dashboardPromAlarmsFeature.controllers, // wave-BC: F-dashboard-prom-alarms
+        ...multiwanFeature.controllers, // F-multiwan (unanchored)
+        ...aaaFeature.controllers, // wave-BC: F-aaa
+        ...autoBlockFeature.controllers, // F-bruteforce-block (unanchored)
+        ...restconfYangFeature.controllers, // wave-BC: F-restconf-yang
         // wave-A: F-host-acl-nftables
         ...hostAclNftablesFeature.controllers,
         // wave-A: F-nat44-ed-sessions
@@ -252,6 +266,11 @@ export class AppModule {
         // wave-BC: F-lb
         ...lbFeature.providers,
         ...ruleExpiryFeature.providers, // F-rule-expiry (unanchored)
+        ...globalBlockingFeature.providers, // F-global-blocking (unanchored)
+        ...dashboardPromAlarmsFeature.providers, // wave-BC: F-dashboard-prom-alarms
+        ...aaaFeature.providers, // wave-BC: F-aaa
+        ...autoBlockFeature.providers, // F-bruteforce-block (unanchored)
+        ...restconfYangFeature.providers, // wave-BC: F-restconf-yang
         // wave-BC: F-qos-flat
         ...qosFlatFeature.providers,
         // wave-BC: F-host-stack

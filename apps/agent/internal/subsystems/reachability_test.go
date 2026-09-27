@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 20
+const maxPending = 21
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -126,6 +126,7 @@ var rendererReach = map[string]reachEntry{
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},
 	"rsyslog":    {wired, "F-unbound-chrony-syslog"},
 	"nftables":   {wired, "F-host-acl-nftables"},
+	"pppoe":      {pending, "F-pppoe-client"},
 	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},
 	"sysident":   {wired, "F-system-identity"},

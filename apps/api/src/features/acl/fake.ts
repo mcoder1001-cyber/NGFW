@@ -155,6 +155,26 @@ export function aclState(agent: FakeAgent): handleUnaryCall<AclStateRequest, Acl
       resp.rules = all.slice(req.offset, req.offset + limit);
     } else {
       resp.lists = names.map(summary);
+      // F-global-blocking: one inbound bucket ACL per enabled block list with entries (hits: setFakeAclHits(…, 0))
+      const gb = ((acl['globalBlocking'] as Json | undefined)?.['lists'] ?? {}) as Record<
+        string,
+        Json
+      >;
+      for (const n of Object.keys(gb).sort()) {
+        const e = (gb[n]?.['entries'] as string[] | undefined) ?? [];
+        if (gb[n]?.['enabled'] === false || e.length === 0) continue;
+        const name = `_gb.${n}.i00`;
+        const h = hits(name, 0);
+        resp.lists.push({
+          name,
+          aclIndex: 1000 + resp.lists.length,
+          vppRules: e.length,
+          mappingKnown: false,
+          configRules: 0,
+          packets: String(h?.packets ?? 0),
+          bytes: String(h?.bytes ?? 0),
+        });
+      }
       resp.macipLists = Object.keys((acl['macip'] ?? {}) as Json)
         .sort()
         .map((n, i) => ({

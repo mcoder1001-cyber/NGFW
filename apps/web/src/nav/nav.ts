@@ -25,6 +25,7 @@ export const DOMAIN_GROUP: Record<RootKey, NavGroupId> = {
   services: 'services',
   ha: 'system',
   management: 'system',
+  security: 'firewall', // F-bruteforce-block
 };
 
 export interface NavItem {
@@ -142,6 +143,10 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   groups.get('firewall')!.push({ id: 'adl', path: '/firewall/adl', labelKey: 'rpf-adl-pbr:nav.adl', fallbackLabel: 'ADL / Auto-SDL', available: true });
   // wave-A: F-host-acl-nftables
   groups.get('firewall')!.push({ id: 'host-acl', path: '/firewall/host-acl', labelKey: 'host-acl-nftables:nav', fallbackLabel: 'Host ACL', available: true });
+  groups.get('firewall')!.push({ id: 'global-blocking', path: '/firewall/global-blocking', labelKey: 'global-blocking:nav', fallbackLabel: 'Global blocking', available: true }); // F-global-blocking (unanchored)
+  groups.get('firewall')!.push({ id: 'auto-block', path: '/firewall/auto-block', labelKey: 'auto-block:nav', fallbackLabel: 'Auto-block', available: true }); // F-bruteforce-block (unanchored)
+  groups.get('system')!.push({ id: 'alarms', path: '/system/alarms', labelKey: 'dashboard-prom-alarms:nav', fallbackLabel: 'Alarms', available: true }); // wave-BC: F-dashboard-prom-alarms
+  groups.get('routing')!.push({ id: 'wan', path: '/routing/wan', labelKey: 'multiwan:nav', fallbackLabel: 'Multi-WAN', available: true }); // F-multiwan (unanchored)
   // wave-A: P12
   groups.get('routing')!.push({ id: 'bgp', path: '/routing/bgp', labelKey: 'bgp:nav.bgp', fallbackLabel: 'BGP', available: true });
   // web: WEB-2
@@ -150,6 +155,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },
     // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack):
     // wave-BC: F-restconf-yang
+    { id: 'restconf-yang', path: '/system/restconf', labelKey: 'restconf-yang:nav', fallbackLabel: 'RESTCONF / YANG', available: true },
     // wave-BC: F-aaa
     // wave-BC: F-backup-restore
     // wave-BC: P10

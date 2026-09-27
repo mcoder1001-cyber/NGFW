@@ -36,6 +36,20 @@
       "when": 1790265941508,
       "tag": "0004_td10a_pending_restore_warnings",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790503767936,
+      "tag": "0005_dashboard_prom_alarms",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790509935935,
+      "tag": "0006_auto_block",
+      "breakpoints": true
     }
   ]
 }

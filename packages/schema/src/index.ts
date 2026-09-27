@@ -12,6 +12,7 @@ import { TunnelsSchema } from './domains/tunnels.js';
 import { ServicesSchema } from './domains/services.js';
 import { HaSchema } from './domains/ha.js';
 import { ManagementSchema } from './domains/management.js';
+import { SecuritySchema } from './domains/security.js';
 
 /**
  * Root configuration document — the single JSON object stored as `config_revision.payload`
@@ -41,6 +42,7 @@ export const RootConfig = z.strictObject({
   services: ServicesSchema.prefault({}),
   ha: HaSchema.prefault({}),
   management: ManagementSchema.prefault({}),
+  security: SecuritySchema.prefault({}),
 });
 
 export type RootConfig = z.infer<typeof RootConfig>;
@@ -67,6 +69,7 @@ export * from './domains/tunnels.js';
 export * from './domains/services.js';
 export * from './domains/ha.js';
 export * from './domains/management.js';
+export * from './domains/security.js'; // F-bruteforce-block
 // Feature sub-schemas: one `export * from './domains/ext/<slug>.js'` under the feature's anchor (wave-A-hotspots C3).
 // wave-BC: F-det44-map-dslite-cnat
 // wave-BC: F-pki
@@ -105,6 +108,12 @@ export * from './domains/ext/host-stack.js'; // F-host-stack (unanchored)
 export * from './domains/ext/syslog.js';
 export * from './domains/ext/lb.js';
 export * from './domains/ext/rule-expiry.js'; // F-rule-expiry
+export * from './domains/ext/global-blocking.js'; // F-global-blocking
+export * from './domains/ext/global-blocking-parse.js'; // F-global-blocking
+export * from './domains/ext/pppoe.js'; // F-pppoe-client (unanchored)
+export * from './domains/ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
+export * from './domains/ext/multiwan.js'; // F-multiwan (unanchored)
+export * from './domains/ext/aaa.js'; // wave-BC: F-aaa
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

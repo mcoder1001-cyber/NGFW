@@ -285,6 +285,19 @@ service Dataplane {
   // renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
   // and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
   rpc DataplaneStartupPreview(DataplaneStartupPreviewRequest) returns (DataplaneStartupPreviewResponse);
+
+  // F-pppoe-client (unanchored)
+
+  // PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+  // reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+  // state. Unimplemented on an agent without PPPoE support (→ 501).
+  rpc PppoeReconnect(PppoeReconnectRequest) returns (PppoeReconnectResponse);
+
+  // F-multiwan (unanchored)
+
+  // WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+  // failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+  rpc WanState(WanStateRequest) returns (WanStateResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -925,6 +938,8 @@ message InterfaceState {
   string rx_mode = 19;
   // Description from this agent's stored desired state (VPP cannot store it, D-073b); empty if none.
   string description = 20;
+  // PPPoE client session on this interface (F-pppoe-client); unset = not a PPPoE client.
+  PppoeSessionState pppoe = 21;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -974,6 +989,8 @@ message DesiredState {
   HaConfig ha = 12;
   // `management` — local users, AAA, TLS, syslog.
   ManagementConfig management = 13;
+  // `security` — the box's own defensive policy (brute-force / scan auto-block).
+  SecurityConfig security = 14;
 }
 
 // ----- system (P02a, mirrors packages/schema/src/domains/system.ts) -----
@@ -1131,6 +1148,11 @@ message Interface {
 
   // linux-cp pair of this interface (lcp_itf_pair_add_del_v3, P12); present = the pair exists.
   InterfaceLcp lcp = 22;
+
+  // F-pppoe-client (unanchored)
+
+  // PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client.
+  Pppoe pppoe = 23;
 }
 
 // DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
@@ -1256,6 +1278,10 @@ message RoutingConfig {
 
   // Policy-based routing: ACL-based forwarding (F-rpf-adl-pbr, abf plugin); unset = none.
   PbrConfig pbr = 11;
+
+  // F-multiwan (unanchored)
+  // Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
+  repeated WanGroup wan_groups = 12;
 }
 
 // StaticRoute mirrors one entry of `routing.static`.
@@ -2578,7 +2604,53 @@ message ManagementConfig {
   repeated SyslogTarget syslog = 4;
 
   // wave-BC: F-dashboard-prom-alarms
+  // The agent's external Prometheus listener (the loopback /metrics endpoint is always on).
+  ManagementPrometheus prometheus = 5;
+  // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
+  ManagementAlarms alarms = 6;
   // wave-BC: F-backup-restore
+}
+
+// ----- security (F-bruteforce-block, mirrors packages/schema/src/domains/security.ts) -----
+
+// SecurityConfig mirrors `security`.
+message SecurityConfig {
+  // `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking.
+  AutoBlock auto_block = 1;
+}
+
+// AutoBlock mirrors `security.autoBlock`. The thresholds, allow-list and caps are the contract the API and host
+// detectors share; the blocked entries themselves are runtime state (a system-owned Global Blocking list), never
+// part of the committed document, so they have no field here.
+message AutoBlock {
+  // Master switch; when off no source is auto-blocked.
+  optional bool enabled = 1;
+  // One rule per source.
+  repeated AutoBlockRule rules = 2;
+  // Addresses / networks (bare address = /32 or /128) that are never blocked.
+  repeated string allowlist = 3;
+  // Cap on the live auto-block set.
+  optional uint32 max_entries = 4;
+  // Optional free-text description.
+  optional string description = 5;
+}
+
+// AutoBlockRule mirrors one entry of `security.autoBlock.rules`.
+message AutoBlockRule {
+  // Detector: "webLogin" | "ssh" | "vpnAuth" | "portScan".
+  optional string source = 1;
+  // Whether this detector is active.
+  optional bool enabled = 2;
+  // Failures (portScan: distinct ports) from one source within the window before it is blocked.
+  optional uint32 threshold = 3;
+  // The sliding window the threshold is counted over.
+  optional uint32 window_sec = 4;
+  // How long a first offence is blocked.
+  optional uint32 block_sec = 5;
+  // Double the block time on each repeat offence, up to the cap.
+  optional bool escalate = 6;
+  // The escalation cap; a single block never lasts longer than this.
+  optional uint32 max_block_sec = 7;
 }
 
 // ManagementUser mirrors one entry of `management.users`.
@@ -2611,6 +2683,16 @@ message ManagementAaa {
   AaaTacacs tacacs = 3;
 
   // wave-BC: F-aaa
+  // LDAP servers (F-aaa).
+  AaaLdap ldap = 4;
+  // OIDC (reserved for a follow-up): field 5.
+  // SAML (reserved for a follow-up): field 6.
+  // External group -> local role.
+  repeated AaaRoleMapping role_map = 7;
+  // Multi-factor policy.
+  AaaMfa mfa = 8;
+  // Allow local login when every external server is unreachable; Zod default true.
+  optional bool fallback_local = 9;
 }
 
 // AaaRadius mirrors `management.aaa.radius`.
@@ -3363,6 +3445,52 @@ message AclConfig {
 
   // Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults.
   HostAclSettings host_settings = 8;
+  // F-global-blocking: IP block lists enforced ahead of the access lists; unset = none.
+  GlobalBlocking global_blocking = 9;
+}
+
+// GlobalBlocking mirrors `acl.globalBlocking` (F-global-blocking).
+message GlobalBlocking {
+  // Block lists by name.
+  map<string, GlobalBlockingList> lists = 1;
+}
+
+// GlobalBlockingSource mirrors `acl.globalBlocking.lists.<name>.source` (discriminated union, flattened).
+message GlobalBlockingSource {
+  // "upload" | "url".
+  optional string kind = 1;
+  // url: http(s) URL the API downloads the list from.
+  optional string url = 2;
+  // url: download-and-apply interval in seconds; unset = only on "Fetch now".
+  optional uint32 refresh_sec = 3;
+  // url: verify the server certificate (Zod default true).
+  optional bool verify_tls = 4;
+  // url: secret reference of a private CA (cert/<name>).
+  optional string ca_ref = 5;
+  // url: secret reference of the credentials (token/<name> or password/<name>).
+  optional string auth_ref = 6;
+}
+
+// GlobalBlockingList mirrors `acl.globalBlocking.lists.<name>`.
+message GlobalBlockingList {
+  // List enabled (Zod default true).
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // Where the entries come from (the API imports them; the agent only renders entries).
+  GlobalBlockingSource source = 3;
+  // Every L3 interface, including later ones.
+  optional bool all_interfaces = 4;
+  // Interfaces the list is enforced on (when not all_interfaces).
+  repeated string interfaces = 5;
+  // "both" | "inbound" | "outbound".
+  optional string direction = 6;
+  // Also drop traffic from listed addresses to the box itself (nftables).
+  optional bool protect_host = 7;
+  // Log matches.
+  optional bool log = 8;
+  // Canonical IPv4/IPv6 prefixes.
+  repeated string entries = 9;
 }
 
 // AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened.
@@ -5152,6 +5280,83 @@ message InterfaceLcp {
   optional string netns = 3;
 }
 
+// Pppoe mirrors `interfaces.<name>.pppoe` (F-pppoe-client): a PPPoE client dialled by pppd on a linux-cp tap of the
+// parent, the ISP-assigned address/routes mirrored into VPP. The password is a secret reference, never inline.
+message Pppoe {
+  // Dial the session; Zod default true.
+  optional bool enabled = 1;
+  // Engine interface the session runs over; unset = this interface (set for a VLAN sub-interface WAN).
+  optional string parent = 2;
+  // PPP username (PAP/CHAP).
+  optional string username = 3;
+  // Reference to a stored password secret ("password/<name>"); never the password.
+  optional string password_ref = 4;
+  // RFC 2516 Service-Name to request; unset = accept any AC.
+  optional string service_name = 5;
+  // PPPoE payload MTU; Zod default 1492.
+  optional uint32 mtu = 6;
+  // Clamp forwarded TCP MSS to fit the MTU; Zod default true.
+  optional bool mss_clamp = 7;
+  // Install a default route via the session; Zod default true.
+  optional bool default_route = 8;
+  // Use the DNS servers the peer sends (IPCP); Zod default false.
+  optional bool dns_from_peer = 9;
+  // IPv6: "off" | "slaac" | "dhcpv6"; Zod default "off".
+  optional string ipv6 = 10;
+  // Reconnect policy.
+  PppoeReconnect reconnect = 11;
+}
+
+// PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`.
+message PppoeReconnect {
+  // Seconds to wait before redialling after the session drops; Zod default 5.
+  optional uint32 holdoff_sec = 1;
+  // Give up after this many failed dials in a row; 0 = forever; Zod default 0.
+  optional uint32 max_fail = 2;
+}
+
+// PppoeReconnectRequest asks the agent to redial one PPPoE client now.
+message PppoeReconnectRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Configuration interface name of the PPPoE client (the `interfaces.<name>` key).
+  string interface = 2;
+}
+
+// PppoeReconnectResponse says whether the redial was accepted (the session comes up asynchronously).
+message PppoeReconnectResponse {
+  // The agent accepted the request and is redialling.
+  bool accepted = 1;
+  // Human-readable detail ("no PPPoE client on 'eth0'", "redialling"…).
+  string message = 2;
+}
+
+// PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState.
+message PppoeSessionState {
+  // "down" | "dialing" | "up" | "failed".
+  string phase = 1;
+  // PPPoE session id (RFC 2516) once negotiated; 0 when down.
+  uint32 session_id = 2;
+  // MAC of the access concentrator (peer); empty when down.
+  string ac_mac = 3;
+  // AC name from the PADO tag; empty when unknown.
+  string ac_name = 4;
+  // Local (ISP-assigned) IPv4 address in CIDR, e.g. "203.0.113.5/32"; empty when none.
+  string local_ipv4 = 5;
+  // Peer (gateway) IPv4 address; empty when none.
+  string peer_ipv4 = 6;
+  // ISP-assigned IPv6 address/prefix; empty when none.
+  string ipv6 = 7;
+  // DNS servers the peer sent (IPCP), sorted; empty when none.
+  repeated string dns = 8;
+  // When the current session came up (agent clock); unset when down.
+  google.protobuf.Timestamp since = 9;
+  // Consecutive failed dials since the last success.
+  uint32 fail_count = 10;
+  // Last error text (pppd exit reason), empty when none.
+  string last_error = 11;
+}
+
 // RoutingStateRequest selects the parts of RoutingState to read (the BGP table, counts and pairs are always returned).
 message RoutingStateRequest {
   // Same rules as ApplyRequest.owner.
@@ -6825,7 +7030,198 @@ message LispStateResponse {
 
 // ----- F-dashboard-prom-alarms -----
 
+// ManagementPrometheus mirrors `management.prometheus`: the agent's external Prometheus listener.
+message ManagementPrometheus {
+  // Open the external listener (the loopback /metrics endpoint is always on); Zod default false.
+  optional bool enabled = 1;
+  // Address the external listener binds to; Zod default "0.0.0.0".
+  optional string listen = 2;
+  // Port of the external listener; Zod default 9101.
+  optional uint32 port = 3;
+  // CIDRs allowed to scrape (empty = any source that reaches the listener).
+  repeated string allow = 4;
+}
+
+// ManagementAlarms mirrors `management.alarms` (consumed by the API; carried here for the drift guard).
+message ManagementAlarms {
+  // Alarm rules by name.
+  map<string, AlarmRule> rules = 1;
+  // Notification targets by name.
+  map<string, AlarmTarget> targets = 2;
+}
+
+// AlarmRule mirrors `management.alarms.rules.<name>`.
+message AlarmRule {
+  // Metric family (ALARM_METRICS): "interface_rx_bps" | … | "node_error_rate".
+  optional string metric = 1;
+  // Comparison: "gt" | "ge" | "lt" | "le" | "eq"; Zod default "gt".
+  optional string op = 2;
+  // Threshold compared against the metric.
+  optional double threshold = 3;
+  // Seconds the condition must hold before raising (hysteresis); Zod default 0.
+  optional uint32 for_sec = 4;
+  // "info" | "warning" | "critical"; Zod default "warning".
+  optional string severity = 5;
+  // Limit an interface metric to this interface; unset = every interface.
+  optional string interface = 6;
+  // Free-text description.
+  optional string description = 7;
+  // Rule enabled; Zod default true.
+  optional bool enabled = 8;
+  // Names of management.alarms.targets to notify.
+  repeated string targets = 9;
+}
+
+// AlarmTarget mirrors `management.alarms.targets.<name>` (discriminated union on kind, flattened).
+message AlarmTarget {
+  // "webhook" | "email".
+  optional string kind = 1;
+  // webhook: the URL the alarm JSON is POSTed to.
+  optional string url = 2;
+  // webhook: reference to a bearer token secret ("token/<name>").
+  optional string secret_ref = 3;
+  // email: the recipient address.
+  optional string address = 4;
+}
+
+// ----- F-multiwan -----
+
+// WanGroup mirrors `routing.wanGroups[]` (F-multiwan).
+message WanGroup {
+  // Group name.
+  optional string name = 1;
+  // "failover" | "balance"; Zod default "failover".
+  optional string mode = 2;
+  // Keep a flow on its member while up; clear the dead link's NAT sessions on failover. Zod default true.
+  optional bool sticky_sessions = 3;
+  // Member links (>= 1).
+  repeated WanMember members = 4;
+  // Health monitors (>= 1).
+  repeated WanMonitor monitors = 5;
+}
+
+// WanMember mirrors `routing.wanGroups[].members[]`.
+message WanMember {
+  // Member interface.
+  optional string interface = 1;
+  // "gateway" | "dhcp" | "pppoe"; Zod default "dhcp".
+  optional string next_hop = 2;
+  // Static gateway (required when next_hop is "gateway").
+  optional string gateway = 3;
+  // Balance-mode weight; Zod default 1.
+  optional uint32 weight = 4;
+  // Failover priority (lower wins); Zod default 100.
+  optional uint32 priority = 5;
+}
+
+// WanMonitor mirrors `routing.wanGroups[].monitors[]`.
+message WanMonitor {
+  // "icmp" | "http" | "dns"; Zod default "icmp".
+  optional string type = 1;
+  // Probe target (address/host; a host for http).
+  optional string target = 2;
+  // Probe interval (ms); Zod default 1000.
+  optional uint32 interval_ms = 3;
+  // Probe timeout (ms); Zod default 1000.
+  optional uint32 timeout_ms = 4;
+  // Loss threshold percent; Zod default 100.
+  optional uint32 loss_pct = 5;
+  // Latency threshold (ms); 0 = no latency check. Zod default 0.
+  optional uint32 latency_ms = 6;
+  // Consecutive failing checks before down; Zod default 3.
+  optional uint32 down_after = 7;
+  // Consecutive passing checks before up; Zod default 3.
+  optional uint32 up_after = 8;
+}
+
+// WanStateRequest selects WAN groups to report (empty = all).
+message WanStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Group names to include; empty = all.
+  repeated string groups = 2;
+}
+
+// WanStateResponse is the live multi-WAN health.
+message WanStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // One entry per configured WAN group, sorted by name.
+  repeated WanGroupState groups = 3;
+}
+
+// WanGroupState is the live state of one WAN group.
+message WanGroupState {
+  // Group name.
+  string name = 1;
+  // "failover" | "balance".
+  string mode = 2;
+  // Interface carrying the default route now (failover); empty in balance mode or when none is healthy.
+  string active = 3;
+  // Members, sorted by interface.
+  repeated WanMemberState members = 4;
+}
+
+// WanMemberState is the live health of one member link.
+message WanMemberState {
+  // Member interface.
+  string interface = 1;
+  // Health as the hysteresis sees it.
+  bool up = 2;
+  // Probe loss over the last window, percent.
+  uint32 loss_pct = 3;
+  // Average probe latency over the last window, ms.
+  uint32 latency_ms = 4;
+  // Weight (balance) and priority (failover) from the configuration.
+  uint32 weight = 5;
+  uint32 priority = 6;
+  // When this member last changed up/down state (agent clock); unset if never.
+  google.protobuf.Timestamp since = 7;
+}
+
 // ----- F-aaa -----
+
+// AaaLdap mirrors `management.aaa.ldap`.
+message AaaLdap {
+  repeated AaaLdapServer servers = 1;
+}
+
+// AaaLdapServer mirrors `management.aaa.ldap.servers[]`.
+message AaaLdapServer {
+  // ldap:// or ldaps:// URL.
+  optional string url = 1;
+  // Bind DN (service account).
+  optional string bind_dn = 2;
+  // Reference to the bind password secret ("password/<name>").
+  optional string bind_password_ref = 3;
+  // Base DN of the user search.
+  optional string base_dn = 4;
+  // User filter (%s = the login name); Zod default "(uid=%s)".
+  optional string user_filter = 5;
+  // Attribute listing the user's group DNs; Zod default "memberOf".
+  optional string group_attr = 6;
+  // Upgrade an ldap:// connection with StartTLS; Zod default false.
+  optional bool start_tls = 7;
+}
+
+// AaaRoleMapping mirrors `management.aaa.roleMap[]`.
+message AaaRoleMapping {
+  // External group name or DN.
+  optional string group = 1;
+  // "admin" | "operator" | "readonly".
+  optional string role = 2;
+}
+
+// AaaMfa mirrors `management.aaa.mfa`.
+message AaaMfa {
+  // "none" | "admins" | "all"; Zod default "none".
+  optional string required = 1;
+  // Authenticator-app issuer label; Zod default "vrx".
+  optional string issuer = 2;
+}
+
 
 // ----- F-ha-state-sync -----
 

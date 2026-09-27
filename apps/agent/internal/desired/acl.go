@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -109,7 +111,7 @@ func ACL(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 	for _, name := range sortedKeys(cfg.GetMacip()) {
 		x.macip(name, cfg.GetMacip()[name])
 	}
-	x.bindings(cfg)
+	x.bindings(cfg, x.globalBlocking(ds))
 }
 
 type aclExpander struct {
@@ -573,7 +575,7 @@ type ifBinding struct {
 	in, out []bindEntry
 }
 
-func (x *aclExpander) bindings(cfg *vrxv1.AclConfig) {
+func (x *aclExpander) bindings(cfg *vrxv1.AclConfig, gb *gbPlan) {
 	binds := map[string]*ifBinding{}
 	for i, a := range cfg.GetAttachments() {
 		ap := Ptr("acl", "attachments", strconv.Itoa(i))
@@ -626,19 +628,44 @@ func (x *aclExpander) bindings(cfg *vrxv1.AclConfig) {
 			}
 		}
 	}
-	var all []descacl.InterfaceBinding
-	for _, ifn := range sortedKeys(binds) {
-		b := binds[ifn]
-		v := descacl.InterfaceBinding{Interface: ifn}
-		ok := true
-		v.Input, ok = x.ordered(b.in, ifn, "in", ok)
-		v.Output, ok = x.ordered(b.out, ifn, "out", ok)
-		if !ok {
-			continue
-		}
-		all = append(all, v)
-		x.s.Add(descacl.KeyInterfaceBinding(ifn), v.Proto(), b.pointer)
+	var all, parts []descacl.InterfaceBinding // the user's bindings; the block lists' part (F-global-blocking)
+	ifs := map[string]bool{}
+	for ifn := range binds {
+		ifs[ifn] = true
 	}
+	for ifn := range gb.pointer {
+		ifs[ifn] = true
+	}
+	passUsed := false
+	for _, ifn := range sortedKeys(ifs) {
+		v := descacl.InterfaceBinding{Interface: ifn}
+		pointer := gb.pointer[ifn]
+		if b, bound := binds[ifn]; bound {
+			ok := true
+			v.Input, ok = x.ordered(b.in, ifn, "in", ok)
+			v.Output, ok = x.ordered(b.out, ifn, "out", ok)
+			if !ok {
+				continue
+			}
+			all = append(all, v)
+			pointer = b.pointer
+		}
+		merged, part := gbMerge(v, gb)
+		if len(part.Input)+len(part.Output) > 0 {
+			if n := len(merged.Input) + len(merged.Output); n > gbMaxBound {
+				x.s.Errorf(gb.pointer[ifn], "acl.global-blocking-limit", "interface %q would take %d ACLs (block lists and access lists, both directions), more than VPP's %d", ifn, n, gbMaxBound)
+				continue
+			}
+			parts = append(parts, part)
+			passUsed = passUsed || slices.Contains(part.Input, GlobalBlockingPass) || slices.Contains(part.Output, GlobalBlockingPass)
+		}
+		x.s.Add(descacl.KeyInterfaceBinding(ifn), merged.Proto(), pointer)
+	}
+	if passUsed {
+		gb.acls[GlobalBlockingPass] = gbPassRules
+		x.s.Add(descacl.KeyACL(GlobalBlockingPass), descacl.ACL{Name: GlobalBlockingPass, Rules: gbPassRules}.Proto(), Ptr("acl", "globalBlocking"))
+	}
+	x.recordGlobalBlocking(cfg.GetGlobalBlocking(), gb, parts)
 	var macips []descacl.MacipBinding
 	seen := map[string]int{}
 	for i, a := range cfg.GetMacipAttachments() {
@@ -708,13 +735,18 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 			}
 		}
 	}
-	var binds []descacl.InterfaceBinding
+	var binds, gbParts []descacl.InterfaceBinding
 	var macips []descacl.MacipBinding
+	gbACLs := map[string][]descacl.Rule{}
 	for _, kv := range kvs {
 		switch kv.Key.Descriptor() {
 		case descacl.NameACL:
 			a, err := descacl.FromProto(kv.Value)
 			if err != nil || isDupName(a.Name) {
+				continue
+			}
+			if strings.HasPrefix(a.Name, GlobalBlockingPrefix) {
+				gbACLs[a.Name] = a.Rules
 				continue
 			}
 			if out.Lists == nil {
@@ -746,7 +778,13 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 			out.Macip[a.Name] = reconstructMacip(a)
 		case descacl.NameInterfaceBinding:
 			if b, err := descacl.InterfaceBindingFromProto(kv.Value); err == nil {
-				binds = append(binds, b)
+				user, part := splitGlobalBlocking(b)
+				if len(part.Input)+len(part.Output) > 0 {
+					gbParts = append(gbParts, part)
+				}
+				if len(user.Input)+len(user.Output) > 0 {
+					binds = append(binds, user)
+				}
 			}
 		case descacl.NameMacipInterfaceBinding:
 			if b, err := descacl.MacipBindingFromProto(kv.Value); err == nil {
@@ -764,6 +802,12 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 		}
 	} else {
 		out.Attachments, out.MacipAttachments = reconstructAttachments(binds, macips)
+	}
+	gb := applied[aclstate.KeyConfigGlobalBlocking].GetGlobalBlocking()
+	if gb != nil && env.Record.GlobalBlocking(aclstate.GlobalBlockingFingerprint(gbACLs, gbParts), aclstate.ConfigHash(gb)) {
+		out.GlobalBlocking = proto.Clone(gb).(*vrxv1.GlobalBlocking)
+	} else {
+		out.GlobalBlocking = reconstructGlobalBlocking(gbACLs, gbParts)
 	}
 	if proto.Size(out) == 0 {
 		return nil

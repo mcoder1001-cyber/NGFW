@@ -52,12 +52,15 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'neighbors',
       // wave-A: F-rpf-adl-pbr
       'pbr',
+      'wan', // F-multiwan (routing group)
       'bgp', // P12 (routing group, after pbr)
       'nat', // F-nat44-ed-sessions (firewall group, before objects per schema order)
       'objects', // F-object-model (firewall group, after pbr/adl per schema order)
       'acl', // F-acl (firewall group, after objects)
       'adl',
       'host-acl', // F-host-acl-nftables (firewall group, after adl)
+      'global-blocking', // F-global-blocking (firewall group, after host-acl)
+      'auto-block', // F-bruteforce-block (firewall group, after global-blocking)
       // wave-A: P12
       // wave-A: F-nat44-ed-sessions
       // wave-A: F-object-model
@@ -96,10 +99,12 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'system', // F-system-identity (system group, schema domain first)
       'dataplane', // F-dataplane-ui (system group, schema domain)
       'management', // F-management-ui (system group, schema domain)
+      'alarms', // wave-BC: F-dashboard-prom-alarms (system group)
       'users',
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:
       // wave-BC: F-restconf-yang
+      'restconf-yang',
       // wave-BC: F-aaa
       // wave-BC: F-backup-restore
       // wave-BC: P10

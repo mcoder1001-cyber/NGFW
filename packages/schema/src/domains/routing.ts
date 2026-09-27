@@ -20,6 +20,7 @@ import { routingL2Field } from './ext/bridge-l2.js'; // wave-A: F-bridge-l2
 import { nextHopVrf, staticRouteViaFrr } from './ext/vrf-static-ecmp.js';
 import { neighborsField } from './ext/neighbors-ra.js';
 import { pbrField } from './ext/rpf-adl-pbr.js';
+import { wanGroupsField } from './ext/multiwan.js'; // F-multiwan (unanchored)
 import { staticRouteTag } from './ext/frr-linuxcp.js'; // wave-A: P12
 import { srv6Field } from './ext/srv6.js';
 
@@ -731,6 +732,8 @@ export const RoutingSchema = withUi(
     neighbors: neighborsField,
     // wave-A: F-rpf-adl-pbr
     pbr: pbrField,
+    // F-multiwan (unanchored)
+    wanGroups: wanGroupsField,
   }),
   {
     title: 'Routing',

@@ -222,6 +222,59 @@ export const systemEvent = pgTable(
 // Feature tables: new pgTable(s) directly under the task's anchor (SY3); generate the migration with
 // `pnpm -C apps/api db:generate --name <slug>` against main's latest snapshot — never hand-merge.
 // wave-BC: F-dashboard-prom-alarms
+export const alarm = pgTable(
+  'alarm',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    // The alarm rule name (management.alarms.rules key) and the specific instance (e.g. the interface).
+    rule: text('rule').notNull(),
+    instance: text('instance').notNull().default(''),
+    metric: text('metric').notNull(),
+    severity: text('severity').notNull(),
+    // 'active' while the condition holds, 'cleared' once it clears.
+    state: text('state').notNull().default('active'),
+    // The value that triggered / last evaluated the alarm and the threshold it crossed.
+    value: text('value').notNull().default(''),
+    threshold: text('threshold').notNull().default(''),
+    message: text('message').notNull().default(''),
+    raisedAt: ts('raised_at').notNull().defaultNow(),
+    clearedAt: ts('cleared_at'),
+    ackedAt: ts('acked_at'),
+    ackedBy: text('acked_by'),
+  },
+  (t) => [
+    // one active row per (rule, instance): raise is idempotent, clear flips this row
+    uniqueIndex('alarm_active_uq').on(t.rule, t.instance).where(sql`state = 'active'`),
+    index('alarm_state_idx').on(t.state, t.raisedAt),
+  ],
+);
 // wave-BC: F-aaa
+// F-bruteforce-block: the live auto-block set (runtime state, not part of the committed document). One row per
+// blocked source; `expires_at` drives expiry, `offences` drives escalation. Manual entries have origin 'manual'.
+export const autoBlock = pgTable(
+  'auto_block',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    // The blocked source, canonical (a bare address is stored as /32 or /128).
+    source: text('source').notNull(),
+    // Which detector caught it (webLogin | ssh | vpnAuth | portScan | manual).
+    reason: text('reason').notNull(),
+    // Failures counted in the window that tripped the block (0 for a manual block).
+    hits: integer('hits').notNull().default(0),
+    // How many times this source has been blocked (drives escalation of the block time).
+    offences: integer('offences').notNull().default(1),
+    // 'auto' (a detector) or 'manual' (an admin blocked it by hand).
+    origin: text('origin').notNull().default('auto'),
+    note: text('note').notNull().default(''),
+    firstSeen: ts('first_seen').notNull().defaultNow(),
+    blockedAt: ts('blocked_at').notNull().defaultNow(),
+    expiresAt: ts('expires_at').notNull(),
+  },
+  (t) => [
+    // one live row per source: a repeat offence updates it (bumps offences, extends expiry)
+    uniqueIndex('auto_block_source_uq').on(t.source),
+    index('auto_block_expires_idx').on(t.expiresAt),
+  ],
+);
 // wave-BC: F-licensing
 // wave-BC: F-backup-restore

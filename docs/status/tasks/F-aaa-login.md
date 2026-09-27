@@ -51,7 +51,17 @@ config user sync does (TD-10b). An existing **local** account of the same name i
 - All four session/admin MFA routes are in `PRIVILEGED_ROUTES`: an MFA change is a credential change, so it
   fails closed if its audit row cannot be written first (TD-10b).
 
-### 4. Policy caching
+### 4. Two races closed while self-reviewing the diff
+- `upsertShadow`'s first-login INSERT carries `setWhere source like 'aaa:%'` on its `onConflictDoUpdate`: a conflict
+  there means a row appeared between the SELECT and the INSERT, possibly a LOCAL user from a concurrent commit, and
+  without the guard that row would have been re-sourced as a shadow — silently defeating the takeover rule above and
+  taking the account out of the config sync's reach. Now the update touches shadow rows only; for a local one no row
+  comes back and the login is refused.
+- `POST /auth/login/mfa` carries the same per-client budget the password route has, on its own bucket. It is not what
+  bounds code guessing (the 3 attempts and the rate-limited password path are), but the second factor should not be
+  hammerable any harder than the first.
+
+### 5. Policy caching
 `AaaService` caches `management.aaa` and reloads it on commit events (the `AutoBlockService` pattern), so a login does
 not read the running document from PostgreSQL every time. Its new `authenticate()` answers `unreachable`/`unsupported`
 for a misconfigured or not-yet-implemented backend instead of turning a login into a 500.
@@ -110,6 +120,11 @@ Two e2e assertions worth naming, because they are the security claims rather tha
 - A wrong MFA code is audited as `auth.mfa`, not `auth.login`, so it does not feed the auto-block detector
   (F-bruteforce-block counts `auth.login` failures). Deliberate: a user reaching for their phone is not a brute-force
   attempt, and code guessing is already bounded at 3 per ticket plus the rate-limited, lockout-counted password path.
+- **A TOTP code can be reused inside its own validity window.** `verifyTotp` accepts the current step and one either
+  side (90 s, increment 1's engine, for clock skew), and no last-used counter is kept, so a code observed and replayed
+  within that window would verify again — but only together with the account's password, on a fresh ticket. Closing it
+  needs a per-user last-used-counter column and a compare-and-set on it; worth doing when the web client lands
+  (noted on `F-aaa-login-2`), not worth a schema change here for a window that already requires the first factor.
 
 ## Not done here → follow-up row `F-aaa-login-2` (increment 3)
 - **LDAP** (`ldapts` bind + search, group → role). The contract landed in increment 1; the backend answers
@@ -118,6 +133,8 @@ Two e2e assertions worth naming, because they are the security claims rather tha
   container has no `buf`/`protoc`, so proto cannot be regenerated here (see below).
 - **Web**: the login MFA prompt, the enrolment screen and the AAA test panel. The API surface they need is complete
   and in the generated client.
+- **TOTP replay window**: a per-user last-used-counter column + compare-and-set, so a code cannot verify twice inside
+  its 90 s window (see "Known and accepted").
 - **D-102**: moving the Users password change to `POST /users/{name}/password` (that route already exists;
   the move is removing the old one, which is `apps/api/src/users/**` — not this row's files).
 

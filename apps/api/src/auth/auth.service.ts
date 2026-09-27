@@ -390,6 +390,10 @@ export class AuthService {
         .onConflictDoUpdate({
           target: appUser.username,
           set: { role, source, lastLogin, failedLogins: 0, lockedUntil: null },
+          // `existing` was undefined a moment ago, so a conflict here means a row appeared in between — possibly a
+          // LOCAL user created by a concurrent commit. `setWhere` keeps the takeover rule above true under that race:
+          // the update touches shadow rows only, and for a local one no row comes back and the login is refused.
+          setWhere: sql`${appUser.source} like ${`${SHADOW_SOURCE}%`}`,
         })
         .returning({
           id: appUser.id,
@@ -521,6 +525,12 @@ export class AuthService {
     };
     // the code is a credential: the same transport rule as the password (D-100 (1))
     if (!secure) throw await refuse('tls-required', null, 403);
+    // A ticket is unguessable, so this is not what bounds code guessing (the 3 attempts and the rate-limited password
+    // path are) — it is the same per-client budget the password route has, on its own bucket, so the second factor
+    // cannot be hammered any harder than the first.
+    if ((await this.tokens.hit(`mfa:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
     const t = await this.tickets.consume(ticketToken);
     if (t === null) throw await refuse('no-ticket', null);
     if (t.purpose !== 'code') throw await refuse('enrolment-required', t.userId);

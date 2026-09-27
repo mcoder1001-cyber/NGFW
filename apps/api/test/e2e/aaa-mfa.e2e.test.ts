@@ -50,7 +50,9 @@ describe('F-aaa-mfa e2e (TOTP enrolment, two-step login)', () => {
   };
 
   beforeAll(async () => {
-    h = await startHarness({});
+    // this file logs in many times over (each step of the two-step flow), so the per-client login budget is raised
+    // as auth.e2e does — the limit itself is exercised there, not here.
+    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '200' });
     admin = await h.login('admin', h.adminPassword);
     radius = await startRadius(RSECRET, { bob: { password: 'bob-pw', groups: ['netadmins'] } });
     const s = await h.call(admin, 'POST', '/api/v1/secrets', {

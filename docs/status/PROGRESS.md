@@ -8,8 +8,8 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 93 |
 | review | 4 |
-| running | 1 |
-| ready | 25 |
+| running | 2 |
+| ready | 24 |
 | parked | 2 |
 | failed | 0 |
 | todo | 21 |
@@ -20,12 +20,13 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 417.0 / 748.0 | 55.7% | 50/86 | 0 | 23 | 0 |
+| S4 | 417.0 / 748.0 | 55.7% | 50/86 | 1 | 22 | 0 |
 | S5 | 38 / 147.5 | 25.8% | 4/15 | 1 | 2 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
 
+- F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (running, cloud session modest-keller)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - TD-17 — apply-startup product mode: installed paths, appliance approval gate (sha256 + dead-man), lab gate kept as a mode (review, cloud session modest-keller)
 - TD-21 — Scheduler scale: executor.dependents and topo re-sort keys on every operation (O(n^2)); 4000 objects = 13.7 s — index dependents once per plan (review, cloud session modest-keller)

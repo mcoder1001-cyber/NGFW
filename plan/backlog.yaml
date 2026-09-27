@@ -417,3 +417,125 @@ tasks:
   deps: []
   est_hours: 30
   notes: 'Pairs with F-notifications.'
+# --- More ideas (brainstorm 2026-09-27, round 4) ---
+- id: BL-NET-14
+  title: 'BGP FlowSpec: receive/announce DDoS mitigation rules and program them into the dataplane'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 24
+  notes: 'Pairs with DoS protection (BL-SEC-01).'
+- id: BL-NET-15
+  title: 'RPKI route origin validation for BGP (RTR client, invalid → reject)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 8
+  notes: 'FRR supports RPKI; mostly config + UI.'
+- id: BL-NET-16
+  title: 'mDNS/Bonjour and SSDP reflector across VLANs/zones (printers, TVs)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 6
+- id: BL-NET-17
+  title: 'Wake-on-LAN action and UPnP/NAT-PMP (off by default, per-zone)'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 6
+  notes: 'Small-office requests.'
+- id: BL-NET-18
+  title: 'WAN optimization: TCP acceleration, deduplication/compression between sites'
+  labels: [backlog-idea, net]
+  state: icebox
+  deps: []
+  est_hours: 40
+- id: BL-SEC-21
+  title: 'MACsec (802.1AE) link encryption on physical interfaces'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 20
+  notes: 'NIC support dependent.'
+- id: BL-SEC-22
+  title: 'Post-quantum hybrid key exchange (ML-KEM) for IKEv2 and the management TLS'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'strongSwan 6 supports ML-KEM; tender requirement soon.'
+- id: BL-SEC-23
+  title: 'Encrypted DNS for clients: DoT/DoH server on the box and blocking of external DoH'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Keeps DNS-based controls (sinkhole, app ID) effective.'
+- id: BL-SEC-24
+  title: 'SSH certificate authentication and short-lived admin credentials'
+  labels: [backlog-idea, security]
+  state: icebox
+  deps: []
+  est_hours: 8
+- id: BL-OPS-18
+  title: 'Scheduled commits and maintenance windows (apply a candidate at a set time, auto-rollback on failure)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+  notes: 'Uses the existing confirm timer.'
+- id: BL-OPS-19
+  title: 'Change simulation: replay sample flows against the candidate config and show what changes (allowed/blocked/NAT/route)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 24
+  notes: 'Needs the policy analyzer lookup (BL-SEC-04).'
+- id: BL-OPS-20
+  title: 'Hardware health: temperatures, fans, PSU, disk SMART, NIC optics (DOM) with alarms'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 10
+- id: BL-OPS-21
+  title: 'Streaming telemetry via gNMI / OpenTelemetry export'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Complements Prometheus and SNMP.'
+- id: BL-OPS-22
+  title: 'Container/CNF image and Kubernetes deployment (Helm chart)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 24
+  notes: 'Extends the VM/cloud image builds.'
+- id: BL-OPS-23
+  title: 'Out-of-band management: serial console config, dedicated management LTE'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 8
+- id: BL-OPS-24
+  title: 'Long-term log storage and search (external ClickHouse/OpenSearch) with retention policies'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 16
+  notes: 'Needed once session logging (BL-SEC-05) exists.'
+- id: BL-OPS-25
+  title: 'Context help and in-product documentation (fa/en) linked from every form field'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Schema descriptions already exist; render them as help.'
+- id: BL-OPS-26
+  title: 'Sizing tool and hardware appliance reference models (throughput per CPU/NIC profile)'
+  labels: [backlog-idea, ops]
+  state: icebox
+  deps: []
+  est_hours: 12
+  notes: 'Sales enabler; based on benchmark results.'

@@ -282,6 +282,12 @@ service Dataplane {
   // reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
   // state. Unimplemented on an agent without PPPoE support (→ 501).
   rpc PppoeReconnect(PppoeReconnectRequest) returns (PppoeReconnectResponse);
+
+  // F-multiwan (unanchored)
+
+  // WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+  // failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+  rpc WanState(WanStateRequest) returns (WanStateResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -6984,6 +6990,53 @@ message WanMonitor {
   optional uint32 down_after = 7;
   // Consecutive passing checks before up; Zod default 3.
   optional uint32 up_after = 8;
+}
+
+// WanStateRequest selects WAN groups to report (empty = all).
+message WanStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Group names to include; empty = all.
+  repeated string groups = 2;
+}
+
+// WanStateResponse is the live multi-WAN health.
+message WanStateResponse {
+  // The owner whose view was returned.
+  string owner = 1;
+  // When the snapshot was taken (agent clock).
+  google.protobuf.Timestamp retrieved_at = 2;
+  // One entry per configured WAN group, sorted by name.
+  repeated WanGroupState groups = 3;
+}
+
+// WanGroupState is the live state of one WAN group.
+message WanGroupState {
+  // Group name.
+  string name = 1;
+  // "failover" | "balance".
+  string mode = 2;
+  // Interface carrying the default route now (failover); empty in balance mode or when none is healthy.
+  string active = 3;
+  // Members, sorted by interface.
+  repeated WanMemberState members = 4;
+}
+
+// WanMemberState is the live health of one member link.
+message WanMemberState {
+  // Member interface.
+  string interface = 1;
+  // Health as the hysteresis sees it.
+  bool up = 2;
+  // Probe loss over the last window, percent.
+  uint32 loss_pct = 3;
+  // Average probe latency over the last window, ms.
+  uint32 latency_ms = 4;
+  // Weight (balance) and priority (failover) from the configuration.
+  uint32 weight = 5;
+  uint32 priority = 6;
+  // When this member last changed up/down state (agent clock); unset if never.
+  google.protobuf.Timestamp since = 7;
 }
 
 // ----- F-aaa -----

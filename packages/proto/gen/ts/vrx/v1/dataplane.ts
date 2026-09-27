@@ -9327,6 +9327,55 @@ export interface WanMonitor {
   upAfter?: number | undefined;
 }
 
+/** WanStateRequest selects WAN groups to report (empty = all). */
+export interface WanStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Group names to include; empty = all. */
+  groups: string[];
+}
+
+/** WanStateResponse is the live multi-WAN health. */
+export interface WanStateResponse {
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the snapshot was taken (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** One entry per configured WAN group, sorted by name. */
+  groups: WanGroupState[];
+}
+
+/** WanGroupState is the live state of one WAN group. */
+export interface WanGroupState {
+  /** Group name. */
+  name: string;
+  /** "failover" | "balance". */
+  mode: string;
+  /** Interface carrying the default route now (failover); empty in balance mode or when none is healthy. */
+  active: string;
+  /** Members, sorted by interface. */
+  members: WanMemberState[];
+}
+
+/** WanMemberState is the live health of one member link. */
+export interface WanMemberState {
+  /** Member interface. */
+  interface: string;
+  /** Health as the hysteresis sees it. */
+  up: boolean;
+  /** Probe loss over the last window, percent. */
+  lossPct: number;
+  /** Average probe latency over the last window, ms. */
+  latencyMs: number;
+  /** Weight (balance) and priority (failover) from the configuration. */
+  weight: number;
+  priority: number;
+  /** When this member last changed up/down state (agent clock); unset if never. */
+  since: Date | undefined;
+}
+
 export interface DataplaneStartupStateRequest {
   /** Expected agent owner; empty = any. */
   owner: string;
@@ -82709,6 +82758,488 @@ export const WanMonitor: MessageFns<WanMonitor> = {
   },
 };
 
+function createBaseWanStateRequest(): WanStateRequest {
+  return { owner: "", groups: [] };
+}
+
+export const WanStateRequest: MessageFns<WanStateRequest> = {
+  encode(message: WanStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.groups) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.groups.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanStateRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: WanStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanStateRequest>): WanStateRequest {
+    return WanStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanStateRequest>): WanStateRequest {
+    const message = createBaseWanStateRequest();
+    message.owner = object.owner ?? "";
+    message.groups = object.groups?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseWanStateResponse(): WanStateResponse {
+  return { owner: "", retrievedAt: undefined, groups: [] };
+}
+
+export const WanStateResponse: MessageFns<WanStateResponse> = {
+  encode(message: WanStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.groups) {
+      WanGroupState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.groups.push(WanGroupState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => WanGroupState.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: WanStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups.map((e) => WanGroupState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanStateResponse>): WanStateResponse {
+    return WanStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanStateResponse>): WanStateResponse {
+    const message = createBaseWanStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.groups = object.groups?.map((e) => WanGroupState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanGroupState(): WanGroupState {
+  return { name: "", mode: "", active: "", members: [] };
+}
+
+export const WanGroupState: MessageFns<WanGroupState> = {
+  encode(message: WanGroupState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.mode !== "") {
+      writer.uint32(18).string(message.mode);
+    }
+    if (message.active !== "") {
+      writer.uint32(26).string(message.active);
+    }
+    for (const v of message.members) {
+      WanMemberState.encode(v!, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanGroupState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanGroupState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.active = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.members.push(WanMemberState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanGroupState {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      active: isSet(object.active) ? globalThis.String(object.active) : "",
+      members: globalThis.Array.isArray(object?.members)
+        ? object.members.map((e: any) => WanMemberState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WanGroupState): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.mode !== "") {
+      obj.mode = message.mode;
+    }
+    if (message.active !== "") {
+      obj.active = message.active;
+    }
+    if (message.members?.length) {
+      obj.members = message.members.map((e) => WanMemberState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanGroupState>): WanGroupState {
+    return WanGroupState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanGroupState>): WanGroupState {
+    const message = createBaseWanGroupState();
+    message.name = object.name ?? "";
+    message.mode = object.mode ?? "";
+    message.active = object.active ?? "";
+    message.members = object.members?.map((e) => WanMemberState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWanMemberState(): WanMemberState {
+  return { interface: "", up: false, lossPct: 0, latencyMs: 0, weight: 0, priority: 0, since: undefined };
+}
+
+export const WanMemberState: MessageFns<WanMemberState> = {
+  encode(message: WanMemberState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.up !== false) {
+      writer.uint32(16).bool(message.up);
+    }
+    if (message.lossPct !== 0) {
+      writer.uint32(24).uint32(message.lossPct);
+    }
+    if (message.latencyMs !== 0) {
+      writer.uint32(32).uint32(message.latencyMs);
+    }
+    if (message.weight !== 0) {
+      writer.uint32(40).uint32(message.weight);
+    }
+    if (message.priority !== 0) {
+      writer.uint32(48).uint32(message.priority);
+    }
+    if (message.since !== undefined) {
+      Timestamp.encode(toTimestamp(message.since), writer.uint32(58).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): WanMemberState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseWanMemberState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.up = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.lossPct = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.latencyMs = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.weight = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.since = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): WanMemberState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      up: isSet(object.up) ? globalThis.Boolean(object.up) : false,
+      lossPct: isSet(object.lossPct)
+        ? globalThis.Number(object.lossPct)
+        : isSet(object.loss_pct)
+        ? globalThis.Number(object.loss_pct)
+        : 0,
+      latencyMs: isSet(object.latencyMs)
+        ? globalThis.Number(object.latencyMs)
+        : isSet(object.latency_ms)
+        ? globalThis.Number(object.latency_ms)
+        : 0,
+      weight: isSet(object.weight) ? globalThis.Number(object.weight) : 0,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : 0,
+      since: isSet(object.since) ? fromJsonTimestamp(object.since) : undefined,
+    };
+  },
+
+  toJSON(message: WanMemberState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.up !== false) {
+      obj.up = message.up;
+    }
+    if (message.lossPct !== 0) {
+      obj.lossPct = Math.round(message.lossPct);
+    }
+    if (message.latencyMs !== 0) {
+      obj.latencyMs = Math.round(message.latencyMs);
+    }
+    if (message.weight !== 0) {
+      obj.weight = Math.round(message.weight);
+    }
+    if (message.priority !== 0) {
+      obj.priority = Math.round(message.priority);
+    }
+    if (message.since !== undefined) {
+      obj.since = message.since.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<WanMemberState>): WanMemberState {
+    return WanMemberState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<WanMemberState>): WanMemberState {
+    const message = createBaseWanMemberState();
+    message.interface = object.interface ?? "";
+    message.up = object.up ?? false;
+    message.lossPct = object.lossPct ?? 0;
+    message.latencyMs = object.latencyMs ?? 0;
+    message.weight = object.weight ?? 0;
+    message.priority = object.priority ?? 0;
+    message.since = object.since ?? undefined;
+    return message;
+  },
+};
+
 function createBaseDataplaneStartupStateRequest(): DataplaneStartupStateRequest {
   return { owner: "" };
 }
@@ -83985,6 +84516,19 @@ export const DataplaneService = {
       Buffer.from(PppoeReconnectResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): PppoeReconnectResponse => PppoeReconnectResponse.decode(value),
   },
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState: {
+    path: "/vrx.v1.Dataplane/WanState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: WanStateRequest): Buffer => Buffer.from(WanStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): WanStateRequest => WanStateRequest.decode(value),
+    responseSerialize: (value: WanStateResponse): Buffer => Buffer.from(WanStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): WanStateResponse => WanStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -84220,6 +84764,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * state. Unimplemented on an agent without PPPoE support (→ 501).
    */
   pppoeReconnect: handleUnaryCall<PppoeReconnectRequest, PppoeReconnectResponse>;
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState: handleUnaryCall<WanStateRequest, WanStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -84973,6 +85522,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
+   * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
+   */
+  wanState(
+    request: WanStateRequest,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
+  ): ClientUnaryCall;
+  wanState(
+    request: WanStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
+  ): ClientUnaryCall;
+  wanState(
+    request: WanStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: WanStateResponse) => void,
   ): ClientUnaryCall;
 }
 

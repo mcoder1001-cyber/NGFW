@@ -815,6 +815,33 @@ export class FakeAgent {
       health,
       interfaceState,
       // F-pppoe-client (unanchored)
+      wanState: (call, cb) => {
+        if (!this.checkCommon('WanState', call.request, cb)) return;
+        const routing = (this.current['routing'] ?? {}) as Json;
+        const groups = (routing['wanGroups'] as Json[] | undefined) ?? [];
+        cb(null, {
+          owner: this.owner,
+          retrievedAt: new Date('2026-09-27T00:00:00.000Z'),
+          groups: groups.map((g) => {
+            const members = ((g['members'] as Json[] | undefined) ?? []).map((m, i) => ({
+              interface: String(m['interface'] ?? ''),
+              up: i === 0, // the fake keeps the first member up, the rest down
+              lossPct: i === 0 ? 0 : 100,
+              latencyMs: i === 0 ? 12 : 0,
+              weight: Number(m['weight'] ?? 1),
+              priority: Number(m['priority'] ?? 100),
+              since: new Date('2026-09-27T00:00:00.000Z'),
+            }));
+            members.sort((a, b) => a.interface.localeCompare(b.interface));
+            return {
+              name: String(g['name'] ?? ''),
+              mode: String(g['mode'] ?? 'failover'),
+              active: members.find((m) => m.up)?.interface ?? '',
+              members,
+            };
+          }),
+        });
+      },
       pppoeReconnect: (call, cb) => {
         if (!this.checkCommon('PppoeReconnect', call.request, cb)) return;
         const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;

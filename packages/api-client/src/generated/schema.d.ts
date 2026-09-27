@@ -850,6 +850,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/routing/mpls/ldp/neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live LDP neighbours */
+    get: operations['MplsLdp_neighbors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/mpls/ldp/bindings': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** LDP label bindings (LIB), paged */
+    get: operations['MplsLdp_bindings'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/mpls/ldp/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** FRR→VPP label sync status (last sync, installed routes, conflicts, source) */
+    get: operations['MplsLdp_sync'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/multicast/groups': {
     parameters: {
       query?: never;
@@ -12955,6 +13006,152 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MplsLdp_neighbors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            neighbors: {
+              lsrId: string;
+              address: string;
+              state: string;
+              uptimeSec: number;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MplsLdp_bindings: {
+    parameters: {
+      query?: {
+        pageSize?: number;
+        page?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            total: number;
+            bindings: {
+              prefix: string;
+              localLabel: number;
+              peer: string;
+              remoteLabel: number;
+              inUse: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  MplsLdp_sync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            lastSyncAt: string | null;
+            installed: number;
+            conflicts: number;
+            lastError: string;
+            /** @description the sync source in use ("zebra-lfib" | "ldp-bindings" | "") */
+            source: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

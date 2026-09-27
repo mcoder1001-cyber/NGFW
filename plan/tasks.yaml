@@ -3490,12 +3490,12 @@ tasks:
   notes: 'URGENT; blocks all host runs that create interfaces | done 6841297f; review APPROVE 0e7a39a0 (no H/M); merger: FIRST'
 - template: ''
   parked_on: ''
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
-  state: ready
+  state: running
   wbs: *id003
   prompt: ''
   id: TD-8c

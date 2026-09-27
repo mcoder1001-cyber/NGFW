@@ -2621,6 +2621,16 @@ message ManagementAaa {
   AaaTacacs tacacs = 3;
 
   // wave-BC: F-aaa
+  // LDAP servers (F-aaa).
+  AaaLdap ldap = 4;
+  // OIDC (reserved for a follow-up): field 5.
+  // SAML (reserved for a follow-up): field 6.
+  // External group -> local role.
+  repeated AaaRoleMapping role_map = 7;
+  // Multi-factor policy.
+  AaaMfa mfa = 8;
+  // Allow local login when every external server is unreachable; Zod default true.
+  optional bool fallback_local = 9;
 }
 
 // AaaRadius mirrors `management.aaa.radius`.
@@ -7040,6 +7050,46 @@ message WanMemberState {
 }
 
 // ----- F-aaa -----
+
+// AaaLdap mirrors `management.aaa.ldap`.
+message AaaLdap {
+  repeated AaaLdapServer servers = 1;
+}
+
+// AaaLdapServer mirrors `management.aaa.ldap.servers[]`.
+message AaaLdapServer {
+  // ldap:// or ldaps:// URL.
+  optional string url = 1;
+  // Bind DN (service account).
+  optional string bind_dn = 2;
+  // Reference to the bind password secret ("password/<name>").
+  optional string bind_password_ref = 3;
+  // Base DN of the user search.
+  optional string base_dn = 4;
+  // User filter (%s = the login name); Zod default "(uid=%s)".
+  optional string user_filter = 5;
+  // Attribute listing the user's group DNs; Zod default "memberOf".
+  optional string group_attr = 6;
+  // Upgrade an ldap:// connection with StartTLS; Zod default false.
+  optional bool start_tls = 7;
+}
+
+// AaaRoleMapping mirrors `management.aaa.roleMap[]`.
+message AaaRoleMapping {
+  // External group name or DN.
+  optional string group = 1;
+  // "admin" | "operator" | "readonly".
+  optional string role = 2;
+}
+
+// AaaMfa mirrors `management.aaa.mfa`.
+message AaaMfa {
+  // "none" | "admins" | "all"; Zod default "none".
+  optional string required = 1;
+  // Authenticator-app issuer label; Zod default "vrx".
+  optional string issuer = 2;
+}
+
 
 // ----- F-ha-state-sync -----
 

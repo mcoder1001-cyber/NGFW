@@ -46,6 +46,7 @@ import { globalBlockingFeature } from './features/global-blocking/index.js'; // 
 import { pppoeFeature } from './features/pppoe/index.js'; // F-pppoe-client (unanchored)
 import { dashboardPromAlarmsFeature } from './features/dashboard-prom-alarms/index.js'; // wave-BC: F-dashboard-prom-alarms
 import { multiwanFeature } from './features/multiwan/index.js'; // F-multiwan (unanchored)
+import { aaaFeature } from './features/aaa/index.js'; // wave-BC: F-aaa
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -208,6 +209,7 @@ export class AppModule {
         ...pppoeFeature.controllers, // F-pppoe-client (unanchored)
         ...dashboardPromAlarmsFeature.controllers, // wave-BC: F-dashboard-prom-alarms
         ...multiwanFeature.controllers, // F-multiwan (unanchored)
+        ...aaaFeature.controllers, // wave-BC: F-aaa
         // wave-A: F-host-acl-nftables
         ...hostAclNftablesFeature.controllers,
         // wave-A: F-nat44-ed-sessions
@@ -260,6 +262,7 @@ export class AppModule {
         ...ruleExpiryFeature.providers, // F-rule-expiry (unanchored)
         ...globalBlockingFeature.providers, // F-global-blocking (unanchored)
         ...dashboardPromAlarmsFeature.providers, // wave-BC: F-dashboard-prom-alarms
+        ...aaaFeature.providers, // wave-BC: F-aaa
         // wave-BC: F-qos-flat
         ...qosFlatFeature.providers,
         // wave-BC: F-host-stack

@@ -110,6 +110,7 @@ export * from './domains/ext/global-blocking-parse.js'; // F-global-blocking
 export * from './domains/ext/pppoe.js'; // F-pppoe-client (unanchored)
 export * from './domains/ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 export * from './domains/ext/multiwan.js'; // F-multiwan (unanchored)
+export * from './domains/ext/aaa.js'; // wave-BC: F-aaa
 export * from './primitives.js';
 export * from './ip.js';
 export * from './ui.js';

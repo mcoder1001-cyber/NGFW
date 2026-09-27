@@ -3694,7 +3694,28 @@ export interface ManagementAaa {
     | AaaRadius
     | undefined;
   /** TACACS+ servers. */
-  tacacs: AaaTacacs | undefined;
+  tacacs:
+    | AaaTacacs
+    | undefined;
+  /**
+   * wave-BC: F-aaa
+   * LDAP servers (F-aaa).
+   */
+  ldap:
+    | AaaLdap
+    | undefined;
+  /**
+   * OIDC (reserved for a follow-up): field 5.
+   * SAML (reserved for a follow-up): field 6.
+   * External group -> local role.
+   */
+  roleMap: AaaRoleMapping[];
+  /** Multi-factor policy. */
+  mfa:
+    | AaaMfa
+    | undefined;
+  /** Allow local login when every external server is unreachable; Zod default true. */
+  fallbackLocal?: boolean | undefined;
 }
 
 /** AaaRadius mirrors `management.aaa.radius`. */
@@ -9374,6 +9395,61 @@ export interface WanMemberState {
   priority: number;
   /** When this member last changed up/down state (agent clock); unset if never. */
   since: Date | undefined;
+}
+
+/** AaaLdap mirrors `management.aaa.ldap`. */
+export interface AaaLdap {
+  servers: AaaLdapServer[];
+}
+
+/** AaaLdapServer mirrors `management.aaa.ldap.servers[]`. */
+export interface AaaLdapServer {
+  /** ldap:// or ldaps:// URL. */
+  url?:
+    | string
+    | undefined;
+  /** Bind DN (service account). */
+  bindDn?:
+    | string
+    | undefined;
+  /** Reference to the bind password secret ("password/<name>"). */
+  bindPasswordRef?:
+    | string
+    | undefined;
+  /** Base DN of the user search. */
+  baseDn?:
+    | string
+    | undefined;
+  /** User filter (%s = the login name); Zod default "(uid=%s)". */
+  userFilter?:
+    | string
+    | undefined;
+  /** Attribute listing the user's group DNs; Zod default "memberOf". */
+  groupAttr?:
+    | string
+    | undefined;
+  /** Upgrade an ldap:// connection with StartTLS; Zod default false. */
+  startTls?: boolean | undefined;
+}
+
+/** AaaRoleMapping mirrors `management.aaa.roleMap[]`. */
+export interface AaaRoleMapping {
+  /** External group name or DN. */
+  group?:
+    | string
+    | undefined;
+  /** "admin" | "operator" | "readonly". */
+  role?: string | undefined;
+}
+
+/** AaaMfa mirrors `management.aaa.mfa`. */
+export interface AaaMfa {
+  /** "none" | "admins" | "all"; Zod default "none". */
+  required?:
+    | string
+    | undefined;
+  /** Authenticator-app issuer label; Zod default "vrx". */
+  issuer?: string | undefined;
 }
 
 export interface DataplaneStartupStateRequest {
@@ -32762,7 +32838,15 @@ export const ManagementUser: MessageFns<ManagementUser> = {
 };
 
 function createBaseManagementAaa(): ManagementAaa {
-  return { order: [], radius: undefined, tacacs: undefined };
+  return {
+    order: [],
+    radius: undefined,
+    tacacs: undefined,
+    ldap: undefined,
+    roleMap: [],
+    mfa: undefined,
+    fallbackLocal: undefined,
+  };
 }
 
 export const ManagementAaa: MessageFns<ManagementAaa> = {
@@ -32775,6 +32859,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
     if (message.tacacs !== undefined) {
       AaaTacacs.encode(message.tacacs, writer.uint32(26).fork()).join();
+    }
+    if (message.ldap !== undefined) {
+      AaaLdap.encode(message.ldap, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.roleMap) {
+      AaaRoleMapping.encode(v!, writer.uint32(58).fork()).join();
+    }
+    if (message.mfa !== undefined) {
+      AaaMfa.encode(message.mfa, writer.uint32(66).fork()).join();
+    }
+    if (message.fallbackLocal !== undefined) {
+      writer.uint32(72).bool(message.fallbackLocal);
     }
     return writer;
   },
@@ -32816,6 +32912,38 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
             message.tacacs = AaaTacacs.decode(reader, reader.uint32());
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.ldap = AaaLdap.decode(reader, reader.uint32());
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.roleMap.push(AaaRoleMapping.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.mfa = AaaMfa.decode(reader, reader.uint32());
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.fallbackLocal = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -32833,6 +32961,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
       order: globalThis.Array.isArray(object?.order) ? object.order.map((e: any) => globalThis.String(e)) : [],
       radius: isSet(object.radius) ? AaaRadius.fromJSON(object.radius) : undefined,
       tacacs: isSet(object.tacacs) ? AaaTacacs.fromJSON(object.tacacs) : undefined,
+      ldap: isSet(object.ldap) ? AaaLdap.fromJSON(object.ldap) : undefined,
+      roleMap: globalThis.Array.isArray(object?.roleMap)
+        ? object.roleMap.map((e: any) => AaaRoleMapping.fromJSON(e))
+        : globalThis.Array.isArray(object?.role_map)
+        ? object.role_map.map((e: any) => AaaRoleMapping.fromJSON(e))
+        : [],
+      mfa: isSet(object.mfa) ? AaaMfa.fromJSON(object.mfa) : undefined,
+      fallbackLocal: isSet(object.fallbackLocal)
+        ? globalThis.Boolean(object.fallbackLocal)
+        : isSet(object.fallback_local)
+        ? globalThis.Boolean(object.fallback_local)
+        : undefined,
     };
   },
 
@@ -32846,6 +32986,18 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     }
     if (message.tacacs !== undefined) {
       obj.tacacs = AaaTacacs.toJSON(message.tacacs);
+    }
+    if (message.ldap !== undefined) {
+      obj.ldap = AaaLdap.toJSON(message.ldap);
+    }
+    if (message.roleMap?.length) {
+      obj.roleMap = message.roleMap.map((e) => AaaRoleMapping.toJSON(e));
+    }
+    if (message.mfa !== undefined) {
+      obj.mfa = AaaMfa.toJSON(message.mfa);
+    }
+    if (message.fallbackLocal !== undefined) {
+      obj.fallbackLocal = message.fallbackLocal;
     }
     return obj;
   },
@@ -32862,6 +33014,10 @@ export const ManagementAaa: MessageFns<ManagementAaa> = {
     message.tacacs = (object.tacacs !== undefined && object.tacacs !== null)
       ? AaaTacacs.fromPartial(object.tacacs)
       : undefined;
+    message.ldap = (object.ldap !== undefined && object.ldap !== null) ? AaaLdap.fromPartial(object.ldap) : undefined;
+    message.roleMap = object.roleMap?.map((e) => AaaRoleMapping.fromPartial(e)) || [];
+    message.mfa = (object.mfa !== undefined && object.mfa !== null) ? AaaMfa.fromPartial(object.mfa) : undefined;
+    message.fallbackLocal = object.fallbackLocal ?? undefined;
     return message;
   },
 };
@@ -83236,6 +83392,444 @@ export const WanMemberState: MessageFns<WanMemberState> = {
     message.weight = object.weight ?? 0;
     message.priority = object.priority ?? 0;
     message.since = object.since ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaLdap(): AaaLdap {
+  return { servers: [] };
+}
+
+export const AaaLdap: MessageFns<AaaLdap> = {
+  encode(message: AaaLdap, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.servers) {
+      AaaLdapServer.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaLdap {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaLdap();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.servers.push(AaaLdapServer.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaLdap {
+    return {
+      servers: globalThis.Array.isArray(object?.servers)
+        ? object.servers.map((e: any) => AaaLdapServer.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AaaLdap): unknown {
+    const obj: any = {};
+    if (message.servers?.length) {
+      obj.servers = message.servers.map((e) => AaaLdapServer.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaLdap>): AaaLdap {
+    return AaaLdap.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaLdap>): AaaLdap {
+    const message = createBaseAaaLdap();
+    message.servers = object.servers?.map((e) => AaaLdapServer.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseAaaLdapServer(): AaaLdapServer {
+  return {
+    url: undefined,
+    bindDn: undefined,
+    bindPasswordRef: undefined,
+    baseDn: undefined,
+    userFilter: undefined,
+    groupAttr: undefined,
+    startTls: undefined,
+  };
+}
+
+export const AaaLdapServer: MessageFns<AaaLdapServer> = {
+  encode(message: AaaLdapServer, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.url !== undefined) {
+      writer.uint32(10).string(message.url);
+    }
+    if (message.bindDn !== undefined) {
+      writer.uint32(18).string(message.bindDn);
+    }
+    if (message.bindPasswordRef !== undefined) {
+      writer.uint32(26).string(message.bindPasswordRef);
+    }
+    if (message.baseDn !== undefined) {
+      writer.uint32(34).string(message.baseDn);
+    }
+    if (message.userFilter !== undefined) {
+      writer.uint32(42).string(message.userFilter);
+    }
+    if (message.groupAttr !== undefined) {
+      writer.uint32(50).string(message.groupAttr);
+    }
+    if (message.startTls !== undefined) {
+      writer.uint32(56).bool(message.startTls);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaLdapServer {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaLdapServer();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.bindDn = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.bindPasswordRef = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.baseDn = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.userFilter = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.groupAttr = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.startTls = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaLdapServer {
+    return {
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      bindDn: isSet(object.bindDn)
+        ? globalThis.String(object.bindDn)
+        : isSet(object.bind_dn)
+        ? globalThis.String(object.bind_dn)
+        : undefined,
+      bindPasswordRef: isSet(object.bindPasswordRef)
+        ? globalThis.String(object.bindPasswordRef)
+        : isSet(object.bind_password_ref)
+        ? globalThis.String(object.bind_password_ref)
+        : undefined,
+      baseDn: isSet(object.baseDn)
+        ? globalThis.String(object.baseDn)
+        : isSet(object.base_dn)
+        ? globalThis.String(object.base_dn)
+        : undefined,
+      userFilter: isSet(object.userFilter)
+        ? globalThis.String(object.userFilter)
+        : isSet(object.user_filter)
+        ? globalThis.String(object.user_filter)
+        : undefined,
+      groupAttr: isSet(object.groupAttr)
+        ? globalThis.String(object.groupAttr)
+        : isSet(object.group_attr)
+        ? globalThis.String(object.group_attr)
+        : undefined,
+      startTls: isSet(object.startTls)
+        ? globalThis.Boolean(object.startTls)
+        : isSet(object.start_tls)
+        ? globalThis.Boolean(object.start_tls)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AaaLdapServer): unknown {
+    const obj: any = {};
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.bindDn !== undefined) {
+      obj.bindDn = message.bindDn;
+    }
+    if (message.bindPasswordRef !== undefined) {
+      obj.bindPasswordRef = message.bindPasswordRef;
+    }
+    if (message.baseDn !== undefined) {
+      obj.baseDn = message.baseDn;
+    }
+    if (message.userFilter !== undefined) {
+      obj.userFilter = message.userFilter;
+    }
+    if (message.groupAttr !== undefined) {
+      obj.groupAttr = message.groupAttr;
+    }
+    if (message.startTls !== undefined) {
+      obj.startTls = message.startTls;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaLdapServer>): AaaLdapServer {
+    return AaaLdapServer.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaLdapServer>): AaaLdapServer {
+    const message = createBaseAaaLdapServer();
+    message.url = object.url ?? undefined;
+    message.bindDn = object.bindDn ?? undefined;
+    message.bindPasswordRef = object.bindPasswordRef ?? undefined;
+    message.baseDn = object.baseDn ?? undefined;
+    message.userFilter = object.userFilter ?? undefined;
+    message.groupAttr = object.groupAttr ?? undefined;
+    message.startTls = object.startTls ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaRoleMapping(): AaaRoleMapping {
+  return { group: undefined, role: undefined };
+}
+
+export const AaaRoleMapping: MessageFns<AaaRoleMapping> = {
+  encode(message: AaaRoleMapping, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.group !== undefined) {
+      writer.uint32(10).string(message.group);
+    }
+    if (message.role !== undefined) {
+      writer.uint32(18).string(message.role);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaRoleMapping {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaRoleMapping();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.role = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaRoleMapping {
+    return {
+      group: isSet(object.group) ? globalThis.String(object.group) : undefined,
+      role: isSet(object.role) ? globalThis.String(object.role) : undefined,
+    };
+  },
+
+  toJSON(message: AaaRoleMapping): unknown {
+    const obj: any = {};
+    if (message.group !== undefined) {
+      obj.group = message.group;
+    }
+    if (message.role !== undefined) {
+      obj.role = message.role;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaRoleMapping>): AaaRoleMapping {
+    return AaaRoleMapping.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaRoleMapping>): AaaRoleMapping {
+    const message = createBaseAaaRoleMapping();
+    message.group = object.group ?? undefined;
+    message.role = object.role ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAaaMfa(): AaaMfa {
+  return { required: undefined, issuer: undefined };
+}
+
+export const AaaMfa: MessageFns<AaaMfa> = {
+  encode(message: AaaMfa, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.required !== undefined) {
+      writer.uint32(10).string(message.required);
+    }
+    if (message.issuer !== undefined) {
+      writer.uint32(18).string(message.issuer);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AaaMfa {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAaaMfa();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.required = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.issuer = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AaaMfa {
+    return {
+      required: isSet(object.required) ? globalThis.String(object.required) : undefined,
+      issuer: isSet(object.issuer) ? globalThis.String(object.issuer) : undefined,
+    };
+  },
+
+  toJSON(message: AaaMfa): unknown {
+    const obj: any = {};
+    if (message.required !== undefined) {
+      obj.required = message.required;
+    }
+    if (message.issuer !== undefined) {
+      obj.issuer = message.issuer;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AaaMfa>): AaaMfa {
+    return AaaMfa.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AaaMfa>): AaaMfa {
+    const message = createBaseAaaMfa();
+    message.required = object.required ?? undefined;
+    message.issuer = object.issuer ?? undefined;
     return message;
   },
 };

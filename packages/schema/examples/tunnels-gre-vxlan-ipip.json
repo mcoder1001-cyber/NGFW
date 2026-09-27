@@ -44,6 +44,7 @@
         "ipv4": ["10.254.0.1/30"]
       },
       "mirror": {
+        "instance": 2,
         "type": "erspan",
         "sessionId": 5,
         "src": "198.51.100.2",
@@ -51,8 +52,9 @@
       }
     },
     "vxlan": {
-      "vx-100": { "src": "192.168.10.1", "dst": "192.168.10.50", "vni": 100, "bridgeDomain": 100 },
+      "vx-100": { "instance": 100, "src": "192.168.10.1", "dst": "192.168.10.50", "vni": 100, "bridgeDomain": 100 },
       "vx-mcast": {
+        "instance": 200,
         "src": "192.168.10.1",
         "dst": "239.1.1.1",
         "vni": 200,

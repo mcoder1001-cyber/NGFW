@@ -162,7 +162,7 @@ var Domains = map[string][]string{
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
-	// wave-BC: F-tunnels
+	// wave-BC: F-tunnels (gre/ipip/vxlan tunnels + tunnels.meta are appended to F-lisp's Tunnels entry by tunnels.go init)
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
@@ -318,6 +318,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// options only through the Wiring methods (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
 	// wave-BC: F-tunnels
+	if err := registerTunnels(r, w); err != nil { // DF-6 gre/ipip/vxlan tunnels + tunnels.meta (tunnels.go)
+		return nil, err
+	}
 	// wave-BC: F-vrrp-config-sync
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
@@ -406,7 +409,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	w.registerLb(r)
-	w.registerRuleExpiry() // F-rule-expiry (unanchored)
+	w.registerRuleExpiry()         // F-rule-expiry (unanchored)
 	registerSystemIdentity(r, env) // F-system-identity (unanchored)
 	return w, nil
 }

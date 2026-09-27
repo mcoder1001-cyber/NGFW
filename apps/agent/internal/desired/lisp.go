@@ -73,18 +73,8 @@ func pw(v *uint32) uint32 {
 func lispPtr(segs ...string) string { return Ptr(append([]string{"tunnels", "lisp"}, segs...)...) }
 
 // Lisp projects tunnels.lisp. vrfID maps VRF names to table ids. Unset lisp: nothing (every owned LISP
-// object is deleted when `tunnels` is authoritative). Until F-tunnels wires gre / vxlan / ipip, a
-// non-empty one of those is reported as agent.unsupported-field (this build implements `tunnels`
-// through LISP only).
+// object is deleted when `tunnels` is authoritative). gre / vxlan / ipip are F-tunnels' (tunnels.go).
 func Lisp(s Sink, t *vrxv1.TunnelsConfig, vrfID func(string) (uint32, bool)) {
-	for _, k := range []struct {
-		kind string
-		n    int
-	}{{"gre", len(t.GetGre())}, {"vxlan", len(t.GetVxlan())}, {"ipip", len(t.GetIpip())}} {
-		if kind, n := k.kind, k.n; n > 0 {
-			s.Warnf(Ptr("tunnels", kind), "agent.unsupported-field", "tunnels.%s is not implemented by this agent build and is not applied", kind)
-		}
-	}
 	l := t.GetLisp()
 	if l == nil {
 		return

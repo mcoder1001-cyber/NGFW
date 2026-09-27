@@ -19,11 +19,20 @@ const TunnelName = "gre.tunnel"
 const Plugin = "gre"
 
 // TunnelDescriptor manages GRE tunnel interfaces (gre_tunnel_add_del_v2 / gre_tunnel_v2_dump).
-type TunnelDescriptor = df6.IfDescriptor[*Tunnel, *greapi.GreTunnelV2Details]
+type TunnelDescriptor struct {
+	*df6.IfDescriptor[*Tunnel, *greapi.GreTunnelV2Details]
+}
+
+// RecordsNoOwnership declares the TD-11b protocol (dfkit/persist): ownership is the owner tag VPP
+// itself carries on the interface ("<owner>:<id>"), no claim or boot store is written (F-tunnels).
+func (*TunnelDescriptor) RecordsNoOwnership() {}
+
+// Unwrap exposes the df6 descriptor (dfkit/persist walks the chain).
+func (d *TunnelDescriptor) Unwrap() scheduler.Descriptor { return d.IfDescriptor }
 
 // NewTunnel returns the descriptor for the given owner.
 func NewTunnel(c vpp.Client, owner string) *TunnelDescriptor {
-	return df6.NewIfDescriptor(tunnelSpec, c, owner)
+	return &TunnelDescriptor{df6.NewIfDescriptor(tunnelSpec, c, owner)}
 }
 
 // InterfaceName is the VPP interface name of a tunnel with the given instance.

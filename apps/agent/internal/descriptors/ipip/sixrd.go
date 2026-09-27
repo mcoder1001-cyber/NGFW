@@ -17,11 +17,20 @@ const SixrdName = "ipip.sixrd"
 // SixrdDescriptor manages 6rd tunnels (ipip_6rd_add_tunnel / ipip_6rd_del_tunnel). VPP has no
 // dump exposing the 6rd parameters (ipip_tunnel_dump lists the interface but not the
 // prefixes), so Retrieve returns df6.ErrRetrieveUnsupported: the descriptor is write-only.
-type SixrdDescriptor = df6.IfDescriptor[*Tunnel6Rd, *ipipapi.IpipTunnelDetails]
+type SixrdDescriptor struct {
+	*df6.IfDescriptor[*Tunnel6Rd, *ipipapi.IpipTunnelDetails]
+}
+
+// RecordsNoOwnership declares the TD-11b protocol (dfkit/persist): ownership is the owner tag VPP
+// itself carries on the interface ("<owner>:<id>"), no claim or boot store is written (F-tunnels).
+func (*SixrdDescriptor) RecordsNoOwnership() {}
+
+// Unwrap exposes the df6 descriptor (dfkit/persist walks the chain).
+func (d *SixrdDescriptor) Unwrap() scheduler.Descriptor { return d.IfDescriptor }
 
 // NewSixrd returns the descriptor for the given owner.
 func NewSixrd(c vpp.Client, owner string) *SixrdDescriptor {
-	return df6.NewIfDescriptor(sixrdSpec, c, owner)
+	return &SixrdDescriptor{df6.NewIfDescriptor(sixrdSpec, c, owner)}
 }
 
 var sixrdSpec = df6.IfSpec[*Tunnel6Rd, *ipipapi.IpipTunnelDetails]{

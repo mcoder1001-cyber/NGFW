@@ -2,14 +2,14 @@
 
 Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 69.8% by hours (937.0/1342.5 h), 66.7% by tasks (104/156)**
+**Overall: 70.4% by hours (945.0/1342.5 h), 67.3% by tasks (105/156)**
 
 | state | tasks |
 |---|---|
-| merged | 104 |
+| merged | 105 |
 | review | 14 |
 | running | 3 |
-| ready | 14 |
+| ready | 13 |
 | parked | 2 |
 | failed | 0 |
 | todo | 19 |
@@ -20,7 +20,7 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 520.0 / 775.0 | 67.1% | 59/96 | 2 | 14 | 0 |
+| S4 | 528.0 / 775.0 | 68.1% | 60/96 | 2 | 13 | 0 |
 | S5 | 58 / 147.5 | 39.3% | 6/15 | 1 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 

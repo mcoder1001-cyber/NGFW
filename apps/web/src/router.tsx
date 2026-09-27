@@ -80,6 +80,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-ospf
         { path: 'routing/ospf', lazy: async () => ({ Component: (await import('./domains/routing/ospf/OspfPage')).OspfPage }) },
         // wave-BC: F-isis-rip
+        { path: 'routing/isis-rip', lazy: async () => ({ Component: (await import('./domains/routing/isis-rip/IsisRipPage')).IsisRipPage }) },
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         { path: 'routing/mpls', lazy: async () => ({ Component: (await import('./domains/routing/mpls-srmpls/MplsPage')).MplsPage }) },

@@ -409,8 +409,8 @@ var routingLeaves = []routingLeaf{
 	// wave-BC: F-ospf
 	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
 	// wave-BC: F-isis-rip
-	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }},
-	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }},
+	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
+	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution
 	{name: "bfd", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBfd() != nil }},
 }

@@ -49,7 +49,7 @@ const (
 	FRRUnknown     = "unknown"     // FRR holds configuration this agent has not applied since it started
 )
 
-// FRRDoc returns the FRR-relevant subset of ds, or nil when ds has no FRR content: no bgp, no ospf, no policy object, no viaFrr
+// FRRDoc returns the FRR-relevant subset of ds, or nil when ds has no FRR content: no bgp, no ospf/isis/rip, no policy object, no viaFrr
 // static route and no interface with a linux-cp pair. A paired interface alone is FRR content: FRR puts the VPP
 // addresses on its Linux side (lcpmap, S2) for as long as the pair exists — were they removed with the last BGP line,
 // linux-nl would mirror the removal into VPP and take the addresses off the VPP interface as well.
@@ -64,6 +64,14 @@ func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) 
 	}
 	if rt.GetOspf() != nil { // F-ospf
 		out.Ospf = proto.Clone(rt.GetOspf()).(*vrxv1.OspfConfig)
+		content = true
+	}
+	if rt.GetIsis() != nil { // F-isis-rip
+		out.Isis = proto.Clone(rt.GetIsis()).(*vrxv1.IsisConfig)
+		content = true
+	}
+	if rt.GetRip() != nil { // F-isis-rip
+		out.Rip = proto.Clone(rt.GetRip()).(*vrxv1.RipConfig)
 		content = true
 	}
 	if pol := rt.GetPolicy(); len(pol.GetPrefixLists()) > 0 || len(pol.GetRouteMaps()) > 0 {
@@ -231,6 +239,8 @@ func AssembleFRR(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		ds.Routing.Bgp = rt.GetBgp()
 		ds.Routing.Policy = rt.GetPolicy()
 		ds.Routing.Ospf = rt.GetOspf() // F-ospf
+		ds.Routing.Isis = rt.GetIsis() // F-isis-rip
+		ds.Routing.Rip = rt.GetRip()   // F-isis-rip
 		if len(rt.GetStatic()) > 0 {
 			ds.Routing.Static = append(ds.Routing.Static, rt.GetStatic()...)
 			sort.SliceStable(ds.Routing.Static, func(a, b int) bool {

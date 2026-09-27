@@ -14,15 +14,15 @@ import { withUi } from '../../ui.js';
  */
 
 /** One line of printable text: no C0/C1 control characters and no bidi overrides (D-049). */
+// eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern
+const ONE_PRINTABLE_LINE = /^[^\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]*$/;
+
 const metaText = (title: string, help: string) =>
-  withUi(
-    z
-      .string()
-      .min(1)
-      .max(64)
-      .regex(/^[^\u0000-\u001f\u007f-\u009f‪-‮⁦-⁩]*$/, 'one line of printable text'),
-    { title, help, group: 'metadata' },
-  );
+  withUi(z.string().min(1).max(64).regex(ONE_PRINTABLE_LINE, 'one line of printable text'), {
+    title,
+    help,
+    group: 'metadata',
+  });
 
 export const ruleExpiryFields = {
   expiresAt: withUi(z.iso.datetime({ offset: true }), {

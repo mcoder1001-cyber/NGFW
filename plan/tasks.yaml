@@ -3181,17 +3181,17 @@ tasks:
   - TD-10b
   priority: 3
   est_hours: 5
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.9
   scope: 'review 6.7: read-only review agent, 3 lenses + adversarial verify over apps/api/src/{auth,users,commit,secrets}/**, route guards, WS auth before upgrade, API keys, lockout, refresh chains, cookies/CSRF,
     the transport check, D-091/D-097/D-100/D-102; findings go to a fix row'
   files_owned: docs/status/tasks/SEC-auth* (review only; no product files)
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: D-125 | dep of F-aaa, F-restconf-yang and SECURITY-REVIEW
 - id: UI-domain-editor

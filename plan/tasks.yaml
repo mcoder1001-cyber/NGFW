@@ -3807,3 +3807,22 @@ tasks:
   scope: docs/status/tasks/SEC-auth-review.md M1, L1
   files_owned: apps/api/src/auth/auth.service.ts (createApiKey) apps/api/src/secrets/secrets.service.ts (masterKey) docs/status/tasks/SEC-auth-fix*
   notes: ''
+- template: ''
+  parked_on: ''
+  branch: claude/charming-johnson-9k2puh
+  worktree: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
+  finished: ''
+  state: running
+  wbs: []
+  prompt: ''
+  id: E2E-red-main
+  title: 'API e2e red on main: 8 tests in bgp, config (actions 501), neighbors-ra (arp-flush), unbound-chrony-syslog (dns-lookup), wireguard'
+  stage: S4
+  deps: []
+  priority: 2
+  est_hours: 3
+  scope: 'found by SEC-auth-fix running the full API e2e on a local PostgreSQL 16 + Redis; the cloud ports merged without the lab e2e'
+  files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
+  notes: ''

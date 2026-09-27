@@ -84,6 +84,7 @@ const (
 	Dataplane_SyslogEntries_FullMethodName           = "/vrx.v1.Dataplane/SyslogEntries"
 	Dataplane_DataplaneStartupState_FullMethodName   = "/vrx.v1.Dataplane/DataplaneStartupState"
 	Dataplane_DataplaneStartupPreview_FullMethodName = "/vrx.v1.Dataplane/DataplaneStartupPreview"
+	Dataplane_PppoeReconnect_FullMethodName          = "/vrx.v1.Dataplane/PppoeReconnect"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -246,6 +247,10 @@ type DataplaneClient interface {
 	// renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
 	// and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
 	DataplaneStartupPreview(ctx context.Context, in *DataplaneStartupPreviewRequest, opts ...grpc.CallOption) (*DataplaneStartupPreviewResponse, error)
+	// PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+	// reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+	// state. Unimplemented on an agent without PPPoE support (→ 501).
+	PppoeReconnect(ctx context.Context, in *PppoeReconnectRequest, opts ...grpc.CallOption) (*PppoeReconnectResponse, error)
 }
 
 type dataplaneClient struct {
@@ -663,6 +668,16 @@ func (c *dataplaneClient) DataplaneStartupPreview(ctx context.Context, in *Datap
 	return out, nil
 }
 
+func (c *dataplaneClient) PppoeReconnect(ctx context.Context, in *PppoeReconnectRequest, opts ...grpc.CallOption) (*PppoeReconnectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PppoeReconnectResponse)
+	err := c.cc.Invoke(ctx, Dataplane_PppoeReconnect_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -823,6 +838,10 @@ type DataplaneServer interface {
 	// renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
 	// and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
 	DataplaneStartupPreview(context.Context, *DataplaneStartupPreviewRequest) (*DataplaneStartupPreviewResponse, error)
+	// PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+	// reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+	// state. Unimplemented on an agent without PPPoE support (→ 501).
+	PppoeReconnect(context.Context, *PppoeReconnectRequest) (*PppoeReconnectResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -946,6 +965,9 @@ func (UnimplementedDataplaneServer) DataplaneStartupState(context.Context, *Data
 }
 func (UnimplementedDataplaneServer) DataplaneStartupPreview(context.Context, *DataplaneStartupPreviewRequest) (*DataplaneStartupPreviewResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DataplaneStartupPreview not implemented")
+}
+func (UnimplementedDataplaneServer) PppoeReconnect(context.Context, *PppoeReconnectRequest) (*PppoeReconnectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PppoeReconnect not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1631,6 +1653,24 @@ func _Dataplane_DataplaneStartupPreview_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_PppoeReconnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PppoeReconnectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).PppoeReconnect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_PppoeReconnect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).PppoeReconnect(ctx, req.(*PppoeReconnectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1777,6 +1817,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DataplaneStartupPreview",
 			Handler:    _Dataplane_DataplaneStartupPreview_Handler,
+		},
+		{
+			MethodName: "PppoeReconnect",
+			Handler:    _Dataplane_PppoeReconnect_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

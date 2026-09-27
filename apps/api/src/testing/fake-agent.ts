@@ -25,6 +25,8 @@ import {
   type InterfaceState,
   type InterfaceStateRequest,
   type PppoeSessionState,
+  type PppoeReconnectRequest,
+  type PppoeReconnectResponse,
   type InterfaceStateResponse,
   IssueSeverity,
   ObjectResultCode,
@@ -695,7 +697,19 @@ export class FakeAgent {
         const p = c['pppoe'] as Json | undefined;
         if (p === undefined || p === null) return undefined;
         if (p['enabled'] === false) {
-          return { phase: 'down', sessionId: 0, acMac: '', acName: '', localIpv4: '', peerIpv4: '', ipv6: '', dns: [], since: undefined, failCount: 0, lastError: '' };
+          return {
+            phase: 'down',
+            sessionId: 0,
+            acMac: '',
+            acName: '',
+            localIpv4: '',
+            peerIpv4: '',
+            ipv6: '',
+            dns: [],
+            since: undefined,
+            failCount: 0,
+            lastError: '',
+          };
         }
         // a fake dialled session (the real state comes from pppd on the box)
         return {
@@ -800,6 +814,17 @@ export class FakeAgent {
       retrieve,
       health,
       interfaceState,
+      // F-pppoe-client (unanchored)
+      pppoeReconnect: (call, cb) => {
+        if (!this.checkCommon('PppoeReconnect', call.request, cb)) return;
+        const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;
+        const c = ifs[call.request.interface] as Json | undefined;
+        if (c === undefined || c['pppoe'] === undefined || c['pppoe'] === null) {
+          cb(null, { accepted: false, message: `no PPPoE client on '${call.request.interface}'` });
+          return;
+        }
+        cb(null, { accepted: true, message: 'redialling' });
+      },
       streamStats,
       streamEvents,
       action,
@@ -828,7 +853,12 @@ export class FakeAgent {
       // wave-BC: F-srv6
       srv6State: srv6FakeState(this), // features/srv6/fake.ts
       // wave-BC: F-lisp
-      lispState: lispStateFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
+      lispState: lispStateFake({
+        owner: this.owner,
+        current: () => this.current,
+        record: (m, r) => this.record(m, r),
+        failWith: () => this.failAllWith,
+      }),
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn
       // wave-BC: F-mpls-ldp
@@ -856,11 +886,20 @@ export class FakeAgent {
       ...neighborsRaFake(this),
       // wave-A: F-rpf-adl-pbr
       // wave-A: F-object-model
-      fqdnObjectState: (call, cb) => void import('../features/object-model/fake.js').then((m) => m.fqdnObjectState(this)(call, cb)).catch((e: unknown) => cb(e as Error)),
+      fqdnObjectState: (call, cb) =>
+        void import('../features/object-model/fake.js')
+          .then((m) => m.fqdnObjectState(this)(call, cb))
+          .catch((e: unknown) => cb(e as Error)),
       // wave-A: F-acl
-      aclState: (call, cb) => void import('../features/acl/fake.js').then((m) => m.aclState(this)(call, cb)).catch((e: unknown) => cb(e as Error)),
+      aclState: (call, cb) =>
+        void import('../features/acl/fake.js')
+          .then((m) => m.aclState(this)(call, cb))
+          .catch((e: unknown) => cb(e as Error)),
       // wave-A: F-host-acl-nftables
-      hostAclState: (call, cb) => void import('../features/host-acl-nftables/fake.js').then((m) => m.hostAclState(this)(call, cb)),
+      hostAclState: (call, cb) =>
+        void import('../features/host-acl-nftables/fake.js').then((m) =>
+          m.hostAclState(this)(call, cb),
+        ),
       // wave-A: F-nat44-ed-sessions
       ...nat44EdSessionsFake(this),
       // wave-A: F-nat44-ei-64-66-nptv6

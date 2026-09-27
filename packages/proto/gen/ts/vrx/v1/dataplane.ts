@@ -7257,6 +7257,22 @@ export interface PppoeReconnect {
   maxFail?: number | undefined;
 }
 
+/** PppoeReconnectRequest asks the agent to redial one PPPoE client now. */
+export interface PppoeReconnectRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Configuration interface name of the PPPoE client (the `interfaces.<name>` key). */
+  interface: string;
+}
+
+/** PppoeReconnectResponse says whether the redial was accepted (the session comes up asynchronously). */
+export interface PppoeReconnectResponse {
+  /** The agent accepted the request and is redialling. */
+  accepted: boolean;
+  /** Human-readable detail ("no PPPoE client on 'eth0'", "redialling"…). */
+  message: string;
+}
+
 /** PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState. */
 export interface PppoeSessionState {
   /** "down" | "dialing" | "up" | "failed". */
@@ -61872,6 +61888,176 @@ export const PppoeReconnect: MessageFns<PppoeReconnect> = {
   },
 };
 
+function createBasePppoeReconnectRequest(): PppoeReconnectRequest {
+  return { owner: "", interface: "" };
+}
+
+export const PppoeReconnectRequest: MessageFns<PppoeReconnectRequest> = {
+  encode(message: PppoeReconnectRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.interface !== "") {
+      writer.uint32(18).string(message.interface);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnectRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnectRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnectRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+    };
+  },
+
+  toJSON(message: PppoeReconnectRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnectRequest>): PppoeReconnectRequest {
+    return PppoeReconnectRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnectRequest>): PppoeReconnectRequest {
+    const message = createBasePppoeReconnectRequest();
+    message.owner = object.owner ?? "";
+    message.interface = object.interface ?? "";
+    return message;
+  },
+};
+
+function createBasePppoeReconnectResponse(): PppoeReconnectResponse {
+  return { accepted: false, message: "" };
+}
+
+export const PppoeReconnectResponse: MessageFns<PppoeReconnectResponse> = {
+  encode(message: PppoeReconnectResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.accepted !== false) {
+      writer.uint32(8).bool(message.accepted);
+    }
+    if (message.message !== "") {
+      writer.uint32(18).string(message.message);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeReconnectResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeReconnectResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.accepted = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.message = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeReconnectResponse {
+    return {
+      accepted: isSet(object.accepted) ? globalThis.Boolean(object.accepted) : false,
+      message: isSet(object.message) ? globalThis.String(object.message) : "",
+    };
+  },
+
+  toJSON(message: PppoeReconnectResponse): unknown {
+    const obj: any = {};
+    if (message.accepted !== false) {
+      obj.accepted = message.accepted;
+    }
+    if (message.message !== "") {
+      obj.message = message.message;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeReconnectResponse>): PppoeReconnectResponse {
+    return PppoeReconnectResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeReconnectResponse>): PppoeReconnectResponse {
+    const message = createBasePppoeReconnectResponse();
+    message.accepted = object.accepted ?? false;
+    message.message = object.message ?? "";
+    return message;
+  },
+};
+
 function createBasePppoeSessionState(): PppoeSessionState {
   return {
     phase: "",
@@ -82284,6 +82470,22 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): DataplaneStartupPreviewResponse =>
       DataplaneStartupPreviewResponse.decode(value),
   },
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect: {
+    path: "/vrx.v1.Dataplane/PppoeReconnect" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: PppoeReconnectRequest): Buffer =>
+      Buffer.from(PppoeReconnectRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): PppoeReconnectRequest => PppoeReconnectRequest.decode(value),
+    responseSerialize: (value: PppoeReconnectResponse): Buffer =>
+      Buffer.from(PppoeReconnectResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): PppoeReconnectResponse => PppoeReconnectResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -82513,6 +82715,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
    */
   dataplaneStartupPreview: handleUnaryCall<DataplaneStartupPreviewRequest, DataplaneStartupPreviewResponse>;
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect: handleUnaryCall<PppoeReconnectRequest, PppoeReconnectResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -83246,6 +83454,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: DataplaneStartupPreviewResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+   * reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+   * state. Unimplemented on an agent without PPPoE support (→ 501).
+   */
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
+  ): ClientUnaryCall;
+  pppoeReconnect(
+    request: PppoeReconnectRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: PppoeReconnectResponse) => void,
   ): ClientUnaryCall;
 }
 

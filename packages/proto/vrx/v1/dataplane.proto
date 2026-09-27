@@ -275,6 +275,13 @@ service Dataplane {
   // renderer on this host's facts and diffs it against the installed file. Read-only: nothing is written
   // and VPP is never restarted (applying is apply-startup.sh, a manager step gated by TD-17).
   rpc DataplaneStartupPreview(DataplaneStartupPreviewRequest) returns (DataplaneStartupPreviewResponse);
+
+  // F-pppoe-client (unanchored)
+
+  // PppoeReconnect redials a PPPoE client session now (restart its supervisor unit), regardless of the hold-off. The
+  // reconnect itself happens asynchronously; the reply only says the request was accepted. Not a mutation of desired
+  // state. Unimplemented on an agent without PPPoE support (→ 501).
+  rpc PppoeReconnect(PppoeReconnectRequest) returns (PppoeReconnectResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -5220,6 +5227,22 @@ message PppoeReconnect {
   optional uint32 holdoff_sec = 1;
   // Give up after this many failed dials in a row; 0 = forever; Zod default 0.
   optional uint32 max_fail = 2;
+}
+
+// PppoeReconnectRequest asks the agent to redial one PPPoE client now.
+message PppoeReconnectRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+  // Configuration interface name of the PPPoE client (the `interfaces.<name>` key).
+  string interface = 2;
+}
+
+// PppoeReconnectResponse says whether the redial was accepted (the session comes up asynchronously).
+message PppoeReconnectResponse {
+  // The agent accepted the request and is redialling.
+  bool accepted = 1;
+  // Human-readable detail ("no PPPoE client on 'eth0'", "redialling"…).
+  string message = 2;
 }
 
 // PppoeSessionState is the live state of a PPPoE client session (not configuration); attached to InterfaceState.

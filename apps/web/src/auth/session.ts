@@ -186,9 +186,9 @@ export class Session {
     return this.adopt(r.body);
   }
 
-  /** F-aaa-login: login-time enrolment (the policy requires a factor not set up yet); the secret is shown once. */
-  async mfaEnroll(challenge: string): Promise<LoginFailure | MfaEnrolment> {
-    const r = await this.postAuth('mfa/enroll', { challenge });
+  /** F-aaa-login: login-time enrolment with the admin-issued one-time token (D-159); the secret is shown once. */
+  async mfaEnroll(challenge: string, token: string): Promise<LoginFailure | MfaEnrolment> {
+    const r = await this.postAuth('mfa/enroll', { challenge, token });
     if ('status' in r) return r;
     const b = r.body as Partial<MfaEnrolment> | null;
     if (typeof b?.secret !== 'string' || typeof b.otpauthUri !== 'string') return { status: 502, detail: undefined };

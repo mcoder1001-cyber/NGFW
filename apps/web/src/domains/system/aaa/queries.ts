@@ -45,9 +45,28 @@ export function useLoginMethods() {
 
 export function useMfaSetup() {
   return useMutation({
-    mutationFn: async (current: string) =>
-      (await call(api.POST('/api/v1/auth/mfa/setup', { body: { current } }))).data as Enrolment,
+    mutationFn: async (v: { current: string; token: string }) =>
+      (await call(api.POST('/api/v1/auth/mfa/setup', { body: v }))).data as Enrolment,
   });
+}
+
+/** D-159: an admin issues (or revokes) a user's one-time MFA enrolment token; the token is shown once. */
+export function useEnrolmentToken() {
+  const issue = useMutation({
+    mutationFn: async (name: string) =>
+      (
+        await call(
+          api.POST('/api/v1/auth/mfa/users/{name}/enrolment-token', { params: { path: { name } } }),
+        )
+      ).data as { token: string; expiresIn: number },
+  });
+  const revoke = useMutation({
+    mutationFn: async (name: string) =>
+      call(
+        api.DELETE('/api/v1/auth/mfa/users/{name}/enrolment-token', { params: { path: { name } } }),
+      ),
+  });
+  return { issue, revoke };
 }
 
 export function useMfaActivate() {

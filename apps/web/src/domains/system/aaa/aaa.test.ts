@@ -52,12 +52,13 @@ describe('F-aaa-login: two-step login in the Session', () => {
         res(200, { ...sessionBody, recoveryCodes: ['0123456789'] }),
     });
     const s = new Session(f, undefined, { channel: null });
-    expect(await s.mfaEnroll(CH)).toEqual({
+    expect(await s.mfaEnroll(CH, 'T'.repeat(32))).toEqual({
       secret: 'JBSWY3DPEHPK3PXP',
       otpauthUri: 'otpauth://totp/x',
     });
     expect(await s.mfaVerify(CH, { code: '123456' })).toEqual({ recoveryCodes: ['0123456789'] });
     expect(s.state.status).toBe('authenticated');
+    expect(seen[0]).toEqual({ path: '/api/v1/auth/mfa/enroll', body: { challenge: CH, token: 'T'.repeat(32) } });
     expect(seen[1]).toEqual({
       path: '/api/v1/auth/mfa/verify',
       body: { challenge: CH, code: '123456' },

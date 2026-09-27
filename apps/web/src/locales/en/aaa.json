@@ -26,10 +26,13 @@
     "invalid": "The code was not accepted. Codes can be used only once; wait for the next one.",
     "expired": "The sign-in step expired. Sign in again.",
     "enrolTitle": "Set up two-factor authentication",
-    "enrolIntro": "Your administrator requires a second factor. Add this key to an authenticator app (TOTP, 6 digits, 30 seconds), then enter the first code.",
+    "enrolIntro": "Add this key to an authenticator app (TOTP, 6 digits, 30 seconds), then enter the first code.",
     "secret": "Secret key",
     "uri": "Setup link (otpauth)",
-    "shownOnce": "This key is shown only once."
+    "shownOnce": "This key is shown only once.",
+    "token": "Enrolment token",
+    "tokenIntro": "Your administrator requires a second factor. Enter the one-time enrolment token your administrator gave you.",
+    "tokenInvalid": "The enrolment token was not accepted. Sign in again and ask your administrator for a new token if needed."
   },
   "recovery": {
     "title": "Save your recovery codes",
@@ -48,7 +51,8 @@
     "start": "Continue",
     "activate": "Turn on",
     "activated": "Two-factor authentication is on. Your other sessions were signed out.",
-    "lost": "Lost your authenticator? Use a recovery code at sign-in, or ask an administrator to reset your second factor."
+    "lost": "Lost your authenticator? Use a recovery code at sign-in, or ask an administrator to reset your second factor.",
+    "tokenHelp": "One-time token from an administrator"
   },
   "test": {
     "title": "Test an identity source",
@@ -83,5 +87,14 @@
     "endsSessions": "The user's sessions end. Their API keys are revoked unless you keep them.",
     "submit": "Set password",
     "done": "Password set."
+  },
+  "enrolToken": {
+    "action": "MFA enrolment token",
+    "title": "MFA enrolment token for {{user}}",
+    "intro": "Setting up a second factor needs a one-time token issued here. Give it to the user over a trusted channel. It is valid for 24 hours; issuing a new one replaces the old one.",
+    "issue": "Issue token",
+    "revoke": "Revoke token",
+    "shown": "Shown only now — give it to the user:",
+    "revoked": "Enrolment token revoked."
   }
 }

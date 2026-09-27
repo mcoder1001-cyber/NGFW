@@ -5,12 +5,13 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../../auth/AuthProvider';
 import type { LoginFailure, MfaEnrolment, MfaStep } from '../../../auth/session';
 import { RecoveryCodes } from './RecoveryCodes';
 
+const TOKEN_INPUT = { dir: 'ltr', spellCheck: false, autoComplete: 'off' } as const;
 const LTR = {
   dir: 'ltr',
   inputMode: 'numeric',
@@ -41,18 +42,19 @@ export function MfaLoginStep({
   const [error, setError] = useState<'invalid' | 'expired' | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
 
-  useEffect(() => {
-    if (step.enrolled) return;
-    let live = true;
-    void session.mfaEnroll(step.challenge).then((r) => {
-      if (!live) return;
-      if ('secret' in r) setEnrolment(r);
-      else setError('expired');
-    });
-    return () => {
-      live = false;
-    };
-  }, [session, step]);
+  const [token, setToken] = useState('');
+  const [tokenError, setTokenError] = useState(false);
+
+  // D-159: login-time enrolment needs the one-time token an administrator issued (one attempt per sign-in)
+  const enrol = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const r = await session.mfaEnroll(step.challenge, token.trim());
+    setBusy(false);
+    setToken('');
+    if ('secret' in r) setEnrolment(r);
+    else setTokenError(true);
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -73,6 +75,47 @@ export function MfaLoginStep({
   };
 
   if (codes) return <RecoveryCodes codes={codes} onDone={onDone} />;
+
+  if (!step.enrolled && !enrolment) {
+    return (
+      <Stack
+        component="form"
+        gap={2}
+        onSubmit={(e) => void enrol(e)}
+        noValidate
+        aria-labelledby="mfa-title"
+      >
+        <Typography id="mfa-title" component="h1" variant="h5">
+          {t('step.enrolTitle')}
+        </Typography>
+        <Typography color="text.secondary">{t('step.tokenIntro')}</Typography>
+        {tokenError && (
+          <Alert severity="error" role="alert">
+            {t('step.tokenInvalid')}
+          </Alert>
+        )}
+        <TextField
+          label={t('step.token')}
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoFocus
+          required
+          disabled={tokenError}
+          slotProps={{ htmlInput: TOKEN_INPUT }}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={busy || tokenError || !/^[A-Za-z0-9_-]{32}$/.test(token.trim())}
+        >
+          {t('mine.start')}
+        </Button>
+        <Button size="small" onClick={onCancel}>
+          {t('step.cancel')}
+        </Button>
+      </Stack>
+    );
+  }
 
   const valid = recovery ? /^[0-9a-fA-F]{10}$/.test(value.trim()) : /^[0-9]{6}$/.test(value.trim());
   return (

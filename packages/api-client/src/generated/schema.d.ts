@@ -1601,6 +1601,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/mfa/users/{name}/enrolment-token': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Admin (D-159): issue a one-time MFA enrolment token for a user (shown once, 24 h; replaces an open one) */
+    post: operations['Mfa_issueToken'];
+    /** Admin (D-159): revoke a user’s open MFA enrolment token */
+    delete: operations['Mfa_revokeToken'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/auth/mfa/users/{name}': {
     parameters: {
       query?: never;
@@ -16489,6 +16507,8 @@ export interface operations {
         'application/json': {
           /** @description the `challenge` of the login answer */
           challenge: string;
+          /** @description the one-time MFA enrolment token issued by an administrator (write-only) */
+          token: string;
         };
       };
     };
@@ -16580,6 +16600,8 @@ export interface operations {
         'application/json': {
           /** @description the caller’s current password (step-up; write-only) */
           current: string;
+          /** @description the one-time MFA enrolment token issued by an administrator (write-only) */
+          token: string;
         };
       };
     };
@@ -16706,6 +16728,113 @@ export interface operations {
       };
       /** @description Rate limited */
       429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_issueToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            token: string;
+            expiresIn: number;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Mfa_revokeToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Revoked */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };

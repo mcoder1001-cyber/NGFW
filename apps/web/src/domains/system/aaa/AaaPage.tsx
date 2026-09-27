@@ -36,13 +36,14 @@ export function MyMfaCard() {
   const setup = useMfaSetup();
   const activate = useMfaActivate();
   const [current, setCurrent] = useState('');
+  const [token, setToken] = useState('');
   const [code, setCode] = useState('');
   const [codes, setCodes] = useState<string[] | null>(null);
 
   const start = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await setup.mutateAsync(current);
+      await setup.mutateAsync({ current, token: token.trim() });
     } catch {
       // rendered from setup.error
     }
@@ -104,7 +105,22 @@ export function MyMfaCard() {
             autoComplete="current-password"
             slotProps={{ htmlInput: LTR }}
           />
-          <Button type="submit" variant="contained" disabled={current === '' || setup.isPending}>
+          <TextField
+            size="small"
+            label={t('step.token')}
+            helperText={t('mine.tokenHelp')}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            autoComplete="off"
+            slotProps={{ htmlInput: LTR }}
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={
+              current === '' || !/^[A-Za-z0-9_-]{32}$/.test(token.trim()) || setup.isPending
+            }
+          >
             {t('mine.setup')}
           </Button>
         </Stack>

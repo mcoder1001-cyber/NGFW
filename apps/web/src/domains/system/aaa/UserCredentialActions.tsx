@@ -1,6 +1,8 @@
 import KeyIcon from '@mui/icons-material/Key';
 import PhonelinkEraseIcon from '@mui/icons-material/PhonelinkErase';
+import QrCodeIcon from '@mui/icons-material/QrCode2';
 import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
@@ -16,7 +18,7 @@ import Tooltip from '@mui/material/Tooltip';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { useMfaReset, useSetPassword } from './queries';
+import { useEnrolmentToken, useMfaReset, useSetPassword } from './queries';
 
 /** P06/TD-2: ≥ 12 characters (the API enforces it too). */
 const MIN_PASSWORD = 12;
@@ -42,6 +44,8 @@ export function UserCredentialActions({
   const [keep, setKeep] = useState(false);
   const setPw = useSetPassword();
   const reset = useMfaReset();
+  const enrolment = useEnrolmentToken();
+  const [tokenOpen, setTokenOpen] = useState(false);
   const tooShort = password.length > 0 && password.length < MIN_PASSWORD;
   const mismatch = repeat.length > 0 && repeat !== password;
   const closePw = () => {
@@ -82,6 +86,67 @@ export function UserCredentialActions({
           </IconButton>
         </span>
       </Tooltip>
+      <Tooltip title={t('enrolToken.action')}>
+        <span>
+          <IconButton
+            size="small"
+            aria-label={`${t('enrolToken.action')}: ${username}`}
+            disabled={disabled}
+            onClick={() => {
+              enrolment.issue.reset();
+              enrolment.revoke.reset();
+              setTokenOpen(true);
+            }}
+          >
+            <QrCodeIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+
+      <Dialog open={tokenOpen} onClose={() => setTokenOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t('enrolToken.title', { user: username })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('enrolToken.intro')}</DialogContentText>
+          {enrolment.issue.data && (
+            <Alert severity="warning" sx={{ mt: 1 }} data-testid="enrol-token">
+              {t('enrolToken.shown')}
+              <Box
+                component="code"
+                dir="ltr"
+                sx={{ display: 'block', mt: 1, wordBreak: 'break-all' }}
+              >
+                {enrolment.issue.data.token}
+              </Box>
+            </Alert>
+          )}
+          {enrolment.revoke.isSuccess && (
+            <Alert severity="success" sx={{ mt: 1 }}>
+              {t('enrolToken.revoked')}
+            </Alert>
+          )}
+          {enrolment.issue.isError && <ProblemAlert error={enrolment.issue.error} sx={{ mt: 1 }} />}
+          {enrolment.revoke.isError && (
+            <ProblemAlert error={enrolment.revoke.error} sx={{ mt: 1 }} />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTokenOpen(false)}>{t('auth:cancel')}</Button>
+          <Button
+            color="warning"
+            disabled={enrolment.revoke.isPending}
+            onClick={() => enrolment.revoke.mutate(username)}
+          >
+            {t('enrolToken.revoke')}
+          </Button>
+          <Button
+            variant="contained"
+            disabled={enrolment.issue.isPending}
+            onClick={() => enrolment.issue.mutate(username)}
+          >
+            {t('enrolToken.issue')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog
         open={pwOpen}

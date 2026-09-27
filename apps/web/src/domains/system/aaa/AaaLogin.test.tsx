@@ -76,6 +76,22 @@ describe('F-aaa-login web', () => {
     },
   );
 
+  it('login-time enrolment asks for the admin-issued token first (D-159)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    api.on('POST /api/v1/auth/refresh', { status: 401, body: { detail: 'no refresh token' } });
+    api.on('GET /api/v1/auth/methods', { body: { oidc: false } });
+    api.on('POST /api/v1/auth/login', { body: { mfaRequired: true, challenge: CH, enrolled: false, expiresIn: 300 } });
+    api.on('POST /api/v1/auth/mfa/enroll', { body: { secret: 'JBSWY3DPEHPK3PXP', otpauthUri: 'otpauth://totp/vrx:admin' } });
+    render(app('/login'));
+    fireEvent.change(await screen.findByLabelText(/user name|username/i, {}, { timeout: 15_000 }), { target: { value: 'admin' } });
+    fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: /sign in$/i }));
+    fireEvent.change(await screen.findByLabelText(/Enrolment token/), { target: { value: 'T'.repeat(32) } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(await screen.findByTestId('mfa-enrolment')).toHaveTextContent('JBSWY3DPEHPK3PXP');
+    expect(api.calls.find((c) => c.path === '/api/v1/auth/mfa/enroll')?.body).toEqual({ challenge: CH, token: 'T'.repeat(32) });
+  });
+
   it('AAA page: own MFA status and the admin test panel', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     api.on('GET /api/v1/auth/mfa', {

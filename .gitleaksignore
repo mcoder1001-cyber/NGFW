@@ -1,0 +1,7 @@
+# gitleaks fingerprints (commit:file:rule:line) of confirmed test fixtures in history — D-158.
+# Each line was verified by hand: dummy e2e user passwords and the RFC 6238 TOTP test vector. Never add a real secret here.
+3bd18dd2c4edc4f3c96222bbae35496185700ad8:apps/api/src/features/aaa/totp.test.ts:generic-api-key:7
+3bd18dd2c4edc4f3c96222bbae35496185700ad8:apps/api/test/e2e/aaa.e2e.test.ts:generic-api-key:36
+4e59528994162b4ec14167b7c5620fb130d66581:apps/api/test/e2e/igmp-mfib.e2e.test.ts:generic-api-key:18
+5a2d88d8000f06375c24a91f72939fed80183004:apps/api/test/e2e/auto-block.e2e.test.ts:generic-api-key:37
+5b33b153039892be0deacd7f807aa69de80439b9:apps/api/test/e2e/restconf-yang.e2e.test.ts:generic-api-key:18

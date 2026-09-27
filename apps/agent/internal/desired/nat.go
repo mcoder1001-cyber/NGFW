@@ -98,10 +98,10 @@ func Nat(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	nat66Build(s, nat.GetNat66(), vrfID)
 	nptv6Build(s, nat.GetNptv6())
 	// wave-BC: F-det44-map-dslite-cnat
-	natUnsupported(s, "det44", nat.GetDet44(), "F-det44-map-dslite-cnat")
-	natUnsupported(s, "dslite", nat.GetDslite(), "F-det44-map-dslite-cnat")
-	natUnsupported(s, "map", nat.GetMap(), "F-det44-map-dslite-cnat")
-	natUnsupported(s, "cnat", nat.GetCnat(), "F-det44-map-dslite-cnat")
+	det44Build(s, nat.GetDet44(), vrfID)
+	dsliteBuild(s, nat.GetDslite())
+	mapBuild(s, nat.GetMap())
+	cnatBuild(s, nat)
 	// pnat (NatConfig 27, F-det44-map-dslite-cnat): its builder call goes here.
 }
 
@@ -397,6 +397,10 @@ func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.NatCo
 	assembleNat66(out, kvs, tableName)
 	assembleNptv6(out, kvs)
 	// wave-BC: F-det44-map-dslite-cnat
+	assembleDet44(out, kvs)
+	assembleDslite(out, kvs)
+	assembleMap(out, kvs)
+	assembleCnat(out, kvs)
 	return out
 }
 

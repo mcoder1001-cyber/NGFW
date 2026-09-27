@@ -4,7 +4,7 @@ import { generateSecret, otpauthUri, recoveryCodes, totpCode, verifyTotp } from 
 describe('TOTP (RFC 6238)', () => {
   it('matches the RFC 6238 SHA1 test vector', () => {
     // RFC 6238 Appendix B: secret "12345678901234567890" = base32 GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ; T=59s → 94287082
-    const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+    const secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'; // gitleaks:allow — test fixture (dummy password / RFC 6238 test vector), never a real secret
     expect(totpCode(secret, 59_000)).toBe('287082');
   });
 

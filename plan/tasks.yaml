@@ -1104,7 +1104,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 16
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D4.4
@@ -1117,7 +1117,9 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md | cloud 2026-09-27: agent layer merged (review
+    BLOCK→fixed: nat46- name guard in map builder, lw4o6 needs rules). Follow-ups: contract nat.pnat + Det44Sessions/Det44Lookup/CnatSessions RPCs + ActionRequest 9/10, PNAT projection, rpc_det44/rpc_cnat
+    actions, API + e2e, UI tabs en/fa, test/topology; host: DET44 enable + globals windows, packet paths, vppctl show, NRestarts; Q3 schema-vs-VPP defaults, Q4 derived cnat interface feature'
 - id: F-nat46
   title: 'Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46)'
   prompt: prompts/features/F-nat46.md
@@ -1131,7 +1133,7 @@ tasks:
   - F-vrf-static-ecmp
   priority: 4
   est_hours: 16
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D4.5
@@ -1142,9 +1144,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'Added 2026-09-26 at the user''s request. VPP 26.06 has no NAT46 plugin (binapi: nat44_ed, nat44_ei, nat64, nat66, map, cnat, pnat). Design spike first: (a) stateless SIIT (RFC 7915) — can the
-    map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope
-    decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
+  notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry).
+    NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)'
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md
@@ -3965,13 +3966,15 @@ tasks:
   wbs: []
   prompt: ''
   id: F-bruteforce-block-host
-  title: 'Brute-force/scan auto-block: data-plane enforcement (VPP acl + nftables local-in) and host detectors (SSH journald, IKE/EAP auth, port-scan counters) driven by security.autoBlock and the API auto-block set'
+  title: 'Brute-force/scan auto-block: data-plane enforcement (VPP acl + nftables local-in) and host detectors (SSH journald, IKE/EAP auth, port-scan counters) driven by security.autoBlock and the API auto-block
+    set'
   stage: S4
   deps:
   - F-bruteforce-block
   priority: 3
   est_hours: 2
-  scope: 'enforce the API auto-block set on VPP acl + nftables local-in; add SSH/IKE/port-scan detectors that call the same observe() path over the agent bridge; live topology test (10 bad logins -> blocked on local-in and through; expiry -> unblocked; allow-listed never blocked)'
+  scope: enforce the API auto-block set on VPP acl + nftables local-in; add SSH/IKE/port-scan detectors that call the same observe() path over the agent bridge; live topology test (10 bad logins -> blocked
+    on local-in and through; expiry -> unblocked; allow-listed never blocked)
   files_owned: apps/agent/internal/**
   notes: 'follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host)'
 - template: ''
@@ -3991,9 +3994,11 @@ tasks:
   - F-igmp-mfib
   priority: 3
   est_hours: 2
-  scope: 'project routing.multicast onto DF-7 IGMP objects + new mfib.route descriptor (ip_mroute_add_del/dump, owned tables); FRR pim section + frrsync/pim translating (S,G)/(*,G)+OIL via LCP mapping through seam S1; feed VPP IGMP WatchEvents into multicast.events; host topology test (static (S,G) in show ip mfib, PIM (S,G) via frrsync, restart re-applies within 30s)'
+  scope: project routing.multicast onto DF-7 IGMP objects + new mfib.route descriptor (ip_mroute_add_del/dump, owned tables); FRR pim section + frrsync/pim translating (S,G)/(*,G)+OIL via LCP mapping through
+    seam S1; feed VPP IGMP WatchEvents into multicast.events; host topology test (static (S,G) in show ip mfib, PIM (S,G) via frrsync, restart re-applies within 30s)
   files_owned: apps/agent/internal/**
-  notes: 'follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090)'
+  notes: 'follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host
+    steps opt-in per D-087/D-090)'
 - template: ''
   parked_on: ''
   branch: ''
@@ -4011,6 +4016,7 @@ tasks:
   - F-mpls-ldp
   priority: 3
   est_hours: 2
-  scope: 'render the mpls ldp FRR section (RF-1); frrsync/ldp reads show mpls ldp binding/neighbor json and installs mpls-route.ldp in table 0 via ip_mroute path through seam S1 (LCP mapping); neighbour up/down events -> mpls-ldp.events; host session test (peer ldpd, OPERATIONAL, binding synced to VPP mfib, withdraw removes it, restart re-derives)'
+  scope: render the mpls ldp FRR section (RF-1); frrsync/ldp reads show mpls ldp binding/neighbor json and installs mpls-route.ldp in table 0 via ip_mroute path through seam S1 (LCP mapping); neighbour
+    up/down events -> mpls-ldp.events; host session test (peer ldpd, OPERATIONAL, binding synced to VPP mfib, withdraw removes it, restart re-derives)
   files_owned: apps/agent/internal/**
   notes: 'follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0 only with VRX_DF7_GLOBALS)'

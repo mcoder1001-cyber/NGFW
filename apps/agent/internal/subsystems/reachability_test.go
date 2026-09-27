@@ -92,6 +92,7 @@ var descriptorReach = map[string]reachEntry{
 	"memif":               {library, "D-141: no product domain; lab/test fixture until a row adds one"},
 	"mpls":                {wired, "F-mpls-srmpls"},
 	"nat44ed":             {wired, "F-nat44-ed-sessions"},
+	"nat46":               {library, "F-nat46: NAT46 -> MAP-T projection over mapnat, no descriptors; applied when F-det44-map-dslite-cnat wires mapnat"},
 	"nat44ei":             {wired, "F-nat44-ei-64-66-nptv6"},
 	"nat64":               {wired, "F-nat44-ei-64-66-nptv6"},
 	"nat66":               {wired, "F-nat44-ei-64-66-nptv6"},
@@ -138,7 +139,7 @@ var rendererReach = map[string]reachEntry{
 // a package that has descriptors, like D-141).
 var libraryPins = []string{
 	"descriptors/df2", "descriptors/df6", "descriptors/df7", "descriptors/dfkit", "descriptors/kit", "descriptors/memif",
-	"descriptors/natcommon", "descriptors/tapv2", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
+	"descriptors/nat46", "descriptors/natcommon", "descriptors/tapv2", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
 }
 
 const modPath = "ngfw/agent/internal/"

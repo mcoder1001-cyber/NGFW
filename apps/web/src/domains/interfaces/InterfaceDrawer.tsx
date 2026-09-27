@@ -35,7 +35,7 @@ import {
   type InterfaceItem,
   type SubinterfaceConfig,
 } from './model';
-import { useCandidateInterfaces, useFreshCandidate, useInterfacesState, usePatchInterfaces } from './queries';
+import { useCandidateInterfaces, useFreshCandidate, useInterfacesState, usePatchInterfaces, usePppoeReconnect } from './queries';
 import type { Rate } from './rates';
 import { Sparkline } from './Sparkline';
 import { SubinterfaceTable } from './subinterfaces/SubinterfaceTable';
@@ -219,6 +219,7 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
           </TableBody>
         </Table>
       )}
+      {live?.pppoe && <PppoePanel name={name} pppoe={live.pppoe} readOnly={readOnly} />}
       <Divider sx={{ mb: 2 }} />
 
       {isSub ? (
@@ -362,5 +363,64 @@ function SubForm({
         <Button onClick={onCancel}>{t('cancel')}</Button>
       </SchemaForm>
     </Stack>
+  );
+}
+
+type PppoeLive = NonNullable<NonNullable<InterfaceItem['state']>['pppoe']>;
+
+/** F-pppoe-client: the live PPPoE session on a WAN interface, with a Reconnect action. */
+function PppoePanel({ name, pppoe, readOnly }: { name: string; pppoe: PppoeLive; readOnly: boolean }) {
+  const { t } = useTranslation('interfaces');
+  const reconnect = usePppoeReconnect();
+  const phase = pppoe.phase === 'up' ? 'up' : pppoe.phase === 'failed' ? 'degraded' : 'down';
+  const rows: [string, string][] = [];
+  if (pppoe.localIpv4) rows.push([t('pppoe.local'), pppoe.localIpv4]);
+  if (pppoe.peerIpv4) rows.push([t('pppoe.peer'), pppoe.peerIpv4]);
+  if (pppoe.ipv6) rows.push([t('pppoe.ipv6'), pppoe.ipv6]);
+  if (pppoe.dns.length > 0) rows.push([t('pppoe.dns'), pppoe.dns.join(', ')]);
+  if (pppoe.since) rows.push([t('pppoe.since'), pppoe.since]);
+  if (pppoe.sessionId > 0) rows.push([t('pppoe.sessionId'), String(pppoe.sessionId)]);
+  if (pppoe.failCount > 0) rows.push([t('pppoe.failCount'), String(pppoe.failCount)]);
+  if (pppoe.lastError) rows.push([t('pppoe.lastError'), pppoe.lastError]);
+  return (
+    <>
+      <Divider sx={{ mb: 2 }} />
+      <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
+        <Typography component="h4" variant="subtitle1" sx={{ flex: 1 }}>
+          {t('pppoe.title')}
+        </Typography>
+        <StatusChip size="small" status={phase} label={`${t('pppoe.phase')}: ${t(`pppoe.phases.${pppoe.phase}`, { defaultValue: pppoe.phase })}`} />
+        <Button
+          size="small"
+          variant="outlined"
+          disabled={readOnly || reconnect.isPending}
+          onClick={() => reconnect.mutate(name)}
+        >
+          {t('pppoe.reconnect')}
+        </Button>
+      </Stack>
+      {reconnect.isError && <ProblemAlert error={reconnect.error} sx={{ mb: 1 }} />}
+      {reconnect.isSuccess && (
+        <Alert severity="info" sx={{ mb: 1 }}>
+          {t('pppoe.reconnecting')}
+        </Alert>
+      )}
+      {rows.length > 0 && (
+        <Table size="small" aria-label={t('pppoe.title')} sx={{ mb: 2 }}>
+          <TableBody>
+            {rows.map(([k, v]) => (
+              <TableRow key={k}>
+                <TableCell component="th" sx={{ inlineSize: 180 }}>
+                  {k}
+                </TableCell>
+                <TableCell dir="ltr" sx={{ textAlign: 'start' }}>
+                  {v}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </>
   );
 }

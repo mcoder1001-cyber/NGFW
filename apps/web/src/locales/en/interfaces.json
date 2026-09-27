@@ -135,5 +135,25 @@
     "encapsulation": "Encapsulation",
     "subinterfaces": "Sub-interfaces"
   },
-  "rateCell": "{{bps}} · {{pps}}"
+  "rateCell": "{{bps}} · {{pps}}",
+  "pppoe": {
+    "title": "PPPoE session",
+    "phase": "Session",
+    "reconnect": "Reconnect",
+    "reconnecting": "Redialling the session…",
+    "local": "Local address",
+    "peer": "Peer (gateway)",
+    "ipv6": "IPv6",
+    "dns": "Peer DNS",
+    "since": "Up since",
+    "sessionId": "Session id",
+    "failCount": "Consecutive failures",
+    "lastError": "Last error",
+    "phases": {
+      "up": "up",
+      "down": "down",
+      "dialing": "dialing",
+      "failed": "failed"
+    }
+  }
 }

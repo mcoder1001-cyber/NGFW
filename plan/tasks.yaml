@@ -1156,17 +1156,17 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D0.14
   scope: apply the `system` schema domain on the box (renderer) and build its screen
   files_owned: apps/agent/internal/renderers/sysident/** docs/agent/renderers/sysident.md apps/agent/internal/desired/system*.go apps/agent/internal/subsystems/system*.go apps/web/src/domains/system/identity/**
     apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry.'
 - id: F-dataplane-ui

@@ -1576,7 +1576,7 @@ tasks:
   finished: '2026-09-26'
   notes: 'D-056: FRR-side part (LDP/PIM via V5 agent-side sync) needs RF-1; no linux-cp needed | prompts-s4: suggested deps consider splitting: static MPLS/SR-MPLS vs LDP sync (V5) — docs/status/tasks/prompts-s4.md
     | D-125 envelope: checkPaths ≤ 255 paths (review 1.5d) | started 2026-09-25 10:30, base main 1d3ccf31; host steps after TD-25'
-- branch: ''
+- branch: claude/charming-johnson-9k2puh
   deps:
   - F-mpls-srmpls
   - RF-1
@@ -1588,14 +1588,14 @@ tasks:
   finished: ''
   id: F-mpls-ldp
   notes: D-085 split | prompt generated (prep-waveA, D-109); owns renderers/frr/ldp/** frrsync/ldp/** docs/agent/renderers/frr-ldp.md
-  owner: ''
+  owner: cloud session charming-johnson
   parked_on: ''
   priority: 5
   prompt: prompts/features/F-mpls-ldp.md
   scope: LDP only; split from F-mpls-srmpls (D-085); prompt generated from F-mpls-srmpls.md LDP part when it becomes ready
   stage: S4
-  started: ''
-  state: ready
+  started: '2026-09-27'
+  state: running
   template: prompts/FEATURE-TEMPLATE.md
   title: 'Wave C: LDP via FRR ldpd + agent-side FRR→VPP label sync (V5 fallback)'
   wbs:

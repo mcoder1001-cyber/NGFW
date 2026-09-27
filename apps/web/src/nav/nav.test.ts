@@ -108,6 +108,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-restconf-yang
       'restconf-yang',
       // wave-BC: F-aaa
+      'aaa',
       // wave-BC: F-backup-restore
       // wave-BC: P10
       // wave-BC: P14

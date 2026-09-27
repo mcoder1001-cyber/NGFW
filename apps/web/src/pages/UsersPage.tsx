@@ -36,6 +36,7 @@ import { ProblemAlert } from '../config/ProblemAlert';
 import { secretEdits, useSecretEdits } from '../config/effective';
 import { invalidateConfig, qk } from '../config/queries';
 import { domainSchemas } from '../schema/registry';
+import { UserCredentialActions } from '../domains/system/aaa/UserCredentialActions';
 import { PageHeader } from '../shell/PageHeader';
 
 /** A configured user as the API returns it: redacted, so `passwordHash` is never present (D-046/D-070). */
@@ -70,6 +71,13 @@ export function localizeUserSchema(schema: JsonSchema, t: Translate): JsonSchema
     } as JsonSchema;
   }
   return { ...schema, properties: localized } as JsonSchema;
+}
+
+/** D-102 (F-aaa-login): an existing user's password is set with "Set password" (POST /users/{name}/password), not a hash. */
+export function withoutPasswordHash(schema: JsonSchema): JsonSchema {
+  const { passwordHash: _drop, ...rest } = (schema.properties ?? {}) as Record<string, JsonSchema>;
+  void _drop;
+  return { ...schema, properties: rest } as JsonSchema;
 }
 
 /** Server pointers `/management/users/<i>/…` → pointers relative to the edited item, for `<SchemaForm problem>`. */
@@ -277,6 +285,8 @@ export function UsersPage() {
                 <TableCell sx={{ textAlign: 'end' }}>
                   {rowState !== 'removed' && (
                     <>
+                      {/* D-102 (F-aaa-login): an existing user's password is set through the users route, not staged */}
+                      {rowState !== 'new' && perms.manageUsers && <UserCredentialActions username={user.username} />}
                       <Why reason={blocked}>
                         <IconButton
                           size="small"
@@ -322,7 +332,7 @@ export function UsersPage() {
           {editing && (
             <SchemaForm
               id="user-form"
-              schema={schema}
+              schema={editing.user ? withoutPasswordHash(schema) : schema}
               value={editing.user ?? undefined}
               onSubmit={submitUser}
               problem={save.error ? problemForItem(save.error, editing.index < 0 ? users.length : editing.index) : null}

@@ -159,6 +159,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-restconf-yang
     { id: 'restconf-yang', path: '/system/restconf', labelKey: 'restconf-yang:nav', fallbackLabel: 'RESTCONF / YANG', available: true },
     // wave-BC: F-aaa
+    { id: 'aaa', path: '/system/aaa', labelKey: 'aaa:nav', fallbackLabel: 'Login & MFA', available: true },
     // wave-BC: F-backup-restore
     // wave-BC: P10
     // wave-BC: P14

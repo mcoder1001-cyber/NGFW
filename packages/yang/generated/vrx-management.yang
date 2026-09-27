@@ -72,6 +72,7 @@ module vrx-management {
           enum "radius";
           enum "tacacs";
           enum "ldap";
+          enum "oidc";
         }
         description "methods tried in order until one answers; `local` should stay in the list";
       }
@@ -231,6 +232,58 @@ module vrx-management {
             default "false";
             description "upgrade an ldap:// connection to TLS before binding (not needed for ldaps://)";
           }
+        }
+      }
+      container oidc {
+        leaf issuer {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "0..255";
+          }
+          mandatory true;
+          description "the IdP issuer URL; /.well-known/openid-configuration is read from it";
+        }
+        leaf clientId {
+          type string {
+            length "1..255";
+          }
+          mandatory true;
+        }
+        leaf clientSecretRef {
+          type string {
+            pattern "(token)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+            length "0..127";
+          }
+          mandatory true;
+          description "token/<name> secret with the client secret; never the secret itself";
+        }
+        leaf redirectUri {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "0..255";
+          }
+          mandatory true;
+          description "registered at the IdP: https://<this box>/api/v1/auth/oidc/callback";
+        }
+        leaf-list scopes {
+          type string {
+            pattern "[\\x21\\x23-\\x5b\\x5d-\\x7e]{1,64}";
+          }
+          description "must include openid";
+        }
+        leaf usernameClaim {
+          type string {
+            length "1..64";
+          }
+          default "preferred_username";
+          description "ID-token claim used as the login name";
+        }
+        leaf roleClaim {
+          type string {
+            length "1..64";
+          }
+          default "groups";
+          description "ID-token claim listing the user’s groups (mapped to roles via roleMap)";
         }
       }
       list roleMap {

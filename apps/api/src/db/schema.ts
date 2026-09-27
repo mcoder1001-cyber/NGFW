@@ -244,11 +244,56 @@ export const alarm = pgTable(
   },
   (t) => [
     // one active row per (rule, instance): raise is idempotent, clear flips this row
-    uniqueIndex('alarm_active_uq').on(t.rule, t.instance).where(sql`state = 'active'`),
+    uniqueIndex('alarm_active_uq')
+      .on(t.rule, t.instance)
+      .where(sql`state = 'active'`),
     index('alarm_state_idx').on(t.state, t.raisedAt),
   ],
 );
 // wave-BC: F-aaa
+// F-aaa-login: per-user TOTP second factor (account data, not config — F-backup-restore does not restore it, D-097).
+// `seed` is the AES-GCM ciphertext of the base32 TOTP secret (SecretsService.encrypt, AAD `mfa/<user id>`), never
+// clear text; `last_step` is the last accepted TOTP time step (replay guard, advanced by one conditional UPDATE).
+export const aaaMfa = pgTable('aaa_mfa', {
+  userId: integer('user_id')
+    .primaryKey()
+    .references(() => appUser.id, { onDelete: 'cascade' }),
+  seed: text('seed').notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  lastStep: integer('last_step').notNull().default(0),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  enabledAt: ts('enabled_at'),
+});
+// F-aaa-login: single-use recovery codes, argon2id hashes only (shown once at enrolment).
+export const aaaMfaRecovery = pgTable(
+  'aaa_mfa_recovery',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    hash: text('hash').notNull(),
+    usedAt: ts('used_at'),
+  },
+  (t) => [index('aaa_mfa_recovery_user_idx').on(t.userId)],
+);
+// F-aaa-login: the external identity behind a shadow app_user (source 'external', no local password hash).
+export const aaaExternalIdentity = pgTable(
+  'aaa_external_identity',
+  {
+    userId: integer('user_id')
+      .primaryKey()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    method: text('method').notNull(),
+    subject: text('subject').notNull(),
+    lastGroups: text('last_groups')
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    lastLogin: ts('last_login'),
+  },
+  (t) => [uniqueIndex('aaa_external_identity_subject_uq').on(t.method, t.subject)],
+);
 // F-bruteforce-block: the live auto-block set (runtime state, not part of the committed document). One row per
 // blocked source; `expires_at` drives expiry, `offences` drives escalation. Manual entries have origin 'manual'.
 export const autoBlock = pgTable(

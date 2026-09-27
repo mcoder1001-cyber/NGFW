@@ -2778,7 +2778,7 @@ message ManagementUser {
 
 // ManagementAaa mirrors `management.aaa`.
 message ManagementAaa {
-  // Authentication methods in order: "local" | "radius" | "tacacs"; Zod default ["local"].
+  // Authentication methods in order: "local" | "radius" | "tacacs" | "ldap" | "oidc"; Zod default ["local"].
   repeated string order = 1;
   // RADIUS servers.
   AaaRadius radius = 2;
@@ -2788,7 +2788,8 @@ message ManagementAaa {
   // wave-BC: F-aaa
   // LDAP servers (F-aaa).
   AaaLdap ldap = 4;
-  // OIDC (reserved for a follow-up): field 5.
+  // OpenID Connect single sign-on (F-aaa-login).
+  AaaOidc oidc = 5;
   // SAML (reserved for a follow-up): field 6.
   // External group -> local role.
   repeated AaaRoleMapping role_map = 7;
@@ -7445,6 +7446,24 @@ message AaaMfa {
   optional string required = 1;
   // Authenticator-app issuer label; Zod default "vrx".
   optional string issuer = 2;
+}
+
+// AaaOidc mirrors `management.aaa.oidc` (F-aaa-login).
+message AaaOidc {
+  // IdP issuer URL (https; http only for a loopback host).
+  optional string issuer = 1;
+  // OAuth client id.
+  optional string client_id = 2;
+  // Reference to the client secret ("token/<name>").
+  optional string client_secret_ref = 3;
+  // Redirect URI registered at the IdP (…/api/v1/auth/oidc/callback).
+  optional string redirect_uri = 4;
+  // Requested scopes; Zod default ["openid","profile","email"].
+  repeated string scopes = 5;
+  // ID-token claim used as the login name; Zod default "preferred_username".
+  optional string username_claim = 6;
+  // ID-token claim listing groups; Zod default "groups".
+  optional string role_claim = 7;
 }
 
 

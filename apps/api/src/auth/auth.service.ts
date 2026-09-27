@@ -1,3 +1,4 @@
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, count, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
@@ -6,9 +7,18 @@ import { Bus } from '../infra/bus.js';
 import { VALKEY, type Valkey } from '../infra/valkey.js';
 import { ENV, type Env } from '../config.js';
 import { problems, ProblemError } from '../common/problem.js';
-import { clientKey, lowerRole, type Principal } from '../common/principal.js';
+import { clientKey, lowerRole, ROLE_RANK, type Principal } from '../common/principal.js';
 import { DB, type Db } from '../db/db.js';
-import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
+import { aaaExternalIdentity, apiKey, appUser, ROLES, type Role } from '../db/schema.js';
+import {
+  AaaService,
+  EXTERNAL_METHODS,
+  mfaRequiredFor,
+  type ExternalMethod,
+  type LoginPolicy,
+} from '../features/aaa/aaa.service.js';
+import { MfaService } from '../features/aaa/mfa.service.js';
+import { authorizationUrl, discover, newState, pkce, redeem } from '../features/aaa/oidc.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { Lockout, type LockSubject } from './lockout.js';
 import { hashPassword, verifyPassword } from './password.js';
@@ -36,11 +46,64 @@ function accountLocked(): ProblemError {
   );
 }
 
+/**
+ * F-aaa-login: an external identity has no local password, so a password step-up (API-key creation, own MFA
+ * set-up) cannot be satisfied from its login session. Refused (D-100 option (b); re-authenticating against the
+ * backend is the listed alternative).
+ */
+export function externalNoStepUp(): ProblemError {
+  return new ProblemError(
+    403,
+    'external-principal',
+    'Not available for external identities',
+    'this account logs in through an external identity source and has no local password to confirm this with',
+  );
+}
+
 /** The step-up of `POST /auth/api-keys` (D-100 (2)): the caller's current password and how the request arrived. */
 export interface KeyStepUp {
   current: string | undefined;
   /** `secureTransport(req)`: TLS or a loopback peer. */
   secure: boolean;
+}
+
+/** F-aaa-login: a login challenge lives this long (seconds) and takes this many wrong answers. */
+const MFA_CHALLENGE_SEC = 300;
+const MFA_CHALLENGE_TRIES = 5;
+/** D-159: an admin-issued MFA enrolment token lives this long (seconds). */
+const MFA_ENROL_TOKEN_SEC = 86_400;
+/** F-aaa-login: an OIDC authorisation request (state, PKCE verifier, nonce) lives this long (seconds). */
+const OIDC_STATE_SEC = 600;
+
+const sha256hex = (s: string) => createHash('sha256').update(s).digest('hex');
+const b64url = (n: number) => randomBytes(n).toString('base64url');
+/** Constant-time comparison of two hex digests. */
+const sameHex = (a: string, b: string) =>
+  a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+/** F-aaa-login: the first factor passed and a second one is needed (no session yet, no cookie). */
+export interface MfaChallenge {
+  mfaRequired: true;
+  /** single-use, 5 min; sent back to `POST /auth/mfa/verify` (and `/auth/mfa/enroll` when not enrolled yet) */
+  challenge: string;
+  /** false: the policy requires a factor this user has not set up — enrol first (the challenge allows only that) */
+  enrolled: boolean;
+  expiresIn: number;
+}
+
+interface StoredChallenge {
+  uid: number;
+  gen: number;
+  enrolled: boolean;
+  via: string;
+}
+
+/** A user whose first factor passed (local password or external backend + roleMap). */
+interface LocalOk {
+  id: number;
+  username: string;
+  role: Role;
+  credentialGen: number;
 }
 
 export interface LoginResult {
@@ -66,6 +129,9 @@ export class AuthService {
   private readonly lockout: Lockout;
   /** last system_event per throttled last admin (ms), so an attack writes one event a minute, not one per guess */
   private readonly throttleEventAt = new Map<number, number>();
+  /** F-aaa-login: login sessions known to have passed the second factor (positive cache of `mfasid:<sid>`) */
+  private readonly mfaSids = new Map<string, number>();
+  private readonly kv: Valkey;
 
   constructor(
     @Inject(DB) private readonly db: Db,
@@ -75,7 +141,10 @@ export class AuthService {
     private readonly bus: Bus,
     @Inject(VALKEY) kv: Valkey,
     private readonly events: SystemEventsService,
+    private readonly aaa: AaaService,
+    private readonly mfa: MfaService,
   ) {
+    this.kv = kv;
     this.lockout = new Lockout(kv, db, env);
   }
 
@@ -108,14 +177,116 @@ export class AuthService {
     return inserted.length > 0;
   }
 
-  /** `secure`: the request came over TLS or from a loopback peer (`secureTransport`, D-100 (1)). */
+  /**
+   * `secure`: the request came over TLS or from a loopback peer (`secureTransport`, D-100 (1)).
+   *
+   * F-aaa-login: the login walks `management.aaa.order` (running configuration). `local` answers for users that exist
+   * locally with a password (a name unknown locally falls through to the next method); an external method (RADIUS,
+   * LDAP) that ANSWERS is final — accept → roleMap → shadow user → session, reject → 401 (open question: local login
+   * is NOT tried after an external reject, only when every external method was unreachable and `fallbackLocal`).
+   * Every path ends in `finish()`, which demands the second factor when the MFA policy or the user's enrolment says so
+   * (then the answer is a short-lived challenge, not a session). With the default order `[local]` this is the P06
+   * login unchanged.
+   */
   async login(
     username: string,
     password: string,
     ip: string,
     secure: boolean,
-  ): Promise<LoginResult> {
-    const fail = async (reason: string, userId: number | null, status = 401) => {
+  ): Promise<LoginResult | MfaChallenge> {
+    const fail = this.failer(username, ip);
+    // D-100 (1), TD-4: the transport check comes FIRST — before the rate limiter, the user lookup and argon2 — so a
+    // password sent in clear by a remote peer is never acted on: no failed login counted, the lockout untouched
+    if (!secure) throw await fail('tls-required', null, 403);
+    // TD-10b (review 2.3b): `ip` is the client behind the trusted proxy, so this bucket is per client, not global
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw await fail('rate-limited', null, 429);
+    }
+    const policy = await this.aaa.policy();
+    const external = policy.order.filter((m): m is ExternalMethod =>
+      (EXTERNAL_METHODS as readonly string[]).includes(m),
+    );
+    if (external.length === 0)
+      return this.finish(await this.localLogin(username, password, ip), ip, policy, 'local');
+    // F-aaa-login: external attempts are also bounded per login NAME (all clients together), so a distributed spray
+    // cannot lock the account out in the directory behind us; the per-client bucket above still applies
+    if (
+      (await this.tokens.hit(`extlogin:${username.toLowerCase()}`, 60)) >
+      this.env.VRX_LOGIN_RATE_PER_MIN
+    ) {
+      throw await fail('rate-limited-name', null, 429);
+    }
+    // F-aaa-login (review 6): external identities are case-folded — shadow users, lockout and the name bucket agree
+    const name = username.toLowerCase();
+    let answered = false;
+    for (const m of policy.order) {
+      if (m === 'local') {
+        const [u] = await this.db
+          .select({ id: appUser.id, source: appUser.source })
+          .from(appUser)
+          .where(eq(appUser.username, username));
+        if (u !== undefined && u.source !== 'external') {
+          return this.finish(await this.localLogin(username, password, ip), ip, policy, 'local');
+        }
+        continue;
+      }
+      if (!(EXTERNAL_METHODS as readonly string[]).includes(m)) continue; // tacacs/oidc/saml: not in this build
+      const method = m as ExternalMethod;
+      // an existing shadow user locked from this client address takes no guess (and the directory sees none)
+      const [shadow] = await this.db
+        .select()
+        .from(appUser)
+        .where(and(eq(appUser.source, 'external'), sql`lower(${appUser.username}) = ${name}`));
+      if (shadow !== undefined) {
+        const st = await this.lockout.state(shadow, ip);
+        if (st !== 'open') throw await fail(st, shadow.id);
+      }
+      const r = await this.aaa.authenticate(method, username, password);
+      if (r.status === 'unreachable') {
+        await this.auditExternal(name, ip, method, null, 'unreachable', r.error);
+        continue;
+      }
+      // review 6: a directory that does not know the name has not judged the password — try the next method (so the
+      // break-glass local admin stays reachable behind an LDAP-first order)
+      if (r.status === 'notfound') {
+        await this.auditExternal(name, ip, method, r.server, 'reject', 'user not found');
+        continue;
+      }
+      answered = true;
+      if (r.status === 'reject') {
+        await this.auditExternal(name, ip, method, r.server, 'reject', r.message);
+        if (shadow !== undefined) {
+          const o = await this.lockout.fail(shadow, ip);
+          if (o === 'throttled') this.lastAdminThrottled(shadow, ip);
+          throw await fail(`${method}-reject`, shadow.id);
+        }
+        throw await fail(`${method}-reject`, null);
+      }
+      await this.auditExternal(name, ip, method, r.server, 'accept', null);
+      const u = await this.provision(name, method, r.subject, r.groups, ip, fail);
+      return this.finish(u, ip, policy, method);
+    }
+    // every external method was unreachable (none answered): the break-glass local login, if allowed
+    if (!answered && policy.fallbackLocal && !policy.order.includes('local')) {
+      const [u] = await this.db
+        .select({ source: appUser.source })
+        .from(appUser)
+        .where(eq(appUser.username, username));
+      if (u !== undefined && u.source !== 'external') {
+        return this.finish(
+          await this.localLogin(username, password, ip),
+          ip,
+          policy,
+          'local-fallback',
+        );
+      }
+    }
+    throw await fail(answered ? 'no-method-accepted' : 'all-methods-unreachable', null);
+  }
+
+  /** The audited failure of a login (the client only ever sees "invalid credentials", 429 or the transport 403). */
+  private failer(username: string, ip: string) {
+    return async (reason: string, userId: number | null, status = 401) => {
       await this.audit.write({
         userId,
         username,
@@ -132,18 +303,156 @@ export class AuthService {
           ? tlsRequired()
           : problems.unauthorized('invalid credentials');
     };
-    // D-100 (1), TD-4: the transport check comes FIRST — before the rate limiter, the user lookup and argon2 — so a
-    // password sent in clear by a remote peer is never acted on: no failed login counted, the lockout untouched
-    if (!secure) throw await fail('tls-required', null, 403);
-    // TD-10b (review 2.3b): `ip` is the client behind the trusted proxy, so this bucket is per client, not global
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
-      throw await fail('rate-limited', null, 429);
+  }
+
+  /** F-aaa-login: one audit row per external backend answer (method, server, result — never the password). */
+  private async auditExternal(
+    username: string,
+    ip: string,
+    method: string,
+    server: string | null,
+    result: 'accept' | 'reject' | 'unreachable',
+    detail: string | null,
+  ): Promise<void> {
+    await this.audit.write({
+      userId: null,
+      username,
+      sourceIp: ip,
+      action: 'auth.external',
+      resource: username,
+      after: { method, server, result, ...(detail === null ? {} : { detail }) },
+      result: result === 'accept' ? 'success' : 'failure',
+      status: result === 'accept' ? 200 : 401,
+    });
+  }
+
+  /**
+   * F-aaa-login: an accepted external identity → roleMap → its shadow app_user (source `external`, NO password hash,
+   * so it can never log in locally). Refused: no mapped group (403 `no-role-mapping`; an existing shadow user's
+   * sessions end — the directory removed its rights), a name owned by a LOCAL user (401: an external identity never
+   * takes over a local account), a disabled shadow user. A lower role than before bumps the credential generation
+   * (the older, higher-privileged sessions end), like a demotion through the config (TD-10b).
+   */
+  private async provision(
+    username: string,
+    method: string,
+    subject: string,
+    groups: string[],
+    ip: string,
+    fail: ReturnType<AuthService['failer']>,
+  ): Promise<LocalOk> {
+    const role = await this.aaa.roleFor(groups);
+    // review 1: the account belongs to an IDENTITY (method + subject: OIDC issuer|sub, LDAP entry DN, RADIUS name),
+    // not to a name. The first login binds the name; afterwards the name only ever reaches the same identity.
+    const [ident] = await this.db
+      .select({ userId: aaaExternalIdentity.userId })
+      .from(aaaExternalIdentity)
+      .where(and(eq(aaaExternalIdentity.method, method), eq(aaaExternalIdentity.subject, subject)));
+    let prev: typeof appUser.$inferSelect | undefined;
+    if (ident !== undefined) {
+      [prev] = await this.db.select().from(appUser).where(eq(appUser.id, ident.userId));
+      if (prev !== undefined && (prev.username !== username || prev.source !== 'external')) {
+        throw await fail('identity-name-mismatch', prev.id);
+      }
+    } else {
+      const [byName] = await this.db
+        .select({ id: appUser.id, source: appUser.source })
+        .from(appUser)
+        .where(sql`lower(${appUser.username}) = ${username}`);
+      if (byName !== undefined) {
+        throw await fail(
+          byName.source === 'external'
+            ? 'name-bound-to-other-identity'
+            : 'name-owned-by-local-user',
+          byName.id,
+        );
+      }
     }
+    if (role === null) {
+      if (prev !== undefined) {
+        await this.db
+          .update(appUser)
+          .set({ credentialGen: sql`${appUser.credentialGen} + 1` })
+          .where(eq(appUser.id, prev.id));
+        await this.tokens.revokeUser(prev.id, prev.credentialGen + 1);
+      }
+      await this.audit.write({
+        userId: prev?.id ?? null,
+        username,
+        sourceIp: ip,
+        action: 'auth.login',
+        resource: username,
+        after: { reason: 'no-role-mapping', method, groups },
+        result: 'failure',
+        status: 403,
+      });
+      throw new ProblemError(
+        403,
+        'no-role-mapping',
+        'Forbidden',
+        'the identity source accepted the credentials, but none of the user’s groups is mapped to a role',
+      );
+    }
+    if (prev?.disabled) throw await fail('disabled', prev.id);
+    if (prev?.lockedUntil != null && prev.lockedUntil > new Date())
+      throw await fail('locked', prev.id);
+    let row: typeof appUser.$inferSelect | undefined;
+    if (prev !== undefined) {
+      const demoted = ROLE_RANK[role] < ROLE_RANK[prev.role];
+      [row] = await this.db
+        .update(appUser)
+        .set({
+          role,
+          lastLogin: new Date(),
+          failedLogins: 0,
+          ...(demoted ? { credentialGen: sql`${appUser.credentialGen} + 1` } : {}),
+        })
+        .where(and(eq(appUser.id, prev.id), eq(appUser.source, 'external')))
+        .returning();
+      if (row !== undefined && demoted) await this.tokens.revokeUser(row.id, row.credentialGen);
+      await this.db
+        .update(aaaExternalIdentity)
+        .set({ lastGroups: groups, lastLogin: new Date() })
+        .where(eq(aaaExternalIdentity.userId, prev.id));
+    } else {
+      // first login: the account and its identity binding in ONE transaction; a parallel first login of another
+      // identity with the same name loses on the username index, the same identity twice on (method, subject)
+      try {
+        row = await this.db.transaction(async (tx) => {
+          const [r] = await tx
+            .insert(appUser)
+            .values({
+              username,
+              role,
+              source: 'external',
+              passwordHash: null,
+              lastLogin: new Date(),
+            })
+            .returning();
+          await tx
+            .insert(aaaExternalIdentity)
+            .values({ userId: r!.id, method, subject, lastGroups: groups, lastLogin: new Date() });
+          return r;
+        });
+      } catch {
+        row = undefined;
+      }
+    }
+    if (row === undefined) throw await fail('identity-race', null);
+    if (!(await this.lockout.admit(row, ip))) throw await fail('locked', row.id);
+    return { id: row.id, username: row.username, role: row.role, credentialGen: row.credentialGen };
+  }
+
+  /** P06/TD-10b local password check with the lockout; returns the user whose session may be issued. */
+  private async localLogin(username: string, password: string, ip: string): Promise<LocalOk> {
+    const fail = this.failer(username, ip);
     // D-097 (review H2, verify V1): hash and credential generation come from ONE row read, so the session below is
     // issued under the generation that goes with the password that was checked
     const [u] = await this.db.select().from(appUser).where(eq(appUser.username, username));
     const ok = await verifyPassword(u?.passwordHash, password);
     if (u === undefined) throw await fail('unknown-user', null);
+    // F-aaa-login: an external identity's shadow user never logs in with a local password
+    if (u.source === 'external') throw await fail('external-no-local-login', u.id);
     const now = new Date();
     // account-wide: a wrong password checked INSIDE a session of this account locked it (step-up, own-password change)
     if (u.lockedUntil !== null && u.lockedUntil > now) throw await fail('locked', u.id);
@@ -189,18 +498,501 @@ export class AuthService {
         u.id,
       );
     }
+    return { id: u.id, username: u.username, role: u.role, credentialGen: u.credentialGen };
+  }
+
+  /**
+   * The first factor passed. F-aaa-login: when the MFA policy covers the user's role, or the user enrolled a factor,
+   * no session is issued — a single-use challenge (5 min, bound to the credential generation) is returned instead;
+   * `POST /auth/mfa/verify` (or enrolment first, when the policy requires a factor the user has not set up) turns it
+   * into the session.
+   */
+  private async finish(
+    u: LocalOk,
+    ip: string,
+    policy: LoginPolicy,
+    via: string,
+  ): Promise<LoginResult | MfaChallenge> {
+    const enrolled = await this.mfa.enrolled(u.id);
+    if (enrolled || mfaRequiredFor(policy.mfaRequired, u.role)) {
+      const challenge = b64url(32);
+      const c: StoredChallenge = { uid: u.id, gen: u.credentialGen, enrolled, via };
+      await this.kv.set(
+        `mfach:${sha256hex(challenge)}`,
+        JSON.stringify(c),
+        'EX',
+        MFA_CHALLENGE_SEC,
+      );
+      await this.audit.write({
+        userId: u.id,
+        username: u.username,
+        sourceIp: ip,
+        action: 'auth.login',
+        resource: u.username,
+        after: { step: 'password-ok-mfa-pending', via },
+        result: 'success',
+        status: 200,
+      });
+      return { mfaRequired: true, challenge, enrolled, expiresIn: MFA_CHALLENGE_SEC };
+    }
+    return this.issueLogin(u, ip, via, false);
+  }
+
+  private async issueLogin(
+    u: LocalOk,
+    ip: string,
+    via: string,
+    mfa: boolean,
+  ): Promise<LoginResult> {
     const s = await this.session({ id: u.id, username: u.username, role: u.role }, u.credentialGen);
-    if (s === null || s === 'expired') throw await fail('credentials-changed-during-login', u.id);
+    if (s === null || s === 'expired') {
+      throw await this.failer(u.username, ip)('credentials-changed-during-login', u.id);
+    }
+    if (mfa) await this.markMfa(s.refreshToken.split('.')[0]!);
     await this.audit.write({
       userId: u.id,
       username: u.username,
       sourceIp: ip,
       action: 'auth.login',
       resource: u.username,
+      after: { via, mfa },
       result: 'success',
       status: 200,
     });
     return s;
+  }
+
+  /** The login session `sid` passed the second factor (kept for the session's maximum life). */
+  private async markMfa(sid: string): Promise<void> {
+    this.rememberMfa(sid);
+    await this.kv.set(`mfasid:${sid}`, '1', 'EX', this.tokens.sessionMax);
+  }
+
+  private async sidHasMfa(sid: string | undefined): Promise<boolean> {
+    if (sid === undefined) return false;
+    const until = this.mfaSids.get(sid);
+    if (until !== undefined && until > Date.now()) return true;
+    const ok = (await this.kv.get(`mfasid:${sid}`)) === '1';
+    if (ok) this.rememberMfa(sid);
+    else this.mfaSids.delete(sid);
+    return ok;
+  }
+
+  /** Positive cache entry for `sid` (≤ the access-token lifetime, so a revoked session is re-read); pruned. */
+  private rememberMfa(sid: string): void {
+    const now = Date.now();
+    if (this.mfaSids.size >= 10_000) {
+      for (const [k, t] of this.mfaSids) if (t <= now) this.mfaSids.delete(k);
+      if (this.mfaSids.size >= 10_000) this.mfaSids.clear();
+    }
+    this.mfaSids.set(sid, now + this.tokens.accessTtl * 1000);
+  }
+
+  /**
+   * F-aaa-login — no stale-session bypass: a JWT session of a role the MFA policy covers must have passed the second
+   * factor. Checked on every authenticated request (policy cached ≤ 5 s) and on refresh, so a session opened before
+   * `mfa.required` was raised stops working at once. (A user's own enrolment ends their other sessions instead.)
+   */
+  private async mfaMissing(role: Role, sid: string | undefined): Promise<boolean> {
+    let policy: LoginPolicy;
+    try {
+      policy = await this.aaa.cachedPolicy();
+    } catch {
+      // review 7: fail CLOSED — without a readable policy only a session that passed the second factor is let in
+      try {
+        return !(await this.sidHasMfa(sid));
+      } catch {
+        return true;
+      }
+    }
+    if (!mfaRequiredFor(policy.mfaRequired, role)) return false;
+    return !(await this.sidHasMfa(sid));
+  }
+
+  /** Resolve a login challenge (not consumed); null when unknown/expired or the account changed since. */
+  private async challengeUser(
+    challenge: string,
+  ): Promise<{ c: StoredChallenge; u: typeof appUser.$inferSelect } | null> {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(challenge)) return null;
+    const raw = await this.kv.get(`mfach:${sha256hex(challenge)}`);
+    if (raw === null) return null;
+    const c = JSON.parse(raw) as StoredChallenge;
+    const [u] = await this.db.select().from(appUser).where(eq(appUser.id, c.uid));
+    if (u === undefined || u.disabled || u.credentialGen !== c.gen) return null;
+    if (u.lockedUntil !== null && u.lockedUntil > new Date()) return null;
+    return { c, u };
+  }
+
+  /**
+   * `POST /auth/mfa/enroll` with a login challenge: the MFA policy requires a factor this user has not set up — the
+   * new TOTP secret is returned ONCE; `mfa/verify` with a code from it enables it and issues the session.
+   */
+  async mfaEnrollWithChallenge(challenge: string, token: string, ip: string, secure: boolean) {
+    if (!secure) throw tlsRequired();
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const r = await this.challengeUser(challenge);
+    if (r === null || r.c.enrolled) throw problems.unauthorized('invalid or expired challenge');
+    // review 5: exactly ONE enrolment attempt per challenge (right or wrong token)
+    const once = await this.kv.set(
+      `mfach:${sha256hex(challenge)}:enrol`,
+      '1',
+      'EX',
+      MFA_CHALLENGE_SEC,
+      'NX',
+    );
+    if (once !== 'OK') throw problems.unauthorized('invalid or expired challenge');
+    if (!(await this.consumeEnrolmentToken(r.u.id, r.u.credentialGen, token))) {
+      await this.audit.write({
+        userId: r.u.id,
+        username: r.u.username,
+        sourceIp: ip,
+        action: 'auth.mfa.enroll',
+        resource: `user/${r.u.username}`,
+        after: { reason: 'bad-enrolment-token', via: 'login-challenge' },
+        result: 'failure',
+        status: 401,
+      });
+      throw problems.unauthorized('invalid enrolment token or challenge');
+    }
+    const policy = await this.aaa.policy();
+    const e = await this.mfa.begin(r.u.id, r.u.username, policy.mfaIssuer);
+    if (e === null) throw problems.unauthorized('invalid or expired challenge');
+    await this.audit.write({
+      userId: r.u.id,
+      username: r.u.username,
+      sourceIp: ip,
+      action: 'auth.mfa.enroll',
+      resource: `user/${r.u.username}`,
+      after: { step: 'secret-issued', via: 'login-challenge' },
+      result: 'success',
+      status: 200,
+    });
+    return e;
+  }
+
+  /**
+   * `POST /auth/mfa/verify`: the second login step. A TOTP code (each time step once) or a recovery code (once).
+   * At most MFA_CHALLENGE_TRIES wrong answers per challenge (then it is gone); every wrong answer counts toward the
+   * login lockout of the account from this client address, like a wrong password. On success the challenge is
+   * consumed (atomically: GETDEL, so two parallel verifies cannot both win) and the session is issued, flagged as
+   * MFA-verified. A pending enrolment is enabled here and its recovery codes are returned once.
+   */
+  async mfaVerify(
+    challenge: string,
+    answer: { code?: string; recoveryCode?: string },
+    ip: string,
+    secure: boolean,
+  ): Promise<LoginResult & { recoveryCodes?: string[] }> {
+    // review 4: the D-100 (1) transport rule of every login step
+    if (!secure) throw tlsRequired();
+    const fail = async (reason: string, uid: number | null, name: string | null) => {
+      await this.audit.write({
+        userId: uid,
+        username: name,
+        sourceIp: ip,
+        action: 'auth.mfa.verify',
+        resource: name,
+        after: { reason },
+        result: 'failure',
+        status: 401,
+      });
+      return problems.unauthorized('invalid code or challenge');
+    };
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const r = await this.challengeUser(challenge);
+    if (r === null) throw await fail('invalid-challenge', null, null);
+    const { c, u } = r;
+    const key = `mfach:${sha256hex(challenge)}`;
+    if ((await this.lockout.state(u, ip)) !== 'open') throw await fail('locked', u.id, u.username);
+    let ok = false;
+    let how = 'totp';
+    if (answer.code !== undefined) ok = await this.mfa.verifyCode(u.id, answer.code, !c.enrolled);
+    else if (answer.recoveryCode !== undefined && c.enrolled) {
+      how = 'recovery-code';
+      ok = await this.mfa.useRecovery(u.id, answer.recoveryCode);
+    }
+    if (!ok) {
+      const n = await this.kv.incr(`${key}:n`);
+      await this.kv.expire(`${key}:n`, MFA_CHALLENGE_SEC);
+      if (n >= MFA_CHALLENGE_TRIES) await this.kv.del(key);
+      const o = await this.lockout.fail(u, ip);
+      if (o === 'throttled') this.lastAdminThrottled(u, ip);
+      throw await fail(`bad-${how}`, u.id, u.username);
+    }
+    // single use: whoever deletes the challenge first gets the session
+    if ((await this.kv.del(key)) !== 1)
+      throw await fail('challenge-already-used', u.id, u.username);
+    let recoveryCodes: string[] | undefined;
+    if (!c.enrolled) {
+      recoveryCodes = await this.mfa.activate(u.id);
+      await this.audit.write({
+        userId: u.id,
+        username: u.username,
+        sourceIp: ip,
+        action: 'auth.mfa.enroll',
+        resource: `user/${u.username}`,
+        after: { step: 'enabled', via: 'login-challenge' },
+        result: 'success',
+        status: 200,
+      });
+    }
+    const s = await this.issueLogin(
+      { id: u.id, username: u.username, role: u.role, credentialGen: u.credentialGen },
+      ip,
+      `${c.via}+${how}`,
+      true,
+    );
+    return recoveryCodes === undefined ? s : { ...s, recoveryCodes };
+  }
+
+  /** F-aaa-login: is OpenID Connect single sign-on offered (the login page shows the button)? */
+  async oidcEnabled(): Promise<boolean> {
+    return (await this.aaa.oidcConfig()) !== null;
+  }
+
+  /**
+   * `GET /auth/oidc/start`: the IdP authorisation URL (code flow + PKCE S256 + nonce). The state is single use, 10 min,
+   * kept server-side with the PKCE verifier and the nonce. Rate-limited with the password logins of this client.
+   */
+  async oidcStart(ip: string, secure: boolean): Promise<{ url: string; binding: string }> {
+    // review 4: the D-100 (1) transport rule of every login step
+    if (!secure) throw tlsRequired();
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const cfg = await this.aaa.oidcConfig();
+    if (cfg === null) throw problems.notFound('OpenID Connect login is not configured');
+    let d;
+    try {
+      d = await discover(cfg.issuer);
+    } catch (e) {
+      throw problems.unavailable(
+        `the identity provider cannot be reached (${(e as Error).message})`,
+      );
+    }
+    const { state, nonce } = newState();
+    const p = pkce();
+    // review 3: the state is bound to THIS browser — a random value in a short-lived httpOnly cookie, its hash kept
+    // with the state; a callback URL replayed in another browser (login CSRF / session fixation) has no match
+    const binding = b64url(32);
+    await this.kv.set(
+      `oidcst:${sha256hex(state)}`,
+      JSON.stringify({ verifier: p.verifier, nonce, bind: sha256hex(binding) }),
+      'EX',
+      OIDC_STATE_SEC,
+    );
+    return { url: authorizationUrl(d, cfg, { state, nonce, challenge: p.challenge }), binding };
+  }
+
+  /**
+   * `GET /auth/oidc/callback`: the state is consumed (GETDEL — single use), the code redeemed with the PKCE verifier,
+   * the ID token verified; its user → roleMap → shadow user → `finish()` (so the MFA policy applies to SSO logins
+   * too). Every outcome is audited as `auth.external` / `auth.login` with method `oidc`; the caller only gets a slug.
+   */
+  async oidcCallback(
+    code: string | undefined,
+    state: string | undefined,
+    binding: string | undefined,
+    ip: string,
+    secure: boolean,
+  ): Promise<LoginResult | MfaChallenge> {
+    if (!secure) throw tlsRequired();
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+      throw problems.tooMany('too many login attempts; try again in a minute');
+    }
+    const fail = this.failer('(oidc)', ip);
+    if (!code || !state || !/^[A-Za-z0-9_-]{16,128}$/.test(state) || code.length > 2048) {
+      throw await fail('oidc-bad-callback', null);
+    }
+    const raw = await this.kv.getdel(`oidcst:${sha256hex(state)}`);
+    if (raw === null) throw await fail('oidc-unknown-state', null);
+    const st = JSON.parse(raw) as { verifier: string; nonce: string; bind: string };
+    if (!binding || !/^[A-Za-z0-9_-]{43}$/.test(binding) || !sameHex(sha256hex(binding), st.bind)) {
+      throw await fail('oidc-browser-mismatch', null);
+    }
+    const cfg = await this.aaa.oidcConfig();
+    if (cfg === null) throw await fail('oidc-not-configured', null);
+    const secretVal = await this.aaa.oidcClientSecret(cfg.clientSecretRef);
+    if (secretVal === null) {
+      await this.auditExternal(
+        '(oidc)',
+        ip,
+        'oidc',
+        cfg.issuer,
+        'unreachable',
+        `secret ${cfg.clientSecretRef} not found`,
+      );
+      throw await fail('oidc-secret-missing', null);
+    }
+    let who;
+    try {
+      who = await redeem(await discover(cfg.issuer), cfg, secretVal, code, st.verifier, st.nonce);
+    } catch (e) {
+      await this.auditExternal('(oidc)', ip, 'oidc', cfg.issuer, 'reject', (e as Error).message);
+      throw await fail('oidc-token-refused', null);
+    }
+    // review 1: the account is bound to the IdP subject (issuer|sub); the name claim only names it on first login
+    const name = who.username.toLowerCase();
+    await this.auditExternal(name, ip, 'oidc', cfg.issuer, 'accept', null);
+    const u = await this.provision(
+      name,
+      'oidc',
+      `${cfg.issuer}|${who.subject}`,
+      who.groups,
+      ip,
+      this.failer(name, ip),
+    );
+    return this.finish(u, ip, await this.aaa.policy(), 'oidc');
+  }
+
+  /**
+   * D-159 (review 5): MFA enrolment is ADMIN-ISSUED. An admin creates a one-time enrolment token for a user (shown
+   * once, valid MFA_ENROL_TOKEN_SEC, bound to the user's credential generation — a password reset voids it; a new
+   * token replaces the old one). The user presents it at the login-time enrolment or the voluntary set-up. No
+   * trust-on-first-use: holding the password alone never binds an authenticator.
+   */
+  async issueEnrolmentToken(name: string): Promise<{ token: string; expiresIn: number }> {
+    const [u] = await this.db
+      .select({ id: appUser.id, gen: appUser.credentialGen })
+      .from(appUser)
+      .where(eq(appUser.username, name));
+    if (u === undefined) throw problems.notFound(`user '${name}' does not exist`);
+    if (await this.mfa.enrolled(u.id)) {
+      throw problems.conflict(
+        'mfa-already-enrolled',
+        `user '${name}' already has a second factor; reset it first`,
+      );
+    }
+    const token = b64url(24);
+    await this.kv.set(
+      `mfaenrol:${u.id}`,
+      JSON.stringify({ hash: sha256hex(token), gen: u.gen }),
+      'EX',
+      MFA_ENROL_TOKEN_SEC,
+    );
+    return { token, expiresIn: MFA_ENROL_TOKEN_SEC };
+  }
+
+  async revokeEnrolmentToken(name: string): Promise<void> {
+    const [u] = await this.db
+      .select({ id: appUser.id })
+      .from(appUser)
+      .where(eq(appUser.username, name));
+    if (u === undefined) throw problems.notFound(`user '${name}' does not exist`);
+    if ((await this.kv.del(`mfaenrol:${u.id}`)) === 0) {
+      throw problems.notFound(`user '${name}' has no open enrolment token`);
+    }
+  }
+
+  /** The token matches the user's open one (and generation): consumed — exactly one caller wins (DEL = 1). */
+  private async consumeEnrolmentToken(uid: number, gen: number, token: string): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]{32}$/.test(token)) return false;
+    const key = `mfaenrol:${uid}`;
+    const raw = await this.kv.get(key);
+    if (raw === null) return false;
+    const t = JSON.parse(raw) as { hash: string; gen: number };
+    if (t.gen !== gen || !sameHex(sha256hex(token), t.hash)) return false;
+    return (await this.kv.del(key)) === 1;
+  }
+
+  /** `GET /auth/mfa`: the caller's second-factor state and the policy that applies to them. */
+  async mfaStatus(user: Principal) {
+    const st = await this.mfa.status(user.id);
+    const policy = await this.aaa.cachedPolicy();
+    return { ...st, required: mfaRequiredFor(policy.mfaRequired, user.role) };
+  }
+
+  /**
+   * `POST /auth/mfa/setup` (voluntary enrolment from a login session): step-up with the current password first —
+   * a stolen access token must not bind the attacker's authenticator to the account (the D-100 rule for API keys).
+   * External identities have no local password: refused (they enrol during login when the policy requires it).
+   */
+  async mfaSetup(user: Principal, current: string, token: string, secure: boolean) {
+    if (user.via !== 'jwt') {
+      throw problems.forbidden(
+        'a second factor is set up from a login session, not with an API key',
+      );
+    }
+    if (!secure) throw tlsRequired();
+    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) {
+      throw problems.tooMany('too many password checks; try again in a minute');
+    }
+    const gen = await this.checkCurrent(user, current);
+    if (await this.mfa.enrolled(user.id)) {
+      throw problems.conflict(
+        'mfa-already-enrolled',
+        'a second factor is already enabled; an admin reset removes it first',
+      );
+    }
+    // review 5 (D-159): enrolment is admin-issued — the one-time token an admin created for this user
+    if (!(await this.consumeEnrolmentToken(user.id, gen, token))) {
+      throw problems.forbidden('invalid or expired enrolment token (an administrator issues one)', [
+        { pointer: '/token', message: 'invalid or expired' },
+      ]);
+    }
+    const policy = await this.aaa.policy();
+    const e = await this.mfa.begin(user.id, user.username, policy.mfaIssuer);
+    if (e === null) {
+      throw problems.conflict(
+        'mfa-already-enrolled',
+        'a second factor is already enabled; an admin reset removes it first',
+      );
+    }
+    return e;
+  }
+
+  /**
+   * `POST /auth/mfa/activate`: the first code from the new authenticator enables the factor. The user's OTHER
+   * sessions end (they never passed it — no stale-session bypass); this one continues, flagged as MFA-verified.
+   * Recovery codes are returned once.
+   */
+  async mfaActivate(user: Principal, code: string) {
+    if (user.via !== 'jwt' || user.sid === undefined) {
+      throw problems.forbidden(
+        'a second factor is set up from a login session, not with an API key',
+      );
+    }
+    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) {
+      throw problems.tooMany('too many attempts; try again in a minute');
+    }
+    if (!(await this.mfa.verifyCode(user.id, code, true))) {
+      throw problems.badRequest('the code does not match the authenticator being set up', [
+        { pointer: '/code', message: 'invalid code' },
+      ]);
+    }
+    const recoveryCodes = await this.mfa.activate(user.id);
+    const [g] = await this.db
+      .update(appUser)
+      .set({ credentialGen: sql`${appUser.credentialGen} + 1` })
+      .where(eq(appUser.id, user.id))
+      .returning({ gen: appUser.credentialGen });
+    if (g !== undefined) await this.tokens.revokeUser(user.id, g.gen, user.sid);
+    await this.markMfa(user.sid);
+    return { recoveryCodes };
+  }
+
+  /**
+   * `DELETE /auth/mfa/users/{name}` (admin): a lost authenticator. The factor and its recovery codes are deleted and
+   * the user's sessions end; with a policy that requires MFA the user enrols again at the next login.
+   */
+  async mfaReset(name: string): Promise<void> {
+    const [u] = await this.db
+      .select({ id: appUser.id })
+      .from(appUser)
+      .where(eq(appUser.username, name));
+    if (u === undefined) throw problems.notFound(`user '${name}' does not exist`);
+    if (!(await this.mfa.reset(u.id)))
+      throw problems.notFound(`user '${name}' has no second factor`);
+    const [g] = await this.db
+      .update(appUser)
+      .set({ credentialGen: sql`${appUser.credentialGen} + 1` })
+      .where(eq(appUser.id, u.id))
+      .returning({ gen: appUser.credentialGen });
+    if (g !== undefined) await this.tokens.revokeUser(u.id, g.gen);
   }
 
   /** The last admin was throttled instead of locked: one system_event per admin and minute (visible, not a flood). */
@@ -334,6 +1126,11 @@ export class AuthService {
     if (u === undefined) throw await refuse('user-deleted', r.uid);
     if (u.disabled) throw await refuse('disabled', u.id);
     if (u.lockedUntil !== null && u.lockedUntil > new Date()) throw await refuse('locked', u.id);
+    // F-aaa-login: a session that never passed the second factor does not outlive a policy that now demands it
+    if (await this.mfaMissing(u.role, r.family)) {
+      await this.tokens.endSid(r.family, u.id);
+      throw await refuse('mfa-required', u.id);
+    }
     // verify V1/V3: the chain continues only under the generation PostgreSQL holds NOW (a reset commits it first)
     const s = await this.session(
       { id: u.id, username: u.username, role: u.role },
@@ -401,7 +1198,10 @@ export class AuthService {
     if (!value) return null;
     if (scheme?.toLowerCase() === 'bearer') {
       const c = await this.tokens.verifyAccess(value);
-      return c === null ? null : { ...c, via: 'jwt' };
+      if (c === null) return null;
+      // F-aaa-login: no stale-session bypass of the MFA policy (see mfaMissing)
+      if (await this.mfaMissing(c.role, c.sid)) return null;
+      return { ...c, via: 'jwt' };
     }
     if (scheme?.toLowerCase() === 'apikey') return this.authenticateApiKey(value);
     return null;
@@ -558,6 +1358,9 @@ export class AuthService {
       throw problems.unauthorized('the password was changed; log in again');
     }
     if (u.lockedUntil !== null && u.lockedUntil > new Date()) throw accountLocked();
+    // F-aaa-login (D-100 for external principals, option "refuse"): an account without a local password (an external
+    // identity's shadow user) has nothing to step up with — refused, never counted toward the lockout
+    if (u.hash === null) throw externalNoStepUp();
     if (!(await verifyPassword(u.hash, current))) {
       // review H1: the lock this failure caused answers exactly like any other `locked`
       if (await this.registerFailure(user.id)) throw accountLocked();

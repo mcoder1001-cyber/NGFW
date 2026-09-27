@@ -437,6 +437,33 @@ export class CommitService implements OnApplicationShutdown {
   // ------------------------------------------------------------------------------------------------ commit
 
   /** Validate the candidate without applying: 200 with plan/warnings, 400 with pointers. */
+  /**
+   * F-aaa-login (review 2): a configured user may not reuse the name of an external identity's shadow user (compared
+   * case-insensitively) — promoting it would put a local password on the external account. Refused with a pointer;
+   * the admin picks another name (or removes the shadow user first).
+   */
+  private async assertNoExternalUserCollision(doc: Doc): Promise<void> {
+    const mgmt = doc['management'] as { users?: { username?: unknown }[] } | undefined;
+    const users = Array.isArray(mgmt?.users) ? mgmt.users : [];
+    const names = users.map((u) => (typeof u?.username === 'string' ? u.username : ''));
+    const taken = (await this.repo.externalUsernames?.(names.filter((n) => n !== ''))) ?? [];
+    if (taken.length === 0) return;
+    const lower = new Set(taken.map((n) => n.toLowerCase()));
+    const errors = names.flatMap((n, i) =>
+      lower.has(n.toLowerCase())
+        ? [
+            {
+              pointer: `/management/users/${i}/username`,
+              message: `'${n}' is the account of an external identity (RADIUS/LDAP/OIDC); choose another name`,
+            },
+          ]
+        : [],
+    );
+    throw problems.validation(errors, 'a configured user collides with an external identity', {
+      tier: 'api',
+    });
+  }
+
   async validateCandidate(user: Principal): Promise<{
     ok: true;
     warnings: ProblemIssue[];
@@ -448,6 +475,7 @@ export class CommitService implements OnApplicationShutdown {
     const doc = c.payload ?? running?.payload;
     if (doc === undefined) return { ok: true, warnings: [], plan: [], notApplied: [] };
     await this.assertMayApply(user, running?.payload ?? emptyDocument(), doc);
+    await this.assertNoExternalUserCollision(doc);
     const v = await this.validation.validate(doc, `validate-${randomUUID()}`, {
       dryRunMs: this.budget.dryRunMs,
       running: running?.payload ?? emptyDocument(), // F-rule-expiry: expiry in the past on new/changed rules
@@ -768,6 +796,7 @@ export class CommitService implements OnApplicationShutdown {
     const running = await this.repo.latestRevision();
     const runningDoc = running?.payload ?? emptyDocument();
     await this.assertMayApply(user, runningDoc, doc);
+    await this.assertNoExternalUserCollision(doc);
     const txnId = randomUUID();
     // F-rule-expiry: a user commit may not add (or re-date) a rule that is already expired; a rollback restores an
     // old revision as it was, expired rules included (the agent leaves them out of the data plane)

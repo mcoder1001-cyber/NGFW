@@ -1,0 +1,100 @@
+{
+  "nav": "Login & MFA",
+  "title": "Login methods and two-factor authentication",
+  "intro": "External identity sources (RADIUS, LDAP, OpenID Connect) and the MFA policy are set under Management › AAA in the configuration. Here you test a backend and manage your own second factor.",
+  "sso": {
+    "button": "Sign in with single sign-on",
+    "or": "or",
+    "error": {
+      "no-role-mapping": "Your identity provider accepted you, but none of your groups is mapped to a role on this device.",
+      "rate-limited": "Too many login attempts; try again in a minute.",
+      "oidc-not-configured": "Single sign-on is not configured.",
+      "oidc-unavailable": "The identity provider cannot be reached.",
+      "oidc-failed": "Single sign-on failed. Try again or sign in with a password."
+    }
+  },
+  "step": {
+    "title": "Two-factor authentication",
+    "enter": "Enter the 6-digit code from your authenticator app.",
+    "code": "Authentication code",
+    "recovery": "Recovery code",
+    "useRecovery": "Use a recovery code instead",
+    "useCode": "Use the authenticator code",
+    "verify": "Verify",
+    "verifying": "Verifying…",
+    "cancel": "Back to sign-in",
+    "invalid": "The code was not accepted. Codes can be used only once; wait for the next one.",
+    "expired": "The sign-in step expired. Sign in again.",
+    "enrolTitle": "Set up two-factor authentication",
+    "enrolIntro": "Add this key to an authenticator app (TOTP, 6 digits, 30 seconds), then enter the first code.",
+    "secret": "Secret key",
+    "uri": "Setup link (otpauth)",
+    "shownOnce": "This key is shown only once.",
+    "token": "Enrolment token",
+    "tokenIntro": "Your administrator requires a second factor. Enter the one-time enrolment token your administrator gave you.",
+    "tokenInvalid": "The enrolment token was not accepted. Sign in again and ask your administrator for a new token if needed."
+  },
+  "recovery": {
+    "title": "Save your recovery codes",
+    "intro": "Each code signs you in once if you lose your authenticator. They are shown only now — store them somewhere safe.",
+    "copy": "Copy codes",
+    "done": "I have saved them"
+  },
+  "mine": {
+    "title": "My second factor",
+    "enrolled": "Two-factor authentication is on.",
+    "notEnrolled": "Two-factor authentication is off.",
+    "required": "The MFA policy requires it for your role.",
+    "left": "Recovery codes left: {{count}}",
+    "setup": "Set up two-factor authentication",
+    "current": "Current password",
+    "start": "Continue",
+    "activate": "Turn on",
+    "activated": "Two-factor authentication is on. Your other sessions were signed out.",
+    "lost": "Lost your authenticator? Use a recovery code at sign-in, or ask an administrator to reset your second factor.",
+    "tokenHelp": "One-time token from an administrator"
+  },
+  "test": {
+    "title": "Test an identity source",
+    "intro": "Checks a user name and password against a configured backend. No session is created; the password is not stored.",
+    "method": "Method",
+    "username": "User name",
+    "password": "Password",
+    "run": "Test",
+    "running": "Testing…",
+    "reachable": "reachable",
+    "unreachable": "unreachable",
+    "accepted": "accepted",
+    "rejected": "rejected",
+    "groups": "Groups",
+    "role": "Role",
+    "noRole": "no role (login would be refused)",
+    "adminOnly": "Only administrators can test identity sources."
+  },
+  "reset": {
+    "action": "Reset second factor",
+    "confirm": "Remove the second factor of {{user}}? Their sessions end; with an MFA policy they set it up again at the next sign-in.",
+    "done": "Second factor removed."
+  },
+  "password": {
+    "action": "Set password",
+    "title": "Set the password of {{user}}",
+    "new": "New password",
+    "repeat": "Repeat the new password",
+    "mismatch": "The passwords differ",
+    "minLength": "At least {{min}} characters",
+    "keepKeys": "Keep this user's API keys (service accounts)",
+    "endsSessions": "The user's sessions end. Their API keys are revoked unless you keep them.",
+    "submit": "Set password",
+    "done": "Password set."
+  },
+  "enrolToken": {
+    "action": "MFA enrolment token",
+    "title": "MFA enrolment token for {{user}}",
+    "intro": "Setting up a second factor needs a one-time token issued here. Give it to the user over a trusted channel. It is valid for 24 hours; issuing a new one replaces the old one.",
+    "issue": "Issue token",
+    "revoke": "Revoke token",
+    "shown": "Shown only now — give it to the user:",
+    "revoked": "Enrolment token revoked."
+  }
+}

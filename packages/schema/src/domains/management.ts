@@ -11,7 +11,13 @@ import {
 import { withUi } from '../ui.js';
 import { DEFAULT_VRF } from './vrfs.js';
 import { syslogTargetExtKeys } from './ext/syslog.js'; // F-unbound-chrony-syslog (SY4)
-import { aaaFallbackLocalField, aaaLdapField, aaaMfaField, aaaRoleMapField } from './ext/aaa.js'; // wave-BC: F-aaa
+import {
+  aaaFallbackLocalField,
+  aaaLdapField,
+  aaaMfaField,
+  aaaOidcField,
+  aaaRoleMapField,
+} from './ext/aaa.js'; // wave-BC: F-aaa
 import { managementAlarmsField, managementPrometheusField } from './ext/dashboard-prom-alarms.js'; // wave-BC: F-dashboard-prom-alarms
 
 /**
@@ -106,7 +112,7 @@ export const TacacsServerSchema = z.strictObject({
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 5 }),
 });
 
-export const AuthMethod = z.enum(['local', 'radius', 'tacacs', 'ldap']);
+export const AuthMethod = z.enum(['local', 'radius', 'tacacs', 'ldap', 'oidc']);
 export type AuthMethod = z.infer<typeof AuthMethod>;
 
 export const AaaSchema = z
@@ -142,6 +148,7 @@ export const AaaSchema = z
     // F-aaa also widens AuthMethod and order.max(3) in place (SY4).
     // wave-BC: F-aaa
     ldap: aaaLdapField,
+    oidc: aaaOidcField,
     roleMap: aaaRoleMapField,
     mfa: aaaMfaField,
     fallbackLocal: aaaFallbackLocalField,
@@ -161,6 +168,14 @@ export const AaaSchema = z
   .refine((aaa) => !aaa.order.includes('ldap') || aaa.ldap.servers.length > 0, {
     message: 'ldap is in the authentication order but no LDAP server is configured',
     path: ['ldap', 'servers'],
+  })
+  .refine((aaa) => !aaa.order.includes('oidc') || aaa.oidc !== undefined, {
+    message: 'oidc is in the authentication order but OpenID Connect is not configured',
+    path: ['oidc'],
+  })
+  .refine((aaa) => aaa.oidc === undefined || aaa.oidc.scopes.includes('openid'), {
+    message: 'OpenID Connect scopes must include openid',
+    path: ['oidc', 'scopes'],
   });
 
 export const TlsSchema = z

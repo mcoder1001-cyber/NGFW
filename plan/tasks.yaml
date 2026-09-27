@@ -1816,7 +1816,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D8.1
@@ -1832,7 +1832,7 @@ tasks:
   worktree: ''
   owner: cloud session charming-johnson
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: 'prompts-s4: suggested deps soft +F-startup-gen only if the VPP prom plugin path is chosen — docs/status/tasks/prompts-s4.md | D-125 envelope: POST /api/v1/actions/clear-counters through the generic
     Action bridge (review 6.3b, +1 h) | 2026-09-26 (D-153): the dashboard page belongs to WEB-dashboard (merged); this row adds its alarms card through apps/web/src/domains/dashboard/overview/cards.ts and
     keeps Prometheus export, the alarm engine and Grafana'
@@ -3646,7 +3646,7 @@ tasks:
   - F-dashboard-prom-alarms
   priority: 3
   est_hours: 20
-  state: todo
+  state: ready
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3823,7 +3823,7 @@ tasks:
   deps: []
   priority: 2
   est_hours: 3
-  scope: 'found by SEC-auth-fix running the full API e2e on a local PostgreSQL 16 + Redis; the cloud ports merged without the lab e2e'
+  scope: found by SEC-auth-fix running the full API e2e on a local PostgreSQL 16 + Redis; the cloud ports merged without the lab e2e
   files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
   notes: ''
 - template: ''
@@ -3843,9 +3843,9 @@ tasks:
   - F-rule-expiry
   priority: 3
   est_hours: 2
-  scope: 'F-rule-expiry acceptance 1-2 on real VPP (fake-VPP proof in TestACLRuleRemovedAtExpiryWithoutACommit)'
+  scope: F-rule-expiry acceptance 1-2 on real VPP (fake-VPP proof in TestACLRuleRemovedAtExpiryWithoutACommit)
   files_owned: docs/status/tasks/F-rule-expiry-host*
-  notes: 'topology test on a slot; NRestarts before/after'
+  notes: topology test on a slot; NRestarts before/after
 - template: ''
   parked_on: ''
   branch: ''
@@ -3863,9 +3863,10 @@ tasks:
   - F-global-blocking
   priority: 3
   est_hours: 2
-  scope: 'lab host only: af_packet rig — listed source dropped both ways on a selected interface, passing on an unselected one, unlisted source passing, local-in blocked; show acl-plugin acl/interface before/after; acl-plugin-in-ip4-fa clocks/packet at 0/10k/200k entries; 200k commit time end to end; page screenshot against the real endpoint'
+  scope: 'lab host only: af_packet rig — listed source dropped both ways on a selected interface, passing on an unselected one, unlisted source passing, local-in blocked; show acl-plugin acl/interface before/after;
+    acl-plugin-in-ip4-fa clocks/packet at 0/10k/200k entries; 200k commit time end to end; page screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-global-blocking*
-  notes: 'follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here'
+  notes: follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here
 - template: ''
   parked_on: ''
   branch: ''
@@ -3883,6 +3884,30 @@ tasks:
   - F-pppoe-client
   priority: 3
   est_hours: 2
-  scope: 'lab host only (needs kernel PPP + VPP): agent live Apply (unit supervision, pppd exit tracking, mirror negotiated IPv4/IPv6 addr+route into VPP, MSS clamp), real PppoeReconnect handler, wire the renderer into the agent subsystem registry; topology test (session up, traffic through NAT, server restart -> reconnect within holdoff, wrong password -> clear error), grep proof the password is never in config/logs/audit, drawer screenshot against the real endpoint'
+  scope: 'lab host only (needs kernel PPP + VPP): agent live Apply (unit supervision, pppd exit tracking, mirror negotiated IPv4/IPv6 addr+route into VPP, MSS clamp), real PppoeReconnect handler, wire the
+    renderer into the agent subsystem registry; topology test (session up, traffic through NAT, server restart -> reconnect within holdoff, wrong password -> clear error), grep proof the password is never
+    in config/logs/audit, drawer screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-pppoe-client*
-  notes: 'follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here'
+  notes: follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here
+- template: ''
+  parked_on: ''
+  branch: ''
+  worktree: ''
+  owner: ''
+  started: ''
+  finished: ''
+  state: ready
+  wbs: []
+  prompt: ''
+  id: F-dashboard-prom-alarms-host
+  title: 'Dashboard/Prometheus/alarms on the lab VPP: real StatsSource + collector/listener wiring, rig acceptance'
+  stage: S4
+  deps:
+  - F-dashboard-prom-alarms
+  priority: 3
+  est_hours: 2
+  scope: 'lab host only (needs VPP + Prometheus): wire the govpp StatsSource over the VPP stats segment, register the metrics collector (manager hook) and the management.prometheus listener descriptor under
+    Domains[management]; /metrics shows vrx_interface_rx_bytes_total increasing after rig traffic; link-down raises an alarm within 5s and clears on link-up with the webhook receiving both; agent/API restart
+    re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
+  files_owned: docs/status/tasks/F-dashboard-prom-alarms*
+  notes: follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here

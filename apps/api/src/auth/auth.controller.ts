@@ -73,6 +73,20 @@ const SessionOut = z.object({
   expiresIn: z.number().int().describe('seconds'),
   user: UserOut,
 });
+/** F-aaa-login: the answer of a login whose first factor passed while a second one is needed. */
+export const MfaChallengeOut = z.object({
+  mfaRequired: z.literal(true),
+  challenge: z
+    .string()
+    .describe('single use, valid `expiresIn` seconds: POST /api/v1/auth/mfa/verify'),
+  enrolled: z
+    .boolean()
+    .describe(
+      'false: the MFA policy requires a factor not set up yet — POST /api/v1/auth/mfa/enroll first',
+    ),
+  expiresIn: z.number().int().describe('seconds'),
+});
+export { SessionOut };
 const MeOut = z.object({
   id: z.number().int(),
   username: z.string(),
@@ -140,12 +154,15 @@ export class AuthController {
   @Public()
   @NoAudit()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Log in with a local user; sets the refresh cookie' })
+  @ApiOperation({
+    summary:
+      'Log in (management.aaa.order: local, RADIUS, LDAP); sets the refresh cookie — or answers an MFA challenge (no cookie) when a second factor is needed',
+  })
   @ApiBody({ schema: openapi(LoginBody) })
-  @ApiOut(SessionOut)
+  @ApiOut(z.union([SessionOut, MfaChallengeOut]))
   @ApiResponse({
     status: 403,
-    description: TLS_REQUIRED,
+    description: `${TLS_REQUIRED}. \`no-role-mapping\` (F-aaa): the external identity source accepted the credentials but none of the user’s groups is in management.aaa.roleMap`,
     content: { 'application/problem+json': { schema: ref('Problem') } },
   })
   @PublicDoc(400, 401, 429)
@@ -154,10 +171,15 @@ export class AuthController {
     @Req() req: VrxRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    return this.setRefresh(
-      reply,
-      await this.auth.login(body.username, body.password, sourceIp(req), secureTransport(req)),
+    const r = await this.auth.login(
+      body.username,
+      body.password,
+      sourceIp(req),
+      secureTransport(req),
     );
+    // F-aaa-login: a second factor is needed — the challenge only, no session and no cookie yet
+    if ('mfaRequired' in r) return r;
+    return this.setRefresh(reply, r);
   }
 
   @Post('refresh')

@@ -15,6 +15,8 @@ const service = (flag: '0' | '1') =>
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
+    {} as never,
   );
 
 describe('VRX_DEV_WEAK_PASSWORDS boot warning', () => {

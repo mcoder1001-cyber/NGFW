@@ -222,6 +222,32 @@ export const systemEvent = pgTable(
 // Feature tables: new pgTable(s) directly under the task's anchor (SY3); generate the migration with
 // `pnpm -C apps/api db:generate --name <slug>` against main's latest snapshot — never hand-merge.
 // wave-BC: F-dashboard-prom-alarms
+export const alarm = pgTable(
+  'alarm',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    // The alarm rule name (management.alarms.rules key) and the specific instance (e.g. the interface).
+    rule: text('rule').notNull(),
+    instance: text('instance').notNull().default(''),
+    metric: text('metric').notNull(),
+    severity: text('severity').notNull(),
+    // 'active' while the condition holds, 'cleared' once it clears.
+    state: text('state').notNull().default('active'),
+    // The value that triggered / last evaluated the alarm and the threshold it crossed.
+    value: text('value').notNull().default(''),
+    threshold: text('threshold').notNull().default(''),
+    message: text('message').notNull().default(''),
+    raisedAt: ts('raised_at').notNull().defaultNow(),
+    clearedAt: ts('cleared_at'),
+    ackedAt: ts('acked_at'),
+    ackedBy: text('acked_by'),
+  },
+  (t) => [
+    // one active row per (rule, instance): raise is idempotent, clear flips this row
+    uniqueIndex('alarm_active_uq').on(t.rule, t.instance).where(sql`state = 'active'`),
+    index('alarm_state_idx').on(t.state, t.raisedAt),
+  ],
+);
 // wave-BC: F-aaa
 // wave-BC: F-licensing
 // wave-BC: F-backup-restore

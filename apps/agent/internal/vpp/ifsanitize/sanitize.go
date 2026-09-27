@@ -41,6 +41,15 @@
 //     and the dump reports the SPD pool index, not its id, so the first spd_id of
 //     ipsec_spds_dump is used (deleting an SPD clears every binding to it, so a stale binding
 //     always refers to an existing SPD).
+//   - SPAN source (sw_interface_span_enable_disable; TD-27): the per-index mirror bitmaps of
+//     span_main survive the interface, so a new interface on the index would mirror to a stale
+//     destination (or keep a config the SPAN descriptor does not know). Read with
+//     sw_interface_span_dump (is_l2 0 = device, 1 = L2); each row whose source is this index is
+//     disabled (state 0, naming its destination and is_l2) and the dump read again: a row left
+//     is Unclearable.
+//   - LLDP (sw_interface_set_lldp enable=0; TD-27): a stray per-interface LLDP enable. Reset
+//     blindly (the disable of an interface without LLDP is a no-op in lldp_cfg_intf_set); a
+//     non-zero retval is recorded as Skipped, not an error (LLDP is not a forwarding hazard).
 //
 // Every interface is first put in L3 mode (sw_interface_set_l2_bridge enable=0 →
 // set_int_l2_mode(MODE_L3)): that zeroes the l2-input/l2-output feature bitmaps, which carry the
@@ -93,6 +102,8 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
 	l2api "ngfw/agent/binapi/l2"
+	lldpapi "ngfw/agent/binapi/lldp"
+	spanapi "ngfw/agent/binapi/span"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/vpp"
 )
@@ -150,6 +161,8 @@ const (
 	StateVxlanBypass     = "vxlan-bypass"     //nolint:gosec // G101 false positive: a state label (sw_interface_set_vxlan_bypass)
 	StateIPsecSPD        = "ipsec-spd"        // ipsec_interface_add_del_spd
 	StateL2Mode          = "l2-mode"          // sw_interface_set_l2_bridge enable=0 (L3 mode)
+	StateSPAN            = "span"             // sw_interface_span_enable_disable (source side)
+	StateLLDP            = "lldp"             // sw_interface_set_lldp enable=0
 )
 
 // Report is what one Sanitize run found and did.
@@ -204,6 +217,10 @@ type sanitizer struct {
 	pending []*bound
 	found   map[string]bool // readback kinds that had a binding: read back again at the end
 	out     []*bound        // output ACL slots that were bound
+	// probeBound is set while the probe table P is (possibly) bound on an output ACL slot: an
+	// unbind of P failed after a bind of P succeeded. P is then left in VPP instead of deleted —
+	// deleting it would leave a binding to a freed table (V19) on this index (TD-25 review L1).
+	probeBound bool
 	rep     *Report
 }
 
@@ -230,8 +247,12 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 	s := &sanitizer{ctx: ctx, c: c, cl: classifyapi.NewServiceClient(c), idx: interface_types.InterfaceIndex(idx), phase: phase,
 		found: map[string]bool{}, rep: &rep}
 	err := s.run()
-	if derr := s.dropPlaceholders(); derr != nil && err == nil {
-		err = derr
+	if derr := s.dropPlaceholders(); derr != nil {
+		if err == nil {
+			err = derr
+		} else {
+			err = fmt.Errorf("%w; %w", err, derr) // e.g. the probe table kept after a failed unbind
+		}
 	}
 	if err == nil && phase == PhaseCreate {
 		switch {
@@ -266,7 +287,7 @@ func run(ctx context.Context, c vpp.Client, idx uint32, name, phase string) (Rep
 func (s *sanitizer) run() error {
 	for _, step := range []func() error{s.l3Mode, s.snapshot, s.ipClassify, s.l2Classify, s.probeTable,
 		s.inputACL, s.outputACL, s.policerClassify, s.flowClassify, s.resurrect, s.verify,
-		s.adl, s.vxlanBypass, s.ipsecSPD} {
+		s.adl, s.vxlanBypass, s.ipsecSPD, s.span, s.lldp} {
 		if err := step(); err != nil {
 			return err
 		}
@@ -410,6 +431,10 @@ func (s *sanitizer) dropPlaceholders() error {
 	var errs []error
 	for i := len(s.holds) - 1; i >= 0; i-- {
 		idx := s.holds[i]
+		if i == 0 && s.probeBound {
+			errs = append(errs, fmt.Errorf("probe table %d may still be bound on an output ACL slot of sw_if_index %d: left in VPP", idx, uint32(s.idx)))
+			continue
+		}
 		info, err := s.cl.ClassifyTableInfo(s.ctx, &classifyapi.ClassifyTableInfo{TableID: idx})
 		if err != nil || info.MatchNVectors != 1 || info.SkipNVectors != 0 || !bytes.Equal(info.Mask, placeholderMask) {
 			errs = append(errs, fmt.Errorf("placeholder table %d is not ours any more (%v): left in VPP", idx, err))
@@ -714,9 +739,11 @@ func (s *sanitizer) outputACL() error {
 		if err := bind(sl.set(p)); err != nil {
 			return fmt.Errorf("output_acl_set_interface (probe %s slot with placeholder %d): %w", sl.name, p, err)
 		}
+		s.probeBound = true
 		if ok, err = b.try(p); err != nil {
-			return err
+			return err // P stays bound: dropPlaceholders keeps it
 		}
+		s.probeBound = false
 		if ok {
 			continue // the slot was empty and is empty again
 		}
@@ -781,11 +808,13 @@ func (s *sanitizer) verify() error {
 		if err := bind(b.sl.set(p)); err != nil {
 			return fmt.Errorf("output_acl_set_interface (verify %s slot): %w", b.sl.name, err)
 		}
+		s.probeBound = true
 		probe := &bound{state: b.state, sl: b.sl, unbind: b.unbind}
 		ok, err := probe.try(p)
 		if err != nil {
-			return err
+			return err // P stays bound: dropPlaceholders keeps it
 		}
+		s.probeBound = false
 		if !ok {
 			s.rep.Unclearable = append(s.rep.Unclearable, b.String()+" (still bound after the unbind)")
 		}
@@ -915,5 +944,84 @@ func (s *sanitizer) ipsecSPD() error {
 		return fmt.Errorf("ipsec_interface_add_del_spd (unbind stale %s): %w", what, err)
 	}
 	s.rep.Cleared = append(s.rep.Cleared, what)
+	return nil
+}
+
+// spanRows returns the destinations this index mirrors to (is_l2 false = device, true = L2).
+func (s *sanitizer) spanRows(svc spanapi.RPCService, l2 bool) ([]interface_types.InterfaceIndex, error) {
+	stream, err := svc.SwInterfaceSpanDump(s.ctx, &spanapi.SwInterfaceSpanDump{IsL2: l2})
+	if err != nil {
+		return nil, err
+	}
+	var to []interface_types.InterfaceIndex
+	for {
+		d, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			return to, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if d.SwIfIndexFrom == s.idx && d.State != spanapi.SPAN_STATE_API_DISABLED {
+			to = append(to, d.SwIfIndexTo)
+		}
+	}
+}
+
+func spanKind(l2 bool) string {
+	if l2 {
+		return "l2"
+	}
+	return "device"
+}
+
+// span disables every SPAN mirror whose source is this index (device and L2) and reads back.
+func (s *sanitizer) span() error {
+	svc := spanapi.NewServiceClient(s.c)
+	for _, l2 := range []bool{false, true} {
+		to, err := s.spanRows(svc, l2)
+		if unknownMsg(err) {
+			s.rep.Skipped = append(s.rep.Skipped, StateSPAN)
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("sw_interface_span_dump (%s): %w", spanKind(l2), err)
+		}
+		if len(to) == 0 {
+			continue
+		}
+		for _, d := range to {
+			what := fmt.Sprintf("%s %s to sw_if_index %d", StateSPAN, spanKind(l2), uint32(d))
+			if _, err := svc.SwInterfaceSpanEnableDisable(s.ctx, &spanapi.SwInterfaceSpanEnableDisable{SwIfIndexFrom: s.idx, SwIfIndexTo: d,
+				State: spanapi.SPAN_STATE_API_DISABLED, IsL2: l2}); err != nil {
+				return fmt.Errorf("sw_interface_span_enable_disable (disable stale %s): %w", what, err)
+			}
+			s.rep.Cleared = append(s.rep.Cleared, what)
+		}
+		left, err := s.spanRows(svc, l2)
+		if err != nil {
+			return fmt.Errorf("sw_interface_span_dump (%s, verify): %w", spanKind(l2), err)
+		}
+		for _, d := range left {
+			s.rep.Unclearable = append(s.rep.Unclearable, fmt.Sprintf("%s %s to sw_if_index %d (still mirrored after the disable)", StateSPAN, spanKind(l2), uint32(d)))
+		}
+	}
+	return nil
+}
+
+// lldp disables LLDP on the index (blind reset; a disable without LLDP enabled is a no-op).
+func (s *sanitizer) lldp() error {
+	_, err := lldpapi.NewServiceClient(s.c).SwInterfaceSetLldp(s.ctx, &lldpapi.SwInterfaceSetLldp{SwIfIndex: s.idx, Enable: false})
+	var apiErr api.VPPApiError
+	switch {
+	case unknownMsg(err):
+		s.rep.Skipped = append(s.rep.Skipped, StateLLDP)
+	case errors.As(err, &apiErr):
+		s.rep.Skipped = append(s.rep.Skipped, fmt.Sprintf("%s (retval %d)", StateLLDP, int32(apiErr)))
+	case err != nil:
+		return fmt.Errorf("sw_interface_set_lldp (reset): %w", err)
+	default:
+		s.rep.Reset = append(s.rep.Reset, StateLLDP)
+	}
 	return nil
 }

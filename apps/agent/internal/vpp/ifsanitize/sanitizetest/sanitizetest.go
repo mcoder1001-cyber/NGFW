@@ -21,6 +21,8 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	ipsecapi "ngfw/agent/binapi/ipsec"
 	l2api "ngfw/agent/binapi/l2"
+	lldpapi "ngfw/agent/binapi/lldp"
+	spanapi "ngfw/agent/binapi/span"
 	vxlanapi "ngfw/agent/binapi/vxlan"
 	"ngfw/agent/internal/vpp/fake"
 	"ngfw/agent/internal/vpp/ifsanitize"
@@ -42,6 +44,11 @@ type Iface struct {
 	Vxlan    [2]bool
 	// SPD is the bound SPD pool index (none: unbound).
 	SPD uint32
+	// Span maps a SPAN destination to its state, per kind (0 device, 1 L2); this index is the
+	// source. VPP keeps it after the interface delete (TD-27).
+	Span [2]map[uint32]spanapi.SpanState
+	// LLDP is the per-interface LLDP enable (kept after the delete, TD-27).
+	LLDP bool
 	// L3Resets counts sw_interface_set_l2_bridge enable=0 calls.
 	L3Resets int
 }
@@ -52,6 +59,7 @@ func Clear() *Iface {
 		IPTable: [2]uint32{none, none}, L2In: [3]uint32{none, none, none}, L2Out: [3]uint32{none, none, none},
 		InACL: [3]uint32{none, none, none}, OutACL: [3]uint32{none, none, none}, Policer: [3]uint32{none, none, none},
 		Flow: [2]uint32{none, none}, Features: map[string]bool{}, SPD: none,
+		Span: [2]map[uint32]spanapi.SpanState{{}, {}},
 	}
 }
 
@@ -414,6 +422,46 @@ func (m *Model) Handlers() map[string]fake.Handler {
 		}
 		return one(&ipsecapi.IpsecInterfaceAddDelSpdReply{}), nil
 	})
+	f.On("sw_interface_span_dump", func(req api.Message) ([]api.Message, error) {
+		k := 0
+		if req.(*spanapi.SwInterfaceSpanDump).IsL2 {
+			k = 1
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		var out []api.Message
+		for _, idx := range sortedIfs(m.Ifs) {
+			sp := m.Ifs[idx].Span[k]
+			for _, to := range sortedIfs(sp) {
+				out = append(out, &spanapi.SwInterfaceSpanDetails{SwIfIndexFrom: interface_types.InterfaceIndex(idx),
+					SwIfIndexTo: interface_types.InterfaceIndex(to), State: sp[to], IsL2: k == 1})
+			}
+		}
+		return out, nil
+	})
+	f.On("sw_interface_span_enable_disable", func(req api.Message) ([]api.Message, error) {
+		r := req.(*spanapi.SwInterfaceSpanEnableDisable)
+		k := 0
+		if r.IsL2 {
+			k = 1
+		}
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		sp := m.ifLocked(uint32(r.SwIfIndexFrom)).Span[k]
+		if r.State == spanapi.SPAN_STATE_API_DISABLED {
+			delete(sp, uint32(r.SwIfIndexTo)) // span_add_delete_entry: clearing an unset bit is a no-op
+		} else {
+			sp[uint32(r.SwIfIndexTo)] = r.State
+		}
+		return one(&spanapi.SwInterfaceSpanEnableDisableReply{}), nil
+	})
+	f.On("sw_interface_set_lldp", func(req api.Message) ([]api.Message, error) {
+		r := req.(*lldpapi.SwInterfaceSetLldp)
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		m.ifLocked(uint32(r.SwIfIndex)).LLDP = r.Enable
+		return one(&lldpapi.SwInterfaceSetLldpReply{}), nil
+	})
 	return hs
 }
 
@@ -491,6 +539,7 @@ var Messages = []string{
 	"policer_classify_set_interface", "flow_classify_set_interface",
 	"adl_interface_enable_disable", "sw_interface_set_vxlan_bypass",
 	"ipsec_spd_interface_dump", "ipsec_spds_dump", "ipsec_interface_add_del_spd",
+	"sw_interface_span_dump", "sw_interface_span_enable_disable", "sw_interface_set_lldp",
 }
 
 // PoisonTable is the live classify table Poison binds.
@@ -538,6 +587,10 @@ func (m *Model) Dirty(idx uint32) string {
 		return "adl"
 	case s.SPD != none:
 		return "ipsec spd"
+	case len(s.Span[0]) > 0 || len(s.Span[1]) > 0:
+		return "span source"
+	case s.LLDP:
+		return "lldp"
 	}
 	for k := range s.Features {
 		if strings.HasPrefix(k, "l2:") {

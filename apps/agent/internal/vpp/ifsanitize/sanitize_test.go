@@ -37,7 +37,7 @@ func TestCleanInterfaceOnlyResets(t *testing.T) {
 	if rep.Inherited() || len(rep.Skipped) > 0 {
 		t.Fatalf("clean interface reported %+v", rep)
 	}
-	want := []string{"l2-mode l3", "ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "adl adl-input", "vxlan-bypass ip4", "vxlan-bypass ip6"}
+	want := []string{"l2-mode l3", "ip-classify ip4", "ip-classify ip6", "l2-classify input", "l2-classify output", "adl adl-input", "vxlan-bypass ip4", "vxlan-bypass ip6", "lldp"}
 	if !slices.Equal(rep.Reset, want) {
 		t.Fatalf("reset %v, want %v", rep.Reset, want)
 	}

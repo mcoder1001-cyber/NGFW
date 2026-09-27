@@ -2,8 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { SECRET_KINDS, type SecretKind } from '@ngfw/schema';
 import { asc, eq, max } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { KeyFileError, readKeyFileBytes } from '../auth/key-file.js';
 import { ENV, type Env } from '../config.js';
 import { problems } from '../common/problem.js';
 import { DB, type Db } from '../db/db.js';
@@ -49,10 +50,19 @@ export class SecretsService {
     const file = this.env.VRX_SECRET_KEY_FILE;
     if (!existsSync(file)) {
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+      // 'wx' = O_CREAT|O_EXCL: never follows or overwrites an existing path (a symlink planted meanwhile fails it)
       writeFileSync(file, randomBytes(32), { mode: 0o600, flag: 'wx' });
     }
-    chmodSync(file, 0o600);
-    const key = readFileSync(file);
+    // SEC-auth L1: checked and read through one descriptor like the JWT key ring — a regular file (no symlink), owned
+    // by the API's user or root, no group/other access; a bad file is refused (the message names the path and the
+    // problem, never the content) instead of being chmod-ed through a symlink as before
+    let key: Buffer;
+    try {
+      key = readKeyFileBytes(file).bytes;
+    } catch (e) {
+      if (e instanceof KeyFileError) throw problems.unavailable(`the secret store master key: ${e.message}`);
+      throw e;
+    }
     if (key.length !== 32)
       throw problems.unavailable('the secret store master key is invalid (expected 32 bytes)');
     this.key = key;

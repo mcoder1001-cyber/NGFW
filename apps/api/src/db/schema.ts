@@ -55,6 +55,12 @@ export const appUser = pgTable(
   },
   (t) => [
     uniqueIndex('app_user_username_uq').on(t.username),
+    /**
+     * F-aaa-hardening: names are unique case-insensitively (the external login looks names up by lower()). Local
+     * names are lower-case by schema (`username` primitive), external ones are case-folded before insert, so the
+     * index is total, not partial.
+     */
+    uniqueIndex('app_user_username_lower_uq').on(sql`lower(${t.username})`),
     check('app_user_role_ck', sql`${t.role} in ('admin', 'operator', 'readonly')`),
   ],
 );
@@ -76,6 +82,11 @@ export const apiKey = pgTable(
       .default(sql`'{}'::text[]`),
     expiresAt: ts('expires_at'),
     lastUsed: ts('last_used'),
+    /**
+     * F-aaa-hardening: the key was minted from a login session that passed the second factor (or by a key that was).
+     * While `management.aaa.mfa.required` covers the owner's role, a key without it is refused (401 `mfa-required`).
+     */
+    mfaVerified: boolean('mfa_verified').notNull().default(false),
     createdAt: ts('created_at').notNull().defaultNow(),
   },
   (t) => [uniqueIndex('api_key_hash_uq').on(t.hash), index('api_key_user_idx').on(t.userId)],

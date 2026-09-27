@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "app_user_username_lower_uq" ON "app_user" USING btree (lower("username"));

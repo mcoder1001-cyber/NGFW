@@ -67,6 +67,20 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
   return out;
 }
 
+const jwksSets = new Map<string, { uri: string; set: ReturnType<typeof createRemoteJWKSet> }>();
+
+/**
+ * F-aaa-hardening: one remote JWKS per issuer, reused across callbacks (jose caches the keys and rate-limits
+ * refetches per instance). A different jwks_uri for the issuer (config or discovery changed) replaces it.
+ */
+export function jwksFor(issuer: string, jwksUri: string): ReturnType<typeof createRemoteJWKSet> {
+  const hit = jwksSets.get(issuer);
+  if (hit !== undefined && hit.uri === jwksUri) return hit.set;
+  const set = createRemoteJWKSet(new URL(jwksUri), { timeoutDuration: TIMEOUT_MS });
+  jwksSets.set(issuer, { uri: jwksUri, set });
+  return set;
+}
+
 export function authorizationUrl(
   d: OidcDiscovery,
   c: OidcConfig,
@@ -123,7 +137,7 @@ export async function redeem(
   if (!res.ok) throw new Error(`token endpoint: HTTP ${res.status}`);
   const tok = (await res.json()) as { id_token?: unknown };
   if (typeof tok.id_token !== 'string') throw new Error('token endpoint: no id_token');
-  const jwks = createRemoteJWKSet(new URL(d.jwks_uri), { timeoutDuration: TIMEOUT_MS });
+  const jwks = jwksFor(d.issuer, d.jwks_uri);
   const { payload } = await jwtVerify(tok.id_token, jwks, {
     issuer: d.issuer,
     audience: c.clientId,

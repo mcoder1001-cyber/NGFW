@@ -206,6 +206,8 @@ var Domains = map[string][]string{
 	// wave-A: F-kea-dhcp-relay (services: kea.dhcp4/6, dhcp.proxy/proxy-vss/relay are in the one services entry above)
 	// wave-A: F-unbound-chrony-syslog (services: unbound, chrony, dns.* are in the one services entry above)
 	Management: managementDescriptors,
+	// F-system-identity (unanchored: no anchor seeded for this row)
+	System: systemDescriptors, // system.identity (system_identity.go)
 }
 
 // DomainOf returns the domain a descriptor belongs to ("" when none).
@@ -404,6 +406,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	w.registerLb(r)
+	registerSystemIdentity(r, env) // F-system-identity (unanchored)
 	return w, nil
 }
 

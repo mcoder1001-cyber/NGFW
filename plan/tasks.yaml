@@ -1156,7 +1156,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.14
@@ -1167,7 +1167,7 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
+  finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'

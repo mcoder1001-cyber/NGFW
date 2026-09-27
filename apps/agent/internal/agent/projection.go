@@ -387,6 +387,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	if in["services"] {
 		desired.Lb(p, ds.GetServices(), subsystems.LbEnv()) // F-lb: services.lb (write-only, V20)
 	}
+	if in["system"] {
+		desired.SystemIdentity(p, ds) // F-system-identity (unanchored)
+	}
 	return p
 }
 
@@ -591,6 +594,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleQoS(ds, kvs)
 	}
 	desired.AssembleHostServices(ds, kvs, in["services"], in["management"])
+	if in["system"] {
+		desired.AssembleSystemIdentity(ds, kvs) // F-system-identity (unanchored)
+	}
 	return ds
 }
 

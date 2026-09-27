@@ -124,6 +124,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-A: F-kea-dhcp-relay
         // wave-A: F-unbound-chrony-syslog
         { path: 'system/users', lazy: async () => ({ Component: (await import('./pages/UsersPage')).UsersPage }) },
+        // F-system-identity (unanchored)
+        { path: domainPath('system').slice(1), lazy: async () => ({ Component: (await import('./domains/system/identity/SystemIdentityPage')).SystemIdentityPage }) },
         // wave-BC: F-licensing (unanchored)
         { path: 'system/licensing', lazy: async () => ({ Component: (await import('./domains/system/licensing/LicensingPage')).LicensingPage }) },
         { path: 'system/revisions', lazy: async () => ({ Component: (await import('./pages/RevisionsPage')).RevisionsPage }) },

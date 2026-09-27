@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,6 +53,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv(subsystems.EnvHostServicesDir, hostDirOf(t, dir))
 	reg := scheduler.NewRegistry()
 	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
@@ -68,6 +70,24 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	svc.claimsTxn = w.ClaimsTxn                       // as Start wires it (TD-11c)
 	t.Cleanup(svc.Close)
 	return svc
+}
+
+// hostDirs maps a test's state dir to its host-file dir (F-system-identity): an agent restarted on the same state dir
+// sees the same host files. A plain temp path, because subtest names put spaces into t.TempDir().
+var hostDirs sync.Map
+
+func hostDirOf(t *testing.T, dir string) string {
+	t.Helper()
+	if h, ok := hostDirs.Load(dir); ok {
+		return h.(string)
+	}
+	h, err := os.MkdirTemp("", "vrx-host-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { hostDirs.Delete(dir); _ = os.RemoveAll(h) })
+	hostDirs.Store(dir, h)
+	return h
 }
 
 // doc parses a configuration document (protobuf JSON = the API's JSON, contract §1).
@@ -96,6 +116,7 @@ const sampleDoc = `{
 // canonical is what Retrieve must return for sampleDoc (owned objects only; default VRF not
 // owned; distance only when set; every implemented domain present — `services` since F-rpf-adl-pbr).
 const canonicalDoc = `{
+  "system": {"hostname": "vrx-a", "timezone": "UTC", "banner": {}, "dns": {"vrf": "default"}},
   "vrfs": {"red": {"id": 7001}},
   "services": {"qos": {}, "dhcp": {}},
   "interfaces": {
@@ -131,7 +152,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	s := newSvc(t, v, t.TempDir())
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if resp.GetSummary().GetCreated() != 12 || len(resp.GetResults()) != 12 { // P08: + interface/loop701, interface/loop702 aliases
+	if resp.GetSummary().GetCreated() != 13 || len(resp.GetResults()) != 13 { // P08: + interface/loop701, interface/loop702 aliases; F-system-identity: + system.identity/vrx
 		t.Fatalf("summary %v results %d", resp.GetSummary(), len(resp.GetResults()))
 	}
 	for _, r := range resp.GetResults() {
@@ -154,7 +175,7 @@ func TestApplyRetrieveIdempotent(t *testing.T) {
 	v.Reset()
 	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, sampleDoc)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
+	if len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 13 {
 		t.Fatalf("second apply %v", resp)
 	}
 	for _, c := range v.Calls() {
@@ -180,7 +201,7 @@ func TestApplyRequestValidation(t *testing.T) {
 		{&vrxv1.ApplyRequest{TxnId: "x", Owner: "w3"}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"bogus"}}, codes.InvalidArgument},
 		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"routing.bgp"}}, codes.InvalidArgument},
-		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"system"}}, codes.Unimplemented}, // F-nat44-ed-sessions implements "nat"
+		{&vrxv1.ApplyRequest{TxnId: "x", Subsystems: []string{"dataplane"}}, codes.Unimplemented}, // F-system-identity implements "system"
 		{&vrxv1.ApplyRequest{ConfirmTxnId: "nope"}, codes.FailedPrecondition},
 		{&vrxv1.ApplyRequest{TxnId: "same", ConfirmTxnId: "same"}, codes.InvalidArgument},
 	}
@@ -611,7 +632,7 @@ func TestDescriptionsRoundTrip(t *testing.T) {
 // says so.
 func TestUnimplementedDomainWarning(t *testing.T) {
 	s := newSvc(t, coretest.New(), t.TempDir())
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{"system":{"hostname":"x"},"nat":{},"vrfs":{"red":{"id":7001}}}`)})
+	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{"dataplane":{"workers":2},"nat":{},"vrfs":{"red":{"id":7001}}}`)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("%v %v", err, rep)
 	}
@@ -619,7 +640,7 @@ func TestUnimplementedDomainWarning(t *testing.T) {
 	for _, e := range rep.GetErrors() {
 		rules = append(rules, e.GetPointer()+" "+e.GetRule())
 	}
-	if strings.Join(rules, ",") != "/system agent.unimplemented-domain" {
+	if strings.Join(rules, ",") != "/dataplane agent.unimplemented-domain" {
 		t.Fatalf("warnings %v", rules)
 	}
 }
@@ -739,7 +760,7 @@ func TestGRPCRoundTrip(t *testing.T) {
 		t.Fatalf("event 1 %v %v", err, e1)
 	}
 	e2, err := evs.Recv()
-	if err != nil || e2.GetKind() != vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE || e2.GetSummary().GetCreated() != 12 {
+	if err != nil || e2.GetKind() != vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE || e2.GetSummary().GetCreated() != 13 {
 		t.Fatalf("event 2 %v %v", err, e2)
 	}
 	got, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{})

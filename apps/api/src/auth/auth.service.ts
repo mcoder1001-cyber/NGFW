@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { AuthMethod } from '@ngfw/schema';
 import { and, count, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { AuditService } from '../audit/audit.service.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
@@ -10,7 +11,9 @@ import { clientKey, lowerRole, type Principal } from '../common/principal.js';
 import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
+import { AaaService } from '../features/aaa/aaa.service.js';
 import { Lockout, type LockSubject } from './lockout.js';
+import { authSequence, stepEligible } from './login-order.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { PASSWORD_MIN } from '../users/password-policy.js';
 import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
@@ -35,6 +38,32 @@ function accountLocked(): ProblemError {
     'the account is locked after too many failed password checks',
   );
 }
+
+/**
+ * F-aaa-login: `app_user.source` of an account this box created for an externally authenticated identity
+ * (`aaa:radius`, `aaa:ldap`, …). The config user sync only deletes `source = 'config'` rows, so these survive a
+ * commit; they carry no password hash, so they can never log in through the `local` step.
+ */
+const SHADOW_SOURCE = 'aaa:';
+
+/** Whether `source` marks a shadow account of an external identity rather than a local one. */
+export function isShadowSource(source: string): boolean {
+  return source.startsWith(SHADOW_SOURCE);
+}
+
+/** Role order, for deciding whether a role change is a demotion (same ranking as the config user sync). */
+const ROLE_RANK: Record<Role, number> = { readonly: 1, operator: 2, admin: 3 };
+
+/** What one step of the authentication order answered: a session, or a reason the walk continues. */
+type StepOutcome = { done: LoginResult } | { pass: 'absent' | 'unreachable' | 'unsupported' };
+
+/** Audits one login failure and returns the problem to throw. `method` names the AAA method when there was one. */
+type FailFn = (
+  reason: string,
+  userId: number | null,
+  status?: number,
+  method?: string,
+) => Promise<ProblemError>;
 
 /** The step-up of `POST /auth/api-keys` (D-100 (2)): the caller's current password and how the request arrived. */
 export interface KeyStepUp {
@@ -75,6 +104,7 @@ export class AuthService {
     private readonly bus: Bus,
     @Inject(VALKEY) kv: Valkey,
     private readonly events: SystemEventsService,
+    private readonly aaa: AaaService,
   ) {
     this.lockout = new Lockout(kv, db, env);
   }
@@ -108,21 +138,35 @@ export class AuthService {
     return inserted.length > 0;
   }
 
-  /** `secure`: the request came over TLS or from a loopback peer (`secureTransport`, D-100 (1)). */
+  /**
+   * F-aaa-login: log in by walking `management.aaa.order` (default `['local']` — i.e. exactly the local login).
+   *
+   * A method may accept, reject, or not answer: `absent` (the identity is unknown to it) or `unreachable` (no server
+   * answered). The first method that ACCEPTS or REJECTS ends the walk — a directory must not be able to overrule a
+   * method that already refused the credential, and a refused credential is not replayed against every other backend
+   * in turn. `management.aaa.fallbackLocal` adds a closing `local` step that runs only when a method was unreachable.
+   *
+   * `secure`: the request came over TLS or from a loopback peer (`secureTransport`, D-100 (1)).
+   *
+   * Known and accepted: with an external method in the order, a name that is not a local user costs one extra backend
+   * round trip, so response time still tells a probe whether a name is a LOCAL user. That is inherent to chaining (an
+   * unknown local name has to be offered to the directory) and is bounded by the per-client rate limit below;
+   * password validity itself stays unobservable.
+   */
   async login(
     username: string,
     password: string,
     ip: string,
     secure: boolean,
   ): Promise<LoginResult> {
-    const fail = async (reason: string, userId: number | null, status = 401) => {
+    const fail: FailFn = async (reason, userId, status = 401, method) => {
       await this.audit.write({
         userId,
         username,
         sourceIp: ip,
         action: 'auth.login',
         resource: username,
-        after: { reason },
+        after: method === undefined ? { reason } : { reason, method },
         result: 'failure',
         status,
       });
@@ -139,11 +183,53 @@ export class AuthService {
     if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
       throw await fail('rate-limited', null, 429);
     }
+    const policy = await this.aaa.policy();
+    const seq = authSequence(policy.order, policy.fallbackLocal);
+    let anyUnreachable = false;
+    let localAbsent = false;
+    for (let i = 0; i < seq.steps.length; i++) {
+      const method = seq.steps[i] as AuthMethod;
+      if (!stepEligible(seq, i, anyUnreachable)) continue;
+      const step =
+        method === 'local'
+          ? await this.localStep(username, password, ip, fail)
+          : await this.externalStep(method, username, password, ip, fail);
+      if ('done' in step) return step.done;
+      if (step.pass === 'unreachable') anyUnreachable = true;
+      else if (step.pass === 'absent' && method === 'local') localAbsent = true;
+    }
+    // Nothing decided. `unknown-user` keeps the reason the local-only default has always written; a chain whose
+    // backends were all down says so instead, because the two need different operator action.
+    throw await fail(
+      anyUnreachable
+        ? 'all-methods-unreachable'
+        : localAbsent
+          ? 'unknown-user'
+          : 'no-method-answered',
+      null,
+    );
+  }
+
+  /**
+   * The `local` step: the local login as it has always been (D-097, TD-4, TD-10b — the order of argon2, the
+   * unknown-user check and the two lockouts is deliberate and unchanged here).
+   *
+   * It answers `absent` instead of failing the login when this box holds no local credential for the name, so the
+   * walk can offer it to the next method: no such user, or a user with no argon2 hash (an external shadow account, or
+   * a `management.users` entry committed without a `passwordHash`). Either way argon2 has already run against the
+   * timing equaliser, so `absent` costs what a real check costs.
+   */
+  private async localStep(
+    username: string,
+    password: string,
+    ip: string,
+    fail: FailFn,
+  ): Promise<StepOutcome> {
     // D-097 (review H2, verify V1): hash and credential generation come from ONE row read, so the session below is
     // issued under the generation that goes with the password that was checked
     const [u] = await this.db.select().from(appUser).where(eq(appUser.username, username));
     const ok = await verifyPassword(u?.passwordHash, password);
-    if (u === undefined) throw await fail('unknown-user', null);
+    if (u === undefined || u.passwordHash === null) return { pass: 'absent' };
     const now = new Date();
     // account-wide: a wrong password checked INSIDE a session of this account locked it (step-up, own-password change)
     if (u.lockedUntil !== null && u.lockedUntil > now) throw await fail('locked', u.id);
@@ -200,7 +286,115 @@ export class AuthService {
       result: 'success',
       status: 200,
     });
-    return s;
+    return { done: s };
+  }
+
+  /**
+   * An external step (`radius` today; `ldap`/`tacacs` answer `unsupported` until their backends land, so the walk
+   * treats them as "did not answer" rather than failing the login).
+   *
+   * On accept the identity gets a local SHADOW account — `source: 'aaa:<method>'`, no password hash — whose role comes
+   * from `management.aaa.roleMap`; sessions, revocation, API keys and the audit log then work exactly as for a local
+   * user. `syncUsers` (pg-repo) only ever deletes `source = 'config'` rows, so a commit leaves shadow accounts alone,
+   * and a shadow account never appears in `management.users`. Without a roleMap match the login is refused: an
+   * external identity gets no implicit role (least privilege).
+   */
+  private async externalStep(
+    method: AuthMethod,
+    username: string,
+    password: string,
+    ip: string,
+    fail: FailFn,
+  ): Promise<StepOutcome> {
+    const ext = await this.aaa.authenticate(method, username, password);
+    if (ext.answer === 'unsupported') return { pass: 'unsupported' };
+    if (ext.answer === 'unreachable') return { pass: 'unreachable' };
+    // An account that already exists carries the lockout state of this (user, client address): an external reject
+    // counts there too, so guessing an external identity is throttled by this box as well as by the directory.
+    const [existing] = await this.db.select().from(appUser).where(eq(appUser.username, username));
+    if (existing !== undefined) {
+      const now = new Date();
+      if (existing.lockedUntil !== null && existing.lockedUntil > now)
+        throw await fail('locked', existing.id, 401, method);
+      const st = await this.lockout.state(existing, ip);
+      if (st !== 'open') throw await fail(st, existing.id, 401, method);
+    }
+    if (ext.answer === 'reject') {
+      if (existing !== undefined) {
+        const r = await this.lockout.fail(existing, ip);
+        if (r === 'throttled') this.lastAdminThrottled(existing, ip);
+      }
+      throw await fail('rejected', existing?.id ?? null, 401, method);
+    }
+    if (ext.role === null) throw await fail('no-role-mapping', existing?.id ?? null, 401, method);
+    // A directory must never be able to log in AS a local account: same name, different credential store. The
+    // operator renames one of the two (audited reason `local-account`), rather than the directory silently winning.
+    if (existing !== undefined && !isShadowSource(existing.source))
+      throw await fail('local-account', existing.id, 401, method);
+    if (existing?.disabled === true) throw await fail('disabled', existing.id, 401, method);
+    if (existing !== undefined && !(await this.lockout.admit(existing, ip)))
+      throw await fail('locked', existing.id, 401, method);
+    const u = await this.upsertShadow(username, ext.role, method, existing);
+    const s = await this.session({ id: u.id, username, role: u.role }, u.credentialGen);
+    if (s === null || s === 'expired')
+      throw await fail('credentials-changed-during-login', u.id, 401, method);
+    await this.audit.write({
+      userId: u.id,
+      username,
+      sourceIp: ip,
+      action: 'auth.login',
+      resource: username,
+      after: { method, role: u.role, groups: ext.groups },
+      result: 'success',
+      status: 200,
+    });
+    return { done: s };
+  }
+
+  /**
+   * Create or refresh the shadow account of an external identity. A DEMOTION bumps the credential generation, so the
+   * sessions and API keys issued under the higher role end at once — the same rule the config user sync follows
+   * (TD-10b, PENDING-session-revocation option 1); a promotion needs nothing, because a refresh reads the role from
+   * `app_user`. The insert is `onConflictDoUpdate` so two parallel first logins cannot both create the row.
+   */
+  private async upsertShadow(
+    username: string,
+    role: Role,
+    method: AuthMethod,
+    existing: { id: number; role: Role; credentialGen: number } | undefined,
+  ): Promise<{ id: number; role: Role; credentialGen: number }> {
+    const source = `${SHADOW_SOURCE}${method}`;
+    const lastLogin = new Date();
+    if (existing === undefined) {
+      const [row] = await this.db
+        .insert(appUser)
+        .values({ username, passwordHash: null, role, source, lastLogin })
+        .onConflictDoUpdate({
+          target: appUser.username,
+          set: { role, source, lastLogin, failedLogins: 0, lockedUntil: null },
+        })
+        .returning({
+          id: appUser.id,
+          role: appUser.role,
+          credentialGen: appUser.credentialGen,
+        });
+      if (row === undefined) throw problems.unauthorized('invalid credentials');
+      return row;
+    }
+    const demoted = ROLE_RANK[role] < ROLE_RANK[existing.role];
+    const [row] = await this.db
+      .update(appUser)
+      .set({
+        role,
+        source,
+        lastLogin,
+        failedLogins: 0,
+        lockedUntil: null,
+        ...(demoted ? { credentialGen: sql`${appUser.credentialGen} + 1` } : {}),
+      })
+      .where(eq(appUser.id, existing.id))
+      .returning({ id: appUser.id, role: appUser.role, credentialGen: appUser.credentialGen });
+    return row ?? { id: existing.id, role, credentialGen: existing.credentialGen };
   }
 
   /** The last admin was throttled instead of locked: one system_event per admin and minute (visible, not a flood). */

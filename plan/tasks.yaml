@@ -1143,8 +1143,6 @@ tasks:
   started: ''
   finished: ''
   notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry). NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)'
-    map plugin''s MAP-T in 1:1 mode (ea_bits_len 0) provide it; (b) stateful NAT46 has no VPP implementation — a VPP-code-track item (docs/vpp-code-track.md, 2x rule, docs/decisions) or an explicit out-of-scope
-    decision. Relates to F-det44-map-dslite-cnat (464XLAT/MAP) — agree ownership of the map plugin descriptors with it. Prompt file prompts/features/F-nat46.md still to be written.'
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md

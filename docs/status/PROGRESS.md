@@ -2,14 +2,14 @@
 
 Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 67.3% by hours (899.0/1336.5 h), 65.4% by tasks (100/153)**
+**Overall: 69.8% by hours (937.0/1342.5 h), 66.7% by tasks (104/156)**
 
 | state | tasks |
 |---|---|
-| merged | 100 |
-| review | 12 |
+| merged | 104 |
+| review | 14 |
 | running | 2 |
-| ready | 18 |
+| ready | 15 |
 | parked | 2 |
 | failed | 0 |
 | todo | 19 |
@@ -20,19 +20,21 @@ Updated 2026-09-27 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 492.0 / 769.0 | 64.0% | 56/93 | 1 | 17 | 0 |
-| S5 | 48 / 147.5 | 32.5% | 5/15 | 1 | 1 | 0 |
+| S4 | 520.0 / 775.0 | 67.1% | 59/96 | 1 | 15 | 0 |
+| S5 | 58 / 147.5 | 39.3% | 6/15 | 1 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 ## Running / review
 
+- F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, unassigned)
 - F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (review, cloud session modest-keller)
 - F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (review, cloud session modest-keller)
 - F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (review, cloud session modest-keller)
 - F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (review, cloud session modest-keller)
 - F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (review, cloud session modest-keller)
 - F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (review, cloud session modest-keller)
-- F-capture-trace — Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG (running, cloud session modest-keller)
+- F-capture-trace — Wave C (day 13-15): pcap capture, BPF trace filter, trace node, Trace Path, PG (review, cloud session modest-keller)
+- F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (review, cloud session modest-keller)
 - P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
 - WEB-4a — Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status (review, cloud session modest-keller)
 - WEB-4b — Pre-built HA/VRRP + cluster screens merged UNROUTED (review, cloud session modest-keller)

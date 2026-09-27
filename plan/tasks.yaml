@@ -1978,16 +1978,16 @@ tasks:
   - SEC-auth
   priority: 6
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D10.2
   scope: RADIUS/TACACS+/LDAP/SAML/OIDC + MFA
   files_owned: '- apps/api/src/features/aaa/** (index.ts exports {controllers, providers}; `AaaController`; backends, TOTP, OIDC, SAML if time allows; unit-test fakes)'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +P07b/P08 (owns apps/web/** and apps/**; overlap check) — docs/status/tasks/prompts-s4.md | D-102: Users page password change moves from config staging to POST /users/{name}/password'
 - id: F-backup-restore

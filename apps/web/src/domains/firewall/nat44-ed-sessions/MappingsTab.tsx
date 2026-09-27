@@ -3,6 +3,7 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
+import { ExpiryChip } from '../ExpiryChip';
 import { ListSection } from './ListSection';
 import { DEFAULT_VRF, type NatListKey } from './model';
 import { NAT_NS } from './tabs';
@@ -66,6 +67,16 @@ export function MappingsTab() {
           { label: t('col.external'), value: (m) => endpoint(m['external']), ltr: true },
           { label: t('col.vrf'), value: (m) => str(m['vrf']) || DEFAULT_VRF },
           { label: t('col.flags'), value: (m) => <Flags item={m} keys={MAPPING_FLAGS} /> },
+          {
+            label: t('col.expiresAt'), // F-rule-expiry
+            value: (m) => (
+              <ExpiryChip
+                expiresAt={m['expiresAt'] as string | undefined}
+                owner={m['owner'] as string | undefined}
+                ticket={m['ticket'] as string | undefined}
+              />
+            ),
+          },
         ]}
       />
       <ListSection

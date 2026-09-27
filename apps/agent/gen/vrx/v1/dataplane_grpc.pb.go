@@ -89,6 +89,7 @@ const (
 	Dataplane_DataplaneStartupPreview_FullMethodName = "/vrx.v1.Dataplane/DataplaneStartupPreview"
 	Dataplane_PppoeReconnect_FullMethodName          = "/vrx.v1.Dataplane/PppoeReconnect"
 	Dataplane_WanState_FullMethodName                = "/vrx.v1.Dataplane/WanState"
+	Dataplane_MulticastState_FullMethodName          = "/vrx.v1.Dataplane/MulticastState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -267,6 +268,10 @@ type DataplaneClient interface {
 	// WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
 	// failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
 	WanState(ctx context.Context, in *WanStateRequest, opts ...grpc.CallOption) (*WanStateResponse, error)
+	// wave-BC: F-igmp-mfib
+	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+	// an agent without multicast (→ 501).
+	MulticastState(ctx context.Context, in *MulticastStateRequest, opts ...grpc.CallOption) (*MulticastStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -743,6 +748,16 @@ func (c *dataplaneClient) WanState(ctx context.Context, in *WanStateRequest, opt
 	return out, nil
 }
 
+func (c *dataplaneClient) MulticastState(ctx context.Context, in *MulticastStateRequest, opts ...grpc.CallOption) (*MulticastStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MulticastStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_MulticastState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -919,6 +934,10 @@ type DataplaneServer interface {
 	// WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
 	// failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
 	WanState(context.Context, *WanStateRequest) (*WanStateResponse, error)
+	// wave-BC: F-igmp-mfib
+	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+	// an agent without multicast (→ 501).
+	MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -1057,6 +1076,9 @@ func (UnimplementedDataplaneServer) PppoeReconnect(context.Context, *PppoeReconn
 }
 func (UnimplementedDataplaneServer) WanState(context.Context, *WanStateRequest) (*WanStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method WanState not implemented")
+}
+func (UnimplementedDataplaneServer) MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MulticastState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1825,6 +1847,24 @@ func _Dataplane_WanState_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_MulticastState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MulticastStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).MulticastState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_MulticastState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).MulticastState(ctx, req.(*MulticastStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1987,6 +2027,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "WanState",
 			Handler:    _Dataplane_WanState_Handler,
+		},
+		{
+			MethodName: "MulticastState",
+			Handler:    _Dataplane_MulticastState_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

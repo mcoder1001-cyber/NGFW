@@ -174,3 +174,8 @@ Items above that are not ticked keep their text; this table gives each one an ow
   `yanglint` are not installed on the build image, so YANG 1.1 validity is a manual gate; install one to make it
   automatic. Deviations documented in docs/user/system/restconf-yang.md: keyless lists for keyless schema arrays, XSD
   patterns dropped where JS regex is not expressible, top-node-only module qualification.
+- F-igmp-mfib (merged PR #52): the data plane is not wired into the running agent yet — the VPP mFIB descriptor
+  (ip_mroute_add_del/dump), the DF-7 IGMP projection + live WatchEvents, and the FRR pim renderer + frrsync/pim
+  (PIM->mFIB via P12's LCP mapping over seam S1) are F-igmp-mfib-host. The contract, semantics, the MulticastState RPC
+  + state routes, and the web live view are done and tested (the fake agent serves state from the applied document).
+  BIER (T3) is unbuilt. VPP-engine IGMP host tests are opt-in and alone in a manager window (D-087/D-090, V22b).

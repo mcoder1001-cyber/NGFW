@@ -84,6 +84,7 @@ export * from './domains/ext/lisp.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
+export * from './domains/ext/igmp-mfib.js';
 // wave-A: F-bonding
 export * from './domains/ext/bonding.js';
 // wave-A: F-bridge-l2

@@ -841,6 +841,37 @@ export class FakeAgent {
           }),
         });
       },
+      multicastState: (call, cb) => {
+        if (!this.checkCommon('MulticastState', call.request, cb)) return;
+        const routing = (this.current['routing'] ?? {}) as Json;
+        const mc = (routing['multicast'] ?? {}) as Json;
+        const igmp = (mc['igmp'] ?? {}) as Json;
+        const groups: { interface: string; group: string; sources: string[] }[] = [];
+        for (const [ifName, iface] of Object.entries((igmp['interfaces'] as Record<string, Json>) ?? {})) {
+          for (const j of ((iface['joins'] as Json[] | undefined) ?? [])) {
+            groups.push({ interface: ifName, group: String(j['group'] ?? ''), sources: (j['sources'] as string[] | undefined) ?? [] });
+          }
+        }
+        const mroutes = ((mc['mroutes'] as Json[] | undefined) ?? []).map((r) => {
+          const paths = (r['paths'] as Json[] | undefined) ?? [];
+          return {
+            vrf: String(r['vrf'] ?? 'default'),
+            group: String(r['group'] ?? ''),
+            source: String(r['source'] ?? ''),
+            accept: String(paths.find((p) => p['flags'] === 'accept')?.['interface'] ?? ''),
+            forward: paths.filter((p) => p['flags'] === 'forward').map((p) => String(p['interface'] ?? '')),
+            packets: '0',
+            bytes: '0',
+          };
+        });
+        cb(null, {
+          owner: this.owner,
+          retrievedAt: new Date('2026-09-27T00:00:00.000Z'),
+          groups,
+          mroutes,
+          pimNeighbors: [],
+        });
+      },
       pppoeReconnect: (call, cb) => {
         if (!this.checkCommon('PppoeReconnect', call.request, cb)) return;
         const ifs = (this.current['interfaces'] ?? {}) as Record<string, Json>;

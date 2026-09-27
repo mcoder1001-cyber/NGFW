@@ -81,6 +81,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'tools/capture', lazy: async () => ({ Component: (await import('./domains/tools/capture-trace/CapturePage')).CapturePage }) },
         // wave-BC: F-bfd-redistribution
         // wave-BC: F-igmp-mfib
+        { path: 'routing/multicast', lazy: async () => ({ Component: (await import('./domains/routing/igmp-mfib/MulticastPage')).MulticastPage }) },
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-restconf-yang

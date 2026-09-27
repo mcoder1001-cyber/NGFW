@@ -17,6 +17,7 @@ import {
   type InterfaceStateResponse,
   type PppoeReconnectResponse,
   type WanStateResponse,
+  type MulticastStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
@@ -228,6 +229,11 @@ export class AgentClient implements OnModuleDestroy {
   /** F-multiwan: live WAN group member health; an agent without multi-WAN answers 501. */
   wanState(groups: string[] = []): Promise<WanStateResponse> {
     return this.unary(this.c.wanState, { groups, owner: this.owner });
+  }
+
+  /** F-igmp-mfib: live IGMP groups, mFIB and PIM neighbours; an agent without multicast answers 501. */
+  multicastState(): Promise<MulticastStateResponse> {
+    return this.unary(this.c.multicastState, { owner: this.owner });
   }
 
   /** F-pppoe-client: redial a PPPoE client now; an agent without PPPoE support answers 501. */

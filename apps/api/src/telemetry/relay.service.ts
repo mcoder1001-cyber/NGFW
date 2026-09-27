@@ -32,6 +32,8 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-BC: F-ra-vpn
     // wave-BC: F-mpls-ldp
     // wave-BC: F-igmp-mfib
+    case EventKind.EVENT_KIND_IGMP_GROUP_CHANGED:
+      return 'multicast.events';
     // wave-A: F-neighbors-ra
     case EventKind.EVENT_KIND_NEIGHBOR_CHANGED:
       return 'neighbor.events';

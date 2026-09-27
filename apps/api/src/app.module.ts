@@ -69,6 +69,7 @@ import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
+import { igmpMfibFeature } from './features/igmp-mfib/index.js';
 // wave-BC: F-dashboard-prom-alarms
 // web: WEB-dashboard
 import { hostMetricsFeature } from './features/host-metrics/index.js';
@@ -181,6 +182,7 @@ export class AppModule {
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
+        ...igmpMfibFeature.controllers,
         // wave-BC: F-dashboard-prom-alarms
         // web: WEB-dashboard
         ...hostMetricsFeature.controllers,
@@ -287,6 +289,7 @@ export class AppModule {
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
+        ...igmpMfibFeature.providers,
         // wave-BC: F-dashboard-prom-alarms
         // web: WEB-dashboard
         ...hostMetricsFeature.providers,

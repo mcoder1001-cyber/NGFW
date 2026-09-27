@@ -127,6 +127,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-BC: F-mpls-srmpls
   groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });
   // wave-BC: F-igmp-mfib
+  groups.get('routing')!.push({ id: 'multicast', path: '/routing/multicast', labelKey: 'igmp-mfib:nav', fallbackLabel: 'Multicast', available: true });
   // wave-BC: F-capture-trace
   groups.get('tools')!.push({ id: 'capture', path: '/tools/capture', labelKey: 'capture-trace:nav', fallbackLabel: 'Packet capture', available: true });
   // wave-A: F-bonding

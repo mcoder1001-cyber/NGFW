@@ -918,6 +918,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/routing/multicast/groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live IGMP group memberships (router-mode interfaces) */
+    get: operations['IgmpMfib_groups'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/multicast/mroutes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The live VPP mFIB (static and PIM-learned routes) */
+    get: operations['IgmpMfib_mroutes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/multicast/pim-neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** PIM neighbours (from FRR pimd) */
+    get: operations['IgmpMfib_pimNeighbors'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/host': {
     parameters: {
       query?: never;
@@ -3379,6 +3430,120 @@ export interface components {
             bsid: number;
             /** VPN label */
             vpnLabel?: number;
+          }[];
+        };
+      };
+      /** Multicast (IGMP / mFIB / PIM) */
+      multicast?: {
+        /**
+         * IGMP
+         * @default {}
+         */
+        igmp: {
+          /**
+           * IGMP interfaces
+           * @default {}
+           */
+          interfaces: {
+            [key: string]: {
+              /**
+               * Mode
+               * @default router
+               * @enum {string}
+               */
+              mode: 'host' | 'router';
+              /**
+               * Static joins
+               * @default []
+               */
+              joins: {
+                /**
+                 * Group
+                 * Format: ipv4
+                 */
+                group: string;
+                /** Sources */
+                sources: string[];
+              }[];
+            };
+          };
+          /**
+           * SSM ranges
+           * @default [
+           *       "232.0.0.0/8"
+           *     ]
+           */
+          ssmRanges: string[];
+          /**
+           * IGMP proxies
+           * @default {}
+           */
+          proxies: {
+            [key: string]: {
+              /** Upstream */
+              upstream: string;
+              /** Downstream */
+              downstream: string[];
+            };
+          };
+        };
+        /**
+         * Static multicast routes
+         * @default []
+         */
+        mroutes: {
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Group
+           * Format: ipv4
+           */
+          group: string;
+          /**
+           * Source
+           * Format: ipv4
+           */
+          source?: string;
+          /**
+           * Paths
+           * @default []
+           */
+          paths: {
+            /** Interface */
+            interface: string;
+            /**
+             * Role
+             * @default forward
+             * @enum {string}
+             */
+            flags: 'accept' | 'forward';
+          }[];
+        }[];
+        /**
+         * PIM-SM
+         * @default {}
+         */
+        pim: {
+          /**
+           * PIM interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Rendezvous points
+           * @default []
+           */
+          rp: {
+            /**
+             * RP address
+             * Format: ipv4
+             */
+            address: string;
+            /** Group ranges */
+            groups: string[];
           }[];
         };
       };
@@ -13193,6 +13358,150 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_groups: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            groups: {
+              interface: string;
+              group: string;
+              sources: string[];
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_mroutes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            mroutes: {
+              vrf: string;
+              group: string;
+              /** @description empty for a (*,G) route */
+              source: string;
+              /** @description incoming (RPF) interface */
+              accept: string;
+              forward: string[];
+              packets: string;
+              bytes: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_pimNeighbors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            neighbors: {
+              interface: string;
+              address: string;
+              uptimeSec: number;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

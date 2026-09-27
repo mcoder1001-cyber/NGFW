@@ -1,0 +1,227 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نقشهٔ قابلیت‌های VRX</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root{
+  --bg:#EEF2F4; --paper:#FFFFFF; --ink:#132029; --muted:#5A6B77; --line:#D5DEE4;
+  --accent:#0B6E78; --accent-soft:#DCEFF0;
+  --done:#1F8A4C; --done-bg:#E1F3E8;
+  --rev:#2D63C8; --rev-bg:#E3EBFA;
+  --run:#B7700B; --run-bg:#FBEFD9;
+  --plan:#6B7682; --plan-bg:#ECEFF2;
+  --vpp:#9A3B5E; --vpp-bg:#F6E4EB;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;--bg:#0E151A;--paper:#152028;--ink:#E4ECF1;--muted:#93A4B0;--line:#26343E;
+  --accent:#4FC1C9;--accent-soft:#16343A;--done:#5ACB86;--done-bg:#17301F;--rev:#7FA6F0;--rev-bg:#1A2742;
+  --run:#E5A94B;--run-bg:#35280F;--plan:#9AA6B1;--plan-bg:#1F2A32;--vpp:#E08AAA;--vpp-bg:#361C27;}}
+:root[data-theme="dark"]{
+  color-scheme:dark;--bg:#0E151A;--paper:#152028;--ink:#E4ECF1;--muted:#93A4B0;--line:#26343E;
+  --accent:#4FC1C9;--accent-soft:#16343A;--done:#5ACB86;--done-bg:#17301F;--rev:#7FA6F0;--rev-bg:#1A2742;
+  --run:#E5A94B;--run-bg:#35280F;--plan:#9AA6B1;--plan-bg:#1F2A32;--vpp:#E08AAA;--vpp-bg:#361C27;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:Vazirmatn,Tahoma,sans-serif;font-size:15px;line-height:1.75;padding-inline:16px;padding-block:28px 48px}
+.wrap{max-width:1120px;margin-inline:auto;display:grid;gap:28px}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;direction:ltr;unicode-bidi:isolate}
+header{display:grid;gap:14px}
+.eyebrow{font-size:12.5px;letter-spacing:.06em;color:var(--accent);font-weight:700}
+h1{margin:0;font-size:clamp(26px,4vw,38px);font-weight:800;line-height:1.3;text-wrap:balance}
+.lede{margin:0;color:var(--muted);max-width:68ch}
+.stack{display:flex;flex-wrap:wrap;gap:6px}
+.stack span{font-size:12px;padding:2px 9px;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--muted)}
+.summary{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,2fr);gap:18px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:20px}
+.big{font-size:44px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:16px;color:var(--muted);font-weight:500}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--plan-bg);margin-block:14px 8px}
+.bar i{display:block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-inline-end:6px;vertical-align:middle}
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters button{font:inherit;font-size:13px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.filters button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px;align-items:start}
+.dom{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px}
+.dom h2{margin:0;font-size:17px;display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.dom h2 .cnt{font-size:12px;color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.dom ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+.dom li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:14px;line-height:1.6}
+.pill{font-size:11px;font-weight:700;padding:1px 8px;border-radius:4px;white-space:nowrap;margin-top:2px;min-width:74px;text-align:center}
+.s-done{color:var(--done);background:var(--done-bg)} .s-rev{color:var(--rev);background:var(--rev-bg)}
+.s-run{color:var(--run);background:var(--run-bg)} .s-plan{color:var(--plan);background:var(--plan-bg)}
+.s-vpp{color:var(--vpp);background:var(--vpp-bg)}
+.note{color:var(--muted);font-size:12.5px}
+h3.sec{margin:0;font-size:20px;font-weight:800}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.box h4{margin:0 0 8px;font-size:15.5px}
+.box p{margin:0 0 8px;color:var(--muted);font-size:13.5px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td{padding:6px 4px;border-top:1px solid var(--line);vertical-align:top}
+td:first-child{white-space:nowrap;color:var(--vpp);font-weight:700;width:36px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tags span{font-size:12.5px;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--ink)}
+.tags.out span{background:var(--plan-bg);color:var(--muted)}
+footer{color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);padding-top:14px}
+@media (max-width:720px){.summary{grid-template-columns:1fr}.grid{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap" dir="rtl" lang="fa">
+<header>
+  <div class="eyebrow">NGFW · نام رمز VRX · وضعیت ۶ مهر ۱۴۰۵ (۲۰۲۶-۰۹-۲۷)</div>
+  <h1>همهٔ قابلیت‌های روتر و فایروال امن VRX، در یک صفحه</h1>
+  <p class="lede">روتر نرم‌افزاری پرسرعت هم‌رده با TNSR، روی دیتاپلین FD.io VPP. هر قابلیت از یک سند «وضعیت مطلوب» پیکربندی می‌شود، با commit اتمی و rollback اعمال می‌شود و پس از ری‌استارت VPP خودکار بازسازی می‌شود.</p>
+  <div class="stack"><span class="mono">VPP 26.06 + DPDK</span><span class="mono">Go agent (govpp)</span><span class="mono">NestJS API</span><span class="mono">React 19 + MUI</span><span class="mono">FRR · strongSwan · Kea · Unbound · chrony · keepalived</span><span class="mono">PostgreSQL · Redis</span></div>
+</header>
+
+<section class="summary" aria-label="خلاصهٔ پیشرفت">
+  <div>
+    <div class="big mono">64%</div>
+    <div class="note">پیشرفت بر اساس ساعت برآوردی: ۸۴۳ از ۱۳۲۲ ساعت · ۹۶ از ۱۴۹ تسک merge شده</div>
+  </div>
+  <div>
+    <div class="bar" role="img" aria-label="96 merged, 12 review, 3 running, 38 remaining">
+      <i style="width:64.4%;background:var(--done)"></i><i style="width:8.1%;background:var(--rev)"></i><i style="width:2%;background:var(--run)"></i>
+    </div>
+    <div class="legend">
+      <span><b style="background:var(--done)"></b>انجام‌شده (۹۶)</span>
+      <span><b style="background:var(--rev)"></b>در بازبینی (۱۲)</span>
+      <span><b style="background:var(--run)"></b>در حال ساخت (۳)</span>
+      <span><b style="background:var(--plan)"></b>برنامه‌ریزی‌شده (۳۸)</span>
+    </div>
+  </div>
+</section>
+
+<div class="filters" role="group" aria-label="فیلتر وضعیت" id="filters">
+  <button type="button" data-f="all" aria-pressed="true">همه</button>
+  <button type="button" data-f="done" aria-pressed="false">انجام‌شده</button>
+  <button type="button" data-f="rev" aria-pressed="false">در بازبینی</button>
+  <button type="button" data-f="run" aria-pressed="false">در حال ساخت</button>
+  <button type="button" data-f="plan" aria-pressed="false">برنامه‌ریزی‌شده</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<h3 class="sec">ترک جدای کد VPP (به زبان C، خارج از برنامهٔ اصلی)</h3>
+<div class="two">
+  <div class="box">
+    <p>قابلیت‌هایی که فقط با پیکربندی به دست نمی‌آیند و به تغییر کد خود VPP نیاز دارند. تا آن زمان راه جایگزین بدون کد فعال است.</p>
+    <table>
+      <tr><td class="mono">V1</td><td>پچ‌های linux-cp / linux-nl برای لبه‌ها (RA روی جفت، sub-if روی bond، چند VRF)</td></tr>
+      <tr><td class="mono">V2</td><td>همگام‌سازی session برای HA (NAT44-ED و ACL)؛ فعلاً VRRP بدون حفظ session</td></tr>
+      <tr><td class="mono">V3</td><td>HQoS سلسله‌مراتبی؛ فعلاً policer و marking تخت</td></tr>
+    </table>
+  </div>
+  <div class="box">
+    <table>
+      <tr><td class="mono">V4</td><td>ALG های NAT برای SIP، FTP فعال و PPTP</td></tr>
+      <tr><td class="mono">V5</td><td>همگام‌سازی مسیر MPLS و multicast کرنل به VPP؛ فعلاً agent مسیرهای LDP/PIM را از FRR می‌خواند</td></tr>
+      <tr><td class="mono">V6</td><td>پچ احتمالی vpp_sswan برای سازگاری strongSwan 6.x</td></tr>
+    </table>
+  </div>
+</div>
+
+<h3 class="sec">ایده‌های بلندمدت (backlog، هنوز زمان‌بندی نشده)</h3>
+<div class="two">
+  <div class="box"><h4>امنیت لایهٔ ۷</h4><div class="tags"><span>کنترل اپلیکیشن (SNI/DNS و nDPI)</span><span>IPS با Suricata/Snort</span><span>فیلتر URL</span><span>بازرسی TLS</span><span>آنتی‌ویروس / sandbox</span><span>User-ID از AD/RADIUS</span><span>Geo-IP</span><span>محافظت DoS و SYN cookie</span><span>ZTNA</span><span>honeypot و فریب</span></div></div>
+  <div class="box"><h4>WAN و شبکه</h4><div class="tags"><span>SD-WAN بر اساس SLA</span><span>DHCPv6-PD روی WAN</span><span>Dynamic DNS</span><span>مودم LTE/5G</span><span>HQoS و سهمیهٔ کاربر</span><span>BGP EVPN / VXLAN</span><span>PTP</span><span>SSL VPN</span><span>802.1X و DHCP snooping</span><span>پراکسی وب و reverse proxy/WAF</span><span>captive portal و voucher</span><span>offload سخت‌افزاری</span></div></div>
+  <div class="box"><h4>مدیریت و تجربهٔ کاربری</h4><div class="tags"><span>تحلیلگر سیاست (قوانین سایه و بی‌استفاده)</span><span>لاگ session به SIEM</span><span>مدیریت مرکزی چند دستگاه</span><span>گزارش انطباق CIS/PCI</span><span>commit دونفره</span><span>ابزار مهاجرت از FortiGate، pfSense، MikroTik، ASA</span><span>import/export با CSV</span><span>ترافیک زنده و top talkers</span><span>ابزارهای تشخیص (speed test، iperf)</span><span>zero-touch provisioning</span><span>گزارش زمان‌بندی‌شده</span><span>دستیار هوش مصنوعی</span><span>اپ موبایل</span></div></div>
+  <div class="box"><h4>پلتفرم</h4><div class="tags"><span>secure boot و TPM</span><span>حالت FIPS 140-3</span><span>HA ابری (AWS/Azure/GCP)</span><span>چنداجاره‌ای (VDOM)</span><span>انگشت‌نگاری دستگاه‌ها و IoT</span></div></div>
+</div>
+
+<h3 class="sec">خارج از دامنهٔ فعلی</h3>
+<div class="box"><div class="tags out"><span>چنداجاره‌ای (موکول شد، تصمیم D-003)</span><span>Ansible (حذف شد)</span><span>تست نفوذ شخص ثالث</span><span>soak ۷۲ ساعته</span><span>گواهی‌نامه‌ها</span><span>CIS کامل و secure boot</span><span>انتشار در marketplace ابری</span><span>تست گذردهی روی سخت‌افزار واقعی</span></div></div>
+
+<footer>منبع: <span class="mono">plan/tasks.yaml</span>، <span class="mono">docs/status/PROGRESS.md</span>، <span class="mono">docs/11-compressed-plan-fa.md</span> و <span class="mono">plan/backlog.yaml</span>. «انجام‌شده» یعنی merge شده؛ تأیید روی سخت‌افزار واقعی برای بخشی از موارد (NIC، offload، زمان failover) هنوز انجام نشده است.</footer>
+</div>
+
+<script>
+const D={done:"انجام‌شده",rev:"در بازبینی",run:"در حال ساخت",plan:"برنامه‌ریزی‌شده"};
+const S=[
+["هسته و پیکربندی تراکنشی",[
+["done","دو دیتااستور candidate / running، diff، commit اتمی و rollback کامل"],
+["done","confirmed commit: بازگشت خودکار اگر تأیید نشود"],
+["done","تاریخچهٔ revision، قفل نویسنده، اعتبارسنجی سه‌مرحله‌ای (ساختاری، معنایی، dry-run)"],
+["done","agent اعلانی: بازسازی کل دیتاپلین پس از crash یا ری‌استارت VPP"],
+["done","مولد و ابزار اعمال startup.conf (hugepage، worker، RSS، NUMA) و بیلد بستهٔ VPP"],
+["done","احراز هویت، RBAC، کلید API، لاگ ممیزی و رمزنگاری secret ها"],
+["done","رابط وب en/fa با RTL، تم تیره/روشن، فرم‌های تولیدشده از schema، ویرایشگر پیشرفته"],
+["done","CLI، ارائه‌دهندهٔ Terraform، Python SDK و مجوز ساده"],
+["rev","صفحهٔ Dataplane (پلاگین‌ها، صف NIC، هسته‌ها، hugepage) با پیش‌نمایش"],
+["plan","RESTCONF / NETCONF با YANG تولیدشده از schema"]]],
+["اینترفیس‌ها و لایهٔ ۲",[
+["done","VLAN 802.1q و QinQ"],["done","bonding: LACP، XOR، round-robin، active-backup"],
+["done","bridge domain، L2XC/L3XC، split-horizon، aging آدرس MAC"],
+["done","loopback و BVI، GSO/offload، LLDP، SPAN/ERSPAN، nsim"],
+["run","کلاینت PPPoE روی WAN با اتصال مجدد و MSS clamping"]]],
+["مسیریابی",[
+["done","VRF، مسیر ایستا، ECMP، مرورگر FIB، ping و traceroute"],
+["done","جدول ARP/ND، proxy-ND، IPv6 RA و DAD"],["done","uRPF، ADL و مسیریابی مبتنی بر سیاست (ABF)"],
+["done","FRR + linux-cp و BGP"],["rev","OSPFv2 / OSPFv3"],["rev","IS-IS، RIPv2 و RIPng"],
+["done","MPLS ایستا و SR-MPLS"],["done","SRv6 و service chaining، LISP"],
+["plan","BFD و ماتریس redistribution"],["plan","LDP از FRR"],["plan","IGMPv3، mfib ایستا و BIER"],
+["plan","Multi-WAN با failover و پایش سلامت لینک"]]],
+["فایروال و امنیت",[
+["done","مدل اشیا: آدرس، گروه، FQDN، سرویس، زمان‌بندی، zone، برچسب"],
+["done","ACL های MACIP / L3 / L4 با شمارندهٔ hit و ویرایشگر ۱۰۰ هزار قانون"],
+["done","ACL ترافیک ورودی به خود دستگاه و سیاست nftables"],
+["done","Global Blocking: لیست IP از فایل یا URL با به‌روزرسانی زمان‌بندی‌شده"],
+["done","قوانین موقت با تاریخ انقضا، مالک و شمارهٔ تیکت"],
+["plan","تشخیص brute-force و اسکن پورت با مسدودسازی خودکار"]]],
+["NAT",[
+["done","NAT44-ED: خروجی/PAT، 1:1، port-forward، مرورگر و قطع session"],
+["done","NAT44-EI، NAT64، NAT66، NPTv6"],
+["plan","CGNAT: DET44، MAP-E/T، DS-Lite، LW4o6، 464XLAT، CNAT"],["plan","NAT46"]]],
+["VPN و تونل",[
+["done","WireGuard"],["rev","GRE، IPIP، VXLAN(-GPE)، GTP-U، L2TPv3، PPPoE"],
+["plan","IPsec site-to-site با strongSwan + VPP و داشبورد تونل"],
+["plan","IKEv2 بومی VPP"],["plan","PKI: CA، CSR، CRL/OCSP، هشدار انقضا"],
+["plan","VPN دسترسی از راه دور (IKEv2 + EAP)"]]],
+["سرویس‌های شبکه",[
+["done","Kea DHCPv4/v6، relay و کلاینت DHCP"],["done","Unbound DNS، chrony NTP، ارسال syslog و مرورگر لاگ"],
+["done","SNMP v2c/v3 با MIB اختصاصی"],["done","IPFIX و sFlow"],
+["done","QoS: policer، marking، DSCP/dot1p"],["done","Load Balancer (GRE، NAT، L3DSR، maglev)"],
+["done","Host stack: TCP/UDP، TLS، QUIC، HTTP"]]],
+["پایش و عملیات",[
+["done","داشبورد: CPU، حافظه، گذردهی، نمودار ترافیک، موتور بسته"],
+["run","ضبط بسته pcap، فیلتر BPF، trace و Trace Path"],
+["plan","Prometheus exporter، هشدارها و رویدادها"],
+["plan","اعلان از طریق ایمیل، تلگرام و webhook"],
+["plan","backup/restore، export زمان‌بندی‌شده، support bundle"]]],
+["دسترس‌پذیری بالا (HA)",[
+["rev","صفحه‌های VRRP و نمای خوشه"],["plan","VRRPv3 و همگام‌سازی پیکربندی بین همتاها"],
+["plan","همگام‌سازی وضعیت NAT/ACL/IPsec و تست خودکار failover"]]],
+["سیستم و مدیریت",[
+["rev","هویت سیستم: hostname، منطقهٔ زمانی، بنر ورود، DNS کلاینت"],
+["rev","صفحهٔ مدیریت: کاربران محلی، AAA، گواهی TLS، syslog راه دور"],
+["plan","AAA خارجی: RADIUS، TACACS+، LDAP، SAML، OIDC و MFA"],
+["plan","ویزارد راه‌اندازی اولیه (زبان، رمز ادمین، WAN، LAN و DHCP)"]]],
+["بسته‌بندی و انتشار",[
+["run","بستهٔ Debian، سرویس‌های systemd و نصب"],["plan","ISO نصب خودکار"],
+["plan","ارتقای A/B با rollback خودکار"],["plan","ایمیج VM و ابری"],
+["plan","سخت‌سازی سیستم‌عامل و امضای بسته‌ها"],
+["plan","مرحلهٔ نهایی: تست E2E، بازبینی امنیتی، مستندات، گزارش داریم/نداریم"]]]
+];
+const grid=document.getElementById("grid");
+function render(f){
+  grid.innerHTML="";
+  for(const [name,items] of S){
+    const list=f==="all"?items:items.filter(i=>i[0]===f);
+    if(!list.length) continue;
+    const done=items.filter(i=>i[0]==="done").length;
+    const el=document.createElement("section");el.className="dom";
+    el.innerHTML=`<h2><span>${name}</span><span class="cnt">${done.toLocaleString("fa-IR")} از ${items.length.toLocaleString("fa-IR")} انجام‌شده</span></h2><ul>`+
+      list.map(([s,t])=>`<li><span class="pill s-${s}">${D[s]}</span><span>${t}</span></li>`).join("")+"</ul>";
+    grid.appendChild(el);
+  }
+}
+document.getElementById("filters").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  document.querySelectorAll("#filters button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+  render(b.dataset.f);
+});
+render("all");
+</script>

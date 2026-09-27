@@ -2843,13 +2843,13 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: ready
+  state: running
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   notes: D-123
 - id: ui-nav-collapse
   title: 'Web nav: collapsible groups (closed by default, current group opens, useId ids, shared open state) — product-owner request in session «وب»'

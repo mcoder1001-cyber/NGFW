@@ -13,6 +13,7 @@ import {
 import {
   ApiBody,
   ApiCookieAuth,
+  ApiOkResponse,
   ApiNoContentResponse,
   ApiOperation,
   ApiResponse,
@@ -27,7 +28,13 @@ import { ProblemError } from '../common/problem.js';
 import { EnvZodPipe, openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
 import { ROLES } from '../db/schema.js';
-import { AuthService, type LoginResult } from './auth.service.js';
+import {
+  AuthService,
+  isMfaChallenge,
+  type LoginOutcome,
+  type LoginResult,
+  type MfaChallenge,
+} from './auth.service.js';
 import { newPassword, PASSWORD_MIN } from '../users/password-policy.js';
 import { UsersService } from '../users/users.service.js';
 import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
@@ -66,6 +73,14 @@ const ApiKeyBody = z.strictObject({
     ),
 });
 
+/** F-aaa-login: the second-factor bodies. A ticket is opaque and single-use; a code is a TOTP or a recovery code. */
+const MfaTicketBody = z.strictObject({ ticket: z.string().min(1).max(128) });
+const MfaCodeBody = z.strictObject({
+  ticket: z.string().min(1).max(128),
+  code: z.string().min(1).max(64),
+});
+const MfaVerifyBody = z.strictObject({ code: z.string().min(1).max(64) });
+
 const UserOut = z.object({ id: z.number().int(), username: z.string(), role: z.enum(ROLES) });
 const SessionOut = z.object({
   accessToken: z.string(),
@@ -73,6 +88,47 @@ const SessionOut = z.object({
   expiresIn: z.number().int().describe('seconds'),
   user: UserOut,
 });
+const MfaChallengeOut = z.object({
+  mfa: z.enum(['code', 'enrol']),
+  ticket: z.string(),
+  expiresIn: z.number().int().describe('seconds'),
+  attemptsLeft: z.number().int(),
+});
+/** A login answers either a session or a second-factor challenge. */
+const MfaLoginOut = z.union([
+  z.object({
+    accessToken: z.string(),
+    tokenType: z.literal('Bearer'),
+    expiresIn: z.number().int().describe('seconds'),
+    user: z.object({ id: z.number().int(), username: z.string(), role: z.enum(ROLES) }),
+  }),
+  MfaChallengeOut,
+]);
+const MfaEnrolOut = z.object({
+  secret: z.string().describe('base32 TOTP seed — shown once'),
+  otpauthUri: z.string().describe('otpauth:// URI for an authenticator app'),
+});
+const MfaEnrolTicketOut = MfaEnrolOut.extend({
+  ticket: z.string().describe('a fresh login ticket: redeeming one consumes it'),
+  expiresIn: z.number().int().describe('seconds'),
+});
+const MfaRecoveryOut = z.object({
+  recoveryCodes: z.array(z.string()).describe('single-use codes — shown once, never again'),
+});
+const MfaEnrolLoginOut = z.object({
+  recoveryCodes: z.array(z.string()),
+  accessToken: z.string(),
+  tokenType: z.literal('Bearer'),
+  expiresIn: z.number().int().describe('seconds'),
+  user: z.object({ id: z.number().int(), username: z.string(), role: z.enum(ROLES) }),
+});
+const MfaStatusOut = z.object({
+  enrolled: z.boolean(),
+  required: z.boolean(),
+  pending: z.boolean(),
+  recoveryCodesLeft: z.number().int(),
+});
+
 const MeOut = z.object({
   id: z.number().int(),
   username: z.string(),
@@ -136,6 +192,17 @@ export class AuthController {
     };
   }
 
+  /**
+   * F-aaa-login: a login may answer a second-factor challenge instead of a session. A challenge sets no cookie and
+   * carries no token — it is returned as it is, and the client comes back to `POST /auth/login/mfa`.
+   */
+  private setRefreshOrChallenge(
+    reply: FastifyReply,
+    r: LoginOutcome,
+  ): Omit<LoginResult, 'refreshToken' | 'refreshMaxAge'> | MfaChallenge {
+    return isMfaChallenge(r) ? r : this.setRefresh(reply, r);
+  }
+
   @Post('login')
   @Public()
   @NoAudit()
@@ -154,7 +221,7 @@ export class AuthController {
     @Req() req: VrxRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
-    return this.setRefresh(
+    return this.setRefreshOrChallenge(
       reply,
       await this.auth.login(body.username, body.password, sourceIp(req), secureTransport(req)),
     );
@@ -301,5 +368,134 @@ export class AuthController {
   ): Promise<void> {
     req.audit = { resource: `api-key/${id}` };
     await this.auth.deleteApiKey(req.principal!, id);
+  }
+
+  // ---- F-aaa-login: the second factor ---------------------------------------------------------------------------
+  // The ticket flow under `login/` is @Public() by necessity: the caller has proved the first factor but has no
+  // session yet, and the ticket IS the credential (single-use, TLS only, 3 minutes).
+
+  @Post('login/mfa')
+  @Public()
+  @NoAudit()
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Second factor of a login: a TOTP or recovery code against a login ticket',
+  })
+  @ApiBody({ schema: openapi(MfaCodeBody) })
+  @ApiOut(MfaLoginOut)
+  @ApiResponse({
+    status: 403,
+    description: TLS_REQUIRED,
+    content: { 'application/problem+json': { schema: ref('Problem') } },
+  })
+  @PublicDoc(400, 401)
+  async loginMfa(
+    @Body(new ZodPipe(MfaCodeBody)) body: z.output<typeof MfaCodeBody>,
+    @Req() req: VrxRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    return this.setRefreshOrChallenge(
+      reply,
+      await this.auth.loginMfa(body.ticket, body.code, sourceIp(req), secureTransport(req)),
+    );
+  }
+
+  @Post('login/mfa/enroll')
+  @Public()
+  @NoAudit()
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Enrol a second factor from a login ticket, when the policy requires MFA and there is none yet',
+  })
+  @ApiBody({ schema: openapi(MfaTicketBody) })
+  @ApiOut(MfaEnrolTicketOut)
+  @PublicDoc(400, 401)
+  async loginMfaEnrol(
+    @Body(new ZodPipe(MfaTicketBody)) body: z.output<typeof MfaTicketBody>,
+    @Req() req: VrxRequest,
+  ) {
+    return this.auth.enrolWithTicket(body.ticket, secureTransport(req));
+  }
+
+  @Post('login/mfa/verify')
+  @Public()
+  @NoAudit()
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Confirm a ticket enrolment with a code; returns the recovery codes once and completes the login',
+  })
+  @ApiBody({ schema: openapi(MfaCodeBody) })
+  @ApiOut(MfaEnrolLoginOut)
+  @PublicDoc(400, 401, 403)
+  async loginMfaVerify(
+    @Body(new ZodPipe(MfaCodeBody)) body: z.output<typeof MfaCodeBody>,
+    @Req() req: VrxRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    const { recoveryCodes, session } = await this.auth.confirmEnrolmentWithTicket(
+      body.ticket,
+      body.code,
+      sourceIp(req),
+      secureTransport(req),
+    );
+    return { recoveryCodes, ...this.setRefresh(reply, session) };
+  }
+
+  @Get('mfa')
+  @Protected()
+  @ApiOperation({ summary: 'The caller’s MFA state' })
+  @ApiOut(MfaStatusOut)
+  async mfa(@Req() req: VrxRequest) {
+    return this.auth.mfaStatus(req.principal!);
+  }
+
+  /** Self-service enrolment — like the password change, open to readonly users for their own credentials. */
+  @Post('mfa/enroll')
+  @AuditUnavailableDoc()
+  @MinRole('readonly')
+  @HttpCode(200)
+  @Protected(409)
+  @ApiOperation({ summary: 'Start enrolling a second factor for the caller' })
+  @ApiOkResponse({ schema: openapi(MfaEnrolOut, 'output') })
+  async mfaEnrol(@Req() req: VrxRequest) {
+    req.audit = {
+      resource: `user/${req.principal!.username}`,
+      after: { mfa: 'enrolment-started' },
+    };
+    return this.auth.mfaEnrol(req.principal!);
+  }
+
+  @Post('mfa/verify')
+  @AuditUnavailableDoc()
+  @MinRole('readonly')
+  @HttpCode(200)
+  @Protected(400, 403)
+  @ApiOperation({ summary: 'Confirm the caller’s enrolment; returns the recovery codes once' })
+  @ApiOkResponse({ schema: openapi(MfaRecoveryOut, 'output') })
+  @ApiBody({ schema: openapi(MfaVerifyBody) })
+  async mfaVerify(
+    @Body(new ZodPipe(MfaVerifyBody)) body: z.output<typeof MfaVerifyBody>,
+    @Req() req: VrxRequest,
+  ) {
+    req.audit = { resource: `user/${req.principal!.username}`, after: { mfa: 'enrolled' } };
+    return this.auth.mfaConfirm(req.principal!, body.code);
+  }
+
+  @Delete('mfa')
+  @AuditUnavailableDoc()
+  @MinRole('readonly')
+  @HttpCode(204)
+  @Protected(403)
+  @ApiOperation({ summary: 'Turn the caller’s second factor off (a current code is required)' })
+  @ApiBody({ schema: openapi(MfaVerifyBody) })
+  @ApiNoContentResponse({ description: 'MFA disabled' })
+  async mfaDisable(
+    @Body(new ZodPipe(MfaVerifyBody)) body: z.output<typeof MfaVerifyBody>,
+    @Req() req: VrxRequest,
+  ) {
+    req.audit = { resource: `user/${req.principal!.username}`, after: { mfa: 'disabled' } };
+    await this.auth.mfaDisable(req.principal!, body.code);
   }
 }

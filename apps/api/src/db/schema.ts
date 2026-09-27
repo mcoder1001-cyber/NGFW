@@ -37,7 +37,15 @@ export const appUser = pgTable(
     username: text('username').notNull(),
     passwordHash: text('password_hash'),
     role: text('role').$type<Role>().notNull(),
+    /**
+     * F-aaa-login: TOTP enrolment. `mfa_secret` holds the ACTIVE base32 seed and `mfa_pending_secret` one that was
+     * handed out but not yet proved with a code; both are AES-256-GCM ciphertext under the secret store's master key
+     * (AAD `mfa/<user id>`, so a blob cannot be moved between users), never the seed in clear. `mfa_enrolled_at` is
+     * set when the first code verifies, which is also what "enrolled" means for `management.aaa.mfa.required`.
+     */
     mfaSecret: text('mfa_secret'),
+    mfaPendingSecret: text('mfa_pending_secret'),
+    mfaEnrolledAt: ts('mfa_enrolled_at'),
     disabled: boolean('disabled').notNull().default(false),
     lastLogin: ts('last_login'),
     failedLogins: integer('failed_logins').notNull().default(0),
@@ -244,11 +252,35 @@ export const alarm = pgTable(
   },
   (t) => [
     // one active row per (rule, instance): raise is idempotent, clear flips this row
-    uniqueIndex('alarm_active_uq').on(t.rule, t.instance).where(sql`state = 'active'`),
+    uniqueIndex('alarm_active_uq')
+      .on(t.rule, t.instance)
+      .where(sql`state = 'active'`),
     index('alarm_state_idx').on(t.state, t.raisedAt),
   ],
 );
 // wave-BC: F-aaa
+/**
+ * F-aaa-login: single-use MFA recovery codes. Only a sha256 hash is stored — the plain codes are shown once, when
+ * enrolment is confirmed; `used_at` marks one as spent so it cannot be replayed. Rows follow the user
+ * (`on delete cascade`), and re-enrolling replaces the whole set.
+ */
+export const userMfaRecovery = pgTable(
+  'user_mfa_recovery',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => appUser.id, { onDelete: 'cascade' }),
+    codeHash: text('code_hash').notNull(),
+    usedAt: ts('used_at'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // unique per user, not globally: two users' code sets are independent and must never collide
+    uniqueIndex('user_mfa_recovery_user_hash_uq').on(t.userId, t.codeHash),
+    index('user_mfa_recovery_user_idx').on(t.userId),
+  ],
+);
 // F-bruteforce-block: the live auto-block set (runtime state, not part of the committed document). One row per
 // blocked source; `expires_at` drives expiry, `offences` drives escalation. Manual entries have origin 'manual'.
 export const autoBlock = pgTable(

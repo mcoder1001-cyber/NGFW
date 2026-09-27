@@ -21,11 +21,23 @@ const PUBLIC = new Set([
   // Feature public routes: one line under the feature's anchor (SY1).
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-aaa
+  // F-aaa-login: the second factor of a login — the caller has proved the first factor but has no session yet,
+  // and the single-use ticket in the body IS the credential (TLS only, 3 minutes).
+  'POST /api/v1/auth/login/mfa',
+  'POST /api/v1/auth/login/mfa/enroll',
+  'POST /api/v1/auth/login/mfa/verify',
   // wave-BC: F-restconf-yang
 ]);
 
 /** Mutations a readonly user may call (own credentials only). */
-const READONLY_MAY = new Set(['POST /api/v1/auth/password', 'POST /api/v1/users/:name/password']);
+const READONLY_MAY = new Set([
+  'POST /api/v1/auth/password',
+  'POST /api/v1/users/:name/password',
+  // F-aaa-login: own second factor, like the own password
+  'POST /api/v1/auth/mfa/enroll',
+  'POST /api/v1/auth/mfa/verify',
+  'DELETE /api/v1/auth/mfa',
+]);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
   'POST /api/v1/actions/aaa/test', // wave-BC: F-aaa
@@ -37,6 +49,7 @@ const ADMIN_ONLY = new Set([
   'DELETE /api/v1/secrets/:kind/:name',
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
+  'POST /api/v1/actions/aaa/mfa/reset', // F-aaa-login
   // wave-BC: F-backup-restore
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)

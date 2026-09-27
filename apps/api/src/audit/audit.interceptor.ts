@@ -30,6 +30,11 @@ export const PRIVILEGED_ROUTES: ReadonlySet<string> = new Set([
   'DELETE /api/v1/auth/api-keys/:id',
   'POST /api/v1/secrets',
   'DELETE /api/v1/secrets/:kind/:name',
+  // F-aaa-login: enrolling, confirming or clearing a second factor changes a credential, exactly like a password
+  'POST /api/v1/auth/mfa/enroll',
+  'POST /api/v1/auth/mfa/verify',
+  'DELETE /api/v1/auth/mfa',
+  'POST /api/v1/actions/aaa/mfa/reset',
 ]);
 
 /** 503 `audit-unavailable`: a privileged change refused because its audit row could not be written first. */

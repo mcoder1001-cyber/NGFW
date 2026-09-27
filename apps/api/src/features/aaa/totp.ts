@@ -77,9 +77,15 @@ export function otpauthUri(secret: string, account: string, issuer: string): str
   return `otpauth://totp/${label}?${params.toString()}`;
 }
 
-/** N single-use recovery codes (returned once at enrolment; stored hashed by the caller). */
+/**
+ * N single-use recovery codes (returned once at enrolment; stored hashed by the caller).
+ *
+ * 80 bits each: only a sha256 hash is kept, so the codes must stay out of reach of an offline search if that hash
+ * ever leaks — which a short code would not be. They are the fallback for a lost authenticator, so they are as
+ * powerful as the second factor itself.
+ */
 export function recoveryCodes(n = 10): string[] {
   const out: string[] = [];
-  for (let i = 0; i < n; i++) out.push(randomBytes(5).toString('hex'));
+  for (let i = 0; i < n; i++) out.push(randomBytes(10).toString('hex'));
   return out;
 }

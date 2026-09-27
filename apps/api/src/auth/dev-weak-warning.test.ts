@@ -15,7 +15,8 @@ const service = (flag: '0' | '1') =>
     {} as never,
     {} as never,
     {} as never,
-    {} as never, // AaaService (F-aaa-login): seedBootstrapAdmin never reaches it
+    {} as never, // AaaService, MfaService (F-aaa-login): seedBootstrapAdmin never reaches them
+    {} as never,
   );
 
 describe('VRX_DEV_WEAK_PASSWORDS boot warning', () => {

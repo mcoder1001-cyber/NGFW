@@ -12,8 +12,10 @@ import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, ROLES, type Role } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
 import { AaaService } from '../features/aaa/aaa.service.js';
+import { mfaRequiredFor, MfaService, type MfaStatus } from '../features/aaa/mfa.service.js';
 import { Lockout, type LockSubject } from './lockout.js';
 import { authSequence, stepEligible } from './login-order.js';
+import { MAX_ATTEMPTS, MfaTickets, TICKET_TTL_SEC } from './mfa-ticket.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { PASSWORD_MIN } from '../users/password-policy.js';
 import { apiKeyHash, newApiKeyToken, TokensService } from './tokens.service.js';
@@ -55,7 +57,7 @@ export function isShadowSource(source: string): boolean {
 const ROLE_RANK: Record<Role, number> = { readonly: 1, operator: 2, admin: 3 };
 
 /** What one step of the authentication order answered: a session, or a reason the walk continues. */
-type StepOutcome = { done: LoginResult } | { pass: 'absent' | 'unreachable' | 'unsupported' };
+type StepOutcome = { done: LoginOutcome } | { pass: 'absent' | 'unreachable' | 'unsupported' };
 
 /** Audits one login failure and returns the problem to throw. `method` names the AAA method when there was one. */
 type FailFn = (
@@ -84,6 +86,28 @@ export interface LoginResult {
 }
 
 /**
+ * F-aaa-login: the first factor was accepted but the login is not finished — `management.aaa.mfa.required` covers this
+ * user. `mfa: 'code'` means a TOTP or recovery code is owed; `mfa: 'enrol'` that MFA is required for the role and the
+ * account has no factor yet, so the ticket buys enrolment and nothing else. The ticket is not a session.
+ */
+export interface MfaChallenge {
+  mfa: 'code' | 'enrol';
+  ticket: string;
+  /** Seconds the ticket lives. */
+  expiresIn: number;
+  /** Wrong codes still allowed on this login before the password has to be presented again. */
+  attemptsLeft: number;
+}
+
+/** What a login answers: a session, or a second-factor challenge. */
+export type LoginOutcome = LoginResult | MfaChallenge;
+
+/** Narrow a login outcome to the challenge case. */
+export function isMfaChallenge(o: LoginOutcome): o is MfaChallenge {
+  return 'mfa' in o;
+}
+
+/**
  * Local users (argon2id), JWT access + rotating refresh, API keys, login rate limit and lockout (P06 §6; TD-10b: the
  * login lockout is per (user, client address), the last admin is only throttled — lockout.ts).
  * Every login outcome is audited here with the real reason; the client only ever sees "invalid credentials".
@@ -93,6 +117,7 @@ export interface LoginResult {
 export class AuthService {
   private readonly log = new Logger('Auth');
   private readonly lockout: Lockout;
+  private readonly tickets: MfaTickets;
   /** last system_event per throttled last admin (ms), so an attack writes one event a minute, not one per guess */
   private readonly throttleEventAt = new Map<number, number>();
 
@@ -105,8 +130,10 @@ export class AuthService {
     @Inject(VALKEY) kv: Valkey,
     private readonly events: SystemEventsService,
     private readonly aaa: AaaService,
+    private readonly mfa: MfaService,
   ) {
     this.lockout = new Lockout(kv, db, env);
+    this.tickets = new MfaTickets(kv);
   }
 
   /** D-048: the API seeds the first admin when there is no user at all. Returns true when it created one. */
@@ -158,7 +185,7 @@ export class AuthService {
     password: string,
     ip: string,
     secure: boolean,
-  ): Promise<LoginResult> {
+  ): Promise<LoginOutcome> {
     const fail: FailFn = async (reason, userId, status = 401, method) => {
       await this.audit.write({
         userId,
@@ -275,18 +302,14 @@ export class AuthService {
         u.id,
       );
     }
-    const s = await this.session({ id: u.id, username: u.username, role: u.role }, u.credentialGen);
-    if (s === null || s === 'expired') throw await fail('credentials-changed-during-login', u.id);
-    await this.audit.write({
-      userId: u.id,
-      username: u.username,
-      sourceIp: ip,
-      action: 'auth.login',
-      resource: u.username,
-      result: 'success',
-      status: 200,
-    });
-    return { done: s };
+    return {
+      done: await this.finishFirstFactor(
+        { id: u.id, username: u.username, role: u.role, gen: u.credentialGen },
+        ip,
+        'local',
+        fail,
+      ),
+    };
   }
 
   /**
@@ -335,20 +358,15 @@ export class AuthService {
     if (existing !== undefined && !(await this.lockout.admit(existing, ip)))
       throw await fail('locked', existing.id, 401, method);
     const u = await this.upsertShadow(username, ext.role, method, existing);
-    const s = await this.session({ id: u.id, username, role: u.role }, u.credentialGen);
-    if (s === null || s === 'expired')
-      throw await fail('credentials-changed-during-login', u.id, 401, method);
-    await this.audit.write({
-      userId: u.id,
-      username,
-      sourceIp: ip,
-      action: 'auth.login',
-      resource: username,
-      after: { method, role: u.role, groups: ext.groups },
-      result: 'success',
-      status: 200,
-    });
-    return { done: s };
+    return {
+      done: await this.finishFirstFactor(
+        { id: u.id, username, role: u.role, gen: u.credentialGen },
+        ip,
+        method,
+        fail,
+        { role: u.role, groups: ext.groups },
+      ),
+    };
   }
 
   /**
@@ -397,6 +415,259 @@ export class AuthService {
     return row ?? { id: existing.id, role, credentialGen: existing.credentialGen };
   }
 
+  /**
+   * The first factor is proved. If `management.aaa.mfa.required` covers this user, answer a challenge instead of a
+   * session: a ticket that buys one second-factor attempt (`code`), or, when the account has no factor yet,
+   * enrolment and nothing else (`enrol`). Without the `enrol` case an unenrolled user could never get in, and letting
+   * them in unprotected would make `mfa.required` advisory.
+   *
+   * The challenge is audited as `auth.mfa`, never as an `auth.login` failure: the password was right, and the
+   * auto-block detector (F-bruteforce-block) counts `auth.login` failures — a user reaching for their phone is not a
+   * brute-force attempt.
+   */
+  private async finishFirstFactor(
+    user: { id: number; username: string; role: Role; gen: number },
+    ip: string,
+    method: string,
+    fail: FailFn,
+    extra: Record<string, unknown> = {},
+  ): Promise<LoginOutcome> {
+    const policy = await this.aaa.policy();
+    if (mfaRequiredFor(policy.mfa.required, user.role)) {
+      const purpose = (await this.mfa.isEnrolled(user.id)) ? 'code' : 'enrol';
+      const ticket = await this.tickets.issue({
+        userId: user.id,
+        username: user.username,
+        role: user.role,
+        gen: user.gen,
+        purpose,
+        method,
+        attempts: 0,
+      });
+      await this.audit.write({
+        userId: user.id,
+        username: user.username,
+        sourceIp: ip,
+        action: 'auth.mfa',
+        resource: user.username,
+        after: { stage: purpose === 'code' ? 'code-required' : 'enrolment-required', method },
+        result: 'success',
+        status: 200,
+      });
+      return { mfa: purpose, ticket, expiresIn: TICKET_TTL_SEC, attemptsLeft: MAX_ATTEMPTS };
+    }
+    return this.issueSession(user, ip, method, fail, extra);
+  }
+
+  /** Issue the session of a completed login and audit it. */
+  private async issueSession(
+    user: { id: number; username: string; role: Role; gen: number },
+    ip: string,
+    method: string,
+    fail: FailFn,
+    extra: Record<string, unknown> = {},
+  ): Promise<LoginResult> {
+    const s = await this.session(
+      { id: user.id, username: user.username, role: user.role },
+      user.gen,
+    );
+    if (s === null || s === 'expired')
+      throw await fail(
+        'credentials-changed-during-login',
+        user.id,
+        401,
+        method === 'local' ? undefined : method,
+      );
+    const after =
+      method === 'local' && Object.keys(extra).length === 0 ? undefined : { method, ...extra };
+    await this.audit.write({
+      userId: user.id,
+      username: user.username,
+      sourceIp: ip,
+      action: 'auth.login',
+      resource: user.username,
+      ...(after === undefined ? {} : { after }),
+      result: 'success',
+      status: 200,
+    });
+    return s;
+  }
+
+  /**
+   * Second factor of a login: redeem the ticket and, with a good code, issue the session.
+   *
+   * A wrong code costs the ticket (they are single-use) and buys a fresh one until `MAX_ATTEMPTS` is reached, so a
+   * login allows a bounded number of tries and no ticket is ever replayable. Beyond that the password has to be
+   * presented again — and THAT path is rate-limited and lockout-counted, which is what bounds code guessing overall.
+   */
+  async loginMfa(
+    ticketToken: string,
+    code: string,
+    ip: string,
+    secure: boolean,
+  ): Promise<LoginOutcome> {
+    const refuse = async (reason: string, userId: number | null, status = 401) => {
+      await this.audit.write({
+        userId,
+        username: null,
+        sourceIp: ip,
+        action: 'auth.mfa',
+        resource: null,
+        after: { reason },
+        result: 'failure',
+        status,
+      });
+      return status === 403 ? tlsRequired() : problems.unauthorized('invalid credentials');
+    };
+    // the code is a credential: the same transport rule as the password (D-100 (1))
+    if (!secure) throw await refuse('tls-required', null, 403);
+    const t = await this.tickets.consume(ticketToken);
+    if (t === null) throw await refuse('no-ticket', null);
+    if (t.purpose !== 'code') throw await refuse('enrolment-required', t.userId);
+    const u = await this.currentUser(t.userId);
+    // a reset, disable or delete between the two factors invalidates the ticket
+    if (u === undefined || u.disabled || u.credentialGen !== t.gen)
+      throw await refuse('credentials-changed-during-login', t.userId);
+    if (!(await this.mfa.verify(t.userId, code))) {
+      const attempts = t.attempts + 1;
+      if (attempts >= MAX_ATTEMPTS) throw await refuse('bad-code-exhausted', t.userId);
+      const ticket = await this.tickets.issue({ ...t, attempts });
+      await this.audit.write({
+        userId: t.userId,
+        username: t.username,
+        sourceIp: ip,
+        action: 'auth.mfa',
+        resource: t.username,
+        after: { reason: 'bad-code', attempts },
+        result: 'failure',
+        status: 401,
+      });
+      return {
+        mfa: 'code',
+        ticket,
+        expiresIn: TICKET_TTL_SEC,
+        attemptsLeft: MAX_ATTEMPTS - attempts,
+      };
+    }
+    const fail: FailFn = async (reason, userId, status = 401) => {
+      await this.audit.write({
+        userId,
+        username: t.username,
+        sourceIp: ip,
+        action: 'auth.login',
+        resource: t.username,
+        after: { reason, method: t.method },
+        result: 'failure',
+        status,
+      });
+      return problems.unauthorized('invalid credentials');
+    };
+    return this.issueSession(
+      { id: u.id, username: u.username, role: u.role, gen: u.credentialGen },
+      ip,
+      t.method,
+      fail,
+      { mfa: 'totp' },
+    );
+  }
+
+  /**
+   * Start enrolment from an `enrol` ticket (the account must set up MFA before it can have a session). Returns the
+   * seed plus a FRESH ticket, because redeeming one consumes it.
+   */
+  async enrolWithTicket(
+    ticketToken: string,
+    secure: boolean,
+  ): Promise<{ secret: string; otpauthUri: string; ticket: string; expiresIn: number }> {
+    if (!secure) throw tlsRequired();
+    const t = await this.tickets.consume(ticketToken);
+    if (t === null || t.purpose !== 'enrol') throw problems.unauthorized('invalid credentials');
+    const u = await this.currentUser(t.userId);
+    if (u === undefined || u.disabled || u.credentialGen !== t.gen)
+      throw problems.unauthorized('invalid credentials');
+    const policy = await this.aaa.policy();
+    const started = await this.mfa.begin(t.userId, t.username, policy.mfa.issuer);
+    return {
+      ...started,
+      ticket: await this.tickets.issue({ ...t, attempts: 0 }),
+      expiresIn: TICKET_TTL_SEC,
+    };
+  }
+
+  /**
+   * Confirm enrolment from an `enrol` ticket and finish the login in one step: the user has already proved the first
+   * factor on this ticket and now proves possession of the new second factor, which is exactly what a login needs.
+   */
+  async confirmEnrolmentWithTicket(
+    ticketToken: string,
+    code: string,
+    ip: string,
+    secure: boolean,
+  ): Promise<{ recoveryCodes: string[]; session: LoginResult }> {
+    if (!secure) throw tlsRequired();
+    const t = await this.tickets.consume(ticketToken);
+    if (t === null || t.purpose !== 'enrol') throw problems.unauthorized('invalid credentials');
+    const u = await this.currentUser(t.userId);
+    if (u === undefined || u.disabled || u.credentialGen !== t.gen)
+      throw problems.unauthorized('invalid credentials');
+    const recoveryCodes = await this.mfa.confirm(t.userId, code);
+    const fail: FailFn = async (reason, userId, status = 401) => {
+      await this.audit.write({
+        userId,
+        username: t.username,
+        sourceIp: ip,
+        action: 'auth.login',
+        resource: t.username,
+        after: { reason, method: t.method },
+        result: 'failure',
+        status,
+      });
+      return problems.unauthorized('invalid credentials');
+    };
+    const session = await this.issueSession(
+      { id: u.id, username: u.username, role: u.role, gen: u.credentialGen },
+      ip,
+      t.method,
+      fail,
+      { mfa: 'enrolled' },
+    );
+    return { recoveryCodes, session };
+  }
+
+  /** MFA state of the caller: enrolled, whether the policy requires it, and how many recovery codes are left. */
+  async mfaStatus(p: Principal): Promise<MfaStatus> {
+    const policy = await this.aaa.policy();
+    return this.mfa.status(p.id, p.role, policy.mfa.required);
+  }
+
+  /**
+   * Start self-enrolment from an existing session. The seed and URI are returned once; nothing is active until
+   * `mfaConfirm` proves a code, so an abandoned enrolment cannot lock the account.
+   */
+  async mfaEnrol(p: Principal): Promise<{ secret: string; otpauthUri: string }> {
+    const policy = await this.aaa.policy();
+    return this.mfa.begin(p.id, p.username, policy.mfa.issuer);
+  }
+
+  /** Confirm self-enrolment; the recovery codes are returned once and only here. */
+  async mfaConfirm(p: Principal, code: string): Promise<{ recoveryCodes: string[] }> {
+    return { recoveryCodes: await this.mfa.confirm(p.id, code) };
+  }
+
+  /**
+   * Turn MFA off for the caller. A current code is required: a stolen session must not be able to strip the second
+   * factor it could not produce. Where the policy still requires MFA the next login asks for enrolment again.
+   */
+  async mfaDisable(p: Principal, code: string): Promise<void> {
+    if (!(await this.mfa.verify(p.id, code)))
+      throw problems.forbidden('that code does not match the enrolled factor');
+    await this.mfa.reset(p.id);
+  }
+  /** The current app_user row of `id`, or undefined when it is gone. */
+  private async currentUser(id: number) {
+    const [u] = await this.db.select().from(appUser).where(eq(appUser.id, id));
+    return u;
+  }
   /** The last admin was throttled instead of locked: one system_event per admin and minute (visible, not a flood). */
   private lastAdminThrottled(u: LockSubject & { username: string }, ip: string): void {
     const now = Date.now();

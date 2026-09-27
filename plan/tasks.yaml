@@ -1119,7 +1119,9 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md | cloud 2026-09-27: agent layer merged (review
     BLOCK→fixed: nat46- name guard in map builder, lw4o6 needs rules). Follow-ups: contract nat.pnat + Det44Sessions/Det44Lookup/CnatSessions RPCs + ActionRequest 9/10, PNAT projection, rpc_det44/rpc_cnat
-    actions, API + e2e, UI tabs en/fa, test/topology; host: DET44 enable + globals windows, packet paths, vppctl show, NRestarts; Q3 schema-vs-VPP defaults, Q4 derived cnat interface feature'
+    actions, API + e2e, UI tabs en/fa, test/topology; host: DET44 enable + globals windows, packet paths, vppctl show, NRestarts; Q3 schema-vs-VPP defaults, Q4 derived cnat interface feature | cloud 2026-09-27
+    part B merged (contract nat.pnat=27, RPCs, PNAT wired, rpc_det44/rpc_cnat, API 5 routes, UI 4 tabs en/fa; review fixes: PNAT names/order recovered by BindingID, CNAT sessions owner-scoped). Remaining
+    = host evidence only (packet paths, vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology)'
 - id: F-nat46
   title: 'Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46)'
   prompt: prompts/features/F-nat46.md

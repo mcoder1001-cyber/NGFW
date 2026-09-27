@@ -13061,7 +13061,8 @@ export interface operations {
               pending: ('added' | 'changed') | null;
               live: {
                 /** @enum {string} */
-                status: 'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'unknown';
+                status:
+                  'applied' | 'disabled' | 'schedule-inactive' | 'empty' | 'expired' | 'unknown';
                 vppRules: number;
                 packets: number;
                 bytes: number;

@@ -443,6 +443,7 @@ export class CommitService implements OnApplicationShutdown {
     await this.assertMayApply(user, running?.payload ?? emptyDocument(), doc);
     const v = await this.validation.validate(doc, `validate-${randomUUID()}`, {
       dryRunMs: this.budget.dryRunMs,
+      running: running?.payload ?? emptyDocument(), // F-rule-expiry: expiry in the past on new/changed rules
     });
     if (!v.ok)
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
@@ -728,7 +729,12 @@ export class CommitService implements OnApplicationShutdown {
     const runningDoc = running?.payload ?? emptyDocument();
     await this.assertMayApply(user, runningDoc, doc);
     const txnId = randomUUID();
-    const v = await this.validation.validate(doc, txnId, { dryRunMs: this.budget.dryRunMs });
+    // F-rule-expiry: a user commit may not add (or re-date) a rule that is already expired; a rollback restores an
+    // old revision as it was, expired rules included (the agent leaves them out of the data plane)
+    const v = await this.validation.validate(doc, txnId, {
+      dryRunMs: this.budget.dryRunMs,
+      ...(opts.kind === 'commit' ? { running: runningDoc } : {}),
+    });
     if (!v.ok || v.config === undefined || v.desired === undefined) {
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
         tier: v.tier,

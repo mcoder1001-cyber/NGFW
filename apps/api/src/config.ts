@@ -124,6 +124,10 @@ const Env = z.object({
   VRX_PASSWORD_RATE_PER_MIN: z.coerce.number().int().min(1).default(5),
   /** Telemetry relay heartbeat interval. */
   VRX_WS_HEARTBEAT_MS: z.coerce.number().int().min(50).default(15_000),
+  /** F-rule-expiry: days before a rule's expiresAt its RULE_EXPIRING event is raised. */
+  VRX_RULE_EXPIRY_WARN_DAYS: z.coerce.number().int().min(0).max(365).default(3),
+  /** F-rule-expiry: how often the running configuration is scanned for expiring/expired rules (seconds). */
+  VRX_RULE_EXPIRY_CHECK_SEC: z.coerce.number().int().min(5).max(86_400).default(300),
   /** `production` in the packaged unit (P10): development switches such as VRX_DEV_WEAK_PASSWORDS are refused. */
   NODE_ENV: z.string().optional(),
 }).superRefine((env, ctx) => {

@@ -3,7 +3,8 @@ import { DesiredState, IssueSeverity, type ObjectResult, type ValidationIssue } 
 import { ROOT_KEYS, validateConfig } from '@ngfw/schema';
 import { AgentClient } from '../agent/agent.client.js';
 import type { ProblemIssue } from '../common/problem.js';
-import { licenseProblem, LicensingService } from '../features/licensing/index.js'; // wave-BC: F-licensing (unanchored)
+import { licenseProblem, LicensingService } from '../features/licensing/index.js';
+import { expiryInPastIssues } from '../features/rule-expiry/expiry.js'; // F-rule-expiry (unanchored) // wave-BC: F-licensing (unanchored)
 import { CONFIG_REPO } from '../datastore/datastore.service.js';
 import { hydrateHashes, missingSecretIssues, redact, secretRefs } from '../datastore/documents.js';
 import type { ConfigRepo, Doc } from '../datastore/repo.js';
@@ -79,7 +80,7 @@ export class ValidationService {
   async validate(
     doc: Doc,
     txnId: string,
-    opts: { dryRunMs?: number } = {},
+    opts: { dryRunMs?: number; running?: Doc; now?: Date } = {},
   ): Promise<ValidationOutcome> {
     const base = {
       warnings: [] as ProblemIssue[],
@@ -99,6 +100,12 @@ export class ValidationService {
     );
     if (missing.length > 0)
       return { ...base, ok: false, tier: 'semantic', errors: missing, config };
+
+    // F-rule-expiry (unanchored): a new rule or a changed expiry already in the past (needs running to tell)
+    if (opts.running !== undefined) {
+      const past = expiryInPastIssues(config, opts.running, opts.now ?? new Date());
+      if (past.length > 0) return { ...base, ok: false, tier: 'semantic', errors: past, config };
+    }
 
     // wave-BC: F-licensing (unanchored): licence stage — 403 problem+json, pointer of the first unlicensed node
     const license = this.licensing ? await this.licensing.check(config) : undefined;

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { withUi } from '../ui.js';
 import { ipAddress } from '../primitives.js';
-import { descriptionField, enabledFlag, ipv4OrIpv6Cidr } from './_shared/primitives.js';
+import { descriptionField, ipv4OrIpv6Cidr } from './_shared/primitives.js';
 
 /**
  * `security` — the box's own defensive policy for its management and control planes. Today it carries `autoBlock`

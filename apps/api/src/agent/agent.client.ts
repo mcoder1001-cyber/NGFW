@@ -17,6 +17,7 @@ import {
   type InterfaceStateResponse,
   type PppoeReconnectResponse,
   type WanStateResponse,
+  type MulticastStateResponse,
   type RetrieveResponse,
   type StatsBatch,
   type StreamEventsRequest,
@@ -51,6 +52,9 @@ import {
   // wave-BC: F-ipfix-sflow
   type IpfixStateResponse,
   // wave-BC: F-capture-trace
+  type CaptureAction,
+  type CaptureDeleteResponse,
+  type CaptureListResponse,
   // wave-BC: F-srv6
   type Srv6StateResponse,
   // wave-BC: F-lisp
@@ -227,6 +231,11 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.wanState, { groups, owner: this.owner });
   }
 
+  /** F-igmp-mfib: live IGMP groups, mFIB and PIM neighbours; an agent without multicast answers 501. */
+  multicastState(): Promise<MulticastStateResponse> {
+    return this.unary(this.c.multicastState, { owner: this.owner });
+  }
+
   /** F-pppoe-client: redial a PPPoE client now; an agent without PPPoE support answers 501. */
   pppoeReconnect(iface: string): Promise<PppoeReconnectResponse> {
     return this.unary(this.c.pppoeReconnect, { interface: iface, owner: this.owner });
@@ -289,6 +298,52 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.ipfixState, { owner: this.owner });
   }
   // wave-BC: F-capture-trace
+  /** F-capture-trace: kept pcap files, the running capture, trace/PG availability. */
+  captureList(): Promise<CaptureListResponse> {
+    return this.unary(this.c.captureList, { owner: this.owner });
+  }
+  /** F-capture-trace: remove one kept pcap file. */
+  captureDelete(id: string): Promise<CaptureDeleteResponse> {
+    return this.unary(this.c.captureDelete, { owner: this.owner, id });
+  }
+  /** F-capture-trace: one kept pcap file, collected from the CaptureRead stream (≤ the agent's byte cap). */
+  captureRead(id: string, timeoutMs = 60_000): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const parts: Buffer[] = [];
+      const call = this.c.captureRead({ owner: this.owner, id }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      call.on('data', (c: { data: Uint8Array }) => parts.push(Buffer.from(c.data)));
+      call.on('error', (e: ServiceError) => reject(agentProblem(e)));
+      call.on('end', () => resolve(Buffer.concat(parts)));
+    });
+  }
+  /**
+   * F-capture-trace: start a capture (Action member 3). Resolves with the capture id from the agent's first line
+   * ("capture <id> started"); the stream keeps running in the background until the capture stops (its end or error
+   * after the start is only logged — the result is read back with captureList).
+   */
+  startCapture(req: CaptureAction, timeoutMs = 700_000): Promise<string> {
+    return new Promise((resolve, reject) => {
+      let started = false;
+      const call = this.c.action({ capture: req }, new Metadata(), {
+        deadline: new Date(Date.now() + timeoutMs),
+      });
+      call.on('data', (o: ActionOutput) => {
+        const m = /^capture (\S+) started$/.exec(o.line ?? '');
+        if (!started && m?.[1]) {
+          started = true;
+          resolve(m[1]);
+        }
+      });
+      call.on('error', (e: ServiceError) => {
+        if (!started) reject(agentProblem(e));
+      });
+      call.on('end', () => {
+        if (!started) reject(new ProblemError(502, 'agent-error', 'Agent error', 'agent: capture ended before it started'));
+      });
+    });
+  }
   // wave-BC: F-srv6
   /** F-srv6: live SRv6 state (proto.md §11); callers do not poll faster than every 30 s (D-132). */
   srv6State(): Promise<Srv6StateResponse> {

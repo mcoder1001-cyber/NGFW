@@ -55,6 +55,7 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   // wave-BC: F-tunnels
   'tunnels',
   // wave-BC: F-vrrp-config-sync
+  'ha',
   // wave-BC: F-srv6 ('vpn' is already built: F-lisp's entry below)
   // wave-BC: F-lisp
   'vpn',
@@ -127,7 +128,9 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-BC: F-mpls-srmpls
   groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });
   // wave-BC: F-igmp-mfib
+  groups.get('routing')!.push({ id: 'multicast', path: '/routing/multicast', labelKey: 'igmp-mfib:nav', fallbackLabel: 'Multicast', available: true });
   // wave-BC: F-capture-trace
+  groups.get('tools')!.push({ id: 'capture', path: '/tools/capture', labelKey: 'capture-trace:nav', fallbackLabel: 'Packet capture', available: true });
   // wave-A: F-bonding
   groups.get('interfaces')!.push({ id: 'bonds', path: '/interfaces/bonds', labelKey: 'bonding:nav', fallbackLabel: 'Bonds', available: true });
   // wave-A: F-bridge-l2
@@ -165,7 +168,6 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-licensing (unanchored)
     { id: 'licensing', path: '/system/licensing', labelKey: 'licensing:nav', fallbackLabel: 'Licence', available: true },
   );
-  groups.get('tools')!.push({ id: 'tools', path: '/tools', labelKey: 'nav:tools', fallbackLabel: 'Tools', available: false });
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);
   return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
 }

@@ -373,6 +373,12 @@ export enum EventKind {
    * names: Idle, Connect, Active, OpenSent, OpenConfirm, Established; "" = the neighbour appeared/disappeared).
    */
   EVENT_KIND_BGP_NEIGHBOR_CHANGED = 15,
+  /**
+   * EVENT_KIND_IGMP_GROUP_CHANGED - wave-BC: F-igmp-mfib
+   * An IGMP group membership changed on a router-mode interface (VPP igmp WatchEvents). Attributes: `source` "igmp",
+   * `interface`, `group`, and the sources; used to drive the multicast group state.
+   */
+  EVENT_KIND_IGMP_GROUP_CHANGED = 24,
   UNRECOGNIZED = -1,
 }
 
@@ -420,6 +426,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 15:
     case "EVENT_KIND_BGP_NEIGHBOR_CHANGED":
       return EventKind.EVENT_KIND_BGP_NEIGHBOR_CHANGED;
+    case 24:
+    case "EVENT_KIND_IGMP_GROUP_CHANGED":
+      return EventKind.EVENT_KIND_IGMP_GROUP_CHANGED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -457,6 +466,8 @@ export function eventKindToJSON(object: EventKind): string {
       return "EVENT_KIND_ROUTING_CHANGED";
     case EventKind.EVENT_KIND_BGP_NEIGHBOR_CHANGED:
       return "EVENT_KIND_BGP_NEIGHBOR_CHANGED";
+    case EventKind.EVENT_KIND_IGMP_GROUP_CHANGED:
+      return "EVENT_KIND_IGMP_GROUP_CHANGED";
     case EventKind.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -1035,13 +1046,18 @@ export interface TracerouteAction {
   source: string;
 }
 
-/** CaptureAction captures packets on one interface and streams them as pcap chunks. */
+/**
+ * CaptureAction captures packets on one interface. The agent streams `line`s (the first is
+ * "capture <id> started") and a `done`; the file is kept by the agent and read with CaptureRead
+ * (F-capture-trace: no pcap_chunk is sent).
+ */
 export interface CaptureAction {
   /** VPP interface name to capture on. */
   interface: string;
   /**
-   * Classifier filter in VPP `pcap trace` / BPF-like syntax as the agent documents it; "" = all.
-   * Validated as a token list, never passed to a shell.
+   * pcap-filter(7) expression applied through VPP's bpf_trace_filter plugin; "" = all. Restricted
+   * to the pcap-filter alphabet (no quotes, ";", "$", backslash), never passed to a shell; needs the
+   * globals-owner agent (D-071), otherwise FAILED_PRECONDITION.
    */
   bpf: string;
   /** Stop after this many packets; 0 = 1000; max 100000. */
@@ -1050,8 +1066,12 @@ export interface CaptureAction {
   seconds: number;
   /** Direction; UNSPECIFIED = BOTH. */
   direction: CaptureDirection;
-  /** Bytes captured per packet; 0 = 65535. */
+  /** Bytes captured per packet; 0 = 9000; 32..9000 (VPP's pcap limit). */
   snaplen: number;
+  /** Also capture dropped packets (VPP's drop capture); with direction UNSPECIFIED and drop set, only drops. */
+  drop: boolean;
+  /** Drop capture restricted to one error counter, "node/error" (e.g. "ip4-input/ttl_expired"); "" = any. */
+  errorFilter: string;
 }
 
 /** ActionOutput is one streamed chunk of an action. The stream ends with exactly one `done`. */
@@ -1609,6 +1629,13 @@ export interface RoutingConfig {
   mpls:
     | MplsConfig
     | undefined;
+  /**
+   * wave-BC: F-igmp-mfib
+   * IPv4 multicast: IGMPv3, static mFIB routes and PIM (`routing.multicast`); unset = not configured.
+   */
+  multicast:
+    | MulticastConfig
+    | undefined;
   /** L2 switching container (F-bridge-l2, D-109 c): bridge domains, L2/L3 cross-connects, MAC filter; unset = none. */
   l2:
     | BridgeL2Config
@@ -1630,6 +1657,114 @@ export interface RoutingConfig {
    * Multi-WAN failover / load-balancing groups with link health monitors (`routing.wanGroups`).
    */
   wanGroups: WanGroup[];
+}
+
+/** MulticastConfig mirrors `routing.multicast`. */
+export interface MulticastConfig {
+  /** IGMPv3 host/router interfaces, SSM ranges and proxies. */
+  igmp:
+    | IgmpConfig
+    | undefined;
+  /** Static multicast routes (mFIB). */
+  mroutes: Mroute[];
+  /** PIM-SM (FRR pimd). */
+  pim: PimConfig | undefined;
+}
+
+/** IgmpConfig mirrors `routing.multicast.igmp`. */
+export interface IgmpConfig {
+  /** Keyed by VPP interface name. */
+  interfaces: { [key: string]: IgmpInterface };
+  /** Source-specific multicast ranges (CIDRs). */
+  ssmRanges: string[];
+  /** IGMP proxies keyed by VRF. */
+  proxies: { [key: string]: IgmpProxy };
+}
+
+export interface IgmpConfig_InterfacesEntry {
+  key: string;
+  value: IgmpInterface | undefined;
+}
+
+export interface IgmpConfig_ProxiesEntry {
+  key: string;
+  value: IgmpProxy | undefined;
+}
+
+/** IgmpInterface mirrors one entry of `routing.multicast.igmp.interfaces`. */
+export interface IgmpInterface {
+  /** "host" | "router". */
+  mode?:
+    | string
+    | undefined;
+  /** Static joins (host mode). */
+  joins: IgmpJoin[];
+}
+
+/** IgmpJoin mirrors one entry of an interface's `joins`. */
+export interface IgmpJoin {
+  /** IPv4 multicast group. */
+  group?:
+    | string
+    | undefined;
+  /** Included sources (INCLUDE-only; at least one). */
+  sources: string[];
+}
+
+/** IgmpProxy mirrors one entry of `routing.multicast.igmp.proxies`. */
+export interface IgmpProxy {
+  /** Upstream (querier-side) interface. */
+  upstream?:
+    | string
+    | undefined;
+  /** Downstream (member-side) interfaces. */
+  downstream: string[];
+}
+
+/** Mroute mirrors one entry of `routing.multicast.mroutes`. */
+export interface Mroute {
+  /** VRF the route lives in. */
+  vrf?:
+    | string
+    | undefined;
+  /** Multicast group. */
+  group?:
+    | string
+    | undefined;
+  /** Source for an (S,G) route; unset for (*,G). */
+  source?:
+    | string
+    | undefined;
+  /** Accept/forward interfaces. */
+  paths: MroutePath[];
+}
+
+/** MroutePath mirrors one entry of an mroute's `paths`. */
+export interface MroutePath {
+  /** VPP interface name. */
+  interface?:
+    | string
+    | undefined;
+  /** "accept" | "forward". */
+  flags?: string | undefined;
+}
+
+/** PimConfig mirrors `routing.multicast.pim`. */
+export interface PimConfig {
+  /** Interfaces running PIM-SM. */
+  interfaces: string[];
+  /** Static rendezvous points. */
+  rp: PimRp[];
+}
+
+/** PimRp mirrors one entry of `routing.multicast.pim.rp`. */
+export interface PimRp {
+  /** RP address. */
+  address?:
+    | string
+    | undefined;
+  /** Group ranges this RP serves (CIDRs). */
+  groups: string[];
 }
 
 /** StaticRoute mirrors one entry of `routing.static`. */
@@ -8870,6 +9005,84 @@ export interface IpfixCounter {
   value: string;
 }
 
+export interface CaptureListRequest {
+  /** Expected agent owner; empty = any. */
+  owner: string;
+}
+
+/** CaptureFile is one pcap file the agent keeps (or the running capture, state "running"). */
+export interface CaptureFile {
+  /** Agent-assigned id ("<owner>-<yyyymmddThhmmss>-<n>"), [A-Za-z0-9._-] only. */
+  id: string;
+  /**
+   * "running", "done" (file kept), "empty" (stopped, no packet captured: no file), "interrupted" (agent
+   * restart or VPP restart during the capture; the file is kept when VPP wrote one).
+   */
+  state: string;
+  /** Interface captured on ("any" = every interface). */
+  interface: string;
+  /** "rx", "tx", "drop" joined by "," as captured. */
+  direction: string;
+  /** BPF expression ("" = none). */
+  bpf: string;
+  startedAt:
+    | Date
+    | undefined;
+  /** Unset while running. */
+  stoppedAt:
+    | Date
+    | undefined;
+  /** File size in bytes (0 while running / empty). */
+  size: string;
+  /** Packets in the file (counted from the pcap records). */
+  packets: string;
+  /** Hex sha256 of the file ("" while running / empty). */
+  sha256: string;
+  /** Requested limits. */
+  maxPackets: number;
+  seconds: number;
+  snaplen: number;
+  /** Why the capture stopped ("timeout", "cancelled", "agent-restart", "vpp-restart"). */
+  reason: string;
+}
+
+export interface CaptureListResponse {
+  /** Newest first; the running capture (if any) first. */
+  captures: CaptureFile[];
+  /** Retention caps the agent applies after every capture (oldest files removed first). */
+  maxFiles: number;
+  maxBytes: string;
+  /**
+   * Packet trace (tracedump) is not available: D-128/TD-20 bans trace on the shared VPP and the
+   * tracedump binapi is not built (V18). Always false on this build; `trace_reason` says why.
+   */
+  traceAvailable: boolean;
+  traceReason: string;
+  /** Packet-generator streams cannot be defined through the binary API (no stream message); always false. */
+  pgAvailable: boolean;
+  pgReason: string;
+}
+
+export interface CaptureReadRequest {
+  owner: string;
+  id: string;
+}
+
+export interface CaptureChunk {
+  /** Next bytes of the file. */
+  data: Uint8Array;
+}
+
+export interface CaptureDeleteRequest {
+  owner: string;
+  id: string;
+}
+
+export interface CaptureDeleteResponse {
+  /** Bytes freed. */
+  size: string;
+}
+
 /** Srv6Config mirrors `routing.srv6` (F-srv6): SRv6 network programming with VPP's core `sr`. */
 export interface Srv6Config {
   /**
@@ -9457,6 +9670,56 @@ export interface WanMemberState {
   priority: number;
   /** When this member last changed up/down state (agent clock); unset if never. */
   since: Date | undefined;
+}
+
+/** MulticastStateRequest selects what to report (empty = all). */
+export interface MulticastStateRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** MulticastStateResponse is the live multicast state. */
+export interface MulticastStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** IGMP group memberships learned on router-mode interfaces. */
+  groups: IgmpGroupState[];
+  /** The VPP mFIB (static and PIM-learned routes). */
+  mroutes: MrouteState[];
+  /** PIM neighbours (from FRR pimd). */
+  pimNeighbors: PimNeighborState[];
+}
+
+/** IgmpGroupState is one live group membership. */
+export interface IgmpGroupState {
+  interface: string;
+  group: string;
+  sources: string[];
+}
+
+/** MrouteState is one live mFIB entry. */
+export interface MrouteState {
+  vrf: string;
+  group: string;
+  /** Source for (S,G); empty for (*,G). */
+  source: string;
+  /** Incoming (accept) interface. */
+  accept: string;
+  /** Outgoing (forward) interfaces. */
+  forward: string[];
+  /** Packets/bytes forwarded, if the plugin reports them. */
+  packets: string;
+  bytes: string;
+}
+
+/** PimNeighborState is one PIM neighbour (FRR pimd). */
+export interface PimNeighborState {
+  interface: string;
+  address: string;
+  /** Uptime in seconds. */
+  uptimeSec: number;
 }
 
 /** AaaLdap mirrors `management.aaa.ldap`. */
@@ -12434,7 +12697,7 @@ export const TracerouteAction: MessageFns<TracerouteAction> = {
 };
 
 function createBaseCaptureAction(): CaptureAction {
-  return { interface: "", bpf: "", maxPackets: 0, seconds: 0, direction: 0, snaplen: 0 };
+  return { interface: "", bpf: "", maxPackets: 0, seconds: 0, direction: 0, snaplen: 0, drop: false, errorFilter: "" };
 }
 
 export const CaptureAction: MessageFns<CaptureAction> = {
@@ -12456,6 +12719,12 @@ export const CaptureAction: MessageFns<CaptureAction> = {
     }
     if (message.snaplen !== 0) {
       writer.uint32(48).uint32(message.snaplen);
+    }
+    if (message.drop !== false) {
+      writer.uint32(56).bool(message.drop);
+    }
+    if (message.errorFilter !== "") {
+      writer.uint32(66).string(message.errorFilter);
     }
     return writer;
   },
@@ -12521,6 +12790,22 @@ export const CaptureAction: MessageFns<CaptureAction> = {
             message.snaplen = reader.uint32();
             continue;
           }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.drop = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.errorFilter = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -12545,6 +12830,12 @@ export const CaptureAction: MessageFns<CaptureAction> = {
       seconds: isSet(object.seconds) ? globalThis.Number(object.seconds) : 0,
       direction: isSet(object.direction) ? captureDirectionFromJSON(object.direction) : 0,
       snaplen: isSet(object.snaplen) ? globalThis.Number(object.snaplen) : 0,
+      drop: isSet(object.drop) ? globalThis.Boolean(object.drop) : false,
+      errorFilter: isSet(object.errorFilter)
+        ? globalThis.String(object.errorFilter)
+        : isSet(object.error_filter)
+        ? globalThis.String(object.error_filter)
+        : "",
     };
   },
 
@@ -12568,6 +12859,12 @@ export const CaptureAction: MessageFns<CaptureAction> = {
     if (message.snaplen !== 0) {
       obj.snaplen = Math.round(message.snaplen);
     }
+    if (message.drop !== false) {
+      obj.drop = message.drop;
+    }
+    if (message.errorFilter !== "") {
+      obj.errorFilter = message.errorFilter;
+    }
     return obj;
   },
 
@@ -12582,6 +12879,8 @@ export const CaptureAction: MessageFns<CaptureAction> = {
     message.seconds = object.seconds ?? 0;
     message.direction = object.direction ?? 0;
     message.snaplen = object.snaplen ?? 0;
+    message.drop = object.drop ?? false;
+    message.errorFilter = object.errorFilter ?? "";
     return message;
   },
 };
@@ -16644,6 +16943,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     bfd: undefined,
     policy: undefined,
     mpls: undefined,
+    multicast: undefined,
     l2: undefined,
     srv6: undefined,
     neighbors: undefined,
@@ -16677,6 +16977,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.mpls !== undefined) {
       MplsConfig.encode(message.mpls, writer.uint32(122).fork()).join();
+    }
+    if (message.multicast !== undefined) {
+      MulticastConfig.encode(message.multicast, writer.uint32(130).fork()).join();
     }
     if (message.l2 !== undefined) {
       BridgeL2Config.encode(message.l2, writer.uint32(162).fork()).join();
@@ -16773,6 +17076,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.mpls = MplsConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 16: {
+            if (tag !== 130) {
+              break;
+            }
+
+            message.multicast = MulticastConfig.decode(reader, reader.uint32());
+            continue;
+          }
           case 20: {
             if (tag !== 162) {
               break;
@@ -16835,6 +17146,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
       mpls: isSet(object.mpls) ? MplsConfig.fromJSON(object.mpls) : undefined,
+      multicast: isSet(object.multicast) ? MulticastConfig.fromJSON(object.multicast) : undefined,
       l2: isSet(object.l2) ? BridgeL2Config.fromJSON(object.l2) : undefined,
       srv6: isSet(object.srv6) ? Srv6Config.fromJSON(object.srv6) : undefined,
       neighbors: isSet(object.neighbors) ? NeighborsConfig.fromJSON(object.neighbors) : undefined,
@@ -16872,6 +17184,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.mpls !== undefined) {
       obj.mpls = MplsConfig.toJSON(message.mpls);
+    }
+    if (message.multicast !== undefined) {
+      obj.multicast = MulticastConfig.toJSON(message.multicast);
     }
     if (message.l2 !== undefined) {
       obj.l2 = BridgeL2Config.toJSON(message.l2);
@@ -16912,6 +17227,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.mpls = (object.mpls !== undefined && object.mpls !== null)
       ? MplsConfig.fromPartial(object.mpls)
       : undefined;
+    message.multicast = (object.multicast !== undefined && object.multicast !== null)
+      ? MulticastConfig.fromPartial(object.multicast)
+      : undefined;
     message.l2 = (object.l2 !== undefined && object.l2 !== null) ? BridgeL2Config.fromPartial(object.l2) : undefined;
     message.srv6 = (object.srv6 !== undefined && object.srv6 !== null)
       ? Srv6Config.fromPartial(object.srv6)
@@ -16921,6 +17239,1079 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       : undefined;
     message.pbr = (object.pbr !== undefined && object.pbr !== null) ? PbrConfig.fromPartial(object.pbr) : undefined;
     message.wanGroups = object.wanGroups?.map((e) => WanGroup.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMulticastConfig(): MulticastConfig {
+  return { igmp: undefined, mroutes: [], pim: undefined };
+}
+
+export const MulticastConfig: MessageFns<MulticastConfig> = {
+  encode(message: MulticastConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.igmp !== undefined) {
+      IgmpConfig.encode(message.igmp, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.mroutes) {
+      Mroute.encode(v!, writer.uint32(18).fork()).join();
+    }
+    if (message.pim !== undefined) {
+      PimConfig.encode(message.pim, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MulticastConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMulticastConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.igmp = IgmpConfig.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.mroutes.push(Mroute.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.pim = PimConfig.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MulticastConfig {
+    return {
+      igmp: isSet(object.igmp) ? IgmpConfig.fromJSON(object.igmp) : undefined,
+      mroutes: globalThis.Array.isArray(object?.mroutes) ? object.mroutes.map((e: any) => Mroute.fromJSON(e)) : [],
+      pim: isSet(object.pim) ? PimConfig.fromJSON(object.pim) : undefined,
+    };
+  },
+
+  toJSON(message: MulticastConfig): unknown {
+    const obj: any = {};
+    if (message.igmp !== undefined) {
+      obj.igmp = IgmpConfig.toJSON(message.igmp);
+    }
+    if (message.mroutes?.length) {
+      obj.mroutes = message.mroutes.map((e) => Mroute.toJSON(e));
+    }
+    if (message.pim !== undefined) {
+      obj.pim = PimConfig.toJSON(message.pim);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MulticastConfig>): MulticastConfig {
+    return MulticastConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MulticastConfig>): MulticastConfig {
+    const message = createBaseMulticastConfig();
+    message.igmp = (object.igmp !== undefined && object.igmp !== null)
+      ? IgmpConfig.fromPartial(object.igmp)
+      : undefined;
+    message.mroutes = object.mroutes?.map((e) => Mroute.fromPartial(e)) || [];
+    message.pim = (object.pim !== undefined && object.pim !== null) ? PimConfig.fromPartial(object.pim) : undefined;
+    return message;
+  },
+};
+
+function createBaseIgmpConfig(): IgmpConfig {
+  return { interfaces: {}, ssmRanges: [], proxies: {} };
+}
+
+export const IgmpConfig: MessageFns<IgmpConfig> = {
+  encode(message: IgmpConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, IgmpInterface]) => {
+      IgmpConfig_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    for (const v of message.ssmRanges) {
+      writer.uint32(18).string(v!);
+    }
+    globalThis.Object.entries(message.proxies).forEach(([key, value]: [string, IgmpProxy]) => {
+      IgmpConfig_ProxiesEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = IgmpConfig_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.interfaces[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.ssmRanges.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = IgmpConfig_ProxiesEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.proxies[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpConfig {
+    return {
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: IgmpInterface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: IgmpInterface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      ssmRanges: globalThis.Array.isArray(object?.ssmRanges)
+        ? object.ssmRanges.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.ssm_ranges)
+        ? object.ssm_ranges.map((e: any) => globalThis.String(e))
+        : [],
+      proxies: isObject(object.proxies)
+        ? (globalThis.Object.entries(object.proxies) as [string, any][]).reduce(
+          (acc: { [key: string]: IgmpProxy }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: IgmpProxy.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: IgmpConfig): unknown {
+    const obj: any = {};
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, IgmpInterface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = IgmpInterface.toJSON(v);
+        });
+      }
+    }
+    if (message.ssmRanges?.length) {
+      obj.ssmRanges = message.ssmRanges;
+    }
+    if (message.proxies) {
+      const entries = globalThis.Object.entries(message.proxies) as [string, IgmpProxy][];
+      if (entries.length > 0) {
+        obj.proxies = {};
+        entries.forEach(([k, v]) => {
+          obj.proxies[k] = IgmpProxy.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpConfig>): IgmpConfig {
+    return IgmpConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpConfig>): IgmpConfig {
+    const message = createBaseIgmpConfig();
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, IgmpInterface][]).reduce(
+      (acc: { [key: string]: IgmpInterface }, [key, value]: [string, IgmpInterface]) => {
+        if (value !== undefined) {
+          acc[key] = IgmpInterface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.ssmRanges = object.ssmRanges?.map((e) => e) || [];
+    message.proxies = (globalThis.Object.entries(object.proxies ?? {}) as [string, IgmpProxy][]).reduce(
+      (acc: { [key: string]: IgmpProxy }, [key, value]: [string, IgmpProxy]) => {
+        if (value !== undefined) {
+          acc[key] = IgmpProxy.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseIgmpConfig_InterfacesEntry(): IgmpConfig_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const IgmpConfig_InterfacesEntry: MessageFns<IgmpConfig_InterfacesEntry> = {
+  encode(message: IgmpConfig_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      IgmpInterface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpConfig_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpConfig_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = IgmpInterface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpConfig_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? IgmpInterface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: IgmpConfig_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = IgmpInterface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpConfig_InterfacesEntry>): IgmpConfig_InterfacesEntry {
+    return IgmpConfig_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpConfig_InterfacesEntry>): IgmpConfig_InterfacesEntry {
+    const message = createBaseIgmpConfig_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? IgmpInterface.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseIgmpConfig_ProxiesEntry(): IgmpConfig_ProxiesEntry {
+  return { key: "", value: undefined };
+}
+
+export const IgmpConfig_ProxiesEntry: MessageFns<IgmpConfig_ProxiesEntry> = {
+  encode(message: IgmpConfig_ProxiesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      IgmpProxy.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpConfig_ProxiesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpConfig_ProxiesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = IgmpProxy.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpConfig_ProxiesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? IgmpProxy.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: IgmpConfig_ProxiesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = IgmpProxy.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpConfig_ProxiesEntry>): IgmpConfig_ProxiesEntry {
+    return IgmpConfig_ProxiesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpConfig_ProxiesEntry>): IgmpConfig_ProxiesEntry {
+    const message = createBaseIgmpConfig_ProxiesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? IgmpProxy.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseIgmpInterface(): IgmpInterface {
+  return { mode: undefined, joins: [] };
+}
+
+export const IgmpInterface: MessageFns<IgmpInterface> = {
+  encode(message: IgmpInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.mode !== undefined) {
+      writer.uint32(10).string(message.mode);
+    }
+    for (const v of message.joins) {
+      IgmpJoin.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpInterface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpInterface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.mode = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.joins.push(IgmpJoin.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpInterface {
+    return {
+      mode: isSet(object.mode) ? globalThis.String(object.mode) : undefined,
+      joins: globalThis.Array.isArray(object?.joins) ? object.joins.map((e: any) => IgmpJoin.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: IgmpInterface): unknown {
+    const obj: any = {};
+    if (message.mode !== undefined) {
+      obj.mode = message.mode;
+    }
+    if (message.joins?.length) {
+      obj.joins = message.joins.map((e) => IgmpJoin.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpInterface>): IgmpInterface {
+    return IgmpInterface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpInterface>): IgmpInterface {
+    const message = createBaseIgmpInterface();
+    message.mode = object.mode ?? undefined;
+    message.joins = object.joins?.map((e) => IgmpJoin.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseIgmpJoin(): IgmpJoin {
+  return { group: undefined, sources: [] };
+}
+
+export const IgmpJoin: MessageFns<IgmpJoin> = {
+  encode(message: IgmpJoin, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.group !== undefined) {
+      writer.uint32(10).string(message.group);
+    }
+    for (const v of message.sources) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpJoin {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpJoin();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.sources.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpJoin {
+    return {
+      group: isSet(object.group) ? globalThis.String(object.group) : undefined,
+      sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: IgmpJoin): unknown {
+    const obj: any = {};
+    if (message.group !== undefined) {
+      obj.group = message.group;
+    }
+    if (message.sources?.length) {
+      obj.sources = message.sources;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpJoin>): IgmpJoin {
+    return IgmpJoin.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpJoin>): IgmpJoin {
+    const message = createBaseIgmpJoin();
+    message.group = object.group ?? undefined;
+    message.sources = object.sources?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseIgmpProxy(): IgmpProxy {
+  return { upstream: undefined, downstream: [] };
+}
+
+export const IgmpProxy: MessageFns<IgmpProxy> = {
+  encode(message: IgmpProxy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.upstream !== undefined) {
+      writer.uint32(10).string(message.upstream);
+    }
+    for (const v of message.downstream) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpProxy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpProxy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.upstream = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.downstream.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpProxy {
+    return {
+      upstream: isSet(object.upstream) ? globalThis.String(object.upstream) : undefined,
+      downstream: globalThis.Array.isArray(object?.downstream)
+        ? object.downstream.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: IgmpProxy): unknown {
+    const obj: any = {};
+    if (message.upstream !== undefined) {
+      obj.upstream = message.upstream;
+    }
+    if (message.downstream?.length) {
+      obj.downstream = message.downstream;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpProxy>): IgmpProxy {
+    return IgmpProxy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpProxy>): IgmpProxy {
+    const message = createBaseIgmpProxy();
+    message.upstream = object.upstream ?? undefined;
+    message.downstream = object.downstream?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseMroute(): Mroute {
+  return { vrf: undefined, group: undefined, source: undefined, paths: [] };
+}
+
+export const Mroute: MessageFns<Mroute> = {
+  encode(message: Mroute, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== undefined) {
+      writer.uint32(10).string(message.vrf);
+    }
+    if (message.group !== undefined) {
+      writer.uint32(18).string(message.group);
+    }
+    if (message.source !== undefined) {
+      writer.uint32(26).string(message.source);
+    }
+    for (const v of message.paths) {
+      MroutePath.encode(v!, writer.uint32(34).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Mroute {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMroute();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.paths.push(MroutePath.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Mroute {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      group: isSet(object.group) ? globalThis.String(object.group) : undefined,
+      source: isSet(object.source) ? globalThis.String(object.source) : undefined,
+      paths: globalThis.Array.isArray(object?.paths) ? object.paths.map((e: any) => MroutePath.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: Mroute): unknown {
+    const obj: any = {};
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.group !== undefined) {
+      obj.group = message.group;
+    }
+    if (message.source !== undefined) {
+      obj.source = message.source;
+    }
+    if (message.paths?.length) {
+      obj.paths = message.paths.map((e) => MroutePath.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Mroute>): Mroute {
+    return Mroute.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Mroute>): Mroute {
+    const message = createBaseMroute();
+    message.vrf = object.vrf ?? undefined;
+    message.group = object.group ?? undefined;
+    message.source = object.source ?? undefined;
+    message.paths = object.paths?.map((e) => MroutePath.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseMroutePath(): MroutePath {
+  return { interface: undefined, flags: undefined };
+}
+
+export const MroutePath: MessageFns<MroutePath> = {
+  encode(message: MroutePath, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== undefined) {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.flags !== undefined) {
+      writer.uint32(18).string(message.flags);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MroutePath {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMroutePath();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.flags = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MroutePath {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      flags: isSet(object.flags) ? globalThis.String(object.flags) : undefined,
+    };
+  },
+
+  toJSON(message: MroutePath): unknown {
+    const obj: any = {};
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.flags !== undefined) {
+      obj.flags = message.flags;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MroutePath>): MroutePath {
+    return MroutePath.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MroutePath>): MroutePath {
+    const message = createBaseMroutePath();
+    message.interface = object.interface ?? undefined;
+    message.flags = object.flags ?? undefined;
+    return message;
+  },
+};
+
+function createBasePimConfig(): PimConfig {
+  return { interfaces: [], rp: [] };
+}
+
+export const PimConfig: MessageFns<PimConfig> = {
+  encode(message: PimConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.interfaces) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.rp) {
+      PimRp.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PimConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePimConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.rp.push(PimRp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PimConfig {
+    return {
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      rp: globalThis.Array.isArray(object?.rp) ? object.rp.map((e: any) => PimRp.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PimConfig): unknown {
+    const obj: any = {};
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.rp?.length) {
+      obj.rp = message.rp.map((e) => PimRp.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PimConfig>): PimConfig {
+    return PimConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PimConfig>): PimConfig {
+    const message = createBasePimConfig();
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.rp = object.rp?.map((e) => PimRp.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePimRp(): PimRp {
+  return { address: undefined, groups: [] };
+}
+
+export const PimRp: MessageFns<PimRp> = {
+  encode(message: PimRp, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    for (const v of message.groups) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PimRp {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePimRp();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.groups.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PimRp {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: PimRp): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PimRp>): PimRp {
+    return PimRp.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PimRp>): PimRp {
+    const message = createBasePimRp();
+    message.address = object.address ?? undefined;
+    message.groups = object.groups?.map((e) => e) || [];
     return message;
   },
 };
@@ -77925,6 +79316,880 @@ export const IpfixCounter: MessageFns<IpfixCounter> = {
   },
 };
 
+function createBaseCaptureListRequest(): CaptureListRequest {
+  return { owner: "" };
+}
+
+export const CaptureListRequest: MessageFns<CaptureListRequest> = {
+  encode(message: CaptureListRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureListRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureListRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureListRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: CaptureListRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureListRequest>): CaptureListRequest {
+    return CaptureListRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureListRequest>): CaptureListRequest {
+    const message = createBaseCaptureListRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseCaptureFile(): CaptureFile {
+  return {
+    id: "",
+    state: "",
+    interface: "",
+    direction: "",
+    bpf: "",
+    startedAt: undefined,
+    stoppedAt: undefined,
+    size: "0",
+    packets: "0",
+    sha256: "",
+    maxPackets: 0,
+    seconds: 0,
+    snaplen: 0,
+    reason: "",
+  };
+}
+
+export const CaptureFile: MessageFns<CaptureFile> = {
+  encode(message: CaptureFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.state !== "") {
+      writer.uint32(18).string(message.state);
+    }
+    if (message.interface !== "") {
+      writer.uint32(26).string(message.interface);
+    }
+    if (message.direction !== "") {
+      writer.uint32(34).string(message.direction);
+    }
+    if (message.bpf !== "") {
+      writer.uint32(42).string(message.bpf);
+    }
+    if (message.startedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.startedAt), writer.uint32(50).fork()).join();
+    }
+    if (message.stoppedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.stoppedAt), writer.uint32(58).fork()).join();
+    }
+    if (message.size !== "0") {
+      writer.uint32(64).uint64(message.size);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(72).uint64(message.packets);
+    }
+    if (message.sha256 !== "") {
+      writer.uint32(82).string(message.sha256);
+    }
+    if (message.maxPackets !== 0) {
+      writer.uint32(88).uint32(message.maxPackets);
+    }
+    if (message.seconds !== 0) {
+      writer.uint32(96).uint32(message.seconds);
+    }
+    if (message.snaplen !== 0) {
+      writer.uint32(104).uint32(message.snaplen);
+    }
+    if (message.reason !== "") {
+      writer.uint32(114).string(message.reason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureFile();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.bpf = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.startedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.stoppedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.size = reader.uint64().toString();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.sha256 = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.maxPackets = reader.uint32();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.seconds = reader.uint32();
+            continue;
+          }
+          case 13: {
+            if (tag !== 104) {
+              break;
+            }
+
+            message.snaplen = reader.uint32();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureFile {
+    return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : "",
+      bpf: isSet(object.bpf) ? globalThis.String(object.bpf) : "",
+      startedAt: isSet(object.startedAt)
+        ? fromJsonTimestamp(object.startedAt)
+        : isSet(object.started_at)
+        ? fromJsonTimestamp(object.started_at)
+        : undefined,
+      stoppedAt: isSet(object.stoppedAt)
+        ? fromJsonTimestamp(object.stoppedAt)
+        : isSet(object.stopped_at)
+        ? fromJsonTimestamp(object.stopped_at)
+        : undefined,
+      size: isSet(object.size) ? globalThis.String(object.size) : "0",
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      sha256: isSet(object.sha256) ? globalThis.String(object.sha256) : "",
+      maxPackets: isSet(object.maxPackets)
+        ? globalThis.Number(object.maxPackets)
+        : isSet(object.max_packets)
+        ? globalThis.Number(object.max_packets)
+        : 0,
+      seconds: isSet(object.seconds) ? globalThis.Number(object.seconds) : 0,
+      snaplen: isSet(object.snaplen) ? globalThis.Number(object.snaplen) : 0,
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+    };
+  },
+
+  toJSON(message: CaptureFile): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.direction !== "") {
+      obj.direction = message.direction;
+    }
+    if (message.bpf !== "") {
+      obj.bpf = message.bpf;
+    }
+    if (message.startedAt !== undefined) {
+      obj.startedAt = message.startedAt.toISOString();
+    }
+    if (message.stoppedAt !== undefined) {
+      obj.stoppedAt = message.stoppedAt.toISOString();
+    }
+    if (message.size !== "0") {
+      obj.size = message.size;
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.sha256 !== "") {
+      obj.sha256 = message.sha256;
+    }
+    if (message.maxPackets !== 0) {
+      obj.maxPackets = Math.round(message.maxPackets);
+    }
+    if (message.seconds !== 0) {
+      obj.seconds = Math.round(message.seconds);
+    }
+    if (message.snaplen !== 0) {
+      obj.snaplen = Math.round(message.snaplen);
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureFile>): CaptureFile {
+    return CaptureFile.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureFile>): CaptureFile {
+    const message = createBaseCaptureFile();
+    message.id = object.id ?? "";
+    message.state = object.state ?? "";
+    message.interface = object.interface ?? "";
+    message.direction = object.direction ?? "";
+    message.bpf = object.bpf ?? "";
+    message.startedAt = object.startedAt ?? undefined;
+    message.stoppedAt = object.stoppedAt ?? undefined;
+    message.size = object.size ?? "0";
+    message.packets = object.packets ?? "0";
+    message.sha256 = object.sha256 ?? "";
+    message.maxPackets = object.maxPackets ?? 0;
+    message.seconds = object.seconds ?? 0;
+    message.snaplen = object.snaplen ?? 0;
+    message.reason = object.reason ?? "";
+    return message;
+  },
+};
+
+function createBaseCaptureListResponse(): CaptureListResponse {
+  return {
+    captures: [],
+    maxFiles: 0,
+    maxBytes: "0",
+    traceAvailable: false,
+    traceReason: "",
+    pgAvailable: false,
+    pgReason: "",
+  };
+}
+
+export const CaptureListResponse: MessageFns<CaptureListResponse> = {
+  encode(message: CaptureListResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.captures) {
+      CaptureFile.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.maxFiles !== 0) {
+      writer.uint32(16).uint32(message.maxFiles);
+    }
+    if (message.maxBytes !== "0") {
+      writer.uint32(24).uint64(message.maxBytes);
+    }
+    if (message.traceAvailable !== false) {
+      writer.uint32(32).bool(message.traceAvailable);
+    }
+    if (message.traceReason !== "") {
+      writer.uint32(42).string(message.traceReason);
+    }
+    if (message.pgAvailable !== false) {
+      writer.uint32(48).bool(message.pgAvailable);
+    }
+    if (message.pgReason !== "") {
+      writer.uint32(58).string(message.pgReason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureListResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureListResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.captures.push(CaptureFile.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.maxFiles = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.maxBytes = reader.uint64().toString();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.traceAvailable = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.traceReason = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.pgAvailable = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.pgReason = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureListResponse {
+    return {
+      captures: globalThis.Array.isArray(object?.captures)
+        ? object.captures.map((e: any) => CaptureFile.fromJSON(e))
+        : [],
+      maxFiles: isSet(object.maxFiles)
+        ? globalThis.Number(object.maxFiles)
+        : isSet(object.max_files)
+        ? globalThis.Number(object.max_files)
+        : 0,
+      maxBytes: isSet(object.maxBytes)
+        ? globalThis.String(object.maxBytes)
+        : isSet(object.max_bytes)
+        ? globalThis.String(object.max_bytes)
+        : "0",
+      traceAvailable: isSet(object.traceAvailable)
+        ? globalThis.Boolean(object.traceAvailable)
+        : isSet(object.trace_available)
+        ? globalThis.Boolean(object.trace_available)
+        : false,
+      traceReason: isSet(object.traceReason)
+        ? globalThis.String(object.traceReason)
+        : isSet(object.trace_reason)
+        ? globalThis.String(object.trace_reason)
+        : "",
+      pgAvailable: isSet(object.pgAvailable)
+        ? globalThis.Boolean(object.pgAvailable)
+        : isSet(object.pg_available)
+        ? globalThis.Boolean(object.pg_available)
+        : false,
+      pgReason: isSet(object.pgReason)
+        ? globalThis.String(object.pgReason)
+        : isSet(object.pg_reason)
+        ? globalThis.String(object.pg_reason)
+        : "",
+    };
+  },
+
+  toJSON(message: CaptureListResponse): unknown {
+    const obj: any = {};
+    if (message.captures?.length) {
+      obj.captures = message.captures.map((e) => CaptureFile.toJSON(e));
+    }
+    if (message.maxFiles !== 0) {
+      obj.maxFiles = Math.round(message.maxFiles);
+    }
+    if (message.maxBytes !== "0") {
+      obj.maxBytes = message.maxBytes;
+    }
+    if (message.traceAvailable !== false) {
+      obj.traceAvailable = message.traceAvailable;
+    }
+    if (message.traceReason !== "") {
+      obj.traceReason = message.traceReason;
+    }
+    if (message.pgAvailable !== false) {
+      obj.pgAvailable = message.pgAvailable;
+    }
+    if (message.pgReason !== "") {
+      obj.pgReason = message.pgReason;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureListResponse>): CaptureListResponse {
+    return CaptureListResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureListResponse>): CaptureListResponse {
+    const message = createBaseCaptureListResponse();
+    message.captures = object.captures?.map((e) => CaptureFile.fromPartial(e)) || [];
+    message.maxFiles = object.maxFiles ?? 0;
+    message.maxBytes = object.maxBytes ?? "0";
+    message.traceAvailable = object.traceAvailable ?? false;
+    message.traceReason = object.traceReason ?? "";
+    message.pgAvailable = object.pgAvailable ?? false;
+    message.pgReason = object.pgReason ?? "";
+    return message;
+  },
+};
+
+function createBaseCaptureReadRequest(): CaptureReadRequest {
+  return { owner: "", id: "" };
+}
+
+export const CaptureReadRequest: MessageFns<CaptureReadRequest> = {
+  encode(message: CaptureReadRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureReadRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureReadRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureReadRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+    };
+  },
+
+  toJSON(message: CaptureReadRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureReadRequest>): CaptureReadRequest {
+    return CaptureReadRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureReadRequest>): CaptureReadRequest {
+    const message = createBaseCaptureReadRequest();
+    message.owner = object.owner ?? "";
+    message.id = object.id ?? "";
+    return message;
+  },
+};
+
+function createBaseCaptureChunk(): CaptureChunk {
+  return { data: new Uint8Array(0) };
+}
+
+export const CaptureChunk: MessageFns<CaptureChunk> = {
+  encode(message: CaptureChunk, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.data.length !== 0) {
+      writer.uint32(10).bytes(message.data);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureChunk {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureChunk();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.data = reader.bytes();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureChunk {
+    return { data: isSet(object.data) ? bytesFromBase64(object.data) : new Uint8Array(0) };
+  },
+
+  toJSON(message: CaptureChunk): unknown {
+    const obj: any = {};
+    if (message.data.length !== 0) {
+      obj.data = base64FromBytes(message.data);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureChunk>): CaptureChunk {
+    return CaptureChunk.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureChunk>): CaptureChunk {
+    const message = createBaseCaptureChunk();
+    message.data = object.data ?? new Uint8Array(0);
+    return message;
+  },
+};
+
+function createBaseCaptureDeleteRequest(): CaptureDeleteRequest {
+  return { owner: "", id: "" };
+}
+
+export const CaptureDeleteRequest: MessageFns<CaptureDeleteRequest> = {
+  encode(message: CaptureDeleteRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureDeleteRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureDeleteRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureDeleteRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+    };
+  },
+
+  toJSON(message: CaptureDeleteRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureDeleteRequest>): CaptureDeleteRequest {
+    return CaptureDeleteRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureDeleteRequest>): CaptureDeleteRequest {
+    const message = createBaseCaptureDeleteRequest();
+    message.owner = object.owner ?? "";
+    message.id = object.id ?? "";
+    return message;
+  },
+};
+
+function createBaseCaptureDeleteResponse(): CaptureDeleteResponse {
+  return { size: "0" };
+}
+
+export const CaptureDeleteResponse: MessageFns<CaptureDeleteResponse> = {
+  encode(message: CaptureDeleteResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.size !== "0") {
+      writer.uint32(8).uint64(message.size);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CaptureDeleteResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCaptureDeleteResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.size = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CaptureDeleteResponse {
+    return { size: isSet(object.size) ? globalThis.String(object.size) : "0" };
+  },
+
+  toJSON(message: CaptureDeleteResponse): unknown {
+    const obj: any = {};
+    if (message.size !== "0") {
+      obj.size = message.size;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CaptureDeleteResponse>): CaptureDeleteResponse {
+    return CaptureDeleteResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CaptureDeleteResponse>): CaptureDeleteResponse {
+    const message = createBaseCaptureDeleteResponse();
+    message.size = object.size ?? "0";
+    return message;
+  },
+};
+
 function createBaseSrv6Config(): Srv6Config {
   return { encapSource: undefined, encapHopLimit: undefined, localSids: {}, policies: {}, steering: [] };
 }
@@ -83876,6 +86141,585 @@ export const WanMemberState: MessageFns<WanMemberState> = {
   },
 };
 
+function createBaseMulticastStateRequest(): MulticastStateRequest {
+  return { owner: "" };
+}
+
+export const MulticastStateRequest: MessageFns<MulticastStateRequest> = {
+  encode(message: MulticastStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MulticastStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMulticastStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MulticastStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: MulticastStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MulticastStateRequest>): MulticastStateRequest {
+    return MulticastStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MulticastStateRequest>): MulticastStateRequest {
+    const message = createBaseMulticastStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseMulticastStateResponse(): MulticastStateResponse {
+  return { owner: "", retrievedAt: undefined, groups: [], mroutes: [], pimNeighbors: [] };
+}
+
+export const MulticastStateResponse: MessageFns<MulticastStateResponse> = {
+  encode(message: MulticastStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.groups) {
+      IgmpGroupState.encode(v!, writer.uint32(26).fork()).join();
+    }
+    for (const v of message.mroutes) {
+      MrouteState.encode(v!, writer.uint32(34).fork()).join();
+    }
+    for (const v of message.pimNeighbors) {
+      PimNeighborState.encode(v!, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MulticastStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMulticastStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.groups.push(IgmpGroupState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.mroutes.push(MrouteState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.pimNeighbors.push(PimNeighborState.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MulticastStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      groups: globalThis.Array.isArray(object?.groups) ? object.groups.map((e: any) => IgmpGroupState.fromJSON(e)) : [],
+      mroutes: globalThis.Array.isArray(object?.mroutes) ? object.mroutes.map((e: any) => MrouteState.fromJSON(e)) : [],
+      pimNeighbors: globalThis.Array.isArray(object?.pimNeighbors)
+        ? object.pimNeighbors.map((e: any) => PimNeighborState.fromJSON(e))
+        : globalThis.Array.isArray(object?.pim_neighbors)
+        ? object.pim_neighbors.map((e: any) => PimNeighborState.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: MulticastStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.groups?.length) {
+      obj.groups = message.groups.map((e) => IgmpGroupState.toJSON(e));
+    }
+    if (message.mroutes?.length) {
+      obj.mroutes = message.mroutes.map((e) => MrouteState.toJSON(e));
+    }
+    if (message.pimNeighbors?.length) {
+      obj.pimNeighbors = message.pimNeighbors.map((e) => PimNeighborState.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MulticastStateResponse>): MulticastStateResponse {
+    return MulticastStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MulticastStateResponse>): MulticastStateResponse {
+    const message = createBaseMulticastStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.groups = object.groups?.map((e) => IgmpGroupState.fromPartial(e)) || [];
+    message.mroutes = object.mroutes?.map((e) => MrouteState.fromPartial(e)) || [];
+    message.pimNeighbors = object.pimNeighbors?.map((e) => PimNeighborState.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseIgmpGroupState(): IgmpGroupState {
+  return { interface: "", group: "", sources: [] };
+}
+
+export const IgmpGroupState: MessageFns<IgmpGroupState> = {
+  encode(message: IgmpGroupState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.group !== "") {
+      writer.uint32(18).string(message.group);
+    }
+    for (const v of message.sources) {
+      writer.uint32(26).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): IgmpGroupState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseIgmpGroupState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.sources.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): IgmpGroupState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      group: isSet(object.group) ? globalThis.String(object.group) : "",
+      sources: globalThis.Array.isArray(object?.sources) ? object.sources.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: IgmpGroupState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.group !== "") {
+      obj.group = message.group;
+    }
+    if (message.sources?.length) {
+      obj.sources = message.sources;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<IgmpGroupState>): IgmpGroupState {
+    return IgmpGroupState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<IgmpGroupState>): IgmpGroupState {
+    const message = createBaseIgmpGroupState();
+    message.interface = object.interface ?? "";
+    message.group = object.group ?? "";
+    message.sources = object.sources?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseMrouteState(): MrouteState {
+  return { vrf: "", group: "", source: "", accept: "", forward: [], packets: "0", bytes: "0" };
+}
+
+export const MrouteState: MessageFns<MrouteState> = {
+  encode(message: MrouteState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== "") {
+      writer.uint32(10).string(message.vrf);
+    }
+    if (message.group !== "") {
+      writer.uint32(18).string(message.group);
+    }
+    if (message.source !== "") {
+      writer.uint32(26).string(message.source);
+    }
+    if (message.accept !== "") {
+      writer.uint32(34).string(message.accept);
+    }
+    for (const v of message.forward) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.packets !== "0") {
+      writer.uint32(48).uint64(message.packets);
+    }
+    if (message.bytes !== "0") {
+      writer.uint32(56).uint64(message.bytes);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): MrouteState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseMrouteState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.group = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.accept = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.forward.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.packets = reader.uint64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.bytes = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): MrouteState {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : "",
+      group: isSet(object.group) ? globalThis.String(object.group) : "",
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+      accept: isSet(object.accept) ? globalThis.String(object.accept) : "",
+      forward: globalThis.Array.isArray(object?.forward) ? object.forward.map((e: any) => globalThis.String(e)) : [],
+      packets: isSet(object.packets) ? globalThis.String(object.packets) : "0",
+      bytes: isSet(object.bytes) ? globalThis.String(object.bytes) : "0",
+    };
+  },
+
+  toJSON(message: MrouteState): unknown {
+    const obj: any = {};
+    if (message.vrf !== "") {
+      obj.vrf = message.vrf;
+    }
+    if (message.group !== "") {
+      obj.group = message.group;
+    }
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    if (message.accept !== "") {
+      obj.accept = message.accept;
+    }
+    if (message.forward?.length) {
+      obj.forward = message.forward;
+    }
+    if (message.packets !== "0") {
+      obj.packets = message.packets;
+    }
+    if (message.bytes !== "0") {
+      obj.bytes = message.bytes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<MrouteState>): MrouteState {
+    return MrouteState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<MrouteState>): MrouteState {
+    const message = createBaseMrouteState();
+    message.vrf = object.vrf ?? "";
+    message.group = object.group ?? "";
+    message.source = object.source ?? "";
+    message.accept = object.accept ?? "";
+    message.forward = object.forward?.map((e) => e) || [];
+    message.packets = object.packets ?? "0";
+    message.bytes = object.bytes ?? "0";
+    return message;
+  },
+};
+
+function createBasePimNeighborState(): PimNeighborState {
+  return { interface: "", address: "", uptimeSec: 0 };
+}
+
+export const PimNeighborState: MessageFns<PimNeighborState> = {
+  encode(message: PimNeighborState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.address !== "") {
+      writer.uint32(18).string(message.address);
+    }
+    if (message.uptimeSec !== 0) {
+      writer.uint32(24).uint32(message.uptimeSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PimNeighborState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePimNeighborState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.uptimeSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PimNeighborState {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      uptimeSec: isSet(object.uptimeSec)
+        ? globalThis.Number(object.uptimeSec)
+        : isSet(object.uptime_sec)
+        ? globalThis.Number(object.uptime_sec)
+        : 0,
+    };
+  },
+
+  toJSON(message: PimNeighborState): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.uptimeSec !== 0) {
+      obj.uptimeSec = Math.round(message.uptimeSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PimNeighborState>): PimNeighborState {
+    return PimNeighborState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PimNeighborState>): PimNeighborState {
+    const message = createBasePimNeighborState();
+    message.interface = object.interface ?? "";
+    message.address = object.address ?? "";
+    message.uptimeSec = object.uptimeSec ?? 0;
+    return message;
+  },
+};
+
 function createBaseAaaLdap(): AaaLdap {
   return { servers: [] };
 }
@@ -85245,6 +88089,44 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): IpfixStateResponse => IpfixStateResponse.decode(value),
   },
   /**
+   * CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+   * retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+   * generator are available on this build (F-capture-trace). Never mutates.
+   */
+  captureList: {
+    path: "/vrx.v1.Dataplane/CaptureList" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: CaptureListRequest): Buffer => Buffer.from(CaptureListRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): CaptureListRequest => CaptureListRequest.decode(value),
+    responseSerialize: (value: CaptureListResponse): Buffer => Buffer.from(CaptureListResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): CaptureListResponse => CaptureListResponse.decode(value),
+  },
+  /** CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header). */
+  captureRead: {
+    path: "/vrx.v1.Dataplane/CaptureRead" as const,
+    requestStream: false as const,
+    responseStream: true as const,
+    requestSerialize: (value: CaptureReadRequest): Buffer => Buffer.from(CaptureReadRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): CaptureReadRequest => CaptureReadRequest.decode(value),
+    responseSerialize: (value: CaptureChunk): Buffer => Buffer.from(CaptureChunk.encode(value).finish()),
+    responseDeserialize: (value: Buffer): CaptureChunk => CaptureChunk.decode(value),
+  },
+  /**
+   * CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+   * for the running capture (stop it by cancelling its Action stream).
+   */
+  captureDelete: {
+    path: "/vrx.v1.Dataplane/CaptureDelete" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: CaptureDeleteRequest): Buffer => Buffer.from(CaptureDeleteRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): CaptureDeleteRequest => CaptureDeleteRequest.decode(value),
+    responseSerialize: (value: CaptureDeleteResponse): Buffer =>
+      Buffer.from(CaptureDeleteResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): CaptureDeleteResponse => CaptureDeleteResponse.decode(value),
+  },
+  /**
    * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
    * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
    * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
@@ -85603,6 +88485,22 @@ export const DataplaneService = {
     responseSerialize: (value: WanStateResponse): Buffer => Buffer.from(WanStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): WanStateResponse => WanStateResponse.decode(value),
   },
+  /**
+   * wave-BC: F-igmp-mfib
+   * MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+   * an agent without multicast (→ 501).
+   */
+  multicastState: {
+    path: "/vrx.v1.Dataplane/MulticastState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: MulticastStateRequest): Buffer =>
+      Buffer.from(MulticastStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): MulticastStateRequest => MulticastStateRequest.decode(value),
+    responseSerialize: (value: MulticastStateResponse): Buffer =>
+      Buffer.from(MulticastStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): MulticastStateResponse => MulticastStateResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -85696,6 +88594,19 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
    */
   ipfixState: handleUnaryCall<IpfixStateRequest, IpfixStateResponse>;
+  /**
+   * CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+   * retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+   * generator are available on this build (F-capture-trace). Never mutates.
+   */
+  captureList: handleUnaryCall<CaptureListRequest, CaptureListResponse>;
+  /** CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header). */
+  captureRead: handleServerStreamingCall<CaptureReadRequest, CaptureChunk>;
+  /**
+   * CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+   * for the running capture (stop it by cancelling its Action stream).
+   */
+  captureDelete: handleUnaryCall<CaptureDeleteRequest, CaptureDeleteResponse>;
   /**
    * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
    * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
@@ -85843,6 +88754,12 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
    */
   wanState: handleUnaryCall<WanStateRequest, WanStateResponse>;
+  /**
+   * wave-BC: F-igmp-mfib
+   * MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+   * an agent without multicast (→ 501).
+   */
+  multicastState: handleUnaryCall<MulticastStateRequest, MulticastStateResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -86134,6 +89051,52 @@ export interface DataplaneClient extends Client {
     callback: (error: ServiceError | null, response: IpfixStateResponse) => void,
   ): ClientUnaryCall;
   /**
+   * CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+   * retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+   * generator are available on this build (F-capture-trace). Never mutates.
+   */
+  captureList(
+    request: CaptureListRequest,
+    callback: (error: ServiceError | null, response: CaptureListResponse) => void,
+  ): ClientUnaryCall;
+  captureList(
+    request: CaptureListRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: CaptureListResponse) => void,
+  ): ClientUnaryCall;
+  captureList(
+    request: CaptureListRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: CaptureListResponse) => void,
+  ): ClientUnaryCall;
+  /** CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header). */
+  captureRead(request: CaptureReadRequest, options?: Partial<CallOptions>): ClientReadableStream<CaptureChunk>;
+  captureRead(
+    request: CaptureReadRequest,
+    metadata?: Metadata,
+    options?: Partial<CallOptions>,
+  ): ClientReadableStream<CaptureChunk>;
+  /**
+   * CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+   * for the running capture (stop it by cancelling its Action stream).
+   */
+  captureDelete(
+    request: CaptureDeleteRequest,
+    callback: (error: ServiceError | null, response: CaptureDeleteResponse) => void,
+  ): ClientUnaryCall;
+  captureDelete(
+    request: CaptureDeleteRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: CaptureDeleteResponse) => void,
+  ): ClientUnaryCall;
+  captureDelete(
+    request: CaptureDeleteRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: CaptureDeleteResponse) => void,
+  ): ClientUnaryCall;
+  /**
    * Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
    * steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
    * (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
@@ -86615,6 +89578,26 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: WanStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * wave-BC: F-igmp-mfib
+   * MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+   * an agent without multicast (→ 501).
+   */
+  multicastState(
+    request: MulticastStateRequest,
+    callback: (error: ServiceError | null, response: MulticastStateResponse) => void,
+  ): ClientUnaryCall;
+  multicastState(
+    request: MulticastStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: MulticastStateResponse) => void,
+  ): ClientUnaryCall;
+  multicastState(
+    request: MulticastStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: MulticastStateResponse) => void,
   ): ClientUnaryCall;
 }
 

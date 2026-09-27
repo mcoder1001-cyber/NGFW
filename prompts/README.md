@@ -21,7 +21,23 @@ cat ../vrx/prompts/00-CONTEXT.md ../vrx/prompts/P05-agent-core.md | claude
 | W4 (day 6-7) | P08 | ping through VPP, live counters in UI, commit/rollback on MTU, kill -9 vpp → reconcile |
 | W5+ | `FEATURE-TEMPLATE.md` instances (F-*), P10–P14 | see docs/11-compressed-plan-fa.md (21-day plan, VM lab, FAST MODE) |
 
-After every PR: run `REVIEW-PROMPT.md` in a fresh agent. Every evening: `INTEGRATOR-PROMPT.md`.
+After every PR: `REVIEW-PROMPT.md` dispatches the reviewer panel and the testers, in fresh agents. Every evening: `INTEGRATOR-PROMPT.md`.
+
+## Team roster (D-156)
+
+| role | count (max at once) | prompt file | reports to | writes feature code? |
+|---|---|---|---|---|
+| Lead manager | 1 | [`MANAGER-PROMPT.md`](MANAGER-PROMPT.md) | product owner | only to unblock |
+| Arbiters (internal managers) A1 contracts/API/web · A2 data-plane/agent/daemons · A3 process/CI/packaging/scheduling | 3 | [`ARBITER-PROMPT.md`](ARBITER-PROMPT.md) | lead manager | never |
+| Developers (workers) | ≤ 30, one slot each (1–11, 14–32) | task prompt + [`WORKER-OPS.md`](WORKER-OPS.md) | lead manager | yes, own branch only |
+| Review dispatcher | 1 per branch | [`REVIEW-PROMPT.md`](REVIEW-PROMPT.md) | lead manager | never |
+| Reviewers R1 correctness & tests · R2 security · R3 contracts/API · R4 data-plane/shared host · R5 performance · R6 UX/web/i18n · R7 docs & evidence · R8 operability/packaging | 8 aspects, spawned per branch (R1, R2, R7 always) | [`reviewers/`](reviewers/) | lead manager; disputes → arbiter | never |
+| Testers T1 unit/contract/CI · T2 API e2e (PostgreSQL/Valkey) · T3 data-plane/topology/traffic · T4 web e2e/screenshots/regression | 4 | [`TESTER-PROMPT.md`](TESTER-PROMPT.md) | lead manager; disputes → arbiter | never (tests only with `add-tests`) |
+| Integrator | 1 (daily) | [`INTEGRATOR-PROMPT.md`](INTEGRATOR-PROMPT.md) | lead manager | never |
+
+Flow: developer done → review panel + testers in parallel → combined verdict (any BLOCK or FAIL blocks) → merge by the lead
+manager. Any dispute → arbiter → lead manager → product owner (PENDING, `docs/decisions/decision-policy.md`). Rulings:
+[`docs/decisions/ARBITRATION-LOG.md`](../docs/decisions/ARBITRATION-LOG.md). Persian summary: [`docs/14-team-roster-fa.md`](../docs/14-team-roster-fa.md).
 
 ## Filled examples
 

@@ -60,6 +60,7 @@ import { mgmtTlsFeature } from './features/mgmt-tls/index.js'; // F-management-u
 // wave-BC: F-ipfix-sflow
 import { ipfixSflowFeature } from './features/ipfix-sflow/index.js';
 // wave-BC: F-capture-trace
+import { captureTraceFeature } from './features/capture-trace/index.js';
 // wave-BC: F-srv6
 import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
@@ -68,6 +69,7 @@ import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
+import { igmpMfibFeature } from './features/igmp-mfib/index.js';
 // wave-BC: F-dashboard-prom-alarms
 // web: WEB-dashboard
 import { hostMetricsFeature } from './features/host-metrics/index.js';
@@ -171,6 +173,7 @@ export class AppModule {
         // wave-BC: F-ipfix-sflow
         ...ipfixSflowFeature.controllers,
         // wave-BC: F-capture-trace
+        ...captureTraceFeature.controllers,
         // wave-BC: F-srv6
         ...srv6Feature.controllers,
         // wave-BC: F-lisp
@@ -179,6 +182,7 @@ export class AppModule {
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
+        ...igmpMfibFeature.controllers,
         // wave-BC: F-dashboard-prom-alarms
         // web: WEB-dashboard
         ...hostMetricsFeature.controllers,
@@ -285,6 +289,7 @@ export class AppModule {
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         // wave-BC: F-igmp-mfib
+        ...igmpMfibFeature.providers,
         // wave-BC: F-dashboard-prom-alarms
         // web: WEB-dashboard
         ...hostMetricsFeature.providers,

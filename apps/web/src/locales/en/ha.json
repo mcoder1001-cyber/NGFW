@@ -1,0 +1,37 @@
+{
+  "title": "High availability",
+  "intro": "VRRPv3 virtual routers and cluster membership. Changes are staged in the candidate and committed from the pending-change bar.",
+  "tabs": {
+    "vrrp": "VRRP",
+    "cluster": "Cluster"
+  },
+  "save": "Save to candidate",
+  "none": "—",
+  "vrrp": {
+    "title": "Virtual routers",
+    "empty": "No virtual routers configured",
+    "name": "Name",
+    "interface": "Interface",
+    "vrId": "VRID",
+    "family": "Family",
+    "priority": "Priority",
+    "addresses": "Virtual addresses",
+    "engine": "Engine",
+    "status": "Status",
+    "pending": "Not committed",
+    "committed": "Committed",
+    "disabled": "Disabled"
+  },
+  "cluster": {
+    "title": "Cluster membership",
+    "notConfigured": "Clustering is not configured",
+    "node": "This node",
+    "peers": "Peers",
+    "port": "Cluster port",
+    "configSync": "Configuration synchronisation",
+    "stateSync": "State synchronisation",
+    "on": "on",
+    "off": "off",
+    "pending": "Not committed"
+  }
+}

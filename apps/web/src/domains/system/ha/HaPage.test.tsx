@@ -65,12 +65,13 @@ afterEach(async () => {
   await i18n.changeLanguage('en');
 });
 
-describe('System → High availability (WEB-4b, unrouted)', () => {
-  it('is not reachable from nav yet (F-vrrp-config-sync routes it)', () => {
+describe('System → High availability (WEB-4b, routed by F-vrrp-config-sync)', () => {
+  it('is reachable from nav at /system/ha', () => {
     const item = buildNav(domains, { devRoutes: false })
       .flatMap((g) => g.items)
       .find((i) => i.id === 'ha');
-    expect(item?.available).not.toBe(true);
+    expect(item?.available).toBe(true);
+    expect(item?.path).toBe('/system/ha');
   });
 
   it('lists virtual routers with committed / pending status', async () => {

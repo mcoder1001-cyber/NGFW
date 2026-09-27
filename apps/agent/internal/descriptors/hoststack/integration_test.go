@@ -82,5 +82,5 @@ func TestHostStackOnHost(t *testing.T) {
 func port(slot, i int) uint32 {
 	var p uint32
 	_, _ = fmt.Sscanf(fmt.Sprintf("3%d9%d", slot, i), "%d", &p)
-	return p
+	return uint32(vpptest.SubPort(slot, 90+i, int(p))) //nolint:gosec // slot ports
 }

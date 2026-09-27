@@ -41,3 +41,18 @@ is not part of the VR (DF-7-questions.md). Ownership: the VR's interface (claim 
 VPP crashed (SIGSEGV in `ip4_options_node_fn`) one second after this host test started VRs on its loopback while the
 IGMP host test ran in parallel (DF-7-questions Q9). It runs only with `VRX_DF7_VRRP_HOST=1`, alone, in a manager
 window, with `NRestarts` checked before and after.
+
+## Wired by F-vrrp-config-sync
+
+`ha.vrrp.<name>` with `engine: vpp` (the default) is projected by `apps/agent/internal/desired/vrrp.go` (domain `ha`,
+`apps/agent/internal/subsystems/vrrp.go`): `vrrp.vr` (priority, `advertisementIntervalMs / 10`, preempt, accept,
+unicast flag, canonical sorted addresses), `vrrp.vr-peers` for unicast VRs, one `vrrp.vr-track-interface` per
+`track[]` entry, `vrrp.vr-state` while `enabled` (disabled = configured but stopped), and the agent-local
+`vrrp.meta` record (name, description, vrf — VPP holds no name; `<state dir>/vrrp-meta-<owner>.json`). The
+assembler rebuilds `ha.vrrp` from them; a VR without a meta entry is named `vr-<if>-<vrid>-<af>`.
+
+TD-11b gap fix (`ownership.go`): `vrrp.vr` declares `CheckPersistent` (claims on untagged interfaces through the DF-1
+claim store); peers/track/state declare `RecordsNoOwnership` (addressed through their VR). Named test: every
+`subsystems.Register` test (`TestRegisterGuardsEveryDescriptor` et al.) refused to start without it. VRRP allocates
+no VPP id, so the TD-8b id range does not apply. Retrieve is tolerant of a VPP without the vrrp plugin (as F-lisp).
+Unit model: `descriptors/core/coretest/vrrp.go`; agent test `internal/agent/rpc_vrrp_test.go`.

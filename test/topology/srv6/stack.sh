@@ -10,7 +10,7 @@
 #
 #   eval "$(tools/lab env <slot>)"; test/topology/srv6/stack.sh [<screenshot node script> <out dir>]
 #
-# Owner "<prefix>sr", database vrx_<prefix>sr, API port 3000+100·slot+60, web 5000+100·slot+60, agent socket
+# Owner "<prefix>sr", database vrx_<prefix>sr, API port VRX_HTTP_PORT+60, web VRX_WEB_PORT+60 (D-156), agent socket
 # /run/vrx-test/<prefix>/sr/agent.sock, VRF <owner>-cust table base+60, loopbacks loop<slot>60/61, SIDs/BSIDs in
 # fd00:<slot hex>::/48, steered prefixes 10.<slot>.160.0/24 and fd00:<slot hex>:160::/48. No packet is sent (no rig, no
 # af_packet). The screenshot script (kept outside the repo, P07a/P07b) is called as
@@ -21,10 +21,10 @@ ROOT="$(cd "$HERE/../../.." && pwd)"
 : "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
 : "${VRX_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
 P=$VRX_TEST_PREFIX N=$VRX_SLOT OWNER=${VRX_TEST_PREFIX}sr
-[[ "$N" =~ ^([1-9]|1[01])$ ]] || { echo "stack.sh: slots 1–11 only (12 is CI)" >&2; exit 1; }
+[[ "$N" =~ ^([1-9]|1[01]|1[4-9]|2[0-9]|3[0-2])$ ]] || { echo "stack.sh: slots 1–11, 14–32 only (12 is CI, 13 does not exist)" >&2; exit 1; }
 BASE=$((N * 1000)) TABLE=$((N * 1000 + 60)) L1=loop$((N * 100 + 60)) L2=loop$((N * 100 + 61))
 H=$(printf 'fd00:%x' "$N") VRF=$OWNER-cust
-API_PORT=$((3000 + 100 * N + 60)) WEB_PORT=$((5000 + 100 * N + 60))
+API_PORT=$((${VRX_HTTP_PORT:?} + 60)) WEB_PORT=$((${VRX_WEB_PORT:?} + 60))  # D-156: offsets from the slot exports
 RUN=/run/vrx-test/$P/sr
 SHOTS=${1:-} SHOTS_OUT=${2:-}
 [[ -d "/run/vrx-test/$P" ]] || install -d -m 0755 "/run/vrx-test/$P"

@@ -62,6 +62,9 @@ const (
 	Dataplane_HostStackState_FullMethodName          = "/vrx.v1.Dataplane/HostStackState"
 	Dataplane_SnmpState_FullMethodName               = "/vrx.v1.Dataplane/SnmpState"
 	Dataplane_IpfixState_FullMethodName              = "/vrx.v1.Dataplane/IpfixState"
+	Dataplane_CaptureList_FullMethodName             = "/vrx.v1.Dataplane/CaptureList"
+	Dataplane_CaptureRead_FullMethodName             = "/vrx.v1.Dataplane/CaptureRead"
+	Dataplane_CaptureDelete_FullMethodName           = "/vrx.v1.Dataplane/CaptureDelete"
 	Dataplane_Srv6State_FullMethodName               = "/vrx.v1.Dataplane/Srv6State"
 	Dataplane_LispState_FullMethodName               = "/vrx.v1.Dataplane/LispState"
 	Dataplane_BondState_FullMethodName               = "/vrx.v1.Dataplane/BondState"
@@ -86,6 +89,7 @@ const (
 	Dataplane_DataplaneStartupPreview_FullMethodName = "/vrx.v1.Dataplane/DataplaneStartupPreview"
 	Dataplane_PppoeReconnect_FullMethodName          = "/vrx.v1.Dataplane/PppoeReconnect"
 	Dataplane_WanState_FullMethodName                = "/vrx.v1.Dataplane/WanState"
+	Dataplane_MulticastState_FullMethodName          = "/vrx.v1.Dataplane/MulticastState"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -156,6 +160,15 @@ type DataplaneClient interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(ctx context.Context, in *IpfixStateRequest, opts ...grpc.CallOption) (*IpfixStateResponse, error)
+	// CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+	// retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+	// generator are available on this build (F-capture-trace). Never mutates.
+	CaptureList(ctx context.Context, in *CaptureListRequest, opts ...grpc.CallOption) (*CaptureListResponse, error)
+	// CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header).
+	CaptureRead(ctx context.Context, in *CaptureReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CaptureChunk], error)
+	// CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+	// for the running capture (stop it by cancelling its Action stream).
+	CaptureDelete(ctx context.Context, in *CaptureDeleteRequest, opts ...grpc.CallOption) (*CaptureDeleteResponse, error)
 	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
 	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
 	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
@@ -255,6 +268,10 @@ type DataplaneClient interface {
 	// WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
 	// failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
 	WanState(ctx context.Context, in *WanStateRequest, opts ...grpc.CallOption) (*WanStateResponse, error)
+	// wave-BC: F-igmp-mfib
+	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+	// an agent without multicast (→ 501).
+	MulticastState(ctx context.Context, in *MulticastStateRequest, opts ...grpc.CallOption) (*MulticastStateResponse, error)
 }
 
 type dataplaneClient struct {
@@ -446,6 +463,45 @@ func (c *dataplaneClient) IpfixState(ctx context.Context, in *IpfixStateRequest,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IpfixStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_IpfixState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) CaptureList(ctx context.Context, in *CaptureListRequest, opts ...grpc.CallOption) (*CaptureListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CaptureListResponse)
+	err := c.cc.Invoke(ctx, Dataplane_CaptureList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) CaptureRead(ctx context.Context, in *CaptureReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CaptureChunk], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &Dataplane_ServiceDesc.Streams[3], Dataplane_CaptureRead_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[CaptureReadRequest, CaptureChunk]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Dataplane_CaptureReadClient = grpc.ServerStreamingClient[CaptureChunk]
+
+func (c *dataplaneClient) CaptureDelete(ctx context.Context, in *CaptureDeleteRequest, opts ...grpc.CallOption) (*CaptureDeleteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CaptureDeleteResponse)
+	err := c.cc.Invoke(ctx, Dataplane_CaptureDelete_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -692,6 +748,16 @@ func (c *dataplaneClient) WanState(ctx context.Context, in *WanStateRequest, opt
 	return out, nil
 }
 
+func (c *dataplaneClient) MulticastState(ctx context.Context, in *MulticastStateRequest, opts ...grpc.CallOption) (*MulticastStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MulticastStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_MulticastState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -760,6 +826,15 @@ type DataplaneServer interface {
 	// of this owner, the VPP-global flowprobe/sFlow parameters and the sFlow node counters from the
 	// stats segment. Dumps only; never mutates. UNAVAILABLE without VPP.
 	IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error)
+	// CaptureList lists the pcap files the agent keeps (moved out of VPP's /tmp to its capture directory, 0600,
+	// retention by count and bytes) plus the running capture, and says whether packet trace and the packet
+	// generator are available on this build (F-capture-trace). Never mutates.
+	CaptureList(context.Context, *CaptureListRequest) (*CaptureListResponse, error)
+	// CaptureRead streams one kept pcap file in chunks (the first chunk starts with the pcap global header).
+	CaptureRead(*CaptureReadRequest, grpc.ServerStreamingServer[CaptureChunk]) error
+	// CaptureDelete removes one kept pcap file and its record. NOT_FOUND for an unknown id; FAILED_PRECONDITION
+	// for the running capture (stop it by cancelling its Action stream).
+	CaptureDelete(context.Context, *CaptureDeleteRequest) (*CaptureDeleteResponse, error)
 	// Srv6State dumps the live, read-only SRv6 objects of this owner (the local SIDs, policies and
 	// steering entries its own Creates claimed): local SIDs with their good/bad traffic counters
 	// (sr_localsids_with_packet_stats_dump), policies with their segment lists, steering entries.
@@ -859,6 +934,10 @@ type DataplaneServer interface {
 	// WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
 	// failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
 	WanState(context.Context, *WanStateRequest) (*WanStateResponse, error)
+	// wave-BC: F-igmp-mfib
+	// MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+	// an agent without multicast (→ 501).
+	MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -916,6 +995,15 @@ func (UnimplementedDataplaneServer) SnmpState(context.Context, *SnmpStateRequest
 }
 func (UnimplementedDataplaneServer) IpfixState(context.Context, *IpfixStateRequest) (*IpfixStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IpfixState not implemented")
+}
+func (UnimplementedDataplaneServer) CaptureList(context.Context, *CaptureListRequest) (*CaptureListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CaptureList not implemented")
+}
+func (UnimplementedDataplaneServer) CaptureRead(*CaptureReadRequest, grpc.ServerStreamingServer[CaptureChunk]) error {
+	return status.Error(codes.Unimplemented, "method CaptureRead not implemented")
+}
+func (UnimplementedDataplaneServer) CaptureDelete(context.Context, *CaptureDeleteRequest) (*CaptureDeleteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CaptureDelete not implemented")
 }
 func (UnimplementedDataplaneServer) Srv6State(context.Context, *Srv6StateRequest) (*Srv6StateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Srv6State not implemented")
@@ -988,6 +1076,9 @@ func (UnimplementedDataplaneServer) PppoeReconnect(context.Context, *PppoeReconn
 }
 func (UnimplementedDataplaneServer) WanState(context.Context, *WanStateRequest) (*WanStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method WanState not implemented")
+}
+func (UnimplementedDataplaneServer) MulticastState(context.Context, *MulticastStateRequest) (*MulticastStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MulticastState not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -1273,6 +1364,53 @@ func _Dataplane_IpfixState_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).IpfixState(ctx, req.(*IpfixStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_CaptureList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CaptureListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).CaptureList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_CaptureList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).CaptureList(ctx, req.(*CaptureListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_CaptureRead_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(CaptureReadRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(DataplaneServer).CaptureRead(m, &grpc.GenericServerStream[CaptureReadRequest, CaptureChunk]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Dataplane_CaptureReadServer = grpc.ServerStreamingServer[CaptureChunk]
+
+func _Dataplane_CaptureDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CaptureDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).CaptureDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_CaptureDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).CaptureDelete(ctx, req.(*CaptureDeleteRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1709,6 +1847,24 @@ func _Dataplane_WanState_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_MulticastState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MulticastStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).MulticastState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_MulticastState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).MulticastState(ctx, req.(*MulticastStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1767,6 +1923,14 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "IpfixState",
 			Handler:    _Dataplane_IpfixState_Handler,
+		},
+		{
+			MethodName: "CaptureList",
+			Handler:    _Dataplane_CaptureList_Handler,
+		},
+		{
+			MethodName: "CaptureDelete",
+			Handler:    _Dataplane_CaptureDelete_Handler,
 		},
 		{
 			MethodName: "Srv6State",
@@ -1864,6 +2028,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "WanState",
 			Handler:    _Dataplane_WanState_Handler,
 		},
+		{
+			MethodName: "MulticastState",
+			Handler:    _Dataplane_MulticastState_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -1879,6 +2047,11 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Action",
 			Handler:       _Dataplane_Action_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "CaptureRead",
+			Handler:       _Dataplane_CaptureRead_Handler,
 			ServerStreams: true,
 		},
 	},

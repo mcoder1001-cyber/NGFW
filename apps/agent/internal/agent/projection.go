@@ -311,6 +311,7 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-tunnels
 	desired.Tunnels(p, ds.GetTunnels(), in, vrfID, subsystems.TunnelsIDSpan()) // tunnels.gre/ipip/vxlan (internal/desired/tunnels.go)
 	// wave-BC: F-vrrp-config-sync
+	desired.Vrrp(p, ds, in) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
 	desired.MplsSrmpls(p, ds, in, vrfID)
@@ -517,6 +518,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-tunnels
 	kvs = desired.AssembleTunnels(ds, kvs, in, nameOf, stored) // tunnels.gre/ipip/vxlan; drops their interfaces.<vpp name> leaves
 	// wave-BC: F-vrrp-config-sync
+	desired.AssembleVrrp(ds, kvs, in) // ha.vrrp from vrrp.*, vrrp.meta, keepalived.config
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-mpls-srmpls
 	if in["routing"] {

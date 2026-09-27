@@ -40,6 +40,7 @@ func TestSnmpStageIntegration(t *testing.T) {
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
 	var port, trapPort uint32
 	_, _ = fmt.Sscanf(fmt.Sprintf("3%d61 3%d62", slot, slot), "%d %d", &port, &trapPort)
+	port, trapPort = uint32(vpptest.SubPort(slot, 61, int(port))), uint32(vpptest.SubPort(slot, 62, int(trapPort))) //nolint:gosec // slot ports
 	paths := snmpd.TestPaths(prefix)
 	base := filepath.Dir(paths.ConfFile)
 	lockSlot(t, base)

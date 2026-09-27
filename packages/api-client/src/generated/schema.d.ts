@@ -919,6 +919,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/actions/capture': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start a pcap capture (one per VPP; 409 `capture-busy` when one runs). Returns its id; poll GET /state/captures */
+    post: operations['CaptureTrace_start'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/captures': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Captures kept by the agent (and the running one), retention caps, trace / PG availability */
+    get: operations['CaptureTrace_list'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/captures/{id}/file': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Download one capture as a pcap file (admin; audited) */
+    get: operations['CaptureTrace_file'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/captures/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete one kept capture file (409 while it is running) */
+    delete: operations['CaptureTrace_remove'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/srv6': {
     parameters: {
       query?: never;
@@ -945,6 +1013,57 @@ export interface paths {
     };
     /** LISP / LISP-GPE: switches, locator sets, local EIDs and map-cache, adjacencies, EID-table maps, resolvers (agent LispState) */
     get: operations['Lisp_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/multicast/groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live IGMP group memberships (router-mode interfaces) */
+    get: operations['IgmpMfib_groups'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/multicast/mroutes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The live VPP mFIB (static and PIM-learned routes) */
+    get: operations['IgmpMfib_mroutes'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/multicast/pim-neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** PIM neighbours (from FRR pimd) */
+    get: operations['IgmpMfib_pimNeighbors'];
     put?: never;
     post?: never;
     delete?: never;
@@ -3431,6 +3550,120 @@ export interface components {
             bsid: number;
             /** VPN label */
             vpnLabel?: number;
+          }[];
+        };
+      };
+      /** Multicast (IGMP / mFIB / PIM) */
+      multicast?: {
+        /**
+         * IGMP
+         * @default {}
+         */
+        igmp: {
+          /**
+           * IGMP interfaces
+           * @default {}
+           */
+          interfaces: {
+            [key: string]: {
+              /**
+               * Mode
+               * @default router
+               * @enum {string}
+               */
+              mode: 'host' | 'router';
+              /**
+               * Static joins
+               * @default []
+               */
+              joins: {
+                /**
+                 * Group
+                 * Format: ipv4
+                 */
+                group: string;
+                /** Sources */
+                sources: string[];
+              }[];
+            };
+          };
+          /**
+           * SSM ranges
+           * @default [
+           *       "232.0.0.0/8"
+           *     ]
+           */
+          ssmRanges: string[];
+          /**
+           * IGMP proxies
+           * @default {}
+           */
+          proxies: {
+            [key: string]: {
+              /** Upstream */
+              upstream: string;
+              /** Downstream */
+              downstream: string[];
+            };
+          };
+        };
+        /**
+         * Static multicast routes
+         * @default []
+         */
+        mroutes: {
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /**
+           * Group
+           * Format: ipv4
+           */
+          group: string;
+          /**
+           * Source
+           * Format: ipv4
+           */
+          source?: string;
+          /**
+           * Paths
+           * @default []
+           */
+          paths: {
+            /** Interface */
+            interface: string;
+            /**
+             * Role
+             * @default forward
+             * @enum {string}
+             */
+            flags: 'accept' | 'forward';
+          }[];
+        }[];
+        /**
+         * PIM-SM
+         * @default {}
+         */
+        pim: {
+          /**
+           * PIM interfaces
+           * @default []
+           */
+          interfaces: string[];
+          /**
+           * Rendezvous points
+           * @default []
+           */
+          rp: {
+            /**
+             * RP address
+             * Format: ipv4
+             */
+            address: string;
+            /** Group ranges */
+            groups: string[];
           }[];
         };
       };
@@ -13082,6 +13315,382 @@ export interface operations {
       };
     };
   };
+  CaptureTrace_start: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description VPP interface name; "any" = every interface */
+          interface: string;
+          /**
+           * @default both
+           * @enum {string}
+           */
+          direction?: 'rx' | 'tx' | 'both';
+          /**
+           * @description also capture dropped packets
+           * @default false
+           */
+          drop?: boolean;
+          /** @description drop capture limited to one "node/error" counter (needs drop) */
+          errorFilter?: string;
+          /**
+           * @description pcap-filter(7) expression (bpf_trace_filter plugin; globals-owner agent only)
+           * @default
+           */
+          bpf?: string;
+          /** @default 1000 */
+          maxPackets?: number;
+          /** @default 30 */
+          seconds?: number;
+          /** @default 9000 */
+          snaplen?: number;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  CaptureTrace_list: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            captures: {
+              id: string;
+              state: ('running' | 'done' | 'empty' | 'interrupted') | string;
+              interface: string;
+              /** @description "rx", "tx", "drop" joined by "," */
+              direction: string;
+              bpf: string;
+              startedAt: string | null;
+              stoppedAt: string | null;
+              /** @description bytes, uint64 as decimal string (D-039) */
+              size: string;
+              /** @description uint64 as decimal string (D-039) */
+              packets: string;
+              sha256: string;
+              maxPackets: number;
+              seconds: number;
+              snaplen: number;
+              reason: string;
+            }[];
+            maxFiles: number;
+            maxBytes: string;
+            trace: {
+              available: boolean;
+              reason: string;
+            };
+            pg: {
+              available: boolean;
+              reason: string;
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  CaptureTrace_file: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/vnd.tcpdump.pcap': string;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  CaptureTrace_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   Srv6_state: {
     parameters: {
       query?: never;
@@ -13286,6 +13895,150 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_groups: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            groups: {
+              interface: string;
+              group: string;
+              sources: string[];
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_mroutes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            mroutes: {
+              vrf: string;
+              group: string;
+              /** @description empty for a (*,G) route */
+              source: string;
+              /** @description incoming (RPF) interface */
+              accept: string;
+              forward: string[];
+              packets: string;
+              bytes: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IgmpMfib_pimNeighbors: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description why the live view is empty (agent unavailable or older agent) */
+            agentError: string | null;
+            retrievedAt: string | null;
+            neighbors: {
+              interface: string;
+              address: string;
+              uptimeSec: number;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

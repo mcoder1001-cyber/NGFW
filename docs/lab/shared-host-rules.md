@@ -1,20 +1,36 @@
 # Rules for many workers on ONE host
 
-Up to 12 worker agents run at once on 172.30.126.195, in separate git worktrees, against the **same**
+Up to 30 developer agents (plus testers, reviewers and arbiters, who use no slot unless their prompt says so; D-156) run at once on 172.30.126.195, in separate git worktrees, against the **same**
 VPP, PostgreSQL, Valkey, daemons, ports and disk. These rules are part of every TASK ENVELOPE.
 
-## 1. Every worker gets a numeric slot `N` (1–12) from the manager
+## 1. Every worker gets a numeric slot `N` from the manager
+Slots (D-156): **1–11** developer slots, **12** the CI slot, **13 does not exist** (its id range 13000–13999 is tools/app's, §12),
+**14–32** developer slots → **30 developer slots**. `tools/lab env` refuses 0, 13 and anything above 32.
 Derived values, exported by the manager in the envelope and by `tools/lab env <N>`:
 ```
 VRX_SLOT=N
 VRX_TEST_PREFIX=w<N>            # every VPP/DB/daemon object a worker creates carries this prefix
-VRX_HTTP_PORT=3<N>00            # api dev/test port (3100, 3200, …), never 3000
-VRX_WEB_PORT=5<N>00             # vite dev port (5100, 5200, …), never 5173
-VRX_METRICS_PORT=$((9100+10*N+1))  # agent prometheus: 9111 … 9191, 9201, 9211, 9221 (slots 10–12) — `tools/lab env <N>` computes it
+VRX_HTTP_PORT=3<N>00            # slots 1–12: api dev/test port 3000+100·N (3100 … 4200), never 3000
+                                # slots 14–32: 10000+100·N (11400 … 13200)
+VRX_WEB_PORT=5<N>00             # slots 1–12: vite dev port 5000+100·N (5100 … 6200), never 5173
+                                # slots 14–32: 14000+100·N (15400 … 17200)
+VRX_METRICS_PORT=$((9100+10*N+1))  # agent prometheus: 9111 … 9221 (slots 1–12), 9241 … 9421 (14–32) — `tools/lab env <N>` computes it
 VRX_AGENT_SOCKET=/run/vrx-test/w<N>/agent.sock
 VRX_PG_DATABASE=vrx_w<N>        # own database in the shared PostgreSQL; own Valkey db index N
-VRX_VPP_TABLE_BASE=<N>000       # VRF/table ids a worker may allocate: N000–N999
+VRX_VPP_TABLE_BASE=<N>000       # VRF/table ids a worker may allocate: N000–N999 (slot 32: 32000–32999)
 ```
+**Why slots 14–32 have other ports (D-156).** `3000+100·N` for N ≥ 21 is exactly `5<M>00`, the web port of slot M = N−20,
+and the old string-built test ports `"3<N><xx>"` (rsyslog, snmpd, hoststack) meet the numeric `3000+100·N+xx` ports of other
+slots (`4739+N` ipfix vs `3<N>53` unbound for N = 14/17). So slots 1–12 keep every value they had (nothing running changes) and
+slots 14–32 move to their own blocks. **Sub-ports:** a test that needs more ports than the exports takes them from its slot's
+block — `VRX_HTTP_PORT + x` (x = 1…99); in Go `vpptest.SubPort(slot, x, legacy)` keeps the legacy port for slots 1–12 and
+returns `10000+100·N+x` for 14–32. Never build a port from the slot number by string concatenation in new code.
+**Proof:** `python3 tools/slot-check.py` (run by `tools/ci.sh check` and `quick`) derives every port, id range, database and
+subnet the repo uses for all slots and fails on any collision, on a fixed host port (3000, 5173, 5432, 6379, 8080, 9090, 9100,
+9101), on a port in the ephemeral range, or when `tools/lab env` disagrees with the formula. Add a new per-slot port formula
+there when you add one to a test.
+**Valkey:** db index N needs `databases 33` (or more) in the Valkey config — the default is 16, so slots 16–32 get
+`ERR DB index is out of range` until the host's `/etc/valkey/valkey.conf` is raised (the manager does it once; D-156).
 Ports 3000 / 5173 / 9101 and `/run/vrx/agent.sock` belong to the **integrated main build** only (the manager's integration check).
 
 ## 1b. Locks
@@ -49,7 +65,10 @@ changes one (only behind its opt-in env var, e.g. `VRX_DF7_GLOBALS=1`, `VRX_DF8_
 value and restores exactly that value (never VPP defaults). The lab lock (`/run/lock/vrx-lab.lock`) stays the VPP-instance lock.
 
 ## 8. Slot 12 is reserved for the manager's `tools/ci.sh full` (D-087)
-`tools/ci.sh full` runs the integration suite on main as CI slot 12. Workers are assigned slots 1–11 only; a worker never uses slot 12.
+`tools/ci.sh full` runs the integration suite on main as CI slot 12. Workers are assigned slots 1–11 and 14–32 (D-156); a worker
+never uses slot 12, and there is no slot 13. Tester T3's integration runs use the slot the manager gives it like any worker.
+`test/topology/ipfix-sflow` still checks "w1..w11" itself: give tasks that
+run it a slot from 1–11 until it is widened.
 Host tests run one Go package at a time against the shared VPP (never `go test ./...` with VRX_INTEGRATION=1 in a worker).
 
 ## 9. Shared daemons: owner-prefix scoping (D-089)
@@ -85,7 +104,7 @@ policy, map and pool ids. No agent owns "every id" by default.
 
 | agent | setting | ids |
 |---|---|---|
-| worker slot N (1–11) | `VRX_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
+| worker slot N (1–11, 14–32) | `VRX_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
 | CI slot 12 (`tools/ci.sh full`) | `VRX_VPP_TABLE_BASE=12000` | 12000–12999 |
 | `tools/app`: the integrated main build, owner `vrx`, `/run/vrx/agent.sock` | `VRX_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
 | the product agent on a box of its own (P10's unit) | `VRX_VPP_ID_RANGE=all` | every id |

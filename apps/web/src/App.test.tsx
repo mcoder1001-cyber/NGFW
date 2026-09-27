@@ -58,10 +58,10 @@ describe('App frame', () => {
   });
 
   it('shows "not yet available" for unbuilt domain screens, with the schema title and no data', async () => {
-    render(app('/system/ha')); // F-management-ui built /system/management; ha has no screen yet
-    expect(await screen.findByRole('heading', { level: 2, name: 'High availability' })).toBeInTheDocument();
+    render(app('/firewall/security')); // F-vrrp-config-sync built /system/ha; the security domain has no screen yet
+    expect(await screen.findByRole('heading', { level: 2, name: 'Security' })).toBeInTheDocument();
     expect(screen.getByText('Not yet available')).toBeInTheDocument();
-    expect(screen.getByText('Configuration domain: High availability')).toBeInTheDocument();
+    expect(screen.getByText('Configuration domain: Security')).toBeInTheDocument();
     expect(screen.queryByRole('grid')).toBeNull();
   });
 
@@ -172,12 +172,13 @@ describe('App frame', () => {
   });
 
   it('placeholder titles follow a language switch without navigating (review L3)', async () => {
+    // F-capture-trace: /tools was the last placeholder; it now redirects to the capture page, whose title follows too
     render(app('/tools'));
-    expect(await screen.findByRole('heading', { level: 2, name: 'Tools' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Packet capture and trace' })).toBeInTheDocument();
     await act(async () => {
       await i18n.changeLanguage('fa');
     });
-    expect(await screen.findByRole('heading', { level: 2, name: i18n.t('nav:tools', { lng: 'fa' }) })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: i18n.t('capture-trace:title', { lng: 'fa' }) })).toBeInTheDocument();
   });
 
   it('renders a not-found page for unknown paths', async () => {

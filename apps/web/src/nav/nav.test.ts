@@ -48,6 +48,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'ospf', // F-ospf (routing group, pushed first among the wave-BC routing items)
       'isis-rip', // F-isis-rip (routing group, after ospf)
       'mpls', // F-mpls-srmpls (routing group, pushed before neighbors/pbr/bgp)
+      'multicast', // F-igmp-mfib (routing group, after mpls)
       // wave-A: F-neighbors-ra
       'neighbors',
       // wave-A: F-rpf-adl-pbr
@@ -73,7 +74,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-igmp-mfib
       // wave-BC: F-capture-trace
       // wave-BC: F-tunnels ('tunnels' is listed after 'vpn' below: schema order within the vpn group)
-      // wave-BC: F-vrrp-config-sync
+      // wave-BC: F-vrrp-config-sync ('ha' is listed after 'dataplane' below: schema order within the system group)
       // wave-BC: F-srv6 ('vpn' already listed by F-lisp below)
       // wave-BC: F-lisp
       'vpn', // F-lisp: vpn group, after the interfaces/routing/firewall items above
@@ -98,6 +99,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'services',
       'system', // F-system-identity (system group, schema domain first)
       'dataplane', // F-dataplane-ui (system group, schema domain)
+      'ha', // F-vrrp-config-sync (system group, schema order: after dataplane)
       'management', // F-management-ui (system group, schema domain)
       'alarms', // wave-BC: F-dashboard-prom-alarms (system group)
       'users',
@@ -114,6 +116,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-hardening-lite
       // wave-BC: F-licensing (unanchored)
       'licensing',
+      'capture', // F-capture-trace (tools group, pushed before nsim)
       'nsim', // F-loopback-bvi-gso-lldp-span: the Tools group comes after System (no anchor there)
       // web: WEB-2
       'dev-schema-form',

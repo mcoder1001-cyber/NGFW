@@ -54,3 +54,16 @@ from the fake VPP (coretest models); real-VPP integration tests (`*_integration_
 ## How verified (cloud container, fake VPP)
 
 See "Gates" (pasted in the final commit of this file).
+
+### Gates (2026-09-27, cloud container)
+
+- `gofmt -l` on touched packages: clean. `go vet ./...`: clean. `go test -race ./...` (apps/agent): all packages ok
+  (after adding cnat's write-only names to the shared `withoutWriteOnly` helper — `TestProjectSchemaExamples`
+  round-trips `nat-cgnat.json` now that cnat is projected).
+- `golangci-lint run ./...`: 2 issues, both pre-existing in `internal/subsystems/snmp_integration_test.go` (gosec G115,
+  not this task's file); 0 in this task's files.
+- TS turbo gates: no TS package touched.
+- `tools/ci.sh check`: stops at gitleaks on 5 `generic-api-key` hits in commits already on `origin/main`
+  (4e595289, 5b33b153, 5a2d88d8, 3bd18dd2 — e2e/test files of other tasks); none in this branch's 5 commits.
+  The later stages did not run.
+- Real-VPP integration tests: skipped (no `VRX_INTEGRATION`, no VPP host).

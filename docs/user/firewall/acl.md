@@ -103,6 +103,38 @@ sequence,action,enabled,ipVersion,source,destination,service,schedule,log,descri
   not define (the commit would refuse them) and a preview; *Import* then writes the rules into the candidate (replace the
   list, or append — the sequences must not collide). At most 100 000 rows; the file is read as a stream.
 
+## Temporary rules: expiry, owner and ticket
+
+Every ACL rule (and every host rule and NAT static mapping / port forward) can carry:
+
+| field | meaning |
+|---|---|
+| `expiresAt` | RFC 3339 with an offset, e.g. `2026-10-02T18:00:00+03:30`. At that instant the rule stops matching **without a commit**; the configuration keeps it, marked expired, so you can extend or delete it. |
+| `owner` | who asked for the rule (free text) |
+| `ticket` | the change or ticket reference, e.g. `CHG-1234` |
+
+The existing `description` is the comment.
+
+- **At expiry** the agent re-projects its stored configuration and leaves the rule out of the engine. An agent or box
+  restart never re-installs an expired rule. The rules table shows **expired** (red) or **expires soon** (amber, within
+  3 days) next to the date, owner and ticket in the tooltip; the live status column says `expired`.
+- **Extend:** the clock button next to an expired or soon-expiring rule moves its expiry 7 days past the later of now
+  and the current expiry (a candidate edit — commit it). Or edit `expiresAt` in the rule dialog.
+- **Commit check:** a new rule, or a changed `expiresAt`, that is already in the past is refused
+  (`rule.expires-in-past`, 400 with the pointer). An expired rule whose expiry you do not change stays valid, and a
+  rollback restores an old revision as it was.
+- **Warnings:** a `RULE_EXPIRING` system event (warning) 3 days before (`VRX_RULE_EXPIRY_WARN_DAYS`) and a
+  `RULE_EXPIRED` event (info) at expiry, once per rule and date; the scan runs every 5 minutes
+  (`VRX_RULE_EXPIRY_CHECK_SEC`). The drift view does not report an expired rule as missing (`rule.expired`).
+
+```json
+{"sequence": 15, "action": "permit", "source": {"kind": "prefix", "prefix": "198.51.100.7/32"},
+ "service": {"kind": "inline", "spec": {"protocol": "tcp", "destinationPorts": ["22"]}},
+ "description": "vendor maintenance", "expiresAt": "2026-10-02T18:00:00+03:30", "owner": "netops", "ticket": "CHG-1234"}
+```
+
+CLI: `set acl lists web-in rules 15 expiresAt 2026-10-02T18:00:00+03:30` then `commit`.
+
 ## Examples
 
 A web list on the LAN zone, echo only to the web servers during office hours, everything else of IPv4 denied, and a

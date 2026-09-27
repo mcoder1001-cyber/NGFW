@@ -21,6 +21,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
 import { ipPrefix, l4PortNumber } from './objects.js';
 import { ruleExpiryFields } from './ext/rule-expiry.js'; // F-rule-expiry
 import { PnatSchema } from './ext/det44-map-dslite-cnat.js'; // F-det44-map-dslite-cnat
+import { Nat46Schema } from './ext/nat46.js'; // F-nat46
 
 /**
  * `nat` — every translator VPP 26.06 offers (WBS D4.1–D4.7; TNSR "NAT" is the reference).
@@ -765,6 +766,8 @@ export const NatSchema = withUi(
     cnat: withUi(CnatSchema.prefault({}), { group: 'CNAT', order: 50 }),
     // wave-BC: F-det44-map-dslite-cnat
     pnat: withUi(PnatSchema, { group: 'PNAT', order: 51 }).optional(),
+    // F-nat46 (unanchored: no `wave-BC: F-nat46` anchor was seeded)
+    nat46: withUi(Nat46Schema, { group: 'NAT46', order: 52 }).optional(),
   }),
   {
     title: 'NAT',

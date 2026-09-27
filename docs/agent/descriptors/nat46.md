@@ -45,3 +45,18 @@ MAP-T interfaces are shared: `map.interface/<if>/map-t` is one key whether NAT46
 
 `Project(Config) (Projection, error)`, `Validate(Config) []*FieldError`, `Assemble(domains, interfaces)`,
 `IsNAT46Domain`, `ClientAddress`, `DomainName`.
+
+## Wiring (F-nat46 part B)
+
+`nat.nat46` (NatConfig 28) → `desired/nat46.go`, called from `desired.Nat` after `pnatBuild`:
+`nat46.Validate` refusals (rule `nat.nat46-valid`, pointers under `/nat/nat46`), plus two cross-checks with
+`nat.map` — a service /32 inside a MAP domain's `ipv4Prefix`, and a NAT46 interface bound `map-e` in `nat.map`.
+The name guard holds both ways: `desired/map.go` refuses `nat46-*` MAP domains; the schema also refuses a MAP domain
+named `nat46-<mapping>`.
+
+Shared MAP-T interface: when `nat.map` binds the interface `map-t` too, only `nat.map`'s builder emits
+`map.interface/<if>/map-t` (one object, no duplicate key). On Retrieve, `assembleNat46` (after `assembleMap`) splits
+retrieved map-t interfaces with the owners of the **stored** desired state (`desired.SetNat46Owners`, called from the
+service snapshot refresh — never from a projection): under `nat.nat46` if the stored nat46 lists it, under `nat.map`
+if the stored `nat.map` lists it or nat46 does not. A shared interface therefore appears under both and a commit reads
+back without false drift; a foreign map-t binding stays visible as `nat.map` drift.

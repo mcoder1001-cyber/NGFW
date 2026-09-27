@@ -103,6 +103,8 @@ func Nat(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	mapBuild(s, nat.GetMap())
 	cnatBuild(s, nat)
 	pnatBuild(s, nat.GetPnat())
+	// F-nat46 (unanchored: no `wave-BC: F-nat46` anchor was seeded)
+	nat46Build(s, nat)
 }
 
 // natUnsupported warns about a present, non-empty translator this build does not apply.
@@ -402,6 +404,8 @@ func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.NatCo
 	assembleMap(out, kvs)
 	assembleCnat(out, kvs)
 	assemblePnat(out, kvs)
+	// F-nat46 (unanchored): after assembleMap — it moves NAT46-owned map-t interfaces out of nat.map
+	assembleNat46(out, kvs)
 	return out
 }
 

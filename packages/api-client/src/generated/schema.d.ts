@@ -694,6 +694,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/nat/nat46': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** NAT46 mappings of the running configuration with their VPP map domain names (stateless: nothing else to read) */
+    get: operations['Nat46_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/nat/nat46/client': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The IPv6 source address an IPv4 client appears as on the IPv6 side (RFC 6052: running clientPrefix + the IPv4 address) */
+    get: operations['Nat46_client'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/mpls/fib': {
     parameters: {
       query?: never;
@@ -5250,6 +5284,40 @@ export interface components {
            * @enum {string}
            */
           point: 'input' | 'output';
+        }[];
+      };
+      /** NAT46 (stateless SIIT 1:1) */
+      nat46?: {
+        /**
+         * Client prefix
+         * Format: cidrv6
+         * @default 64:ff9b::/96
+         */
+        clientPrefix: string;
+        /**
+         * Interfaces
+         * @default []
+         */
+        interfaces: string[];
+        /**
+         * Mappings
+         * @default []
+         */
+        mappings: {
+          /** Name */
+          name: string;
+          /**
+           * IPv4 service address
+           * Format: ipv4
+           */
+          ipv4: string;
+          /**
+           * IPv6 server
+           * Format: ipv6
+           */
+          ipv6: string;
+          /** IPv6 MTU */
+          mtu?: number;
         }[];
       };
     };
@@ -12557,6 +12625,128 @@ export interface operations {
       };
       /** @description Agent error */
       502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Nat46_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @description nat.nat46 is present in the running configuration */
+            configured: boolean;
+            /** @description RFC 6052 /96 IPv4 clients appear under on the IPv6 side */
+            clientPrefix: string;
+            interfaces: string[];
+            mappings: {
+              name: string;
+              /** @description VPP map domain name (nat46-<name>) */
+              domain: string;
+              ipv4: string;
+              ipv6: string;
+              mtu: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Nat46_client: {
+    parameters: {
+      query: {
+        ipv4: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            ipv4: string;
+            clientPrefix: string;
+            /** @description the IPv6 source address the IPv6 server sees for this client */
+            ipv6: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

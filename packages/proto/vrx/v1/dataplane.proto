@@ -2947,6 +2947,11 @@ message NatConfig {
 
   // PNAT policy 1:1 NAT (F-det44-map-dslite-cnat; IPv4 only).
   PnatConfig pnat = 27;
+
+  // F-nat46 (unanchored: 25–26 stay F-nat44-ed-sessions', 27 is pnat)
+
+  // Stateless NAT46 (SIIT 1:1 over MAP-T; F-nat46).
+  Nat46Config nat46 = 28;
 }
 
 // NatTimeouts mirrors `nat.timeouts` (seconds).
@@ -7729,4 +7734,29 @@ message DataplaneStartupPreviewResponse {
   repeated string warnings = 5;
   // Hex sha256 of `rendered`.
   string sha256 = 6;
+}
+
+// ----- F-nat46 -----
+
+// Nat46Config mirrors `nat.nat46`: stateless NAT46 (RFC 7915 SIIT, 1:1), projected by the agent onto MAP-T
+// domains `nat46-<name>` (IPv4 /32 <-> IPv6 /128, ea_bits_len 0) plus MAP-T translation on the interfaces.
+message Nat46Config {
+  // RFC 6052 /96 representing IPv4 clients on the IPv6 side (default 64:ff9b::/96).
+  optional string client_prefix = 1;
+  // VPP interface names MAP-T translation runs on (IPv4- and IPv6-facing).
+  repeated string interfaces = 2;
+  // 1:1 mappings.
+  repeated Nat46Mapping mappings = 3;
+}
+
+// Nat46Mapping is one IPv4 service address in front of one IPv6-only server.
+message Nat46Mapping {
+  // Mapping name; the VPP domain is "nat46-<name>".
+  optional string name = 1;
+  // IPv4 service address clients connect to.
+  optional string ipv4 = 2;
+  // IPv6 server address.
+  optional string ipv6 = 3;
+  // IPv6-side MTU; unset = VPP default.
+  optional uint32 mtu = 4;
 }

@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../../auth/password.js';
 import { DB, type Db } from '../../db/db.js';
-import { aaaMfa, aaaMfaRecovery, appUser } from '../../db/schema.js';
+import { aaaMfa, aaaMfaRecovery, apiKey, appUser } from '../../db/schema.js';
 import { generateSecret, otpauthUri, recoveryCodes, totpCode } from './totp.js';
 
 const STEP_MS = 30_000;
@@ -151,14 +151,26 @@ export class MfaService {
   }
 
   /** Admin reset (lost device): the factor and its recovery codes are deleted. Returns whether one existed. */
-  async reset(userId: number): Promise<boolean> {
+  /**
+   * Deletes the user's factor and recovery codes. S-aaa-key-reset: in the same transaction every API key of the user
+   * loses `mfa_verified` (the factor it was minted under no longer exists), so under an MFA policy those keys are
+   * refused (401 mfa-required) until the user re-enrols and mints new ones. Returns the number of keys cleared, or
+   * null when the user had no factor (nothing changed).
+   */
+  async reset(userId: number): Promise<number | null> {
     return this.db.transaction(async (tx) => {
       await tx.delete(aaaMfaRecovery).where(eq(aaaMfaRecovery.userId, userId));
       const gone = await tx
         .delete(aaaMfa)
         .where(eq(aaaMfa.userId, userId))
         .returning({ id: aaaMfa.userId });
-      return gone.length > 0;
+      if (gone.length === 0) return null;
+      const keys = await tx
+        .update(apiKey)
+        .set({ mfaVerified: false })
+        .where(and(eq(apiKey.userId, userId), eq(apiKey.mfaVerified, true)))
+        .returning({ id: apiKey.id });
+      return keys.length;
     });
   }
 }

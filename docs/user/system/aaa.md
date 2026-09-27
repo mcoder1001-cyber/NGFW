@@ -93,6 +93,11 @@ over TLS (or from loopback) — `403 tls-required` otherwise. The OIDC login is 
   closed).
 - **Lost device**: sign in with a recovery code (each works once), or an admin uses *Reset second factor* on the Users
   page (`DELETE /api/v1/auth/mfa/users/{name}`) — the user's sessions end and they enrol again at the next login.
+  The user's API keys lose their "minted under MFA" mark in the same step (the factor they were minted under no
+  longer exists): while the MFA policy covers the user's role those keys answer `401 mfa-required`. After re-enrolling,
+  the user mints new keys from the MFA-verified session (and deletes the old ones). The audit entry of the reset
+  records how many keys were affected (`apiKeysMfaCleared`). If you reset your own factor as the only admin, lower the
+  policy first (or keep the break-glass path at hand).
 - TOTP secrets are stored encrypted (secret-store master key); recovery codes only as argon2id hashes. They are
   account data (tables `aaa_mfa`, `aaa_mfa_recovery`), not configuration: a configuration backup/restore does not
   carry them.

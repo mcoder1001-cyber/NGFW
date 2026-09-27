@@ -1009,22 +1009,24 @@ export class AuthService {
 
   /**
    * `DELETE /auth/mfa/users/{name}` (admin): a lost authenticator. The factor and its recovery codes are deleted and
-   * the user's sessions end; with a policy that requires MFA the user enrols again at the next login.
+   * the user's sessions end; their API keys lose `mfa_verified` in the factor-delete transaction (S-aaa-key-reset).
+   * With a policy that requires MFA the user enrols again at the next login and mints new keys.
    */
-  async mfaReset(name: string): Promise<void> {
+  async mfaReset(name: string): Promise<{ apiKeysMfaCleared: number }> {
     const [u] = await this.db
       .select({ id: appUser.id })
       .from(appUser)
       .where(eq(appUser.username, name));
     if (u === undefined) throw problems.notFound(`user '${name}' does not exist`);
-    if (!(await this.mfa.reset(u.id)))
-      throw problems.notFound(`user '${name}' has no second factor`);
+    const cleared = await this.mfa.reset(u.id);
+    if (cleared === null) throw problems.notFound(`user '${name}' has no second factor`);
     const [g] = await this.db
       .update(appUser)
       .set({ credentialGen: sql`${appUser.credentialGen} + 1` })
       .where(eq(appUser.id, u.id))
       .returning({ gen: appUser.credentialGen });
     if (g !== undefined) await this.tokens.revokeUser(u.id, g.gen);
+    return { apiKeysMfaCleared: cleared };
   }
 
   /** The last admin was throttled instead of locked: one system_event per admin and minute (visible, not a flood). */

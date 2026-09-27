@@ -51,7 +51,11 @@ PostgreSQL e2e: temporary pg16 cluster (initdb in /tmp/vrx-pg-w9, 127.0.0.1:5432
 Revocation of keys on a policy raise; showing `mfa_verified` in the key list/UI (would be an additive contract change).
 
 ## Open questions
-1. A key stays `mfa_verified` after its owner's factor is reset. Acceptable (the key was minted under MFA), or should
-   a factor reset also clear it?
+1. ~~A key stays `mfa_verified` after its owner's factor is reset.~~ Resolved by S-aaa-key-reset: an admin factor
+   reset (`DELETE /auth/mfa/users/:name`, the only way a factor is removed — there is no self-service disable) clears
+   `mfa_verified` on all of the user's keys in the factor-delete transaction; audited as `apiKeysMfaCleared` (count).
+   Unit `src/features/aaa/mfa-reset.test.ts` (2); e2e `aaa-key-reset` (mint from MFA session → 200, reset → 401
+   mfa-required, re-enrol + new key → 200); `aaa-mfa-lockout` test 3 now lowers the policy from the MFA-minted key
+   before the admin's own factor is reset (after the reset that key is refused while the policy covers admins).
 2. Commit trailer: common.md says `Claude Fable 5.1`; the session's system-level attribution says `Claude Opus 5.5`,
    which is used (as in F-aaa-login).

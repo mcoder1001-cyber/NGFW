@@ -103,10 +103,9 @@ describe('F-aaa-mfa-lockout e2e (PostgreSQL + fake agent)', () => {
     expect((await h.call(undefined, 'GET', '/api/v1/auth/me', undefined, mfaKey)).status).toBe(200);
   });
 
-  it('lowering is always allowed — even with no admin enrolled and no MFA session', async () => {
-    // the factor goes (admin reset of the own factor): the admin's sessions end, no admin is enrolled any more
-    const r = await h.call(admin, 'DELETE', '/api/v1/auth/mfa/users/admin');
-    expect(r.status, r.raw).toBe(204);
+  it('lowering is always allowed — even from an API key (no MFA session)', async () => {
+    // S-aaa-key-reset: a factor reset clears mfa_verified on the owner's keys, so the lowering runs from the
+    // MFA-minted key BEFORE the admin's factor is reset (after it, that key is refused while the policy covers admins)
     // raising further (admins → all) from the API key is refused …
     expect((await stage(undefined, 'all', mfaKey)).status).toBe(200);
     const up = await commit(undefined, mfaKey);
@@ -116,6 +115,9 @@ describe('F-aaa-mfa-lockout e2e (PostgreSQL + fake agent)', () => {
     expect((await stage(undefined, 'none', mfaKey)).status).toBe(200);
     const down = await commit(undefined, mfaKey);
     expect(down.status, down.raw).toBe(200);
+    // the factor goes (admin reset of the own factor): the admin's sessions end, no admin is enrolled any more
+    const r = await h.call(undefined, 'DELETE', '/api/v1/auth/mfa/users/admin', undefined, mfaKey);
+    expect(r.status, r.raw).toBe(204);
     admin = await h.login('admin', h.adminPassword); // no factor needed any more
     expect(await running()).toBe('none');
     // refuse-at-use, not revocation: with the policy lowered the pre-MFA key works again

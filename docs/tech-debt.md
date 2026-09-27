@@ -155,3 +155,8 @@ Items above that are not ticked keep their text; this table gives each one an ow
   source NAT + sticky sessions + clearing the dead link's sessions on failover, ABF pinning, the WanState RPC handler)
   is not wired into the running agent yet (the health hysteresis + failover/balance selection are done and unit-tested;
   the RPC returns 501). Owner: F-multiwan-host.
+- F-aaa (increment 1 merged): the login-order integration (external login on POST /auth/login → roleMap → session via
+  a shadow user, fallbackLocal), MFA enrolment/enforcement (DB migration f_aaa_mfa, two-step login), and the LDAP/
+  OIDC/TACACS+/SAML backends are increment 2 (row F-aaa-login). The contract carries ldap/mfa/roleMap/fallbackLocal
+  and reserves oidc/saml proto fields 5/6; the RADIUS + TOTP engines and the admin actions/aaa/test route are done.
+  The login path is security-critical and was deliberately not rewritten in this session — it needs dedicated review.

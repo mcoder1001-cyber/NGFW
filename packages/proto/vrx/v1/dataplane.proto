@@ -288,6 +288,11 @@ service Dataplane {
   // WanState reports the live health of each WAN group's members (monitor loss/latency, up/down, the active member in
   // failover mode). Read-only. Unimplemented on an agent without multi-WAN (→ 501).
   rpc WanState(WanStateRequest) returns (WanStateResponse);
+
+  // wave-BC: F-igmp-mfib
+  // MulticastState reports live IGMP group memberships, the VPP mFIB and PIM neighbours. Read-only. Unimplemented on
+  // an agent without multicast (→ 501).
+  rpc MulticastState(MulticastStateRequest) returns (MulticastStateResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -7180,6 +7185,56 @@ message WanMemberState {
   uint32 priority = 6;
   // When this member last changed up/down state (agent clock); unset if never.
   google.protobuf.Timestamp since = 7;
+}
+
+// ----- F-igmp-mfib state -----
+
+// MulticastStateRequest selects what to report (empty = all).
+message MulticastStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// MulticastStateResponse is the live multicast state.
+message MulticastStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // IGMP group memberships learned on router-mode interfaces.
+  repeated IgmpGroupState groups = 3;
+  // The VPP mFIB (static and PIM-learned routes).
+  repeated MrouteState mroutes = 4;
+  // PIM neighbours (from FRR pimd).
+  repeated PimNeighborState pim_neighbors = 5;
+}
+
+// IgmpGroupState is one live group membership.
+message IgmpGroupState {
+  string interface = 1;
+  string group = 2;
+  repeated string sources = 3;
+}
+
+// MrouteState is one live mFIB entry.
+message MrouteState {
+  string vrf = 1;
+  string group = 2;
+  // Source for (S,G); empty for (*,G).
+  string source = 3;
+  // Incoming (accept) interface.
+  string accept = 4;
+  // Outgoing (forward) interfaces.
+  repeated string forward = 5;
+  // Packets/bytes forwarded, if the plugin reports them.
+  uint64 packets = 6;
+  uint64 bytes = 7;
+}
+
+// PimNeighborState is one PIM neighbour (FRR pimd).
+message PimNeighborState {
+  string interface = 1;
+  string address = 2;
+  // Uptime in seconds.
+  uint32 uptime_sec = 3;
 }
 
 // ----- F-aaa -----

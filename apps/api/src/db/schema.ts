@@ -55,6 +55,12 @@ export const appUser = pgTable(
   },
   (t) => [
     uniqueIndex('app_user_username_uq').on(t.username),
+    /**
+     * F-aaa-hardening: names are unique case-insensitively (the external login looks names up by lower()). Local
+     * names are lower-case by schema (`username` primitive), external ones are case-folded before insert, so the
+     * index is total, not partial.
+     */
+    uniqueIndex('app_user_username_lower_uq').on(sql`lower(${t.username})`),
     check('app_user_role_ck', sql`${t.role} in ('admin', 'operator', 'readonly')`),
   ],
 );

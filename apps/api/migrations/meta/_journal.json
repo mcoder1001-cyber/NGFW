@@ -64,6 +64,13 @@
       "when": 1790546926323,
       "tag": "0008_f_aaa_hardening_key_mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790546974020,
+      "tag": "0009_f_aaa_hardening_username_ci",
+      "breakpoints": true
     }
   ]
 }

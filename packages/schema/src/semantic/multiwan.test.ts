@@ -4,7 +4,9 @@ import { multiwanValidators } from './multiwan.js';
 
 const run = (doc: RootConfigInput) => multiwanValidators[0]!.validate(RootConfig.parse(doc));
 
-const group = (over: Record<string, unknown> = {}) => ({
+type WanGroupIn = NonNullable<NonNullable<RootConfigInput['routing']>['wanGroups']>[number];
+
+const group = (over: Partial<WanGroupIn> = {}): WanGroupIn => ({
   name: 'wan',
   mode: 'failover',
   members: [{ interface: 'eth0', nextHop: 'dhcp' }],

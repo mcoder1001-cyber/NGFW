@@ -60,4 +60,32 @@ export const natTabs: readonly DomainTab[] = [
     })),
   },
   // wave-BC: F-det44-map-dslite-cnat
+  {
+    id: 'cgnat',
+    labelKey: 'det44-map-dslite-cnat:tab.cgnat',
+    Component: lazy(async () => ({
+      default: (await import('../det44-map-dslite-cnat/CgnatTab')).CgnatTab,
+    })),
+  },
+  {
+    id: 'map',
+    labelKey: 'det44-map-dslite-cnat:tab.map',
+    Component: lazy(async () => ({
+      default: (await import('../det44-map-dslite-cnat/MapTab')).MapTab,
+    })),
+  },
+  {
+    id: 'cnat',
+    labelKey: 'det44-map-dslite-cnat:tab.cnat',
+    Component: lazy(async () => ({
+      default: (await import('../det44-map-dslite-cnat/CnatTab')).CnatTab,
+    })),
+  },
+  {
+    id: 'pnat',
+    labelKey: 'det44-map-dslite-cnat:tab.pnat',
+    Component: lazy(async () => ({
+      default: (await import('../det44-map-dslite-cnat/PnatTab')).PnatTab,
+    })),
+  },
 ];

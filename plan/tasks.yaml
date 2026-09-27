@@ -3956,8 +3956,8 @@ tasks:
   files_owned: apps/api/src/features/aaa/**, apps/api/src/auth/**, apps/web/src/domains/system/aaa/**
   notes: 'increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md |
     cloud 2026-09-27: merged (adversarial security review: 6 blocking findings fixed — identity-keyed shadow users, config-user collision refused, OIDC browser-bound state, tls-required on credential routes,
-    admin-issued MFA enrolment tokens D-159, LDAP not-found fall-through, MFA fail-closed). PostgreSQL e2e 117/117 on a temp cluster. Follow-ups: admin self-lockout when raising mfa.required (refuse unless
-    committer passed MFA), API keys skip MFA policy, JWKS cache, unique index on lower(username), TACACS+/SAML/QR/LDAPS pinning not built'
+    admin-issued MFA enrolment tokens D-159, LDAP not-found fall-through, MFA fail-closed). PostgreSQL e2e 117/117 on a temp cluster. Follow-ups: [admin self-lockout guard DONE 2026-09-27 task/F-aaa-mfa-lockout]
+    API keys skip MFA policy, JWKS cache, unique index on lower(username), TACACS+/SAML/QR/LDAPS pinning not built'
 - template: ''
   parked_on: ''
   branch: ''

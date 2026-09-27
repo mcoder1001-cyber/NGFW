@@ -3959,7 +3959,7 @@ tasks:
   notes: 'increment 2 of F-aaa (increment 1 merged the contract + RADIUS/TOTP engines + admin actions/aaa/test); the login path is security-critical — dedicated review. See docs/status/tasks/F-aaa.md |
     cloud 2026-09-27: merged (adversarial security review: 6 blocking findings fixed — identity-keyed shadow users, config-user collision refused, OIDC browser-bound state, tls-required on credential routes,
     admin-issued MFA enrolment tokens D-159, LDAP not-found fall-through, MFA fail-closed). PostgreSQL e2e 117/117 on a temp cluster. Follow-ups: [admin self-lockout guard DONE 2026-09-27 task/F-aaa-mfa-lockout]
-    API keys skip MFA policy, JWKS cache, unique index on lower(username), TACACS+/SAML/QR/LDAPS pinning not built'
+    [API-key MFA gate, JWKS reuse, lower(username) index DONE 2026-09-27 task/F-aaa-hardening] TACACS+/SAML/QR/LDAPS pinning not built'
 - template: ''
   parked_on: ''
   branch: ''

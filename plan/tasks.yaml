@@ -3776,15 +3776,15 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 8
-  state: ready
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/api/src/features/auto-block/**, docs/user/security/auto-block.md'
-  branch: ''
+  branch: claude/charming-johnson-9k2puh
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session charming-johnson
+  started: '2026-09-27'
   finished: ''
   notes: promoted from backlog BL-SEC-16 by the product owner (2026-09-27)
 - template: ''

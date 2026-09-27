@@ -31,9 +31,9 @@ Written and kept going (never waited). Defaults taken are marked **default**.
 - **Q4 answered (manager):** kept derived; an info-level notice names the interfaces. The Sink interface has no info
   level, so an optional `desired.InfoSink` was added and `projected.Infof` (ISSUE_SEVERITY_INFO) implements it.
 - **Q5 done:** contract, PNAT, RPCs and actions built in part B.
-- **Q8 CNAT sessions are VPP-global.** `CnatSessions` returns the whole table to any agent (no owner tag exists in
-  `cnat_session_details`); only the purge is restricted (globals owner, D-071, same rule as F-capture-trace's
-  `captureGlobalsOwner`). **Default: read allowed for all, purge globals-owner only.**
+- **Q8 CNAT sessions are VPP-global — fixed (review BLOCK 2).** The globals owner reads the whole table; any other owner
+  sees only rows whose source or destination is in its address scope (total counted after the filter, the cap counts
+  rows looked at). The purge stays globals-owner only (D-071).
 - **Q9 PNAT names — fixed (review BLOCK 1).** Retrieve takes binding names and binding/attachment order from the last
   applied document, matched by the match tuple (`desired.RelabelPnat`); only bindings the document lacks keep `pnat-<n>`.
   Drift stays empty (service test `TestPnatDomainOnFake`).

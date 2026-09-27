@@ -28647,16 +28647,17 @@ func (x *CnatSession) GetFlags() uint32 {
 	return 0
 }
 
-// CnatSessionsResponse is one page. CNAT sessions are a VPP-global table (no owner filter is possible).
+// CnatSessionsResponse is one page. The CNAT session table is VPP-global and untagged: the globals owner sees every
+// row; any other owner only rows whose src_address or dst_address is in its own address scope.
 type CnatSessionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The page.
 	Sessions []*CnatSession `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
 	// Offset of the next page; unset on the last page.
 	NextOffset *uint32 `protobuf:"varint,2,opt,name=next_offset,json=nextOffset,proto3,oneof" json:"next_offset,omitempty"`
-	// Sessions in the table (a lower bound when truncated).
+	// Sessions visible to this owner, counted after the scope filter (a lower bound when truncated).
 	TotalSessions uint64 `protobuf:"varint,3,opt,name=total_sessions,json=totalSessions,proto3" json:"total_sessions,omitempty"`
-	// The per-call cap stopped the dump.
+	// The per-call cap (rows looked at, before the scope filter) stopped the dump.
 	Truncated bool `protobuf:"varint,4,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	// The owner whose view was returned.
 	Owner string `protobuf:"bytes,5,opt,name=owner,proto3" json:"owner,omitempty"`

@@ -8353,7 +8353,10 @@ export interface CnatSession {
   flags: number;
 }
 
-/** CnatSessionsResponse is one page. CNAT sessions are a VPP-global table (no owner filter is possible). */
+/**
+ * CnatSessionsResponse is one page. The CNAT session table is VPP-global and untagged: the globals owner sees every
+ * row; any other owner only rows whose src_address or dst_address is in its own address scope.
+ */
 export interface CnatSessionsResponse {
   /** The page. */
   sessions: CnatSession[];
@@ -8361,9 +8364,9 @@ export interface CnatSessionsResponse {
   nextOffset?:
     | number
     | undefined;
-  /** Sessions in the table (a lower bound when truncated). */
+  /** Sessions visible to this owner, counted after the scope filter (a lower bound when truncated). */
   totalSessions: string;
-  /** The per-call cap stopped the dump. */
+  /** The per-call cap (rows looked at, before the scope filter) stopped the dump. */
   truncated: boolean;
   /** The owner whose view was returned. */
   owner: string;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -149,7 +150,14 @@ func TestCnatStateOnFake(t *testing.T) {
 				ip_types.NewAddress(netip.AddrFrom4([4]byte{10, 7, 1, 10 + i}).AsSlice())}, Port: []uint16{80, 40000}, IPProto: ip_types.IP_API_PROTO_TCP},
 			TsIndex: 1})
 	}
+	// two rows of another slot (w9: 10.9.0.0/16) interleaved: a w7 agent never sees them (review BLOCK 2)
+	for _, i := range []int{1, 3} {
+		foreign := cnatapi.CnatSession{Tuple: cnatapi.Cnat5tuple{Addr: [2]ip_types.Address{ip_types.NewAddress(netip.AddrFrom4([4]byte{10, 9, 2, 100}).AsSlice()),
+			ip_types.NewAddress(netip.AddrFrom4([4]byte{10, 9, 1, 10}).AsSlice())}, Port: []uint16{80, 40000}, IPProto: ip_types.IP_API_PROTO_TCP}}
+		cn.Sessions = append(cn.Sessions[:i], append([]cnatapi.CnatSession{foreign}, cn.Sessions[i:]...)...)
+	}
 	cn.Unlock()
+	t.Setenv("VRX_GLOBALS_OWNER", "0")
 	s := newSvc(t, v, t.TempDir())
 	c := natServer(t, s)
 	ctx := context.Background()
@@ -168,9 +176,20 @@ func TestCnatStateOnFake(t *testing.T) {
 	cnatSessionCap = 3
 	r, err = c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{})
 	cnatSessionCap = old
-	if err != nil || !r.GetTruncated() || r.GetTotalSessions() != 3 || len(r.GetSessions()) != 3 {
+	if err != nil || !r.GetTruncated() || r.GetTotalSessions() != 2 || len(r.GetSessions()) != 2 { // the cap counts rows looked at (one is foreign)
 		t.Fatalf("capped: %v %v", r, err)
 	}
+	for _, x := range r.GetSessions() {
+		if strings.HasPrefix(x.GetDstAddress(), "10.9.") {
+			t.Fatalf("slot w7 saw another owner's session %v", x)
+		}
+	}
+	// the globals owner sees the whole table
+	t.Setenv("VRX_GLOBALS_OWNER", "1")
+	if r, err = c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{}); err != nil || r.GetTotalSessions() != 7 {
+		t.Fatalf("globals owner: %v %v", r, err)
+	}
+	t.Setenv("VRX_GLOBALS_OWNER", "0")
 	if _, err := c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{Limit: 5000}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("limit: %v", err)
 	}

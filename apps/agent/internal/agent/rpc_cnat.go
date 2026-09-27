@@ -2,7 +2,8 @@ package agent
 
 // F-det44-map-dslite-cnat: CNAT read-only session state (CnatSessions) and the purge action
 // (ActionRequest.cnat_session_purge, server.go's case under this task's anchor). The CNAT session table is a VPP
-// global with no owner tag: every agent may read it, only the globals owner (D-071) may purge it.
+// global with no owner tag: the globals owner reads all of it; any other owner (a test slot) sees only the rows whose
+// source or destination address is in its address scope (natcommon.Scope). Only the globals owner (D-071) may purge.
 
 import (
 	"context"
@@ -37,7 +38,9 @@ func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsReque
 	}
 	resp := &vrxv1.CnatSessionsResponse{Owner: s.owner}
 	off := int(req.GetOffset())
-	n := 0
+	n, seen := 0, 0 // n: rows of this owner (total_sessions); seen: rows looked at (the cap)
+	scope := natcommon.ScopeFor(s.owner)
+	all := captureGlobalsOwner(s.owner)
 	for {
 		d, err := st.Recv()
 		if errors.Is(err, io.EOF) {
@@ -46,12 +49,16 @@ func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsReque
 		if err != nil {
 			return nil, natErr("cnat_session_dump", err)
 		}
-		if n >= cnatSessionCap {
+		if seen >= cnatSessionCap {
 			resp.Truncated = true
 			continue // drain the stream; the page and the total stop at the cap
 		}
+		seen++
+		t := d.Session.Tuple
+		if !all && !scope.OwnsAddrString(t.Addr[0].String()) && !scope.OwnsAddrString(t.Addr[1].String()) {
+			continue // another owner's session (review BLOCK 2)
+		}
 		if n >= off && n < off+limit {
-			t := d.Session.Tuple
 			row := &vrxv1.CnatSession{
 				DstAddress: t.Addr[0].String(), SrcAddress: t.Addr[1].String(),
 				Protocol: natcommon.ProtoName(uint8(t.IPProto)), TranslationIndex: d.Session.TsIndex, Flags: d.Session.Flags,

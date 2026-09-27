@@ -6174,15 +6174,16 @@ message CnatSession {
   uint32 flags = 7;
 }
 
-// CnatSessionsResponse is one page. CNAT sessions are a VPP-global table (no owner filter is possible).
+// CnatSessionsResponse is one page. The CNAT session table is VPP-global and untagged: the globals owner sees every
+// row; any other owner only rows whose src_address or dst_address is in its own address scope.
 message CnatSessionsResponse {
   // The page.
   repeated CnatSession sessions = 1;
   // Offset of the next page; unset on the last page.
   optional uint32 next_offset = 2;
-  // Sessions in the table (a lower bound when truncated).
+  // Sessions visible to this owner, counted after the scope filter (a lower bound when truncated).
   uint64 total_sessions = 3;
-  // The per-call cap stopped the dump.
+  // The per-call cap (rows looked at, before the scope filter) stopped the dump.
   bool truncated = 4;
   // The owner whose view was returned.
   string owner = 5;

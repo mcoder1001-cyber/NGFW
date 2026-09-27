@@ -74,6 +74,8 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
   'services',
   // F-system-identity (unanchored): the System screen, no longer "soon" (DEC-system-identity)
   'system',
+  // F-dataplane-ui (unanchored): the Dataplane screen, no longer "soon" (D-152)
+  'dataplane',
 ]);
 
 export function domainPath(key: RootKey): string {

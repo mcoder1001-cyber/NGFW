@@ -1,0 +1,123 @@
+{
+  "nav": "Dataplane",
+  "title": "Dataplane",
+  "intro": "VPP start-up tuning: worker threads and their cores, DPDK NICs with their queues and descriptors, hugepages and buffers, and plugin switches. Save to the candidate and commit with the pending-change bar; use Preview to see the startup.conf the router would install.",
+  "restartBanner": "These settings are written to the VPP start-up configuration and take effect only after a VPP restart, which interrupts all forwarding. Committing them does not change the running data plane.",
+  "save": "Save to candidate",
+  "none": "—",
+  "preview": {
+    "button": "Preview startup.conf",
+    "title": "startup.conf preview (candidate)",
+    "changed": "The rendered file differs from the installed one: installing it needs a VPP restart.",
+    "unchanged": "The rendered file is identical to the installed one: nothing would change.",
+    "diff": "Changes against {{path}}",
+    "rendered": "Rendered file",
+    "close": "Close",
+    "sha256": "sha256 {{sum}}"
+  },
+  "apply": {
+    "button": "Apply and restart VPP",
+    "disabled": "Not available yet: installing startup.conf restarts VPP and waits for the appliance approval gate (TD-17). A manager installs it with apply-startup.sh."
+  },
+  "field": {
+    "group": {
+      "cpu": "CPU",
+      "dpdk": "DPDK and NICs",
+      "memory": "Memory",
+      "plugins": "Plugins"
+    },
+    "workers": {
+      "title": "Worker threads",
+      "help": "Number of worker threads; 0 runs the graph on the main thread only."
+    },
+    "corelist": {
+      "title": "Worker cores",
+      "help": "CPU ids pinned to worker threads; when set, the worker count must equal its length."
+    },
+    "mainCore": {
+      "title": "Main core",
+      "help": "CPU id of the main thread; must not be a worker core."
+    },
+    "rxQueues": {
+      "title": "RX queues per NIC",
+      "help": "Default number of receive queues per DPDK NIC."
+    },
+    "txQueues": {
+      "title": "TX queues per NIC",
+      "help": "Default number of transmit queues per DPDK NIC."
+    },
+    "hugepagesGb": {
+      "title": "Hugepages (GB)",
+      "help": "Total hugepage memory reserved for the data plane."
+    },
+    "pciWhitelist": {
+      "title": "PCI whitelist",
+      "help": "NICs handed to DPDK; empty means no DPDK devices."
+    },
+    "managementPci": {
+      "title": "Management NICs",
+      "help": "Always blacklisted, never handed to DPDK."
+    },
+    "devices": {
+      "title": "DPDK devices",
+      "help": "NICs handed to DPDK by PCI address, each with its logical interface name.",
+      "name": {
+        "title": "Logical name",
+        "help": "e.g. lan, wan, dmz"
+      },
+      "rxQueues": {
+        "title": "RX queues"
+      },
+      "txQueues": {
+        "title": "TX queues"
+      },
+      "rxDesc": {
+        "title": "RX descriptors",
+        "help": "Power of two."
+      },
+      "txDesc": {
+        "title": "TX descriptors",
+        "help": "Power of two."
+      }
+    },
+    "buffersPerNuma": {
+      "title": "Buffers per NUMA node",
+      "help": "Must fit in the hugepage reservation."
+    },
+    "plugins": {
+      "title": "Plugins",
+      "help": "When present, exactly these switches are rendered; when absent, the switches of the installed file are kept.",
+      "switches": {
+        "title": "Plugin switches",
+        "help": "Plugin file, on to enable or off to disable."
+      }
+    }
+  },
+  "live": {
+    "title": "Candidate and running",
+    "setting": "Setting",
+    "candidate": "Candidate",
+    "running": "Running",
+    "pending": "Not committed",
+    "workers": "Worker threads",
+    "corelist": "Worker cores",
+    "mainCore": "Main core",
+    "queues": "RX / TX queues",
+    "devices": "DPDK devices",
+    "hugepagesGb": "Hugepages (GB)",
+    "buffersPerNuma": "Buffers per NUMA node",
+    "plugins": "Plugin switches",
+    "note": "Running is the committed configuration. VPP keeps using the installed start-up file until it restarts."
+  },
+  "installed": {
+    "title": "Installed start-up file",
+    "file": "File",
+    "missing": "not present",
+    "cpus": "Online CPUs",
+    "hugepages": "Hugepages free / total"
+  },
+  "switch": {
+    "on": "on",
+    "off": "off"
+  }
+}

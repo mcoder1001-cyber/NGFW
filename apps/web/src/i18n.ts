@@ -129,6 +129,9 @@ import faGlobalBlocking from './locales/fa/global-blocking.json';
 // wave-BC: F-dashboard-prom-alarms
 import enDashPromAlarms from './locales/en/dashboard-prom-alarms.json';
 import faDashPromAlarms from './locales/fa/dashboard-prom-alarms.json';
+// F-multiwan (unanchored)
+import enMultiwan from './locales/en/multiwan.json';
+import faMultiwan from './locales/fa/multiwan.json';
 // wave-A: F-nat44-ed-sessions
 import enNat44EdSessions from './locales/en/nat44-ed-sessions.json';
 import faNat44EdSessions from './locales/fa/nat44-ed-sessions.json';
@@ -232,6 +235,7 @@ export const NAMESPACES = [
   'host-acl-nftables',
   'global-blocking', // F-global-blocking (unanchored)
   'dashboard-prom-alarms', // wave-BC: F-dashboard-prom-alarms
+  'multiwan', // F-multiwan (unanchored)
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions',
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -331,6 +335,7 @@ const en = {
   'host-acl-nftables': enHostAclNftables,
   'global-blocking': enGlobalBlocking,
   'dashboard-prom-alarms': enDashPromAlarms,
+  multiwan: enMultiwan,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': enNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6
@@ -427,6 +432,7 @@ const fa = {
   'host-acl-nftables': faHostAclNftables,
   'global-blocking': faGlobalBlocking,
   'dashboard-prom-alarms': faDashPromAlarms,
+  multiwan: faMultiwan,
   // wave-A: F-nat44-ed-sessions
   'nat44-ed-sessions': faNat44EdSessions,
   // wave-A: F-nat44-ei-64-66-nptv6

@@ -52,6 +52,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'neighbors',
       // wave-A: F-rpf-adl-pbr
       'pbr',
+      'wan', // F-multiwan (routing group)
       'bgp', // P12 (routing group, after pbr)
       'nat', // F-nat44-ed-sessions (firewall group, before objects per schema order)
       'objects', // F-object-model (firewall group, after pbr/adl per schema order)

@@ -122,6 +122,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         { path: 'firewall/global-blocking', lazy: async () => ({ Component: (await import('./domains/security/global-blocking/GlobalBlockingPage')).GlobalBlockingPage }) },
         // wave-BC: F-dashboard-prom-alarms
         { path: 'system/alarms', lazy: async () => ({ Component: (await import('./domains/dashboard/dashboard-prom-alarms/AlarmsPage')).AlarmsPage }) },
+        // F-multiwan (unanchored)
+        { path: 'routing/wan', lazy: async () => ({ Component: (await import('./domains/routing/multiwan/WanGroupsPage')).WanGroupsPage }) },
         // wave-A: F-nat44-ed-sessions
         { path: domainPath('nat').slice(1), lazy: async () => ({ Component: (await import('./domains/firewall/nat44-ed-sessions/NatPage')).NatPage }) },
         // wave-A: P11

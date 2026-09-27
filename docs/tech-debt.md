@@ -135,3 +135,9 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - **TD-10b:** `users.service.ts:134` password set uses `commits.exclusive` (waits without bound behind a commit); switch to `commits.userExclusive` (409 `commit-busy` after 1 s, like secret delete — D-TD10a-1, review M2). | owner: TD-10b
 - **apps/web/src/config/** (pending-change bar owner):** CommitDialog should follow a lost commit answer up with `followOutcome`/`applyOutcome` (net.ts, time-gated until the budget) as RevisionsPage does; the confirm banner should retry a confirm that got 409 `commit-busy` after `retryAfterSec` (review L5, else a confirm near the deadline can lose to a reconcile holding the lock). | owner: the row owning apps/web/src/config/**
 - **Secrets (D-TD10a-5):** deleting a secret removes every `secret_version`; a tombstone or "refuse while a revision pins it" would keep old revisions rollback-able (today: a clear 400 `secrets.ref-exists`). | owner: F-backup-restore or a secrets row
+- F-global-blocking (this row): (1) block-list entries live in the configuration document — a 200 000-entry list makes
+  every revision a few MB (store entries out of line, referenced by hash); (2) the nftables host part replaces the whole
+  table on a change (8 s for a one-entry change at 200 k) — incremental `add/delete element` in the same `nft -f`
+  transaction; (3) per-interface drop counters need per-interface bucket ACLs or the ACL plugin's per-interface stats;
+  (4) the download does not yet use the management VRF/interface (it uses the API host's routing). Owner:
+  F-global-blocking follow-up.

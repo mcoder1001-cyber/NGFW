@@ -4776,7 +4776,11 @@ export interface AclConfig {
   /** Attachments of `host` lists to host chains. */
   hostAttachments: HostAttachment[];
   /** Host firewall settings (default input policy, ICMP, anti-lockout); unset = the defaults. */
-  hostSettings: HostAclSettings | undefined;
+  hostSettings:
+    | HostAclSettings
+    | undefined;
+  /** F-global-blocking: IP block lists enforced ahead of the access lists; unset = none. */
+  globalBlocking: GlobalBlocking | undefined;
 }
 
 export interface AclConfig_ListsEntry {
@@ -4792,6 +4796,79 @@ export interface AclConfig_MacipEntry {
 export interface AclConfig_HostEntry {
   key: string;
   value: HostList | undefined;
+}
+
+/** GlobalBlocking mirrors `acl.globalBlocking` (F-global-blocking). */
+export interface GlobalBlocking {
+  /** Block lists by name. */
+  lists: { [key: string]: GlobalBlockingList };
+}
+
+export interface GlobalBlocking_ListsEntry {
+  key: string;
+  value: GlobalBlockingList | undefined;
+}
+
+/** GlobalBlockingSource mirrors `acl.globalBlocking.lists.<name>.source` (discriminated union, flattened). */
+export interface GlobalBlockingSource {
+  /** "upload" | "url". */
+  kind?:
+    | string
+    | undefined;
+  /** url: http(s) URL the API downloads the list from. */
+  url?:
+    | string
+    | undefined;
+  /** url: download-and-apply interval in seconds; unset = only on "Fetch now". */
+  refreshSec?:
+    | number
+    | undefined;
+  /** url: verify the server certificate (Zod default true). */
+  verifyTls?:
+    | boolean
+    | undefined;
+  /** url: secret reference of a private CA (cert/<name>). */
+  caRef?:
+    | string
+    | undefined;
+  /** url: secret reference of the credentials (token/<name> or password/<name>). */
+  authRef?: string | undefined;
+}
+
+/** GlobalBlockingList mirrors `acl.globalBlocking.lists.<name>`. */
+export interface GlobalBlockingList {
+  /** List enabled (Zod default true). */
+  enabled?:
+    | boolean
+    | undefined;
+  /** Free-text description. */
+  description?:
+    | string
+    | undefined;
+  /** Where the entries come from (the API imports them; the agent only renders entries). */
+  source:
+    | GlobalBlockingSource
+    | undefined;
+  /** Every L3 interface, including later ones. */
+  allInterfaces?:
+    | boolean
+    | undefined;
+  /** Interfaces the list is enforced on (when not all_interfaces). */
+  interfaces: string[];
+  /** "both" | "inbound" | "outbound". */
+  direction?:
+    | string
+    | undefined;
+  /** Also drop traffic from listed addresses to the box itself (nftables). */
+  protectHost?:
+    | boolean
+    | undefined;
+  /** Log matches. */
+  log?:
+    | boolean
+    | undefined;
+  /** Canonical IPv4/IPv6 prefixes. */
+  entries: string[];
 }
 
 /** AddressMatch is a rule's source/destination — a Zod discriminated union on `kind`, flattened. */
@@ -40637,6 +40714,7 @@ function createBaseAclConfig(): AclConfig {
     macipAttachments: [],
     hostAttachments: [],
     hostSettings: undefined,
+    globalBlocking: undefined,
   };
 }
 
@@ -40662,6 +40740,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     }
     if (message.hostSettings !== undefined) {
       HostAclSettings.encode(message.hostSettings, writer.uint32(66).fork()).join();
+    }
+    if (message.globalBlocking !== undefined) {
+      GlobalBlocking.encode(message.globalBlocking, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -40744,6 +40825,14 @@ export const AclConfig: MessageFns<AclConfig> = {
             message.hostSettings = HostAclSettings.decode(reader, reader.uint32());
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.globalBlocking = GlobalBlocking.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -40818,6 +40907,11 @@ export const AclConfig: MessageFns<AclConfig> = {
         : isSet(object.host_settings)
         ? HostAclSettings.fromJSON(object.host_settings)
         : undefined,
+      globalBlocking: isSet(object.globalBlocking)
+        ? GlobalBlocking.fromJSON(object.globalBlocking)
+        : isSet(object.global_blocking)
+        ? GlobalBlocking.fromJSON(object.global_blocking)
+        : undefined,
     };
   },
 
@@ -40862,6 +40956,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     if (message.hostSettings !== undefined) {
       obj.hostSettings = HostAclSettings.toJSON(message.hostSettings);
     }
+    if (message.globalBlocking !== undefined) {
+      obj.globalBlocking = GlobalBlocking.toJSON(message.globalBlocking);
+    }
     return obj;
   },
 
@@ -40902,6 +40999,9 @@ export const AclConfig: MessageFns<AclConfig> = {
     message.hostAttachments = object.hostAttachments?.map((e) => HostAttachment.fromPartial(e)) || [];
     message.hostSettings = (object.hostSettings !== undefined && object.hostSettings !== null)
       ? HostAclSettings.fromPartial(object.hostSettings)
+      : undefined;
+    message.globalBlocking = (object.globalBlocking !== undefined && object.globalBlocking !== null)
+      ? GlobalBlocking.fromPartial(object.globalBlocking)
       : undefined;
     return message;
   },
@@ -41164,6 +41264,583 @@ export const AclConfig_HostEntry: MessageFns<AclConfig_HostEntry> = {
     message.value = (object.value !== undefined && object.value !== null)
       ? HostList.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlocking(): GlobalBlocking {
+  return { lists: {} };
+}
+
+export const GlobalBlocking: MessageFns<GlobalBlocking> = {
+  encode(message: GlobalBlocking, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    globalThis.Object.entries(message.lists).forEach(([key, value]: [string, GlobalBlockingList]) => {
+      GlobalBlocking_ListsEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
+    });
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlocking {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlocking();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            const entry1 = GlobalBlocking_ListsEntry.decode(reader, reader.uint32());
+            if (entry1.value !== undefined) {
+              message.lists[entry1.key] = entry1.value;
+            }
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlocking {
+    return {
+      lists: isObject(object.lists)
+        ? (globalThis.Object.entries(object.lists) as [string, any][]).reduce(
+          (acc: { [key: string]: GlobalBlockingList }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: GlobalBlockingList.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+    };
+  },
+
+  toJSON(message: GlobalBlocking): unknown {
+    const obj: any = {};
+    if (message.lists) {
+      const entries = globalThis.Object.entries(message.lists) as [string, GlobalBlockingList][];
+      if (entries.length > 0) {
+        obj.lists = {};
+        entries.forEach(([k, v]) => {
+          obj.lists[k] = GlobalBlockingList.toJSON(v);
+        });
+      }
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlocking>): GlobalBlocking {
+    return GlobalBlocking.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlocking>): GlobalBlocking {
+    const message = createBaseGlobalBlocking();
+    message.lists = (globalThis.Object.entries(object.lists ?? {}) as [string, GlobalBlockingList][]).reduce(
+      (acc: { [key: string]: GlobalBlockingList }, [key, value]: [string, GlobalBlockingList]) => {
+        if (value !== undefined) {
+          acc[key] = GlobalBlockingList.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseGlobalBlocking_ListsEntry(): GlobalBlocking_ListsEntry {
+  return { key: "", value: undefined };
+}
+
+export const GlobalBlocking_ListsEntry: MessageFns<GlobalBlocking_ListsEntry> = {
+  encode(message: GlobalBlocking_ListsEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      GlobalBlockingList.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlocking_ListsEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlocking_ListsEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = GlobalBlockingList.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlocking_ListsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? GlobalBlockingList.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: GlobalBlocking_ListsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = GlobalBlockingList.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlocking_ListsEntry>): GlobalBlocking_ListsEntry {
+    return GlobalBlocking_ListsEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlocking_ListsEntry>): GlobalBlocking_ListsEntry {
+    const message = createBaseGlobalBlocking_ListsEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? GlobalBlockingList.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlockingSource(): GlobalBlockingSource {
+  return {
+    kind: undefined,
+    url: undefined,
+    refreshSec: undefined,
+    verifyTls: undefined,
+    caRef: undefined,
+    authRef: undefined,
+  };
+}
+
+export const GlobalBlockingSource: MessageFns<GlobalBlockingSource> = {
+  encode(message: GlobalBlockingSource, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== undefined) {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.url !== undefined) {
+      writer.uint32(18).string(message.url);
+    }
+    if (message.refreshSec !== undefined) {
+      writer.uint32(24).uint32(message.refreshSec);
+    }
+    if (message.verifyTls !== undefined) {
+      writer.uint32(32).bool(message.verifyTls);
+    }
+    if (message.caRef !== undefined) {
+      writer.uint32(42).string(message.caRef);
+    }
+    if (message.authRef !== undefined) {
+      writer.uint32(50).string(message.authRef);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlockingSource {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlockingSource();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.refreshSec = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.verifyTls = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.caRef = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.authRef = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlockingSource {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : undefined,
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      refreshSec: isSet(object.refreshSec)
+        ? globalThis.Number(object.refreshSec)
+        : isSet(object.refresh_sec)
+        ? globalThis.Number(object.refresh_sec)
+        : undefined,
+      verifyTls: isSet(object.verifyTls)
+        ? globalThis.Boolean(object.verifyTls)
+        : isSet(object.verify_tls)
+        ? globalThis.Boolean(object.verify_tls)
+        : undefined,
+      caRef: isSet(object.caRef)
+        ? globalThis.String(object.caRef)
+        : isSet(object.ca_ref)
+        ? globalThis.String(object.ca_ref)
+        : undefined,
+      authRef: isSet(object.authRef)
+        ? globalThis.String(object.authRef)
+        : isSet(object.auth_ref)
+        ? globalThis.String(object.auth_ref)
+        : undefined,
+    };
+  },
+
+  toJSON(message: GlobalBlockingSource): unknown {
+    const obj: any = {};
+    if (message.kind !== undefined) {
+      obj.kind = message.kind;
+    }
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.refreshSec !== undefined) {
+      obj.refreshSec = Math.round(message.refreshSec);
+    }
+    if (message.verifyTls !== undefined) {
+      obj.verifyTls = message.verifyTls;
+    }
+    if (message.caRef !== undefined) {
+      obj.caRef = message.caRef;
+    }
+    if (message.authRef !== undefined) {
+      obj.authRef = message.authRef;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlockingSource>): GlobalBlockingSource {
+    return GlobalBlockingSource.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlockingSource>): GlobalBlockingSource {
+    const message = createBaseGlobalBlockingSource();
+    message.kind = object.kind ?? undefined;
+    message.url = object.url ?? undefined;
+    message.refreshSec = object.refreshSec ?? undefined;
+    message.verifyTls = object.verifyTls ?? undefined;
+    message.caRef = object.caRef ?? undefined;
+    message.authRef = object.authRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseGlobalBlockingList(): GlobalBlockingList {
+  return {
+    enabled: undefined,
+    description: undefined,
+    source: undefined,
+    allInterfaces: undefined,
+    interfaces: [],
+    direction: undefined,
+    protectHost: undefined,
+    log: undefined,
+    entries: [],
+  };
+}
+
+export const GlobalBlockingList: MessageFns<GlobalBlockingList> = {
+  encode(message: GlobalBlockingList, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.description !== undefined) {
+      writer.uint32(18).string(message.description);
+    }
+    if (message.source !== undefined) {
+      GlobalBlockingSource.encode(message.source, writer.uint32(26).fork()).join();
+    }
+    if (message.allInterfaces !== undefined) {
+      writer.uint32(32).bool(message.allInterfaces);
+    }
+    for (const v of message.interfaces) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.direction !== undefined) {
+      writer.uint32(50).string(message.direction);
+    }
+    if (message.protectHost !== undefined) {
+      writer.uint32(56).bool(message.protectHost);
+    }
+    if (message.log !== undefined) {
+      writer.uint32(64).bool(message.log);
+    }
+    for (const v of message.entries) {
+      writer.uint32(74).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): GlobalBlockingList {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseGlobalBlockingList();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.source = GlobalBlockingSource.decode(reader, reader.uint32());
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.allInterfaces = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.interfaces.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.protectHost = reader.bool();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.log = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.entries.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): GlobalBlockingList {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      source: isSet(object.source) ? GlobalBlockingSource.fromJSON(object.source) : undefined,
+      allInterfaces: isSet(object.allInterfaces)
+        ? globalThis.Boolean(object.allInterfaces)
+        : isSet(object.all_interfaces)
+        ? globalThis.Boolean(object.all_interfaces)
+        : undefined,
+      interfaces: globalThis.Array.isArray(object?.interfaces)
+        ? object.interfaces.map((e: any) => globalThis.String(e))
+        : [],
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : undefined,
+      protectHost: isSet(object.protectHost)
+        ? globalThis.Boolean(object.protectHost)
+        : isSet(object.protect_host)
+        ? globalThis.Boolean(object.protect_host)
+        : undefined,
+      log: isSet(object.log) ? globalThis.Boolean(object.log) : undefined,
+      entries: globalThis.Array.isArray(object?.entries) ? object.entries.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: GlobalBlockingList): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.source !== undefined) {
+      obj.source = GlobalBlockingSource.toJSON(message.source);
+    }
+    if (message.allInterfaces !== undefined) {
+      obj.allInterfaces = message.allInterfaces;
+    }
+    if (message.interfaces?.length) {
+      obj.interfaces = message.interfaces;
+    }
+    if (message.direction !== undefined) {
+      obj.direction = message.direction;
+    }
+    if (message.protectHost !== undefined) {
+      obj.protectHost = message.protectHost;
+    }
+    if (message.log !== undefined) {
+      obj.log = message.log;
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<GlobalBlockingList>): GlobalBlockingList {
+    return GlobalBlockingList.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<GlobalBlockingList>): GlobalBlockingList {
+    const message = createBaseGlobalBlockingList();
+    message.enabled = object.enabled ?? undefined;
+    message.description = object.description ?? undefined;
+    message.source = (object.source !== undefined && object.source !== null)
+      ? GlobalBlockingSource.fromPartial(object.source)
+      : undefined;
+    message.allInterfaces = object.allInterfaces ?? undefined;
+    message.interfaces = object.interfaces?.map((e) => e) || [];
+    message.direction = object.direction ?? undefined;
+    message.protectHost = object.protectHost ?? undefined;
+    message.log = object.log ?? undefined;
+    message.entries = object.entries?.map((e) => e) || [];
     return message;
   },
 };

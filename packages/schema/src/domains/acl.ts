@@ -21,6 +21,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
 import { ipPrefix, ServiceSpecSchema } from './objects.js';
 import { HostAclSettingsSchema } from './ext/host-acl-nftables.js'; // F-host-acl-nftables (C1)
 import { ruleExpiryFields } from './ext/rule-expiry.js'; // F-rule-expiry
+import { aclGlobalBlockingField } from './ext/global-blocking.js'; // F-global-blocking
 
 /**
  * `acl` — access control (WBS D5.2, D5.3; TNSR "ACL", "MACIP ACL" and "host ACL" are the reference).
@@ -301,6 +302,7 @@ export const AclSchema = withUi(
       group: 'Attachments',
       order: 7,
     }), // F-host-acl-nftables (C1)
+    globalBlocking: aclGlobalBlockingField, // F-global-blocking
   }),
   {
     title: 'ACL',

@@ -57,6 +57,17 @@ const (
 	KindAntiLockout = "anti-lockout"
 	KindRule        = "rule"
 	KindUnknown     = "unknown"
+	// KindGlobalBlocking is a drop rule of a block list with protectHost (F-global-blocking).
+	KindGlobalBlocking = "global-blocking"
+)
+
+// Global blocking (F-global-blocking): the block lists with protectHost drop traffic to the box itself
+// in their own input chain, before connection tracking, from the sets b4_<list> / b6_<list>.
+const (
+	// BlockChain is the input chain of the block lists.
+	BlockChain = "in__gb"
+	// BlockPriority runs the chain before conntrack (-200): a blocked source creates no ct entry.
+	BlockPriority = -300
 )
 
 // ConntrackPriority is NF_IP_PRI_CONNTRACK: an output chain must run after it (priority > -200).
@@ -82,7 +93,8 @@ var hookPrefix = map[string]string{"input": "in", "output": "out", "forward": "f
 // and warnings carry the pointer of the offending leaf; with an error the value must not be applied.
 func Build(in Input) (*HostTable, []Issue) {
 	acl := in.ACL
-	if len(acl.GetHost()) == 0 && len(acl.GetHostAttachments()) == 0 && acl.GetHostSettings() == nil {
+	blocking := hostBlockLists(acl)
+	if len(acl.GetHost()) == 0 && len(acl.GetHostAttachments()) == 0 && acl.GetHostSettings() == nil && len(blocking) == 0 {
 		return nil, nil
 	}
 	b := &builder{in: in, sets: map[string]*Set{}, expanded: map[string]*expansion{}}
@@ -144,6 +156,9 @@ func Build(in Input) (*HostTable, []Issue) {
 		return a.name < c.name
 	})
 	b.checkLockout(chains)
+	if c := b.blockChain(blocking); c != nil {
+		chains = append([]*chainPlan{c}, chains...)
+	}
 
 	v := &HostTable{Config: hostConfig(acl)}
 	used := map[string]bool{}
@@ -378,9 +393,14 @@ type nrule struct {
 	// ghost: not rendered — a family variant of a rule whose FQDN-bearing object has no answer of that
 	// family now; it exists only for the anti-lockout simulation, which must not depend on DNS (M2).
 	ghost bool
+	// blockSet: a global-blocking rule matches the source against this set (b4_<list> / b6_<list>).
+	blockSet string
 }
 
 func (r *nrule) sets() []string {
+	if r.blockSet != "" {
+		return []string{r.blockSet}
+	}
 	var out []string
 	for _, m := range []addrMatch{r.src, r.dst} {
 		if m.on && m.object != "" && (r.family == 4 || r.family == 6) {
@@ -420,6 +440,9 @@ func (r *nrule) text() string {
 	if r.nfproto {
 		p = append(p, "meta nfproto "+map[int]string{4: "ipv4", 6: "ipv6"}[r.family])
 	}
+	if r.blockSet != "" {
+		p = append(p, map[int]string{4: "ip", 6: "ip6"}[r.family]+" saddr @"+r.blockSet)
+	}
 	p = append(p, r.addr("saddr", r.src)...)
 	p = append(p, r.addr("daddr", r.dst)...)
 	if r.svc != nil {
@@ -436,7 +459,10 @@ func (r *nrule) text() string {
 		p = append(p, "tcp dport "+spansText(ss))
 	}
 	p = append(p, "counter")
-	if r.log {
+	switch {
+	case r.log && r.blockSet != "":
+		p = append(p, fmt.Sprintf(`log prefix "vrx:gb:%s "`, r.list))
+	case r.log:
 		p = append(p, fmt.Sprintf(`log prefix "vrx:%s:%d "`, r.list, r.seq))
 	}
 	p = append(p, r.verdict)

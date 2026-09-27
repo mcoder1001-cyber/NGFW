@@ -1,0 +1,127 @@
+{
+  "nav": "Global blocking",
+  "title": "Global blocking",
+  "intro": "IP block lists: addresses and prefixes the box drops on the interfaces you choose, before any access list. A list comes from a file you upload or a server URL the box downloads (on a schedule if you set a refresh interval). Every import is previewed first; staged entries are applied by the normal commit.",
+  "add": "Add block list",
+  "refresh": "Refresh",
+  "loading": "Loading",
+  "readonly": "Your role cannot change the configuration",
+  "total": "{{total}} of {{max}} entries used over all lists",
+  "countersUnavailable": "Hit counters are unavailable: {{reason}}",
+  "empty": "No block lists yet.",
+  "tableLabel": "Block lists",
+  "col": {
+    "name": "Name",
+    "source": "Source",
+    "enforced": "Enforced on",
+    "entries": "Entries",
+    "lastFetch": "Last download",
+    "hits": "Drops",
+    "actions": "Actions"
+  },
+  "disabled": "disabled",
+  "pending": {
+    "added": "new",
+    "changed": "changed",
+    "deleted": "deleted"
+  },
+  "source": {
+    "upload": "Uploaded file"
+  },
+  "refreshEvery": "refreshed every {{interval}}",
+  "refreshManual": "downloaded only with Fetch now",
+  "allInterfaces": "All interfaces",
+  "direction": {
+    "both": "inbound and outbound",
+    "inbound": "inbound",
+    "outbound": "outbound"
+  },
+  "protectHost": "protects the box",
+  "runningEntries": "{{n}} applied",
+  "result": {
+    "ok": "updated",
+    "unchanged": "unchanged",
+    "failed": "failed — last good list kept",
+    "deferred": "waiting (candidate being edited)"
+  },
+  "nextRefresh": "next: {{at}}",
+  "hits": {
+    "dataplane": "{{n}} packets",
+    "host": "{{n}} to the box"
+  },
+  "actions": {
+    "edit": "Edit",
+    "import": "Import file",
+    "fetch": "Fetch now",
+    "export": "Export",
+    "delete": "Delete"
+  },
+  "edit": {
+    "title": "Block list {{name}}",
+    "new": "New block list",
+    "name": "Name",
+    "nameHelp": "letters, digits, . _ - (the entries are imported after saving)",
+    "badName": "letters, digits, . _ - only; up to 63 characters",
+    "taken": "a list with this name exists"
+  },
+  "save": "Save to candidate",
+  "reset": "Reset",
+  "cancel": "Cancel",
+  "close": "Close",
+  "import": {
+    "title": "Import a file into {{name}}",
+    "help": "Plain text, one IPv4/IPv6 address or prefix per line; # starts a comment. Check shows what changes; Stage writes the entries into the candidate (the file replaces the list) and a commit applies them. Invalid lines are skipped.",
+    "choose": "Choose file",
+    "noFile": "No file chosen"
+  },
+  "fetch": {
+    "title": "Fetch {{name}} from its server",
+    "help": "Downloads the list from its server URL now. Check shows what changes; Stage writes the entries into the candidate and a commit applies them."
+  },
+  "preview": {
+    "label": "Preview",
+    "check": "Check",
+    "stage": "Stage",
+    "summary": "{{lines}} lines → {{entries}} entries: {{added}} added, {{removed}} removed, {{invalid}} invalid lines.",
+    "normalised": "{{normalised}} normalised (host bits masked), {{collapsed}} duplicates or covered by a wider prefix.",
+    "invalid": "Invalid lines",
+    "line": "Line",
+    "text": "Text",
+    "reason": "Reason",
+    "added": "Added ({{n}})",
+    "removed": "Removed ({{n}})",
+    "staged": "{{entries}} entries staged in the candidate; commit to apply them.",
+    "nothing": "The list is unchanged."
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "source": {
+      "title": "Source"
+    },
+    "allInterfaces": {
+      "title": "All interfaces",
+      "help": "every interface, including interfaces added later"
+    },
+    "interfaces": {
+      "title": "Interfaces",
+      "help": "where the list is enforced (at least one unless All interfaces)"
+    },
+    "direction": {
+      "title": "Direction",
+      "help": "inbound = traffic arriving from a listed address; outbound = leaving to one"
+    },
+    "protectHost": {
+      "title": "Protect the box",
+      "help": "also drop traffic from listed addresses to the box itself"
+    },
+    "log": {
+      "title": "Log",
+      "help": "drops to the box are logged; data-plane drops are counted"
+    }
+  }
+}

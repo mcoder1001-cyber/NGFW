@@ -77,20 +77,20 @@ for a misconfigured or not-yet-implemented backend instead of turning a login in
 ```
 $ pnpm --filter @ngfw/api exec vitest run
  Test Files  56 passed (56)
-      Tests  341 passed (341)
-   Duration  29.35s
+      Tests  342 passed (342)
+   Duration  29.00s
 
 $ VRX_TEST_PREFIX=cw1 VRX_VALKEY_DB=1 pnpm exec vitest run -c vitest.e2e.config.ts test/e2e
  Test Files  51 passed (51)
-      Tests  265 passed (265)
-   Duration  221.16s
+      Tests  266 passed (266)
+   Duration  218.40s
 ```
 
 New suites inside those totals:
 
 ```
  ✓ test/e2e/aaa-login.e2e.test.ts (11 tests)     # order walk, shadow accounts, fallbackLocal
- ✓ test/e2e/aaa-mfa.e2e.test.ts   (12 tests)     # enrolment, two-step login, tickets, recovery, admin reset
+ ✓ test/e2e/aaa-mfa.e2e.test.ts   (13 tests)     # enrolment, two-step login, tickets, recovery, replay, admin reset
  ✓ src/auth/login-order.test.ts   (7 tests)      # the order/fallback rules
  ✓ src/features/aaa/mfa.test.ts   (3 tests)      # who mfa.required covers
 ```

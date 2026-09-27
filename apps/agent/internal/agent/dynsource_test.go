@@ -290,3 +290,109 @@ func TestDynamicSourceSyncHasADeadline(t *testing.T) {
 		t.Fatalf("next sync: %v, dynamic %q", err, md.list())
 	}
 }
+
+// Probe K (TD-8b review C1, TD-8c): after a VPP restart, a resync with more rejected dynamic objects than
+// maxKeyReruns creates every configured interface once. Before the two-phase resync each quarantine rerun
+// rolled back and re-created the whole configuration (loop706 ended at sw_if_index 36 instead of 18).
+func TestResyncRejectedDynamicObjectsDoNotChurnTheConfiguration(t *testing.T) {
+	v := coretest.New()
+	s, md, src := syncedSrcSvc(t, v, "loop701", "loop702")
+	next := doc(t, sampleDoc)
+	names := []string{"loop701", "loop702"}
+	for _, n := range []string{"loop703", "loop704", "loop705", "loop706"} {
+		next.Interfaces[n] = &vrxv1.Interface{}
+		names = append(names, n)
+	}
+	src.set(names...)
+	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: next}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if md.list() != strings.Join(names, ",") {
+		t.Fatalf("dynamic objects before the restart: %q", md.list())
+	}
+
+	// VPP restarted: everything is gone, and VPP now rejects four dynamic objects (more than maxKeyReruns)
+	for _, n := range names {
+		v.DeleteInterface(n)
+		md.drop(n)
+	}
+	v.DeleteTable(7001, false)
+	v.DeleteTable(7001, true)
+	for _, n := range names[2:] {
+		md.failOn(n, errors.New(errLabelInUse))
+	}
+	v.Reset()
+
+	resp := s.Resync(context.Background())
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if n := len(v.CallsNamed("create_loopback_instance")); n != len(names) {
+		t.Fatalf("resync created %d loopbacks, want %d (one configuration pass; the reruns touch dynamic objects only)", n, len(names))
+	}
+	if n := len(v.CallsNamed("delete_loopback")); n != 0 {
+		t.Fatalf("resync deleted %d loopbacks (a rollback of the configuration)", n)
+	}
+	for _, n := range names {
+		if _, ok := v.InterfaceByName(n); !ok {
+			t.Fatalf("%s was not rebuilt", n)
+		}
+	}
+	// more rejected keys than maxKeyReruns: the source is left out as a whole; the configuration stands
+	if s.source("test-sync").inSync.Load() || md.list() != "" {
+		t.Fatalf("source in sync %v, dynamic objects %q (want left out, none applied)", s.source("test-sync").inSync.Load(), md.list())
+	}
+}
+
+// TD-8c: a resync with one rejected dynamic object still restores the rest of the source in phase 2 (probe G's
+// outcome), and the configuration is created once.
+func TestResyncTwoPhaseQuarantinesInPhaseTwo(t *testing.T) {
+	v := coretest.New()
+	s, md, _ := syncedSrcSvc(t, v, "loop701", "loop702")
+	v.DeleteInterface("loop701")
+	v.DeleteInterface("loop702")
+	v.DeleteTable(7001, false)
+	v.DeleteTable(7001, true)
+	md.drop("loop701")
+	md.drop("loop702")
+	md.failOn("loop702", errors.New(errLabelInUse))
+	v.Reset()
+
+	resp := s.Resync(context.Background())
+	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if n := len(v.CallsNamed("create_loopback_instance")); n != 2 {
+		t.Fatalf("resync created %d loopbacks, want 2", n)
+	}
+	if md.list() != "loop701" || skippedKey(resp, dynDesc+"/loop702") == nil || !s.source("test-sync").inSync.Load() {
+		t.Fatalf("dynamic %q, loop702 reported %v, in sync %v", md.list(), skippedKey(resp, dynDesc+"/loop702"), s.source("test-sync").inSync.Load())
+	}
+	if resp.GetSummary().GetCreated() < 3 { // phase 1's configuration + phase 2's loop701, joined
+		t.Fatalf("summary %v does not join both phases", resp.GetSummary())
+	}
+}
+
+// TD-8c: phase 1 falls back to the merged run only when every plan issue is a configuration delete that a
+// merged source's object depends on; any other failure is the configuration's own.
+func TestBlockedByDynamic(t *testing.T) {
+	src := &dynSource{}
+	mg := &srcMerge{owner: map[string]*dynSource{dynDesc: src}}
+	blocked := func(issues ...scheduler.Issue) *scheduler.TxnResult {
+		return &scheduler.TxnResult{Outcome: scheduler.OutcomeFailed, Plan: &scheduler.TxnPlan{Issues: issues}}
+	}
+	byDyn := scheduler.Issue{Key: "interface/loop702", Code: scheduler.CodeDependencyMissing,
+		Message: fmt.Sprintf("cannot delete: %s/loop702 (not managed by this transaction) depends on it", dynDesc)}
+	byCfg := scheduler.Issue{Key: "vrf/7001", Code: scheduler.CodeDependencyMissing,
+		Message: "cannot delete: interface/loop9 (not managed by this transaction) depends on it"}
+	missing := scheduler.Issue{Key: "interface/loop1", Code: scheduler.CodeDependencyMissing, Message: "mandatory dependency vrf/9 is neither desired nor present"}
+	for name, c := range map[string]struct {
+		res  *scheduler.TxnResult
+		want bool
+	}{
+		"dynamic dependent":      {blocked(byDyn), true},
+		"config dependent":       {blocked(byCfg), false},
+		"mixed":                  {blocked(byDyn, byCfg), false},
+		"other plan issue":       {blocked(missing), false},
+		"failed while executing": {&scheduler.TxnResult{Outcome: scheduler.OutcomeRolledBack, Plan: &scheduler.TxnPlan{Issues: []scheduler.Issue{byDyn}}, Results: []scheduler.OpResult{{Key: "interface/loop1"}}}, false},
+		"no plan":                {&scheduler.TxnResult{Outcome: scheduler.OutcomeFailed}, false},
+	} {
+		if got := blockedByDynamic(c.res, mg); got != c.want {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+}

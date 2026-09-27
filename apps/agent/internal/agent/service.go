@@ -466,7 +466,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 			view = mergeDomains(s.st.desired, ds, domains)
 		}
 		var left []leftOut
-		res, left = s.applySources(ctx, pj.kvs, scopeOf(domains), domains, view, scheduler.ApplyOptions{Resync: m != modeTxn})
+		res, left = s.applySources(ctx, pj.kvs, scopeOf(domains), domains, view, scheduler.ApplyOptions{Resync: m != modeTxn}, m == modeResync)
 		fillResponse(resp, res, pj)
 		s.leaveOutLocked(resp, txnID, left, log)
 		if errors.Is(res.Err, scheduler.ErrDescriptorPanic) {

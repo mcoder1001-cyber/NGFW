@@ -106,6 +106,8 @@ sec-auth, dev-weak, config). `tools/ci.sh check`: gitleaks FAILS on 5 findings, 
 ## Follow-ups
 (a) mfa.required lock-out guard — **done in F-aaa-mfa-lockout** (a raise needs an enrolled admin and an MFA-verified
 committer session; 400 `/management/aaa/mfa/required`; lowering never blocked).
+(b) review leftovers (API keys vs MFA policy, JWKS reuse, case-insensitive username index) — **done in
+F-aaa-hardening** (keys minted without MFA refused at use with 401 `mfa-required`; migrations 0008/0009).
 
 ## Out of scope (not built)
 TACACS+ and SAML backends (`order: [tacacs]` is skipped at login; test route 501); `GET /state/aaa/servers`

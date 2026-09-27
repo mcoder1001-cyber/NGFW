@@ -144,5 +144,9 @@ export function identityOf(payload: JWTPayload, c: OidcConfig): OidcIdentity {
     : typeof raw === 'string'
       ? [raw]
       : [];
-  return { username: name, groups, subject: String(payload.sub ?? name) };
+  // review 1: `sub` is the stable, IdP-assigned identity the account is bound to; a token without it is refused
+  if (typeof payload.sub !== 'string' || payload.sub.length === 0 || payload.sub.length > 255) {
+    throw new Error('id_token: no sub');
+  }
+  return { username: name, groups, subject: payload.sub };
 }

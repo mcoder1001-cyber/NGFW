@@ -12,7 +12,7 @@ import type { Doc } from '../datastore/repo.js';
 import { DB, type Db } from '../db/db.js';
 import { apiKey, appUser, configCandidate, configPending } from '../db/schema.js';
 import { releaseKeyLocks } from '../datastore/pg-repo.js';
-import { AuthService } from '../auth/auth.service.js';
+import { AuthService, externalNoStepUp } from '../auth/auth.service.js';
 import { secureTransport, tlsRequired } from '../auth/transport.js';
 import { withinCommitLock } from './commit-busy.js';
 import { assertPasswordPolicy } from './password-policy.js';
@@ -78,10 +78,14 @@ export class UsersService {
         id: appUser.id,
         passwordHash: appUser.passwordHash,
         lockedUntil: appUser.lockedUntil,
+        source: appUser.source,
       })
       .from(appUser)
       .where(eq(appUser.username, name));
     if (u === undefined) throw problems.notFound(`user '${name}' does not exist`);
+    // F-aaa-login (review 9): an external identity has no local password — neither a self-service change (never a
+    // lockout count) nor an admin reset (which would open a local login into the external account)
+    if (u.source === 'external') throw externalNoStepUp();
     // review L5: "self" is the account id, not the (reusable) name in the token
     const self = u.id === caller.id;
     if (!self && caller.role !== 'admin') {

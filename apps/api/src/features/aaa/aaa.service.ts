@@ -28,7 +28,16 @@ export interface LoginPolicy {
 
 /** One external backend's answer (the `AuthBackend` contract: accept with groups | reject | unreachable). */
 export type BackendResult =
-  | { status: 'accept'; method: ExternalMethod; server: string; groups: string[] }
+  | {
+      status: 'accept';
+      method: ExternalMethod;
+      server: string;
+      groups: string[];
+      /** stable identity key: RADIUS the case-folded name, LDAP the case-folded entry DN */
+      subject: string;
+    }
+  /** LDAP: the directory does not know the user — not an answer about the credential; the next method is tried */
+  | { status: 'notfound'; method: ExternalMethod; server: string }
   | { status: 'reject'; method: ExternalMethod; server: string; message: string }
   | { status: 'unreachable'; method: ExternalMethod; error: string };
 
@@ -196,7 +205,13 @@ export class AaaService {
     if (r.status === 'reject') {
       return { status: 'reject', method: 'radius', server, message: r.message ?? 'rejected' };
     }
-    return { status: 'accept', method: 'radius', server, groups: r.groups };
+    return {
+      status: 'accept',
+      method: 'radius',
+      server,
+      groups: r.groups,
+      subject: username.toLowerCase(),
+    };
   }
 
   private async tryLdap(s: Json, username: string, password: string): Promise<BackendResult> {
@@ -225,9 +240,16 @@ export class AaaService {
       return { status: 'unreachable', method: 'ldap', error: `${server}: ${r.error}` };
     }
     if (r.status === 'reject') {
+      if (r.message === 'user not found') return { status: 'notfound', method: 'ldap', server };
       return { status: 'reject', method: 'ldap', server, message: r.message };
     }
-    return { status: 'accept', method: 'ldap', server, groups: r.groups };
+    return {
+      status: 'accept',
+      method: 'ldap',
+      server,
+      groups: r.groups,
+      subject: r.dn.toLowerCase(),
+    };
   }
 
   /**
@@ -282,8 +304,9 @@ export class AaaService {
     if (r.status === 'unreachable') {
       return { ...none, reachable: false, authenticated: false, detail: r.error };
     }
-    if (r.status === 'reject') {
-      return { ...none, reachable: true, authenticated: false, detail: r.message };
+    if (r.status === 'reject' || r.status === 'notfound') {
+      const detail = r.status === 'reject' ? r.message : 'user not found';
+      return { ...none, reachable: true, authenticated: false, detail };
     }
     const role = mapRole(this.roleMap(aaa), r.groups);
     return {

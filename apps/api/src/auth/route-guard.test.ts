@@ -1,9 +1,10 @@
 import type { NestFastifyApplication } from '@nestjs/platform-fastify';
 import type { FastifyInstance, RouteOptions } from 'fastify';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import { PRIVILEGED_ROUTES } from '../audit/audit.interceptor.js';
 import { loadEnv } from '../config.js';
+import { AaaService } from '../features/aaa/aaa.service.js';
 import { TokensService } from './tokens.service.js';
 
 /**
@@ -48,6 +49,8 @@ const ADMIN_ONLY = new Set([
   // Feature admin-only routes: one line under the feature's anchor (SY1).
   // wave-BC: F-aaa
   'DELETE /api/v1/auth/mfa/users/:name', // F-aaa-login: MFA reset
+  'POST /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159: admin-issued enrolment
+  'DELETE /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159
   // wave-BC: F-backup-restore
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
@@ -70,6 +73,13 @@ describe('route guard', () => {
         for (const m of [r.method].flat())
           if (m !== 'HEAD' && m !== 'OPTIONS') routes.push({ method: m, url: r.url });
       },
+    });
+    // offline app: no datastore behind the MFA policy (which fails CLOSED on a read error — F-aaa-login review 7)
+    vi.spyOn(app.get(AaaService), 'cachedPolicy').mockResolvedValue({
+      order: ['local'],
+      fallbackLocal: true,
+      mfaRequired: 'none',
+      mfaIssuer: 'vrx',
     });
     const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
     await app.init();

@@ -5,10 +5,14 @@ import { z } from 'zod';
 import { AuthService } from '../../auth/auth.service.js';
 import { setSessionCookies } from '../../auth/cookies.js';
 import { NoAudit, Public } from '../../auth/decorators.js';
+import { secureTransport, tlsRequired } from '../../auth/transport.js';
 import { sourceIp, type VrxRequest } from '../../common/principal.js';
 import { ProblemError } from '../../common/problem.js';
 import { ApiOut } from '../../common/responses.js';
 import { ENV, type Env } from '../../config.js';
+
+/** review 3: the browser binding of an OIDC login (httpOnly, 10 min, path-scoped to the OIDC routes). */
+const OIDC_COOKIE = 'vrx_oidc';
 
 const MethodsOut = z.object({
   oidc: z
@@ -44,8 +48,18 @@ export class OidcController {
   @ApiOperation({ summary: 'Start an OpenID Connect login: 302 to the identity provider' })
   @ApiResponse({ status: 302, description: 'redirect to the IdP authorisation endpoint' })
   async start(@Req() req: VrxRequest, @Res() reply: FastifyReply) {
+    // review 4: the transport rule answers 403 `tls-required` like login (not a redirect)
+    if (!secureTransport(req)) throw tlsRequired();
     try {
-      const url = await this.auth.oidcStart(sourceIp(req));
+      const { url, binding } = await this.auth.oidcStart(sourceIp(req), true);
+      // review 3: binds the state to this browser (Lax: sent on the IdP's top-level redirect back)
+      void reply.setCookie(OIDC_COOKIE, binding, {
+        path: '/api/v1/auth/oidc',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: this.env.VRX_COOKIE_SECURE,
+        maxAge: 600,
+      });
       return reply.redirect(url, 302);
     } catch (e) {
       return reply.redirect(`/login#error=${slug(e)}`, 302);
@@ -66,11 +80,16 @@ export class OidcController {
     @Req() req: VrxRequest,
     @Res() reply: FastifyReply,
   ) {
+    if (!secureTransport(req)) throw tlsRequired();
+    const binding = req.cookies[OIDC_COOKIE];
+    void reply.clearCookie(OIDC_COOKIE, { path: '/api/v1/auth/oidc' });
     try {
       const r = await this.auth.oidcCallback(
         typeof code === 'string' ? code : undefined,
         typeof state === 'string' ? state : undefined,
+        typeof binding === 'string' ? binding : undefined,
         sourceIp(req),
+        true,
       );
       if ('mfaRequired' in r) {
         return reply.redirect(`/login#mfa=${r.challenge}&enrolled=${r.enrolled ? 1 : 0}`, 302);

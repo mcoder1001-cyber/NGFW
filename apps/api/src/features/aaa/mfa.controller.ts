@@ -38,13 +38,19 @@ const VerifyBody = z.union([
       .describe('one of the recovery codes shown at enrolment (single use)'),
   }),
 ]);
-const EnrollBody = z.strictObject({ challenge: Challenge });
+/** D-159: the one-time enrolment token an administrator issued for this user. */
+const EnrolToken = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{32}$/)
+  .describe('the one-time MFA enrolment token issued by an administrator (write-only)');
+const EnrollBody = z.strictObject({ challenge: Challenge, token: EnrolToken });
 const SetupBody = z.strictObject({
   current: z
     .string()
     .min(1)
     .max(1024)
     .describe('the caller’s current password (step-up; write-only)'),
+  token: EnrolToken,
 });
 const ActivateBody = z.strictObject({ code: z.string().regex(/^[0-9]{6}$/) });
 
@@ -97,6 +103,7 @@ export class MfaController {
       body.challenge,
       'code' in body ? { code: body.code } : { recoveryCode: body.recoveryCode },
       sourceIp(req),
+      secureTransport(req),
     );
     setSessionCookies(
       reply,
@@ -129,7 +136,12 @@ export class MfaController {
   @ApiOut(EnrolmentOut)
   @PublicDoc(400, 401)
   enroll(@Body(new ZodPipe(EnrollBody)) body: z.output<typeof EnrollBody>, @Req() req: VrxRequest) {
-    return this.auth.mfaEnrollWithChallenge(body.challenge, sourceIp(req));
+    return this.auth.mfaEnrollWithChallenge(
+      body.challenge,
+      body.token,
+      sourceIp(req),
+      secureTransport(req),
+    );
   }
 
   @Get()
@@ -155,7 +167,7 @@ export class MfaController {
     @Req() req: VrxRequest,
   ) {
     req.audit = { resource: `user/${req.principal!.username}`, after: { step: 'setup' } };
-    return this.auth.mfaSetup(req.principal!, body.current, secureTransport(req));
+    return this.auth.mfaSetup(req.principal!, body.current, body.token, secureTransport(req));
   }
 
   @Post('activate')
@@ -174,6 +186,37 @@ export class MfaController {
   ) {
     req.audit = { resource: `user/${req.principal!.username}`, after: { step: 'activate' } };
     return this.auth.mfaActivate(req.principal!, body.code);
+  }
+
+  @Post('users/:name/enrolment-token')
+  @MinRole('admin')
+  @HttpCode(200)
+  @Protected(404, 409)
+  @ApiOperation({
+    summary:
+      'Admin (D-159): issue a one-time MFA enrolment token for a user (shown once, 24 h; replaces an open one)',
+  })
+  @ApiOut(z.object({ token: z.string(), expiresIn: z.number().int() }))
+  async issueToken(
+    @Param('name', new SafeParamPipe('name', 64)) name: string,
+    @Req() req: VrxRequest,
+  ) {
+    req.audit = { resource: `user/${name}`, after: { mfaEnrolmentToken: 'issued' } };
+    return this.auth.issueEnrolmentToken(name);
+  }
+
+  @Delete('users/:name/enrolment-token')
+  @MinRole('admin')
+  @HttpCode(204)
+  @Protected(404)
+  @ApiOperation({ summary: 'Admin (D-159): revoke a user’s open MFA enrolment token' })
+  @ApiNoContentResponse({ description: 'Revoked' })
+  async revokeToken(
+    @Param('name', new SafeParamPipe('name', 64)) name: string,
+    @Req() req: VrxRequest,
+  ): Promise<void> {
+    req.audit = { resource: `user/${name}`, after: { mfaEnrolmentToken: 'revoked' } };
+    await this.auth.revokeEnrolmentToken(name);
   }
 
   @Delete('users/:name')

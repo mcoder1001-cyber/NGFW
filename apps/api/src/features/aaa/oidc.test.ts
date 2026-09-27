@@ -55,10 +55,11 @@ describe('oidc helpers', () => {
         subject: 'x',
       },
     );
-    expect(identityOf({ preferred_username: 'w1dave', groups: 'ops' }, cfg).groups).toEqual([
-      'ops',
-    ]);
-    expect(() => identityOf({ preferred_username: '../admin' }, cfg)).toThrow();
+    expect(
+      identityOf({ sub: 's', preferred_username: 'w1dave', groups: 'ops' }, cfg).groups,
+    ).toEqual(['ops']);
+    expect(() => identityOf({ sub: 's', preferred_username: '../admin' }, cfg)).toThrow();
+    expect(() => identityOf({ preferred_username: 'w1dave' }, cfg)).toThrow(/sub/);
     expect(() => identityOf({}, cfg)).toThrow();
   });
 });

@@ -46,7 +46,7 @@ function ldapFake(): LdapClientLike {
     },
     search: async (_b, o) => ({
       searchEntries:
-        o.filter === '(uid=w1alice)'
+        o.filter.toLowerCase() === '(uid=w1alice)' // directories match names case-insensitively
           ? [{ dn: 'uid=w1alice,dc=x', memberOf: ['cn=admins,dc=x'] }]
           : [],
     }),
@@ -70,7 +70,7 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
   };
 
   beforeAll(async () => {
-    h = await startHarness({});
+    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '200' });
     admin = await h.login('admin', h.adminPassword);
     h.app.get(AaaService).ldapFactory = () => ldapFake();
     radius = dgram.createSocket('udp4');
@@ -177,6 +177,50 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
     expect(r.status, r.raw).toBe(200);
     expect(r.body.user).toMatchObject({ username: 'w1alice', role: 'admin' });
     expect((await login('w1alice', 'nope')).status).toBe(401);
+    // review 6: a name LDAP does not know falls through to the next method (the local admin behind ldap-first)
+    const local = await login('admin', h.adminPassword);
+    expect(local.status, local.raw).toBe(200);
+    // review 6: case-folded — W1ALICE is the same shadow user
+    const upper = await login('W1ALICE', 'alice-pw');
+    expect(upper.status, upper.raw).toBe(200);
+    expect(upper.body.user.id).toBe(r.body.user.id);
+  });
+
+  it('review 2: a configured user may not take over an external shadow account (commit 400 with pointer)', async () => {
+    const put = await h.call(admin, 'PUT', '/api/v1/config/management/users', [
+      { username: 'admin', role: 'admin' },
+      {
+        username: 'W1Bob',
+        role: 'admin',
+        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2hoYXNoaGFzaA',
+      },
+    ]);
+    const c = put.status === 200 ? await h.call(admin, 'POST', '/api/v1/config/commit') : put;
+    expect(c.status, c.raw).toBe(400);
+    expect(JSON.stringify(c.body)).toMatch(/management\/users\/1\/username/);
+    await h.call(admin, 'DELETE', '/api/v1/config/candidate');
+    const rows = await h.db.execute(
+      sql`select source, role, password_hash from app_user where lower(username) = 'w1bob'`,
+    );
+    expect(rows.rows).toEqual([{ source: 'external', role: 'operator', password_hash: null }]);
+  });
+
+  it('review 9: no local password for an external identity (admin reset or self) → 403 external-principal', async () => {
+    await setAaa({ order: ['local', 'radius', 'ldap'] });
+    const r = await h.call(admin, 'POST', '/api/v1/users/w1bob/password', {
+      password: 'Long-enough-password-1',
+    });
+    expect(r.status, r.raw).toBe(403);
+    expect(r.body.type).toMatch(/external-principal$/);
+    const bob = await login('w1bob', 'bob-pw');
+    expect(bob.status, bob.raw).toBe(200);
+    const self = await h.call(bob.body.accessToken, 'POST', '/api/v1/auth/password', {
+      current: 'bob-pw',
+      password: 'Long-enough-password-1',
+    });
+    expect(self.status, self.raw).toBe(403);
+    const lk = await h.db.execute(sql`select failed_logins from app_user where username = 'w1bob'`);
+    expect(lk.rows[0]).toEqual({ failed_logins: 0 });
   });
 
   it('server down + fallbackLocal → the local admin logs in; fallbackLocal false → refused', async () => {
@@ -192,6 +236,11 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
     admin = ok.body.accessToken;
     await setAaa({ fallbackLocal: false });
     expect((await login('admin', h.adminPassword)).status).toBe(401);
+    // review 6: ldap-only order, the admin is unknown to LDAP (not an answer) → break-glass fallback
+    await setAaa({ order: ['ldap'], fallbackLocal: true });
+    const bg = await login('admin', h.adminPassword);
+    expect(bg.status, bg.raw).toBe(200);
+    admin = bg.body.accessToken;
     // restore: local first
     await setAaa({ order: ['local'], fallbackLocal: true });
   });
@@ -212,6 +261,10 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
 
   it('TOTP: stale session refused, login-time enrolment, replay refused, recovery code single use', async () => {
     const stale = admin;
+    // D-159 (review 5): enrolment is admin-issued — a one-time token, shown once
+    const tok = await h.call(admin, 'POST', '/api/v1/auth/mfa/users/admin/enrolment-token');
+    expect(tok.status, tok.raw).toBe(200);
+    const token = tok.body.token as string;
     await setAaa({ mfa: { required: 'admins' } });
     // the policy cache is refreshed by the next login; the old session (no second factor) stops working
     const first = await login('admin', h.adminPassword);
@@ -220,8 +273,40 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
     expect(first.headers['set-cookie']).toBeUndefined();
     expect((await h.call(stale, 'GET', '/api/v1/auth/me')).status).toBe(401);
 
+    // review 4: the transport rule of login applies to every MFA step
+    for (const url of ['/api/v1/auth/mfa/enroll', '/api/v1/auth/mfa/verify']) {
+      const res = await h.app.inject({
+        method: 'POST',
+        url,
+        remoteAddress: '192.0.2.10',
+        payload: {
+          challenge: first.body.challenge,
+          ...(url.endsWith('enroll') ? { token } : { code: '123456' }),
+        },
+      });
+      expect(res.statusCode, url).toBe(403);
+      expect(res.body).toMatch(/tls-required/);
+    }
+    // no token → refused; a wrong token burns the challenge's single enrolment attempt
+    const none = await h.call(undefined, 'POST', '/api/v1/auth/mfa/enroll', {
+      challenge: first.body.challenge,
+    });
+    expect(none.status).toBe(400);
+    const wrong = await h.call(undefined, 'POST', '/api/v1/auth/mfa/enroll', {
+      challenge: first.body.challenge,
+      token: 'x'.repeat(32),
+    });
+    expect(wrong.status).toBe(401);
+    const burnt = await h.call(undefined, 'POST', '/api/v1/auth/mfa/enroll', {
+      challenge: first.body.challenge,
+      token,
+    });
+    expect(burnt.status).toBe(401);
+    const retry = await login('admin', h.adminPassword);
+    first.body.challenge = retry.body.challenge;
     const en = await h.call(undefined, 'POST', '/api/v1/auth/mfa/enroll', {
       challenge: first.body.challenge,
+      token,
     });
     expect(en.status, en.raw).toBe(200);
     const seed = en.body.secret as string;
@@ -292,5 +377,11 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
     expect(r.status, r.raw).toBe(204);
     const l = await login('admin', h.adminPassword);
     expect(l.body).toMatchObject({ mfaRequired: true, enrolled: false });
+    // without a token issued by an admin there is no way to enrol (no trust-on-first-use)
+    const e = await h.call(undefined, 'POST', '/api/v1/auth/mfa/enroll', {
+      challenge: l.body.challenge,
+      token: 'A'.repeat(32),
+    });
+    expect(e.status).toBe(401);
   });
 });

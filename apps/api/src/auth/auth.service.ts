@@ -568,6 +568,15 @@ export class AuthService {
     await this.kv.set(`mfasid:${sid}`, '1', 'EX', this.tokens.sessionMax);
   }
 
+  /**
+   * F-aaa-mfa-lockout: the caller's own login session passed the second factor (an API key never has: it is not a
+   * login session).
+   */
+  async sessionPassedMfa(user: Principal): Promise<boolean> {
+    if (user.via !== 'jwt') return false;
+    return this.sidHasMfa(user.sid);
+  }
+
   private async sidHasMfa(sid: string | undefined): Promise<boolean> {
     if (sid === undefined) return false;
     const until = this.mfaSids.get(sid);

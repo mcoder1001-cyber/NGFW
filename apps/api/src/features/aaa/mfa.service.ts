@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { and, eq, isNull, lt, sql } from 'drizzle-orm';
 import { hashPassword, verifyPassword } from '../../auth/password.js';
 import { DB, type Db } from '../../db/db.js';
-import { aaaMfa, aaaMfaRecovery } from '../../db/schema.js';
+import { aaaMfa, aaaMfaRecovery, appUser } from '../../db/schema.js';
 import { generateSecret, otpauthUri, recoveryCodes, totpCode } from './totp.js';
 
 const STEP_MS = 30_000;
@@ -42,6 +42,19 @@ export class MfaService {
       .from(aaaMfa)
       .where(eq(aaaMfa.userId, userId));
     return r?.enabled === true;
+  }
+
+  /**
+   * F-aaa-mfa-lockout: at least one enabled admin account has an enabled (active) factor — the precondition for
+   * raising `management.aaa.mfa.required` over the admin role without locking every admin out.
+   */
+  async anyAdminEnrolled(): Promise<boolean> {
+    const [r] = await this.db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(aaaMfa)
+      .innerJoin(appUser, eq(appUser.id, aaaMfa.userId))
+      .where(and(eq(aaaMfa.enabled, true), eq(appUser.role, 'admin'), eq(appUser.disabled, false)));
+    return (r?.n ?? 0) > 0;
   }
 
   async status(userId: number): Promise<{ enrolled: boolean; recoveryCodesLeft: number }> {

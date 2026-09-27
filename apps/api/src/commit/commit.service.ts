@@ -40,6 +40,7 @@ import type {
 } from '../datastore/repo.js';
 import { DB, type Db } from '../db/db.js';
 import { Bus } from '../infra/bus.js';
+import { MfaCommitGuard } from '../features/aaa/mfa-guard.js'; // F-aaa-mfa-lockout
 import { commitBudget, type CommitBudget } from './budget.js';
 import { PgAdvisoryLock, poolOf } from './pg-lock.js';
 import { planEntry, ValidationService, type PlanEntry } from './validation.service.js';
@@ -225,6 +226,8 @@ export class CommitService implements OnApplicationShutdown {
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
     @Optional() @Inject(DB) db?: Db,
+    // F-aaa-mfa-lockout: optional so unit tests that build the service by hand keep working
+    @Optional() private readonly mfaGuard?: MfaCommitGuard,
   ) {
     const pool = poolOf(db);
     this.lock = new CommitLock(pool ? new PgAdvisoryLock(pool) : undefined, {
@@ -475,6 +478,7 @@ export class CommitService implements OnApplicationShutdown {
     const doc = c.payload ?? running?.payload;
     if (doc === undefined) return { ok: true, warnings: [], plan: [], notApplied: [] };
     await this.assertMayApply(user, running?.payload ?? emptyDocument(), doc);
+    await this.mfaGuard?.assert(user, running?.payload ?? emptyDocument(), doc);
     await this.assertNoExternalUserCollision(doc);
     const v = await this.validation.validate(doc, `validate-${randomUUID()}`, {
       dryRunMs: this.budget.dryRunMs,
@@ -796,6 +800,7 @@ export class CommitService implements OnApplicationShutdown {
     const running = await this.repo.latestRevision();
     const runningDoc = running?.payload ?? emptyDocument();
     await this.assertMayApply(user, runningDoc, doc);
+    await this.mfaGuard?.assert(user, runningDoc, doc); // F-aaa-mfa-lockout
     await this.assertNoExternalUserCollision(doc);
     const txnId = randomUUID();
     // F-rule-expiry: a user commit may not add (or re-date) a rule that is already expired; a rollback restores an

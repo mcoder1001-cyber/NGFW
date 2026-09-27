@@ -137,7 +137,8 @@ afterEach(async () => {
 
 describe('nat44-ei-64-66-nptv6 model', () => {
   it('registers four tabs after the NAT44-ED ones', () => {
-    expect(natTabs.map((t) => t.id)).toEqual([
+    expect(natTabs.map((t) => t.id).slice(0, 8)).toEqual([
+      // F-det44-map-dslite-cnat appends after these
       'outbound',
       'static',
       'pools',
@@ -312,7 +313,7 @@ describe('NAT screen: EI, NAT64, NAT66, NPTv6 tabs', () => {
       expect(within(running).getByText('fd00:1:20::/48')).toBeInTheDocument();
       expect(within(running).getByText('پیکربندی‌شده (خواندنی نیست)')).toBeInTheDocument();
       const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
-      expect(tabs.slice(4)).toEqual(['NAT44-EI', 'NAT64', 'NAT66', 'NPTv6']);
+      expect(tabs.slice(4, 8)).toEqual(['NAT44-EI', 'NAT64', 'NAT66', 'NPTv6']);
     },
   );
 });

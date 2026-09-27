@@ -20,6 +20,7 @@ function withUi<T extends z.ZodType>(schema: T, meta: UiMeta): T {
 }
 import { ipPrefix, l4PortNumber } from './objects.js';
 import { ruleExpiryFields } from './ext/rule-expiry.js'; // F-rule-expiry
+import { PnatSchema } from './ext/det44-map-dslite-cnat.js'; // F-det44-map-dslite-cnat
 
 /**
  * `nat` — every translator VPP 26.06 offers (WBS D4.1–D4.7; TNSR "NAT" is the reference).
@@ -534,7 +535,9 @@ export const MapParametersSchema = withUi(
     securityCheck: withUi(
       z
         .strictObject({
-          enabled: flag('Enabled'),
+          // F-det44-map-dslite-cnat Q3: defaults follow VPP (security check on), so a document spelling the
+          // defaults never asks a fresh VPP for a non-default global.
+          enabled: withUi(z.boolean().default(true), { title: 'Enabled' }),
           fragments: flag('Check fragments'),
         })
         .prefault({}),
@@ -544,7 +547,7 @@ export const MapParametersSchema = withUi(
     trafficClass: withUi(
       z
         .strictObject({
-          copy: flag('Copy traffic class'),
+          copy: withUi(z.boolean().default(true), { title: 'Copy traffic class' }), // Q3: VPP default
           value: withUi(z.number().int().min(0).max(255), { title: 'Value' }).optional(),
         })
         .prefault({}),
@@ -761,6 +764,7 @@ export const NatSchema = withUi(
     map: withUi(MapSchema.prefault({}), { group: 'CGNAT', order: 42 }),
     cnat: withUi(CnatSchema.prefault({}), { group: 'CNAT', order: 50 }),
     // wave-BC: F-det44-map-dslite-cnat
+    pnat: withUi(PnatSchema, { group: 'PNAT', order: 51 }).optional(),
   }),
   {
     title: 'NAT',

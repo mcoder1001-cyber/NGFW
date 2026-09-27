@@ -1007,6 +1007,14 @@ export interface ActionRequest {
   capture?:
     | CaptureAction
     | undefined;
+  /** Close one DET44 session (det44_close_session_in / _out; F-det44-map-dslite-cnat). */
+  det44SessionClose?:
+    | Det44SessionCloseAction
+    | undefined;
+  /** Purge the CNAT session table (cnat_session_purge; globals owner only; F-det44-map-dslite-cnat). */
+  cnatSessionPurge?:
+    | CnatSessionPurgeAction
+    | undefined;
   /** Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay. */
   arpFlush?:
     | ArpFlushAction
@@ -4125,7 +4133,11 @@ export interface NatConfig {
     | MapConfig
     | undefined;
   /** CNAT. */
-  cnat: CnatConfig | undefined;
+  cnat:
+    | CnatConfig
+    | undefined;
+  /** PNAT policy 1:1 NAT (F-det44-map-dslite-cnat; IPv4 only). */
+  pnat: PnatConfig | undefined;
 }
 
 /** NatTimeouts mirrors `nat.timeouts` (seconds). */
@@ -8157,6 +8169,230 @@ export interface SyslogEntry {
   unit: string;
   /** The message (non-UTF-8 bytes replaced, at most 4096 characters). */
   message: string;
+}
+
+/** PnatConfig mirrors `nat.pnat` (VPP pnat plugin; IPv4 only). */
+export interface PnatConfig {
+  /** Bindings (match tuple → rewrite tuple). */
+  bindings: PnatBinding[];
+  /** Bindings attached to an interface's input or output path. */
+  attachments: PnatAttachment[];
+}
+
+/** PnatBinding is one named binding; the agent keys it by its match tuple. */
+export interface PnatBinding {
+  /** Binding name (configuration-only label; attachments reference it). */
+  name?:
+    | string
+    | undefined;
+  /** Match tuple; unset fields are wildcards. */
+  match:
+    | PnatMatch
+    | undefined;
+  /** Rewrite tuple; unset fields are unchanged. */
+  rewrite: PnatRewrite | undefined;
+}
+
+/** PnatMatch is the match tuple of a binding. */
+export interface PnatMatch {
+  /** "tcp" | "udp" | "icmp"; unset = any. */
+  proto?:
+    | string
+    | undefined;
+  /** Source IPv4 address; unset = any. */
+  src?:
+    | string
+    | undefined;
+  /** Source port (tcp/udp only); unset = any. */
+  sport?:
+    | number
+    | undefined;
+  /** Destination IPv4 address; unset = any. */
+  dst?:
+    | string
+    | undefined;
+  /** Destination port (tcp/udp only); unset = any. */
+  dport?: number | undefined;
+}
+
+/** PnatRewrite is the rewrite tuple of a binding. */
+export interface PnatRewrite {
+  /** New source IPv4 address. */
+  src?:
+    | string
+    | undefined;
+  /** New source port. */
+  sport?:
+    | number
+    | undefined;
+  /** New destination IPv4 address. */
+  dst?:
+    | string
+    | undefined;
+  /** New destination port. */
+  dport?: number | undefined;
+}
+
+/** PnatAttachment applies a binding on an interface. */
+export interface PnatAttachment {
+  /** Binding name (PnatBinding.name). */
+  binding?:
+    | string
+    | undefined;
+  /** VPP interface name. */
+  interface?:
+    | string
+    | undefined;
+  /** "input" | "output". */
+  point?: string | undefined;
+}
+
+/** Det44SessionsRequest selects one page of one inside user's DET44 sessions. */
+export interface Det44SessionsRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Inside IPv4 address of the user (required: VPP dumps sessions per user). */
+  user: string;
+  /** Index of the first session of the page in VPP's order. */
+  offset: number;
+  /** Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT. */
+  limit: number;
+}
+
+/** Det44Session is one DET44 session as VPP reports it. */
+export interface Det44Session {
+  /** Inside L4 port. */
+  insidePort: number;
+  /** Outside (translated) L4 port. */
+  outsidePort: number;
+  /** External (remote) host. */
+  externalAddress: string;
+  /** External host port. */
+  externalPort: number;
+  /**
+   * VPP session state ("unknown" | "udp-active" | "tcp-syn-sent" | "tcp-established" | "tcp-fin-wait" |
+   * "tcp-close-wait" | "tcp-closing" | "tcp-last-ack" | "tcp-closed" | "icmp-active", else the number).
+   */
+  state: string;
+  /** Expiry (VPP time, seconds). */
+  expire: number;
+}
+
+/** Det44SessionsResponse is one page. */
+export interface Det44SessionsResponse {
+  /** The page. */
+  sessions: Det44Session[];
+  /** Offset of the next page; unset on the last page. */
+  nextOffset?:
+    | number
+    | undefined;
+  /** Sessions of this user. */
+  totalSessions: string;
+  /** The user's outside address (det44_forward). */
+  outsideAddress: string;
+  /** First port of the user's outside port block. */
+  portLo: number;
+  /** Last port of the user's outside port block. */
+  portHi: number;
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** Det44LookupRequest is a forward (inside → outside) or reverse (outside → inside) lookup. */
+export interface Det44LookupRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Forward: the inside IPv4 address. Exactly one of inside_address / outside_address. */
+  insideAddress?:
+    | string
+    | undefined;
+  /** Reverse: the outside IPv4 address. */
+  outsideAddress?:
+    | string
+    | undefined;
+  /** Reverse: the outside port (required with outside_address). */
+  outsidePort?: number | undefined;
+}
+
+/** Det44LookupResponse is the deterministic mapping. */
+export interface Det44LookupResponse {
+  /** Inside IPv4 address. */
+  insideAddress: string;
+  /** Outside IPv4 address. */
+  outsideAddress: string;
+  /** First port of the inside address's outside block (forward only; 0 on reverse). */
+  portLo: number;
+  /** Last port of that block (forward only; 0 on reverse). */
+  portHi: number;
+}
+
+/** CnatSessionsRequest selects one page of the CNAT session table. */
+export interface CnatSessionsRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+  /** Index of the first session of the page in VPP's order. */
+  offset: number;
+  /** Page size; 0 = 100; more than 1000 fails with INVALID_ARGUMENT. */
+  limit: number;
+}
+
+/** CnatSession is one CNAT session (its 5-tuple as VPP keys it). */
+export interface CnatSession {
+  /** Destination address (the VIP for a forward session). */
+  dstAddress: string;
+  /** Destination port. */
+  dstPort: number;
+  /** Source address. */
+  srcAddress: string;
+  /** Source port. */
+  srcPort: number;
+  /** "tcp" | "udp" | "icmp" | the protocol number in decimal. */
+  protocol: string;
+  /** Index of the translation that created it (~0 = none). */
+  translationIndex: number;
+  /** VPP session flags. */
+  flags: number;
+}
+
+/**
+ * CnatSessionsResponse is one page. The CNAT session table is VPP-global and untagged: the globals owner sees every
+ * row; any other owner only rows whose src_address or dst_address is in its own address scope.
+ */
+export interface CnatSessionsResponse {
+  /** The page. */
+  sessions: CnatSession[];
+  /** Offset of the next page; unset on the last page. */
+  nextOffset?:
+    | number
+    | undefined;
+  /** Sessions visible to this owner, counted after the scope filter (a lower bound when truncated). */
+  totalSessions: string;
+  /** The per-call cap (rows looked at, before the scope filter) stopped the dump. */
+  truncated: boolean;
+  /** The owner whose view was returned. */
+  owner: string;
+  /** When the dump was taken (agent clock). */
+  retrievedAt: Date | undefined;
+}
+
+/** Det44SessionCloseAction closes one DET44 session. */
+export interface Det44SessionCloseAction {
+  /** "in" (by the inside endpoint, det44_close_session_in) | "out" (by the outside endpoint, det44_close_session_out). */
+  direction: string;
+  /** Inside (direction in) or outside (direction out) IPv4 address. */
+  address: string;
+  /** Inside or outside port. */
+  port: number;
+  /** External (remote) host IPv4 address. */
+  externalAddress: string;
+  /** External host port. */
+  externalPort: number;
+}
+
+/** CnatSessionPurgeAction purges every CNAT session (a VPP-global table; the globals owner only). */
+export interface CnatSessionPurgeAction {
 }
 
 /** MplsConfig mirrors `routing.mpls` (F-mpls-srmpls). Fields 1–9 are F-mpls-srmpls's; 10 is F-mpls-ldp's. */
@@ -12321,6 +12557,8 @@ function createBaseActionRequest(): ActionRequest {
     ping: undefined,
     traceroute: undefined,
     capture: undefined,
+    det44SessionClose: undefined,
+    cnatSessionPurge: undefined,
     arpFlush: undefined,
     natSessionKill: undefined,
     dnsLookup: undefined,
@@ -12337,6 +12575,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.capture !== undefined) {
       CaptureAction.encode(message.capture, writer.uint32(26).fork()).join();
+    }
+    if (message.det44SessionClose !== undefined) {
+      Det44SessionCloseAction.encode(message.det44SessionClose, writer.uint32(74).fork()).join();
+    }
+    if (message.cnatSessionPurge !== undefined) {
+      CnatSessionPurgeAction.encode(message.cnatSessionPurge, writer.uint32(82).fork()).join();
     }
     if (message.arpFlush !== undefined) {
       ArpFlushAction.encode(message.arpFlush, writer.uint32(34).fork()).join();
@@ -12387,6 +12631,22 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.capture = CaptureAction.decode(reader, reader.uint32());
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.det44SessionClose = Det44SessionCloseAction.decode(reader, reader.uint32());
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.cnatSessionPurge = CnatSessionPurgeAction.decode(reader, reader.uint32());
+            continue;
+          }
           case 4: {
             if (tag !== 34) {
               break;
@@ -12428,6 +12688,16 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       ping: isSet(object.ping) ? PingAction.fromJSON(object.ping) : undefined,
       traceroute: isSet(object.traceroute) ? TracerouteAction.fromJSON(object.traceroute) : undefined,
       capture: isSet(object.capture) ? CaptureAction.fromJSON(object.capture) : undefined,
+      det44SessionClose: isSet(object.det44SessionClose)
+        ? Det44SessionCloseAction.fromJSON(object.det44SessionClose)
+        : isSet(object.det44_session_close)
+        ? Det44SessionCloseAction.fromJSON(object.det44_session_close)
+        : undefined,
+      cnatSessionPurge: isSet(object.cnatSessionPurge)
+        ? CnatSessionPurgeAction.fromJSON(object.cnatSessionPurge)
+        : isSet(object.cnat_session_purge)
+        ? CnatSessionPurgeAction.fromJSON(object.cnat_session_purge)
+        : undefined,
       arpFlush: isSet(object.arpFlush)
         ? ArpFlushAction.fromJSON(object.arpFlush)
         : isSet(object.arp_flush)
@@ -12457,6 +12727,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     if (message.capture !== undefined) {
       obj.capture = CaptureAction.toJSON(message.capture);
     }
+    if (message.det44SessionClose !== undefined) {
+      obj.det44SessionClose = Det44SessionCloseAction.toJSON(message.det44SessionClose);
+    }
+    if (message.cnatSessionPurge !== undefined) {
+      obj.cnatSessionPurge = CnatSessionPurgeAction.toJSON(message.cnatSessionPurge);
+    }
     if (message.arpFlush !== undefined) {
       obj.arpFlush = ArpFlushAction.toJSON(message.arpFlush);
     }
@@ -12482,6 +12758,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.capture = (object.capture !== undefined && object.capture !== null)
       ? CaptureAction.fromPartial(object.capture)
+      : undefined;
+    message.det44SessionClose = (object.det44SessionClose !== undefined && object.det44SessionClose !== null)
+      ? Det44SessionCloseAction.fromPartial(object.det44SessionClose)
+      : undefined;
+    message.cnatSessionPurge = (object.cnatSessionPurge !== undefined && object.cnatSessionPurge !== null)
+      ? CnatSessionPurgeAction.fromPartial(object.cnatSessionPurge)
       : undefined;
     message.arpFlush = (object.arpFlush !== undefined && object.arpFlush !== null)
       ? ArpFlushAction.fromPartial(object.arpFlush)
@@ -35847,6 +36129,7 @@ function createBaseNatConfig(): NatConfig {
     dslite: undefined,
     map: undefined,
     cnat: undefined,
+    pnat: undefined,
   };
 }
 
@@ -35923,6 +36206,9 @@ export const NatConfig: MessageFns<NatConfig> = {
     }
     if (message.cnat !== undefined) {
       CnatConfig.encode(message.cnat, writer.uint32(194).fork()).join();
+    }
+    if (message.pnat !== undefined) {
+      PnatConfig.encode(message.pnat, writer.uint32(218).fork()).join();
     }
     return writer;
   },
@@ -36132,6 +36418,14 @@ export const NatConfig: MessageFns<NatConfig> = {
             message.cnat = CnatConfig.decode(reader, reader.uint32());
             continue;
           }
+          case 27: {
+            if (tag !== 218) {
+              break;
+            }
+
+            message.pnat = PnatConfig.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -36208,6 +36502,7 @@ export const NatConfig: MessageFns<NatConfig> = {
       dslite: isSet(object.dslite) ? DsliteConfig.fromJSON(object.dslite) : undefined,
       map: isSet(object.map) ? MapConfig.fromJSON(object.map) : undefined,
       cnat: isSet(object.cnat) ? CnatConfig.fromJSON(object.cnat) : undefined,
+      pnat: isSet(object.pnat) ? PnatConfig.fromJSON(object.pnat) : undefined,
     };
   },
 
@@ -36285,6 +36580,9 @@ export const NatConfig: MessageFns<NatConfig> = {
     if (message.cnat !== undefined) {
       obj.cnat = CnatConfig.toJSON(message.cnat);
     }
+    if (message.pnat !== undefined) {
+      obj.pnat = PnatConfig.toJSON(message.pnat);
+    }
     return obj;
   },
 
@@ -36332,6 +36630,9 @@ export const NatConfig: MessageFns<NatConfig> = {
     message.map = (object.map !== undefined && object.map !== null) ? MapConfig.fromPartial(object.map) : undefined;
     message.cnat = (object.cnat !== undefined && object.cnat !== null)
       ? CnatConfig.fromPartial(object.cnat)
+      : undefined;
+    message.pnat = (object.pnat !== undefined && object.pnat !== null)
+      ? PnatConfig.fromPartial(object.pnat)
       : undefined;
     return message;
   },
@@ -71403,6 +71704,1960 @@ export const SyslogEntry: MessageFns<SyslogEntry> = {
   },
 };
 
+function createBasePnatConfig(): PnatConfig {
+  return { bindings: [], attachments: [] };
+}
+
+export const PnatConfig: MessageFns<PnatConfig> = {
+  encode(message: PnatConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.bindings) {
+      PnatBinding.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.attachments) {
+      PnatAttachment.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PnatConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePnatConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.bindings.push(PnatBinding.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.attachments.push(PnatAttachment.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PnatConfig {
+    return {
+      bindings: globalThis.Array.isArray(object?.bindings)
+        ? object.bindings.map((e: any) => PnatBinding.fromJSON(e))
+        : [],
+      attachments: globalThis.Array.isArray(object?.attachments)
+        ? object.attachments.map((e: any) => PnatAttachment.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PnatConfig): unknown {
+    const obj: any = {};
+    if (message.bindings?.length) {
+      obj.bindings = message.bindings.map((e) => PnatBinding.toJSON(e));
+    }
+    if (message.attachments?.length) {
+      obj.attachments = message.attachments.map((e) => PnatAttachment.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PnatConfig>): PnatConfig {
+    return PnatConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PnatConfig>): PnatConfig {
+    const message = createBasePnatConfig();
+    message.bindings = object.bindings?.map((e) => PnatBinding.fromPartial(e)) || [];
+    message.attachments = object.attachments?.map((e) => PnatAttachment.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePnatBinding(): PnatBinding {
+  return { name: undefined, match: undefined, rewrite: undefined };
+}
+
+export const PnatBinding: MessageFns<PnatBinding> = {
+  encode(message: PnatBinding, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.match !== undefined) {
+      PnatMatch.encode(message.match, writer.uint32(18).fork()).join();
+    }
+    if (message.rewrite !== undefined) {
+      PnatRewrite.encode(message.rewrite, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PnatBinding {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePnatBinding();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.match = PnatMatch.decode(reader, reader.uint32());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.rewrite = PnatRewrite.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PnatBinding {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      match: isSet(object.match) ? PnatMatch.fromJSON(object.match) : undefined,
+      rewrite: isSet(object.rewrite) ? PnatRewrite.fromJSON(object.rewrite) : undefined,
+    };
+  },
+
+  toJSON(message: PnatBinding): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.match !== undefined) {
+      obj.match = PnatMatch.toJSON(message.match);
+    }
+    if (message.rewrite !== undefined) {
+      obj.rewrite = PnatRewrite.toJSON(message.rewrite);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PnatBinding>): PnatBinding {
+    return PnatBinding.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PnatBinding>): PnatBinding {
+    const message = createBasePnatBinding();
+    message.name = object.name ?? undefined;
+    message.match = (object.match !== undefined && object.match !== null)
+      ? PnatMatch.fromPartial(object.match)
+      : undefined;
+    message.rewrite = (object.rewrite !== undefined && object.rewrite !== null)
+      ? PnatRewrite.fromPartial(object.rewrite)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePnatMatch(): PnatMatch {
+  return { proto: undefined, src: undefined, sport: undefined, dst: undefined, dport: undefined };
+}
+
+export const PnatMatch: MessageFns<PnatMatch> = {
+  encode(message: PnatMatch, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.proto !== undefined) {
+      writer.uint32(10).string(message.proto);
+    }
+    if (message.src !== undefined) {
+      writer.uint32(18).string(message.src);
+    }
+    if (message.sport !== undefined) {
+      writer.uint32(24).uint32(message.sport);
+    }
+    if (message.dst !== undefined) {
+      writer.uint32(34).string(message.dst);
+    }
+    if (message.dport !== undefined) {
+      writer.uint32(40).uint32(message.dport);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PnatMatch {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePnatMatch();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.proto = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.src = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.sport = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.dst = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.dport = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PnatMatch {
+    return {
+      proto: isSet(object.proto) ? globalThis.String(object.proto) : undefined,
+      src: isSet(object.src) ? globalThis.String(object.src) : undefined,
+      sport: isSet(object.sport) ? globalThis.Number(object.sport) : undefined,
+      dst: isSet(object.dst) ? globalThis.String(object.dst) : undefined,
+      dport: isSet(object.dport) ? globalThis.Number(object.dport) : undefined,
+    };
+  },
+
+  toJSON(message: PnatMatch): unknown {
+    const obj: any = {};
+    if (message.proto !== undefined) {
+      obj.proto = message.proto;
+    }
+    if (message.src !== undefined) {
+      obj.src = message.src;
+    }
+    if (message.sport !== undefined) {
+      obj.sport = Math.round(message.sport);
+    }
+    if (message.dst !== undefined) {
+      obj.dst = message.dst;
+    }
+    if (message.dport !== undefined) {
+      obj.dport = Math.round(message.dport);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PnatMatch>): PnatMatch {
+    return PnatMatch.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PnatMatch>): PnatMatch {
+    const message = createBasePnatMatch();
+    message.proto = object.proto ?? undefined;
+    message.src = object.src ?? undefined;
+    message.sport = object.sport ?? undefined;
+    message.dst = object.dst ?? undefined;
+    message.dport = object.dport ?? undefined;
+    return message;
+  },
+};
+
+function createBasePnatRewrite(): PnatRewrite {
+  return { src: undefined, sport: undefined, dst: undefined, dport: undefined };
+}
+
+export const PnatRewrite: MessageFns<PnatRewrite> = {
+  encode(message: PnatRewrite, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.src !== undefined) {
+      writer.uint32(10).string(message.src);
+    }
+    if (message.sport !== undefined) {
+      writer.uint32(16).uint32(message.sport);
+    }
+    if (message.dst !== undefined) {
+      writer.uint32(26).string(message.dst);
+    }
+    if (message.dport !== undefined) {
+      writer.uint32(32).uint32(message.dport);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PnatRewrite {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePnatRewrite();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.src = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.sport = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.dst = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.dport = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PnatRewrite {
+    return {
+      src: isSet(object.src) ? globalThis.String(object.src) : undefined,
+      sport: isSet(object.sport) ? globalThis.Number(object.sport) : undefined,
+      dst: isSet(object.dst) ? globalThis.String(object.dst) : undefined,
+      dport: isSet(object.dport) ? globalThis.Number(object.dport) : undefined,
+    };
+  },
+
+  toJSON(message: PnatRewrite): unknown {
+    const obj: any = {};
+    if (message.src !== undefined) {
+      obj.src = message.src;
+    }
+    if (message.sport !== undefined) {
+      obj.sport = Math.round(message.sport);
+    }
+    if (message.dst !== undefined) {
+      obj.dst = message.dst;
+    }
+    if (message.dport !== undefined) {
+      obj.dport = Math.round(message.dport);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PnatRewrite>): PnatRewrite {
+    return PnatRewrite.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PnatRewrite>): PnatRewrite {
+    const message = createBasePnatRewrite();
+    message.src = object.src ?? undefined;
+    message.sport = object.sport ?? undefined;
+    message.dst = object.dst ?? undefined;
+    message.dport = object.dport ?? undefined;
+    return message;
+  },
+};
+
+function createBasePnatAttachment(): PnatAttachment {
+  return { binding: undefined, interface: undefined, point: undefined };
+}
+
+export const PnatAttachment: MessageFns<PnatAttachment> = {
+  encode(message: PnatAttachment, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.binding !== undefined) {
+      writer.uint32(10).string(message.binding);
+    }
+    if (message.interface !== undefined) {
+      writer.uint32(18).string(message.interface);
+    }
+    if (message.point !== undefined) {
+      writer.uint32(26).string(message.point);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PnatAttachment {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePnatAttachment();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.binding = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.point = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PnatAttachment {
+    return {
+      binding: isSet(object.binding) ? globalThis.String(object.binding) : undefined,
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
+      point: isSet(object.point) ? globalThis.String(object.point) : undefined,
+    };
+  },
+
+  toJSON(message: PnatAttachment): unknown {
+    const obj: any = {};
+    if (message.binding !== undefined) {
+      obj.binding = message.binding;
+    }
+    if (message.interface !== undefined) {
+      obj.interface = message.interface;
+    }
+    if (message.point !== undefined) {
+      obj.point = message.point;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PnatAttachment>): PnatAttachment {
+    return PnatAttachment.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PnatAttachment>): PnatAttachment {
+    const message = createBasePnatAttachment();
+    message.binding = object.binding ?? undefined;
+    message.interface = object.interface ?? undefined;
+    message.point = object.point ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDet44SessionsRequest(): Det44SessionsRequest {
+  return { owner: "", user: "", offset: 0, limit: 0 };
+}
+
+export const Det44SessionsRequest: MessageFns<Det44SessionsRequest> = {
+  encode(message: Det44SessionsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.user !== "") {
+      writer.uint32(18).string(message.user);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(24).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(32).uint32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44SessionsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44SessionsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.user = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44SessionsRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      user: isSet(object.user) ? globalThis.String(object.user) : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: Det44SessionsRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.user !== "") {
+      obj.user = message.user;
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44SessionsRequest>): Det44SessionsRequest {
+    return Det44SessionsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44SessionsRequest>): Det44SessionsRequest {
+    const message = createBaseDet44SessionsRequest();
+    message.owner = object.owner ?? "";
+    message.user = object.user ?? "";
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseDet44Session(): Det44Session {
+  return { insidePort: 0, outsidePort: 0, externalAddress: "", externalPort: 0, state: "", expire: 0 };
+}
+
+export const Det44Session: MessageFns<Det44Session> = {
+  encode(message: Det44Session, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.insidePort !== 0) {
+      writer.uint32(8).uint32(message.insidePort);
+    }
+    if (message.outsidePort !== 0) {
+      writer.uint32(16).uint32(message.outsidePort);
+    }
+    if (message.externalAddress !== "") {
+      writer.uint32(26).string(message.externalAddress);
+    }
+    if (message.externalPort !== 0) {
+      writer.uint32(32).uint32(message.externalPort);
+    }
+    if (message.state !== "") {
+      writer.uint32(42).string(message.state);
+    }
+    if (message.expire !== 0) {
+      writer.uint32(48).uint32(message.expire);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44Session {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44Session();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.insidePort = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.outsidePort = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.externalAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.externalPort = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.expire = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44Session {
+    return {
+      insidePort: isSet(object.insidePort)
+        ? globalThis.Number(object.insidePort)
+        : isSet(object.inside_port)
+        ? globalThis.Number(object.inside_port)
+        : 0,
+      outsidePort: isSet(object.outsidePort)
+        ? globalThis.Number(object.outsidePort)
+        : isSet(object.outside_port)
+        ? globalThis.Number(object.outside_port)
+        : 0,
+      externalAddress: isSet(object.externalAddress)
+        ? globalThis.String(object.externalAddress)
+        : isSet(object.external_address)
+        ? globalThis.String(object.external_address)
+        : "",
+      externalPort: isSet(object.externalPort)
+        ? globalThis.Number(object.externalPort)
+        : isSet(object.external_port)
+        ? globalThis.Number(object.external_port)
+        : 0,
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      expire: isSet(object.expire) ? globalThis.Number(object.expire) : 0,
+    };
+  },
+
+  toJSON(message: Det44Session): unknown {
+    const obj: any = {};
+    if (message.insidePort !== 0) {
+      obj.insidePort = Math.round(message.insidePort);
+    }
+    if (message.outsidePort !== 0) {
+      obj.outsidePort = Math.round(message.outsidePort);
+    }
+    if (message.externalAddress !== "") {
+      obj.externalAddress = message.externalAddress;
+    }
+    if (message.externalPort !== 0) {
+      obj.externalPort = Math.round(message.externalPort);
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.expire !== 0) {
+      obj.expire = Math.round(message.expire);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44Session>): Det44Session {
+    return Det44Session.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44Session>): Det44Session {
+    const message = createBaseDet44Session();
+    message.insidePort = object.insidePort ?? 0;
+    message.outsidePort = object.outsidePort ?? 0;
+    message.externalAddress = object.externalAddress ?? "";
+    message.externalPort = object.externalPort ?? 0;
+    message.state = object.state ?? "";
+    message.expire = object.expire ?? 0;
+    return message;
+  },
+};
+
+function createBaseDet44SessionsResponse(): Det44SessionsResponse {
+  return {
+    sessions: [],
+    nextOffset: undefined,
+    totalSessions: "0",
+    outsideAddress: "",
+    portLo: 0,
+    portHi: 0,
+    owner: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const Det44SessionsResponse: MessageFns<Det44SessionsResponse> = {
+  encode(message: Det44SessionsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sessions) {
+      Det44Session.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextOffset !== undefined) {
+      writer.uint32(16).uint32(message.nextOffset);
+    }
+    if (message.totalSessions !== "0") {
+      writer.uint32(24).uint64(message.totalSessions);
+    }
+    if (message.outsideAddress !== "") {
+      writer.uint32(34).string(message.outsideAddress);
+    }
+    if (message.portLo !== 0) {
+      writer.uint32(40).uint32(message.portLo);
+    }
+    if (message.portHi !== 0) {
+      writer.uint32(48).uint32(message.portHi);
+    }
+    if (message.owner !== "") {
+      writer.uint32(58).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(66).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44SessionsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44SessionsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sessions.push(Det44Session.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.nextOffset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.totalSessions = reader.uint64().toString();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.outsideAddress = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.portLo = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.portHi = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44SessionsResponse {
+    return {
+      sessions: globalThis.Array.isArray(object?.sessions)
+        ? object.sessions.map((e: any) => Det44Session.fromJSON(e))
+        : [],
+      nextOffset: isSet(object.nextOffset)
+        ? globalThis.Number(object.nextOffset)
+        : isSet(object.next_offset)
+        ? globalThis.Number(object.next_offset)
+        : undefined,
+      totalSessions: isSet(object.totalSessions)
+        ? globalThis.String(object.totalSessions)
+        : isSet(object.total_sessions)
+        ? globalThis.String(object.total_sessions)
+        : "0",
+      outsideAddress: isSet(object.outsideAddress)
+        ? globalThis.String(object.outsideAddress)
+        : isSet(object.outside_address)
+        ? globalThis.String(object.outside_address)
+        : "",
+      portLo: isSet(object.portLo)
+        ? globalThis.Number(object.portLo)
+        : isSet(object.port_lo)
+        ? globalThis.Number(object.port_lo)
+        : 0,
+      portHi: isSet(object.portHi)
+        ? globalThis.Number(object.portHi)
+        : isSet(object.port_hi)
+        ? globalThis.Number(object.port_hi)
+        : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Det44SessionsResponse): unknown {
+    const obj: any = {};
+    if (message.sessions?.length) {
+      obj.sessions = message.sessions.map((e) => Det44Session.toJSON(e));
+    }
+    if (message.nextOffset !== undefined) {
+      obj.nextOffset = Math.round(message.nextOffset);
+    }
+    if (message.totalSessions !== "0") {
+      obj.totalSessions = message.totalSessions;
+    }
+    if (message.outsideAddress !== "") {
+      obj.outsideAddress = message.outsideAddress;
+    }
+    if (message.portLo !== 0) {
+      obj.portLo = Math.round(message.portLo);
+    }
+    if (message.portHi !== 0) {
+      obj.portHi = Math.round(message.portHi);
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44SessionsResponse>): Det44SessionsResponse {
+    return Det44SessionsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44SessionsResponse>): Det44SessionsResponse {
+    const message = createBaseDet44SessionsResponse();
+    message.sessions = object.sessions?.map((e) => Det44Session.fromPartial(e)) || [];
+    message.nextOffset = object.nextOffset ?? undefined;
+    message.totalSessions = object.totalSessions ?? "0";
+    message.outsideAddress = object.outsideAddress ?? "";
+    message.portLo = object.portLo ?? 0;
+    message.portHi = object.portHi ?? 0;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDet44LookupRequest(): Det44LookupRequest {
+  return { owner: "", insideAddress: undefined, outsideAddress: undefined, outsidePort: undefined };
+}
+
+export const Det44LookupRequest: MessageFns<Det44LookupRequest> = {
+  encode(message: Det44LookupRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.insideAddress !== undefined) {
+      writer.uint32(18).string(message.insideAddress);
+    }
+    if (message.outsideAddress !== undefined) {
+      writer.uint32(26).string(message.outsideAddress);
+    }
+    if (message.outsidePort !== undefined) {
+      writer.uint32(32).uint32(message.outsidePort);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44LookupRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44LookupRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.insideAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.outsideAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.outsidePort = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44LookupRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      insideAddress: isSet(object.insideAddress)
+        ? globalThis.String(object.insideAddress)
+        : isSet(object.inside_address)
+        ? globalThis.String(object.inside_address)
+        : undefined,
+      outsideAddress: isSet(object.outsideAddress)
+        ? globalThis.String(object.outsideAddress)
+        : isSet(object.outside_address)
+        ? globalThis.String(object.outside_address)
+        : undefined,
+      outsidePort: isSet(object.outsidePort)
+        ? globalThis.Number(object.outsidePort)
+        : isSet(object.outside_port)
+        ? globalThis.Number(object.outside_port)
+        : undefined,
+    };
+  },
+
+  toJSON(message: Det44LookupRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.insideAddress !== undefined) {
+      obj.insideAddress = message.insideAddress;
+    }
+    if (message.outsideAddress !== undefined) {
+      obj.outsideAddress = message.outsideAddress;
+    }
+    if (message.outsidePort !== undefined) {
+      obj.outsidePort = Math.round(message.outsidePort);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44LookupRequest>): Det44LookupRequest {
+    return Det44LookupRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44LookupRequest>): Det44LookupRequest {
+    const message = createBaseDet44LookupRequest();
+    message.owner = object.owner ?? "";
+    message.insideAddress = object.insideAddress ?? undefined;
+    message.outsideAddress = object.outsideAddress ?? undefined;
+    message.outsidePort = object.outsidePort ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDet44LookupResponse(): Det44LookupResponse {
+  return { insideAddress: "", outsideAddress: "", portLo: 0, portHi: 0 };
+}
+
+export const Det44LookupResponse: MessageFns<Det44LookupResponse> = {
+  encode(message: Det44LookupResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.insideAddress !== "") {
+      writer.uint32(10).string(message.insideAddress);
+    }
+    if (message.outsideAddress !== "") {
+      writer.uint32(18).string(message.outsideAddress);
+    }
+    if (message.portLo !== 0) {
+      writer.uint32(24).uint32(message.portLo);
+    }
+    if (message.portHi !== 0) {
+      writer.uint32(32).uint32(message.portHi);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44LookupResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44LookupResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.insideAddress = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.outsideAddress = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.portLo = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.portHi = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44LookupResponse {
+    return {
+      insideAddress: isSet(object.insideAddress)
+        ? globalThis.String(object.insideAddress)
+        : isSet(object.inside_address)
+        ? globalThis.String(object.inside_address)
+        : "",
+      outsideAddress: isSet(object.outsideAddress)
+        ? globalThis.String(object.outsideAddress)
+        : isSet(object.outside_address)
+        ? globalThis.String(object.outside_address)
+        : "",
+      portLo: isSet(object.portLo)
+        ? globalThis.Number(object.portLo)
+        : isSet(object.port_lo)
+        ? globalThis.Number(object.port_lo)
+        : 0,
+      portHi: isSet(object.portHi)
+        ? globalThis.Number(object.portHi)
+        : isSet(object.port_hi)
+        ? globalThis.Number(object.port_hi)
+        : 0,
+    };
+  },
+
+  toJSON(message: Det44LookupResponse): unknown {
+    const obj: any = {};
+    if (message.insideAddress !== "") {
+      obj.insideAddress = message.insideAddress;
+    }
+    if (message.outsideAddress !== "") {
+      obj.outsideAddress = message.outsideAddress;
+    }
+    if (message.portLo !== 0) {
+      obj.portLo = Math.round(message.portLo);
+    }
+    if (message.portHi !== 0) {
+      obj.portHi = Math.round(message.portHi);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44LookupResponse>): Det44LookupResponse {
+    return Det44LookupResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44LookupResponse>): Det44LookupResponse {
+    const message = createBaseDet44LookupResponse();
+    message.insideAddress = object.insideAddress ?? "";
+    message.outsideAddress = object.outsideAddress ?? "";
+    message.portLo = object.portLo ?? 0;
+    message.portHi = object.portHi ?? 0;
+    return message;
+  },
+};
+
+function createBaseCnatSessionsRequest(): CnatSessionsRequest {
+  return { owner: "", offset: 0, limit: 0 };
+}
+
+export const CnatSessionsRequest: MessageFns<CnatSessionsRequest> = {
+  encode(message: CnatSessionsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.offset !== 0) {
+      writer.uint32(16).uint32(message.offset);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(24).uint32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CnatSessionsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCnatSessionsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.offset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CnatSessionsRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      offset: isSet(object.offset) ? globalThis.Number(object.offset) : 0,
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: CnatSessionsRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.offset !== 0) {
+      obj.offset = Math.round(message.offset);
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CnatSessionsRequest>): CnatSessionsRequest {
+    return CnatSessionsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CnatSessionsRequest>): CnatSessionsRequest {
+    const message = createBaseCnatSessionsRequest();
+    message.owner = object.owner ?? "";
+    message.offset = object.offset ?? 0;
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseCnatSession(): CnatSession {
+  return { dstAddress: "", dstPort: 0, srcAddress: "", srcPort: 0, protocol: "", translationIndex: 0, flags: 0 };
+}
+
+export const CnatSession: MessageFns<CnatSession> = {
+  encode(message: CnatSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.dstAddress !== "") {
+      writer.uint32(10).string(message.dstAddress);
+    }
+    if (message.dstPort !== 0) {
+      writer.uint32(16).uint32(message.dstPort);
+    }
+    if (message.srcAddress !== "") {
+      writer.uint32(26).string(message.srcAddress);
+    }
+    if (message.srcPort !== 0) {
+      writer.uint32(32).uint32(message.srcPort);
+    }
+    if (message.protocol !== "") {
+      writer.uint32(42).string(message.protocol);
+    }
+    if (message.translationIndex !== 0) {
+      writer.uint32(48).uint32(message.translationIndex);
+    }
+    if (message.flags !== 0) {
+      writer.uint32(56).uint32(message.flags);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CnatSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCnatSession();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.dstAddress = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.dstPort = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.srcAddress = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.srcPort = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.protocol = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.translationIndex = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.flags = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CnatSession {
+    return {
+      dstAddress: isSet(object.dstAddress)
+        ? globalThis.String(object.dstAddress)
+        : isSet(object.dst_address)
+        ? globalThis.String(object.dst_address)
+        : "",
+      dstPort: isSet(object.dstPort)
+        ? globalThis.Number(object.dstPort)
+        : isSet(object.dst_port)
+        ? globalThis.Number(object.dst_port)
+        : 0,
+      srcAddress: isSet(object.srcAddress)
+        ? globalThis.String(object.srcAddress)
+        : isSet(object.src_address)
+        ? globalThis.String(object.src_address)
+        : "",
+      srcPort: isSet(object.srcPort)
+        ? globalThis.Number(object.srcPort)
+        : isSet(object.src_port)
+        ? globalThis.Number(object.src_port)
+        : 0,
+      protocol: isSet(object.protocol) ? globalThis.String(object.protocol) : "",
+      translationIndex: isSet(object.translationIndex)
+        ? globalThis.Number(object.translationIndex)
+        : isSet(object.translation_index)
+        ? globalThis.Number(object.translation_index)
+        : 0,
+      flags: isSet(object.flags) ? globalThis.Number(object.flags) : 0,
+    };
+  },
+
+  toJSON(message: CnatSession): unknown {
+    const obj: any = {};
+    if (message.dstAddress !== "") {
+      obj.dstAddress = message.dstAddress;
+    }
+    if (message.dstPort !== 0) {
+      obj.dstPort = Math.round(message.dstPort);
+    }
+    if (message.srcAddress !== "") {
+      obj.srcAddress = message.srcAddress;
+    }
+    if (message.srcPort !== 0) {
+      obj.srcPort = Math.round(message.srcPort);
+    }
+    if (message.protocol !== "") {
+      obj.protocol = message.protocol;
+    }
+    if (message.translationIndex !== 0) {
+      obj.translationIndex = Math.round(message.translationIndex);
+    }
+    if (message.flags !== 0) {
+      obj.flags = Math.round(message.flags);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CnatSession>): CnatSession {
+    return CnatSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CnatSession>): CnatSession {
+    const message = createBaseCnatSession();
+    message.dstAddress = object.dstAddress ?? "";
+    message.dstPort = object.dstPort ?? 0;
+    message.srcAddress = object.srcAddress ?? "";
+    message.srcPort = object.srcPort ?? 0;
+    message.protocol = object.protocol ?? "";
+    message.translationIndex = object.translationIndex ?? 0;
+    message.flags = object.flags ?? 0;
+    return message;
+  },
+};
+
+function createBaseCnatSessionsResponse(): CnatSessionsResponse {
+  return {
+    sessions: [],
+    nextOffset: undefined,
+    totalSessions: "0",
+    truncated: false,
+    owner: "",
+    retrievedAt: undefined,
+  };
+}
+
+export const CnatSessionsResponse: MessageFns<CnatSessionsResponse> = {
+  encode(message: CnatSessionsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sessions) {
+      CnatSession.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextOffset !== undefined) {
+      writer.uint32(16).uint32(message.nextOffset);
+    }
+    if (message.totalSessions !== "0") {
+      writer.uint32(24).uint64(message.totalSessions);
+    }
+    if (message.truncated !== false) {
+      writer.uint32(32).bool(message.truncated);
+    }
+    if (message.owner !== "") {
+      writer.uint32(42).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CnatSessionsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCnatSessionsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sessions.push(CnatSession.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.nextOffset = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.totalSessions = reader.uint64().toString();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.truncated = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): CnatSessionsResponse {
+    return {
+      sessions: globalThis.Array.isArray(object?.sessions)
+        ? object.sessions.map((e: any) => CnatSession.fromJSON(e))
+        : [],
+      nextOffset: isSet(object.nextOffset)
+        ? globalThis.Number(object.nextOffset)
+        : isSet(object.next_offset)
+        ? globalThis.Number(object.next_offset)
+        : undefined,
+      totalSessions: isSet(object.totalSessions)
+        ? globalThis.String(object.totalSessions)
+        : isSet(object.total_sessions)
+        ? globalThis.String(object.total_sessions)
+        : "0",
+      truncated: isSet(object.truncated) ? globalThis.Boolean(object.truncated) : false,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: CnatSessionsResponse): unknown {
+    const obj: any = {};
+    if (message.sessions?.length) {
+      obj.sessions = message.sessions.map((e) => CnatSession.toJSON(e));
+    }
+    if (message.nextOffset !== undefined) {
+      obj.nextOffset = Math.round(message.nextOffset);
+    }
+    if (message.totalSessions !== "0") {
+      obj.totalSessions = message.totalSessions;
+    }
+    if (message.truncated !== false) {
+      obj.truncated = message.truncated;
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<CnatSessionsResponse>): CnatSessionsResponse {
+    return CnatSessionsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<CnatSessionsResponse>): CnatSessionsResponse {
+    const message = createBaseCnatSessionsResponse();
+    message.sessions = object.sessions?.map((e) => CnatSession.fromPartial(e)) || [];
+    message.nextOffset = object.nextOffset ?? undefined;
+    message.totalSessions = object.totalSessions ?? "0";
+    message.truncated = object.truncated ?? false;
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDet44SessionCloseAction(): Det44SessionCloseAction {
+  return { direction: "", address: "", port: 0, externalAddress: "", externalPort: 0 };
+}
+
+export const Det44SessionCloseAction: MessageFns<Det44SessionCloseAction> = {
+  encode(message: Det44SessionCloseAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.direction !== "") {
+      writer.uint32(10).string(message.direction);
+    }
+    if (message.address !== "") {
+      writer.uint32(18).string(message.address);
+    }
+    if (message.port !== 0) {
+      writer.uint32(24).uint32(message.port);
+    }
+    if (message.externalAddress !== "") {
+      writer.uint32(34).string(message.externalAddress);
+    }
+    if (message.externalPort !== 0) {
+      writer.uint32(40).uint32(message.externalPort);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Det44SessionCloseAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDet44SessionCloseAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.direction = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.externalAddress = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.externalPort = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Det44SessionCloseAction {
+    return {
+      direction: isSet(object.direction) ? globalThis.String(object.direction) : "",
+      address: isSet(object.address) ? globalThis.String(object.address) : "",
+      port: isSet(object.port) ? globalThis.Number(object.port) : 0,
+      externalAddress: isSet(object.externalAddress)
+        ? globalThis.String(object.externalAddress)
+        : isSet(object.external_address)
+        ? globalThis.String(object.external_address)
+        : "",
+      externalPort: isSet(object.externalPort)
+        ? globalThis.Number(object.externalPort)
+        : isSet(object.external_port)
+        ? globalThis.Number(object.external_port)
+        : 0,
+    };
+  },
+
+  toJSON(message: Det44SessionCloseAction): unknown {
+    const obj: any = {};
+    if (message.direction !== "") {
+      obj.direction = message.direction;
+    }
+    if (message.address !== "") {
+      obj.address = message.address;
+    }
+    if (message.port !== 0) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.externalAddress !== "") {
+      obj.externalAddress = message.externalAddress;
+    }
+    if (message.externalPort !== 0) {
+      obj.externalPort = Math.round(message.externalPort);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Det44SessionCloseAction>): Det44SessionCloseAction {
+    return Det44SessionCloseAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Det44SessionCloseAction>): Det44SessionCloseAction {
+    const message = createBaseDet44SessionCloseAction();
+    message.direction = object.direction ?? "";
+    message.address = object.address ?? "";
+    message.port = object.port ?? 0;
+    message.externalAddress = object.externalAddress ?? "";
+    message.externalPort = object.externalPort ?? 0;
+    return message;
+  },
+};
+
+function createBaseCnatSessionPurgeAction(): CnatSessionPurgeAction {
+  return {};
+}
+
+export const CnatSessionPurgeAction: MessageFns<CnatSessionPurgeAction> = {
+  encode(_: CnatSessionPurgeAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): CnatSessionPurgeAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseCnatSessionPurgeAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(_: any): CnatSessionPurgeAction {
+    return {};
+  },
+
+  toJSON(_: CnatSessionPurgeAction): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<CnatSessionPurgeAction>): CnatSessionPurgeAction {
+    return CnatSessionPurgeAction.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<CnatSessionPurgeAction>): CnatSessionPurgeAction {
+    const message = createBaseCnatSessionPurgeAction();
+    return message;
+  },
+};
+
 function createBaseMplsConfig(): MplsConfig {
   return { interfaces: [], tables: {}, labelRoutes: [], ipBindings: [], tunnels: {}, sr: undefined, ldp: undefined };
 }
@@ -89371,6 +91626,41 @@ export const DataplaneService = {
       Buffer.from(InterfaceStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): InterfaceStateResponse => InterfaceStateResponse.decode(value),
   },
+  /** Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only). */
+  det44Sessions: {
+    path: "/vrx.v1.Dataplane/Det44Sessions" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: Det44SessionsRequest): Buffer => Buffer.from(Det44SessionsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): Det44SessionsRequest => Det44SessionsRequest.decode(value),
+    responseSerialize: (value: Det44SessionsResponse): Buffer =>
+      Buffer.from(Det44SessionsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): Det44SessionsResponse => Det44SessionsResponse.decode(value),
+  },
+  /**
+   * Det44Lookup maps an inside address to its outside address and port block, or an outside
+   * address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+   */
+  det44Lookup: {
+    path: "/vrx.v1.Dataplane/Det44Lookup" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: Det44LookupRequest): Buffer => Buffer.from(Det44LookupRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): Det44LookupRequest => Det44LookupRequest.decode(value),
+    responseSerialize: (value: Det44LookupResponse): Buffer => Buffer.from(Det44LookupResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): Det44LookupResponse => Det44LookupResponse.decode(value),
+  },
+  /** CnatSessions pages the CNAT session table (cnat_session_dump; read-only). */
+  cnatSessions: {
+    path: "/vrx.v1.Dataplane/CnatSessions" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: CnatSessionsRequest): Buffer => Buffer.from(CnatSessionsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): CnatSessionsRequest => CnatSessionsRequest.decode(value),
+    responseSerialize: (value: CnatSessionsResponse): Buffer =>
+      Buffer.from(CnatSessionsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): CnatSessionsResponse => CnatSessionsResponse.decode(value),
+  },
   /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
    * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
@@ -89962,6 +92252,15 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
    */
   interfaceState: handleUnaryCall<InterfaceStateRequest, InterfaceStateResponse>;
+  /** Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only). */
+  det44Sessions: handleUnaryCall<Det44SessionsRequest, Det44SessionsResponse>;
+  /**
+   * Det44Lookup maps an inside address to its outside address and port block, or an outside
+   * address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+   */
+  det44Lookup: handleUnaryCall<Det44LookupRequest, Det44LookupResponse>;
+  /** CnatSessions pages the CNAT session table (cnat_session_dump; read-only). */
+  cnatSessions: handleUnaryCall<CnatSessionsRequest, CnatSessionsResponse>;
   /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
    * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
@@ -90311,6 +92610,57 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: InterfaceStateResponse) => void,
+  ): ClientUnaryCall;
+  /** Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only). */
+  det44Sessions(
+    request: Det44SessionsRequest,
+    callback: (error: ServiceError | null, response: Det44SessionsResponse) => void,
+  ): ClientUnaryCall;
+  det44Sessions(
+    request: Det44SessionsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Det44SessionsResponse) => void,
+  ): ClientUnaryCall;
+  det44Sessions(
+    request: Det44SessionsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Det44SessionsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * Det44Lookup maps an inside address to its outside address and port block, or an outside
+   * address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+   */
+  det44Lookup(
+    request: Det44LookupRequest,
+    callback: (error: ServiceError | null, response: Det44LookupResponse) => void,
+  ): ClientUnaryCall;
+  det44Lookup(
+    request: Det44LookupRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: Det44LookupResponse) => void,
+  ): ClientUnaryCall;
+  det44Lookup(
+    request: Det44LookupRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: Det44LookupResponse) => void,
+  ): ClientUnaryCall;
+  /** CnatSessions pages the CNAT session table (cnat_session_dump; read-only). */
+  cnatSessions(
+    request: CnatSessionsRequest,
+    callback: (error: ServiceError | null, response: CnatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  cnatSessions(
+    request: CnatSessionsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: CnatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  cnatSessions(
+    request: CnatSessionsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: CnatSessionsResponse) => void,
   ): ClientUnaryCall;
   /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and

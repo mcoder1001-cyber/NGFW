@@ -826,7 +826,7 @@ module vrx-nat {
         container securityCheck {
           leaf enabled {
             type boolean;
-            default "false";
+            default "true";
           }
           leaf fragments {
             type boolean;
@@ -841,7 +841,7 @@ module vrx-nat {
         container trafficClass {
           leaf copy {
             type boolean;
-            default "false";
+            default "true";
           }
           leaf value {
             type uint32 {
@@ -994,6 +994,98 @@ module vrx-nat {
               pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
             }
           }
+        }
+      }
+    }
+    container pnat {
+      list bindings {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf name {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        container match {
+          description "Unset fields are wildcards";
+          leaf proto {
+            type enumeration {
+              enum "tcp";
+              enum "udp";
+              enum "icmp";
+            }
+          }
+          leaf src {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf sport {
+            type uint32 {
+              range "1..65535";
+            }
+          }
+          leaf dst {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf dport {
+            type uint32 {
+              range "1..65535";
+            }
+          }
+        }
+        container rewrite {
+          description "Unset fields are left unchanged";
+          leaf src {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf sport {
+            type uint32 {
+              range "1..65535";
+            }
+          }
+          leaf dst {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          leaf dport {
+            type uint32 {
+              range "1..65535";
+            }
+          }
+        }
+      }
+      list attachments {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf binding {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf interface {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf point {
+          type enumeration {
+            enum "input";
+            enum "output";
+          }
+          mandatory true;
+          description "input = before routing, output = after";
         }
       }
     }

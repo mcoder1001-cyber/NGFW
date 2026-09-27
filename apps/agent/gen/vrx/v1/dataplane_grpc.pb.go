@@ -54,6 +54,9 @@ const (
 	Dataplane_Action_FullMethodName                  = "/vrx.v1.Dataplane/Action"
 	Dataplane_Health_FullMethodName                  = "/vrx.v1.Dataplane/Health"
 	Dataplane_InterfaceState_FullMethodName          = "/vrx.v1.Dataplane/InterfaceState"
+	Dataplane_Det44Sessions_FullMethodName           = "/vrx.v1.Dataplane/Det44Sessions"
+	Dataplane_Det44Lookup_FullMethodName             = "/vrx.v1.Dataplane/Det44Lookup"
+	Dataplane_CnatSessions_FullMethodName            = "/vrx.v1.Dataplane/CnatSessions"
 	Dataplane_MplsState_FullMethodName               = "/vrx.v1.Dataplane/MplsState"
 	Dataplane_LbState_FullMethodName                 = "/vrx.v1.Dataplane/LbState"
 	Dataplane_LbFlushVip_FullMethodName              = "/vrx.v1.Dataplane/LbFlushVip"
@@ -129,6 +132,13 @@ type DataplaneClient interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(ctx context.Context, in *InterfaceStateRequest, opts ...grpc.CallOption) (*InterfaceStateResponse, error)
+	// Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only).
+	Det44Sessions(ctx context.Context, in *Det44SessionsRequest, opts ...grpc.CallOption) (*Det44SessionsResponse, error)
+	// Det44Lookup maps an inside address to its outside address and port block, or an outside
+	// address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+	Det44Lookup(ctx context.Context, in *Det44LookupRequest, opts ...grpc.CallOption) (*Det44LookupResponse, error)
+	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
+	CnatSessions(ctx context.Context, in *CnatSessionsRequest, opts ...grpc.CallOption) (*CnatSessionsResponse, error)
 	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
 	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
 	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -388,6 +398,36 @@ func (c *dataplaneClient) InterfaceState(ctx context.Context, in *InterfaceState
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(InterfaceStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_InterfaceState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) Det44Sessions(ctx context.Context, in *Det44SessionsRequest, opts ...grpc.CallOption) (*Det44SessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Det44SessionsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_Det44Sessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) Det44Lookup(ctx context.Context, in *Det44LookupRequest, opts ...grpc.CallOption) (*Det44LookupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Det44LookupResponse)
+	err := c.cc.Invoke(ctx, Dataplane_Det44Lookup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) CnatSessions(ctx context.Context, in *CnatSessionsRequest, opts ...grpc.CallOption) (*CnatSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CnatSessionsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_CnatSessions_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -809,6 +849,13 @@ type DataplaneServer interface {
 	// MTU, addresses, VRF) of every interface this agent can name: its own and untagged ones, never
 	// another owner's (docs/contracts/proto.md §5 keeps such status out of Retrieve). Never mutates.
 	InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error)
+	// Det44Sessions pages the DET44 sessions of one inside user (det44_session_dump; read-only).
+	Det44Sessions(context.Context, *Det44SessionsRequest) (*Det44SessionsResponse, error)
+	// Det44Lookup maps an inside address to its outside address and port block, or an outside
+	// address and port back to the inside address (det44_forward / det44_reverse; read-only, for CGNAT logging).
+	Det44Lookup(context.Context, *Det44LookupRequest) (*Det44LookupResponse, error)
+	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
+	CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error)
 	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
 	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
 	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -990,6 +1037,15 @@ func (UnimplementedDataplaneServer) Health(context.Context, *HealthRequest) (*He
 }
 func (UnimplementedDataplaneServer) InterfaceState(context.Context, *InterfaceStateRequest) (*InterfaceStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InterfaceState not implemented")
+}
+func (UnimplementedDataplaneServer) Det44Sessions(context.Context, *Det44SessionsRequest) (*Det44SessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Det44Sessions not implemented")
+}
+func (UnimplementedDataplaneServer) Det44Lookup(context.Context, *Det44LookupRequest) (*Det44LookupResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Det44Lookup not implemented")
+}
+func (UnimplementedDataplaneServer) CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CnatSessions not implemented")
 }
 func (UnimplementedDataplaneServer) MplsState(context.Context, *MplsStateRequest) (*MplsStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MplsState not implemented")
@@ -1242,6 +1298,60 @@ func _Dataplane_InterfaceState_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).InterfaceState(ctx, req.(*InterfaceStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_Det44Sessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Det44SessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).Det44Sessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_Det44Sessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).Det44Sessions(ctx, req.(*Det44SessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_Det44Lookup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Det44LookupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).Det44Lookup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_Det44Lookup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).Det44Lookup(ctx, req.(*Det44LookupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_CnatSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CnatSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).CnatSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_CnatSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).CnatSessions(ctx, req.(*CnatSessionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1931,6 +2041,18 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InterfaceState",
 			Handler:    _Dataplane_InterfaceState_Handler,
+		},
+		{
+			MethodName: "Det44Sessions",
+			Handler:    _Dataplane_Det44Sessions_Handler,
+		},
+		{
+			MethodName: "Det44Lookup",
+			Handler:    _Dataplane_Det44Lookup_Handler,
+		},
+		{
+			MethodName: "CnatSessions",
+			Handler:    _Dataplane_CnatSessions_Handler,
 		},
 		{
 			MethodName: "MplsState",

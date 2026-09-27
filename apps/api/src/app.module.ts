@@ -29,6 +29,7 @@ import { UsersController } from './users/users.controller.js';
 import { UsersService } from './users/users.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
 // wave-BC: F-det44-map-dslite-cnat
+import { det44MapDsliteCnatFeature } from './features/det44-map-dslite-cnat/index.js';
 // wave-BC: F-tunnels
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
@@ -151,6 +152,7 @@ export class AppModule {
         UsersController,
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-BC: F-det44-map-dslite-cnat
+        ...det44MapDsliteCnatFeature.controllers,
         // wave-BC: F-tunnels
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
@@ -257,6 +259,7 @@ export class AppModule {
         UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
         // wave-BC: F-det44-map-dslite-cnat
+        ...det44MapDsliteCnatFeature.providers,
         // wave-BC: F-tunnels
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync

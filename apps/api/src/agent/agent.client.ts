@@ -26,6 +26,13 @@ import {
   type ValidationReport,
   // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
   // wave-BC: F-det44-map-dslite-cnat
+  type CnatSessionsRequest,
+  type CnatSessionsResponse,
+  type Det44LookupRequest,
+  type Det44LookupResponse,
+  type Det44SessionCloseAction,
+  type Det44SessionsRequest,
+  type Det44SessionsResponse,
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
@@ -262,6 +269,37 @@ export class AgentClient implements OnModuleDestroy {
   // Feature RPCs: one method per RPC under the feature's anchor, e.g.
   // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
   // wave-BC: F-det44-map-dslite-cnat
+  /** F-det44-map-dslite-cnat: one page of one DET44 user's sessions + the user's port block. */
+  det44Sessions(req: Omit<Det44SessionsRequest, 'owner'>): Promise<Det44SessionsResponse> {
+    return this.unary(this.c.det44Sessions, { ...req, owner: this.owner });
+  }
+  /** F-det44-map-dslite-cnat: DET44 forward / reverse lookup (read-only). */
+  det44Lookup(req: Omit<Det44LookupRequest, 'owner'>): Promise<Det44LookupResponse> {
+    return this.unary(this.c.det44Lookup, { ...req, owner: this.owner });
+  }
+  /** F-det44-map-dslite-cnat: one page of the CNAT session table. */
+  cnatSessions(req: Omit<CnatSessionsRequest, 'owner'>): Promise<CnatSessionsResponse> {
+    return this.unary(this.c.cnatSessions, { ...req, owner: this.owner });
+  }
+  /** F-det44-map-dslite-cnat: close one DET44 session (Action stream); resolves with its `done`. */
+  det44SessionClose(a: Det44SessionCloseAction): Promise<ActionDone> {
+    return this.cgnatDone({ det44SessionClose: a });
+  }
+  /** F-det44-map-dslite-cnat: purge the CNAT session table (Action stream; globals owner only). */
+  cnatSessionPurge(): Promise<ActionDone> {
+    return this.cgnatDone({ cnatSessionPurge: {} });
+  }
+  private async cgnatDone(req: ActionRequest): Promise<ActionDone> {
+    const r = await this.runAction(req, this.env.VRX_AGENT_TIMEOUT_MS);
+    if (r.done === undefined)
+      throw new ProblemError(
+        502,
+        'agent-error',
+        'Agent error',
+        'agent: the action ended without a result',
+      );
+    return r.done;
+  }
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
@@ -346,7 +384,15 @@ export class AgentClient implements OnModuleDestroy {
         if (!started) reject(agentProblem(e));
       });
       call.on('end', () => {
-        if (!started) reject(new ProblemError(502, 'agent-error', 'Agent error', 'agent: capture ended before it started'));
+        if (!started)
+          reject(
+            new ProblemError(
+              502,
+              'agent-error',
+              'Agent error',
+              'agent: capture ended before it started',
+            ),
+          );
       });
     });
   }

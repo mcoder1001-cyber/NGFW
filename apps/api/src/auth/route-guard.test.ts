@@ -52,6 +52,7 @@ const ADMIN_ONLY = new Set([
   'POST /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159: admin-issued enrolment
   'DELETE /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159
   // wave-BC: F-backup-restore
+  'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
   'GET /api/v1/state/logs', // F-unbound-chrony-syslog (review M2: the host journal; no SY1 anchor seeded)

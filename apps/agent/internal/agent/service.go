@@ -79,6 +79,7 @@ type Service struct {
 	vppVersion      string
 	vrfIDs          map[string]uint32           // VRF name → table id of the stored desired state
 	vrfDesc         map[string]string           // VRF name → description (D-073b)
+	pnatRef         *vrxv1.PnatConfig           // F-det44-map-dslite-cnat: stored nat.pnat (binding names/order for Retrieve)
 	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
 	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
 	storedDoc       *vrxv1.DesiredState         // stored desired state for DryRun's dynamic sources (TD-8; only with sources)
@@ -256,8 +257,13 @@ func (s *Service) refreshSnapshotLocked() {
 	for name, itf := range s.st.desired.GetInterfaces() {
 		ifs[name] = proto.Clone(itf).(*vrxv1.Interface)
 	}
+	var pnatRef *vrxv1.PnatConfig
+	if p := s.st.desired.GetNat().GetPnat(); p != nil {
+		pnatRef = proto.Clone(p).(*vrxv1.PnatConfig)
+	}
 	s.mu.Lock()
 	s.vrfDesc, s.routeDesc = vrfDesc, routeDesc
+	s.pnatRef = pnatRef
 	s.storedIfs = ifs
 	s.vrfIDs = ids
 	s.pendingTxn = s.st.meta.PendingTxnID
@@ -987,8 +993,9 @@ func contains(list []string, v string) bool {
 // from the stored desired state for objects that actually exist.
 func (s *Service) addDescriptions(ds *vrxv1.DesiredState) {
 	s.mu.Lock()
-	vrfDesc, routeDesc := s.vrfDesc, s.routeDesc
+	vrfDesc, routeDesc, pnatRef := s.vrfDesc, s.routeDesc, s.pnatRef
 	s.mu.Unlock()
+	desired.RelabelPnat(ds.GetNat().GetPnat(), pnatRef) // F-det44-map-dslite-cnat: names/order of the applied document
 	for name, v := range ds.GetVrfs() {
 		if d, ok := vrfDesc[name]; ok {
 			v.Description = proto.String(d)

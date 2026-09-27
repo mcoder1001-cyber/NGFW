@@ -30,7 +30,21 @@ import (
 const (
 	RuleCnatSnatAddress = "nat.det44-map-dslite-cnat-cnat-snat-address"
 	RuleCnatNat44       = "nat.det44-map-dslite-cnat-cnat-nat44-interface"
+	// RuleCnatFeature is the info notice naming the interfaces the cnat feature is derived for (questions Q4).
+	RuleCnatFeature = "nat.det44-map-dslite-cnat-cnat-interface-feature"
 )
+
+// InfoSink is the optional info level of a Sink (ISSUE_SEVERITY_INFO): notices that never block an Apply.
+type InfoSink interface {
+	Infof(pointer, rule, format string, a ...any)
+}
+
+// infof reports an info notice when s supports it (the agent's projection does; minimal test sinks may not).
+func infof(s Sink, pointer, rule, format string, a ...any) {
+	if in, ok := s.(InfoSink); ok {
+		in.Infof(pointer, rule, format, a...)
+	}
+}
 
 var cnatPolicies = map[string]string{"none": cnat.PolicyNone, "interface": cnat.PolicyIfPfx, "k8s": cnat.PolicyK8s}
 
@@ -108,6 +122,14 @@ func cnatBuild(s Sink, n *vrxv1.NatConfig) {
 			feat[spec.Interface] = true
 			natAdd(s, cnat.NameInterfaceFeature, spec.Interface, &cnat.InterfaceFeatureSpec{Interface: spec.Interface}, pt)
 		}
+	}
+	if len(feat) > 0 {
+		names := make([]string, 0, len(feat))
+		for n := range feat {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		infof(s, base+"/interfaces", RuleCnatFeature, "the cnat interface feature is enabled on %v (derived from snat.interfaces; no document leaf)", names)
 	}
 	for i, p := range sn.GetExcludePrefixes() {
 		pt := base + "/excludePrefixes/" + strconv.Itoa(i)

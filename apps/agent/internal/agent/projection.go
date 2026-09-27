@@ -147,6 +147,11 @@ func (p *projected) Warnf(pointer, rule, format string, a ...any) {
 	p.warnf(pointer, rule, format, a...)
 }
 
+// Infof implements desired.InfoSink (F-det44-map-dslite-cnat: ISSUE_SEVERITY_INFO notices).
+func (p *projected) Infof(pointer, rule, format string, a ...any) {
+	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_INFO, message: fmt.Sprintf(format, a...)})
+}
+
 func (p *projected) errorf(pointer, rule, format string, a ...any) {
 	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, message: fmt.Sprintf(format, a...)})
 }

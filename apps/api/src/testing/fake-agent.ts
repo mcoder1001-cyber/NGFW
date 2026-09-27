@@ -54,6 +54,7 @@ import { vrfStaticEcmpFake } from '../features/vrf-static-ecmp/fake.js';
 import { neighborsRaFake } from '../features/neighbors-ra/fake.js';
 import { nat44EdSessionsFake } from '../features/nat44-ed-sessions/fake.js';
 import { nat44Ei6466Nptv6Fake } from '../features/nat44-ei-64-66-nptv6/fake.js';
+import { det44MapDsliteCnatFake } from '../features/det44-map-dslite-cnat/fake.js'; // F-det44-map-dslite-cnat (P5)
 import { wireguardFakeState } from '../features/wireguard/fake.js'; // F-wireguard (P5)
 import { bgpFake } from '../features/bgp/fake.js'; // P12
 import { dhcpLeases } from '../features/kea-dhcp-relay/fake.js';
@@ -847,9 +848,15 @@ export class FakeAgent {
         const mc = (routing['multicast'] ?? {}) as Json;
         const igmp = (mc['igmp'] ?? {}) as Json;
         const groups: { interface: string; group: string; sources: string[] }[] = [];
-        for (const [ifName, iface] of Object.entries((igmp['interfaces'] as Record<string, Json>) ?? {})) {
-          for (const j of ((iface['joins'] as Json[] | undefined) ?? [])) {
-            groups.push({ interface: ifName, group: String(j['group'] ?? ''), sources: (j['sources'] as string[] | undefined) ?? [] });
+        for (const [ifName, iface] of Object.entries(
+          (igmp['interfaces'] as Record<string, Json>) ?? {},
+        )) {
+          for (const j of (iface['joins'] as Json[] | undefined) ?? []) {
+            groups.push({
+              interface: ifName,
+              group: String(j['group'] ?? ''),
+              sources: (j['sources'] as string[] | undefined) ?? [],
+            });
           }
         }
         const mroutes = ((mc['mroutes'] as Json[] | undefined) ?? []).map((r) => {
@@ -859,7 +866,9 @@ export class FakeAgent {
             group: String(r['group'] ?? ''),
             source: String(r['source'] ?? ''),
             accept: String(paths.find((p) => p['flags'] === 'accept')?.['interface'] ?? ''),
-            forward: paths.filter((p) => p['flags'] === 'forward').map((p) => String(p['interface'] ?? '')),
+            forward: paths
+              .filter((p) => p['flags'] === 'forward')
+              .map((p) => String(p['interface'] ?? '')),
             packets: '0',
             bytes: '0',
           };
@@ -891,7 +900,13 @@ export class FakeAgent {
           retrievedAt: new Date('2026-09-27T00:00:00.000Z'),
           neighbors,
           bindings: [],
-          sync: { lastSyncAt: undefined, installed: 0, conflicts: 0, lastError: '', source: ldp ? 'ldp-bindings' : '' },
+          sync: {
+            lastSyncAt: undefined,
+            installed: 0,
+            conflicts: 0,
+            lastError: '',
+            source: ldp ? 'ldp-bindings' : '',
+          },
         });
       },
       pppoeReconnect: (call, cb) => {
@@ -910,6 +925,7 @@ export class FakeAgent {
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
       // wave-BC: F-det44-map-dslite-cnat
+      ...det44MapDsliteCnatFake(this), // Det44Sessions/Det44Lookup/CnatSessions + det44SessionClose/cnatSessionPurge
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-pki

@@ -29,6 +29,8 @@ import enAdvanced from './locales/en/advanced.json';
 import faAdvanced from './locales/fa/advanced.json';
 // Feature namespaces (locale namespace = task slug): the en and fa import under the feature's anchor (wave-A-hotspots W3).
 // wave-BC: F-det44-map-dslite-cnat
+import enDet44MapDsliteCnat from './locales/en/det44-map-dslite-cnat.json';
+import faDet44MapDsliteCnat from './locales/fa/det44-map-dslite-cnat.json';
 // wave-BC: F-tunnels
 import enTunnels from './locales/en/tunnels.json';
 import faTunnels from './locales/fa/tunnels.json';
@@ -181,6 +183,7 @@ export const NAMESPACES = [
   'advanced',
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
+  'det44-map-dslite-cnat',
   // wave-BC: F-tunnels
   'tunnels',
   // wave-BC: P10
@@ -288,6 +291,7 @@ const en = {
   advanced: enAdvanced,
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
+  'det44-map-dslite-cnat': enDet44MapDsliteCnat,
   // wave-BC: F-tunnels
   tunnels: enTunnels,
   // wave-BC: P10
@@ -392,6 +396,7 @@ const fa = {
   advanced: faAdvanced,
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
+  'det44-map-dslite-cnat': faDet44MapDsliteCnat,
   // wave-BC: F-tunnels
   tunnels: faTunnels,
   // wave-BC: P10

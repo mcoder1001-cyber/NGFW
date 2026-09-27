@@ -3536,7 +3536,7 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  state: running
+  state: review
   wbs: *id003
   prompt: ''
   id: TD-27

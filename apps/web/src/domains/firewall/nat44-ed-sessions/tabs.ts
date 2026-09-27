@@ -59,6 +59,14 @@ export const natTabs: readonly DomainTab[] = [
       default: (await import('../nat44-ei-64-66-nptv6/Nptv6Tab')).Nptv6Tab,
     })),
   },
+  // F-nat46 (unanchored; before the CGNAT group, next to the other IPv6 translators)
+  {
+    id: 'nat46',
+    labelKey: 'nat46:tab.nat46',
+    Component: lazy(async () => ({
+      default: (await import('../nat46/Nat46Tab')).Nat46Tab,
+    })),
+  },
   // wave-BC: F-det44-map-dslite-cnat
   {
     id: 'cgnat',

@@ -31,6 +31,9 @@ import faAdvanced from './locales/fa/advanced.json';
 // wave-BC: F-det44-map-dslite-cnat
 import enDet44MapDsliteCnat from './locales/en/det44-map-dslite-cnat.json';
 import faDet44MapDsliteCnat from './locales/fa/det44-map-dslite-cnat.json';
+// F-nat46 (unanchored)
+import enNat46 from './locales/en/nat46.json';
+import faNat46 from './locales/fa/nat46.json';
 // wave-BC: F-tunnels
 import enTunnels from './locales/en/tunnels.json';
 import faTunnels from './locales/fa/tunnels.json';
@@ -182,6 +185,7 @@ export const NAMESPACES = [
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   'det44-map-dslite-cnat',
+  'nat46', // F-nat46 (unanchored)
   // wave-BC: F-tunnels
   'tunnels',
   // wave-BC: P10
@@ -289,6 +293,7 @@ const en = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   'det44-map-dslite-cnat': enDet44MapDsliteCnat,
+  nat46: enNat46, // F-nat46 (unanchored)
   // wave-BC: F-tunnels
   tunnels: enTunnels,
   // wave-BC: P10
@@ -393,6 +398,7 @@ const fa = {
   // Feature namespaces: one line under the feature's anchor.
   // wave-BC: F-det44-map-dslite-cnat
   'det44-map-dslite-cnat': faDet44MapDsliteCnat,
+  nat46: faNat46, // F-nat46 (unanchored)
   // wave-BC: F-tunnels
   tunnels: faTunnels,
   // wave-BC: P10

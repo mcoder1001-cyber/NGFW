@@ -1,0 +1,15 @@
+{
+  "tab": { "nat46": "NAT46" },
+  "intro": "NAT46 (stateless, 1:1): IPv4 clients reach an IPv6-only server through an IPv4 service address. Clients appear on the IPv6 side under the client prefix (a /96). Translation runs on the listed interfaces, IPv4- and IPv6-facing.",
+  "loading": "Loading…",
+  "saved": "Saved to the candidate configuration — commit to apply.",
+  "save": "Save",
+  "reset": "Reset",
+  "client": {
+    "title": "Client address",
+    "help": "The IPv6 source address the server sees for an IPv4 client (running configuration).",
+    "ipv4": "IPv4 client",
+    "show": "Show",
+    "result": "{{ipv4}} appears as {{ipv6}}"
+  }
+}

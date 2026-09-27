@@ -1343,16 +1343,16 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.6
   scope: GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE
   files_owned: '- gap-only (DF-6 built them): apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/**, docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md'
-  branch: ''
+  branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: ''
-  started: ''
+  owner: cloud session modest-keller
+  started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md'
 - id: F-pki

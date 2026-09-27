@@ -154,6 +154,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     { id: 'revisions', path: '/system/revisions', labelKey: 'nav:revisions', fallbackLabel: 'Revisions', available: true },
     // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack):
     // wave-BC: F-restconf-yang
+    { id: 'restconf-yang', path: '/system/restconf', labelKey: 'restconf-yang:nav', fallbackLabel: 'RESTCONF / YANG', available: true },
     // wave-BC: F-aaa
     // wave-BC: F-backup-restore
     // wave-BC: P10

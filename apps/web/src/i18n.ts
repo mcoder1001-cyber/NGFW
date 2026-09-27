@@ -86,6 +86,8 @@ import faDashboard from './locales/fa/dashboard.json';
 import enLicensing from './locales/en/licensing.json';
 import faLicensing from './locales/fa/licensing.json';
 // wave-BC: F-restconf-yang
+import enRestconfYang from './locales/en/restconf-yang.json';
+import faRestconfYang from './locales/fa/restconf-yang.json';
 // wave-BC: F-ha-state-sync
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
@@ -211,6 +213,7 @@ export const NAMESPACES = [
   // wave-BC: F-licensing
   'licensing',
   // wave-BC: F-restconf-yang
+  'restconf-yang',
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
@@ -312,6 +315,7 @@ const en = {
   // wave-BC: F-licensing
   licensing: enLicensing,
   // wave-BC: F-restconf-yang
+  'restconf-yang': enRestconfYang,
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
@@ -410,6 +414,7 @@ const fa = {
   // wave-BC: F-licensing
   licensing: faLicensing,
   // wave-BC: F-restconf-yang
+  'restconf-yang': faRestconfYang,
   // wave-BC: F-ha-state-sync
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images

@@ -60,6 +60,21 @@ slot prefix `w7`, and stopped/removed both afterwards. No freeradius/slapd/IdP: 
 responder, LDAP goes through the ldapts client seam (fake directory), OIDC against an in-process fake IdP (real
 HTTP discovery/JWKS/token endpoint, RS256 ID tokens).
 
+## Gates (pasted)
+`npx turbo run lint typecheck test --concurrency=1 --filter=@ngfw/api --filter=@ngfw/web`:
+```
+@ngfw/api:test:  Test Files  58 passed (58)
+@ngfw/api:test:       Tests  348 passed (348)
+@ngfw/web:test:  Test Files  90 passed (90)
+@ngfw/web:test:       Tests  523 passed (523)
+ Tasks:    19 successful, 19 total
+```
+PostgreSQL e2e (throw-away cluster, prefix w7): aaa-login 8/8, aaa-oidc 4/4, aaa 3/3; the auth regression suites
+(auth, td2*, td4*, td10b*, sec-auth, dev-weak) are green. auto-block "expires a block" failed once and passed on a
+rerun (a timing flake in a test this branch does not touch). Schema 1558/1558; the agent contracttest is ok.
+packages/proto desired-state "13 root keys" already fails on main (the `security` key). `tools/ci.sh check`:
+gitleaks finds 5 generic-api-key hits, all in commits already on main, none in this branch.
+
 ## Out of scope (not built)
 TACACS+ and SAML backends (`order: [tacacs]` is skipped at login; test route 501); `GET /state/aaa/servers`
 reachability chips; SchemaForm AAA settings page (settings stay in the Management domain editor); QR-code rendering

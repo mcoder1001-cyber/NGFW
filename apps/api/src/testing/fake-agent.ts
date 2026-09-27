@@ -25,8 +25,6 @@ import {
   type InterfaceState,
   type InterfaceStateRequest,
   type PppoeSessionState,
-  type PppoeReconnectRequest,
-  type PppoeReconnectResponse,
   type InterfaceStateResponse,
   IssueSeverity,
   ObjectResultCode,

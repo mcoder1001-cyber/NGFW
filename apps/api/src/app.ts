@@ -112,6 +112,9 @@ export async function configureApp(app: NestFastifyApplication): Promise<void> {
   // Feature content-type parsers (SY2): register from the feature's own module first
   // (HttpAdapterHost in onModuleInit, before `ready`); a line here is the fallback only.
   // wave-BC: F-restconf-yang
+  for (const type of ['application/yang-data+json', 'application/yang-patch+json']) {
+    fastify.addContentTypeParser(type, { parseAs: 'string' }, json);
+  }
   // wave-BC: F-backup-restore
   await app.register(fastifyWebsocket as never, {
     options: {

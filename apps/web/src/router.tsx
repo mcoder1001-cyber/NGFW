@@ -91,6 +91,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-hardening-lite
         // wave-BC: F-aaa
         // wave-BC: F-restconf-yang
+        { path: 'system/restconf', lazy: async () => ({ Component: (await import('./domains/system/restconf-yang/RestconfYangPage')).RestconfYangPage }) },
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore

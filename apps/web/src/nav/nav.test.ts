@@ -104,6 +104,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'revisions',
       // Non-domain system items, one per S5 task (wave-BC-numbers.md S5 pack) + WEB-2:
       // wave-BC: F-restconf-yang
+      'restconf-yang',
       // wave-BC: F-aaa
       // wave-BC: F-backup-restore
       // wave-BC: P10

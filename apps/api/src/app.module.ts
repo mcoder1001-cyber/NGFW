@@ -48,6 +48,7 @@ import { dashboardPromAlarmsFeature } from './features/dashboard-prom-alarms/ind
 import { multiwanFeature } from './features/multiwan/index.js'; // F-multiwan (unanchored)
 import { aaaFeature } from './features/aaa/index.js'; // wave-BC: F-aaa
 import { autoBlockFeature } from './features/auto-block/index.js'; // F-bruteforce-block (unanchored)
+import { restconfYangFeature } from './features/restconf-yang/index.js'; // wave-BC: F-restconf-yang
 // wave-BC: F-qos-flat
 import { qosFlatFeature } from './features/qos-flat/index.js';
 // wave-BC: F-host-stack
@@ -212,6 +213,7 @@ export class AppModule {
         ...multiwanFeature.controllers, // F-multiwan (unanchored)
         ...aaaFeature.controllers, // wave-BC: F-aaa
         ...autoBlockFeature.controllers, // F-bruteforce-block (unanchored)
+        ...restconfYangFeature.controllers, // wave-BC: F-restconf-yang
         // wave-A: F-host-acl-nftables
         ...hostAclNftablesFeature.controllers,
         // wave-A: F-nat44-ed-sessions
@@ -266,6 +268,7 @@ export class AppModule {
         ...dashboardPromAlarmsFeature.providers, // wave-BC: F-dashboard-prom-alarms
         ...aaaFeature.providers, // wave-BC: F-aaa
         ...autoBlockFeature.providers, // F-bruteforce-block (unanchored)
+        ...restconfYangFeature.providers, // wave-BC: F-restconf-yang
         // wave-BC: F-qos-flat
         ...qosFlatFeature.providers,
         // wave-BC: F-host-stack

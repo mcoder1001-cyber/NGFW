@@ -1,0 +1,76 @@
+module vrx-system {
+  yang-version 1.1;
+  namespace "urn:vrx:system";
+  prefix vrx-system;
+
+  organization "VRX";
+  contact "https://vrx.dev";
+  description "Configuration of the 'system' domain, generated from the VRX Zod schema (F-restconf-yang).";
+
+  revision 2026-01-01 {
+    description "Generated from the VRX schema.";
+  }
+
+  container system {
+    description "Hostname, timezone, login banners and DNS client settings.";
+    leaf hostname {
+      type string {
+        pattern "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+        length "1..253";
+      }
+      default "vrx";
+      description "RFC 1123 host name, e.g. vrx-a or vrx-a.lab.example";
+    }
+    leaf timezone {
+      type string {
+        pattern "[A-Z][A-Za-z0-9_+-]*(/[A-Z0-9][A-Za-z0-9_+-]*)*";
+        length "0..64";
+      }
+      default "UTC";
+      description "IANA name, e.g. Asia/Tehran";
+    }
+    container banner {
+      leaf login {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..4096";
+        }
+        description "shown before authentication (SSH issue, web login page)";
+      }
+      leaf motd {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..4096";
+        }
+        description "shown after a successful login";
+      }
+    }
+    container dns {
+      leaf-list servers {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        description "upstream resolvers for the system itself";
+      }
+      leaf-list searchDomains {
+        type string {
+          pattern "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+          length "1..253";
+        }
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "VRF used to reach the name servers";
+      }
+    }
+  }
+}

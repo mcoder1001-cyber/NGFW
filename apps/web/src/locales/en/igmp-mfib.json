@@ -1,0 +1,23 @@
+{
+  "nav": "Multicast",
+  "title": "Multicast (IGMP / mFIB / PIM)",
+  "intro": "Live IPv4 multicast state: IGMP group memberships, the VPP multicast FIB, and PIM neighbours. Configure IGMP interfaces, static routes and PIM under Config → Routing → Multicast.",
+  "refresh": "Refresh",
+  "loading": "Loading multicast state",
+  "agentError": "Live multicast state is unavailable: {{error}}",
+  "groups": {
+    "title": "IGMP group memberships",
+    "empty": "No group memberships.",
+    "col": { "interface": "Interface", "group": "Group", "sources": "Sources" }
+  },
+  "mroutes": {
+    "title": "Multicast FIB (mroutes)",
+    "empty": "No multicast routes.",
+    "col": { "vrf": "VRF", "group": "Group", "source": "Source", "accept": "Accept (in)", "forward": "Forward (out)" }
+  },
+  "pim": {
+    "title": "PIM neighbours",
+    "empty": "No PIM neighbours.",
+    "col": { "interface": "Interface", "address": "Address", "uptime": "Uptime (s)" }
+  }
+}

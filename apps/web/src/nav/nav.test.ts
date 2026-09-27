@@ -48,6 +48,7 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'ospf', // F-ospf (routing group, pushed first among the wave-BC routing items)
       'isis-rip', // F-isis-rip (routing group, after ospf)
       'mpls', // F-mpls-srmpls (routing group, pushed before neighbors/pbr/bgp)
+      'multicast', // F-igmp-mfib (routing group, after mpls)
       // wave-A: F-neighbors-ra
       'neighbors',
       // wave-A: F-rpf-adl-pbr

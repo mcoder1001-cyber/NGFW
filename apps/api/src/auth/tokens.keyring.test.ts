@@ -10,7 +10,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { tmpdir, userInfo } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../infra/bus.js';
@@ -41,14 +41,19 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
 
   it('signs with the newest key (kid header); rotation keeps tokens of the previous key valid, the next one drops them', async () => {
     const file = join(dir, 'ring1');
+    // The fixture belongs to the test process; use that account as the configured API user.
+    // Product root-only rotation and foreign-owner checks have their own test below.
+    const apiUser = userInfo().username;
     write(file, `# ring\n${key()}\n`);
+    const ownerUid = statSync(file).uid;
     const before = tokens(file);
     const t1 = await before.signAccess(claims);
     const kid1 = decodeProtectedHeader(t1).kid;
     expect(kid1).toMatch(/^[0-9a-f]{16}$/);
 
-    expect(rotateKeyFile(file)).toMatchObject({ keys: 2, created: false, uid: 0 });
+    expect(rotateKeyFile(file, apiUser)).toMatchObject({ keys: 2, created: false, uid: ownerUid });
     expect(statSync(file).mode & 0o777).toBe(0o600);
+    expect(statSync(file).uid).toBe(ownerUid);
     const after = tokens(file);
     const t2 = await after.signAccess(claims);
     expect(decodeProtectedHeader(t2).kid).not.toBe(kid1);
@@ -63,7 +68,7 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
       decodeProtectedHeader(t2).kid,
     );
 
-    rotateKeyFile(file); // ring: [new, key of t2] — t1's key is gone
+    rotateKeyFile(file, apiUser); // ring: [new, key of t2] — t1's key is gone
     const third = tokens(file);
     expect(await third.verifyAccess(t1)).toBeNull();
     expect(await third.verifyAccess(t2)).toMatchObject({ id: 7 });

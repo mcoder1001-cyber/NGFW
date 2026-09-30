@@ -105,9 +105,33 @@ All 647 web/UI-kit tests pass. Generated contracts, dependency manifests and loc
 remain unchanged. The complete repository `quick` gate was initially blocked by missing
 generation tools; after installing them, generation, the changed-package checks and the
 whole agent unit suite were run separately as recorded above. A full `quick`/`full` gate
-completion is not claimed.
+completion was not claimed at that stage; the subsequent merge validation below
+completed the entire `quick` gate.
 
 Live VPP, physical NIC takeover, reboot, routing-daemon integration and browser E2E
 against a running appliance are **not run**. Unit-mode Go integration tests remain
 opt-in/skipped. No live network configuration was changed, no commit or merge was made,
 and no deployment or environment publication was performed during that validation stage.
+
+## Merge validation (2026-09-30)
+
+The owner explicitly requested merging all completed changes. The complete
+`tools/ci.sh quick --base origin/main` gate passed on `cf8ab87` before merging:
+35 Turbo tasks successful, agent and CLI lint/race tests/build successful, all
+test-module unit checks successful, ShellCheck successful, and 149 apply-startup
+fake-host checks successful across four shards. Validation logs are in
+`/workspace/ngfw-validation/merge-ci/NGFW-20260930-204407-121849`.
+
+The gate exposed existing issues that were fixed without disabling checks:
+the JWT rotation fixture now uses the actual test account as its configured API
+user and verifies the original owner; the SNMP fixture checks the port range
+before conversion; the CLI operations table was regenerated from the current
+OpenAPI document; optional repository lookup in the deployment script uses an
+explicit conditional.
+
+This cloud container's PID 1 is `tail`, which leaves orphaned child processes as
+zombies. The gate ran under a local Linux child-subreaper wrapper so the unchanged
+holder-exit assertions see correctly reaped processes. No test assertions were
+removed or bypassed. This is an execution-environment adjustment, not a product
+change. Live network takeover, automatic TAP activation and appliance deployment
+remain outside the completed implementation and validation.

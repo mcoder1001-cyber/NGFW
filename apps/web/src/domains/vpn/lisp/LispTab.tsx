@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -72,7 +73,7 @@ export function LispTab() {
               <TableRow key={`${r.kind}:${r.id}`}>
                 <TableCell>{t(`kind.${r.kind}`)}</TableCell>
                 <TableCell dir="ltr">{r.id}</TableCell>
-                <TableCell dir="ltr">{r.detail}</TableCell>
+                <TableCell dir="ltr">{serviceText(r.detail)}</TableCell>
                 <TableCell>
                   <StatusChip size="small" status={r.status} label={t(r.labelKey)} />
                 </TableCell>

@@ -1,3 +1,4 @@
+import { serviceText } from '../product-text';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import HistoryIcon from '@mui/icons-material/History';
 import Alert from '@mui/material/Alert';
@@ -119,7 +120,11 @@ function LostAnswerAlert({ lost }: { lost: LostAnswer }) {
     case 'pending':
       return <Alert severity="warning">{t('rollback.outcome.pending', { txnId: lost.txnId })}</Alert>;
     case 'unknown':
-      return <Alert severity="error">{t('rollback.outcome.unknown', { reason: lost.reason })}</Alert>;
+      return (
+        <Alert severity="error">
+          {t('rollback.outcome.unknown', { reason: serviceText(lost.reason) })}
+        </Alert>
+      );
     default:
       return <Alert severity="info">{t('rollback.outcome.notApplied')}</Alert>;
   }

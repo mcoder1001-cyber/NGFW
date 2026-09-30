@@ -21,16 +21,11 @@ export const bgpTabs: readonly DomainTab[] = [
     labelKey: 'bgp:tab.routeMaps',
     Component: lazy(async () => ({ default: (await import('./PolicyTab')).RouteMapsTab })),
   },
-  {
-    id: 'pairs',
-    labelKey: 'bgp:tab.pairs',
-    Component: lazy(async () => ({ default: (await import('./PairsTab')).PairsTab })),
-  },
 ];
 
 const ROUTING: RootKey = 'routing';
 
-/** `/routing/bgp`: BGP (global, neighbours with live state, peer groups), prefix lists, route maps, linux-cp pairs. */
+/** `/routing/bgp`: BGP (global, neighbours with live state, peer groups), prefix lists and route maps. */
 export function BgpPage() {
   return <DomainTabsPage domainKey={ROUTING} ns={NS} tabs={bgpTabs} />;
 }

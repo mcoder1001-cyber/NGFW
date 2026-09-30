@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -221,7 +222,7 @@ function Frame({ ed, children }: { ed: Editor; children: ReactNode }) {
       )}
       {ed.state.data?.countersError && (
         <Alert severity="warning" sx={{ mb: 1 }}>
-          {t('state.countersError', { error: ed.state.data.countersError })}
+          {t('state.countersError', { error: serviceText(ed.state.data.countersError) })}
         </Alert>
       )}
       {children}

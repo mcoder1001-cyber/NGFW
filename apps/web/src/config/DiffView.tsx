@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { parsePointer } from '@ngfw/schema';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { diffPointerLabel, diffValueText } from './diff-presentation';
 import { refineChanges } from './refine';
 
 export interface DiffChange {
@@ -50,8 +51,18 @@ export function countOps(changes: readonly DiffChange[]): Record<DiffChange['op'
   return out;
 }
 
-function Value({ value, label }: { value: unknown; label: string }) {
-  const text = typeof value === 'string' ? JSON.stringify(value) : JSON.stringify(value, null, 2);
+function Value({
+  value,
+  pointer,
+  label,
+  language,
+}: {
+  value: unknown;
+  pointer: string;
+  label: string;
+  language: string;
+}) {
+  const text = diffValueText(value, pointer, language);
   const multiline = text !== undefined && text.includes('\n');
   return (
     <Box
@@ -81,8 +92,14 @@ function Value({ value, label }: { value: unknown; label: string }) {
  * replacements are refined into per-item changes on the schema's item key (`refineChanges`). Values
  * come from the API already redacted (D-070): write-only members such as password hashes never appear.
  */
-export function DiffView({ changes: raw, dense = false }: { changes: readonly DiffChange[]; dense?: boolean }) {
-  const { t } = useTranslation(['config', 'nav']);
+export function DiffView({
+  changes: raw,
+  dense = false,
+}: {
+  changes: readonly DiffChange[];
+  dense?: boolean;
+}) {
+  const { t, i18n } = useTranslation(['config', 'nav']);
   const changes = useMemo(() => refineChanges(raw), [raw]);
   const groups = useMemo(() => {
     const m = new Map<string, DiffChange[]>();
@@ -126,8 +143,16 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
                   <Stack direction="row" gap={1} alignItems="center" flexWrap="wrap">
                     <Chip size="small" color={color} icon={<Icon />} label={t(`diff.op.${key}`)} />
                     {c.pointer && (
-                      <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: '0.8125rem', wordBreak: 'break-all' }}>
-                        {c.pointer}
+                      <Box
+                        component="code"
+                        dir="ltr"
+                        sx={{
+                          fontFamily: (th) => th.vrx.monoFontFamily,
+                          fontSize: '0.8125rem',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {diffPointerLabel(c.pointer)}
                       </Box>
                     )}
                   </Stack>
@@ -146,7 +171,12 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
                       <Typography variant="caption" color="text.secondary" sx={{ minInlineSize: 48 }}>
                         {t('diff.from')}
                       </Typography>
-                      <Value value={c.from} label={t('diff.from')} />
+                      <Value
+                        value={c.from}
+                        pointer={c.pointer}
+                        label={t('diff.from')}
+                        language={i18n.language}
+                      />
                     </Stack>
                   )}
                   {!c.redacted && c.op !== 'remove' && (
@@ -154,7 +184,12 @@ export function DiffView({ changes: raw, dense = false }: { changes: readonly Di
                       <Typography variant="caption" color="text.secondary" sx={{ minInlineSize: 48 }}>
                         {t('diff.to')}
                       </Typography>
-                      <Value value={c.to} label={t('diff.to')} />
+                      <Value
+                        value={c.to}
+                        pointer={c.pointer}
+                        label={t('diff.to')}
+                        language={i18n.language}
+                      />
                     </Stack>
                   )}
                 </Box>

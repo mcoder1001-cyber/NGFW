@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import CheckCircleOutlined from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
 import InfoOutlined from '@mui/icons-material/InfoOutlined';
@@ -259,7 +260,7 @@ export function DashboardOverview() {
     sys?.runningRevision != null
       ? t('banner.revision', { id: fmt.integer(sys.runningRevision) })
       : null,
-    agent.vppVersion ? t('banner.engine', { version: agent.vppVersion }) : null,
+    agent.vppVersion ? t('banner.engine', { version: serviceText(agent.vppVersion) }) : null,
   ]
     .filter(Boolean)
     .join(t('banner.separator'));
@@ -607,7 +608,7 @@ export function DashboardOverview() {
                         ? t('engine.main')
                         : id.kind === 'worker'
                           ? t('engine.worker', { n: fmt.integer(id.n) })
-                          : id.name;
+                          : serviceText(id.name);
                     return (
                       <Box component="li" key={w.worker}>
                         <Stack direction="row" justifyContent="space-between">
@@ -846,10 +847,13 @@ export function DashboardOverview() {
                       <Typography variant="body2">
                         {EVENT_CODES.has(e.code)
                           ? t(`events.codes.${e.code}`)
-                          : engineWording(e.message, t('engine.word'))}
+                          : serviceText(engineWording(e.message, t('engine.word')))}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {t('events.meta', { when: fmt.relative(e.ts), subsystem: e.subsystem })}
+                        {t('events.meta', {
+                          when: fmt.relative(e.ts),
+                          subsystem: serviceText(e.subsystem),
+                        })}
                       </Typography>
                     </Box>
                   </Stack>

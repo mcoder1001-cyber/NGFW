@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -148,7 +149,7 @@ export function GlobalBlockingPage() {
       {error !== null && <ProblemAlert error={error} sx={{ mb: 1 }} />}
       {s?.countersError && (
         <Alert severity="info" sx={{ mb: 1 }}>
-          {t('countersUnavailable', { reason: s.countersError })}
+          {t('countersUnavailable', { reason: serviceText(s.countersError) })}
         </Alert>
       )}
       {s && s.lists.length === 0 && <Alert severity="info">{t('empty')}</Alert>}
@@ -291,7 +292,7 @@ function ListRow({
       </TableCell>
       <TableCell>
         {f ? (
-          <Tooltip title={f.lastError ?? ''}>
+          <Tooltip title={serviceText(f.lastError ?? '')}>
             <Stack gap={0.5} alignItems="flex-start">
               <Chip
                 size="small"

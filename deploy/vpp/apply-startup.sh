@@ -1085,7 +1085,9 @@ main() {
         VRX_MGMT_PEERS="${VRX_MGMT_PEERS:+$VRX_MGMT_PEERS }${SSH_CONNECTION%% *}"
         ((!FOREGROUND || CONSOLE)) || die "--foreground over SSH would die with the session; run detached (default) or pass --console on a real console"
       fi
-      [[ $VRX_APPLY_MODE == product ]] || GATE_REPO="$(cd "$HERE/../.." 2>/dev/null && pwd || true)"
+      if [[ $VRX_APPLY_MODE != product ]]; then
+        GATE_REPO="$(if cd "$HERE/../.." 2>/dev/null; then pwd; fi)"
+      fi
       if ((APPLY)); then
         [[ $EXPECT =~ ^[0-9a-f]{64}$ ]] || die "--apply needs --expect-sha256 <live sum printed by the dry run>"
         [[ $EXPECT_NEW =~ ^[0-9a-f]{64}$ ]] || die "--apply needs --expect-new-sha256 <rendered sum printed by the dry run>"

@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -50,7 +51,7 @@ export function WanGroupsPage() {
       {q.isError && <ProblemAlert error={q.error} sx={{ mb: 1 }} />}
       {q.data?.agentError && (
         <Alert severity="info" sx={{ mb: 1 }}>
-          {t('agentError', { error: q.data.agentError })}
+          {t('agentError', { error: serviceText(q.data.agentError) })}
         </Alert>
       )}
       {q.data && groups.length === 0 && !q.data.agentError && (

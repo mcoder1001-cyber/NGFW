@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import CloseIcon from '@mui/icons-material/Close';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -62,8 +63,13 @@ export function FqdnCell({ item, applied, unavailable }: { item: FqdnItem | unde
           {when}
         </Typography>
         {item.error && (
-          <Tooltip title={<bdi dir="ltr">{item.error}</bdi>}>
-            <Chip size="small" color={item.addresses.length > 0 ? 'warning' : 'error'} variant="outlined" label={item.addresses.length > 0 ? t('fqdn.keptLastGood') : t('fqdn.failed')} />
+          <Tooltip title={<bdi dir="ltr">{serviceText(item.error)}</bdi>}>
+            <Chip
+              size="small"
+              color={item.addresses.length > 0 ? 'warning' : 'error'}
+              variant="outlined"
+              label={item.addresses.length > 0 ? t('fqdn.keptLastGood') : t('fqdn.failed')}
+            />
           </Tooltip>
         )}
       </Stack>

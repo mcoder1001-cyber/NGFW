@@ -13,7 +13,7 @@
   "progress": "پیشرفت ضبط",
   "started": "ضبط {{id}} آغاز شد",
   "interface": "رابط",
-  "interfaceHelp": "نام رابط VPP یا \"any\"",
+  "interfaceHelp": "نام رابط صفحهٔ داده یا \"any\"",
   "direction": "جهت",
   "dir": {
     "both": "دریافت و ارسال",

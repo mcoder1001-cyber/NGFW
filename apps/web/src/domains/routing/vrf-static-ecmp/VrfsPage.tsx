@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -40,7 +41,7 @@ function LiveRoutes({ vrf }: { vrf: string }) {
     return q.error instanceof ApiError && q.error.status === 404 ? (
       <Chip size="small" color="warning" variant="outlined" label={t('vrfs.notInDataplane')} />
     ) : (
-      <Tooltip title={q.error.message}>
+      <Tooltip title={serviceText(q.error.message)}>
         <Chip size="small" variant="outlined" label={t('vrfs.fibUnknown')} />
       </Tooltip>
     );

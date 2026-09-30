@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -232,7 +233,7 @@ function DaemonChip({ status }: { status: ServerStatus | undefined }) {
         size="small"
         status={ST_DEGRADED}
         label={t('status.error')}
-        title={status.error}
+        title={serviceText(status.error)}
       />
     );
   if (status.actionRequired === 'start')

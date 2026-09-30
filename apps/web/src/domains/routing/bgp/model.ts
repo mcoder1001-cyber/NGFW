@@ -75,17 +75,6 @@ export function policyItemSchema(key: 'prefixLists' | 'routeMaps'): JsonSchema {
   );
 }
 
-/** `interfaces.<name>.lcp`. */
-export function lcpSchema(): JsonSchema {
-  const item = need(
-    domainSchemas.interfaces.additionalProperties as JsonSchema | undefined,
-    'interfaces item',
-  );
-  const lcp = props(item)['lcp'];
-  const variants = (lcp?.anyOf ?? lcp?.oneOf) as JsonSchema[] | undefined;
-  return need(variants?.find((v) => v.type === 'object') ?? lcp, 'interfaces.<n>.lcp');
-}
-
 /** Object names of the document (primitives.ts objectName). */
 export const OBJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/;
 

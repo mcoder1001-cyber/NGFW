@@ -1,5 +1,4 @@
 import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
@@ -15,6 +14,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import { useProductWording } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -98,6 +98,7 @@ const gib = (bytes: string | undefined) => {
  */
 export function DataplanePage() {
   const { t } = useTranslation([NS, 'config']);
+  const wording = useProductWording();
   const perms = usePermissions();
   const cand = useCandidateDataplane();
   const running = useRunningDataplane();
@@ -213,8 +214,7 @@ export function DataplanePage() {
                   <TableRow>
                     <TableCell>{t('installed.file')}</TableCell>
                     <TableCell dir="ltr">
-                      {st.startupPath}
-                      {!st.startupPresent && ` (${t('installed.missing')})`}
+                      {t(st.startupPresent ? 'installed.present' : 'installed.missing')}
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -250,7 +250,7 @@ export function DataplanePage() {
             )}
             {st?.error && (
               <Alert severity="info" sx={{ mt: 1 }}>
-                {st.error}
+                {wording(st.error)}
               </Alert>
             )}
           </Paper>
@@ -268,35 +268,12 @@ export function DataplanePage() {
               </Alert>
               {preview.data.warnings.map((w) => (
                 <Alert key={w} severity="info" dir="ltr">
-                  {w}
+                  {wording(w)}
                 </Alert>
               ))}
-              {preview.data.diff && (
-                <Box>
-                  <Typography component="h4" variant="subtitle2">
-                    {t('preview.diff', { path: preview.data.startupPath })}
-                  </Typography>
-                  <Box
-                    component="pre"
-                    dir="ltr"
-                    data-testid="dp-diff"
-                    sx={{ overflowX: 'auto', fontSize: 12 }}
-                  >
-                    {preview.data.diff}
-                  </Box>
-                </Box>
-              )}
-              <Box>
-                <Typography component="h4" variant="subtitle2">
-                  {t('preview.rendered')}
-                </Typography>
-                <Box component="pre" dir="ltr" sx={{ overflowX: 'auto', fontSize: 12 }}>
-                  {preview.data.rendered}
-                </Box>
-                <Typography variant="caption" color="text.secondary" dir="ltr">
-                  {t('preview.sha256', { sum: preview.data.sha256 })}
-                </Typography>
-              </Box>
+              <Typography variant="body2" data-testid="dp-preview-summary">
+                {t('preview.summary')}
+              </Typography>
             </Stack>
           )}
         </DialogContent>

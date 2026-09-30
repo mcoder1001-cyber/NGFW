@@ -1,3 +1,4 @@
+import { serviceText } from '../product-text';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -230,8 +231,10 @@ export function SyncBanner() {
     <Stack gap={1} sx={{ mb: 2 }} data-testid="sync-banner">
       {sync.state !== 'in-sync' && (
         <Alert severity="error">
-          <AlertTitle>{t(`sync.title.${sync.state === 'degraded' ? 'degraded' : 'unknown'}`)}</AlertTitle>
-          {t('sync.body', { reason: sync.reason })}
+          <AlertTitle>
+            {t(`sync.title.${sync.state === 'degraded' ? 'degraded' : 'unknown'}`)}
+          </AlertTitle>
+          {t('sync.body', { reason: serviceText(sync.reason) })}
         </Alert>
       )}
       {agentDown && (

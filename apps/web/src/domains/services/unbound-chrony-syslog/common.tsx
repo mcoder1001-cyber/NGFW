@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -33,7 +34,7 @@ export function DaemonStatus({
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
       <Typography variant="subtitle1" component="span">
-        {daemon}
+        {serviceText(daemon)}
       </Typography>
       {running !== undefined && (
         <Chip
@@ -49,7 +50,7 @@ export function DaemonStatus({
       )}
       {configPath && (
         <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
-          {configPath}
+          {serviceText(configPath)}
         </Typography>
       )}
       <Button
@@ -74,12 +75,12 @@ export function PendingActions({ actions }: { actions: readonly PendingAction[] 
       {actions.map((a) => (
         <div key={`${a.daemon}-${a.action}`}>
           {t('pending.line', {
-            daemon: a.daemon,
+            daemon: serviceText(a.daemon),
             action: t(`pending.action.${a.action}`, { defaultValue: a.action }),
-            unit: a.unit,
+            unit: serviceText(a.unit),
           })}
           {' — '}
-          {a.reason}
+          {serviceText(a.reason)}
         </div>
       ))}
     </Alert>
@@ -94,7 +95,7 @@ export function StateProblem({ error, partial }: { error: unknown; partial?: str
       {error ? <ProblemAlert error={error} /> : null}
       {partial ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {t('status.partial', { detail: partial })}
+          {t('status.partial', { detail: serviceText(partial) })}
         </Alert>
       ) : null}
     </>

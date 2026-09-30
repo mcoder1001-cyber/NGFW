@@ -1,3 +1,5 @@
+import { diffPointerLabel } from './diff-presentation';
+import { resultKeyText, serviceText } from '../product-text';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
@@ -57,12 +59,16 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
   return (
     <Alert severity="error" sx={sx} data-testid="problem">
       <AlertTitle>
-        {slugKey ? t(slugKey) : (b.title ?? t('problem.httpStatus', { status: error.status }))}
+        {slugKey
+          ? t(slugKey)
+          : b.title
+            ? serviceText(b.title)
+            : t('problem.httpStatus', { status: error.status })}
         {` (${error.status})`}
       </AlertTitle>
       {b.detail && (
         <Box sx={{ mb: 0.5 }} dir="auto">
-          {b.detail}
+          {serviceText(b.detail)}
         </Box>
       )}
       {lock?.owner && <Box>{t('problem.lockOwner', { owner: lock.owner })}</Box>}
@@ -71,10 +77,10 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
           {b.errors.map((e, i) => (
             <li key={`${e.pointer}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                {e.pointer || '/'}
+                {diffPointerLabel(e.pointer || '/')}
               </Box>
               {' — '}
-              {e.message}
+              {serviceText(e.message)}
             </li>
           ))}
         </Box>
@@ -84,14 +90,21 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
           {results.map((r, i) => (
             <li key={`${r.key ?? ''}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                {r.key ?? r.pointer}
+                {r.key !== undefined ? resultKeyText(r.key) : diffPointerLabel(r.pointer ?? '')}
               </Box>
-              {` ${r.code ?? ''}: ${r.message ?? ''}`}
+              {` ${serviceText(r.code ?? '')}: ${serviceText(r.message ?? '')}`}
             </li>
           ))}
         </Box>
       )}
-      {sync?.state && sync.state !== 'in-sync' && <Box sx={{ mt: 0.5 }}>{t('sync.inline', { state: t(`sync.state.${sync.state}`), reason: sync.reason ?? '' })}</Box>}
+      {sync?.state && sync.state !== 'in-sync' && (
+        <Box sx={{ mt: 0.5 }}>
+          {t('sync.inline', {
+            state: t(`sync.state.${sync.state}`),
+            reason: serviceText(sync.reason ?? ''),
+          })}
+        </Box>
+      )}
     </Alert>
   );
 }

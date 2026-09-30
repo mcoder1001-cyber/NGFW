@@ -1,3 +1,4 @@
+import { serviceText as productText } from '../../../product-text';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -207,7 +208,7 @@ function CheckResult({ result }: { result: ImportResult }) {
                   <TableCell>{e.line !== undefined ? n(e.line) : ''}</TableCell>
                   <TableCell>{e.column ? <Mono>{e.column}</Mono> : null}</TableCell>
                   <TableCell>
-                    <bdi>{e.message}</bdi>
+                    <bdi>{productText(e.message)}</bdi>
                   </TableCell>
                 </TableRow>
               ))}
@@ -226,7 +227,7 @@ function CheckResult({ result }: { result: ImportResult }) {
       {result.warnings.map((w, i) => (
         <Alert key={i} severity="warning">
           {w.line !== undefined ? `${t('import.lineNo', { line: n(w.line) })} ` : ''}
-          <bdi>{w.message}</bdi>
+          <bdi>{productText(w.message)}</bdi>
         </Alert>
       ))}
       {result.preview.length > 0 && (

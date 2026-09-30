@@ -3,7 +3,7 @@ import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Typography from '@mui/material/Typography';
 import { useTranslation } from 'react-i18next';
-import { UI_KIT_NS } from '../../i18n/index.js';
+import { UI_KIT_NS, useProductWording } from '../../i18n/index.js';
 import { useController, useFormContext, useWatch, type ReactNode } from './rhf.js';
 import { useSchemaFormContext } from '../context.js';
 import { formPathFor, toFormValue } from '../form-value.js';
@@ -207,14 +207,29 @@ function mergePrimitiveUnion(schema: JsonSchema, variants: JsonSchema[], hints: 
 }
 
 /** One registered field bound to a presentational input. */
-export function PrimitiveField({ schema, name, propPath, label, required, hints, readOnly }: BoundFieldProps) {
+export function PrimitiveField({
+  schema,
+  name,
+  propPath,
+  label,
+  required,
+  hints,
+  readOnly,
+}: BoundFieldProps) {
+  const wording = useProductWording();
   const ctx = useSchemaFormContext();
   const text = useSchemaText();
   const { field, fieldState } = useController({ name });
   const help = useHelpText(schema, hints, propPath);
-  const enumHints = useEnumHints(hints, propPath);
-  const placeholder = text.placeholder(propPath, typeof hints.placeholder === 'string' ? hints.placeholder : undefined);
-  const shownHints = placeholder === undefined || placeholder === hints.placeholder ? enumHints : { ...enumHints, placeholder };
+  const enumHints = useEnumHints(hints, propPath, schema);
+  const placeholder = text.placeholder(
+    propPath,
+    typeof hints.placeholder === 'string' ? hints.placeholder : undefined,
+  );
+  const shownHints =
+    placeholder === undefined || placeholder === hints.placeholder
+      ? enumHints
+      : { ...enumHints, placeholder };
   const err = fieldState.error?.message;
   // react-hook-form shows a field's mount-time value again once its value becomes `undefined` (useController → useWatch
   // falls back to the default), so a cleared input would snap back to its old text and typing would append to it.
@@ -232,7 +247,7 @@ export function PrimitiveField({ schema, name, propPath, label, required, hints,
       label={label}
       required={required}
       readOnly={readOnly}
-      error={typeof err === 'string' ? err : undefined}
+      error={typeof err === 'string' ? wording(err) : undefined}
       helperText={help}
       options={hints.widget === 'interface-picker' ? ctx.interfaceOptions : undefined}
     />

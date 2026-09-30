@@ -55,7 +55,7 @@
     "status": {
       "installed": "installed",
       "missing": "not in FIB",
-      "frr": "FRR programs it",
+      "frr": "Managed by routing service",
       "unknown": "unknown"
     },
     "statusHelp": "Installed: the prefix's best FIB source in its VRF is a static (API) route. A route shadowed by a better source for the same prefix shows as not in FIB. Read once a minute."
@@ -103,7 +103,7 @@
     }
   },
   "group": {
-    "vrf-static-ecmp": "Source VRF select, next-hop VRF, FRR"
+    "vrf-static-ecmp": "Source VRF select, next-hop VRF, routing service"
   },
   "field": {
     "id": {
@@ -158,8 +158,8 @@
       "help": "administrative distance (1–255)"
     },
     "viaFrr": {
-      "title": "Program via FRR",
-      "help": "FRR (staticd) programs this route instead of the agent, e.g. to redistribute it"
+      "title": "Use routing service",
+      "help": "Install this static route through the routing service so it can be redistributed to dynamic routing protocols"
     }
   }
 }

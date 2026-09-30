@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -306,15 +307,15 @@ function Body({
           </Stack>
           <Alert severity="info">{t('interfaces.writeOnlyNote')}</Alert>
           {whole.map((e) => (
-            <Alert key={e.message} severity="error">
-              {e.message}
+            <Alert key={serviceText(e.message)} severity="error">
+              {serviceText(e.message)}
             </Alert>
           ))}
           {issues
             .filter((e) => e.pointer !== prefix && !isShown(e.pointer, prefix))
             .map((e) => (
-              <Alert key={`${e.pointer}:${e.message}`} severity="error" dir="ltr">
-                {e.pointer} — {e.message}
+              <Alert key={`${e.pointer}:${serviceText(e.message)}`} severity="error" dir="ltr">
+                {e.pointer} — {serviceText(e.message)}
               </Alert>
             ))}
           {unmapped && <ProblemAlert error={error} />}

@@ -1,3 +1,5 @@
+import { diffPointerLabel } from '../../config/diff-presentation';
+import { serviceText } from '../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -68,7 +70,7 @@ function breadcrumbTrail(domainTitle: string, domainSchema: JsonSchema, segments
   for (let depth = 1; depth <= segments.length && parent; depth++) {
     const seg = segments[depth - 1]!;
     const here = resolveNode(domainSchema, segments.slice(0, depth));
-    const label = parent.record ? seg : (here?.schema.title ?? humanize(seg));
+    const label = parent.record ? seg : serviceText(here?.schema.title ?? humanize(seg));
     crumbs.push({ depth, label });
     parent = here;
   }
@@ -212,11 +214,11 @@ export function AdvancedEditorPage() {
           <AlertTitle>{t('warnings.title')}</AlertTitle>
           <Box component="ul" sx={{ m: 0, ps: 2 }}>
             {warningsHere.map((w, i) => (
-              <li key={`${w.pointer}:${i}`} dir="auto">
+              <li key={`${diffPointerLabel(w.pointer)}:${i}`} dir="auto">
                 <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                  {w.pointer}
+                  {diffPointerLabel(w.pointer)}
                 </Box>
-                {` — ${w.message}`}
+                {` — ${serviceText(w.message)}`}
               </li>
             ))}
           </Box>
@@ -391,7 +393,9 @@ function NodeEditor({
           <Stack direction="row" gap={1} flexWrap="wrap">
             {childKeys.map((key) => {
               const set = valueAt(value, [key]) !== undefined;
-              const label = resolveNode(domainSchema, [...segments, key])?.schema.title ?? humanize(key);
+              const label =
+                resolveNode(domainSchema, [...segments, key])?.schema.title ??
+                serviceText(humanize(key));
               return (
                 <Chip
                   key={key}

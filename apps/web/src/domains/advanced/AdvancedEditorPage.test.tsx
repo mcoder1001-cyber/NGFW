@@ -59,34 +59,72 @@ describe('advanced editor — record domains (a map of named entries)', () => {
 });
 
 describe('advanced editor — a record item (JSON-pointer subtree two levels deep)', () => {
-  it('reads and saves at the pointer\'s real depth (D-UDE-1), not the whole domain', { timeout: 60_000 }, async () => {
-    const api = installFakeApi();
-    // the exact node, not the whole `interfaces` domain — proof that the generic route now addresses the real
-    // depth (`/api/v1/config/candidate/interfaces/eth0`), not `/api/v1/config/candidate/interfaces` + a client-side
-    // walk.
-    api.on('GET /api/v1/config/candidate/interfaces/eth0', { body: eth0Config });
-    let patched: unknown;
-    api.on('PATCH /api/v1/config/interfaces/eth0', (_r, body) => {
-      patched = body;
-      return { body: { pointer: '/interfaces/eth0', before: null, after: null } };
-    });
-    api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
-      patched = body;
-      return { body: { pointer: '/interfaces', before: null, after: null } };
-    });
-    await signIn();
-    render(app('/config/interfaces/eth0'));
+  it.each([
+    [
+      'an existing automatic pair',
+      { hostIfName: 'route-custom', hostIfType: 'tun', netns: 'routing' },
+    ],
+    ['an absent automatic pair', undefined],
+  ])(
+    'preserves %s when saving adjacent interface settings',
+    { timeout: 60_000 },
+    async (_label, lcp) => {
+      const api = installFakeApi();
+      const candidate = { ...eth0Config, ...(lcp === undefined ? {} : { lcp }) };
+      api.on('GET /api/v1/config/candidate/interfaces/eth0', { body: candidate });
+      const patches: unknown[] = [];
+      api.on('PATCH /api/v1/config/interfaces/eth0', (_request, body) => {
+        patches.push(body);
+        return { body: { pointer: '/interfaces/eth0', before: null, after: null } };
+      });
+      await signIn();
+      render(app('/config/interfaces/eth0'));
+      const mtu = await screen.findByLabelText('MTU', {}, { timeout: 15_000 });
+      expect(screen.queryByText(/Linux pair|linux-cp/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /Linux pair|linux-cp/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByLabelText(/Linux interface|Host interface type|Network namespace/i),
+      ).not.toBeInTheDocument();
+      fireEvent.change(mtu, { target: { value: '1400' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
+      await waitFor(() => expect(patches).toEqual([{ mtu: 1400 }]));
+    },
+  );
 
-    const mtu = await screen.findByLabelText('MTU', {}, { timeout: 15_000 });
-    fireEvent.change(mtu, { target: { value: '1400' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
-    // exactly the item's own merge patch, at its own pointer — no more `{ eth0: { mtu: 1400 } }` wrapper
-    await waitFor(() => expect(patched).toEqual({ mtu: 1400 }));
+  it(
+    "reads and saves at the pointer's real depth (D-UDE-1), not the whole domain",
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi();
+      // the exact node, not the whole `interfaces` domain — proof that the generic route now addresses the real
+      // depth (`/api/v1/config/candidate/interfaces/eth0`), not `/api/v1/config/candidate/interfaces` + a client-side
+      // walk.
+      api.on('GET /api/v1/config/candidate/interfaces/eth0', { body: eth0Config });
+      let patched: unknown;
+      api.on('PATCH /api/v1/config/interfaces/eth0', (_r, body) => {
+        patched = body;
+        return { body: { pointer: '/interfaces/eth0', before: null, after: null } };
+      });
+      api.on('PATCH /api/v1/config/interfaces', (_r, body) => {
+        patched = body;
+        return { body: { pointer: '/interfaces', before: null, after: null } };
+      });
+      await signIn();
+      render(app('/config/interfaces/eth0'));
 
-    // removing the whole item is still a merge patch of its PARENT (the record), `{ eth0: null }`
-    fireEvent.click(screen.getByRole('button', { name: 'Remove this node' }));
-    await waitFor(() => expect(patched).toEqual({ eth0: null }));
-  });
+      const mtu = await screen.findByLabelText('MTU', {}, { timeout: 15_000 });
+      fireEvent.change(mtu, { target: { value: '1400' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
+      // exactly the item's own merge patch, at its own pointer — no more `{ eth0: { mtu: 1400 } }` wrapper
+      await waitFor(() => expect(patched).toEqual({ mtu: 1400 }));
+
+      // removing the whole item is still a merge patch of its PARENT (the record), `{ eth0: null }`
+      fireEvent.click(screen.getByRole('button', { name: 'Remove this node' }));
+      await waitFor(() => expect(patched).toEqual({ eth0: null }));
+    },
+  );
 });
 
 describe('advanced editor — a fixed-shape domain root (nested containers become their own tree node)', () => {
@@ -135,6 +173,25 @@ describe('advanced editor — a fixed-shape domain root (nested containers becom
 });
 
 describe('advanced editor — bad paths never invent a hand-written domain list', () => {
+  it.each(['lcp', 'lcp/hostIfName'])(
+    'does not expose a manual automatic-pair editor at %s',
+    async (path) => {
+      const api = installFakeApi();
+      api.on(`GET /api/v1/config/candidate/interfaces/eth0/${path}`, {
+        body: { hostIfName: 'route0', hostIfType: 'tap' },
+      });
+      await signIn();
+      render(app(`/config/interfaces/eth0/${path}`));
+      expect(
+        await screen.findByRole('heading', { level: 2, name: 'Interfaces' }),
+      ).toBeInTheDocument();
+      const main = within(screen.getByRole('main'));
+      expect(main.getByRole('alert')).toHaveTextContent(`/interfaces/eth0/${path}`);
+      expect(main.queryByRole('button', { name: 'Save to candidate' })).not.toBeInTheDocument();
+      expect(main.queryByLabelText(/Linux interface|Host interface type/i)).not.toBeInTheDocument();
+    },
+  );
+
   it('an unknown domain lists the real ones from the schema', async () => {
     installFakeApi();
     await signIn();

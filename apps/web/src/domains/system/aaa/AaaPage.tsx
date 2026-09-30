@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -265,7 +266,7 @@ export function AaaTestPanel() {
             </>
           )}
           <Typography variant="body2" color="text.secondary" dir="ltr">
-            {r.detail}
+            {serviceText(r.detail)}
           </Typography>
         </Stack>
       )}

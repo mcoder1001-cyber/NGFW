@@ -121,8 +121,13 @@ func TestSnmpStageIntegration(t *testing.T) {
 	}
 	waitRegistered(t, st, 1, 30*time.Second)
 
-	v2c := &gosnmp.GoSNMP{Target: "127.0.0.1", Port: uint16(port), Version: gosnmp.Version2c, Community: fixtureCommunity, Timeout: 2 * time.Second, Retries: 1}
-	v3 := &gosnmp.GoSNMP{Target: "127.0.0.1", Port: uint16(port), Version: gosnmp.Version3, Timeout: 2 * time.Second, Retries: 1,
+	if port == 0 || port > 65535 {
+		t.Fatalf("invalid SNMP client port: %d", port)
+		return
+	}
+	clientPort := uint16(port)
+	v2c := &gosnmp.GoSNMP{Target: "127.0.0.1", Port: clientPort, Version: gosnmp.Version2c, Community: fixtureCommunity, Timeout: 2 * time.Second, Retries: 1}
+	v3 := &gosnmp.GoSNMP{Target: "127.0.0.1", Port: clientPort, Version: gosnmp.Version3, Timeout: 2 * time.Second, Retries: 1,
 		SecurityModel: gosnmp.UserSecurityModel, MsgFlags: gosnmp.AuthPriv,
 		SecurityParameters: &gosnmp.UsmSecurityParameters{UserName: "noc", AuthenticationProtocol: gosnmp.SHA, AuthenticationPassphrase: fixtureAuth,
 			PrivacyProtocol: gosnmp.AES, PrivacyPassphrase: fixturePriv}}
@@ -162,7 +167,7 @@ func TestSnmpStageIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	newOther := func() *gosnmp.GoSNMP {
-		return &gosnmp.GoSNMP{Target: "127.0.0.1", Port: uint16(port), Version: gosnmp.Version2c, Community: fixtureOther, Timeout: 2 * time.Second, Retries: 1} //nolint:gosec // test port
+		return &gosnmp.GoSNMP{Target: "127.0.0.1", Port: clientPort, Version: gosnmp.Version2c, Community: fixtureOther, Timeout: 2 * time.Second, Retries: 1}
 	}
 	walk(t, "v2c community other (added)", newOther(), prefix+"-snmp")
 	if _, err := st.Update(ctx, v2, v, nil); err != nil { // the scheduler's rollback path

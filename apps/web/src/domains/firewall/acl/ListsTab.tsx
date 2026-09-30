@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -296,7 +297,9 @@ function HitsCell({ item, state }: { item: AclListItem; state: AclListsState }) 
   const fmt = useFormatters();
   if (!state.countersAvailable || !item.live) {
     return (
-      <Tooltip title={state.countersAvailable ? t('live.notApplied') : state.countersReason}>
+      <Tooltip
+        title={state.countersAvailable ? t('live.notApplied') : serviceText(state.countersReason)}
+      >
         <Typography component="span" variant="body2" color="text.secondary">
           —
         </Typography>

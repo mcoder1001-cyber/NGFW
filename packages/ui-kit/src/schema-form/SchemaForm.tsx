@@ -7,11 +7,16 @@ import type { SxProps, Theme } from '@mui/material/styles';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FormProvider, useForm, type FieldValues } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { UI_KIT_NS } from '../i18n/index.js';
-import { SchemaFormContextProvider, type SchemaFormContextValue, type WidgetComponent } from './context.js';
+import { UI_KIT_NS, useProductWording } from '../i18n/index.js';
+import {
+  SchemaFormContextProvider,
+  type SchemaFormContextValue,
+  type WidgetComponent,
+} from './context.js';
 import { SchemaField } from './fields/SchemaField.js';
 import { compileError, pointerToFormPath, toFormValue, withDefaults } from './form-value.js';
 import { createSchemaResolver, ROOT_FIELD } from './resolver.js';
+import { presentationPointer } from './presentation-pointer.js';
 import { FORM_DEFAULTS, getIn } from './schema-utils.js';
 import type { JsonSchema, ProblemDetails, ProblemFieldError, Translate } from './types.js';
 
@@ -85,7 +90,8 @@ export function SchemaForm({
   children,
   sx,
 }: SchemaFormProps) {
-  const { t } = useTranslation(UI_KIT_NS);
+  const { t, i18n } = useTranslation(UI_KIT_NS);
+  const wording = useProductWording();
   const translate = useMemo<Translate>(() => (key, options) => String(t(key, options ?? {})), [t]);
   // Reset only when the value's *content* changes (review P07a L8): an inline `value={{…}}` literal gets a new identity on
   // every parent render and must not wipe the user's edits.
@@ -117,7 +123,7 @@ export function SchemaForm({
     const rest: Unmapped[] = [];
     const formRoot = getValues(ROOT_FIELD);
     for (const e of problemEntries(problem)) {
-      const detail = e.detail ?? e.title ?? problem.title ?? '';
+      const detail = wording(e.detail ?? e.title ?? problem.title ?? '');
       const path = pointerToFormPath(schema, formRoot, e.pointer, schema);
       // A field inside an absent container (an optional object switched off, a missing list item) is not rendered:
       // its error would be invisible, so it is listed with the unmapped ones instead.
@@ -126,7 +132,7 @@ export function SchemaForm({
       else setError(`${ROOT_FIELD}.${path}`, { type: 'server', message: detail });
     }
     setUnmapped(rest);
-  }, [problem, schema, getValues, setError]);
+  }, [problem, schema, getValues, setError, wording]);
 
   const ctx = useMemo<SchemaFormContextValue>(
     () => ({
@@ -160,11 +166,16 @@ export function SchemaForm({
           {showProblem && (
             <Alert severity="error" role="alert">
               <AlertTitle>{t('form.serverError')}</AlertTitle>
-              {problem.detail ?? problem.title}
+              {wording(problem.detail ?? problem.title ?? '')}
               {unmapped.length > 0 && (
                 <Box component="ul" sx={{ m: 0, ps: 2 }}>
                   {unmapped.map((u) => (
-                    <li key={u.pointer}>{t('form.unmappedError', { pointer: u.pointer, detail: u.detail })}</li>
+                    <li key={u.pointer}>
+                      {t('form.unmappedError', {
+                        pointer: presentationPointer(schema, u.pointer, i18n.language),
+                        detail: u.detail,
+                      })}
+                    </li>
                   ))}
                 </Box>
               )}
@@ -178,7 +189,7 @@ export function SchemaForm({
           {rootMessage && !compileFailed && (
             <Alert severity="error" role="alert" sx={{ whiteSpace: 'pre-line' }}>
               <AlertTitle>{t('form.schemaError')}</AlertTitle>
-              {rootMessage}
+              {wording(rootMessage)}
             </Alert>
           )}
           <SchemaField schema={schema} name={ROOT_FIELD} propPath="" parentName={ROOT_FIELD} required bare />

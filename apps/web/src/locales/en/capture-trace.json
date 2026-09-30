@@ -13,7 +13,7 @@
   "progress": "Capture progress",
   "started": "Capture {{id}} started",
   "interface": "Interface",
-  "interfaceHelp": "VPP interface name, or \"any\"",
+  "interfaceHelp": "Data plane interface name, or \"any\"",
   "direction": "Direction",
   "dir": {
     "both": "Receive and transmit",

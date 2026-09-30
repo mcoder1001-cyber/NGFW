@@ -76,7 +76,10 @@ export function ObjectField({ schema, name, propPath }: BoundFieldProps) {
   const ctx = useSchemaFormContext();
   const { t } = useTranslation(UI_KIT_NS);
   const text = useSchemaText();
-  const entries = sortedProperties(schema, ctx.root);
+  // Filter before grouping so a hidden automatic field cannot leave an empty, titled fieldset behind.
+  const entries = sortedProperties(schema, ctx.root).filter(
+    (entry) => hintsOf(mergeAllOf(entry.schema, ctx.root)).widget !== 'hidden',
+  );
   const groups = groupProperties(entries);
   const titles = propertyTitles(entries);
   if (entries.length === 0) {
@@ -226,7 +229,7 @@ function MultiSelectField({ schema, name, propPath, label, required, hints, read
   const { field, fieldState } = useController({ name });
   const help = useHelpText(schema, hints, propPath);
   const merged = useMemo(() => ({ ...hintsOf(items), ...hints }), [items, hints]);
-  const shown = useEnumHints(merged, propPath);
+  const shown = useEnumHints(merged, propPath, items);
   const err = fieldState.error?.message;
   return (
     <MultiSelectInput
@@ -323,8 +326,9 @@ function PrimitiveListField({ schema, name, propPath, label, hints, readOnly, it
   const { field, fieldState } = useController({ name });
   const help = useHelpText(schema, hints, propPath);
   const arr: unknown[] = Array.isArray(field.value) ? field.value : [];
-  const listError = typeof fieldState.error?.message === 'string' ? fieldState.error.message : undefined;
-  const itemHints = useEnumHints(hintsOf(items), propPath);
+  const listError =
+    typeof fieldState.error?.message === 'string' ? fieldState.error.message : undefined;
+  const itemHints = useEnumHints(hintsOf(items), propPath, items);
   const set = (next: unknown[]) => field.onChange(next);
   const move = (from: number, to: number) => {
     const next = [...arr];

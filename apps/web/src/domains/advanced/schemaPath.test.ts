@@ -1,5 +1,6 @@
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { describe, expect, it } from 'vitest';
+import { domainSchemas } from '../../schema/registry';
 import {
   childPropertyKeys,
   configPathTo,
@@ -78,6 +79,33 @@ describe('resolveNode', () => {
   it('a segment that names nothing in the schema is not a configuration path', () => {
     expect(resolveNode(INTERFACES_DOMAIN, ['eth0', 'nope'])).toBeNull();
   });
+
+  it('does not allow direct navigation into an automatic pair or any of its descendants', () => {
+    expect(resolveNode(domainSchemas.interfaces, ['eth0', 'lcp'])).toBeNull();
+    expect(resolveNode(domainSchemas.interfaces, ['eth0', 'lcp', 'hostIfName'])).toBeNull();
+    expect(resolveNode(domainSchemas.interfaces, ['eth0', 'mtu'])).not.toBeNull();
+  });
+
+  it('honours hidden nodes reached through references, records and arrays', () => {
+    const hidden: JsonSchema = {
+      type: 'object',
+      'x-vrx-ui': { widget: 'hidden' },
+      properties: { name: { type: 'string' } },
+    };
+    const domain: JsonSchema = {
+      type: 'object',
+      $defs: { hidden },
+      properties: {
+        pair: { $ref: '#/$defs/hidden' },
+        list: { type: 'array', items: { $ref: '#/$defs/hidden' } },
+        map: { type: 'object', additionalProperties: { $ref: '#/$defs/hidden' } },
+      },
+    };
+    expect(resolveNode(domain, ['pair', 'name'])).toBeNull();
+    expect(resolveNode(domain, ['list', '0'])).toBeNull();
+    expect(resolveNode(domain, ['map', 'eth0'])).toBeNull();
+    expect(resolveNode(hidden, [])).toBeNull();
+  });
 });
 
 describe('childPropertyKeys / withoutChildProperties', () => {
@@ -115,6 +143,22 @@ describe('withoutChildValues (the diff base for a node\'s own form, review: chil
   it('passes non-object values and an empty child-key list through unchanged', () => {
     expect(withoutChildValues(undefined, ['a'])).toBeUndefined();
     expect(withoutChildValues({ a: 1 }, [])).toEqual({ a: 1 });
+  });
+
+  it('retains automatic pairs in the form and diff base without offering a child editor', () => {
+    const item = resolveNode(domainSchemas.interfaces, ['eth0'])!.schema;
+    const childKeys = childPropertyKeys(item, domainSchemas.interfaces);
+    expect(childKeys).not.toContain('lcp');
+    expect(childKeys).toContain('subinterfaces');
+    expect(withoutChildProperties(item, childKeys).properties?.lcp?.['x-vrx-ui']?.widget).toBe(
+      'hidden',
+    );
+    const pair = { hostIfName: 'route0', hostIfType: 'tap' };
+    const candidate = { mtu: 1500, lcp: pair, subinterfaces: { '100': { vlanId: 100 } } };
+    const base = withoutChildValues(candidate, childKeys);
+    expect(base).toEqual({ mtu: 1500, lcp: pair });
+    expect(createMergePatch(base, { mtu: 9000, lcp: pair })).toEqual({ mtu: 9000 });
+    expect(candidate.lcp).toBe(pair);
   });
 });
 

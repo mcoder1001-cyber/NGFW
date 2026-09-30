@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -227,8 +228,12 @@ function Body({
           {serverIssues.length > 0 ? (
             <Alert severity="error">
               {serverIssues.map((e) => (
-                <Typography key={`${e.pointer}:${e.message}`} variant="body2" dir="ltr">
-                  {e.pointer.slice(prefix.length) || '/'} — {e.message}
+                <Typography
+                  key={`${e.pointer}:${serviceText(e.message)}`}
+                  variant="body2"
+                  dir="ltr"
+                >
+                  {e.pointer.slice(prefix.length) || '/'} — {serviceText(e.message)}
                 </Typography>
               ))}
             </Alert>

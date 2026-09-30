@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -49,7 +50,7 @@ export function LdpTab() {
       {neighbors.isError && <ProblemAlert error={neighbors.error} sx={{ mb: 1 }} />}
       {agentError && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {t('agentError', { error: agentError })}
+          {t('agentError', { error: serviceText(agentError) })}
         </Alert>
       )}
 
@@ -66,11 +67,15 @@ export function LdpTab() {
             />
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {t('sync.detail', { installed: s.installed, conflicts: s.conflicts, source: s.source || '—' })}
+            {t('sync.detail', {
+              installed: s.installed,
+              conflicts: s.conflicts,
+              source: serviceText(s.source || '—'),
+            })}
           </Typography>
           {s.lastError && (
             <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
-              {s.lastError}
+              {serviceText(s.lastError)}
             </Typography>
           )}
         </Paper>

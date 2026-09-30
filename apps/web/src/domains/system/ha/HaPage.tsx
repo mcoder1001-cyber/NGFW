@@ -117,7 +117,7 @@ function VrrpTab() {
                     <TableCell dir="ltr">{r.addressFamily ?? DEFAULT_FAMILY}</TableCell>
                     <TableCell dir="ltr">{r.priority ?? 100}</TableCell>
                     <TableCell dir="ltr">{r.addresses.join(', ')}</TableCell>
-                    <TableCell dir="ltr">{r.engine ?? DEFAULT_ENGINE}</TableCell>
+                    <TableCell>{t(`vrrp.engineLabels.${r.engine ?? DEFAULT_ENGINE}`)}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
                         {r.enabled === false && <Chip size="small" label={t('vrrp.disabled')} />}

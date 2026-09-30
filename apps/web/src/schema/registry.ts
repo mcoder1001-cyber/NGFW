@@ -1,4 +1,5 @@
 import { RootConfig, ROOT_KEYS, type RootKey } from '@ngfw/schema';
+import { productWording } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { z } from 'zod';
 
@@ -10,9 +11,57 @@ import { z } from 'zod';
  */
 const OPTIONS = { target: 'draft-2020-12', io: 'input' } as const;
 
-export const rootSchema = z.toJSONSchema(RootConfig, OPTIONS) as JsonSchema;
+function schemaWording(text: string): string {
+  return productWording(
+    text
+      .replace(/frr-linuxcp/gi, 'Routing')
+      .replace(/kernel-vpp/gi, 'IPsec integration')
+      .replace(/vpp-ikev2/gi, 'Native IKEv2'),
+  );
+}
+
+/** Presentation only: automatic pairs stay in the contract and submitted values, without manual controls. */
+function presentationSchema(schema: JsonSchema): JsonSchema {
+  const out = { ...schema };
+  for (const key of ['title', 'description'] as const) {
+    if (schema[key] !== undefined) out[key] = schemaWording(schema[key]);
+  }
+  if (schema['x-vrx-ui']) {
+    const hints = { ...schema['x-vrx-ui'] };
+    for (const key of ['help', 'group', 'placeholder'] as const) {
+      if (typeof hints[key] === 'string') hints[key] = schemaWording(hints[key]);
+    }
+    out['x-vrx-ui'] = hints;
+  }
+  for (const key of ['properties', '$defs'] as const) {
+    if (schema[key]) {
+      out[key] = Object.fromEntries(
+        Object.entries(schema[key]).map(([name, child]) => {
+          const presented = presentationSchema(child);
+          if (key === 'properties' && name === 'lcp') {
+            presented['x-vrx-ui'] = { ...presented['x-vrx-ui'], widget: 'hidden' };
+          }
+          return [name, presented];
+        }),
+      );
+    }
+  }
+  for (const key of ['items', 'propertyNames', 'additionalProperties'] as const) {
+    const child = schema[key];
+    if (typeof child === 'object') out[key] = presentationSchema(child);
+  }
+  for (const key of ['oneOf', 'anyOf', 'allOf', 'prefixItems'] as const) {
+    if (schema[key]) out[key] = schema[key].map(presentationSchema);
+  }
+  return out;
+}
+
+export const rootSchema = presentationSchema(z.toJSONSchema(RootConfig, OPTIONS) as JsonSchema);
 export const domainSchemas = Object.fromEntries(
-  ROOT_KEYS.map((key) => [key, z.toJSONSchema(RootConfig.shape[key], OPTIONS) as JsonSchema]),
+  ROOT_KEYS.map((key) => [
+    key,
+    presentationSchema(z.toJSONSchema(RootConfig.shape[key], OPTIONS) as JsonSchema),
+  ]),
 ) as Record<RootKey, JsonSchema>;
 export { ROOT_KEYS };
 export type { RootKey };

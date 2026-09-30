@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useFormState } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { UI_KIT_NS } from '../../i18n/index.js';
+import { productEngineLabels, UI_KIT_NS, useProductWording } from '../../i18n/index.js';
 import { useSchemaFormContext } from '../context.js';
 import { getIn } from '../schema-utils.js';
 import { createSchemaText, type SchemaText } from '../text.js';
@@ -14,10 +14,11 @@ interface ErrorLike {
 
 /** Message for a field, including the `root` slot react-hook-form uses for field-array containers. */
 export function useFieldError(name: string): string | undefined {
+  const wording = useProductWording();
   const { errors } = useFormState({ name });
   const e = getIn(errors, name) as ErrorLike | undefined;
   const msg = e?.message ?? e?.root?.message;
-  return typeof msg === 'string' ? msg : undefined;
+  return typeof msg === 'string' ? wording(msg) : undefined;
 }
 
 /** Does any error sit at or below `name` (a collapsed row, a hidden section)? */
@@ -45,12 +46,25 @@ export function useHelpText(schema: JsonSchema, hints: UiHints, propPath = ''): 
 }
 
 /** Per-path enum labels merged over the literal `x-vrx-ui.enumLabels` (same object when nothing is translated). */
-export function useEnumHints(hints: UiHints, propPath: string): UiHints {
+export function useEnumHints(hints: UiHints, propPath: string, schema: JsonSchema): UiHints {
   const text = useSchemaText();
+  const { i18n } = useTranslation(UI_KIT_NS);
   const labels = text.enumLabels(propPath);
+  // A generic editor can render an enum as its root node (propPath === ''). Infer labels from its actual
+  // allowed values too; never treat free-text values or record keys as implementation choices.
+  const names = productEngineLabels(i18n.language);
+  const defaults = Object.fromEntries(
+    (schema.enum ?? (schema.const === undefined ? [] : [schema.const])).flatMap((value) =>
+      typeof value === 'string' && names[value] !== undefined ? [[value, names[value]]] : [],
+    ),
+  );
+  const translated =
+    Object.keys(defaults).length > 0 || labels !== undefined
+      ? { ...defaults, ...(hints.enumLabels ?? {}), ...labels }
+      : undefined;
   return useMemo(
-    () => (labels ? { ...hints, enumLabels: { ...(hints.enumLabels ?? {}), ...labels } } : hints),
+    () => (translated ? { ...hints, enumLabels: translated } : hints),
     // the labels object is rebuilt per render: compare it by content
-    [hints, JSON.stringify(labels ?? null)],
+    [hints, JSON.stringify(translated ?? null)],
   );
 }

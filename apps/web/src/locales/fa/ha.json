@@ -20,7 +20,11 @@
     "status": "وضعیت",
     "pending": "اعمال‌نشده",
     "committed": "اعمال‌شده",
-    "disabled": "غیرفعال"
+    "disabled": "غیرفعال",
+    "engineLabels": {
+      "vpp": "صفحهٔ داده",
+      "keepalived": "سرویس میزبان"
+    }
   },
   "cluster": {
     "title": "عضویت در خوشه",

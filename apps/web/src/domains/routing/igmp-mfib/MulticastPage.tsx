@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -51,7 +52,7 @@ export function MulticastPage() {
       {groups.isError && <ProblemAlert error={groups.error} sx={{ mb: 1 }} />}
       {agentError && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          {t('agentError', { error: agentError })}
+          {t('agentError', { error: serviceText(agentError) })}
         </Alert>
       )}
 

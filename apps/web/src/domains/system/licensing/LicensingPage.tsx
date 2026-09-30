@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
@@ -79,7 +80,7 @@ export function LicensingPage(): ReactElement {
                 data-testid="license-status"
               />
             </Stack>
-            {st.reason && <Alert severity="error">{st.reason}</Alert>}
+            {st.reason && <Alert severity="error">{serviceText(st.reason)}</Alert>}
             <Table size="small" aria-label={t('status.heading')}>
               <TableBody>
                 {st.customer !== undefined && (

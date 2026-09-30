@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -136,7 +137,7 @@ export default function TlsTab() {
         )}
         {st?.error && (
           <Alert severity="error" sx={{ mb: 2 }} data-testid="tls-error">
-            {t('tls.loadError', { error: st.error })}
+            {t('tls.loadError', { error: serviceText(st.error) })}
           </Alert>
         )}
         {st && !st.configured && !st.active && <Typography>{t('tls.none')}</Typography>}

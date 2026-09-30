@@ -16,4 +16,5 @@ export function directionFor(lang: string): 'rtl' | 'ltr' {
 
 export * from './formatters.js';
 export * from './useFormatters.js';
+export * from './product-wording.js';
 export type { UiKitResource } from './locales/en.js';

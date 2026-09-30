@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -164,12 +165,12 @@ export function NeighborsTab() {
       </Stack>
       {live.data && !live.data.frrRunning && bgp && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          {t('frrDown', { error: live.data.error ?? '' })}
+          {t('frrDown', { error: serviceText(live.data.error ?? '') })}
         </Alert>
       )}
       {live.data?.frrRunning && (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          {t('frrVersion', { version: live.data.frrVersion ?? '' })}
+          {t('frrVersion', { version: serviceText(live.data.frrVersion ?? '') })}
         </Typography>
       )}
       {live.isError && <ProblemAlert error={live.error} sx={{ mb: 2 }} />}

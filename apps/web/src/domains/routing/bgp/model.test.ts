@@ -7,7 +7,6 @@ import {
   eventRefetchDue,
   formatUptime,
   isAddress,
-  lcpSchema,
   neighborRows,
   policyItemSchema,
   stateChip,
@@ -51,11 +50,6 @@ describe('bgp model', () => {
     expect(Object.keys(policyItemSchema('routeMaps').properties ?? {})).toEqual([
       'description',
       'entries',
-    ]);
-    expect(Object.keys(lcpSchema().properties ?? {})).toEqual([
-      'hostIfName',
-      'hostIfType',
-      'netns',
     ]);
   });
 

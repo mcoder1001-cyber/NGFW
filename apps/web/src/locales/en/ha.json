@@ -20,7 +20,11 @@
     "status": "Status",
     "pending": "Not committed",
     "committed": "Committed",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "engineLabels": {
+      "vpp": "Dataplane",
+      "keepalived": "Host service"
+    }
   },
   "cluster": {
     "title": "Cluster membership",

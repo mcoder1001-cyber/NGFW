@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -287,6 +288,7 @@ function LogExplorer() {
     },
     {
       field: 'identifier',
+      valueFormatter: (value: string) => serviceText(value),
       headerName: t('col.identifier'),
       width: 140,
       sortable: false,
@@ -294,6 +296,7 @@ function LogExplorer() {
     },
     {
       field: 'message',
+      valueFormatter: (value: string) => serviceText(value),
       headerName: t('col.message'),
       flex: 1,
       minWidth: 300,

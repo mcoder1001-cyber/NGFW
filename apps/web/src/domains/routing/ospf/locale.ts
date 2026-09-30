@@ -18,7 +18,7 @@ export const igpEn = {
   ospf: {
     title: 'OSPF',
     intro:
-      'OSPFv2 process, areas and interfaces (rendered into FRR). Changes are staged in the candidate and committed from the pending-change bar.',
+      'Configure the OSPFv2 process, areas and interfaces. Changes are staged in the candidate and committed from the pending-change bar.',
     areas: 'Areas',
     area: 'Area',
     type: 'Type',
@@ -33,7 +33,7 @@ export const igpEn = {
   isisRip: {
     title: 'IS-IS and RIP',
     intro:
-      'Link-state IS-IS and distance-vector RIP (rendered into FRR). Changes are staged in the candidate and committed from the pending-change bar.',
+      'Configure link-state IS-IS and distance-vector RIP routing. Changes are staged in the candidate and committed from the pending-change bar.',
     tabs: { isis: 'IS-IS', rip: 'RIP' },
     interfaces: 'Interfaces',
     interface: 'Interface',
@@ -46,7 +46,7 @@ export const igpEn = {
   bfd: {
     title: 'BFD and redistribution',
     intro:
-      'BFD sessions programmed in VPP, and which routes each dynamic protocol redistributes. Changes are staged in the candidate.',
+      'Configure BFD sessions and the routes each dynamic protocol redistributes. Changes are staged in the candidate.',
     tabs: { sessions: 'BFD sessions', redistribution: 'Redistribution' },
     sessions: 'Sessions',
     interface: 'Interface',
@@ -73,7 +73,7 @@ export const igpFa: typeof igpEn = {
   ospf: {
     title: 'OSPF',
     intro:
-      'فرایند OSPFv2، ناحیه‌ها و رابط‌ها (در FRR). تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.',
+      'فرایند OSPFv2، ناحیه‌ها و رابط‌ها را تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.',
     areas: 'ناحیه‌ها',
     area: 'ناحیه',
     type: 'نوع',
@@ -88,7 +88,7 @@ export const igpFa: typeof igpEn = {
   isisRip: {
     title: 'IS-IS و RIP',
     intro:
-      'IS-IS حالت پیوند و RIP بردار فاصله (در FRR). تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.',
+      'مسیریابی حالت پیوند IS-IS و بردار فاصله RIP را تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.',
     tabs: { isis: 'IS-IS', rip: 'RIP' },
     interfaces: 'رابط‌ها',
     interface: 'رابط',
@@ -101,7 +101,7 @@ export const igpFa: typeof igpEn = {
   bfd: {
     title: 'BFD و بازتوزیع',
     intro:
-      'نشست‌های BFD در VPP و مسیرهایی که هر پروتکل پویا بازتوزیع می‌کند. تغییرات در پیکربندی نامزد ذخیره می‌شوند.',
+      'نشست‌های BFD و مسیرهایی را که هر پروتکل پویا بازتوزیع می‌کند تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره می‌شوند.',
     tabs: { sessions: 'نشست‌های BFD', redistribution: 'بازتوزیع' },
     sessions: 'نشست‌ها',
     interface: 'رابط',

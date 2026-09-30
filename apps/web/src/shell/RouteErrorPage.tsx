@@ -1,3 +1,4 @@
+import { serviceText } from '../product-text';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Button from '@mui/material/Button';
@@ -17,7 +18,7 @@ export function RouteErrorPage() {
     <Container sx={{ py: 4 }}>
       <Alert severity="error" action={<Button color="inherit" onClick={() => window.location.reload()}>{t('error.reload')}</Button>}>
         <AlertTitle>{t('error.title')}</AlertTitle>
-        {detail}
+        {serviceText(detail)}
       </Alert>
     </Container>
   );

@@ -1,4 +1,5 @@
 import type { i18n as I18n } from 'i18next';
+import { productEngineLabels, productWording } from '../i18n/product-wording.js';
 
 /**
  * Per-path texts of a schema-driven form (I18N-1). The schema's English `title`/`description`/`x-vrx-ui` stay the
@@ -42,8 +43,13 @@ function stringMap(v: unknown): Readonly<Record<string, string>> | undefined {
 }
 
 export function createSchemaText(i18n: I18n, prefix: string | undefined): SchemaText {
-  const lookup: Lookup = (key) => (i18n.exists(key) ? (i18n.t(key, { returnObjects: true }) as unknown) : undefined);
-  const keyOf = (path: string, suffix: string) => `${prefix}.${path === '' ? '' : `${path}.`}${suffix}`;
+  const wording = (text: string) => productWording(text, i18n.language);
+  const optionalWording = (text: string | undefined) =>
+    text === undefined ? undefined : wording(text);
+  const lookup: Lookup = (key) =>
+    i18n.exists(key) ? (i18n.t(key, { returnObjects: true }) as unknown) : undefined;
+  const keyOf = (path: string, suffix: string) =>
+    `${prefix}.${path === '' ? '' : `${path}.`}${suffix}`;
   const str = (path: string, suffix: string): string | undefined => {
     if (prefix === undefined) return undefined;
     const v = lookup(keyOf(path, suffix));
@@ -56,13 +62,27 @@ export function createSchemaText(i18n: I18n, prefix: string | undefined): Schema
     return typeof v === 'string' ? v : text;
   };
   return {
-    title: (p, fallback) => (p === '' ? undefined : str(p, 'title')) ?? fallback,
-    help: (p, hintHelp, description) => str(p, 'help') ?? (hintHelp ? asKey(hintHelp) : description),
-    placeholder: (p, fallback) => str(p, 'placeholder') ?? fallback,
-    enumLabels: (p) => map(p, 'enum'),
-    group: (objectPath, name) => map(objectPath, 'group')?.[name] ?? map('', 'group')?.[name] ?? asKey(name),
-    variant: (p, key, fallback) => map(p, 'variant')?.[key] ?? fallback,
-    itemTitle: (p) => str(p, 'itemTitle'),
-    keyTitle: (p) => str(p, 'keyTitle'),
+    title: (p, fallback) => wording((p === '' ? undefined : str(p, 'title')) ?? fallback),
+    help: (p, hintHelp, description) =>
+      optionalWording(str(p, 'help') ?? (hintHelp ? asKey(hintHelp) : description)),
+    placeholder: (p, fallback) => optionalWording(str(p, 'placeholder') ?? fallback),
+    enumLabels: (p) =>
+      p.split('.').at(-1) === 'engine'
+        ? { ...productEngineLabels(i18n.language), ...map(p, 'enum') }
+        : map(p, 'enum'),
+    group: (objectPath, name) =>
+      wording(
+        map(objectPath, 'group')?.[name] ??
+          map('', 'group')?.[name] ??
+          (name === 'frr-linuxcp'
+            ? i18n.language.startsWith('fa')
+              ? 'مسیریابی'
+              : 'Routing'
+            : asKey(name)),
+      ),
+    variant: (p, key, fallback) =>
+      wording(map(p, 'variant')?.[key] ?? productEngineLabels(i18n.language)[key] ?? fallback),
+    itemTitle: (p) => optionalWording(str(p, 'itemTitle')),
+    keyTitle: (p) => optionalWording(str(p, 'keyTitle')),
   };
 }

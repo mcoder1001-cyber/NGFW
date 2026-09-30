@@ -77,18 +77,23 @@ describe('System → Dataplane (F-dataplane-ui)', () => {
     const api = fake();
     await signIn();
     render(app('/system/dataplane'));
-    expect(await screen.findByTestId('dp-restart-banner')).toHaveTextContent(/VPP restart/);
+    expect(await screen.findByTestId('dp-restart-banner')).toHaveTextContent(/data plane restart/);
     const workers = await screen.findByTestId('dp-workers');
     await waitFor(() => expect(within(workers).getByText('2')).toBeInTheDocument());
     expect(within(workers).getByText('4')).toBeInTheDocument();
     expect(within(workers).getByText('Not committed')).toBeInTheDocument();
     const installed = screen.getByTestId('dp-installed');
     await waitFor(() => expect(within(installed).getByText('0-7')).toBeInTheDocument());
-    const apply = screen.getByRole('button', { name: 'Apply and restart VPP' });
+    const apply = screen.getByRole('button', { name: 'Apply and restart the data plane' });
     expect(apply).toBeDisabled();
-    expect(screen.getByText(/TD-17/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Preview startup.conf' }));
-    expect(await screen.findByTestId('dp-diff')).toHaveTextContent('+ workers 4');
+    expect(screen.getByText(/not available yet/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview startup settings' }));
+    expect(await screen.findByTestId('dp-preview-summary')).toHaveTextContent(
+      'Review candidate and running settings',
+    );
+    expect(screen.queryByTestId('dp-diff')).not.toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/FRR|VPP|strongSwan|\/etc\/vpp/i);
+    expect(PREVIEW.diff).toContain('/etc/vpp/startup.conf');
     expect(api.calls.some((c) => c.method === 'POST')).toBe(true);
   });
 

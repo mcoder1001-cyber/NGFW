@@ -1,11 +1,11 @@
 {
   "tab": "LDP",
-  "intro": "LDP (RFC 5036) label distribution: FRR ldpd runs the protocol and the box syncs the labels into the VPP MPLS FIB. Configure LDP under Config → Routing → MPLS.",
+  "intro": "LDP (RFC 5036) distributes labels and synchronises them with the MPLS forwarding table. Configure LDP under Config → Routing → MPLS.",
   "refresh": "Refresh",
   "loading": "Loading LDP state",
   "agentError": "Live LDP state is unavailable: {{error}}",
   "sync": {
-    "title": "FRR → VPP label sync",
+    "title": "Label synchronisation",
     "ok": "Synced",
     "idle": "Idle",
     "error": "Error",

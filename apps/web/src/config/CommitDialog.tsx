@@ -1,3 +1,5 @@
+import { diffPointerLabel } from './diff-presentation';
+import { serviceText } from '../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -151,11 +153,15 @@ export function CommitDialog({ open, onClose, changes }: { open: boolean; onClos
                   )}
                   {validate.data.warnings.map((w, i) => (
                     <Box key={`${w.pointer}:${i}`} sx={{ mt: 0.5 }} dir="auto">
-                      <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                        {w.pointer || '/'}
+                      <Box
+                        component="code"
+                        dir="ltr"
+                        sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}
+                      >
+                        {diffPointerLabel(w.pointer || '/')}
                       </Box>
                       {' — '}
-                      {w.message}
+                      {serviceText(w.message)}
                     </Box>
                   ))}
                 </Alert>

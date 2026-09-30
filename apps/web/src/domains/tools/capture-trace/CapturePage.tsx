@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -187,12 +188,12 @@ export function CapturePage() {
       {q.isPending && <LinearProgress aria-label={t('loading')} />}
       {tab === 'trace' && (
         <Alert severity="warning" data-testid="trace-unavailable">
-          {t('notAvailable')} {q.data?.trace.reason}
+          {t('notAvailable')} {serviceText(q.data?.trace.reason ?? '')}
         </Alert>
       )}
       {tab === 'pg' && (
         <Alert severity="warning" data-testid="pg-unavailable">
-          {t('notAvailable')} {q.data?.pg.reason}
+          {t('notAvailable')} {serviceText(q.data?.pg.reason ?? '')}
         </Alert>
       )}
       {tab === 'capture' && (

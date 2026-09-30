@@ -1,23 +1,21 @@
 {
   "nav": "Dataplane",
   "title": "Dataplane",
-  "intro": "VPP start-up tuning: worker threads and their cores, DPDK NICs with their queues and descriptors, hugepages and buffers, and plugin switches. Save to the candidate and commit with the pending-change bar; use Preview to see the startup.conf the router would install.",
-  "restartBanner": "These settings are written to the VPP start-up configuration and take effect only after a VPP restart, which interrupts all forwarding. Committing them does not change the running data plane.",
+  "intro": "Tune worker threads, CPU cores, network device queues, memory buffers and optional features. Save changes to the candidate, review them with Preview, and commit with the pending-change bar.",
+  "restartBanner": "These settings are written to the data plane start-up configuration and take effect only after a data plane restart, which interrupts all forwarding. Committing them does not change the running data plane.",
   "save": "Save to candidate",
   "none": "—",
   "preview": {
-    "button": "Preview startup.conf",
-    "title": "startup.conf preview (candidate)",
-    "changed": "The rendered file differs from the installed one: installing it needs a VPP restart.",
-    "unchanged": "The rendered file is identical to the installed one: nothing would change.",
-    "diff": "Changes against {{path}}",
-    "rendered": "Rendered file",
+    "button": "Preview startup settings",
+    "title": "Startup settings preview",
+    "changed": "The candidate startup settings differ from the installed settings. A data plane restart is required to activate changes.",
+    "unchanged": "The candidate startup settings match the installed settings.",
     "close": "Close",
-    "sha256": "sha256 {{sum}}"
+    "summary": "Review candidate and running settings above before restarting the dataplane."
   },
   "apply": {
-    "button": "Apply and restart VPP",
-    "disabled": "Not available yet: installing startup.conf restarts VPP and waits for the appliance approval gate (TD-17). A manager installs it with apply-startup.sh."
+    "button": "Apply and restart the data plane",
+    "disabled": "Applying startup settings from this page is not available yet."
   },
   "field": {
     "group": {
@@ -107,14 +105,15 @@
     "hugepagesGb": "Hugepages (GB)",
     "buffersPerNuma": "Buffers per NUMA node",
     "plugins": "Plugin switches",
-    "note": "Running is the committed configuration. VPP keeps using the installed start-up file until it restarts."
+    "note": "Running is the committed configuration. The data plane keeps using the installed start-up file until it restarts."
   },
   "installed": {
-    "title": "Installed start-up file",
-    "file": "File",
+    "title": "Installed startup settings",
+    "file": "Status",
     "missing": "not present",
     "cpus": "Online CPUs",
-    "hugepages": "Hugepages free / total"
+    "hugepages": "Hugepages free / total",
+    "present": "Installed"
   },
   "switch": {
     "on": "on",

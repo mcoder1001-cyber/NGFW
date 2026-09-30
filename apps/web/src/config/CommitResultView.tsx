@@ -1,3 +1,5 @@
+import { diffPointerLabel } from './diff-presentation';
+import { resultKeyText, serviceText } from '../product-text';
 import Alert from '@mui/material/Alert';
 import AlertTitle from '@mui/material/AlertTitle';
 import Box from '@mui/material/Box';
@@ -46,7 +48,15 @@ export function CommitResultView({ result, title }: { result: ResultLike; title?
         <Box>
           {t('result.revision', { id: fmt.integer(result.revision.id) })}
           {result.txnId && (
-            <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, marginInlineStart: 1, fontSize: '0.75rem' }}>
+            <Box
+              component="code"
+              dir="ltr"
+              sx={{
+                fontFamily: (th) => th.vrx.monoFontFamily,
+                marginInlineStart: 1,
+                fontSize: '0.75rem',
+              }}
+            >
               {result.txnId}
             </Box>
           )}
@@ -61,32 +71,45 @@ export function CommitResultView({ result, title }: { result: ResultLike; title?
         </Box>
       )}
       {result.warnings.length > 0 && (
-        <Box component="ul" sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }} aria-label={t('result.warnings')}>
+        <Box
+          component="ul"
+          sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }}
+          aria-label={t('result.warnings')}
+        >
           {result.warnings.map((w, i) => (
             <li key={`${w.pointer}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                {w.pointer || '/'}
+                {diffPointerLabel(w.pointer || '/')}
               </Box>
               {' — '}
-              {w.message}
+              {serviceText(w.message)}
             </li>
           ))}
         </Box>
       )}
       {failedResults(result).length > 0 && (
-        <Box component="ul" sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }} aria-label={t('problem.results')}>
+        <Box
+          component="ul"
+          sx={{ m: 0, mt: 0.5, paddingInlineStart: 2.5 }}
+          aria-label={t('problem.results')}
+        >
           {failedResults(result).map((r, i) => (
             <li key={`${r.key}:${i}`} dir="auto">
               <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
-                {r.key || r.pointer}
+                {r.key ? resultKeyText(r.key) : diffPointerLabel(r.pointer)}
               </Box>
-              {` ${r.code}: ${r.message}`}
+              {` ${serviceText(r.code)}: ${serviceText(r.message)}`}
             </li>
           ))}
         </Box>
       )}
       {result.sync && result.sync.state !== 'in-sync' && (
-        <Box sx={{ mt: 0.5 }}>{t('sync.inline', { state: t(`sync.state.${result.sync.state}`), reason: result.sync.reason })}</Box>
+        <Box sx={{ mt: 0.5 }}>
+          {t('sync.inline', {
+            state: t(`sync.state.${result.sync.state}`),
+            reason: serviceText(result.sync.reason),
+          })}
+        </Box>
       )}
     </Alert>
   );

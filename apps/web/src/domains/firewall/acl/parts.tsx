@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -126,12 +127,12 @@ export function LiveAlerts({
     <>
       {agentError ? (
         <Alert severity="warning" sx={{ mb: 1 }}>
-          {t('live.agentError')} <bdi>{agentError}</bdi>
+          {t('live.agentError')} <bdi>{serviceText(agentError)}</bdi>
         </Alert>
       ) : null}
       {countersAvailable === false ? (
         <Alert severity="info" sx={{ mb: 1 }}>
-          {t('live.countersOff')} {countersReason ? <bdi>{countersReason}</bdi> : null}
+          {t('live.countersOff')} {countersReason ? <bdi>{serviceText(countersReason)}</bdi> : null}
         </Alert>
       ) : null}
     </>
@@ -152,7 +153,7 @@ export function CounterCell({
   const fmt = useFormatters();
   if (value === null) {
     return (
-      <Tooltip title={reason}>
+      <Tooltip title={serviceText(reason)}>
         <Typography component="span" variant="body2" color="text.secondary">
           —
         </Typography>

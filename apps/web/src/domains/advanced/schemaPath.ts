@@ -1,4 +1,5 @@
 import {
+  hintsOf,
   isRecordSchema,
   mergeAllOf,
   recordValueSchema,
@@ -51,9 +52,11 @@ export interface ResolvedNode {
  */
 export function resolveNode(domainSchema: JsonSchema, segments: readonly string[]): ResolvedNode | null {
   let schema = resolved(domainSchema, domainSchema);
+  if (hintsOf(schema).widget === 'hidden') return null;
   for (const seg of segments) {
     if (isRecordSchema(schema)) {
       schema = resolved(recordValueSchema(schema), domainSchema);
+      if (hintsOf(schema).widget === 'hidden') return null;
       continue;
     }
     if (Array.isArray(schema.type) ? schema.type.includes('array') : schema.type === 'array') {
@@ -61,11 +64,13 @@ export function resolveNode(domainSchema: JsonSchema, segments: readonly string[
       const item = schema.prefixItems?.[Number(seg)] ?? schema.items;
       if (!item) return null;
       schema = resolved(item, domainSchema);
+      if (hintsOf(schema).widget === 'hidden') return null;
       continue;
     }
     const prop = schema.properties?.[seg];
     if (prop === undefined) return null;
     schema = resolved(prop, domainSchema);
+    if (hintsOf(schema).widget === 'hidden') return null;
   }
   return { schema, record: isRecordSchema(schema) };
 }
@@ -80,6 +85,8 @@ export function childPropertyKeys(schema: JsonSchema, root: JsonSchema): string[
   return sortedProperties(schema, root)
     .filter((e) => {
       const s = resolved(e.schema, root);
+      // Automatic fields remain in the form schema/value for validation and lossless saves, but have no editor route.
+      if (hintsOf(s).widget === 'hidden') return false;
       const t = Array.isArray(s.type) ? s.type.find((x) => x !== 'null') : s.type;
       return t === 'object' || (t === undefined && (s.properties !== undefined || s.additionalProperties !== undefined));
     })

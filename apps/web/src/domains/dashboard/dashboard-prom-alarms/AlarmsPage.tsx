@@ -1,3 +1,4 @@
+import { serviceText } from '../../../product-text';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -127,7 +128,7 @@ export function AlarmsPage() {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>{a.message}</TableCell>
+                  <TableCell>{serviceText(a.message)}</TableCell>
                   <TableCell dir="ltr">{fmt.dateTime(new Date(a.raisedAt))}</TableCell>
                   <TableCell>
                     <Chip

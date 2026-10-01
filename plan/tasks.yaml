@@ -1147,7 +1147,10 @@ tasks:
   started: ''
   finished: ''
   notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry).
-    NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)'
+    NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)
+    | UPDATE 2026-10-01 (re-recorded; the 2026-09-27 part-B note was lost in a main merge): part B merged 1252727b/3d5fd946 — wired end to end: schema nat.nat46, proto NatConfig 28, agent builder (shared
+    MAP-T interface ownership from stored desired state, nat46- name guard both ways, /32 overlap vs nat.map), API state routes, UI tab, docs; D-160 stateful NAT46 out of scope. Remaining = host evidence
+    only: TestNat46OnHost (does VPP 26.06 accept /32<->/128 MAP-T ea_bits 0), packet test, vppctl show map domain, API e2e on PostgreSQL, screenshot'
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md

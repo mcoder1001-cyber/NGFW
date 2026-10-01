@@ -23,11 +23,18 @@ scrape_configs:
     static_configs: [{ targets: ["<appliance>:9101"] }]
 ```
 
-Families (labels in parentheses): `vrx_interface_rx_bytes_total` / `tx_bytes_total` / `rx_packets_total` /
-`tx_packets_total` / `rx_drops_total` / `tx_drops_total` / `rx_errors_total` / `tx_errors_total` (`interface`),
-`vrx_interface_admin_up` / `link_up` (`interface`), `vrx_worker_vectors_per_call` / `clocks_per_vector` (`worker`),
-`vrx_buffer_used` / `available` / `used_percent` (`pool`), `vrx_node_errors_total` (`node`, `reason`, top-N). The
-agent's own `vrx_agent_*` families (reconcile/apply) are on the same endpoint.
+The real govpp source publishes `vrx_interface_rx_bytes_total`, `vrx_interface_tx_bytes_total`,
+`vrx_interface_rx_packets_total`, `vrx_interface_tx_packets_total`, `vrx_interface_rx_errors_total`,
+`vrx_interface_tx_errors_total` and `vrx_interface_drops_total` (`interface`). VPP's stats segment only
+provides aggregate interface drops: directional drop samples and admin/link gauges are omitted rather than
+reported as zero. Link events used by the API alarm engine continue through the existing agent event stream.
+`vrx_worker_vectors_per_call` and `vrx_worker_clocks_per_vector` (`worker`) are cumulative node-counter
+ratios for each stats thread (`vpp_main`, `vpp_worker_1`, …), not CPU utilization percentages.
+`vrx_buffer_used`, `vrx_buffer_available`, `vrx_buffer_used_percent` (`pool`) and `vrx_node_errors_total`
+(`node`, `reason`, top-N) come from the same dedicated stats connection. Failed reads discard the mapping;
+the next scrape reconnects. The loopback endpoint also includes the agent's `vrx_agent_*` families.
+The configurable external listener exposes dataplane families and enforces its CIDR allow-list, including
+updates on the same address; disabling or rolling back its singleton closes the owned socket.
 
 Import `deploy/grafana/vrx-overview.json` into Grafana (pick your Prometheus data source). VPP's `prom_plugin.so`
 is an alternative exporter enabled through a `prom { … }` stanza in the startup configuration (a manager step); the

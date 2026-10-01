@@ -146,11 +146,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
   subsystem registry yet (renderer + supervisor + state reader are done and unit-tested; the RPC returns 501). Owner:
   F-pppoe-client-host. Also: MSS clamp mechanism on the WAN (VPP vs nftables on the tap) to be decided with the live
   stack.
-- F-dashboard-prom-alarms (this row): the agent exporter's real govpp StatsSource (VPP stats segment) and the
-  registration of the metrics collector + the management.prometheus listener descriptor under Domains["management"]
-  are not wired into the running agent yet (promexport package + API alarm engine are done and tested). Email alarm
-  targets are modelled but not delivered (webhook only) — left to F-notifications. Owner: F-dashboard-prom-alarms-host
-  / F-notifications.
+- F-dashboard-prom-alarms-host: real govpp stats source, collector and desired listener wiring are implemented on the unmerged branch. Pending: real stats/traffic/restart/alarm and browser screenshot acceptance; unit tests do not establish live behavior. Email delivery belongs to F-notifications. Owner: F-dashboard-prom-alarms-host; recorded2026-10-01, verify at next reachable lab window.
 - F-multiwan (this row): the agent host-side wiring (per-link probing, default-route/ECMP install via VPP, per-member
   source NAT + sticky sessions + clearing the dead link's sessions on failover, ABF pinning, the WanState RPC handler)
   is not wired into the running agent yet (the health hysteresis + failover/balance selection are done and unit-tested;

@@ -1,6 +1,7 @@
 package promexport
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -75,34 +76,53 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
-	if err := Collect(ctx, h.src, h.prefix, w); err != nil {
-		// headers may be sent already; a scrape error is visible as a truncated body and logged by the caller
+	var buf bytes.Buffer
+	if err := Collect(ctx, h.src, h.prefix, &buf); err != nil {
 		http.Error(w, "collect error", http.StatusInternalServerError)
+		return
 	}
+	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	_, _ = w.Write(buf.Bytes())
 }
 
 // Listener is the external Prometheus HTTP server (management.prometheus). Start/Stop are idempotent.
 type Listener struct {
-	mu   sync.Mutex
-	srv  *http.Server
-	ln   net.Listener
-	addr string
+	mu      sync.Mutex
+	srv     *http.Server
+	ln      net.Listener
+	addr    string
+	handler *liveHandler
 }
+
+type liveHandler struct {
+	mu sync.RWMutex
+	h  http.Handler
+}
+
+func (h *liveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.mu.RLock()
+	next := h.h
+	h.mu.RUnlock()
+	next.ServeHTTP(w, r)
+}
+func (h *liveHandler) set(next http.Handler) { h.mu.Lock(); h.h = next; h.mu.Unlock() }
 
 // Start binds addr and serves h. A running listener on a different address is replaced.
 func (l *Listener) Start(addr string, h http.Handler) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.srv != nil && l.addr == addr {
+		l.handler.set(h)
 		return nil
 	}
-	l.stopLocked()
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("promexport: listen %s: %w", addr, err)
 	}
-	srv := &http.Server{Handler: h, ReadHeaderTimeout: 5 * time.Second}
+	l.stopLocked()
+	live := &liveHandler{h: h}
+	srv := &http.Server{Handler: live, ReadHeaderTimeout: 5 * time.Second, WriteTimeout: 10 * time.Second}
+	l.handler = live
 	l.srv, l.ln, l.addr = srv, ln, addr
 	go func() { _ = srv.Serve(ln) }()
 	return nil
@@ -129,7 +149,11 @@ func (l *Listener) stopLocked() {
 	if l.srv != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		_ = l.srv.Shutdown(ctx)
+		if err := l.srv.Shutdown(ctx); err != nil {
+			// Shutdown leaves active requests alive after its deadline. Close cancels
+			// their request contexts before the listener loses its server reference.
+			_ = l.srv.Close()
+		}
 		l.srv, l.ln, l.addr = nil, nil, ""
 	}
 }

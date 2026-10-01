@@ -1,6 +1,6 @@
 # Contributing — the gate, the contract rule, the shared host, how merges happen
 
-Git on the dev host is **local-only**: no remote, no pull requests, no CI service. `tools/ci.sh` **is** the CI. The manager runs
+The original dev-host workflow used local git. The repository now has a GitHub remote, pull requests and a thin hosted CI wrapper (D-162, 2026-10-01). `tools/ci.sh` **is** the CI implementation. The manager runs
 it in every worker's worktree before merging and on `main` after merging; a worker runs it before declaring a task done. This
 page is the contract around that script. Architecture and security rules live in `prompts/00-CONTEXT.md`; shared-host rules in
 `docs/lab/shared-host-rules.md`; the merge procedure in `prompts/MANAGER-PROMPT.md` §2.
@@ -199,5 +199,5 @@ Bumping a pinned version is a one-line change in `tools/ci.sh` plus this table; 
 ## GitHub Actions
 
 `.github/workflows/ci.yml` is a thin wrapper that installs the toolchain and calls `tools/ci.sh quick` (`--base origin/<base>` on
-pull requests). Nothing runs it today — the repository has no remote — and it is not part of any acceptance. Keep the logic in
+pull requests). Hosted runs now execute this same quick gate; live VPP integration still requires the lab. The hosted wrapper bounds Turbo scheduling with `VRX_CI_TASK_CONCURRENCY=2`; unset retains the existing default and every check remains enabled. Keep the logic in
 `tools/ci.sh`; the workflow only sets up node/pnpm/go/buf/protoc plugins and uploads the step logs as an artifact.

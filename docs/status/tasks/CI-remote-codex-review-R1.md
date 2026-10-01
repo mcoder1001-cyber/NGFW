@@ -35,3 +35,27 @@ check PASSED (0m03s)
 An independent `tools/ci.sh quick --base origin/main` was started and reached frozen-lockfile installation after passing contract/tool checks. On manager instruction it was cancelled (exit 130), avoiding a repeated full run on the unchanged environment already known to deny Unix sockets. This reviewer does **not** claim a full quick pass or independently reproduced EPERM; the developer report documents BLOCKED-ENV. GitHub-hosted execution is pending and must be recorded separately.
 
 Verdict: **APPROVE** for workflow correctness. Full quick/hosted tester evidence is pending, not PASS.
+
+## Scheduling-only follow-up review
+
+Reviewed `b2534a63bc807942970d713e95d33427c17eaad6`. Read actual hosted baseline failure in the developer report: run 36923948061 completed 34/35 Turbo tasks and failed one UI-kit test at its existing 30-second timeout; API Unix-socket tests ran. This is failure evidence, not a successful gate. Bounded scheduling is a plausible remediation; only another hosted run can establish success.
+
+No new correctness findings. Optional concurrency is restricted to canonical integers 1..64 and appended as two quoted array arguments. Unset/empty preserves the prior command exactly. No tests, assertions, gate phases, failure behavior, or timeout changed. Hosted wrapper supplies 2.
+
+Independent validation:
+
+```text
+$ actionlint .github/workflows/ci.yml
+[no output; exit 0]
+$ bash -n tools/ci.sh
+[no output; exit 0]
+$ source-extracted do_turbo function, mocked step/note/run/fail; assertions on exit codes and exact argv
+None: exit 0, original arguments verified
+empty: exit 0, original arguments verified
+1, 2, 64: exit 0, --concurrency and exact value appended
+0, 65, -1, 1.5, 01, "2 extra", literal shell substitution: exit 7 (mock fail), rejected before run
+```
+
+The source-specific test executes the actual current function, not a duplicate regex. A pnpm Turbo dry-run attempt was cancelled during pnpm supply-chain policy verification (exit 130); direct node_modules CLI fallback was unavailable in this worktree. Neither attempt is claimed as passing. No full local quick gate rerun.
+
+Follow-up verdict: **APPROVE**. Hosted rerun required before recording a green gate.

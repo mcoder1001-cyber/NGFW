@@ -201,7 +201,18 @@ func TestBusyAndGlobals(t *testing.T) {
 	// this agent's own running capture
 	ctx, cancel := context.WithCancel(context.Background())
 	started := make(chan struct{})
+	done := make(chan struct{})
+	// Join the worker before TempDir cleanup, including fatal assertion paths.
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("capture worker did not stop after cancellation")
+		}
+	})
 	go func() {
+		defer close(done)
 		p, _ := Validate(&vrxv1.CaptureAction{Interface: "loop501", Seconds: 60})
 		once := sync.Once{}
 		_ = m.Run(ctx, p, func(*vrxv1.ActionOutput) error { once.Do(func() { close(started) }); return nil })
@@ -263,7 +274,18 @@ func TestAgentRestartDuringCapture(t *testing.T) {
 	m1 := r.manager(t, false, boot)
 	ctx, cancel := context.WithCancel(context.Background())
 	started := make(chan struct{})
+	done := make(chan struct{})
+	// Join the worker before TempDir cleanup, including fatal assertion paths.
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("capture worker did not stop after cancellation")
+		}
+	})
 	go func() {
+		defer close(done)
 		p, _ := Validate(&vrxv1.CaptureAction{Interface: "loop501", Seconds: 60})
 		once := sync.Once{}
 		// the "old process" never returns from its stream: block until the test ends

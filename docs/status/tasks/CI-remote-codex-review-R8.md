@@ -35,3 +35,29 @@ Inspected workflow diff against origin/main, tools/ci.sh installation/dispatch/l
 The manager accepts the bootstrap-artifact improvement as optional; existing GitHub console output preserves bootstrap failure diagnostics. No MAJOR fix was requested or agreed, and this MINOR does not block merge. This verification changes only the verdict disposition; no full gate was rerun.
 
 Verdict: **APPROVE** (one accepted optional MINOR; no merge-blocking R8 finding). Merge still requires successful hosted tester evidence and resolution of other mandatory reviewers' findings.
+
+
+## Scheduling-change verification — b2534a63
+
+Reviewed `b2534a63bc807942970d713e95d33427c17eaad6`: the workflow adds VRX_CI_TASK_CONCURRENCY=2; do_turbo validates an optional integer 1..64 and supplies a quoted `--concurrency` argument pair. Unset or empty retains the original command. The diff changes no requested tasks, test assertions, test timeout, continue behavior, integration policy or job timeout. No new R8 findings.
+
+The task report records original hosted run 36923948061 as failed (34/35 Turbo tasks succeeded; UI-kit 89/90 tests passed, one 30-second timeout). This supports investigating scheduling contention; it does not prove CPU contention is the sole cause. Two simultaneous Turbo tasks align better with the two-core resource budget and complement the existing Go/harness limits, but individual tasks may still create workers. Adequate memory, runtime and resolution of the UI timeout need a successful hosted rerun. R8 approves the scheduling control, not an unobserved green outcome.
+
+Independent verification in the same worktree: extracted the actual do_turbo function into a Bash harness with mock step/run/note/fail functions, to inspect argv without executing Turbo or the gate. The full lint/typecheck/test/build task list remains present:
+
+```text
+UNSET exit=0 <turbo><pnpm><turbo><run><lint><typecheck><test><build><--continue><--output-logs=errors-only>
+1 exit=0 [same argv plus] <--concurrency><1>
+2 exit=0 [same argv plus] <--concurrency><2>
+64 exit=0 [same argv plus] <--concurrency><64>
+0 exit=7 VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64
+65 exit=7 VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64
+02 exit=7 VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64
+2; echo injected exit=7 VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64
+$ PATH=/workspace/scratch/96b8b6fbc8a7/toolchain/bin:$PATH actionlint .github/workflows/ci.yml
+[no output; exit 0]
+$ bash -n tools/ci.sh
+[no output; exit 0]
+```
+
+Scheduling-change verdict: **APPROVE**. Existing optional bootstrap-log MINOR remains accepted. No full local gate ran; hosted rerun evidence remains required before merge.

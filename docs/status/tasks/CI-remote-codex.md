@@ -150,3 +150,24 @@ $ git diff --check
 (no output; exit 0)
 ```
 ShellCheck of tools/ci.sh reports pre-existing SC2015/SC2001 diagnostics in unrelated lines; no new diagnostic points to the concurrency hunk. Workflow actionlint includes ShellCheck and passes.
+
+## Hosted scheduling rerun and capture worker cleanup
+
+Run36925855433 (PR merge89b653ab, branch source d12adc535e35404ce011f55fe3b9dae1e80d3d98) failed; downloadable full agent artifact11193749118 confirms:
+
+```text
+Tasks: 35 successful, 35 total; Time: 5m22.354s
+--- FAIL: TestAgentRestartDuringCapture (0.00s)
+TempDir RemoveAll cleanup: unlinkat /tmp/TestAgentRestartDuringCapture4021331670/002/captures: directory not empty
+FAIL ngfw/agent/internal/actions/capture-trace 5.051s
+CI GATE FAILED — apps/agent lint/test/build failed
+```
+
+Both capture tests spawning a long-lived worker now register cleanup cancellation and a bounded5-second join before TempDir cleanup. Existing behavior assertions stay intact; no timeout/test/gate is removed or weakened. The previous cancellation-only test allowed the worker's final file write to race with TempDir deletion. Independent re-review and another hosted complete run are required.
+
+Focused manager verification in NGFW-ci with Go1.26:
+
+```text
+GOMAXPROCS=2 GOFLAGS=-p=2 go test -race -run 'TestAgentRestartDuringCapture|TestBusyAndGlobals' -count=100 ./internal/actions/capture-trace
+ok ngfw/agent/internal/actions/capture-trace 3.055s
+```

@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-09-27'
+updated: '2026-10-01'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1264,7 +1264,7 @@ tasks:
   - TD-8
   priority: 4
   est_hours: 16
-  state: ready
+  state: running
   parked_on: ''
   wbs:
   - D6.1
@@ -1276,14 +1276,14 @@ tasks:
     → start → AckRestart, SA state/event glue) apps/agent/internal/desired/ipsec*.go apps/agent/internal/subsystems/ipsec*.go apps/agent/internal/agent/rpc_ipsec*.go packages/schema/src/semantic/ipsec*.ts
     apps/api/src/features/ipsec/** apps/api/test/e2e/ipsec* apps/web/src/domains/vpn/ipsec/** apps/web/src/locales/{en,fa}/ipsec.json docs/user/vpn/ipsec.md docs/agent/renderers/strongswan.md docs/agent/descriptors/ipsec.md
     test/topology/ipsec/** docs/status/tasks/P11* — plus apps/agent/internal/secrets/** ONLY if the manager assigns the API→agent secret channel to P11 (see coordination)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/P11-codex
+  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-P11
+  owner: Codex manager delegated worker
+  started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
     since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
-    any VPP write)'
+    any VPP write) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged.'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -3673,17 +3673,18 @@ tasks:
   - F-management-ui
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-notifications-codex
+  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-notifications
+  owner: Codex manager delegated worker
+  started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  notes: promoted from backlog BL-OPS-06 by the product owner (2026-09-26)
+  notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
+    used only as code baseline, not certified merged.'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3737,17 +3738,18 @@ tasks:
   - F-host-acl-nftables
   priority: 3
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs: []
   scope: see prompt
   files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-setup-wizard-codex
+  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-setup
+  owner: Codex manager delegated worker
+  started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  notes: promoted from backlog BL-OPS-10 by the product owner (2026-09-27)
+  notes: 'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
+    used only as code baseline, not certified merged.'
 - id: F-rule-expiry
   title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
   prompt: prompts/features/F-rule-expiry.md
@@ -3897,12 +3899,12 @@ tasks:
   notes: follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here
 - template: ''
   parked_on: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-dashboard-prom-alarms-host-codex
+  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-dashboard
+  owner: Codex manager delegated worker
+  started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: ready
+  state: running
   wbs: []
   prompt: ''
   id: F-dashboard-prom-alarms-host
@@ -3916,15 +3918,16 @@ tasks:
     Domains[management]; /metrics shows vrx_interface_rx_bytes_total increasing after rig traffic; link-down raises an alarm within 5s and clears on link-up with the webhook receiving both; agent/API restart
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
-  notes: follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here
+  notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged.'
 - template: ''
   parked_on: ''
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: task/F-multiwan-host-codex
+  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
+  owner: Codex manager delegated worker
+  started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: ready
+  state: running
   wbs: []
   prompt: ''
   id: F-multiwan-host
@@ -3937,7 +3940,8 @@ tasks:
   scope: 'lab host only (needs VPP + two WAN netns): agent wiring (per-link probing, default-route/ECMP install, per-member source NAT + sticky sessions + clear dead-link sessions on failover, ABF pinning,
     WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
   files_owned: docs/status/tasks/F-multiwan*
-  notes: follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here
+  notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance
+    remains pending; existing review dependencies used only as code baseline, not certified merged.'
 - id: F-aaa-login
   title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
   stage: S4

@@ -122,3 +122,31 @@ $ node Unix-listener reproduction (v22.23.2)
 EPERM: listen EPERM: operation not permitted /tmp/ngfw-ci-evidence.sock
 exit status: 1
 ```
+
+## Hosted baseline failure and bounded scheduling
+
+Run 36923948061 on source 46d95cb6 completed 34/35 Turbo tasks; the existing UI-kit dependsOn test timed out under hosted CPU contention (90 UI-kit tests: 89 passed, 1 failed). API Unix-socket tests executed successfully on this normal Linux runner. The original run failed; it is not a green gate.
+
+Actual hosted output:
+```text
+Tasks: 34 successful, 35 total
+Cached: 0 cached, 35 total
+Time: 7m47.401s
+Failed: @ngfw/ui-kit#test
+FAIL src/schema-form/SchemaForm.test.tsx > <SchemaForm> > neither validates nor submits a field hidden by dependsOn (review M3)
+Error: Test timed out in 30000ms.
+Tests 1 failed | 89 passed (90)
+```
+
+The wrapper now sets VRX_CI_TASK_CONCURRENCY=2. tools/ci.sh accepts this optional integer (1..64) and passes it to Turbo --concurrency; when unset the original default is preserved. Every original task/test/assertion and timeout stays the same. This changes scheduling only, preventing Turbo's default ten simultaneous tasks from oversubscribing a two-core runner. Hosted rerun is required.
+
+Local verification of this scheduling change:
+```text
+$ actionlint .github/workflows/ci.yml
+(no output; exit 0)
+$ bash -n tools/ci.sh
+(no output; exit 0)
+$ git diff --check
+(no output; exit 0)
+```
+ShellCheck of tools/ci.sh reports pre-existing SC2015/SC2001 diagnostics in unrelated lines; no new diagnostic points to the concurrency hunk. Workflow actionlint includes ShellCheck and passes.

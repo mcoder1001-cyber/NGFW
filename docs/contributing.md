@@ -199,5 +199,5 @@ Bumping a pinned version is a one-line change in `tools/ci.sh` plus this table; 
 ## GitHub Actions
 
 `.github/workflows/ci.yml` is a thin wrapper that installs the toolchain and calls `tools/ci.sh quick` (`--base origin/<base>` on
-pull requests). Hosted runs now execute this same quick gate; live VPP integration still requires the lab. Keep the logic in
+pull requests). Hosted runs now execute this same quick gate; live VPP integration still requires the lab. The hosted wrapper bounds Turbo scheduling with `VRX_CI_TASK_CONCURRENCY=2`; unset retains the existing default and every check remains enabled. Keep the logic in
 `tools/ci.sh`; the workflow only sets up node/pnpm/go/buf/protoc plugins and uploads the step logs as an artifact.

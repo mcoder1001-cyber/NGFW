@@ -35,6 +35,7 @@ environment (all optional):
   VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
   VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
   VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
+  VRX_CI_TASK_CONCURRENCY=<n>    optional Turbo task concurrency (1..64); unset preserves Turbo's default
   GOLANGCI_LINT_VERSION / GITLEAKS_VERSION   override the pinned tool versions for install-tools
   TURBO_CACHE_DIR                shared turbo cache (default ~/.cache/vrx-turbo); GOCACHE: go's default (~/.cache/go-build)
 EOF
@@ -430,7 +431,13 @@ do_trace_ban() {
 
 do_turbo() {
   step "lint · typecheck · unit tests · build (turbo)"
-  run turbo pnpm turbo run lint typecheck test build --continue --output-logs=errors-only \
+  local -a task_args=()
+  if [[ -n ${VRX_CI_TASK_CONCURRENCY:-} ]]; then
+    [[ $VRX_CI_TASK_CONCURRENCY =~ ^([1-9]|[1-5][0-9]|6[0-4])$ ]] \
+      || fail "VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64"
+    task_args+=(--concurrency "$VRX_CI_TASK_CONCURRENCY")
+  fi
+  run turbo pnpm turbo run lint typecheck test build --continue --output-logs=errors-only "${task_args[@]}" \
     || fail "lint / typecheck / unit tests / build failed — the failing task's output is above."
   note "$(grep -E '^\s*(Tasks|Cached|Time):' "$CUR_LOG" | sed 's/^ *//' | tr '\n' ' ')"
 }

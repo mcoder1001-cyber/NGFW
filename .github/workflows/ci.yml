@@ -1,0 +1,85 @@
+name: CI gate
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quick:
+    name: Mandatory quick gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: '1'
+      GOTOOLCHAIN: local
+      GOMAXPROCS: '2'
+      GOFLAGS: -p=2
+      VRX_CI_APPLY_SHARDS: '2'
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.23.2'
+      - name: Install Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.26.0'
+          cache: false
+      - name: Install pinned package manager and CI tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global pnpm@12.5.1
+          sudo apt-get update
+          sudo apt-get install --yes shellcheck
+          export VRX_CI_TOOLS_DIR="$RUNNER_TEMP/ngfw-tools"
+          echo "VRX_CI_TOOLS_DIR=$VRX_CI_TOOLS_DIR" >> "$GITHUB_ENV"
+          echo "VRX_CI_LOG_DIR=$RUNNER_TEMP/ngfw-ci" >> "$GITHUB_ENV"
+          mkdir -p "$VRX_CI_TOOLS_DIR"
+          echo "$VRX_CI_TOOLS_DIR" >> "$GITHUB_PATH"
+          export PATH="$VRX_CI_TOOLS_DIR:$PATH"
+          tools/ci.sh install-tools
+          buf_release=https://github.com/bufbuild/buf/releases/download/v1.73.0
+          curl --fail --silent --show-error --location --retry 3 "$buf_release/buf-Linux-x86_64" -o "$VRX_CI_TOOLS_DIR/buf-Linux-x86_64"
+          curl --fail --silent --show-error --location --retry 3 "$buf_release/sha256.txt" -o "$RUNNER_TEMP/buf-sha256.txt"
+          (cd "$VRX_CI_TOOLS_DIR" && awk '$2 == "buf-Linux-x86_64" || $2 == "*buf-Linux-x86_64"' "$RUNNER_TEMP/buf-sha256.txt" | sha256sum --check --strict)
+          mv "$VRX_CI_TOOLS_DIR/buf-Linux-x86_64" "$VRX_CI_TOOLS_DIR/buf"
+          chmod +x "$VRX_CI_TOOLS_DIR/buf"
+          GOBIN="$VRX_CI_TOOLS_DIR" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          GOBIN="$VRX_CI_TOOLS_DIR" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+      - name: Run repository gate
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          args=(quick)
+          if [[ $EVENT_NAME == pull_request ]]; then
+            args+=(--base "origin/$BASE_REF")
+          elif [[ $REF_NAME != main ]]; then
+            args+=(--base origin/main)
+          fi
+          tools/ci.sh "${args[@]}"
+      - name: Upload gate logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-logs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ngfw-ci
+          if-no-files-found: warn
+          retention-days: 14

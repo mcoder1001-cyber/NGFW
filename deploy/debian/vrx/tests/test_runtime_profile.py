@@ -13,14 +13,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[4]
 class RuntimeProfile(unittest.TestCase):
     def test_policy_guard_denies_activation_and_restores_existing_policy(self):
         for policy_kind in ['missing', 'file', 'symlink']:
-            for fail in [False, True]:
+            for fail in [False, True, "crash"]:
                 with self.subTest(policy_kind=policy_kind, fail=fail), tempfile.TemporaryDirectory() as directory:
                     root = pathlib.Path(directory)
                     for path in ['scripts', 'deploy/vpp', 'artifacts', 'bin', 'run/lock', 'usr/sbin']:
                         (root / path).mkdir(parents=True)
                     script = (ROOT / 'scripts/10-install-runtime.sh').read_text()
                     script = script.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
-                    for path in ['/usr/sbin/policy-rc.d', '/run/lock/vrx-runtime-install.lock', '/run/vrx-runtime-policy.']:
+                    for path in ['/usr/sbin/policy-rc.d', '/run/lock/vrx-runtime-install.lock', '/usr/sbin/.vrx-runtime-policy-recovery']:
                         script = script.replace(path, str(root) + path)
                     (root / 'scripts/runtime.sh').write_text(script)
                     def executable(path, content):
@@ -34,6 +34,7 @@ class RuntimeProfile(unittest.TestCase):
 status=$?
 [ "$status" = 101 ] || exit 90
 printf 'activation denied\\n' >> "$APT_FIXTURE_LOG"
+[ "$APT_FIXTURE_FAIL" != crash ] || { kill -KILL "$PPID"; exit 18; }
 [ "$APT_FIXTURE_FAIL" != 1 ] || exit 17
 exit 0
 ''')
@@ -51,9 +52,26 @@ exit 0
                     environment = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
                                        VRX_INSTALL_APPLIANCE='1', VRX_VPP_ARTIFACTS=str(root / 'artifacts'),
                                        POLICY_FIXTURE=str(policy), APT_FIXTURE_LOG=str(root / 'apt-log'),
-                                       APT_FIXTURE_FAIL='1' if fail else '0')
+                                       APT_FIXTURE_FAIL='crash' if fail == 'crash' else ('1' if fail else '0'))
                     result = subprocess.run(['bash', str(root / 'scripts/runtime.sh')],
                                             env=environment, capture_output=True)
+                    if fail == 'crash':
+                        self.assertEqual(result.returncode, -9, result.stderr.decode())
+                        recovery = root / 'usr/sbin/.vrx-runtime-policy-recovery'
+                        self.assertTrue(recovery.is_dir())
+                        self.assertEqual(recovery.stat().st_mode & 0o777, 0o700)
+                        self.assertIn(b'exit 101', policy.read_bytes())
+                        if policy_kind == 'file':
+                            self.assertEqual((recovery / 'original').read_bytes(), original)
+                        elif policy_kind == 'symlink':
+                            self.assertEqual(os.readlink(recovery / 'original'), 'operator-policy')
+                        log = (root / 'apt-log').read_bytes()
+                        retry = subprocess.run(['bash', str(root / 'scripts/runtime.sh')],
+                                               env=environment, capture_output=True)
+                        self.assertNotEqual(retry.returncode, 0)
+                        self.assertIn(b'recovery pending', retry.stderr)
+                        self.assertEqual((root / 'apt-log').read_bytes(), log)
+                        continue
                     self.assertEqual(result.returncode, 17 if fail else 0, result.stderr.decode())
                     self.assertIn('activation denied', (root / 'apt-log').read_text())
                     if policy_kind == 'missing': self.assertFalse(policy.exists())

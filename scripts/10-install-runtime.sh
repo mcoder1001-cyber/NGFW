@@ -36,18 +36,32 @@ TOOLS=(jq curl gnupg unzip rsync)
 exec 9>/run/lock/vrx-runtime-install.lock
 flock -x 9
 POLICY=/usr/sbin/policy-rc.d
-POLICY_BACKUP=$(mktemp -d /run/vrx-runtime-policy.XXXXXXXX)
+# Same-filesystem persistent recovery state makes guard publication/restoration
+# atomic. A stale record requires operator recovery before another installation.
+POLICY_BACKUP=/usr/sbin/.vrx-runtime-policy-recovery
+[[ ! -e $POLICY_BACKUP && ! -L $POLICY_BACKUP ]] || {
+  echo "runtime policy recovery pending at $POLICY_BACKUP; refusing installation" >&2
+  exit 1
+}
+mkdir -m 0700 -- "$POLICY_BACKUP"
 HAD_POLICY=0
+GUARD_INSTALLED=0
 if [[ -e $POLICY || -L $POLICY ]]; then
   cp -a -- "$POLICY" "$POLICY_BACKUP/original"
   HAD_POLICY=1
 fi
+printf '%s\n' "$HAD_POLICY" > "$POLICY_BACKUP/had-policy"
 printf '#!/bin/sh\nexit 101\n' > "$POLICY_BACKUP/guard"
 chmod 0755 "$POLICY_BACKUP/guard"
 GUARD_SHA=$(sha256sum "$POLICY_BACKUP/guard" | cut -d ' ' -f 1)
 restore_policy() {
   local status=$1 current=
   trap - EXIT
+  if [[ $GUARD_INSTALLED == 0 ]]; then
+    # Before atomic publication the original policy was never changed.
+    rm -rf -- "$POLICY_BACKUP"
+    exit "$status"
+  fi
   if [[ -f $POLICY && ! -L $POLICY ]]; then
     current=$(sha256sum "$POLICY" | cut -d ' ' -f 1)
   fi
@@ -61,15 +75,21 @@ restore_policy() {
     rm -- "$POLICY"
   fi
   rm -- "$POLICY_BACKUP/guard" 2>/dev/null || true
+  rm -- "$POLICY_BACKUP/had-policy"
+  sync -f "$(dirname -- "$POLICY")"
   rmdir -- "$POLICY_BACKUP"
   exit "$status"
 }
-# Arm cleanup after installing the guard; failures before replacement leave the
-# original policy intact. All APT calls occur under the serialized no-start guard.
-mv -T -- "$POLICY_BACKUP/guard" "$POLICY"
+# Arm before publication. Persist the original/metadata before replacing policy.
 trap 'restore_policy $?' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
+sync -f "$POLICY_BACKUP"
+# Set the flag before rename so an interrupted/failed rename retains evidence
+# instead of deleting the backup; restoration refuses any unexpected policy.
+GUARD_INSTALLED=1
+mv -T -- "$POLICY_BACKUP/guard" "$POLICY"
+sync -f "$(dirname -- "$POLICY")"
 apt-get update
 apt-get install -y --no-install-recommends \
   "${DATAPLANE[@]}" "${NIC[@]}" "${ROUTING[@]}" "${VPN[@]}" \

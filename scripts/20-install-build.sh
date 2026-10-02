@@ -2,7 +2,28 @@
 # Developer / CI machine. Never run this on an appliance image.
 set -euo pipefail
 # These versions match the reviewed CI and agent module contracts.
-GO_VER=1.26.0
+PINNED_GO_VER=1.26.0
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+GO_MODULE="$SCRIPT_DIR/../apps/agent/go.mod"
+[[ -f $GO_MODULE && ! -L $GO_MODULE ]] || { echo "REFUSED: canonical agent go.mod must be a regular file" >&2; exit 1; }
+# Only one canonical numeric go directive is supported; never evaluate module text.
+if ! GO_VER=$(awk '
+  /^[ \t]*go([ \t]|$)/ {
+    count++
+    if ($0 ~ /^go[ \t]+[1-9][0-9]*\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?[ \t]*$/) {
+      valid++; version=$2
+    }
+  }
+  END { if (count == 1 && valid == 1) print version; else exit 1 }
+' "$GO_MODULE"); then
+  echo "REFUSED: canonical agent go.mod needs exactly one valid go directive" >&2
+  exit 1
+fi
+[[ $GO_VER =~ ^[0-9]+\.[0-9]+$ ]] && GO_VER+=.0
+[[ $GO_VER == "$PINNED_GO_VER" ]] || {
+  echo "REFUSED: agent Go directive has no reviewed official archive/version pin" >&2
+  exit 1
+}
 PROTOC_GO_VER=v1.36.12
 PROTOC_GRPC_VER=v1.6.2
 GOVPP_VER=v0.13.0

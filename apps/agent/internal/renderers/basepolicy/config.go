@@ -9,6 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// ProductConfig is the immutable protected appliance bootstrap input path.
 const ProductConfig = "/etc/vrx/base-policy.env"
 const maxConfig = 4096
 
@@ -26,7 +27,7 @@ func LoadConfig(path string) (Config, error) {
 		return Config{}, err
 	}
 	file := os.NewFile(uintptr(fd), path)
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	var stat unix.Stat_t
 	if err = unix.Fstat(fd, &stat); err != nil {
 		return Config{}, err
@@ -40,6 +41,8 @@ func LoadConfig(path string) (Config, error) {
 	}
 	return ParseConfig(data)
 }
+
+// ParseConfig validates bounded literal bootstrap assignments without shell evaluation.
 func ParseConfig(data []byte) (Config, error) {
 	if len(data) > maxConfig {
 		return Config{}, errors.New("basepolicy: configuration too large")

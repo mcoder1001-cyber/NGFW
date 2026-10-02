@@ -35,7 +35,12 @@ func TestConfigRejectsSymlinkAndNonRegular(t *testing.T) {
 	if _, err := LoadConfig(dir); err == nil {
 		t.Fatal("accepted directory")
 	}
-	if err := os.Chmod(regular, 0644); err != nil {
+	// Deliberately add public-read bits to this isolated nonsecret fixture.
+	info, err := os.Stat(regular)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(regular, info.Mode().Perm()|0044); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadConfig(regular); err == nil {

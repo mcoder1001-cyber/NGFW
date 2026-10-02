@@ -143,6 +143,25 @@ func TestMetricsCollectors(t *testing.T) {
 	collectorTimeout = 200 * time.Millisecond
 	t.Cleanup(func() { collectorTimeout = old })
 	a, _ := startFake(t, testConfig(t))
+	// Production now installs the dashboard collector. Check that wiring, then
+	// isolate this seam test's collectors so the empty-list and error accounting
+	// assertions stay independent of production stats socket availability.
+	production := map[string]bool{}
+	for _, c := range a.wiring.MetricsCollectors() {
+		production[c.Name] = true
+	}
+	if !production["dashboard-prom-alarms"] {
+		t.Fatal("production dashboard collector not registered")
+	}
+	a.metrics.collectors = func() []subsystems.MetricsCollector {
+		var out []subsystems.MetricsCollector
+		for _, c := range a.wiring.MetricsCollectors() {
+			if !production[c.Name] {
+				out = append(out, c)
+			}
+		}
+		return out
+	}
 	scrape := func() string {
 		rec := httptest.NewRecorder()
 		a.metrics.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))

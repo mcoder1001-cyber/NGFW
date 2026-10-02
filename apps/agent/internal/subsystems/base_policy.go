@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// EnvBasePolicy explicitly activates the appliance dynamic admission adapter.
 const EnvBasePolicy = "VRX_BASE_POLICY"
 
 type basePolicyRuntime struct {

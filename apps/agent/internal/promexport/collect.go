@@ -8,7 +8,10 @@ import (
 
 // InterfaceStats is one interface's counters (absolute, from the stats segment).
 type InterfaceStats struct {
-	Name                 string
+	Name string
+	// StatsOnly means link flags and directional drops are unavailable in the stats segment.
+	StatsOnly            bool
+	Drops                uint64
 	RxBytes, TxBytes     uint64
 	RxPackets, TxPackets uint64
 	RxDrops, TxDrops     uint64
@@ -77,12 +80,24 @@ func Collect(ctx context.Context, src StatsSource, prefix string, w io.Writer) e
 	for _, i := range snap.Interfaces {
 		e.counter("vrx_interface_tx_packets_total", ifl(prefix, i.Name), i.TxPackets)
 	}
+	e.family("vrx_interface_drops_total", "counter", "Packets dropped on the interface (VPP aggregate).")
+	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			e.counter("vrx_interface_drops_total", ifl(prefix, i.Name), i.Drops)
+		}
+	}
 	e.family("vrx_interface_rx_drops_total", "counter", "Packets dropped on receive.")
 	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			continue
+		}
 		e.counter("vrx_interface_rx_drops_total", ifl(prefix, i.Name), i.RxDrops)
 	}
 	e.family("vrx_interface_tx_drops_total", "counter", "Packets dropped on transmit.")
 	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			continue
+		}
 		e.counter("vrx_interface_tx_drops_total", ifl(prefix, i.Name), i.TxDrops)
 	}
 	e.family("vrx_interface_rx_errors_total", "counter", "Receive errors on the interface.")
@@ -95,10 +110,16 @@ func Collect(ctx context.Context, src StatsSource, prefix string, w io.Writer) e
 	}
 	e.family("vrx_interface_admin_up", "gauge", "Interface administrative state (1 = up).")
 	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			continue
+		}
 		e.gauge("vrx_interface_admin_up", ifl(prefix, i.Name), b2f(i.AdminUp))
 	}
 	e.family("vrx_interface_link_up", "gauge", "Interface link/carrier state (1 = up).")
 	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			continue
+		}
 		e.gauge("vrx_interface_link_up", ifl(prefix, i.Name), b2f(i.LinkUp))
 	}
 

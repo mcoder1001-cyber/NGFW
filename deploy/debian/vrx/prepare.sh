@@ -28,7 +28,7 @@ done
 command -v go >/dev/null
 command -v pnpm >/dev/null
 mkdir -p -- "$OUTPUT"
-cp -a -- "$ROOT/deploy/debian/vrx/debian" "$ROOT/deploy/debian/vrx/tests" "$OUTPUT/"
+cp -a -- "$ROOT/deploy/debian/vrx/debian" "$ROOT/deploy/debian/vrx/tests" "$ROOT/deploy/debian/vrx/assets" "$OUTPUT/"
 STAGE=$OUTPUT/stage
 mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/vrx" "$STAGE/usr/share/vrx/web" "$STAGE/usr/lib/systemd/system"
 for binary in vrx-agent vrx-startupgen vrx-vppcheck; do

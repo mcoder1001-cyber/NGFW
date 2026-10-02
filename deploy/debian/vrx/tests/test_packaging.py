@@ -44,6 +44,36 @@ class Packaging(unittest.TestCase):
         self.assertIn('rsyslog-gnutls', control)
         self.assertIn('nodejs (<< 23)', control)
 
+    def test_http_never_proxies_and_tls_has_ws_and_api_routes(self):
+        config = (SOURCE / 'assets/nginx.conf').read_text()
+        cleartext, secure = config.split('server {', 2)[1:]
+        self.assertIn('listen 80', cleartext)
+        self.assertIn('return 308 https://', cleartext)
+        self.assertNotIn('proxy_pass', cleartext)
+        self.assertIn('listen 443 ssl', secure)
+        self.assertIn('proxy_set_header Upgrade $http_upgrade', secure)
+        self.assertIn('proxy_set_header X-Forwarded-For $remote_addr', secure)
+        self.assertNotIn('$proxy_add_x_forwarded_for', secure)
+        self.assertIn('location /restconf', secure)
+        self.assertIn('location = /.well-known/host-meta', secure)
+
+    def test_tls_first_run_retry_and_partial_pair_refusal(self):
+        script = SOURCE / 'assets/tls-bootstrap.sh'
+        with tempfile.TemporaryDirectory() as directory:
+            tls = pathlib.Path(directory) / 'tls'
+            subprocess.run(['bash', str(script), '--directory', str(tls)], check=True)
+            key, cert = (tls / 'server.key'), (tls / 'server.crt')
+            before = (key.read_bytes(), cert.read_bytes())
+            self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+            subprocess.run(['bash', str(script), '--directory', str(tls)], check=True)
+            self.assertEqual(before, (key.read_bytes(), cert.read_bytes()))
+            cert.unlink()
+            result = subprocess.run(['bash', str(script), '--directory', str(tls)],
+                                    capture_output=True, check=False)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(before[0], key.read_bytes())
+            self.assertFalse(cert.exists())
+
     def test_maintainer_scripts_are_valid_and_no_destructive_actions(self):
         for path in (SOURCE / 'debian').glob('*.postinst'):
             subprocess.run(['sh', '-n', str(path)], check=True)

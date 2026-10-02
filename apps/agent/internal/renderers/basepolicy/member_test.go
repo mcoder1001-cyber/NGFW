@@ -26,10 +26,10 @@ func (f *memberNft) Run(ctx context.Context, c renderers.Command) (renderers.Out
 	}
 	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "vrx_base", "punt_interfaces"}) {
 		f.reads++
-		if f.reads == 2 && (f.mode == "compensate" || f.mode == "unknown" || f.mode == "unconfirmed") {
+		if f.mutations > 0 && f.reads == 2 && (f.mode == "compensate" || f.mode == "unknown" || f.mode == "unconfirmed") {
 			return renderers.Output{}, errors.New("EIO readback")
 		}
-		if f.reads >= 3 && (f.mode == "unknown" || f.mode == "unconfirmed") {
+		if f.mutations > 0 && f.reads >= 3 && (f.mode == "unknown" || f.mode == "unconfirmed" || (f.mode == "unknownOnce" && f.reads <= 4)) {
 			return renderers.Output{}, errors.New("EIO confirmation")
 		}
 		return renderers.Output{Stdout: kernel(f.state)}, nil
@@ -46,7 +46,7 @@ func (f *memberNft) Run(ctx context.Context, c renderers.Command) (renderers.Out
 		return renderers.Output{}, errors.New("invalid typed input")
 	}
 	host := parts[1]
-	if f.mutations == 2 && f.mode == "unknown" {
+	if f.mutations == 2 && (f.mode == "unknown" || f.mode == "unknownOnce") {
 		return renderers.Output{}, errors.New("EIO compensation")
 	}
 	if f.mode == "reject" && f.mutations == 1 {

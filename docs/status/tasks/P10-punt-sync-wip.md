@@ -66,3 +66,22 @@ and orphan cleanup. Registration/product projection remains UNBUILT. Further
 failure/rollback, boot and namespace integration tests are still required.
 Narrow scheduler uncertainty contract independently reviewed; preserved report
 P10-scheduler-uncertainty-review.md. No target host nft/VPP tests performed.
+
+## First product integration checkpoint
+
+Explicit VRX_BASE_POLICY=1 requires vrx globals owner, loads protected bootstrap
+inputs and registers the per-host descriptor. Product unit enables this flag and
+requires/starts after nftables. Apply, dry-run and drift/resync projections now
+use the same augmentation hook; disabled agents make no namespace/nft calls.
+Actual owned LCP dump feeds descriptor readback. Effective default namespace
+comes from direct VPP LcpDefaultNsGet; malformed namespace readback fails closed,
+without the generic descriptor's invalid-bytes-as-unset workaround.
+
+Sixteen basepolicy tests pass, including actual adapter+scheduler ambiguous
+Delete (DEGRADED, pair retained), unknown Create (PartialCreate, exact owned
+cleanup before pair rollback), pair-delete failure restoring journaled admission,
+mixed reverse compensation and deleted membership resync restoration. Two
+subsystems tests pass for disabled/product-only activation and namespace failures.
+Agent/subsystems packages compile. Runtime nft/VPP and reboot remain NOT RUN;
+full hosted integration gate and fresh independent source review still needed.
+Original helper and descriptor BLOCK reports preserved alongside approvals.

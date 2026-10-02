@@ -206,7 +206,7 @@ var Domains = map[string][]string{
 	VPN: wireguardDescriptors(), // wireguard.interface, wireguard.peer, wireguard.meta (wireguard.go); P11 / F-ikev2-native append
 	// wave-A: F-kea-dhcp-relay (services: kea.dhcp4/6, dhcp.proxy/proxy-vss/relay are in the one services entry above)
 	// wave-A: F-unbound-chrony-syslog (services: unbound, chrony, dns.* are in the one services entry above)
-	Management: managementDescriptors,
+	Management: append(append([]string{}, managementDescriptors...), desired.PrometheusDescriptorName),
 	// F-system-identity (unanchored: no anchor seeded for this row)
 	System: systemDescriptors, // system.identity (system_identity.go)
 }
@@ -413,6 +413,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// F-qos-flat (unanchored: no `wave-BC: F-qos-flat` anchor in this block)
 	if err := w.registerQoS(r); err != nil {
+		return nil, err
+	}
+	// wave-BC: F-dashboard-prom-alarms (registration seam)
+	if err := registerDashboardPromAlarms(r, w); err != nil {
 		return nil, err
 	}
 	w.registerLb(r)

@@ -3693,7 +3693,7 @@ tasks:
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
   branch: codex/notifications-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/NGFW-notifications
-  owner: notifications (UI, reload and SMTP cancellation correction)
+  owner: manager (reviewed bounded slice; CI and R7 documentation)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
@@ -3915,10 +3915,10 @@ tasks:
   parked_on: ''
   branch: codex/dashboard-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/ngfw-dashboard
-  owner: awaiting reviewed current-main hosted gate
+  owner: integrated PR62
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: review
+  state: merged
   wbs: []
   prompt: ''
   id: F-dashboard-prom-alarms-host
@@ -3934,12 +3934,13 @@ tasks:
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
     owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-02:
-    recovered into isolated local branch; direct owner publication approval received after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
+    recovered into isolated local branch; direct owner publication approval received after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.
+    | 2026-10-02: PR62 merged c76774e8 after complete unchanged hosted gate37031674326 PASS; lab-only acceptance remains NOT RUN under owner deferral.'
 - template: ''
   parked_on: ''
   branch: codex/multiwan-monitor-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/ngfw-multiwan-monitor
-  owner: dashboard (monitor persistence correction)
+  owner: dashboard (packaged probe capability and truthful UI correction)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running

@@ -128,7 +128,7 @@ class Producer(unittest.TestCase):
         for _ in range(100):
             try:
                 raw=path.read_text()
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 return
             fields=raw.rsplit(') ',1)[1].split()
             if fields[19]!=child['birth'] or fields[0]=='Z':

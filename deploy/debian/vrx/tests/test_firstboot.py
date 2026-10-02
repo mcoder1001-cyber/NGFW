@@ -25,6 +25,7 @@ class Firstboot(unittest.TestCase):
         command('bin/runuser', '''if [[ "$*" == *psql* ]]; then cat >/dev/null; exit 0; fi
 [[ ${FAIL_STAGE:-} != db ]]''')
         command('bin/chown', ':')
+        command('bin/openssl', '''if [[ ${FAIL_STAGE:-} == random && "$*" == "rand -hex 32" ]]; then exit 1; fi; exec /usr/bin/openssl "$@"''')
         command('bin/install', '''args=(); while (( $# )); do case $1 in -o|-g) shift 2;; *) args+=("$1"); shift;; esac; done; /usr/bin/install "${args[@]}"''')
         command('bin/stat', '''if [[ "$*" == *secret.key* ]]; then echo 32:600:vrx; else /usr/bin/stat "$@"; fi''')
         command('bin/systemctl', 'echo "$*" >> "$FIXTURE_ROOT/service-commands"')
@@ -57,6 +58,28 @@ class Firstboot(unittest.TestCase):
             subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
             self.assertFalse(credentials.exists())
             self.assertFalse((root / 'service-commands').exists())
+
+    def test_invalid_existing_jwt_and_random_failure_retain_credentials(self):
+        for corruption in ['missing', 'empty', 'duplicate', 'random-failure']:
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as directory:
+                root, credentials, entry, env = self.fixture(directory)
+                if corruption == 'random-failure':
+                    env['FAIL_STAGE'] = 'random'
+                else:
+                    env['FAIL_STAGE'] = 'nginx'
+                    subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+                    settings = root / 'etc/vrx/api.env'
+                    lines = settings.read_text().splitlines()
+                    jwt = next(line for line in lines if line.startswith('VRX_JWT_SECRET='))
+                    lines = [line for line in lines if not line.startswith('VRX_JWT_SECRET=')]
+                    if corruption == 'empty': lines.append('VRX_JWT_SECRET=')
+                    if corruption == 'duplicate': lines.extend([jwt, jwt])
+                    settings.write_text('\n'.join(lines) + '\n')
+                    del env['FAIL_STAGE']
+                result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertTrue(credentials.exists())
+                self.assertFalse((root / 'var/lib/vrx/firstboot-complete').exists())
 
     def test_failures_retain_credentials_and_do_not_publish_completion(self):
         for stage in ['db', 'tls', 'startup', 'nginx']:

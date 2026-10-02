@@ -34,13 +34,18 @@ fi
 if [[ ! -e /etc/vrx/api.env ]]; then
   TEMP=$(mktemp /etc/vrx/.api-env.XXXXXXXX)
   printf '%s\n' 'VRX_DATABASE_URL=postgresql:///vrx?host=/var/run/postgresql&user=vrx' 'VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key' > "$TEMP"
-  printf 'VRX_JWT_SECRET=%s\n' "$(openssl rand -hex 32)" >> "$TEMP"
+  JWT_SECRET=$(openssl rand -hex 32)
+  [[ $JWT_SECRET =~ ^[a-f0-9]{64}$ ]] || { echo 'JWT key generation failed' >&2; exit 1; }
+  printf 'VRX_JWT_SECRET=%s\n' "$JWT_SECRET" >> "$TEMP"
   chmod 0600 "$TEMP"
   mv "$TEMP" /etc/vrx/api.env
 fi
 [[ -f /etc/vrx/api.env && ! -L /etc/vrx/api.env && $(stat -c '%u:%a' /etc/vrx/api.env) == 0:600 ]] || { echo 'invalid API environment file' >&2; exit 1; }
 grep -Fxq 'VRX_DATABASE_URL=postgresql:///vrx?host=/var/run/postgresql&user=vrx' /etc/vrx/api.env || { echo 'API database configuration requires manual review' >&2; exit 1; }
 grep -Fxq 'VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key' /etc/vrx/api.env || { echo 'API secret configuration requires manual review' >&2; exit 1; }
+JWT_SECRET=$(sed -n 's/^VRX_JWT_SECRET=//p' /etc/vrx/api.env)
+[[ $JWT_SECRET =~ ^[a-f0-9]{64}$ ]] || { echo 'invalid or duplicate persisted JWT key' >&2; exit 1; }
+export VRX_JWT_SECRET=$JWT_SECRET
 # Parse generated environment as data instead of sourcing shell code.
 export VRX_DATABASE_URL='postgresql:///vrx?host=/var/run/postgresql&user=vrx'
 export VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key NODE_ENV=production

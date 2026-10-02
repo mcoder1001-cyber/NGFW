@@ -40,3 +40,5 @@ API deployment bootstrap, VPP rendering and appliance boot NOT RUN. Firstboot or
 service activation/base nftables and signed APT remain pending; task still RUNNING.
 
 Firstboot fresh-review MAJOR fixed: no marker-negative unit condition; optional environment file allows scheduled cleanup after marker publication/crash. Production script still fails closed if first initialization lacks credentials. Three fixture-flow tests PASS incl actual unit condition/marker cleanup boundary.
+
+Firstboot JWT review fix: random generation separately checked before printf; existing api.env must contain exactly one 64-hex stable JWT key; the same persisted key is exported to bootstrap. Four fixture tests PASS including missing/empty/duplicate JWT and failed random command retaining bootstrap credentials with no completion marker.

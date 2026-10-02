@@ -10,6 +10,8 @@ User=root
 Group=vrx
 ExecStart=/usr/sbin/vrx-agent
 Environment=VRX_BASE_POLICY=1 VRX_GLOBALS_OWNER=1 VRX_SOCKET_GROUP=vrx VRX_AGENT_STATE_DIR=/var/lib/vrx/agent
+# Dedicated appliance scope only; never start this unit on the shared lab host.
+Environment=VRX_VPP_ID_RANGE=all
 EnvironmentFile=-/etc/vrx/agent.env
 Restart=always
 RestartSec=3

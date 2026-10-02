@@ -64,9 +64,15 @@ func (r *Runtime) Replace(ctx context.Context, groups []*vrxv1.WanGroup) error {
 // ReplaceWithIdentity also invalidates observations when the member device or
 // VRF changes without a change to the group itself.
 func (r *Runtime) ReplaceWithIdentity(ctx context.Context, groups []*vrxv1.WanGroup, identity string) error {
+	return r.ReplaceWithProbe(ctx, groups, identity, r.probe)
+}
+
+// ReplaceWithProbe captures a generation-specific probe, including its device mapping.
+// Old workers keep their original mapping while they drain.
+func (r *Runtime) ReplaceWithProbe(ctx context.Context, groups []*vrxv1.WanGroup, identity string, probe Probe) error {
 	r.replace.Lock()
 	defer r.replace.Unlock()
-	if r.probe == nil {
+	if probe == nil {
 		return errors.New("WAN probe is not configured")
 	}
 	count := 0
@@ -154,7 +160,7 @@ func (r *Runtime) ReplaceWithIdentity(ctx context.Context, groups []*vrxv1.WanGr
 				wg.Add(1)
 				go func(group, member string, index int, mon *vrxv1.WanMonitor) {
 					defer wg.Done()
-					r.worker(workCtx, generation, group, member, index, mon)
+					r.worker(workCtx, generation, group, member, index, mon, probe)
 				}(g.GetName(), m.GetInterface(), i, monitor)
 			}
 		}
@@ -164,13 +170,13 @@ func (r *Runtime) ReplaceWithIdentity(ctx context.Context, groups []*vrxv1.WanGr
 	return nil
 }
 
-func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, index int, mon *vrxv1.WanMonitor) {
+func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, index int, mon *vrxv1.WanMonitor, probe Probe) {
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 		pctx, cancel := context.WithTimeout(ctx, time.Duration(mon.GetTimeoutMs())*time.Millisecond)
-		result := r.probe(pctx, member, mon)
+		result := probe(pctx, member, mon)
 		cancel()
 		if ctx.Err() != nil {
 			return

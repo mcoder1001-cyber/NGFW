@@ -59,12 +59,13 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		if err := a.svc.lock(ctx); err != nil {
 			return
 		}
-		groups := a.svc.st.desired.GetRouting().GetWanGroups()
+		saved := a.svc.st.wanSaved
+		groups := saved.GetRouting().GetWanGroups()
 		clone := make([]*vrxv1.WanGroup, 0, len(groups))
 		for _, group := range groups {
 			clone = append(clone, proto.Clone(group).(*vrxv1.WanGroup))
 		}
-		identityDoc := &vrxv1.DesiredState{Interfaces: a.svc.st.desired.GetInterfaces()}
+		identityDoc := &vrxv1.DesiredState{Interfaces: saved.GetInterfaces()}
 		encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(identityDoc)
 		identity := sha256.Sum256(encoded)
 		a.svc.unlock()
@@ -72,7 +73,9 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 			a.log.Error("WAN interface identity encoding failed")
 			return
 		}
-		if err := runtime.ReplaceWithIdentity(ctx, clone, string(identity[:])); err != nil && ctx.Err() == nil {
+		if err := runtime.ReplaceWithProbe(ctx, clone, string(identity[:]), multiwan.DeviceProbe(func(member string) (string, error) {
+			return wanDevice(saved, member)
+		})); err != nil && ctx.Err() == nil {
 			a.log.Error("WAN monitor configuration rejected", "reason", err.Error())
 		}
 		select {
@@ -83,10 +86,8 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 	}
 }
 
-func (s *Service) wanDevice(member string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	iface := s.storedIfs[member]
+func wanDevice(saved *vrxv1.DesiredState, member string) (string, error) {
+	iface := saved.GetInterfaces()[member]
 	if iface == nil || iface.GetLcp() == nil || (iface.GetVrf() != "" && iface.GetVrf() != "default") || iface.GetLcp().GetNetns() != "" {
 		return "", multiwan.UnsupportedDevice()
 	}
@@ -95,4 +96,13 @@ func (s *Service) wanDevice(member string) (string, error) {
 		device = member
 	}
 	return device, nil
+}
+
+// wanSnapshot copies only monitor inputs, not unrelated routes or secrets. The
+// resulting document is immutable and shared by one committed probe generation.
+func wanSnapshot(ds *vrxv1.DesiredState) *vrxv1.DesiredState {
+	return proto.Clone(&vrxv1.DesiredState{
+		Interfaces: ds.GetInterfaces(),
+		Routing:    &vrxv1.RoutingConfig{WanGroups: ds.GetRouting().GetWanGroups()},
+	}).(*vrxv1.DesiredState)
 }

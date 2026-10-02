@@ -52,20 +52,20 @@ func TestWanRPCObservedStateFilteringAndOwner(t *testing.T) {
 }
 
 func TestWanDeviceFailClosedForMissingNamespaceAndVRF(t *testing.T) {
-	service := &Service{storedIfs: map[string]*vrxv1.Interface{"wan0": {Lcp: &vrxv1.InterfaceLcp{HostIfName: proto.String("lcp0")}}}}
-	if device, err := service.wanDevice("wan0"); err != nil || device != "lcp0" {
+	saved := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"wan0": {Lcp: &vrxv1.InterfaceLcp{HostIfName: proto.String("lcp0")}}}}
+	if device, err := wanDevice(saved, "wan0"); err != nil || device != "lcp0" {
 		t.Fatalf("device %s %v", device, err)
 	}
-	if _, err := service.wanDevice("missing"); err == nil {
+	if _, err := wanDevice(saved, "missing"); err == nil {
 		t.Fatal("missing interface allowed unbound probe")
 	}
-	service.storedIfs["wan0"].Lcp.Netns = proto.String("other")
-	if _, err := service.wanDevice("wan0"); err == nil {
+	saved.Interfaces["wan0"].Lcp.Netns = proto.String("other")
+	if _, err := wanDevice(saved, "wan0"); err == nil {
 		t.Fatal("namespace probe allowed")
 	}
-	service.storedIfs["wan0"].Lcp.Netns = nil
-	service.storedIfs["wan0"].Vrf = proto.String("blue")
-	if _, err := service.wanDevice("wan0"); err == nil {
+	saved.Interfaces["wan0"].Lcp.Netns = nil
+	saved.Interfaces["wan0"].Vrf = proto.String("blue")
+	if _, err := wanDevice(saved, "wan0"); err == nil {
 		t.Fatal("nondefault VRF allowed")
 	}
 }

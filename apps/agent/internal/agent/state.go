@@ -69,14 +69,15 @@ type persisted struct {
 
 // state is the in-memory copy; the service guards it with its transaction lock.
 type state struct {
-	dir     string
-	desired *vrxv1.DesiredState // current (possibly pending)
-	confirm *vrxv1.DesiredState // confirmed baseline
-	meta    persisted
+	dir      string
+	desired  *vrxv1.DesiredState // current (possibly pending)
+	confirm  *vrxv1.DesiredState // confirmed baseline
+	meta     persisted
+	wanSaved *vrxv1.DesiredState // immutable monitor input from the last authoritative save/load; guarded by txn
 }
 
 func newState(dir, owner string) *state {
-	return &state{dir: dir, desired: &vrxv1.DesiredState{}, confirm: &vrxv1.DesiredState{}, meta: persisted{Owner: owner}}
+	return &state{wanSaved: &vrxv1.DesiredState{}, dir: dir, desired: &vrxv1.DesiredState{}, confirm: &vrxv1.DesiredState{}, meta: persisted{Owner: owner}}
 }
 
 var docJSON = protojson.UnmarshalOptions{DiscardUnknown: true}
@@ -107,6 +108,7 @@ func loadState(dir, owner string) (*state, error) {
 		if err := docJSON.Unmarshal(s.meta.Confirmed, s.confirm); err != nil {
 			return nil, fmt.Errorf("state: confirmed: %w", err)
 		}
+		s.wanSaved = wanSnapshot(s.desired)
 		return s, nil
 	}
 	// pre-review layout: documents in desired.pb / confirmed.pb
@@ -116,6 +118,7 @@ func loadState(dir, owner string) (*state, error) {
 	if s.confirm, err = readPB(filepath.Join(dir, "confirmed.pb")); err != nil {
 		return nil, err
 	}
+	s.wanSaved = wanSnapshot(s.desired)
 	return s, nil
 }
 
@@ -155,6 +158,8 @@ func (s *state) save() error {
 	if err := ownertable.WriteAtomic(filepath.Join(s.dir, stateFile), append(b, '\n'), 0o640); err != nil {
 		return fmt.Errorf("state: %s: %w", stateFile, err)
 	}
+	// Publish only after the authoritative write. Mirror failures remain durable.
+	s.wanSaved = wanSnapshot(s.desired)
 	if saveHook != nil {
 		if err := saveHook("mirror"); err != nil {
 			return fmt.Errorf("%w: %w", errMirror, err)

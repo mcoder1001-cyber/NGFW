@@ -276,7 +276,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, fmt.Errorf("listen %s: %w", cfg.Socket, err)
 	}
 	a.grpc = newGRPCServer(log, m) // TD-9: panic recovery interceptors
-	wan := multiwan.NewRuntime(multiwan.DeviceProbe(svc.wanDevice))
+	wan := multiwan.NewRuntime(nil)
 	vrxv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log, wan: wan})
 
 	if cfg.MetricsAddr != "" && cfg.MetricsAddr != "off" {

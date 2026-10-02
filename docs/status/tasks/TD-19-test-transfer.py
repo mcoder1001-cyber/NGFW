@@ -40,7 +40,7 @@ class TransferGate(unittest.TestCase):
                 package.rename(root / 'original.deb')
                 package.symlink_to('original.deb')
             source = (ROOT / 'tools/lab').read_text()
-            match = re.search(r'printf .*?\| run_on "\$vm" python3 -c \'\n(.*?)\n\' "\$remote_dir"', source, re.S)
+            match = re.search(r'printf .*?\| run_on "\$vm" python3 -c "\$\(cat <<\'REMOTE_VERIFY\'\n(.*?)\nREMOTE_VERIFY\n\)" "\$remote_dir"', source, re.S)
             self.assertIsNotNone(match)
             code = match.group(1).replace('/usr/sbin/policy-rc.d', str(policy))
             # Model only owner identity on the isolated fixture, not its mode/path.

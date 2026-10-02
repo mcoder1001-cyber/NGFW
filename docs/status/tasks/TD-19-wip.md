@@ -70,3 +70,15 @@ Script 20 now pins that digest directly; an optional operator override must
 match it exactly. This supersedes the earlier caller-supplied-hash approach
 above. Missing override is safe because the authoritative pin is built in;
 differing/empty/malformed overrides refuse before any mutation.
+
+### Build PATH review correction
+
+The original build-pin BLOCK is preserved. Installation now checks the explicit
+`/usr/local/go/bin/go`, writes a persistent profile that prepends its directory,
+and prepends it in the current process, clears Bash command lookup cache, then
+requires the selected complete Go version/platform before generator execution.
+The supported platform check now requires Linux as well as x86_64.
+Five build tests PASS (0.028s), including executing the actual selection and
+three generator commands against a fake new Go with an older Go earlier in the
+original PATH. A wrong selected version invokes no generators. These are fake
+executables in temporary directories; no actual installation occurred.

@@ -12,7 +12,7 @@ GO_SHA256=aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235
   echo "REFUSED: VRX_GO_SHA256 override differs from the pinned official Go archive" >&2
   exit 1
 }
-[[ $(uname -m) == x86_64 ]] || { echo "only linux-amd64 build bootstrap is supported" >&2; exit 1; }
+[[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || { echo "only linux-amd64 build bootstrap is supported" >&2; exit 1; }
 if [[ ${1:-} == --check-config && $# == 1 ]]; then
   printf 'Go=%s protoc-gen-go=%s protoc-gen-go-grpc=%s govpp=%s\n' "$GO_VER" "$PROTOC_GO_VER" "$PROTOC_GRPC_VER" "$GOVPP_VER"
   exit 0
@@ -37,7 +37,7 @@ apt-get install -y "${BUILD[@]}" "${VPPDEP[@]}" "${SSWAN[@]}" "${GO[@]}" "${NODE
                    "${PKG[@]}" "${IMAGE[@]}" "${CONTAINER[@]}" "${QUALITY[@]}"
 
 # Go from the official tarball - the distro package lags and govpp tracks new releases.
-if ! command -v go >/dev/null || [[ "$(go version)" != "go version go${GO_VER} linux/amd64" ]]; then
+if [[ ! -x /usr/local/go/bin/go ]] || [[ "$(/usr/local/go/bin/go version)" != "go version go${GO_VER} linux/amd64" ]]; then
   go_archive=$(mktemp /tmp/vrx-go.XXXXXXXX.tar.gz)
   trap 'rm -f -- "$go_archive"' EXIT
   curl -fsSL "https://go.dev/dl/go${GO_VER}.linux-amd64.tar.gz" -o "$go_archive"
@@ -45,9 +45,14 @@ if ! command -v go >/dev/null || [[ "$(go version)" != "go version go${GO_VER} l
   rm -rf /usr/local/go && tar -C /usr/local -xzf "$go_archive"
   rm -f -- "$go_archive"
   trap - EXIT
-  echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' > /etc/profile.d/go.sh
 fi
-export PATH=$PATH:/usr/local/go/bin
+echo 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH' > /etc/profile.d/go.sh
+export PATH=/usr/local/go/bin:$PATH
+hash -r
+[[ "$(go version)" == "go version go${GO_VER} linux/amd64" ]] || {
+  echo "REFUSED: selected Go does not match the pinned version/platform" >&2
+  exit 1
+}
 go install "google.golang.org/protobuf/cmd/protoc-gen-go@$PROTOC_GO_VER"
 go install "google.golang.org/grpc/cmd/protoc-gen-go-grpc@$PROTOC_GRPC_VER"
 go install "go.fd.io/govpp/cmd/binapi-generator@$GOVPP_VER"

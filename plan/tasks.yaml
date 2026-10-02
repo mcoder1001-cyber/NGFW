@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-01'
+updated: '2026-10-02'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1162,7 +1162,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.14
@@ -1171,10 +1171,11 @@ tasks:
     apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: identity_build
   started: '2026-09-27'
   finished: '2026-09-27'
-  notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry.'
+  notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -1187,7 +1188,7 @@ tasks:
   - F-startup-apply
   priority: 4
   est_hours: 6
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.6
@@ -1200,7 +1201,7 @@ tasks:
   finished: '2026-09-27'
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
     route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav
-    entry.'
+    entry. | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
 - id: F-management-ui
   title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
   prompt: prompts/features/F-management-ui.md
@@ -1213,7 +1214,7 @@ tasks:
   - F-unbound-chrony-syslog
   priority: 4
   est_hours: 6
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D0.9
@@ -1226,7 +1227,8 @@ tasks:
   started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
-    apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry.'
+    apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry. | Integrated partial scope, remaining code in review-lab-audit.md;
+    lab alone no merge blocker.'
 - id: WEB-dashboard
   title: 'Dashboard: status banner, device CPU/memory/storage gauges and history, throughput, traffic chart, packet engine (hugepages, threads), interface donut, busiest interfaces, events'
   prompt: ''
@@ -1349,7 +1351,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D6.6
@@ -1360,7 +1362,8 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining code in review-lab-audit.md; lab alone
+    no merge blocker.'
 - id: F-pki
   title: 'Wave B (day 10-12): CA, CSR, import/export, CRL/OCSP, expiry alerts'
   prompt: prompts/features/F-pki.md
@@ -1433,7 +1436,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D3.4
@@ -1445,7 +1448,7 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  notes: ''
+  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
 - id: F-isis-rip
   title: 'Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR'
   prompt: prompts/features/F-isis-rip.md
@@ -1457,7 +1460,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D3.6
@@ -1469,7 +1472,7 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  notes: ''
+  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
 - id: F-bfd-redistribution
   title: 'Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX'
   prompt: prompts/features/F-bfd-redistribution.md
@@ -1855,7 +1858,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D8.2
@@ -1869,8 +1872,9 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
-  notes: 'prompts-s4: suggested deps +F-vpp-debs (tracedump/tracenode build flag, V18) then manager binapi regen — docs/status/tasks/prompts-s4.md'
+  finished: '2026-10-02'
+  notes: 'prompts-s4: suggested deps +F-vpp-debs (tracedump/tracenode build flag, V18) then manager binapi regen — docs/status/tasks/prompts-s4.md | Independent ancestry audit: code already on main471c;
+    stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge claimed.'
 - id: F-vrrp-config-sync
   title: 'Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI'
   prompt: prompts/features/F-vrrp-config-sync.md
@@ -1884,7 +1888,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 16
-  state: review
+  state: running
   parked_on: ''
   wbs:
   - D9.1
@@ -1898,7 +1902,8 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md'
+  notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining
+    code in review-lab-audit.md; lab alone no merge blocker.'
 - id: P13
   title: CLI basic
   prompt: prompts/P13-cli-basic.md
@@ -2817,7 +2822,7 @@ tasks:
   notes: D-123 | review APPROVE WITH CHANGES 0ea17400; fix round 1 (README teardown, live theme/lang) | fix round 1 9ccd8632; verify APPROVE 09b4806f; queued
 - template: ''
   parked_on: ''
-  finished: ''
+  finished: '2026-10-02'
   wbs: *id001
   id: WEB-4a
   title: Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status
@@ -2828,17 +2833,18 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 5
-  state: review
+  state: merged
   scope: web-ahead (D-123); dropped per screen if its feature spawns first
   files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
   branch: claude/modest-keller-upaw4m
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  notes: D-123
+  notes: 'D-123 | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge
+    claimed.'
 - template: ''
   parked_on: ''
-  finished: ''
+  finished: '2026-10-02'
   wbs: *id001
   id: WEB-4b
   title: Pre-built HA/VRRP + cluster screens merged UNROUTED
@@ -2849,14 +2855,15 @@ tasks:
   - WEB-2
   priority: 4
   est_hours: 3
-  state: review
+  state: merged
   scope: web-ahead (D-123)
   files_owned: apps/web/src/domains/system/ha/** (unrouted)
   branch: claude/modest-keller-upaw4m
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  notes: D-123
+  notes: 'D-123 | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge
+    claimed.'
 - id: ui-nav-collapse
   title: 'Web nav: collapsible groups (closed by default, current group opens, useId ids, shared open state) — product-owner request in session «وب»'
   prompt: ''
@@ -3118,7 +3125,7 @@ tasks:
   - TD-7
   priority: 5
   est_hours: 6
-  state: review
+  state: merged
   parked_on: ''
   wbs:
   - D0.6
@@ -3129,8 +3136,9 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
-  notes: 'D-125 (review plan id TD-12, renumbered: board TD-12 is the de-flake row, D-121) | until TD-17 merges, P10 ships the script disabled'
+  finished: '2026-10-02'
+  notes: 'D-125 (review plan id TD-12, renumbered: board TD-12 is the de-flake row, D-121) | until TD-17 merges, P10 ships the script disabled | Independent ancestry audit: code already on main471c; stale
+    board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge claimed.'
 - id: TD-18
   title: Repo & ops tooling hygiene (manager-owned files)
   prompt: ''
@@ -3417,8 +3425,8 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: '2026-09-27'
-  state: review
+  finished: '2026-10-02'
+  state: merged
   wbs: *id002
   prompt: ''
   id: TD-21
@@ -3430,7 +3438,8 @@ tasks:
   est_hours: 4
   scope: F-object-model Q9; unblocks F-acl/F-vrf 100k-scale steps
   files_owned: apps/agent/internal/scheduler/{reconciler,plan}*.go (topo/dependents only) docs/status/tasks/TD-21*
-  notes: after TD-11c (topo hunk) and TD-9 (reconciler ctx hunks)
+  notes: 'after TD-11c (topo hunk) and TD-9 (reconciler ctx hunks) | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md
+    and DEFERRED-ACCEPTANCE.md. No new product merge claimed.'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3521,8 +3530,8 @@ tasks:
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
-  state: review
+  finished: '2026-10-02'
+  state: merged
   wbs: *id003
   prompt: ''
   id: TD-26
@@ -3534,15 +3543,16 @@ tasks:
   est_hours: 4
   scope: F-nat44-ei review H1/H2
   files_owned: apps/agent/internal/descriptors/core/vrf*.go docs/status/tasks/TD-26*
-  notes: V-new (c) of F-nat44-ei-64-66-nptv6
+  notes: 'V-new (c) of F-nat44-ei-64-66-nptv6 | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md.
+    No new product merge claimed.'
 - template: ''
   parked_on: ''
   branch: claude/modest-keller-upaw4m
   worktree: ''
   owner: cloud session modest-keller
   started: '2026-09-27'
-  finished: ''
-  state: review
+  finished: '2026-10-02'
+  state: merged
   wbs: *id003
   prompt: ''
   id: TD-27
@@ -3554,7 +3564,8 @@ tasks:
   est_hours: 3
   scope: F-loopback review (manager action)
   files_owned: apps/agent/internal/vpp/ifsanitize/** docs/status/tasks/TD-27*
-  notes: a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable
+  notes: 'a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See
+    review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge claimed.'
 - template: ''
   parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
   branch: ''
@@ -3680,11 +3691,11 @@ tasks:
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
   branch: task/F-notifications-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-notifications
-  owner: Codex manager delegated worker
+  owner: notifications_build
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged.'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3745,11 +3756,11 @@ tasks:
   files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
   branch: task/F-setup-wizard-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-setup
-  owner: Codex manager delegated worker
+  owner: setup_build
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged.'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned setup_build'
 - id: F-rule-expiry
   title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
   prompt: prompts/features/F-rule-expiry.md
@@ -3901,7 +3912,7 @@ tasks:
   parked_on: ''
   branch: task/F-dashboard-prom-alarms-host-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-dashboard
-  owner: Codex manager delegated worker
+  owner: PR58 pending hosted gate
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running
@@ -3919,12 +3930,12 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged.'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
-  owner: Codex manager delegated worker
+  owner: dashboard_finish
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running
@@ -3941,7 +3952,7 @@ tasks:
     WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
   files_owned: docs/status/tasks/F-multiwan*
   notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance
-    remains pending; existing review dependencies used only as code baseline, not certified merged.'
+    remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish'
 - id: F-aaa-login
   title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
   stage: S4

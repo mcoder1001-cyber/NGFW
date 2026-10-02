@@ -163,3 +163,68 @@ status fixtures exercised pass/failure/error/skip/expected-failure/unexpected-
 success/zero results: only pass was accepted. No product suite was repeated
 for those guard checks. Bash syntax/diff checks PASS. The `.deb` approval report
 is preserved; this new runner requires its own independent recheck.
+
+### Operator-pinned public repository keys (bounded source)
+
+Official FRR and NodeSource primary fingerprints are still unresolved. Script00
+now refuses repository setup before artifact verification, APT or network when
+`VRX_FRR_KEY_FINGERPRINTS` or `VRX_NODESOURCE_KEY_FINGERPRINTS` is absent or
+malformed. Each is a trusted administrator supplied exact set of 1–8 distinct
+uppercase full (40/64 hex) primary fingerprints, comma separated. Values must
+come from independently verified release provenance; downloaded keys cannot
+supply their own expected identities. No default fingerprints were invented.
+
+Bootstrap curl/GPG/Python must already exist. Downloads go to a private directory
+with a 1MiB limit. The actual file gate rejects symlink/nonregular/empty/oversize
+inputs. Fixed GPG commands use a private home and `--no-options`; packet checks
+reject secret key material, colon readback requires the exact expected primary
+set (no extra trust anchors), and refuses missing/duplicate/malformed/revoked/
+expired primary identities. Both repository keys must validate before global
+APT/keyring mutation. Dearmoring writes private staging; global public keyrings
+are copied at0644 to sibling temporary files then renamed. No global policy,
+service or capability change was added.
+
+Seven controlled-GPG parser/gate tests plus the original five suites passed
+through the explicit runner: **30 tests PASS in 6.639s**, all strict failure/
+skip/expected-failure counts zero. GPG is a fixed-argv fake supplying packet and
+colon fixtures; these tests do not prove actual release-key behavior. The first
+combined run found the old verifier-failure fixture missing the newly required
+pin configuration; explicit valid fixture pins now preserve its original
+verifier17/no-host-command assertion. No production checks were weakened.
+Real public-key retrieval, cryptographic release identity validation and host
+installation remain NOT RUN. Security review of this new source is required;
+previous runner/source approvals cover their frozen historical checkpoints.
+
+Additional source53f69939 checks: unchanged `tools/ci.sh check --base origin/main`
+EXIT0 (including gitleaks ~92.04KB). Actual installed GPG executed the production
+helper against the locally installed Ubuntu archive PUBLIC binary keyring,
+using a fresh private temporary GPG home/output: EXIT0, output created. Expected
+fingerprints were derived only from that fixture to test binary-input mechanics;
+this is not an independent trust decision, official FRR/NodeSource identity
+verification, or network retrieval. No global keyring was written. This extra
+OS-dependent check is recorded separately from the portable30-fixture suite.
+
+### Security review validity correction
+
+The initial security BLOCK is preserved. The primary GnuPG `doc/DETAILS`
+(https://github.com/gpg/gnupg/blob/master/doc/DETAILS, checked 2026-10-02)
+describes invalid/disabled/revoked/expired/not-valid statuses. The gate now
+allows only ordinary unknown/undefined or valid trust states `-`, `o`, `q`,
+`m`, `f`, `u`; every other value, including invalid `i`, disabled `d`, revoked
+`r`, expired `e`, not-valid `n`, empty and unknown statuses, fails closed.
+Supported trust-state parsing does not substitute for independently trusted
+expected fingerprint configuration. Structured primary records require numeric
+key size/algorithm/creation, full 16-hex key ID, numeric optional expiry and
+supported signing capabilities; disabled `D` and non-signing/malformed records
+fail before dearmoring. Both downloads now have10s connection/60s total limits.
+Public keyring replacement is atomic per file, not a transaction across both
+keyrings and source-list files; interrupted setup must be reconciled before
+installation acceptance.
+
+Nine key gate tests PASS4.089s, including explicit invalid/disabled/unknown and
+malformed record/capability negatives. Combined strict runner: **32 PASS9.120s,
+zero errors/failures/skips/expected failures/unexpected successes**. Actual GPG
+binary public-fixture check was repeated with the stricter parser: EXIT0,
+private output created, no network/global keyring writes. Syntax/diff PASS.
+Fresh security recheck remains required; no full task/published-pin acceptance
+is asserted.

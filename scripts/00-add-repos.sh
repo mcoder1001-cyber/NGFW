@@ -54,6 +54,64 @@ for package in packages:
 print(json.dumps(dict(version=version, packages=sorted(packages, key=lambda p: p['package']))))
 PYARTIFACT
 }
+# Pins come from a trusted administrator, not from the downloaded key server.
+check_key_pins() {
+  python3 - "${VRX_FRR_KEY_FINGERPRINTS:-}" "${VRX_NODESOURCE_KEY_FINGERPRINTS:-}" <<'PYPINS'
+import re, sys
+for name, value in zip(['VRX_FRR_KEY_FINGERPRINTS', 'VRX_NODESOURCE_KEY_FINGERPRINTS'], sys.argv[1:]):
+    values = value.split(',')
+    if not 1 <= len(values) <= 8 or len(set(values)) != len(values) or any(not re.fullmatch(r'(?:[0-9A-F]{40}|[0-9A-F]{64})', item) for item in values):
+        raise SystemExit(name + ': trusted exact primary fingerprint set required (uppercase comma-separated full fingerprints)')
+PYPINS
+}
+verify_repo_key() {
+  local key=$1 expected=$2 home=$3 output=$4
+  python3 - "$key" <<'PYKEYFILE'
+import pathlib, stat, sys
+p = pathlib.Path(sys.argv[1]); info = p.lstat()
+if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 1024 * 1024:
+    raise SystemExit('key input must be a bounded nonempty regular public-key file')
+PYKEYFILE
+  # A private GPG home avoids user configuration and global keyring changes.
+  gpg --no-options --homedir "$home" --batch --list-packets "$key" > "$home/packets"
+  python3 - "$home/packets" <<'PYPACKETS'
+import pathlib, sys
+packets = pathlib.Path(sys.argv[1]).read_text()
+if ':secret key packet:' in packets or ':secret sub key packet:' in packets:
+    raise SystemExit('secret key material refused')
+PYPACKETS
+  gpg --no-options --homedir "$home" --batch --with-colons --with-fingerprint --show-keys "$key" > "$home/identities"
+  python3 - "$home/identities" "$expected" <<'PYIDENTITY'
+import pathlib, re, sys
+# GnuPG doc/DETAILS: support ordinary unknown/undefined and valid trust levels.
+# Invalid, disabled, revoked, expired, not-valid and special/unknown states fail closed.
+primaries = []; pending = False
+allowed_validity = {'-', 'o', 'q', 'm', 'f', 'u'}
+for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
+    fields = line.split(':'); kind = fields[0]
+    if kind in ['sec', 'ssb']: raise SystemExit('secret key identity refused')
+    if kind == 'pub':
+        if (pending or len(fields) < 12 or fields[1] not in allowed_validity
+                or not re.fullmatch(r'[1-9][0-9]*', fields[2])
+                or not re.fullmatch(r'[1-9][0-9]*', fields[3])
+                or not re.fullmatch(r'[0-9A-F]{16}', fields[4])
+                or not re.fullmatch(r'[1-9][0-9]*', fields[5])
+                or (fields[6] and not re.fullmatch(r'[0-9]+', fields[6]))
+                or not re.fullmatch(r'[escaESCA]+', fields[11])
+                or not ('s' in fields[11] or 'S' in fields[11])):
+            raise SystemExit('unsupported validity or malformed/disabled/non-signing primary key')
+        pending = True
+    elif kind == 'fpr' and pending:
+        if len(fields) <= 9 or not re.fullmatch(r'(?:[0-9A-F]{40}|[0-9A-F]{64})', fields[9]):
+            raise SystemExit('missing full primary fingerprint')
+        primaries.append(fields[9]); pending = False
+    elif kind in ['sub', 'uid'] and pending:
+        raise SystemExit('primary fingerprint missing before key children')
+if pending or not primaries or len(set(primaries)) != len(primaries) or set(primaries) != set(sys.argv[2].split(',')):
+    raise SystemExit('downloaded primary key set differs from trusted pins')
+PYIDENTITY
+  gpg --no-options --homedir "$home" --batch --yes --dearmor --output "$output" "$key"
+}
 if [[ ${1:-} == --check-artifacts ]]; then
   [[ $# == 2 ]] || { echo 'usage: 00-add-repos.sh --check-artifacts DIRECTORY' >&2; exit 2; }
   preflight_artifacts "$2"
@@ -62,12 +120,36 @@ fi
 [[ $# == 0 ]] || { echo 'unknown repository setup argument' >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 [[ -n ${VRX_VPP_ARTIFACTS:-} ]] || { echo 'VRX_VPP_ARTIFACTS required before repository setup' >&2; exit 1; }
+check_key_pins
 preflight_artifacts "$VRX_VPP_ARTIFACTS" >/dev/null
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
 
+# Bootstrap tools must be preinstalled; no APT or network without valid pins.
+for prerequisite in curl gpg python3 install mktemp; do
+  command -v "$prerequisite" >/dev/null || { echo "missing bootstrap prerequisite: $prerequisite" >&2; exit 1; }
+done
+repo_work=$(mktemp -d /tmp/vrx-repo-keys.XXXXXXXX)
+repo_target=
+trap 'rm -rf -- "$repo_work"; [[ -z "$repo_target" ]] || rm -f -- "$repo_target"' EXIT
+mkdir -m 0700 "$repo_work/frr-home" "$repo_work/node-home"
+curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.frrouting.org/frr/keys.gpg -o "$repo_work/frr.key"
+curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$repo_work/node.key"
+verify_repo_key "$repo_work/frr.key" "$VRX_FRR_KEY_FINGERPRINTS" "$repo_work/frr-home" "$repo_work/frr.gpg"
+verify_repo_key "$repo_work/node.key" "$VRX_NODESOURCE_KEY_FINGERPRINTS" "$repo_work/node-home" "$repo_work/node.gpg"
+# Both exact public-key sets must validate before any global mutation.
 apt-get update
-apt-get install -y curl gnupg ca-certificates lsb-release apt-transport-https
+apt-get install -y ca-certificates lsb-release apt-transport-https
+for name in frr nodesource; do
+  source_name=$name
+  [[ $name != nodesource ]] || source_name=node
+  repo_target=$(mktemp "/usr/share/keyrings/.vrx-${name}.XXXXXXXX")
+  install -m 0644 "$repo_work/$source_name.gpg" "$repo_target"
+  target_name=$name
+  [[ $name != frr ]] || target_name=frrouting
+  mv -fT -- "$repo_target" "/usr/share/keyrings/$target_name.gpg"
+  repo_target=
+done
 
 # VPP comes only from the verified local product manifest. Never configure an
 # upstream FD.io repository or execute its installer (D-001 / TD-19).
@@ -76,13 +158,10 @@ apt-get install -y curl gnupg ca-certificates lsb-release apt-transport-https
 # resolute is a new LTS (Apr 2026); if deb.frrouting.org hasn't published a
 # 'resolute' suite yet, the apt-get update below 404s on this repo - fall back
 # to Ubuntu's own 'frr' package (present in the resolute archive) until it does.
-curl -s https://deb.frrouting.org/frr/keys.gpg | tee /usr/share/keyrings/frrouting.gpg >/dev/null
 echo "deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr ${CODENAME} frr-stable" \
   > /etc/apt/sources.list.d/frr.list
 
 # --- Node.js 22 LTS --------------------------------------------------------
-curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-  | gpg --dearmor -o /usr/share/keyrings/nodesource.gpg
 echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
   > /etc/apt/sources.list.d/nodesource.list
 

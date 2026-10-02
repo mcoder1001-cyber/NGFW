@@ -40,9 +40,45 @@ only future in-tree executors may produce live attestations, under the lease.
 
 `CONTRACT_VALIDATED` and `SUPPORT_TEST_VALIDATED` mean structural checks only;
 both return `whole_chain_proven=false` and `packet_outcomes_proven=false`.
-Outcome-to-packet correlation and transactional setup/cleanup remain unbuilt.
+Pure packet-to-expectation correlation is implemented in `correlation.py`.
+Transactional live setup/cleanup, capture production and provenance attestation
+remain unbuilt.
 
 Commands use argv, bounded time and newly created private logs. Their own process
 group is terminated on all completion paths, including descendants ignoring
 TERM. No shared VPP trace/global capture/restart, SSH or host installation is
 performed by source tests. No performance numbers are produced.
+
+## Pure packet correlation
+
+Typed `Flow`, `Probe` and `ExpectedCase` specify one exact stage outcome and mode;
+the validator reads both hashed private captures, never a claimed outcome string.
+Input/output captures must be distinct, same slot/run/stage, zero-loss and span
+the probe window plus a bounded quiet interval. Each probe has unique IPv4 ID/
+transport sequence, explicit flow, payload digest, VLAN stack and TTL behavior.
+The parser bounds2048 records and64 probes. Forwarding preserves the typed flow;
+translation must explicitly change IP/port/ICMP identifier. Missing/duplicate or
+unexpected records, TTL/payload/header changes and wrong next-hop MACs refuse.
+Drops require a genuine matching input and no correlated output through the
+quiet window. ECMP requires both declared next-hop identities; endpoint-independent
+NAT requires a stable translated source mapping across distinct destinations.
+PBR requires one exact selected next hop. Reverse TCP NAT flow is supported.
+
+The return status is `FIXTURE_CORRELATED` for synthetic source bytes or
+`PACKET_EXPECTATIONS_MATCHED` for structurally labelled live bytes. Neither is
+traffic PASS: `live_provenance_verified=false`, `whole_chain_proven=false`.
+Matching observed frames to an expectation does not attribute a drop to uRPF
+rather than ACL or prove configured ECMP/NAT semantics without live config/
+counter/executor linkage. That linkage remains a real implementation gap.
+
+Capture acquisition opens each path once with `O_NOFOLLOW`, `O_CLOEXEC` and
+`O_NONBLOCK`, validates the descriptor as an owned0600 regular file and reads a
+bounded snapshot. Hashing and parsing use those identical bytes; alias detection
+uses opened inode identities. Size/time changes during acquisition are refused.
+This does not attest the producer or make a mutable file cryptographically
+trusted; the protected live directory/producer contract remains unimplemented.
+IPv4 header, TCP pseudoheader/segment and ICMP checksums are validated. Invalid
+or unknown/offloaded checksums raise typed `INDETERMINATE`, never a matched/drop
+outcome. Arbitrary metadata cannot waive this check. Non-IPv4/unsupported
+transports, fragments and truncated records cannot establish correlation.
+Synthetic fixtures now encode correct checksums; they remain offline fixtures.

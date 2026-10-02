@@ -813,6 +813,10 @@ export class FakeAgent {
       dryRun,
       retrieve,
       health,
+      systemIdentityState: (call, cb) => {
+        if (!this.checkCommon('SystemIdentityState', call.request, cb)) return;
+        cb({ code: status.UNIMPLEMENTED, details: 'Operational system identity not configured in fake agent' }, null);
+      },
       interfaceState,
       // F-pppoe-client (unanchored)
       wanState: (call, cb) => {

@@ -28,7 +28,23 @@ const PageQuery = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
+const IdentityOut = z.object({
+  hostname: z.string(),
+  timezone: z.string(),
+  uptimeSeconds: z.number().optional(),
+  kernelHostname: z.string().optional(),
+  resolverStatus: z.string(),
+  configuredNameServers: z.array(z.string()),
+  configuredSearchDomains: z.array(z.string()),
+  observedNameServers: z.array(z.string()),
+  errors: z.array(z.string()),
+  retrievedAt: z.string().nullable(),
+});
+
 const SystemOut = z.object({
+  identity: IdentityOut.nullable().describe(
+    'Observed installed identity; null when agent RPC is unavailable',
+  ),
   api: z.object({ version: z.string(), startedAt: z.string(), wsClients: z.number().int() }),
   agent: z
     .record(z.string(), z.unknown())
@@ -178,13 +194,28 @@ export class StateController {
   @ApiOperation({ summary: 'API + agent health, pending commit, running revision' })
   @ApiOut(SystemOut)
   async system() {
-    const [health, pending, running] = await Promise.all([
+    const [health, pending, running, identity] = await Promise.all([
       this.agent.health().then(
         (h) => ({ reachable: true as const, ...h }),
         (e: Error) => ({ reachable: false as const, error: e.message }),
       ),
       this.commits.pendingInfo(),
       this.ds.getRunning(),
+      this.agent.systemIdentityState().then(
+        (s) => ({
+          hostname: s.hostname,
+          timezone: s.timezone,
+          uptimeSeconds: s.uptimeSeconds,
+          kernelHostname: s.kernelHostname,
+          resolverStatus: s.resolverStatus,
+          configuredNameServers: s.configuredNameServers,
+          configuredSearchDomains: s.configuredSearchDomains,
+          observedNameServers: s.observedNameServers,
+          errors: s.errors,
+          retrievedAt: s.retrievedAt?.toISOString() ?? null,
+        }),
+        () => null,
+      ),
     ]);
     return {
       api: {
@@ -193,6 +224,7 @@ export class StateController {
         wsClients: this.relay.clientCount,
       },
       agent: health,
+      identity,
       runningRevision: running.revision?.id ?? null,
       pendingCommit: pending,
       sync: await this.commits.syncStatus(),

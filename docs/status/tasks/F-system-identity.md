@@ -1,5 +1,7 @@
 # F-system-identity: hostname, time zone, login/MOTD banners, DNS client + System screen
 
+2026-10-02 continuation: operational state and pre-login banner are now implemented on `codex/identity-finish-20261002`; see `F-system-identity-finish-wip.md` and contract report for current code/test status. The original report below is historical, including its then-unbuilt follow-ups. Pending resolver restart privileges and deferred laboratory acceptance remain explicit.
+
 Branch `claude/modest-keller-upaw4m` (cloud session modest-keller). Decision: DEC-system-identity / D-152 (option 1,
 WBS D0.14). Contract: **no change**. `system.ts` and `SystemConfig` in the proto already had every field.
 
@@ -27,7 +29,7 @@ WBS D0.14). Contract: **no change**. `system.ts` and `SystemConfig` in the proto
 - Web: `tsc --noEmit` clean, eslint clean, logical-CSS check ok, full `vitest run` (see the final report) incl. the new
   page test (nav availability, candidate vs running, PATCH body, pointer → field) and the locale parity test; `nav.test.ts` gains `'system'`.
 
-## Not tested / not built (open)
+## Historical initial delivery gaps (see continuation below)
 - **Topology/lab run not executed**: this sandbox has no slot, VPP, PostgreSQL or lab lock. The acceptance evidence
   (goldens on a slot rig, 400 with pointer through the real API, restart log excerpt, screenshot) is still owed:
   `eval "$(tools/lab env <N>)"; test/topology/system-identity/run.sh`. `tools/ci.sh --base main` could not run here
@@ -46,3 +48,18 @@ WBS D0.14). Contract: **no change**. `system.ts` and `SystemConfig` in the proto
 - Q2 whether a hostname change should also drive SNMP `sysName` / the syslog hostname: kept **independent** (no coupling).
 - Q3 `/etc/issue` is written verbatim, and agetty expands backslash escapes (`\n`, `\l`) in it. Should the renderer escape them?
 - Q4 `system.dns.vrf` other than `default` is refused with a pointer (resolved has no VRF support). Should it be a warning instead?
+
+## Recovered continuation, 2026-10-02
+
+The previously missing operational identity RPC/API response and public configured
+login banner are now implemented in `codex/identity-resume-20261002`, recovered
+onto main `53a43ce5`. The System screen separates installed observations from
+running configuration. Existing health fields remain compatible; absent older
+agent state is explicit. User documentation and generated contracts are updated.
+
+The initial implementation gaps above are retained as historical evidence, not
+current missing functionality. Current verification, publication blocker and exact
+next actions are in `F-system-identity-finish-wip.md`; the reviewable PR description
+is in `F-system-identity-resume-pr.md`. This does not change the outstanding actual
+appliance/restart/browser acceptance (NOT RUN), the existing systemd-resolved
+restart privilege handoff, or the requirement for a green complete quick gate.

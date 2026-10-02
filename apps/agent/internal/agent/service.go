@@ -458,7 +458,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	if s.beforeTxn != nil {
 		s.beforeTxn()
 	}
-	pj := project(ds, domains, s.resolveVRF, s.netdevKind)
+	pj := s.projectWithBasePolicy(ctx, ds, domains)
 	var res *scheduler.TxnResult
 	retryable := false
 	if pj.hasErrors() {
@@ -890,7 +890,7 @@ func (s *Service) CheckDrift(ctx context.Context) {
 			domains = append(domains, d)
 		}
 	}
-	pj := project(s.st.desired, domains, s.resolveVRF, s.netdevKind)
+	pj := s.projectWithBasePolicy(ctx, s.st.desired, domains)
 	if pj.hasErrors() {
 		return
 	}
@@ -1021,7 +1021,7 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
-	pj := project(req.GetDesiredState(), domains, s.resolveVRF, s.netdevKind)
+	pj := s.projectWithBasePolicy(ctx, req.GetDesiredState(), domains)
 	if pj.hasErrors() {
 		return report(req.GetTxnId(), pj, nil), nil
 	}
@@ -1202,4 +1202,15 @@ func claimsNotPersisted(resp *vrxv1.ApplyResponse, err error) {
 		msg = resp.GetMessage() + "; " + msg
 	}
 	resp.Message = msg
+}
+
+func (s *Service) projectWithBasePolicy(ctx context.Context, ds *vrxv1.DesiredState, domains []string) *projected {
+	projection := project(ds, domains, s.resolveVRF, s.netdevKind)
+	for _, domain := range domains {
+		if domain == "interfaces" {
+			subsystems.ProjectBasePolicy(ctx, s.owner, projection, projection.kvs)
+			break
+		}
+	}
+	return projection
 }

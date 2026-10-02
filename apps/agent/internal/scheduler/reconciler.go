@@ -285,7 +285,7 @@ func uncertain(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, ErrDescriptorPanic) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) || errors.Is(err, ErrDescriptorPanic) || errors.Is(err, ErrUncertainOutcome) {
 		return true
 	}
 	msg := err.Error()

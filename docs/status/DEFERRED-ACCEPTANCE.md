@@ -45,4 +45,18 @@ All live cases below are **NOT RUN**. Package source, fixtures, syntax checks an
 | Firewall and boot | Real nft syntax/readback; early static base policy and exact management/punt interfaces; no unrelated table flush; offline and real distro systemd graph, failure propagation, firstboot/VPP/API/nginx boot sequencing |
 | Runtime renderers | Exercise FRR/Kea/chrony/rsyslog/capture writes under the installed unit's actual capabilities and permissions, reconcile/restart and inspect daemon readback |
 
-Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt-set synchronization is unbuilt; daemon-UID ownership requires the decision in `docs/decisions/PENDING-P10-agent-file-ownership.md`; source licensing metadata is unresolved for release. P10 remains running. Resolve these code/security/release boundaries before claiming full task completion or a releasable appliance.
+Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt synchronization now has source implementation and isolated tests, with target acceptance still NOT RUN; daemon-UID ownership requires the decision in `docs/decisions/PENDING-P10-agent-file-ownership.md`; source licensing metadata is unresolved for release. P10 remains running. Resolve these code/security/release boundaries before claiming full task completion or a releasable appliance.
+
+### P10 dynamic admission follow-up
+
+Source 00cb2cd3 implements per-host transaction-owned dynamic admissions in
+`inet vrx_base dynamic_punt_interfaces`; permanent bootstrap `punt_interfaces`
+remains separate. All target cases below remain **NOT RUN**: actual nft element
+add/delete and JSON identity/readback; LCP create/delete/rename/type-recreate
+traffic admission/revocation; static/dynamic combined64 turnover; explicit and
+default namespace transitions including malformed VPP readback; foreign/same-name
+devices and orphan cleanup; nft/VPP restart/reboot resync; committed command with
+lost reply, bounded compensation and DEGRADED recovery under installed unit.
+Run them in this single campaign when access returns; source fixture success is
+not traffic or boot acceptance. CAP_CHOWN/global `/etc` ownership decision and
+release license remain unresolved, so P10 stays RUNNING.

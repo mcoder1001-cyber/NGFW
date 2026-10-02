@@ -50,3 +50,16 @@ restores the original policy-rc.d after completion/error. It does not make an in
 installation boot-ready: provision the full product packages, explicit bootstrap/interface
 inputs and reviewed units before reboot. If forcibly terminated without EXIT cleanup,
 restore the retained original start-policy backup through the local console.
+
+
+Dynamic punt admission is enabled explicitly by the product agent unit with
+`VRX_BASE_POLICY=1`, only for the `vrx` globals owner. The agent loads root-owned
+regular 0600 `/etc/vrx/base-policy.env` without shell evaluation. Bootstrap
+permanent interfaces stay in `punt_interfaces`; the separate typed
+`dynamic_punt_interfaces` starts empty and is reconstructed by agent resync from
+owned root-namespace LCP pairs. Combined permanent/dynamic limit is 64;
+management and ambiguous namespace state are rejected. nftables must load the
+base table before the agent starts. Existing foundation installations require
+the new base layout before activating this follow-up; absence of its dynamic
+set fails closed. These boot/upgrade instructions have not been exercised on a
+fresh appliance; use the centralized deferred acceptance campaign.

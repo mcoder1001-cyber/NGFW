@@ -78,3 +78,18 @@ installer durability delta, integrate the bounded foundation onto current main
 and run the unchanged hosted full quick gate. Merge only that reviewed bounded
 scope when green; keep P10 RUNNING and retain the centralized deferred campaign
 and unresolved functional/security work. No release activation is claimed.
+
+
+## Subsequent dynamic source update
+
+Source 00cb2cd3 on task/P10-punt-sync-20261002 implements the earlier unbuilt
+LCP admission follow-up with typed per-host lifecycle and separate static/dynamic
+sets. Historical source/test/review statements above retain their original
+scope. Current tests: 17 basepolicy and 3 subsystem tests PASS; packaging suite
+25 PASS / 1 real signing SKIP. Targeted race checks PASS. Full local agent and
+subsystem tests include environment failures and a corrected reachability
+metadata failure, detailed in P10-local-go-validation.md; they are not a full
+gate pass. Current independent review and hosted unchanged full quick are
+required before merging this follow-up. Target traffic/boot/default-namespace
+acceptance remains NOT RUN; P10 is RUNNING for ownership/security/release and
+appliance acceptance work.

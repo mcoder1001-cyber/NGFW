@@ -23,6 +23,7 @@ import { Bus } from './infra/bus.js';
 import { createValkey, VALKEY, type Valkey } from './infra/valkey.js';
 import { SecretsController } from './secrets/secrets.controller.js';
 import { SecretsService } from './secrets/secrets.service.js';
+import { LoginBannerController } from './state/login-banner.controller.js';
 import { StateController } from './state/state.controller.js';
 import { RelayService } from './telemetry/relay.service.js';
 import { UsersController } from './users/users.controller.js';
@@ -147,6 +148,7 @@ export class AppModule {
         AuthController,
         ConfigController,
         StateController,
+        LoginBannerController,
         ActionsController,
         SecretsController,
         AuditController,

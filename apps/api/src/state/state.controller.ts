@@ -18,7 +18,6 @@ import { ZodPipe } from '../common/zod.js';
 import { CommitService } from '../commit/commit.service.js';
 import { ValidationService } from '../commit/validation.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
-import { redact } from '../datastore/documents.js';
 import { RelayService } from '../telemetry/relay.service.js';
 
 const startedAt = new Date();
@@ -329,7 +328,7 @@ export class StateController {
       this.agent.retrieve([]),
       this.validation.implemented(),
     ]);
-    const desired = DesiredState.fromJSON(redact(running.doc));
+    const desired = ValidationService.desiredState(running.doc);
     // the agent's own statement of what it does not manage (DryRun of running: no side effects, proto.md §3)
     const report = await this.agent.dryRun({
       txnId: `drift-${Date.now()}`,

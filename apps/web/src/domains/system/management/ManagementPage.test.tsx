@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
@@ -85,7 +85,13 @@ describe('System → Management (F-management-ui)', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Management sections' })).getAllByRole(
       'tab',
     );
-    expect(tabs.map((t) => t.textContent)).toEqual(['Users', 'AAA', 'API TLS', 'Remote syslog']);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'Notifications',
+      'Users',
+      'AAA',
+      'API TLS',
+      'Remote syslog',
+    ]);
     expect(await screen.findByTestId('aaa-not-available')).toHaveTextContent(/not built yet/);
   });
 
@@ -164,6 +170,114 @@ describe('System → Management (F-management-ui)', () => {
     render(app('/system/management?tab=tls'));
     expect(await screen.findByTestId('tls-error')).toHaveTextContent(
       /previous one is still in use/,
+    );
+  });
+  it('Notifications: operators can inspect but cannot save configuration', async () => {
+    const api = installFakeApi('operator');
+    await signIn();
+    mock(api);
+    api.on('GET /api/v1/state/management/notifications', () => ({
+      body: { queued: 0, busy: false, error: null, configuredChannels: 0, deliveries: [] },
+    }));
+    render(app('/system/management?tab=notifications'));
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(api.calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+  it('Notifications: Persian populated fields and enums follow nested schema paths', async () => {
+    const api = installFakeApi('admin');
+    await signIn();
+    mock(api);
+    api.on('GET /api/v1/config/candidate/management', () => ({
+      body: {
+        notifications: {
+          channels: [
+            {
+              name: 'relay',
+              enabled: true,
+              type: 'email',
+              email: {
+                smtpHost: 'mail.example.com',
+                port: 587,
+                tls: 'starttls',
+                from: 'sender@example.com',
+                to: ['admin@example.com'],
+              },
+            },
+          ],
+          rules: [
+            {
+              name: 'alarm-rule',
+              enabled: true,
+              events: ['alarm'],
+              minSeverity: 'warning',
+              channels: ['relay'],
+              throttleSec: 60,
+            },
+          ],
+        },
+      },
+    }));
+    api.on('GET /api/v1/state/management/notifications', () => ({
+      body: { queued: 0, busy: false, error: null, configuredChannels: 1, deliveries: [] },
+    }));
+    render(app('/system/management?tab=notifications'));
+    await screen.findByRole('heading', { level: 2, name: 'Management' });
+    await act(async () => {
+      await i18n.changeLanguage('fa');
+    });
+    expect(await screen.findByText('هنوز اعلانی ارسال نشده است.')).toBeInTheDocument();
+    expect(screen.getAllByText('نام').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('حداقل شدت').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('هشدار').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('میزبان SMTP').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ارتقا به اتصال امن (STARTTLS)').length).toBeGreaterThan(0);
+  });
+
+  it('Notifications: maps server pointers to the channel field', async () => {
+    const api = installFakeApi('admin');
+    await signIn();
+    mock(api);
+    api.on('GET /api/v1/config/candidate/management', () => ({
+      body: {
+        notifications: {
+          channels: [
+            {
+              name: 'sink',
+              enabled: true,
+              type: 'webhook',
+              webhook: { url: 'https://example.com/hook', secretRef: 'token/sink' },
+            },
+          ],
+          rules: [],
+        },
+      },
+    }));
+    api.on('GET /api/v1/state/management/notifications', () => ({
+      body: { queued: 0, busy: false, error: null, configuredChannels: 1, deliveries: [] },
+    }));
+    api.on('PATCH /api/v1/config/management', () => ({
+      status: 400,
+      body: {
+        title: 'Validation failed',
+        status: 400,
+        errors: [
+          {
+            pointer: '/management/notifications/channels/0/name',
+            message: 'Channel name is reserved',
+          },
+        ],
+      },
+    }));
+    render(app('/system/management?tab=notifications'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(screen.getByRole('textbox', { name: /^name/i })).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      ),
+    );
+    expect(screen.getByRole('textbox', { name: /^name/i })).toHaveAccessibleDescription(
+      'Channel name is reserved',
     );
   });
 });

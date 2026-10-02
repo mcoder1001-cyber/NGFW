@@ -6,6 +6,11 @@ import type { DomainTab } from '../../DomainTabsPage';
  * e.g. F-aaa replaces the AAA entry with its own screen.
  */
 export const managementTabs: readonly DomainTab[] = [
+  {
+    id: 'notifications',
+    labelKey: 'management:tab.notifications',
+    Component: lazy(() => import('./NotificationsTab')),
+  },
   // P07b: local users (the page also still answers at /system/users, which redirects here)
   {
     id: 'users',

@@ -113,6 +113,10 @@ def correlate(case, files, metadata, slot, run_id, fixture=False):
             or any(not isinstance(mac, str) or not re.fullmatch(r'(?:[0-9a-f]{2}:){5}[0-9a-f]{2}', mac)
                    or int(mac[:2], 16) & 1 for mac in case.egress_macs)):
         raise Refused('invalid/duplicate explicit next-hop identities')
+    if ((case.outcome == 'bridge-forward' and case.ttl_decrement != 0)
+            or (case.outcome in ('bvi-route', 'both-ecmp-paths', 'pbr-selected-path', 'urpf-valid-forward',
+                                 'translated-source', 'tcp-response', 'endpoint-independent-mapping') and case.ttl_decrement != 1)):
+        raise Refused('stage routing/bridging TTL contract differs from the expected operation')
     if case.outcome == 'pbr-selected-path' and len(case.egress_macs) != 1:
         raise Refused('PBR requires one explicit selected next-hop identity')
     if case.outcome == 'tagged-ingress' and not case.input_vlans:
@@ -173,6 +177,17 @@ def correlate(case, files, metadata, slot, run_id, fixture=False):
             raise Refused('forwarding cannot silently translate a flow')
         if case.mode in ('translate', 'endpoint-independent') and probe.input_flow == probe.output_flow:
             raise Refused('translation must specify actual IP/port/identifier change')
+        if case.outcome in ('translated-source', 'endpoint-independent-mapping'):
+            if (probe.input_flow.destination != probe.output_flow.destination
+                    or probe.input_flow.destination_port != probe.output_flow.destination_port
+                    or probe.input_flow.icmp_type != probe.output_flow.icmp_type):
+                raise Refused('source NAT must preserve the remote destination and protocol semantics')
+        if case.outcome == 'tcp-response':
+            if (probe.input_flow.protocol != 6 or probe.input_flow.source != probe.output_flow.source
+                    or probe.input_flow.source_port != probe.output_flow.source_port):
+                raise Refused('reverse TCP NAT must preserve the remote source')
+        if case.mode == 'endpoint-independent' and probe.input_flow.protocol != 6:
+            raise Refused('endpoint-independence requires explicit supported TCP endpoints')
         if len(egress) != 1:
             raise Refused('missing/duplicate matched output packet')
         target = egress[0]
@@ -198,4 +213,4 @@ def correlate(case, files, metadata, slot, run_id, fixture=False):
             raise Refused('endpoint-independent mapping requires one stable mapping across distinct destinations')
     return {'status': 'FIXTURE_CORRELATED' if fixture else 'PACKET_EXPECTATIONS_MATCHED',
             'stage': case.stage, 'outcome': case.outcome, 'matched_probes': len(case.probes),
-            'whole_chain_proven': False, 'live_provenance_verified': False}
+            'whole_chain_proven': False, 'packet_outcomes_proven': False, 'live_provenance_verified': False}

@@ -140,6 +140,17 @@ class Correlation(unittest.TestCase):
         with self.assertRaises(Refused):self.run_case(self.case(),[packet(FLOW)],
                     [packet(FLOW,ttl=63,timestamp=101.6)],{'wan':{'ended':102}})
 
+    def test_stage_ttl_semantics_and_natural_nat_remote_identity_preserved(self):
+        case=self.case(stage='bridge-bvi',outcome='bridge-forward',ttl_decrement=1)
+        with self.assertRaises(Refused):self.run_case(case,[packet(FLOW)],[packet(FLOW,ttl=63)])
+        translated=replace(FLOW,source='10.3.2.111',source_port=45001,destination='10.3.2.3')
+        case=self.case(stage='nat44-ed',outcome='translated-source',mode='translate',probes=(Probe(FLOW,translated,101,901,DIGEST),))
+        with self.assertRaises(Refused):self.run_case(case,[packet(FLOW)],[packet(translated,ttl=63)])
+        incoming=Flow('10.3.2.2','10.3.2.111',6,8000,45001)
+        wrong=replace(incoming,source='10.3.2.3',destination='10.3.1.2',destination_port=43001)
+        case=self.case(stage='nat44-ed',outcome='tcp-response',mode='translate',input_side='wan',probes=(Probe(incoming,wrong,101,901,DIGEST),))
+        with self.assertRaises(Refused):self.run_case(case,[packet(incoming)],[packet(wrong,ttl=63)])
+
     def test_identity_capture_window_loss_alias_stage_and_record_bounds(self):
         case=self.case();ingress=[packet(FLOW)];egress=[packet(FLOW,ttl=63,timestamp=100.5)]
         for changes in ({'wan':{'run_id':'b'*32}},{'wan':{'stage':'vlan'}},{'wan':{'dropped':1}},

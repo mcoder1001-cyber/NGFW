@@ -88,3 +88,22 @@ Strict runner27PASS3.460s0SKIP, including deterministic serialized Ethernet/
 latency/quiet-window loss/alias/stage/digest refusal. No tcpdump/netns/SSH/VPP/
 network/host installation was executed. New source delta requires independent
 review; foundation approval applies only to its prior frozen source.
+
+A3 split executed: all further source changes belong to the isolated
+NGFW-traffic-a-correlation worktree on task/TEST-traffic-A-correlation-20261002.
+Starting8f38ab39 preserves every old checkpoint; old branch/ref/worktree untouched.
+Read and copied ruling469c6d7e report-only (manager owns ARBITRATION-LOG).
+Continuation envelope records scope. Explicit packet_outcomes_proven=false is
+retained in correlation results. Further typed negatives enforce actual bridge/
+route TTL semantics and NAT preservation of remote endpoint identity; no named
+source-NAT outcome may silently accept destination translation. Source gaps and
+live NOTIMPLEMENTED states remain. New branch publication pending manager.
+
+Continuation source freeze f0fe88ac: strict runner28PASS2.470s, zero failures,
+errors, skips, expected failures or unexpected successes. Unchanged check with
+pinned toolchain (`source ../toolchain/env.sh; tools/ci.sh check --base
+origin/main`) EXIT0 in2s; gitleaks scanned95004bytes with no leaks. An initial
+unsourced check passed built-in checks but lacked gitleaks; the sourced rerun
+is the recorded complete check. No full hosted quick or live packet acceptance
+is claimed. Independent continuation review and exact-head hosted gate remain
+required. This appendix changes metadata only; product source is frozenf0fe88ac.

@@ -1,0 +1,38 @@
+name: Traffic producer source fixtures
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/traffic-producer-fixtures.yml'
+      - '.github/scripts/traffic-producer-fixtures.py'
+      - 'test/topology/traffic-a/**'
+      - 'docs/status/tasks/TEST-traffic-A-producer-*.md'
+  push:
+    paths:
+      - '.github/workflows/traffic-producer-fixtures.yml'
+      - '.github/scripts/traffic-producer-fixtures.py'
+      - 'test/topology/traffic-a/**'
+      - 'docs/status/tasks/TEST-traffic-A-producer-*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: traffic-producer-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    name: Inactive producer source fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify strict gate outcome policy
+        run: python3 .github/scripts/traffic-producer-fixtures.py --check-policy
+      - name: Run exactly forty source cases without skips
+        run: python3 .github/scripts/traffic-producer-fixtures.py

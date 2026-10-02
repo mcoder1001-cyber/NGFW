@@ -136,7 +136,7 @@ class Evidence(unittest.TestCase):
             path=Path(directory)/'capture.pcap';path.write_bytes(pcap());path.chmod(0o600)
             metadata=self.metadata(path)
             fifo=path.parent/'fifo';os.mkfifo(fifo,0o600)
-            fifo_metadata=dict(metadata,argv=[*metadata['argv']]);fifo_metadata['argv'][13]=str(fifo)
+            fifo_metadata=dict(metadata,argv=[*metadata['argv']]);fifo_metadata['argv'][12]=str(fifo)
             with patch('evidence.os.read',side_effect=AssertionError('invalid capture was read')):
                 with self.assertRaises(Refused):capture(fifo,fifo_metadata,3,'lan','a'*32,fixture=True)
                 path.chmod(0o644)

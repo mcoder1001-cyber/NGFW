@@ -17,3 +17,9 @@ No capability was added and no host service changed. Actual sandboxed appliance 
 Decision policy: `docs/decisions/decision-policy.md`, always-PENDING item 4 covers deviations to agent privileges. Existing task authority authorizes the three listed capabilities, not an additional one.
 
 Decision: pending. Affected acceptance: P10 appliance daemon configuration installation/reconciliation; no whole-project stop. Record the resolution in the decision log before applying a privilege change.
+
+## Additional strict-filesystem mismatch
+
+System identity product paths include `/etc/hostname`, `/etc/localtime`, `/etc/issue`, `/etc/issue.net`, `/etc/motd` and a resolved drop-in. The shared atomic writer creates a temporary sibling in the parent directory before rename. Under ProtectSystem=strict, granting only a single file as writable does not make `/etc` writable for temporary creation/rename; a file bind mount can also prevent replacement. Existing approved writable daemon directories do not cover these global file parents.
+
+CAP_CHOWN alone does not solve this second issue. Do not add broad writable `/etc` silently. A reviewed narrow privileged file-writer/explicit product-path architecture, or an owner-approved filesystem exception with an assessed security boundary, is required for installed system-identity mutations. Keep readback/banner code and unrelated development moving; only affected appliance acceptance depends on this decision.

@@ -105,3 +105,18 @@ operation. An uncatchable kill may leave the no-start guard; original backup is 
 for operator recovery. Remaining final source review/hosted full quick still required.
 
 Removed legacy package purges/autoremove and irqbalance stop from runtime profile: NetworkManager/cloud-init and host hardening are outside P10 and can disrupt preconfigured management. Runtime unit registration uses disable without --now; no stop/restart operation in installer. Two runtime fixture tests PASS again. Central manager-authored P10 deferred campaign added to the existing single DEFERRED-ACCEPTANCE.md, preserving real unbuilt/runtime security/license distinctions.
+
+Base-unit offline score acceptance (systemd 255.4): API before5.4 -> after3.0;
+agent before6.2 -> after5.0. API gets narrow unprivileged restrictions; no V8
+MemoryDenyWriteExecute. Agent retains hostname/clock/device access and net namespaces;
+only cgroup namespace denied. Native syscall ABI/LockPersonality/SUID/RT/controlgroup,
+kernel-module and tunable restrictions audited against actual production renderers,
+ALLOWLIST and shipped apply-startup.sh/lib.sh. Go production reads boot_id/sysfs;
+/proc/sys writes observed only integration fixtures. Startup apply/driverctl/sysfs
+binding are gated separate manager/operator systemd-run contexts, not invoked by the
+agent (rpc_dataplane_startup confirms manager step). No blanket privilege expansion.
+Eight packaging regression checks PASS. Actual local unit verify reports missing
+VPP/Valkey and product binaries; no ordering cycle emitted, but complete target graph
+acceptance is NOT RUN. Fresh independent R4/R8 delta review still required. Global
+sysident atomic /etc parent write gap is recorded in parent-owned privilege PENDING;
+CAP_CHOWN alone cannot fix it and /etc is not made broadly writable.

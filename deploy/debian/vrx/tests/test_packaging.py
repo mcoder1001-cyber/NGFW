@@ -37,6 +37,12 @@ class Packaging(unittest.TestCase):
             self.assertIn('c.Dir = "/var/lib/vrx/captures"', capture)
         self.assertIn('CapabilityBoundingSet=\n', api)
         self.assertNotIn('AF_NETLINK', api)
+        self.assertNotIn('MemoryDenyWriteExecute=yes', api)
+        self.assertNotIn('ProtectHostname=yes', agent)
+        self.assertNotIn('ProtectClock=yes', agent)
+        self.assertNotIn('PrivateDevices=yes', agent)
+        self.assertNotIn('RestrictNamespaces=yes', agent)
+        self.assertIn('RestrictNamespaces=~cgroup', agent)
         for unit in [agent, api]:
             self.assertIn('ConditionPathExists=/var/lib/vrx/firstboot-complete', unit)
             self.assertIn('ProtectSystem=strict', unit)

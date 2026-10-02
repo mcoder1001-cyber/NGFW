@@ -102,3 +102,61 @@ claimed. Next command after handoff: manager reviews authority/mismatch and
 assigns an independently reviewed certificate-selection scope, or obtains
 upstream corrected bundle and NodeSource authority evidence. No new tests of
 unchanged installer, full CI or target acceptance were claimed.
+
+
+## Follow-up: current InRelease signer and digest (2026-10-02 23:26 UTC)
+
+Read-only downloads from official FRR endpoints, retained only in private
+scratch; no APT/host trust changes:
+
+| File | Bytes | SHA256 |
+| --- | ---: | --- |
+| [InRelease](https://deb.frrouting.org/frr/dists/resolute/InRelease) | 19702 | `39f9edda794e019d282e4500dfd18b72226632e1875c93cbc4e693a117ba0528` |
+| [stable amd64 Packages](https://deb.frrouting.org/frr/dists/resolute/frr-stable/binary-amd64/Packages) | 21289 | `1abdb00c4ae56a1c993df91db5392832bbf83b4ca93e86b161386268324aa477` |
+
+Private diagnostic `gpg --import` processed5 public certificates/4 unique and
+returned **2** because this environment cannot start gpg-agent. Partial public
+imports existed, but that is NOT successful end-to-end certificate selection.
+Subsequent explicit export of ONLY the three independently published full
+fingerprints returned0/9919 bytes. Verification used explicit private
+`gpgv --homedir PRIVATE --keyring SELECTED --status-fd 1 InRelease`.
+It returned **2**, ERRSIG/NO_PUBKEY, with **no VALIDSIG** under that authorized set.
+The required signer was `A90FC36D9429409798E9C2D874DEED43AB194DBF`.
+
+A separate diagnostic verification using the raw bundle returned0 and:
+
+```
+VALIDSIG A90FC36D9429409798E9C2D874DEED43AB194DBF 2026-08-31 1788140001 0 4 0 1 8 01 A90FC36D9429409798E9C2D874DEED43AB194DBF
+```
+
+Both signing and primary fingerprints are the undocumented fourth identity;
+a key ID/UID alone was not used. Signature timestamp is 2026-08-31 01:33:21 UTC.
+This diagnostic proves signature consistency with downloaded bytes, **not
+independently authorized signer ownership**. It must not promote that identity
+into trusted defaults. The raw bundle is not the requested trusted3 keyring.
+
+The InRelease SHA256 section contains exactly one selected Packages row with
+21289 bytes and the matching digest above. Those Packages bytes advertise:
+`Package: frr`, `Version: 10.7.1-0~ubuntu26.1`, `Architecture: amd64`, filename
+`pool/frr-stable/f/frr/frr_10.7.1-0~ubuntu26.1_amd64.deb`, size6839342 and package
+SHA256 `5378bd6c6d76daf10d76775dd098e5fbc080f7206654646ad36239dc0f810132`.
+No .deb was downloaded or installed. The byte/digest chain is consistent,
+but its independently authorized signature chain remains **unestablished**.
+There is no Valid-Until claim or repository-freshness acceptance implied here.
+
+The official repository homepage publishes the bundle command and three full
+fingerprints; its sole HTML href is the repository root. No official individual
+certificate/keyserver link was present on that page. Full-fingerprint retrieval
+from another transport could obtain the documented certificates, but would not
+resolve the current fourth-key signer authority. No external keyserver identity
+was substituted or retrieved as a new trust root.
+
+**Correction to prior next-code option:** selecting/canonicalizing the published
+three certificates alone cannot authenticate the current resolute InRelease.
+Before an unattended default, obtain official independent authorization of the
+fourth full fingerprint or upstream metadata signed by a published authorized
+identity. Do not add A90 from its own downloaded certificate. Keep strict
+operator trust/refusal and historical selector/parser evidence intact.
+NodeSource pin authority and Ubuntu26.04 support remain unresolved. TD-19 and
+all target installation/boot acceptance remain unfinished/NOT RUN. This is a
+docs-only append, not default pin selection, activation or selector test PASS.

@@ -51,3 +51,16 @@ Final actual strict suite:39PASS3.550s; zero failures/errors/skips/expected fail
 or unexpected success. Unchanged sourced tools/ci.sh check --base origin/main
 EXIT0 in2s; gitleaks122345bytes/no leaks; git diff --check clean. New producer
 source phase needs independent review/full unchanged hosted gate before merge.
+
+Test-only parent-exit coverage checkpoint: renamed the prior sleeping-parent case
+accurately. New actual subprocess case confirms parent exit0 via Linux waitid
+WNOWAIT/WNOHANG without poll/wait/reaping before producer starts; its ready child
+ignores TERM and inherits both pipes. Producer times out, reaps the leader and
+kills the created group. Child PID plus kernel start-time identity is checked as
+gone/Z (never signal/check a recycled process as the same child); final waitid
+confirms leader is already reaped. Unsupported waitid fails rather than skips or
+claims PASS. Product code unchanged. Independent first producer approval report
+4dceefd7 preserved unchanged. Actual strict40PASS5.030s, zero failures/errors/
+skips/expected failures/unexpected success. Sourced unchanged check EXIT0 in2s,
+gitleaks135656bytes/no leaks; diff check clean. Test delta needs independent R2.
+Live ownership/lease/config linkage still NOTIMPLEMENTED; all proof flags false.

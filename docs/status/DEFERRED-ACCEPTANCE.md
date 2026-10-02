@@ -60,3 +60,13 @@ lost reply, bounded compensation and DEGRADED recovery under installed unit.
 Run them in this single campaign when access returns; source fixture success is
 not traffic or boot acceptance. CAP_CHOWN/global `/etc` ownership decision and
 release license remain unresolved, so P10 stays RUNNING.
+
+### Hosted fixture signing evidence
+
+The dedicated `packaging-fixtures.yml` workflow adds isolated real-GPG temporary
+key signing and gpgv verification to the offline fixture suite. Hosted execution
+is **NOT RUN** until an observed successful run; local execution has 25 PASS and
+1 signing SKIP because agent sockets are unavailable, and the strict CI wrapper
+correctly fails that skip. Even a hosted fixture pass does not establish actual
+VPP provenance, real reprepro publication, production signing-key management or
+fresh appliance installation/boot. Those target cases above remain NOT RUN.

@@ -108,7 +108,8 @@ class Foundation(unittest.TestCase):
     def test_timeout_stops_descendant_that_ignores_term(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'log'
-            child = 'import signal,time,os,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];print("child="+str(os.getpid())+" birth="+birth,flush=True);time.sleep(20)'
+            ready = Path(directory) / 'ready'
+            child = f'import signal,time,os,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];identity="child="+str(os.getpid())+" birth="+birth;pathlib.Path({str(ready)!r}).write_text(identity);print(identity,flush=True);time.sleep(20)'
             leader = f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(20)'
             pid = birth = None
             def same_child():
@@ -121,7 +122,7 @@ class Foundation(unittest.TestCase):
                 process = original_popen(*arguments, **keywords)
                 deadline = time.monotonic() + 5
                 while time.monotonic() < deadline:
-                    if output.exists() and 'birth=' in output.read_text():return process
+                    if ready.exists() and 'birth=' in ready.read_text():return process
                     time.sleep(0.01)
                 # The fixture must prove its child installed SIG_IGN before
                 # starting the production wait/timeout. Clean only our group.
@@ -131,7 +132,7 @@ class Foundation(unittest.TestCase):
                 with patch('commands.subprocess.Popen', ready_process):
                     with self.assertRaises(subprocess.TimeoutExpired):
                         run_command([sys.executable, '-c', leader], directory, dict(os.environ), output, 0.15)
-                identity = output.read_text().strip().split()
+                identity = ready.read_text().strip().split()
                 pid = int(identity[0].split('=')[1]);birth = identity[1].split('=')[1]
                 status = Path(f'/proc/{pid}/status')
                 deadline = time.monotonic() + 2
@@ -144,6 +145,24 @@ class Foundation(unittest.TestCase):
                 if same_child():
                     try: os.kill(pid, 9)
                     except ProcessLookupError: pass
+
+    def test_noisy_child_is_stopped_at_exact_private_log_byte_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/'noisy.log'; identity=Path(directory)/'identity'
+            script=f'import os,signal,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];pathlib.Path({str(identity)!r}).write_text(str(os.getpid())+" "+birth)\nwhile True:os.write(1,b"x"*1000000)'
+            started=time.monotonic()
+            with self.assertRaisesRegex(CommandFailed,'byte limit'):
+                run_command([sys.executable,'-c',script],directory,dict(os.environ),output,2,max_output=4096)
+            self.assertLess(time.monotonic()-started,4)
+            pid,birth=identity.read_text().split(); status=Path(f'/proc/{pid}/status')
+            deadline=time.monotonic()+1
+            while status.exists() and '\nState:\tZ' not in status.read_text() and time.monotonic()<deadline:time.sleep(0.01)
+            if status.exists():
+                current=Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()[19]
+                self.assertTrue(current!=birth or '\nState:\tZ' in status.read_text(),'noisy producer remains live')
+            self.assertEqual(output.stat().st_size,4096)
+            self.assertEqual(output.stat().st_mode & 0o777,0o600)
+            self.assertEqual(output.read_bytes(),b'x'*4096)
 
     def test_strict_source_gate_rejects_every_nonpassing_status(self):
         bodies={'pass':'pass','failure':'self.fail("fixture")','error':'raise RuntimeError("fixture")',

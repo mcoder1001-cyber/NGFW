@@ -61,3 +61,13 @@ Product source remains a foundation only: composed executor/lock/capture
 lifecycle, packet-to-outcome correlation and whole-chain forwarding are genuinely
 NOTIMPLEMENTED. Existing support tests were not run against VPP. Fresh independent
 review and unchanged hosted quick are still required before foundation merge.
+
+Next delta fixes the review's stdout bound before future live activation:
+subprocess output is drained through a PIPE/selector, writes at most the explicit
+byte limit to its exclusive0600 log, refuses overflow, then cleans its own group.
+Default4MiB/max16MiB; existing timeout remains. Noisy producer fixture ignores
+TERM, floods1MiB writes, and proves exact4096-byte disk bound plus producer death;
+no unbounded log file is created. Foundation approval is preserved unchanged.
+Pure packet-correlation implementation is next on this branch; live remains
+NOTIMPLEMENTED. Strict suite17PASS (final time recorded in checkpoint message),
+including the existing actual descendant timeout/lease/evidence cases.

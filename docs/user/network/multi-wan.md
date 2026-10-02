@@ -1,5 +1,7 @@
 # Multi-WAN (failover and load balancing)
 
+> Implementation status: the recovered host runtime currently provides observed member health only, using HTTP HEAD, DNS or IPv4 ICMP probes bound to a Linux LCP interface in the default network namespace and default VRF. Missing or unsupported interfaces fail closed. `WanState` reports observations; its `active` field stays empty because this slice installs no forwarding routes. The failover/load-balancing, per-member NAT cleanup, dynamic gateway, nondefault VRF and ABF behavior described below remains follow-up work. Real network/lab acceptance is not yet verified.
+
 With two or more WAN links, **WAN groups** (`routing.wanGroups`) keep Internet access up when a link fails and,
 optionally, share load across links. Configure them under **Config → Routing → WAN groups**; watch them live under
 **Routing → Multi-WAN**.

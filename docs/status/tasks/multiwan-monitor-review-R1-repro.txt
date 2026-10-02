@@ -1,0 +1,29 @@
+package agent
+
+import (
+ "context"
+ "errors"
+ "testing"
+ "time"
+ vrxv1 "ngfw/agent/gen/vrx/v1"
+ "ngfw/agent/internal/descriptors/core/coretest"
+ "ngfw/agent/internal/multiwan"
+)
+
+func TestReviewWANFailedPersistenceMustNotStart(t *testing.T) {
+ s := newSvc(t, coretest.New(), t.TempDir())
+ mustStatus(t, apply(t,s,&vrxv1.ApplyRequest{TxnId:"baseline", DesiredState:doc(t,`{"routing":{}}`),Subsystems:[]string{"routing"}}),vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+ saveHook = func(stage string) error { if stage == "state" { return errors.New("review injected state failure") }; return nil }
+ t.Cleanup(func(){saveHook=nil})
+ resp:=apply(t,s,&vrxv1.ApplyRequest{TxnId:"failed-monitor",DesiredState:doc(t,`{"routing":{"wanGroups":[{"name":"edge","members":[{"interface":"wan0"}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1}]}]}}`),Subsystems:[]string{"routing"}})
+ mustStatus(t,resp,vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+ saveHook=nil
+ runtime:=multiwan.NewRuntime(func(context.Context,string,*vrxv1.WanMonitor)multiwan.CheckResult{return multiwan.CheckResult{Sent:1,Received:1}})
+ ctx,cancel:=context.WithCancel(context.Background()); stopped:=make(chan struct{})
+ a:=&Agent{svc:s,log:s.log}
+ go func(){defer close(stopped);a.watchWAN(ctx,runtime)}()
+ t.Cleanup(func(){cancel();<-stopped})
+ deadline:=time.Now().Add(time.Second)
+ for !runtime.Ready() && time.Now().Before(deadline){time.Sleep(time.Millisecond)}
+ if len(runtime.Snapshot())!=0 {t.Fatal("WAN watcher activated a monitor whose desired-state save failed (Apply DEGRADED)")}
+}

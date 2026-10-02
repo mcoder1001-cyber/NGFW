@@ -60,7 +60,7 @@ class Firstboot(unittest.TestCase):
             self.assertFalse((root / 'service-commands').exists())
 
     def test_invalid_existing_jwt_and_random_failure_retain_credentials(self):
-        for corruption in ['missing', 'empty', 'duplicate', 'random-failure']:
+        for corruption in ['missing', 'empty', 'duplicate', 'valid-empty', 'empty-valid', 'random-failure']:
             with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as directory:
                 root, credentials, entry, env = self.fixture(directory)
                 if corruption == 'random-failure':
@@ -74,6 +74,8 @@ class Firstboot(unittest.TestCase):
                     lines = [line for line in lines if not line.startswith('VRX_JWT_SECRET=')]
                     if corruption == 'empty': lines.append('VRX_JWT_SECRET=')
                     if corruption == 'duplicate': lines.extend([jwt, jwt])
+                    if corruption == 'valid-empty': lines.extend([jwt, 'VRX_JWT_SECRET='])
+                    if corruption == 'empty-valid': lines.extend(['VRX_JWT_SECRET=', jwt])
                     settings.write_text('\n'.join(lines) + '\n')
                     del env['FAIL_STAGE']
                 result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)

@@ -43,6 +43,8 @@ fi
 [[ -f /etc/vrx/api.env && ! -L /etc/vrx/api.env && $(stat -c '%u:%a' /etc/vrx/api.env) == 0:600 ]] || { echo 'invalid API environment file' >&2; exit 1; }
 grep -Fxq 'VRX_DATABASE_URL=postgresql:///vrx?host=/var/run/postgresql&user=vrx' /etc/vrx/api.env || { echo 'API database configuration requires manual review' >&2; exit 1; }
 grep -Fxq 'VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key' /etc/vrx/api.env || { echo 'API secret configuration requires manual review' >&2; exit 1; }
+JWT_COUNT=$(grep -Ec '^[[:space:]]*VRX_JWT_SECRET[[:space:]]*=' /etc/vrx/api.env || true)
+[[ $JWT_COUNT == 1 ]] || { echo 'invalid persisted JWT assignment count' >&2; exit 1; }
 JWT_SECRET=$(sed -n 's/^VRX_JWT_SECRET=//p' /etc/vrx/api.env)
 [[ $JWT_SECRET =~ ^[a-f0-9]{64}$ ]] || { echo 'invalid or duplicate persisted JWT key' >&2; exit 1; }
 export VRX_JWT_SECRET=$JWT_SECRET

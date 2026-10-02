@@ -2726,6 +2726,8 @@ message ManagementConfig {
   ManagementPrometheus prometheus = 5;
   // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
   ManagementAlarms alarms = 6;
+  // API-owned notification delivery configuration.
+  ManagementNotifications notifications = 7;
   // wave-BC: F-backup-restore
 }
 
@@ -7759,4 +7761,41 @@ message Nat46Mapping {
   optional string ipv6 = 3;
   // IPv6-side MTU; unset = VPP default.
   optional uint32 mtu = 4;
+}
+
+// API-owned notifications. SMTP and signed HTTPS webhook only.
+message ManagementNotifications {
+  repeated NotificationChannel channels = 1;
+  repeated NotificationRule rules = 2;
+}
+message NotificationChannel {
+  optional string name = 1;
+  optional string type = 2;
+  NotificationEmail email = 3;
+  // Removed at owner request; never reuse the Telegram field or name.
+  reserved 4;
+  reserved "telegram";
+  NotificationWebhook webhook = 5;
+  optional bool enabled = 6;
+}
+message NotificationEmail {
+  optional string smtp_host = 1;
+  optional uint32 port = 2;
+  optional string tls = 3;
+  optional string username = 4;
+  optional string password_ref = 5;
+  optional string from = 6;
+  repeated string to = 7;
+}
+message NotificationWebhook {
+  optional string url = 1;
+  optional string secret_ref = 2;
+}
+message NotificationRule {
+  optional string name = 1;
+  repeated string events = 2;
+  repeated string channels = 3;
+  optional uint32 throttle_sec = 4;
+  optional string min_severity = 5;
+  optional bool enabled = 6;
 }

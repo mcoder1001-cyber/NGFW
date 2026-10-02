@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/multiwan"
 )
 
 // newGRPCServer is the agent's gRPC server with panic recovery on every unary and streaming handler
@@ -55,6 +56,7 @@ type server struct {
 	vrxv1.UnimplementedDataplaneServer
 	svc   *Service
 	stats statsSource
+	wan   *multiwan.Runtime
 	log   *slog.Logger
 }
 

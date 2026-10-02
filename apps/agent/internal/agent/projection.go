@@ -303,6 +303,11 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 			core.SortPaths(v.Paths)
 			p.add(core.RouteKey(table, pfx), v, pt)
 		}
+		// F-multiwan-host: monitor observations are available through WanState;
+		// routing/NAT is a separate controller and is not falsely certified here.
+		if len(ds.GetRouting().GetWanGroups()) > 0 {
+			p.warnf(ptr("routing", "wanGroups"), "agent.unsupported-field", "WAN health monitors are wired; WAN routing, NAT cleanup and ABF are not yet implemented")
+		}
 		// S3 (wave-BC-numbers "Seams"): one row per routing-protocol leaf; a task that renders a leaf flips its row
 		for _, leaf := range routingLeaves {
 			if !leaf.handled && leaf.present(ds.GetRouting()) {

@@ -1,5 +1,7 @@
 # Multi-WAN (failover and load balancing)
 
+> Implementation status: the recovered host runtime currently provides observed member health only, using HTTP HEAD, DNS or IPv4 ICMP probes bound to a Linux LCP interface in the default network namespace and default VRF. Missing or unsupported interfaces fail closed. `WanState` reports observations; its `active` field stays empty because this slice installs no forwarding routes. The failover/load-balancing, per-member NAT cleanup, dynamic gateway, nondefault VRF and ABF behavior described below remains follow-up work. Real network/lab acceptance is not yet verified.
+
 With two or more WAN links, **WAN groups** (`routing.wanGroups`) keep Internet access up when a link fails and,
 optionally, share load across links. Configure them under **Config → Routing → WAN groups**; watch them live under
 **Routing → Multi-WAN**.
@@ -43,3 +45,9 @@ member in failover mode. Commit a change and the group is applied like any other
 - A WAN member must not also carry a conflicting static default route; the group manages the default route for its
   members.
 - LTE/5G modems and SD-WAN SLA-based application steering are out of scope (backlog).
+
+### ICMP availability under the packaged service
+
+ICMP monitoring uses Linux echo-only datagram sockets, never raw sockets. The existing host `net.ipv4.ping_group_range` policy must permit the agent service's group; some hosts deny all groups by default. The agent does not change that policy or acquire additional capabilities. The packaged capability boundary remains unchanged.
+
+When the kernel denies ICMP datagram probes, live state reports the affected requested WAN group as unavailable under host policy, rather than presenting a local permission failure as 100% packet loss. Unaffected requested groups remain readable. Use HTTP or DNS monitoring where ICMP is unavailable; any host-policy change requires separate administrator authorization. An unavailable probe does not establish that the WAN link is down. Interface/network-namespace and appliance acceptance remains unverified.

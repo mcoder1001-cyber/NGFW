@@ -10240,6 +10240,37 @@ export interface Nat46Mapping {
   mtu?: number | undefined;
 }
 
+/** F-system-identity operational state. Configuration remains in SystemConfig. */
+export interface SystemIdentityStateRequest {
+  owner: string;
+}
+
+export interface SystemIdentityStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** Read from the identity descriptor's installed hostname file (slot-scoped in tests). */
+  hostname: string;
+  timezone: string;
+  /** Host uptime observed through /proc/uptime; absent if unreadable. */
+  uptimeSeconds?:
+    | number
+    | undefined;
+  /** Kernel hostname is exposed only for the globals owner, never as a slot's identity. */
+  kernelHostname?:
+    | string
+    | undefined;
+  /** Installed resolver drop-in, not proof that a pending restart has occurred. */
+  configuredNameServers: string[];
+  configuredSearchDomains: string[];
+  /** Observed resolved runtime file, not a claim about daemon health. */
+  resolverStatus: string;
+  observedNameServers: string[];
+  /** fixed field identifiers, no file contents */
+  errors: string[];
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return { txnId: "", desiredState: undefined, subsystems: [], confirmTimeoutSec: 0, confirmTxnId: "", owner: "" };
 }
@@ -91793,6 +91824,344 @@ export const Nat46Mapping: MessageFns<Nat46Mapping> = {
   },
 };
 
+function createBaseSystemIdentityStateRequest(): SystemIdentityStateRequest {
+  return { owner: "" };
+}
+
+export const SystemIdentityStateRequest: MessageFns<SystemIdentityStateRequest> = {
+  encode(message: SystemIdentityStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SystemIdentityStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSystemIdentityStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SystemIdentityStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: SystemIdentityStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SystemIdentityStateRequest>): SystemIdentityStateRequest {
+    return SystemIdentityStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SystemIdentityStateRequest>): SystemIdentityStateRequest {
+    const message = createBaseSystemIdentityStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseSystemIdentityStateResponse(): SystemIdentityStateResponse {
+  return {
+    owner: "",
+    retrievedAt: undefined,
+    hostname: "",
+    timezone: "",
+    uptimeSeconds: undefined,
+    kernelHostname: undefined,
+    configuredNameServers: [],
+    configuredSearchDomains: [],
+    resolverStatus: "",
+    observedNameServers: [],
+    errors: [],
+  };
+}
+
+export const SystemIdentityStateResponse: MessageFns<SystemIdentityStateResponse> = {
+  encode(message: SystemIdentityStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.hostname !== "") {
+      writer.uint32(26).string(message.hostname);
+    }
+    if (message.timezone !== "") {
+      writer.uint32(34).string(message.timezone);
+    }
+    if (message.uptimeSeconds !== undefined) {
+      writer.uint32(41).double(message.uptimeSeconds);
+    }
+    if (message.kernelHostname !== undefined) {
+      writer.uint32(50).string(message.kernelHostname);
+    }
+    for (const v of message.configuredNameServers) {
+      writer.uint32(58).string(v!);
+    }
+    for (const v of message.configuredSearchDomains) {
+      writer.uint32(66).string(v!);
+    }
+    if (message.resolverStatus !== "") {
+      writer.uint32(74).string(message.resolverStatus);
+    }
+    for (const v of message.observedNameServers) {
+      writer.uint32(82).string(v!);
+    }
+    for (const v of message.errors) {
+      writer.uint32(90).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SystemIdentityStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSystemIdentityStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.hostname = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.timezone = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 41) {
+              break;
+            }
+
+            message.uptimeSeconds = reader.double();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.kernelHostname = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.configuredNameServers.push(reader.string());
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.configuredSearchDomains.push(reader.string());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.resolverStatus = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.observedNameServers.push(reader.string());
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.errors.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SystemIdentityStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      hostname: isSet(object.hostname) ? globalThis.String(object.hostname) : "",
+      timezone: isSet(object.timezone) ? globalThis.String(object.timezone) : "",
+      uptimeSeconds: isSet(object.uptimeSeconds)
+        ? globalThis.Number(object.uptimeSeconds)
+        : isSet(object.uptime_seconds)
+        ? globalThis.Number(object.uptime_seconds)
+        : undefined,
+      kernelHostname: isSet(object.kernelHostname)
+        ? globalThis.String(object.kernelHostname)
+        : isSet(object.kernel_hostname)
+        ? globalThis.String(object.kernel_hostname)
+        : undefined,
+      configuredNameServers: globalThis.Array.isArray(object?.configuredNameServers)
+        ? object.configuredNameServers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.configured_name_servers)
+        ? object.configured_name_servers.map((e: any) => globalThis.String(e))
+        : [],
+      configuredSearchDomains: globalThis.Array.isArray(object?.configuredSearchDomains)
+        ? object.configuredSearchDomains.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.configured_search_domains)
+        ? object.configured_search_domains.map((e: any) => globalThis.String(e))
+        : [],
+      resolverStatus: isSet(object.resolverStatus)
+        ? globalThis.String(object.resolverStatus)
+        : isSet(object.resolver_status)
+        ? globalThis.String(object.resolver_status)
+        : "",
+      observedNameServers: globalThis.Array.isArray(object?.observedNameServers)
+        ? object.observedNameServers.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.observed_name_servers)
+        ? object.observed_name_servers.map((e: any) => globalThis.String(e))
+        : [],
+      errors: globalThis.Array.isArray(object?.errors)
+        ? object.errors.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: SystemIdentityStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.hostname !== "") {
+      obj.hostname = message.hostname;
+    }
+    if (message.timezone !== "") {
+      obj.timezone = message.timezone;
+    }
+    if (message.uptimeSeconds !== undefined) {
+      obj.uptimeSeconds = message.uptimeSeconds;
+    }
+    if (message.kernelHostname !== undefined) {
+      obj.kernelHostname = message.kernelHostname;
+    }
+    if (message.configuredNameServers?.length) {
+      obj.configuredNameServers = message.configuredNameServers;
+    }
+    if (message.configuredSearchDomains?.length) {
+      obj.configuredSearchDomains = message.configuredSearchDomains;
+    }
+    if (message.resolverStatus !== "") {
+      obj.resolverStatus = message.resolverStatus;
+    }
+    if (message.observedNameServers?.length) {
+      obj.observedNameServers = message.observedNameServers;
+    }
+    if (message.errors?.length) {
+      obj.errors = message.errors;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SystemIdentityStateResponse>): SystemIdentityStateResponse {
+    return SystemIdentityStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SystemIdentityStateResponse>): SystemIdentityStateResponse {
+    const message = createBaseSystemIdentityStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.hostname = object.hostname ?? "";
+    message.timezone = object.timezone ?? "";
+    message.uptimeSeconds = object.uptimeSeconds ?? undefined;
+    message.kernelHostname = object.kernelHostname ?? undefined;
+    message.configuredNameServers = object.configuredNameServers?.map((e) => e) || [];
+    message.configuredSearchDomains = object.configuredSearchDomains?.map((e) => e) || [];
+    message.resolverStatus = object.resolverStatus ?? "";
+    message.observedNameServers = object.observedNameServers?.map((e) => e) || [];
+    message.errors = object.errors?.map((e) => e) || [];
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
@@ -92359,7 +92728,19 @@ export const DataplaneService = {
   /**
    * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
    * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   * F-system-identity: read-only installed identity and observed host facts.
    */
+  systemIdentityState: {
+    path: "/vrx.v1.Dataplane/SystemIdentityState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: SystemIdentityStateRequest): Buffer =>
+      Buffer.from(SystemIdentityStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): SystemIdentityStateRequest => SystemIdentityStateRequest.decode(value),
+    responseSerialize: (value: SystemIdentityStateResponse): Buffer =>
+      Buffer.from(SystemIdentityStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): SystemIdentityStateResponse => SystemIdentityStateResponse.decode(value),
+  },
   ntpState: {
     path: "/vrx.v1.Dataplane/NtpState" as const,
     requestStream: false as const,
@@ -92716,7 +93097,9 @@ export interface DataplaneServer extends UntypedServiceImplementation {
   /**
    * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
    * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   * F-system-identity: read-only installed identity and observed host facts.
    */
+  systemIdentityState: handleUnaryCall<SystemIdentityStateRequest, SystemIdentityStateResponse>;
   ntpState: handleUnaryCall<NtpStateRequest, NtpStateResponse>;
   /**
    * SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
@@ -93500,7 +93883,23 @@ export interface DataplaneClient extends Client {
   /**
    * NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
    * sourcestats / serverstats) and its pending start/restart request. Never mutates.
+   * F-system-identity: read-only installed identity and observed host facts.
    */
+  systemIdentityState(
+    request: SystemIdentityStateRequest,
+    callback: (error: ServiceError | null, response: SystemIdentityStateResponse) => void,
+  ): ClientUnaryCall;
+  systemIdentityState(
+    request: SystemIdentityStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: SystemIdentityStateResponse) => void,
+  ): ClientUnaryCall;
+  systemIdentityState(
+    request: SystemIdentityStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: SystemIdentityStateResponse) => void,
+  ): ClientUnaryCall;
   ntpState(
     request: NtpStateRequest,
     callback: (error: ServiceError | null, response: NtpStateResponse) => void,

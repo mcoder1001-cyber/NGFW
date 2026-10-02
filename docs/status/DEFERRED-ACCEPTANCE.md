@@ -61,6 +61,19 @@ Run them in this single campaign when access returns; source fixture success is
 not traffic or boot acceptance. CAP_CHOWN/global `/etc` ownership decision and
 release license remain unresolved, so P10 stays RUNNING.
 
+### TD-19 provisioning and pinned installers
+
+All target cases remain **NOT RUN**: genuine product artifact transfer and
+installation on vrx-b/vrx-c; installed exact seven-package manifest version
+readback; root-owned service-suppression policy and appliance ownership handover;
+actual Go/containerlab downloads, installation and selected executable version;
+Ubuntu 26.04 package availability and subsequent appliance boot. Offline fixture
+success exercises redirected temporary files and blocked/fake remote/package
+commands; it is not target installation acceptance. Execute these cases in this
+single campaign when access returns. Missing authoritative third-party repository
+key pins and other source reproducibility gaps remain implementation work and
+are not lab-only deferrals or completed TD-19.
+
 ### Hosted fixture signing evidence
 
 The dedicated `packaging-fixtures.yml` workflow adds isolated real-GPG temporary

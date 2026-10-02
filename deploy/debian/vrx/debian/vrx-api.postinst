@@ -3,6 +3,9 @@ set -eu
 if [ "$1" = configure ]; then
     getent group vrx >/dev/null || addgroup --system vrx
     getent passwd vrx >/dev/null || adduser --system --ingroup vrx --home /var/lib/vrx --no-create-home vrx
-    install -d -m 0750 -o vrx -g vrx /var/lib/vrx/api /data
+    # wave-BC: F-backup-restore
+    # wave-BC: F-ab-upgrade
+    # Descriptor-relative setup refuses symlinks and never recurses into data.
+    /usr/bin/python3 /usr/lib/vrx/provision-api-storage.py
 fi
 #DEBHELPER#

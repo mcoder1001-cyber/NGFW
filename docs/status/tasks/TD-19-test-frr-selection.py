@@ -39,11 +39,13 @@ args=sys.argv[1:]
 with open(os.environ['CALL_LOG'],'a') as f:f.write(json.dumps(args)+'\\n')
 assert args[0]=='--no-options' and args[1]=='--homedir' and args[3]=='--batch'
 if '--list-packets' in args:
+ if os.environ.get('REPLACE_RAW'): pathlib.Path(os.environ['REPLACE_RAW']).write_bytes(b'replaced caller secret material')
  print(os.environ.get('PACKETS',':public key packet:'))
  raise SystemExit(int(os.environ.get('PACKET_RC','0')))
 if '--show-keys' in args:
  print(os.environ.get('NODE_IDENTITIES',os.environ['IDENTITIES']) if args[-1].endswith('node.key') else os.environ['IDENTITIES'])
 elif '--import' in args:
+ if os.environ.get('REPLACE_RAW'): assert pathlib.Path(args[-1]).read_bytes()==b'controlled public material' and args[-1]!=os.environ['REPLACE_RAW']
  pathlib.Path(args[2],'partial-public-keyring').write_text('private fixture partial import')
  raise SystemExit(int(os.environ.get('IMPORT_RC','0')))
 elif '--export' in args:
@@ -80,7 +82,7 @@ else:raise SystemExit(95)
         self.assertEqual(self.calls(), [])
 
     def test_partial_import_nonzero_never_exports_or_publishes(self):
-        result = self.invoke(IMPORT_RC='2')
+        result = self.invoke(IMPORT_RC='2', REPLACE_RAW=str(self.key))
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue(any('--import' in args for args in self.calls()))
         self.assertFalse(any('--export' in args for args in self.calls()))
@@ -147,7 +149,7 @@ else:raise SystemExit(95)
 class RealCertificates(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if not shutil.which('gpg'):
+        if not shutil.which('gpg') or not shutil.which('gpgv'):
             raise RuntimeError('actual GPG fixture prerequisite missing; NOT RUN')
         cls.temp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.temp.cleanup)
@@ -194,6 +196,28 @@ class RealCertificates(unittest.TestCase):
         self.assertIn(self.a, show.stdout); self.assertNotIn(self.b, show.stdout)
         self.assertTrue(any(line.startswith('sub:') for line in show.stdout.splitlines()))
 
+    def test_unselected_signer_refused_until_fixture_owner_explicitly_authorizes_it(self):
+        payload = self.root / 'repository-metadata'; payload.write_bytes(b'fixture repository metadata\n')
+        signature = self.root / 'metadata.sig'
+        signed = self.gpg('--pinentry-mode', 'loopback', '--passphrase', '',
+                          '--local-user', self.b, '--output', str(signature), '--detach-sign', str(payload))
+        self.assertEqual(signed.returncode, 0, signed.stderr)
+        self.assertGreater(signature.stat().st_size, 0)
+        for authorized, accepted in ((self.a, False), (self.b, True)):
+            selected, output = self.invoke(self.public_a + self.public_b, authorized)
+            self.assertEqual(selected.returncode, 0, selected.stderr)
+            home = output.parent / 'signature-verifier'; home.mkdir(mode=0o700)
+            checked = subprocess.run(['gpgv', '--homedir', str(home), '--keyring', str(output),
+                                      '--status-fd', '1', str(signature), str(payload)],
+                                     capture_output=True, text=True)
+            if accepted:
+                self.assertEqual(checked.returncode, 0, checked.stderr)
+                self.assertIn('[GNUPG:] VALIDSIG ' + self.b + ' ', checked.stdout)
+            else:
+                self.assertNotEqual(checked.returncode, 0)
+                self.assertIn('[GNUPG:] NO_PUBKEY ', checked.stdout)
+                self.assertNotIn('[GNUPG:] VALIDSIG ', checked.stdout)
+
     def test_missing_authorized_primary_is_not_silently_omitted(self):
         result, output = self.invoke(self.public_a, self.a+','+self.b)
         self.assertNotEqual(result.returncode, 0); self.assertFalse(output.exists())
@@ -237,4 +261,4 @@ class RealCertificates(unittest.TestCase):
 
 if __name__ == '__main__':
     result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__]))
-    raise SystemExit(result.testsRun != 12 or not result.wasSuccessful() or bool(result.skipped or result.expectedFailures or result.unexpectedSuccesses))
+    raise SystemExit(result.testsRun != 13 or not result.wasSuccessful() or bool(result.skipped or result.expectedFailures or result.unexpectedSuccesses))

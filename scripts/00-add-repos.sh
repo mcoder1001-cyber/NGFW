@@ -125,18 +125,36 @@ select_frr_certificates() (
   set -euo pipefail
   local key=$1 expected=$2 output=$3 selection_work
   check_frr_selection_pins "$expected"
-  python3 - "$key" <<'PYFRRRAW'
-import os, pathlib, stat, sys
-key = pathlib.Path(sys.argv[1]); info = key.lstat(); parent = key.parent.lstat()
-if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 1024 * 1024:
-    raise SystemExit('raw FRR input must be a bounded nonempty regular public-key file')
-if (info.st_uid != os.geteuid() or not stat.S_ISDIR(parent.st_mode)
-        or parent.st_uid != os.geteuid() or stat.S_IMODE(parent.st_mode) != 0o700):
-    raise SystemExit('raw FRR input requires an owned private staging directory')
-PYFRRRAW
   selection_work=$(mktemp -d /tmp/vrx-frr-selection.XXXXXXXX)
   trap 'rm -rf -- "$selection_work"' EXIT
   mkdir -m 0700 "$selection_work/import" "$selection_work/verify"
+  # Open once without following the caller's final symlink; all GPG operations
+  # consume this bounded private snapshot rather than reopening caller input.
+  python3 - "$key" "$selection_work/raw.key" <<'PYFRRRAW'
+import os, pathlib, stat, sys
+key = pathlib.Path(sys.argv[1]); parent = key.parent.lstat()
+if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+        or stat.S_IMODE(parent.st_mode) != 0o700):
+    raise SystemExit('raw FRR input requires an owned private staging directory')
+fd = os.open(key, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+try:
+    before = os.fstat(fd)
+    if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+            or not 0 < before.st_size <= 1024 * 1024):
+        raise SystemExit('raw FRR input must be a bounded nonempty regular public-key file')
+    with os.fdopen(fd, 'rb', closefd=False) as source:
+        data = source.read(1024 * 1024 + 1)
+    after = os.fstat(fd)
+    identity = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    if not 0 < len(data) <= 1024 * 1024 or len(data) != before.st_size or identity(before) != identity(after):
+        raise SystemExit('raw FRR input changed during bounded snapshot')
+    target_fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    with os.fdopen(target_fd, 'wb') as target:
+        target.write(data)
+finally:
+    os.close(fd)
+PYFRRRAW
+  key="$selection_work/raw.key"
   # Inspect ALL raw material before importing or discarding unselected primaries.
   gpg --no-options --homedir "$selection_work/import" --batch --no-auto-key-retrieve --auto-key-locate clear --list-packets "$key" > "$selection_work/packets"
   python3 - "$selection_work/packets" <<'PYFRRPACKETS'

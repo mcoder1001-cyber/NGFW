@@ -103,13 +103,46 @@ class Producer(unittest.TestCase):
             self.assertIsNotNone(self.processes[-1].poll())
             (self.root/'lan.pcap').unlink()
 
+    def child_source(self, identity):
+        # /proc may expose a different PID namespace from os.getpid().
+        return ("import signal,time,json;from pathlib import Path;"
+                "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                "raw=Path('/proc/self/stat').read_text();"
+                "fields=raw.rsplit(') ',1)[1].split();"
+                f"Path({str(identity)!r}+'.ready').write_text(json.dumps(dict(proc_pid=int(raw.split(' ',1)[0]),birth=fields[19])));"
+                f"Path({str(identity)!r}+'.ready').rename({str(identity)!r});"
+                "time.sleep(30)")
+
+    def verify_ready_identity(self, identity):
+        child=json.loads(identity.read_text())
+        self.assertEqual(set(child),{'proc_pid','birth'})
+        raw=Path(f"/proc/{child['proc_pid']}/stat").read_text()
+        fields=raw.rsplit(') ',1)[1].split()
+        self.assertEqual(int(raw.split(' ',1)[0]),child['proc_pid'])
+        self.assertEqual(fields[19],child['birth'])
+        self.assertIn(fields[0],('S','R'))
+        return child
+
+    def verify_stopped_identity(self, child):
+        path=Path(f"/proc/{child['proc_pid']}/stat")
+        for _ in range(100):
+            try:
+                raw=path.read_text()
+            except FileNotFoundError:
+                return
+            fields=raw.rsplit(') ',1)[1].split()
+            if fields[19]!=child['birth'] or fields[0]=='Z':
+                return
+            time.sleep(.01)
+        self.fail('verified same-birth ignored-TERM descendant survived cleanup')
+
     def test_timeout_kills_own_ignored_term_descendant_while_leader_alive(self):
         identity=self.root/'child'
-        source=('import subprocess,sys,time\n'
-                f'child=subprocess.Popen([sys.executable,"-c", "import signal,time,os;signal.signal(signal.SIGTERM,signal.SIG_IGN);open({str(identity)!r},\\\"w\\\").write(str(os.getpid()));time.sleep(30)"])\n'
-                f'while not __import__("os").path.exists({str(identity)!r}):time.sleep(.01)\n'
+        source=('import subprocess,sys,time,os\n'
+                f'child=subprocess.Popen([sys.executable,"-c",{self.child_source(identity)!r}])\n'
+                f'while not os.path.exists({str(identity)!r}):time.sleep(.01)\n'
                 'time.sleep(30)\n')
-        start=self.executor(source)
+        start=self.executor(source);verified=[]
         def ready_executor(argv, *, environment):
             process=start(argv,environment=environment)
             deadline=time.monotonic()+5
@@ -117,31 +150,23 @@ class Producer(unittest.TestCase):
                 if process.poll() is not None or time.monotonic()>deadline:
                     raise AssertionError('child did not reach SIG_IGN readiness')
                 time.sleep(.01)
+            verified.append(self.verify_ready_identity(identity))
             return process
         with self.assertRaisesRegex(Refused,'timed out'):
             produce(self.root,3,'lan','acl','a'*32,0.4,executor=ready_executor,fixture=True)
-        self.assertTrue(identity.exists())
-        pid=int(identity.read_text())
-        for _ in range(100):
-            status=Path(f'/proc/{pid}/stat')
-            if not status.exists() or status.read_text().split()[2]=='Z':break
-            time.sleep(.01)
-        else:self.fail('owned ignored-TERM descendant survived')
+        self.assertEqual(len(verified),1)
+        self.verify_stopped_identity(verified[0])
         self.assertIsNotNone(self.processes[-1].poll())
 
     def test_timeout_cleans_child_after_confirmed_unreaped_leader_exit(self):
         if not hasattr(os, 'waitid') or not hasattr(os, 'WNOWAIT'):
             self.fail('UNSUPPORTED: Linux waitid WNOWAIT required for exact regression')
         identity=self.root/'exited-parent-child'
-        child_source=("import signal,time,os,json;signal.signal(signal.SIGTERM,signal.SIG_IGN);"
-                      "raw=open('/proc/self/stat').read();birth=raw.rsplit(') ',1)[1].split()[19];"
-                      f"open({str(identity)!r},'w').write(json.dumps(dict(pid=os.getpid(),birth=birth)));"
-                      "time.sleep(30)")
         source=('import subprocess,sys,time,os\n'
-                f'child=subprocess.Popen([sys.executable,"-c",{child_source!r}])\n'
+                f'child=subprocess.Popen([sys.executable,"-c",{self.child_source(identity)!r}])\n'
                 f'while not os.path.exists({str(identity)!r}):time.sleep(.01)\n'
                 'os._exit(0)\n')
-        start=self.executor(source);observed=[]
+        start=self.executor(source);observed=[];verified=[]
         def exited_executor(argv, *, environment):
             process=start(argv,environment=environment)
             deadline=time.monotonic()+5
@@ -151,7 +176,7 @@ class Producer(unittest.TestCase):
                     self.assertEqual(event.si_pid,process.pid)
                     self.assertEqual(event.si_code,os.CLD_EXITED)
                     self.assertEqual(event.si_status,0)
-                    self.assertTrue(identity.exists())
+                    verified.append(self.verify_ready_identity(identity))
                     self.assertIsNone(process.returncode) # waitid did not reap.
                     observed.append(event)
                     return process
@@ -159,15 +184,8 @@ class Producer(unittest.TestCase):
                 time.sleep(.01)
         with self.assertRaisesRegex(Refused,'timed out'):
             produce(self.root,3,'lan','acl','a'*32,0.4,executor=exited_executor,fixture=True)
-        self.assertEqual(len(observed),1)
+        self.assertEqual(len(observed),1);self.assertEqual(len(verified),1)
         self.assertEqual(self.processes[-1].returncode,0)
-        # Verify the actual child's kernel birth identity, never a recycled PID.
-        child=json.loads(identity.read_text());path=Path(f"/proc/{child['pid']}/stat")
-        for _ in range(100):
-            if not path.exists():break
-            fields=path.read_text().rsplit(') ',1)[1].split()
-            if fields[19]!=child['birth'] or fields[0]=='Z':break
-            time.sleep(.01)
-        else:self.fail('same-birth ignored-TERM descendant survived parent-exit cleanup')
+        self.verify_stopped_identity(verified[0])
         with self.assertRaises(ChildProcessError):
             os.waitid(os.P_PID,self.processes[-1].pid,os.WEXITED|os.WNOWAIT|os.WNOHANG)

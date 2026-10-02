@@ -64,3 +64,21 @@ claims PASS. Product code unchanged. Independent first producer approval report
 skips/expected failures/unexpected success. Sourced unchanged check EXIT0 in2s,
 gitleaks135656bytes/no leaks; diff check clean. Test delta needs independent R2.
 Live ownership/lease/config linkage still NOTIMPLEMENTED; all proof flags false.
+
+Independent862 recheck BLOCK preserved as evidence: targeted2 cases had1FAIL in
+1.825s ('owned ignored-TERM descendant survived'). Reviewer traced reported PID7
+to unrelated `/proc/7/stat`: `7 (sites-preview) S`, birth148. This classified the
+fixture's os.getpid()/mounted-proc namespace mismatch, not a demonstrated product
+leak. Previous source-author40PASS is historical, not independent recheckPASS.
+The new parent-exit test also lacked initial birth verification, so an immediate
+mismatch could falsely pass. Both fixture defects must be fixed before merge.
+
+Correction: after SIG_IGN, child reads mounted `/proc/self/stat`, records its PID
+prefix and robust `rsplit(') ',1)` birth field, closes JSON then atomically publishes
+readiness. Parent verifies that same mounted PID/birth is S/R before producer
+starts. Postcleanup checks only the verified identity as gone/Z/reused; no signals
+to reported proc PID. The true parent-exit case still confirms waitid WNOWAIT exit0
+and final reaping. Product source unchanged; no claims erased by renaming phases.
+Actual targeted5 repeats EACH=10PASS4.117s; strict40PASS5.055s, zero failures/errors/
+skips/expected failures/unexpected success. Independent corrected recheck pending.
+All live ownership/lease gaps and false proof flags remain unchanged.

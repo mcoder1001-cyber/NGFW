@@ -82,3 +82,29 @@ Five build tests PASS (0.028s), including executing the actual selection and
 three generator commands against a fake new Go with an older Go earlier in the
 original PATH. A wrong selected version invokes no generators. These are fake
 executables in temporary directories; no actual installation occurred.
+
+### Fixed containerlab archive continuation
+
+Script 40 replaces the floating curl-to-shell installer with fixed release
+v0.79.0 linux-amd64. The manager verified the primary official release API on
+2026-10-02: https://api.github.com/repos/srl-labs/containerlab/releases/latest
+(the source records its stable tag endpoint). Asset URL:
+https://github.com/srl-labs/containerlab/releases/download/v0.79.0/containerlab_0.79.0_linux_amd64.tar.gz
+SHA256: `f90d36d58bb6c4afd3b3a4dca006b81594c6d16f7a04be0184b03f44291085a2`.
+
+The bootstrap requires existing curl/Python/checksum/install tooling, a Linux
+amd64 host, and a private temporary directory. It verifies the archive before
+APT and extracts only one bounded regular member named `containerlab`, rejecting
+links, duplicates and missing entries. Installation uses a sibling temporary
+file, forces 0755 (no archive SUID/SGID bits), then atomic rename. Exit cleanup
+removes temporary staging. No group, capability or global privilege addition.
+
+Five actual archive-block fixtures PASS (0.215s): correct replacement/mode,
+wrong digest, archive links/missing/duplicates, APT failure preserving the old
+binary, and non-mutating fixed configuration. Real local tar files and file
+operations were used; curl/APT were temporary stub commands. No official
+archive was downloaded or executed and no system target was changed. Bash
+syntax and diff checks PASS. Independent review of the new script40 delta and
+hosted exact-head gate are still required. FRR/NodeSource key fingerprints remain
+unresolved; unpinned Python/pnpm package installation is an additional remaining
+reproducibility limitation, so no whole TD-19 DONE claim is made.

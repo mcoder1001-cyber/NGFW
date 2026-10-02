@@ -9,6 +9,7 @@ package subsystems
 import (
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"ngfw/agent/internal/renderers/sysident"
 	"ngfw/agent/internal/scheduler"
@@ -43,5 +44,18 @@ func registerSystemIdentity(r scheduler.Registry, env Env) {
 		})
 	}
 	r.Register(d)
+	systemIdentityMu.Lock()
+	systemIdentities[env.Owner] = d
+	systemIdentityMu.Unlock()
 	env.Log.Info("system identity wired", "product_paths", env.GlobalsOwner, "hostname_file", p.Hostname)
+}
+
+var systemIdentityMu sync.RWMutex
+var systemIdentities = map[string]*sysident.Descriptor{}
+
+// SystemIdentityOf returns the descriptor whose paths were scoped during wiring.
+func SystemIdentityOf(owner string) *sysident.Descriptor {
+	systemIdentityMu.RLock()
+	defer systemIdentityMu.RUnlock()
+	return systemIdentities[owner]
 }

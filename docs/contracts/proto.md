@@ -882,3 +882,15 @@ the agent keeps the file (0600, `VRX_CAPTURE_DIR`, retention by count and bytes)
 `error_filter = 8`. `CaptureList` returns the kept files plus the running capture, with `trace_available`/`pg_available`
 (false on this build, with reasons). `CaptureRead` streams one file. `CaptureDelete` removes one (`NOT_FOUND`; running →
 `FAILED_PRECONDITION`).
+
+
+### F-system-identity: SystemIdentityState
+
+`SystemIdentityState(SystemIdentityStateRequest{owner}) → SystemIdentityStateResponse` is additive and read-only.
+Owner mismatch is INVALID_ARGUMENT; missing descriptor wiring is UNAVAILABLE. Reads use the existing identity descriptor's
+product or slot paths, with each file capped at 16 KiB. Installed hostname/time zone, optional host uptime/kernel hostname,
+configured resolver values, separately observed runtime name servers, retrieval timestamp and fixed field-error identifiers
+are returned. A non-globals slot never reads host kernel hostname or resolver runtime. `resolver_status` is `observed`,
+`unavailable`, or `slot-only`: file observation is not daemon health or restart completion. No banner, secret, config mutation,
+privilege escalation or daemon restart is included. Existing `/state/system` REST health fields remain; `identity` is null
+when this RPC is unavailable. Public configured banner is a separate narrowly bounded API-only route.

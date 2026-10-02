@@ -8,6 +8,7 @@ import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
+import { useFormatters } from '@ngfw/ui-kit';
 import { SchemaForm, type ProblemDetails } from '@ngfw/ui-kit/schema-form';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '../../../api-problem';
@@ -15,7 +16,13 @@ import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
 import { domainSchemas } from '../../../schema/registry';
 import { PageHeader } from '../../../shell/PageHeader';
-import { useCandidateSystem, usePatchSystem, useRunningSystem, type SystemConfig } from './queries';
+import {
+  useCandidateSystem,
+  usePatchSystem,
+  useRunningSystem,
+  type SystemConfig,
+  useSystemIdentityState,
+} from './queries';
 
 export const NS = 'system-identity';
 const BASE = '/system';
@@ -63,8 +70,10 @@ function rows(c: SystemConfig, r: SystemConfig, none: string): Row[] {
 export function SystemIdentityPage() {
   const { t } = useTranslation([NS, 'config']);
   const perms = usePermissions();
+  const fmt = useFormatters();
   const cand = useCandidateSystem();
   const running = useRunningSystem();
+  const observed = useSystemIdentityState();
   const patch = usePatchSystem();
   const readOnly = !perms.editConfig;
   const none = t('none');
@@ -79,6 +88,47 @@ export function SystemIdentityPage() {
       )}
       {cand.isError && <ProblemAlert error={cand.error} sx={{ mb: 2 }} />}
       {running.isError && <ProblemAlert error={running.error} sx={{ mb: 2 }} />}
+      <Paper component="section" aria-label={t('observed.title')} variant="outlined" sx={{ p: 2, mb: 2 }}>
+        <Typography component="h3" variant="h6">
+          {t('observed.title')}
+        </Typography>
+        {observed.isPending && <LinearProgress aria-label={t('config:loading')} />}
+        {observed.isError && <ProblemAlert error={observed.error} />}
+        {observed.isSuccess && !observed.data && (
+          <Typography>{t('observed.unavailable')}</Typography>
+        )}
+        {observed.data && (
+          <>
+            <Typography>
+              {t('observed.hostname')}: {observed.data.hostname || none}
+            </Typography>
+            <Typography>
+              {t('observed.timezone')}: {observed.data.timezone || none}
+            </Typography>
+            <Typography>
+              {t('observed.uptime')}:{' '}
+              {observed.data.uptimeSeconds === undefined
+                ? none
+                : fmt.number(Math.floor(observed.data.uptimeSeconds))}
+            </Typography>
+            <Typography>
+              {t('observed.resolver')}:{' '}
+              {t(`observed.status.${observed.data.resolverStatus}`, {
+                defaultValue: t('observed.unavailable'),
+              })}
+            </Typography>
+            <Typography>
+              {t('observed.servers')}: {observed.data.observedNameServers.join(', ') || none}
+            </Typography>
+            {observed.data.errors.length > 0 && (
+              <Typography color="warning.main">{t('observed.partial')}</Typography>
+            )}
+            <Typography variant="body2" color="text.secondary">
+              {t('observed.note')}
+            </Typography>
+          </>
+        )}
+      </Paper>
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
         {cand.isSuccess && (
           <Paper variant="outlined" sx={{ p: 2, flex: 1, maxWidth: 640, width: '100%' }}>

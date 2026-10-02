@@ -47,3 +47,13 @@ export function usePatchSystem() {
     onSettled: () => invalidateConfig(qc),
   });
 }
+
+/** Observed state is distinct from committed configuration. */
+export function useSystemIdentityState() {
+  return useQuery({
+    queryKey: ['state', 'system', 'identity'],
+    queryFn: async ({ signal }) =>
+      (await call(api.GET('/api/v1/state/system', { signal }))).data.identity ?? null,
+    refetchInterval: SYSTEM_POLL_MS,
+  });
+}

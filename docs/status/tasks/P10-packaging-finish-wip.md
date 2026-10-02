@@ -25,3 +25,5 @@ daemon startup, VPP restart or laboratory acceptance has been performed.
 Next command: python3 deploy/debian/vrx/tests/test_packaging.py
 
 Independent review fix: explicitly writable/provisioned capture and rsyslog TLS directories; regression checks actual renderer defaults. Correct TLS runtime driver to rsyslog-openssl (renderer uses ossl, not gnutls). Six checks PASS again.
+
+Independent review fix 2: helper binaries install to /usr/lib/vrx/bin, matching apply-startup.sh product defaults; regression compares installed mapping and actual script default. Seven checks PASS. pnpm12 deploy independently verified by reviewer (198 packages); full package build still NOT RUN. Remote checkpoint second SHA: 0d124f3e0440f78a5c1bb5804be2cf1eaa9a12b0.

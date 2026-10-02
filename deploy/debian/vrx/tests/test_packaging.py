@@ -81,6 +81,14 @@ class Packaging(unittest.TestCase):
             self.assertEqual(before[0], key.read_bytes())
             self.assertFalse(cert.exists())
 
+    def test_product_startup_apply_finds_packaged_helpers(self):
+        install = (SOURCE / 'debian/vrx-agent.install').read_text()
+        self.assertIn('stage/usr/sbin/vrx-startupgen usr/lib/vrx/bin/', install)
+        self.assertIn('stage/usr/sbin/vrx-vppcheck usr/lib/vrx/bin/', install)
+        if (ROOT / 'deploy/vpp/apply-startup.sh').is_file():
+            apply = (ROOT / 'deploy/vpp/apply-startup.sh').read_text()
+            self.assertIn('${VRX_LIB_BIN:=/usr/lib/vrx/bin}', apply)
+
     def test_maintainer_scripts_are_valid_and_no_destructive_actions(self):
         for path in (SOURCE / 'debian').glob('*.postinst'):
             subprocess.run(['sh', '-n', str(path)], check=True)

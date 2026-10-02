@@ -1160,7 +1160,7 @@ tasks:
   - P08
   - W-seed-BC
   - WEB-2
-  priority: 3
+  priority: 1
   est_hours: 8
   state: running
   parked_on: ''
@@ -1212,7 +1212,7 @@ tasks:
   - WEB-2
   - TD-10b
   - F-unbound-chrony-syslog
-  priority: 4
+  priority: 1
   est_hours: 6
   state: running
   parked_on: ''
@@ -1264,7 +1264,7 @@ tasks:
   - DF-5
   - W-seed
   - TD-8
-  priority: 4
+  priority: 1
   est_hours: 16
   state: running
   parked_on: ''
@@ -2068,7 +2068,7 @@ tasks:
   - W-seed-BC
   - TD-9
   - TD-10b
-  priority: 5
+  priority: 1
   est_hours: 20
   state: running
   parked_on: ''
@@ -3168,7 +3168,7 @@ tasks:
   stage: S5
   deps:
   - P10
-  priority: 6
+  priority: 1
   est_hours: 3.5
   state: todo
   parked_on: ''
@@ -3747,7 +3747,7 @@ tasks:
   - F-kea-dhcp-relay
   - F-nat44-ed-sessions
   - F-host-acl-nftables
-  priority: 3
+  priority: 1
   est_hours: 10
   state: running
   parked_on: ''

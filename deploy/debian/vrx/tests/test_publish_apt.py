@@ -16,7 +16,7 @@ ROOT = SOURCE.parents[2]
 
 
 class Publish(unittest.TestCase):
-    def fixture(self, directory, bad_pin=False):
+    def fixture(self, directory, bad_pin=False, meta_depends=None):
         root = pathlib.Path(directory)
         for relative in ['source/scripts', 'source/deploy/apt', 'source/deploy/vpp', 'vpp', 'vrx', 'bin']:
             (root / relative).mkdir(parents=True)
@@ -51,10 +51,40 @@ gpg --batch --yes --clearsign -o "$directory/dists/resolute/InRelease" "$directo
         (root / 'vpp/manifest.json').write_text(json.dumps(dict(version=vpp_version, packages=entries)))
         for name in ['vrx-agent', 'vrx-api', 'vrx-web', 'vrx-meta']:
             dependency = 'vpp (= 0.0-wrong)' if bad_pin else 'vpp (= ' + vpp_version + ')'
-            package(name, root / 'vrx', depends=dependency if name == 'vrx-meta' else None)
+            package(name, root / 'vrx', depends=(meta_depends or dependency) if name == 'vrx-meta' else None)
         environment = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
                            XDG_CONFIG_HOME=str(root / 'config'))
         return root, environment
+
+    def test_signing_home_overlap_refuses_before_any_mutation(self):
+        for overlap in ['ancestor', 'equal', 'descendant']:
+            with self.subTest(overlap=overlap), tempfile.TemporaryDirectory() as directory:
+                root, env = self.fixture(directory)
+                key_home = root / 'config/ngfw/apt-signing'
+                output = {'ancestor': root / 'config', 'equal': key_home,
+                          'descendant': key_home / 'repository'}[overlap]
+                result = subprocess.run(['bash', str(root / 'source/scripts/publish-apt.sh'),
+                                         str(root / 'vpp'), str(root / 'vrx'), str(output)],
+                                        env=env, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(b'overlap refused', result.stderr)
+                self.assertFalse((root / 'config').exists())
+
+    def test_vpp_alternatives_lookalikes_and_duplicates_refuse(self):
+        correct = '26.06-release+vrx1'
+        for depends in [f'vpp (= {correct}) | vpp (= 0.0-wrong)',
+                        f'not-vpp (= {correct})',
+                        f'vpp (= {correct}), vpp (= {correct})',
+                        f'vpp (>= {correct})']:
+            with self.subTest(depends=depends), tempfile.TemporaryDirectory() as directory:
+                root, env = self.fixture(directory, meta_depends=depends)
+                result = subprocess.run(['bash', str(root / 'source/scripts/publish-apt.sh'),
+                                         str(root / 'vpp'), str(root / 'vrx'), str(root / 'repo')],
+                                        env=env, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(b'exact standalone', result.stderr)
+                self.assertFalse((root / 'config').exists())
+                self.assertFalse((root / 'repo').exists())
 
     def test_bad_vpp_pin_refuses_before_signing_or_output(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -63,7 +93,7 @@ gpg --batch --yes --clearsign -o "$directory/dists/resolute/InRelease" "$directo
                                      str(root / 'vpp'), str(root / 'vrx'), str(root / 'repo')],
                                     env=env, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn(b'VPP version', result.stderr)
+            self.assertIn(b'VPP dependency', result.stderr)
             self.assertFalse((root / 'config').exists())
             self.assertFalse((root / 'repo').exists())
 

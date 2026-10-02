@@ -6,6 +6,10 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 VPP_OUTPUT=$(realpath -e -- "$1")
 VRX_DEBS=$(realpath -e -- "$2")
 OUTPUT=$(realpath -m -- "$3")
+SIGNING_HOME=$(realpath -m -- "${XDG_CONFIG_HOME:-$HOME/.config}/ngfw/apt-signing")
+# A publication tree must never contain a signing home, nor be nested in one.
+case "$OUTPUT/" in "$SIGNING_HOME/"*) echo 'repository/signing-home overlap refused' >&2; exit 1;; esac
+case "$SIGNING_HOME/" in "$OUTPUT/"*) echo 'repository/signing-home overlap refused' >&2; exit 1;; esac
 case "$OUTPUT/" in "$ROOT/"*|/etc/*|/usr/*|/bin/*|/sbin/*|/var/lib/*) echo 'repository output must be outside source and system directories' >&2; exit 1;; esac
 [[ $OUTPUT != / && ! -e $OUTPUT ]] || { echo 'output must be a new directory' >&2; exit 1; }
 for tool in reprepro gpg dpkg-deb python3; do
@@ -31,7 +35,17 @@ for package in vrx-agent vrx-api vrx-web vrx-meta; do
   [[ $ARCH == amd64 || $ARCH == all ]] || { echo 'unsupported VRX architecture' >&2; exit 1; }
   if [[ $package == vrx-meta ]]; then
     DEPENDS=$(dpkg-deb -f "$candidate" Depends)
-    [[ $DEPENDS == *"vpp (= $VPP_VERSION)"* ]] || { echo 'vrx-meta VPP version is not the verified artifact version' >&2; exit 1; }
+    python3 - "$VPP_VERSION" "$DEPENDS" <<'PYDEPS'
+import re, sys
+version, depends = sys.argv[1:]
+vpp_groups = []
+for group in depends.split(','):
+    names = [re.match(r'\s*([a-z0-9][a-z0-9+.-]*)', item) for item in group.split('|')]
+    if any(name and name.group(1) == 'vpp' for name in names):
+        vpp_groups.append(group.strip())
+if len(vpp_groups) != 1 or not re.fullmatch(r'vpp\s*\(=\s*' + re.escape(version) + r'\s*\)', vpp_groups[0]):
+    sys.exit('vrx-meta VPP dependency must be one exact standalone verified version')
+PYDEPS
   fi
   DEBS+=("$candidate")
 done
@@ -46,7 +60,6 @@ PY
 )
 [[ ${#VPP_DEBS[@]} == 7 ]] || { echo 'verified runtime package set must contain seven packages' >&2; exit 1; }
 DEBS+=("${VPP_DEBS[@]}")
-SIGNING_HOME=${XDG_CONFIG_HOME:-$HOME/.config}/ngfw/apt-signing
 umask 077
 install -d -m 0700 "$SIGNING_HOME"
 # Secret key material and gpg diagnostics never go to the console or repository.

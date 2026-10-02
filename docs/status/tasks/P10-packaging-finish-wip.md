@@ -71,3 +71,7 @@ pure base-policy tests 3 PASS, packaging 8 PASS, firstboot fixtures 6 PASS. Actu
 and fresh full offline systemd graph validation still NOT RUN. Runtime LCP/punt-set sync
 is REAL UNBUILT functionality: static DROP can otherwise precede renderer accepts.
 P10 remains RUNNING; do not label this limitation a laboratory-only acceptance test.
+
+APT independent security MAJOR fixed: canonical signing home computed before any mutation and repository equal/ancestor/descendant overlap refused before key generation or chmod. Actual fixture overlap variants all rejected without signing directory/output creation; 2 APT validation tests PASS, real GPG/reprepro signing check explicitly SKIPPED in current environment.
+
+APT independent exact-pin MAJOR fixed: parse Debian dependency groups/names; require exactly one standalone vpp (= verified-version), refusing alternatives, lookalikes, duplicate VPP groups and non-equality. Actual dpkg fixtures all rejected before output/key creation. 3 APT validation tests PASS; signing still SKIPPED/NOT RUN due isolated gpg-agent failure.

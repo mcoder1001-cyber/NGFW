@@ -1,0 +1,13 @@
+# Agent command timing prototype independent review
+
+**R1/R2/R5/R7/R8: APPROVE bounded timing source prototype** exact `50b9acbd3254abed851a147489b571303df9a63d`, independently reviewed2026-10-02. This is not hosted acceptance or a speedup measurement; HOLD integration until active feature/transaction/cleanup gates finish and separate exact-head validation is scheduled.
+
+Independent byte comparison removed only eight VRX_TIMING lines and recovered the original Makefile exactly. Original vet/lint dispatch/race count1/build commands, flags, ordering, target graph, executable selection and fallback remain unchanged. BEGIN/END UTC markers are separate sequential recipes: command failure retains Make's prior stop behavior, no END is printed and subsequent targets do not execute. No shared gate state, cache, concurrency, timeout, dependency or production code change. Existing CI still rejects missing golangci-lint fallback; an END label alone is not gate acceptance. Labels contain constant stage names and timestamps, no secret or external input expansion.
+
+## Meaningful independent execution
+
+Used a private temporary COPY of the actual Makefile with harmless fake go/golangci-lint executables; no Go compilation or lint/test code execution. Successful lint→test→build yielded all four original fake command invocations and exactly four BEGIN/four END labels. Separately failing vet, lint dispatch, race-test and build each caused nonzero make status, retained BEGIN without corresponding END and executed precisely only the prefix through the failing command (1/2/3/4 calls). **Five outcome controls PASS**. Original command flags/order and eight-marker removal identity PASS; `git diff --check` PASS. No mirror test source or product edits authored.
+
+Prototype documentation correctly identifies default successful output as captured08-agent artifact, not live console, and distinguishes existing verbose output. It preserves actual measured baseline, D172 existing option/reference, draft/review/full-host requirements and queue HOLD; no new decision/board/24-hour claim. Timing uses GNU date UTC nanoseconds appropriate to hosted Ubuntu; measurements establish duration only after actual hosted execution, not causal attribution by themselves.
+
+No actual local Go/cache/dependency/network/host/lab operation or full hosted test was performed. No estimated minutes saved, cached test PASS, feature-gate bypass or runtime behavior acceptance inferred. Eventual integration needs current-main preservation and unchanged full hosted validation at exact published head after the serial feature queue.

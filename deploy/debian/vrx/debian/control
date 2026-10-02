@@ -2,7 +2,7 @@ Source: vrx
 Section: net
 Priority: optional
 Maintainer: VRX maintainers <maintainers@example.invalid>
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 13), python3, openssl
 Standards-Version: 4.7.0
 Rules-Requires-Root: no
 Homepage: https://github.com/mcoder1001-cyber/NGFW

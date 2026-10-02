@@ -75,3 +75,12 @@ P10 remains RUNNING; do not label this limitation a laboratory-only acceptance t
 APT independent security MAJOR fixed: canonical signing home computed before any mutation and repository equal/ancestor/descendant overlap refused before key generation or chmod. Actual fixture overlap variants all rejected without signing directory/output creation; 2 APT validation tests PASS, real GPG/reprepro signing check explicitly SKIPPED in current environment.
 
 APT independent exact-pin MAJOR fixed: parse Debian dependency groups/names; require exactly one standalone vpp (= verified-version), refusing alternatives, lookalikes, duplicate VPP groups and non-equality. Actual dpkg fixtures all rejected before output/key creation. 3 APT validation tests PASS; signing still SKIPPED/NOT RUN due isolated gpg-agent failure.
+
+Unchanged local full quick on 8b761430: pnpm install/generation/contract/pattern/gitleaks
+stages PASS; Turbo 34/35 tasks succeeded (12 cached), API unit task FAILED_ENV.
+Representative failures: listen EPERM on temporary Unix fake-agent sockets; chown
+EINVAL for deliberately foreign-UID JWT fixtures; teardown close errors cascade from
+failed socket setup. No assertion/gate changes. Full Go steps not reached. Logs:
+/tmp/vrx-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log and .scratch/p10-quick.log.
+This is NOT CI GATE PASSED. Hosted unchanged complete quick remains mandatory.
+Debian source build now directly declares Python3/OpenSSL used by its regression checks.

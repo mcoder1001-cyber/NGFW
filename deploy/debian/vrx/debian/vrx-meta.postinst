@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    # Register future appliance boot. Never start/restart VPP from installation.
+    for unit in vrx-firstboot.service vrx-agent.service vrx-api.service; do
+        deb-systemd-helper enable "$unit" >/dev/null
+    done
+fi
+#DEBHELPER#

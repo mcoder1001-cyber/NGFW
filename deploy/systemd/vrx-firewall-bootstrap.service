@@ -1,0 +1,14 @@
+[Unit]
+Description=VRX early static management firewall preparation
+DefaultDependencies=no
+After=local-fs.target
+Before=nftables.service
+RequiresMountsFor=/etc/vrx /etc/nftables.d /usr/lib/vrx
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/vrx/base-policy.env
+EnvironmentFile=-/etc/vrx/bootstrap.env
+ExecStart=/usr/lib/vrx/firewall-bootstrap.sh
+RemainAfterExit=yes
+UMask=0077

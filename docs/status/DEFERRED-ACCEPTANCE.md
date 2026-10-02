@@ -32,3 +32,17 @@ TEST-trafficA, F-lb-host, F-srv6-host, F-mpls-srmpls-host, F-rule-expiry-host, F
 ## Recovery checkpoint
 
 Workspace maintenance removed unpublished local work. GitHub main and remote dashboard checkpoint were recovered. Rebuilt features must pass fresh tests and review; prior chat claims alone do not certify recovered code. Publish incremental branch checkpoints so subsequent interruptions do not discard work.
+
+## P10 appliance packaging acceptance
+
+All live cases below are **NOT RUN**. Package source, fixtures, syntax checks and offline unit graphs do not certify a working appliance.
+
+| Case | Single-campaign execution when the target is available |
+|---|---|
+| Artifacts and signing | Rebuild the original seven shipping VPP packages; verify manifest and exact dependencies; build four product packages; run lintian, inspect content/permissions, verify Release/InRelease with the pinned exported signer; test wrong pins, malformed metadata and signing/output path overlap refusal |
+| Safe installation | Fresh Ubuntu 26.04 chroot/VM with VPP masked: install/remove/upgrade/reinstall, preserved existing policy-rc.d, no premature daemon start, firstboot ordering and all failure rollback/credential retention cases |
+| Identity and secrets | Real PostgreSQL migration and existing AuthService seed/readback; stable JWT/master key across retry/reboot; unknown/duplicate/overridden environment refusal; completion-marker crash recovery; delete bootstrap credentials only after successful verification |
+| Firewall and boot | Real nft syntax/readback; early static base policy and exact management/punt interfaces; no unrelated table flush; offline and real distro systemd graph, failure propagation, firstboot/VPP/API/nginx boot sequencing |
+| Runtime renderers | Exercise FRR/Kea/chrony/rsyslog/capture writes under the installed unit's actual capabilities and permissions, reconcile/restart and inspect daemon readback |
+
+Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt-set synchronization is unbuilt; daemon-UID ownership requires the decision in `docs/decisions/PENDING-P10-agent-file-ownership.md`; source licensing metadata is unresolved for release. P10 remains running. Resolve these code/security/release boundaries before claiming full task completion or a releasable appliance.

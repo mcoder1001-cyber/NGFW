@@ -1,0 +1,3 @@
+stage/usr/share/vrx/web usr/share/vrx/
+assets/nginx.conf etc/vrx/
+assets/tls-bootstrap.sh usr/lib/vrx/

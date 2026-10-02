@@ -1,0 +1,8 @@
+Origin: VRX
+Label: VRX appliance runtime
+Suite: resolute
+Codename: resolute
+Architectures: amd64
+Components: main
+Description: VRX product packages and verified VPP runtime
+SignWith: @SIGNING_FINGERPRINT@

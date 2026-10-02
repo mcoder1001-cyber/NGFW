@@ -163,3 +163,34 @@ status fixtures exercised pass/failure/error/skip/expected-failure/unexpected-
 success/zero results: only pass was accepted. No product suite was repeated
 for those guard checks. Bash syntax/diff checks PASS. The `.deb` approval report
 is preserved; this new runner requires its own independent recheck.
+
+### Operator-pinned public repository keys (bounded source)
+
+Official FRR and NodeSource primary fingerprints are still unresolved. Script00
+now refuses repository setup before artifact verification, APT or network when
+`VRX_FRR_KEY_FINGERPRINTS` or `VRX_NODESOURCE_KEY_FINGERPRINTS` is absent or
+malformed. Each is a trusted administrator supplied exact set of 1–8 distinct
+uppercase full (40/64 hex) primary fingerprints, comma separated. Values must
+come from independently verified release provenance; downloaded keys cannot
+supply their own expected identities. No default fingerprints were invented.
+
+Bootstrap curl/GPG/Python must already exist. Downloads go to a private directory
+with a 1MiB limit. The actual file gate rejects symlink/nonregular/empty/oversize
+inputs. Fixed GPG commands use a private home and `--no-options`; packet checks
+reject secret key material, colon readback requires the exact expected primary
+set (no extra trust anchors), and refuses missing/duplicate/malformed/revoked/
+expired primary identities. Both repository keys must validate before global
+APT/keyring mutation. Dearmoring writes private staging; global public keyrings
+are copied at0644 to sibling temporary files then renamed. No global policy,
+service or capability change was added.
+
+Seven controlled-GPG parser/gate tests plus the original five suites passed
+through the explicit runner: **30 tests PASS in 6.639s**, all strict failure/
+skip/expected-failure counts zero. GPG is a fixed-argv fake supplying packet and
+colon fixtures; these tests do not prove actual release-key behavior. The first
+combined run found the old verifier-failure fixture missing the newly required
+pin configuration; explicit valid fixture pins now preserve its original
+verifier17/no-host-command assertion. No production checks were weakened.
+Real public-key retrieval, cryptographic release identity validation and host
+installation remain NOT RUN. Security review of this new source is required;
+previous runner/source approvals cover their frozen historical checkpoints.

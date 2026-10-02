@@ -41,3 +41,13 @@ These are execution rules for available agents, not a permanently running
 be verified. Scheduled reporting does not itself keep development workers alive.
 Laboratory acceptance stays in the single DEFERRED-ACCEPTANCE.md campaign;
 NOT RUN, environment SKIP and real failures are distinct results.
+
+
+A later `followup_task` returned `agent thread limit reached` while other
+review/development work occupied slots. A subsequent independent-review
+continuation and the retried developer continuation both succeeded after work
+completed. Treat this as observed transient capacity, not proof of a permanent
+worker outage or a specific undocumented runtime cause. Query the live inventory,
+retain frozen remote checkpoints and retry when a slot frees; keep existing
+gates and workers progressing. Do not count a completed or waiting worker as
+actively developing/reviewing, and do not exceed the configured agent limit.

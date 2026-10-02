@@ -86,3 +86,22 @@ still has 25 PASS / 1 signing SKIP because agent sockets are unavailable and
 the strict wrapper correctly exits1. This bounded hosted proof does not establish actual
 VPP provenance, real reprepro publication, production signing-key management or
 fresh appliance installation/boot. Those target cases above remain NOT RUN.
+
+### TEST-traffic-A inactive source foundation
+
+The bounded support foundation frozen at `bd443810dd048ef767c4bba0e4b7153b2a0d907b`
+has sixteen strict source cases; neither these nor structural capture parsing
+prove forwarding. Seven composed executors, candidate/commit and rollback
+lifecycle, shared-lock/lease renewal, protected run directories, capture
+generation, packet correlation and forwarding/drop assertions remain genuine
+**NOTIMPLEMENTED source work**. The live CLI refuses all stages. The stdout byte
+cap continuation is split from this foundation and must ship before live
+activation. These gaps are not lab-only deferrals; whole TEST-traffic-A is not DONE.
+
+Actual laboratory acceptance remains **NOT RUN**. Once the executors and their
+reviewed lifecycle exist and access returns, use this single campaign to check
+VLAN→bridge/BVI→VRF/ECMP→uRPF/PBR→ACL→NAT44-ED/EI, selected PBR and both ECMP
+paths, expected forwarding/drop, translation/endpoint independence, rollback
+cleanup, capture loss and run identity. Both `whole_chain_proven=false` and
+`packet_outcomes_proven=false` remain authoritative until real acceptance proves
+them. No real rig, SSH, VPP, nft or capture operation was run for this foundation.

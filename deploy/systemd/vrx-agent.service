@@ -24,7 +24,7 @@ ProtectSystem=strict
 NoNewPrivileges=yes
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
-ReadWritePaths=/var/lib/vrx/agent /run/vrx
+ReadWritePaths=/var/lib/vrx/agent /var/lib/vrx/captures /etc/vrx/rsyslog-tls /run/vrx
 ReadWritePaths=-/etc/frr -/etc/swanctl -/etc/kea -/etc/unbound -/etc/chrony -/etc/rsyslog.d -/etc/snmp -/etc/keepalived
 
 [Install]

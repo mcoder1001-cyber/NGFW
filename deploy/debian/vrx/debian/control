@@ -27,7 +27,7 @@ Description: VRX management web application
 
 Package: vrx-meta
 Architecture: all
-Depends: ${misc:Depends}, vrx-agent (= ${binary:Version}), vrx-api (= ${binary:Version}), vrx-web (= ${binary:Version}), vpp (= ${vrx:VppVersion}), frr, frr-pythontools, postgresql (>= 16), valkey-server, kea-dhcp4-server, kea-dhcp6-server, unbound, chrony, rsyslog, rsyslog-gnutls, snmpd, keepalived, nftables
+Depends: ${misc:Depends}, vrx-agent (= ${binary:Version}), vrx-api (= ${binary:Version}), vrx-web (= ${binary:Version}), vpp (= ${vrx:VppVersion}), frr, frr-pythontools, postgresql (>= 16), valkey-server, kea-dhcp4-server, kea-dhcp6-server, unbound, chrony, rsyslog, rsyslog-openssl, snmpd, keepalived, nftables
 Recommends: vrx-strongswan
 Description: VRX appliance runtime dependencies
  Installs the management plane and the product-version-pinned VPP runtime.

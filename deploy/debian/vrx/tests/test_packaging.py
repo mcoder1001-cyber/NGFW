@@ -28,6 +28,13 @@ class Packaging(unittest.TestCase):
         self.assertIn('Requires=vpp.service', agent)
         self.assertIn('CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK', agent)
         self.assertIn('AF_NETLINK', agent)
+        self.assertIn('/etc/vrx/rsyslog-tls', agent)
+        self.assertIn('/var/lib/vrx/captures', agent)
+        if (ROOT / 'apps/agent').is_dir():
+            renderer = (ROOT / 'apps/agent/internal/renderers/rsyslog/paths.go').read_text()
+            capture = (ROOT / 'apps/agent/internal/actions/capture-trace/capture.go').read_text()
+            self.assertIn('TLSDir:      "/etc/vrx/rsyslog-tls"', renderer)
+            self.assertIn('c.Dir = "/var/lib/vrx/captures"', capture)
         self.assertIn('CapabilityBoundingSet=\n', api)
         self.assertNotIn('AF_NETLINK', api)
         for unit in [agent, api]:
@@ -41,7 +48,7 @@ class Packaging(unittest.TestCase):
         self.assertIn('vpp (= ${vrx:VppVersion})', control)
         self.assertNotIn('kea-ctrl-agent', control)
         self.assertNotIn('vpp-dev', control)
-        self.assertIn('rsyslog-gnutls', control)
+        self.assertIn('rsyslog-openssl', control)
         self.assertIn('nodejs (<< 23)', control)
 
     def test_http_never_proxies_and_tls_has_ws_and_api_routes(self):

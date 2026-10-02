@@ -23,3 +23,5 @@ This is a scaffold; task is RUNNING, not done. No package install, host config c
 daemon startup, VPP restart or laboratory acceptance has been performed.
 
 Next command: python3 deploy/debian/vrx/tests/test_packaging.py
+
+Independent review fix: explicitly writable/provisioned capture and rsyslog TLS directories; regression checks actual renderer defaults. Correct TLS runtime driver to rsyslog-openssl (renderer uses ossl, not gnutls). Six checks PASS again.

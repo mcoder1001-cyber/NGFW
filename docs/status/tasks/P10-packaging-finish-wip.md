@@ -54,3 +54,5 @@ in this environment; signing test explicitly SKIPPED/NOT RUN, not PASS. Reprepro
 actual generation and release-builder acceptance NOT RUN. Bash syntax PASS.
 
 Activation checkpoint: product-only VPP unit drop-in requires successful firstboot, not just ordering; API/agent also require firstboot. Meta postinst enables future boot units via deb-systemd-helper without starting/restarting VPP. Eight packaging fixture checks PASS, four firstboot fixture tests PASS. Target service boot/ordering acceptance NOT RUN.
+
+Fresh arbiter input parity fix: DATABASE_URL and SECRET_KEY_FILE assignment counts must each be exactly one before exact canonical-value checks. Bootstrap exports the parsed validated persisted values. Five firstboot fixture tests PASS, including eight duplicate alternate/empty orderings across both critical fields; failures retain credentials/no marker.

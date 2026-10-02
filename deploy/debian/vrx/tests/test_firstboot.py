@@ -83,6 +83,27 @@ class Firstboot(unittest.TestCase):
                 self.assertTrue(credentials.exists())
                 self.assertFalse((root / 'var/lib/vrx/firstboot-complete').exists())
 
+    def test_critical_environment_duplicates_refuse_before_completion(self):
+        for field in ['VRX_DATABASE_URL', 'VRX_SECRET_KEY_FILE']:
+            for value in ['alternate', '']:
+                for original_first in [True, False]:
+                    with self.subTest(field=field, value=value, original_first=original_first), tempfile.TemporaryDirectory() as directory:
+                        root, credentials, entry, env = self.fixture(directory)
+                        env['FAIL_STAGE'] = 'nginx'
+                        subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+                        settings = root / 'etc/vrx/api.env'
+                        lines = settings.read_text().splitlines()
+                        original = next(line for line in lines if line.startswith(field + '='))
+                        lines = [line for line in lines if not line.startswith(field + '=')]
+                        duplicate = field + '=' + value
+                        lines.extend([original, duplicate] if original_first else [duplicate, original])
+                        settings.write_text('\n'.join(lines) + '\n')
+                        del env['FAIL_STAGE']
+                        result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertTrue(credentials.exists())
+                        self.assertFalse((root / 'var/lib/vrx/firstboot-complete').exists())
+
     def test_failures_retain_credentials_and_do_not_publish_completion(self):
         for stage in ['db', 'tls', 'startup', 'nginx']:
             with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:

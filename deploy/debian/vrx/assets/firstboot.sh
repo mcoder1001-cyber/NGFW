@@ -41,6 +41,10 @@ if [[ ! -e /etc/vrx/api.env ]]; then
   mv "$TEMP" /etc/vrx/api.env
 fi
 [[ -f /etc/vrx/api.env && ! -L /etc/vrx/api.env && $(stat -c '%u:%a' /etc/vrx/api.env) == 0:600 ]] || { echo 'invalid API environment file' >&2; exit 1; }
+for VARIABLE in VRX_DATABASE_URL VRX_SECRET_KEY_FILE; do
+  COUNT=$(grep -Ec "^[[:space:]]*$VARIABLE[[:space:]]*=" /etc/vrx/api.env || true)
+  [[ $COUNT == 1 ]] || { echo 'invalid persisted API environment assignment count' >&2; exit 1; }
+done
 grep -Fxq 'VRX_DATABASE_URL=postgresql:///vrx?host=/var/run/postgresql&user=vrx' /etc/vrx/api.env || { echo 'API database configuration requires manual review' >&2; exit 1; }
 grep -Fxq 'VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key' /etc/vrx/api.env || { echo 'API secret configuration requires manual review' >&2; exit 1; }
 JWT_COUNT=$(grep -Ec '^[[:space:]]*VRX_JWT_SECRET[[:space:]]*=' /etc/vrx/api.env || true)
@@ -49,8 +53,9 @@ JWT_SECRET=$(sed -n 's/^VRX_JWT_SECRET=//p' /etc/vrx/api.env)
 [[ $JWT_SECRET =~ ^[a-f0-9]{64}$ ]] || { echo 'invalid or duplicate persisted JWT key' >&2; exit 1; }
 export VRX_JWT_SECRET=$JWT_SECRET
 # Parse generated environment as data instead of sourcing shell code.
-export VRX_DATABASE_URL='postgresql:///vrx?host=/var/run/postgresql&user=vrx'
-export VRX_SECRET_KEY_FILE=/var/lib/vrx/secret.key NODE_ENV=production
+VRX_DATABASE_URL=$(sed -n 's/^VRX_DATABASE_URL=//p' /etc/vrx/api.env)
+VRX_SECRET_KEY_FILE=$(sed -n 's/^VRX_SECRET_KEY_FILE=//p' /etc/vrx/api.env)
+export VRX_DATABASE_URL VRX_SECRET_KEY_FILE NODE_ENV=production
 (cd /usr/lib/vrx/api && runuser --preserve-environment -u vrx -- /usr/bin/node bootstrap-db.mjs)
 /usr/lib/vrx/tls-bootstrap.sh
 printf '%s\n' '{"dataplane":{}}' > /var/lib/vrx/initial-dataplane.json

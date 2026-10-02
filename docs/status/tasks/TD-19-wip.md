@@ -194,3 +194,12 @@ verifier17/no-host-command assertion. No production checks were weakened.
 Real public-key retrieval, cryptographic release identity validation and host
 installation remain NOT RUN. Security review of this new source is required;
 previous runner/source approvals cover their frozen historical checkpoints.
+
+Additional source53f69939 checks: unchanged `tools/ci.sh check --base origin/main`
+EXIT0 (including gitleaks ~92.04KB). Actual installed GPG executed the production
+helper against the locally installed Ubuntu archive PUBLIC binary keyring,
+using a fresh private temporary GPG home/output: EXIT0, output created. Expected
+fingerprints were derived only from that fixture to test binary-input mechanics;
+this is not an independent trust decision, official FRR/NodeSource identity
+verification, or network retrieval. No global keyring was written. This extra
+OS-dependent check is recorded separately from the portable30-fixture suite.

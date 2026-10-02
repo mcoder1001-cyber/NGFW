@@ -14,6 +14,7 @@ import {
   type DryRunRequest,
   type Event,
   type HealthResponse,
+  type SystemIdentityStateResponse,
   type InterfaceStateResponse,
   type PppoeReconnectResponse,
   type WanStateResponse,
@@ -574,6 +575,10 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.dnsState, { owner: this.owner });
   }
   /** F-unbound-chrony-syslog: chronyd state (read-only). */
+  systemIdentityState(): Promise<SystemIdentityStateResponse> {
+    return this.unary(this.c.systemIdentityState, { owner: this.owner });
+  }
+
   ntpState(): Promise<NtpStateResponse> {
     return this.unary(this.c.ntpState, { owner: this.owner });
   }

@@ -16,6 +16,7 @@ import { TokensService } from './tokens.service.js';
  */
 const PUBLIC = new Set([
   'GET /api/v1/health',
+  'GET /api/v1/auth/banner', // F-system-identity: explicit public configured banner only
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/refresh',
   'POST /api/v1/auth/logout',

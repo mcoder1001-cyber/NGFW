@@ -44,3 +44,14 @@ accidentally staged by the first guard-test run were immediately removed from
 the next checkpoint and are ignored; final source tree contains no bytecode.
 Fresh independent review of this correction remains pending. Real hosted signing
 still NOT RUN; local product signing skip remains an honest failing gate result.
+
+
+## Observed hosted fixture result
+
+Independent R7 correction review APPROVE (P10-packaging-ci-review-r2.md).
+Hosted run37034039364 at source20df52065205b869873abec1acf673470867882f
+passed seven actual gate-policy tests and all26 packaging fixtures (7.785s)
+with zero skips/errors/failures/expected failures/unexpected successes. Real
+temporary-key signing and gpgv verification ran successfully at16:27:36UTC.
+This is source fixture proof only, not real publication/appliance acceptance.
+Final integration head still requires both unchanged quick and fixture gates.

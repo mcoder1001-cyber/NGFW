@@ -64,9 +64,12 @@ release license remain unresolved, so P10 stays RUNNING.
 ### Hosted fixture signing evidence
 
 The dedicated `packaging-fixtures.yml` workflow adds isolated real-GPG temporary
-key signing and gpgv verification to the offline fixture suite. Hosted execution
-is **NOT RUN** until an observed successful run; local execution has 25 PASS and
-1 signing SKIP because agent sockets are unavailable, and the strict CI wrapper
-correctly fails that skip. Even a hosted fixture pass does not establish actual
+key signing and gpgv verification to the offline fixture suite. Hosted run
+[37034039364](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37034039364)
+on `20df52065205b869873abec1acf673470867882f` passed at 2026-10-02T16:27:38Z:
+**26 fixture tests PASS, 0 skipped**, including real temporary-key signing and
+gpgv verification; seven strict-gate policy tests also passed. Local execution
+still has 25 PASS / 1 signing SKIP because agent sockets are unavailable and
+the strict wrapper correctly exits1. This bounded hosted proof does not establish actual
 VPP provenance, real reprepro publication, production signing-key management or
 fresh appliance installation/boot. Those target cases above remain NOT RUN.

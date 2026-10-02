@@ -10,6 +10,9 @@ on:
       - 'scripts/40-install-lab.sh'
       - 'tools/lab'
       - 'deploy/vpp/**'
+      - 'deploy/debian/bundle/**'
+      - 'scripts/10-install-runtime.sh'
+      - 'deploy/debian/vrx/debian/control'
       - 'apps/agent/go.mod'
       - '.github/workflows/ci.yml'
   push:
@@ -21,6 +24,9 @@ on:
       - 'scripts/40-install-lab.sh'
       - 'tools/lab'
       - 'deploy/vpp/**'
+      - 'deploy/debian/bundle/**'
+      - 'scripts/10-install-runtime.sh'
+      - 'deploy/debian/vrx/debian/control'
       - 'apps/agent/go.mod'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
@@ -61,3 +67,5 @@ jobs:
             tools/lab
       - name: Run all fixed suites without skips
         run: python3 docs/status/tasks/TD-19-run-fixtures.py
+      - name: Validate offline Debian bundle fixtures
+        run: python3 deploy/debian/bundle/test_verify.py

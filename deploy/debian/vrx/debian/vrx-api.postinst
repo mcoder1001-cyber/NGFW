@@ -4,5 +4,9 @@ if [ "$1" = configure ]; then
     getent group vrx >/dev/null || addgroup --system vrx
     getent passwd vrx >/dev/null || adduser --system --ingroup vrx --home /var/lib/vrx --no-create-home vrx
     install -d -m 0750 -o vrx -g vrx /var/lib/vrx/api /data
+    # wave-BC: F-backup-restore
+    # wave-BC: F-ab-upgrade
+    # Create storage roots only; never recurse into existing operator data.
+    install -d -m 0750 -o vrx -g vrx /data/backups /data/updates /data/support
 fi
 #DEBHELPER#

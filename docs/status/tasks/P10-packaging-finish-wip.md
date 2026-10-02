@@ -120,3 +120,40 @@ VPP/Valkey and product binaries; no ordering cycle emitted, but complete target 
 acceptance is NOT RUN. Fresh independent R4/R8 delta review still required. Global
 sysident atomic /etc parent write gap is recorded in parent-owned privilege PENDING;
 CAP_CHOWN alone cannot fix it and /etc is not made broadly writable.
+
+## Recovery checkpoint, 2026-10-02
+
+Recovered published `aa76368a` on branch `codex/packaging-resume-20261002` in
+`NGFW-packaging`; `git rebase origin/main` confirms current base `53a43ce5` is
+already included. Original remote history and independent rulings are preserved.
+New owned delta: API postinst provisions `/data/{backups,updates,support}` at
+0750 `vrx:vrx`, documents ownership, and updates obsolete preparation warning.
+A redirected-script test runs configure twice using only temporary paths and the
+builder UID/GID; existing backup bytes and metadata are preserved. Host account
+commands are removed from that fixture copy; production account setup unchanged.
+
+Actual checks: `python3 -m unittest discover -s deploy/debian/vrx/tests` ran 24
+checks: 23 PASS, 1 signing SKIP because isolated gpg-agent cannot run. Packaging
+suite after fixture hardening: 9 tests PASS. `bash -n prepare.sh`, `git diff --check`
+PASS. `tools/ci.sh check --base origin/main` PASS with explicit missing-gitleaks
+warning; this is not full CI GATE PASSED. Debian `dh` absent; no package installation
+or host service operation was attempted. No actual .deb build/installed boot PASS.
+
+Full unchanged hosted quick and independent R4/R8 review of recovered base-unit
+hardening plus this storage delta remain required. Dynamic punt admission, missing
+license/copyright, CAP_CHOWN/daemon ownership and atomic `/etc` writes remain real
+unresolved product constraints, not lab waivers. Actual signing and clean appliance
+acceptance remain NOT RUN. Publication paused by manager pending central destination
+authorization review; no outbound push attempted by this worker.
+
+Next command: `python3 -m unittest discover -s deploy/debian/vrx/tests` (after any
+review corrections); manager publishes this checkpoint and schedules exact-head CI.
+
+Follow-up validation on unchanged product checkpoint `db721ff49a747f8e7453ad1b4f4e11d085237d95`:
+automatic review allowed local escalated fixture execution. All 24 packaging tests
+PASS (23.814s), including actual isolated GPG generation/signature verification.
+The signing fixture still mocks reprepro and VPP verification; this proves signing
+control flow and key isolation, not actual signed product repository publication.
+No host package/service operation occurred. Unchanged full quick is running with
+private writable caches at `/tmp/p10-ci`; install, generation/output gate and
+real gitleaks PASS (132.10 KB scanned, no leaks). Turbo and Go results pending.

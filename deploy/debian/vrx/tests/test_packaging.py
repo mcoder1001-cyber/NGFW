@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Host-independent regression checks; never execute package installation."""
 import pathlib
+import os
 import subprocess
 import tempfile
 import unittest
@@ -10,6 +11,34 @@ ROOT = SOURCE.parents[2]
 
 
 class Packaging(unittest.TestCase):
+    def test_api_storage_reconfigure_preserves_existing_data(self):
+        # Execute a redirected copy only; no product maintainer script runs
+        # against host paths or host accounts. Use the builder's own UID/GID.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            script = (SOURCE / 'debian/vrx-api.postinst').read_text()
+            script = '\n'.join('    : # fixture account already exists' if
+                               line.lstrip().startswith('getent ') else line
+                               for line in script.splitlines()) + '\n'
+            script = script.replace('-o vrx -g vrx', f'-o {os.getuid()} -g {os.getgid()}')
+            script = script.replace('/var/lib/vrx/api', str(root / 'api'))
+            script = script.replace('/data', str(root / 'data'))
+            local = root / 'postinst'
+            local.write_text(script)
+            subprocess.run(['sh', str(local), 'configure'], check=True)
+            preserved = root / 'data/backups/operator-backup'
+            preserved.write_bytes(b'existing backup data')
+            preserved.chmod(0o600)
+            metadata = preserved.stat()
+            subprocess.run(['sh', str(local), 'configure'], check=True)
+            self.assertEqual(preserved.read_bytes(), b'existing backup data')
+            self.assertEqual(preserved.stat().st_mode, metadata.st_mode)
+            self.assertEqual(preserved.stat().st_uid, metadata.st_uid)
+            self.assertEqual(preserved.stat().st_gid, metadata.st_gid)
+            for name in ['', 'backups', 'updates', 'support']:
+                directory = root / 'data' / name
+                self.assertEqual(directory.stat().st_mode & 0o777, 0o750)
+
     def test_build_refuses_missing_verified_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             result = subprocess.run(

@@ -39,6 +39,12 @@ Initial API env is canonical and accepts only the three generated database, secr
 and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
 the effective key precedence documented by the API.
 
+The API package provisions `/data`, `/data/backups`, `/data/updates` and
+`/data/support` as `vrx:vrx`, mode 0750. Package reconfiguration reapplies these
+directory permissions without changing the ownership, contents or permissions of
+existing files inside them. These paths reserve storage for backup, update and
+support operations; provisioning them does not imply those features are complete.
+
 Remaining release prerequisites: dynamic LCP/punt-set synchronization, package
 licensing metadata and reviewed agent capability/daemon-file ownership compatibility.
 No installation is declared accepted until the deferred appliance campaign records

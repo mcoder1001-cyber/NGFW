@@ -126,10 +126,13 @@ select_frr_certificates() (
   local key=$1 expected=$2 output=$3 selection_work
   check_frr_selection_pins "$expected"
   python3 - "$key" <<'PYFRRRAW'
-import pathlib, stat, sys
-info = pathlib.Path(sys.argv[1]).lstat()
+import os, pathlib, stat, sys
+key = pathlib.Path(sys.argv[1]); info = key.lstat(); parent = key.parent.lstat()
 if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 1024 * 1024:
     raise SystemExit('raw FRR input must be a bounded nonempty regular public-key file')
+if (info.st_uid != os.geteuid() or not stat.S_ISDIR(parent.st_mode)
+        or parent.st_uid != os.geteuid() or stat.S_IMODE(parent.st_mode) != 0o700):
+    raise SystemExit('raw FRR input requires an owned private staging directory')
 PYFRRRAW
   selection_work=$(mktemp -d /tmp/vrx-frr-selection.XXXXXXXX)
   trap 'rm -rf -- "$selection_work"' EXIT

@@ -55,6 +55,8 @@ class Packaging(unittest.TestCase):
         agent = (units / 'vrx-agent.service').read_text()
         api = (units / 'vrx-api.service').read_text()
         self.assertIn('Requires=vpp.service', agent)
+        self.assertIn('Environment=VRX_VPP_ID_RANGE=all', agent)
+        self.assertNotIn('VRX_VPP_TABLE_BASE=', agent)
         self.assertIn('CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK', agent)
         self.assertIn('AF_NETLINK', agent)
         self.assertIn('/etc/vrx/rsyslog-tls', agent)

@@ -51,6 +51,11 @@ No installation is declared accepted until the deferred appliance campaign recor
 actual command outputs and results. Later VPP startup changes use the reviewed
 `apply-startup.sh --mode product` approval/recovery procedure, not firstboot.
 
+The product agent unit sets `VRX_VPP_ID_RANGE=all` for its dedicated appliance.
+Never start this unit on the shared development host: workers there must use their
+allocated `VRX_VPP_TABLE_BASE`. Do not set both variables in `agent.env`; the agent
+refuses ambiguous ID ownership instead of starting.
+
 The runtime-dependency installer temporarily denies package-driven service starts and
 restores the original policy-rc.d after completion/error. It does not make an incomplete
 installation boot-ready: provision the full product packages, explicit bootstrap/interface

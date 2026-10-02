@@ -157,3 +157,22 @@ control flow and key isolation, not actual signed product repository publication
 No host package/service operation occurred. Unchanged full quick is running with
 private writable caches at `/tmp/p10-ci`; install, generation/output gate and
 real gitleaks PASS (132.10 KB scanned, no leaks). Turbo and Go results pending.
+
+Publication after explicit user approval succeeded through the connector:
+`codex/packaging-resume-20261002` remote `ec5d0ae0ca1fbc96e439ec473fd07b08a7d3533d`,
+draft PR #63. Its tree equals local `ee8c7ef9` (4c2ce4bc...), and its parent is the
+original `aa76368a`; no historical checkpoint was rewritten. Hosted quick run
+37029179165 was observed in progress, not PASS.
+
+Independent R8 approves the bounded storage/base-unit-hardening checkpoint (report
+preserved). R4 found a real fresh-appliance startup blocker: missing explicit VPP
+ID range. Local `d31af805` adds the already-specified dedicated-appliance
+`VRX_VPP_ID_RANGE=all` environment, static regression, and shared-host prohibition.
+Nine packaging tests PASS; independent R4 verification pending. The pending
+CAP_CHOWN and strict `/etc` write architecture remain untouched.
+
+Local full quick has four API licensing test failures: temporary signing output
+under `/tmp` is rejected by the existing git-ancestor safety guard, and dependent
+fixtures then lack the generated key/license (366 API tests PASS). TMPDIR was set,
+but Turbo strict task environment did not pass it through. Do not disable the guard
+or claim a full local gate PASS; hosted unchanged quick remains the merge gate.

@@ -6,3 +6,4 @@ The product owner may append `OVERTURNED → …` like in `LOG.md`.
 
 | date | arbiter | task | type | question | ruling | rule cited | follow-up |
 |---|---|---|---|---|---|---|---|
+| 2026-10-02 | A3 | TEST-traffic-A correlation | round limit | Third new producer behavior after two reviewed inactive correlation checkpoints | FINISH reviewed1427 correlation subject missing panels/current-base exact-head gates; SPLIT producer to isolated task/TEST-traffic-A-producer-20261002, preserve history and false proof flags | ARBITER-PROMPT type6; REVIEW-PROMPT combining§4; AGENTS | Manager handoff/envelopes/publication; no new WBS row or lab PASS |

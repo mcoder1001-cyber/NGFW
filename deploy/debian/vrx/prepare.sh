@@ -39,7 +39,7 @@ done
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/vrx/api/"
 cp -a "$ROOT/apps/web/dist/." "$STAGE/usr/share/vrx/web/"
 install -m 0755 "$ROOT/deploy/vpp/apply-startup.sh" "$STAGE/usr/lib/vrx/apply-startup.sh"
-install -m 0644 "$ROOT/deploy/systemd/vrx-agent.service" "$ROOT/deploy/systemd/vrx-api.service" "$STAGE/usr/lib/systemd/system/"
+install -m 0644 "$ROOT/deploy/systemd/vrx-agent.service" "$ROOT/deploy/systemd/vrx-api.service" "$ROOT/deploy/systemd/vrx-firstboot.service" "$STAGE/usr/lib/systemd/system/"
 printf '%s\n' "$VPP_VERSION" > "$STAGE/VPP_VERSION"
 COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }

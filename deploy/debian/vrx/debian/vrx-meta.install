@@ -1,0 +1,2 @@
+assets/firstboot.sh usr/lib/vrx/
+stage/usr/lib/systemd/system/vrx-firstboot.service usr/lib/systemd/system/

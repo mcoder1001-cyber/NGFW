@@ -27,3 +27,14 @@ Next command: python3 deploy/debian/vrx/tests/test_packaging.py
 Independent review fix: explicitly writable/provisioned capture and rsyslog TLS directories; regression checks actual renderer defaults. Correct TLS runtime driver to rsyslog-openssl (renderer uses ossl, not gnutls). Six checks PASS again.
 
 Independent review fix 2: helper binaries install to /usr/lib/vrx/bin, matching apply-startup.sh product defaults; regression compares installed mapping and actual script default. Seven checks PASS. pnpm12 deploy independently verified by reviewer (198 packages); full package build still NOT RUN. Remote checkpoint second SHA: 0d124f3e0440f78a5c1bb5804be2cf1eaa9a12b0.
+
+Firstboot checkpoint: fixed-name PostgreSQL role/database creation, application-owned
+Drizzle migrations + existing AuthService seed without opening HTTP, durable expected-admin
+password verification; stable generated JWT/32-byte secret key; TLS/bootstrap startupgen,
+nginx validation and durable completion marker before deleting bootstrap.env. Production
+shell has no test-root bypass. Fixture execution redirects only a test-local copy and uses
+fake commands: DB/TLS/startup/nginx failures retain credentials/no completion; retry
+preserves generated keys and completes once. Two firstboot control-flow checks PASS,
+seven earlier packaging checks PASS; node syntax and bash syntax PASS. Actual PostgreSQL,
+API deployment bootstrap, VPP rendering and appliance boot NOT RUN. Firstboot ordering,
+service activation/base nftables and signed APT remain pending; task still RUNNING.

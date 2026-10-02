@@ -8,3 +8,6 @@ Remaining: implement operational identity field and bounded public literal login
 generation, independent review and full hosted quick gate.
 Tests: NOT RUN yet. Laboratory: NOT RUN, deferred in DEFERRED-ACCEPTANCE.md.
 Next: pinned tool restore then proto regeneration; source implementation continues independently.
+
+Implementation checkpoint: read-only bounded installed identity state and slot isolation, additive API health identity, public running banner, literal en/fa login display and observed identity UI implemented. Renderer/API/UI targeted tests added. Proto generation succeeded; full generation fixing surfaced typed datastore and fake-agent additions. Tests remain pending; this is not a completion claim. Initial Turbo generation polling was rejected by automatic review for unsolicited telemetry; safer retry explicitly disables telemetry.
+Remote first contract checkpoint: 393fe9557e526c580f49830c1cb5a7bf0a6c5ce0 (tree matches c1bb711c).

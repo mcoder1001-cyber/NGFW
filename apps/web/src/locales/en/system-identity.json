@@ -56,5 +56,22 @@
     "servers": "Name servers",
     "searchDomains": "Search domains",
     "note": "Running is the committed configuration the agent applies. A name server change takes effect when systemd-resolved restarts."
+  },
+  "loginNotice": "Login notice",
+  "observed": {
+    "title": "Observed system state",
+    "hostname": "Installed hostname",
+    "timezone": "Installed time zone",
+    "uptime": "Host uptime (seconds)",
+    "resolver": "Resolver runtime observation",
+    "servers": "Observed name servers",
+    "unavailable": "Unavailable",
+    "partial": "Some observations are unavailable.",
+    "note": "Runtime-file observation does not prove resolver health or that a pending restart has occurred. Slot agents observe only their installed configuration.",
+    "status": {
+      "observed": "Runtime file observed",
+      "unavailable": "Runtime file unavailable",
+      "slot-only": "Slot configuration only"
+    }
   }
 }

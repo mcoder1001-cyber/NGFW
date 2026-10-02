@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 
 	vrxv1 "ngfw/agent/gen/vrx/v1"
+	"ngfw/agent/internal/multiwan"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -275,7 +276,8 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, fmt.Errorf("listen %s: %w", cfg.Socket, err)
 	}
 	a.grpc = newGRPCServer(log, m) // TD-9: panic recovery interceptors
-	vrxv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log})
+	wan := multiwan.NewRuntime(multiwan.DeviceProbe(svc.wanDevice))
+	vrxv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log, wan: wan})
 
 	if cfg.MetricsAddr != "" && cfg.MetricsAddr != "off" {
 		ml, err := net.Listen("tcp", cfg.MetricsAddr)
@@ -296,7 +298,8 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 
 	rctx, cancel := context.WithCancel(ctx)
 	a.cancel = cancel
-	a.wg.Add(3)
+	a.wg.Add(4)
+	go func() { defer a.wg.Done(); a.watchWAN(rctx, wan) }()
 	go func() {
 		defer a.wg.Done()
 		if err := a.grpc.Serve(l); err != nil {

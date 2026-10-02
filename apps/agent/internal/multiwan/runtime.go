@@ -42,12 +42,15 @@ type Runtime struct {
 	mu         sync.Mutex
 	groups     map[string]*groupSamples
 	config     []*vrxv1.WanGroup
+	identity   string
+	ready      bool
 	cancel     context.CancelFunc
 	done       chan struct{}
 	generation uint64
 	probe      Probe
 }
 
+// NewRuntime constructs an inactive runtime; Replace starts probes.
 func NewRuntime(probe Probe) *Runtime {
 	return &Runtime{probe: probe, groups: map[string]*groupSamples{}}
 }
@@ -55,6 +58,12 @@ func NewRuntime(probe Probe) *Runtime {
 // Replace is all-or-nothing for configuration validation. An identical config
 // preserves hysteresis; the caller owns ctx for the lifetime of these probes.
 func (r *Runtime) Replace(ctx context.Context, groups []*vrxv1.WanGroup) error {
+	return r.ReplaceWithIdentity(ctx, groups, "")
+}
+
+// ReplaceWithIdentity also invalidates observations when the member device or
+// VRF changes without a change to the group itself.
+func (r *Runtime) ReplaceWithIdentity(ctx context.Context, groups []*vrxv1.WanGroup, identity string) error {
 	r.replace.Lock()
 	defer r.replace.Unlock()
 	if r.probe == nil {
@@ -87,7 +96,7 @@ func (r *Runtime) Replace(ctx context.Context, groups []*vrxv1.WanGroup) error {
 		cloned = append(cloned, proto.Clone(g).(*vrxv1.WanGroup))
 	}
 	r.mu.Lock()
-	same := len(cloned) == len(r.config)
+	same := len(cloned) == len(r.config) && identity == r.identity
 	for i := range cloned {
 		if !same || !proto.Equal(cloned[i], r.config[i]) {
 			same = false
@@ -109,6 +118,7 @@ func (r *Runtime) Replace(ctx context.Context, groups []*vrxv1.WanGroup) error {
 		r.cancel()
 	}
 	oldDone := r.done
+	r.ready = false
 	r.generation++ // stale results are rejected even while draining
 	generation := r.generation
 	r.mu.Unlock()
@@ -125,7 +135,9 @@ func (r *Runtime) Replace(ctx context.Context, groups []*vrxv1.WanGroup) error {
 	workCtx, cancel := context.WithCancel(ctx)
 	done := make(chan struct{})
 	r.mu.Lock()
+	r.ready = true
 	r.config = cloned
+	r.identity = identity
 	r.groups = map[string]*groupSamples{}
 	r.cancel = cancel
 	r.done = done
@@ -170,7 +182,7 @@ func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, 
 		}
 		sm := &r.groups[group].members[member].samples[index]
 		// Treat malformed probe output as failure, never a negative loss.
-		if result.Sent <= 0 || result.Received < 0 || result.Received > result.Sent || result.AvgLatencyMs < 0 {
+		if result.Sent <= 0 || result.Sent > 1000000 || result.Received < 0 || result.Received > result.Sent || result.AvgLatencyMs < 0 || result.AvgLatencyMs > 60000 {
 			result = CheckResult{Sent: 1}
 		}
 		changed := sm.state.Observe(MonitorConfig{LossPct: int(mon.GetLossPct()), LatencyMs: int(mon.GetLatencyMs()), DownAfter: int(mon.GetDownAfter()), UpAfter: int(mon.GetUpAfter())}, result)
@@ -197,6 +209,9 @@ func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, 
 func (r *Runtime) Snapshot() []*vrxv1.WanGroupState {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if !r.ready {
+		return nil
+	}
 	out := make([]*vrxv1.WanGroupState, 0, len(r.groups))
 	for name, gs := range r.groups {
 		group := &vrxv1.WanGroupState{Name: name, Mode: gs.group.GetMode()}
@@ -206,13 +221,17 @@ func (r *Runtime) Snapshot() []*vrxv1.WanGroupState {
 				member.Up = member.Up && sm.seen && sm.state.Up
 				loss := uint32(100)
 				if sm.seen && sm.result.Sent > 0 {
-					loss = uint32((sm.result.Sent - sm.result.Received) * 100 / sm.result.Sent)
+					value := (sm.result.Sent - sm.result.Received) * 100 / sm.result.Sent
+					if value >= 0 && value <= 100 {
+						loss = uint32(value)
+					}
 				}
 				if loss > member.LossPct {
 					member.LossPct = loss
 				}
-				if uint32(sm.result.AvgLatencyMs) > member.LatencyMs {
-					member.LatencyMs = uint32(sm.result.AvgLatencyMs)
+				latency := sm.result.AvgLatencyMs
+				if latency >= 0 && latency <= 60000 && uint32(latency) > member.LatencyMs {
+					member.LatencyMs = uint32(latency)
 				}
 				if !sm.since.IsZero() && (member.Since == nil || sm.since.After(member.Since.AsTime())) {
 					member.Since = timestamppb.New(sm.since)
@@ -227,6 +246,7 @@ func (r *Runtime) Snapshot() []*vrxv1.WanGroupState {
 	return out
 }
 
+// Close cancels probes and drains them within the supplied deadline.
 func (r *Runtime) Close(ctx context.Context) error {
 	r.replace.Lock()
 	defer r.replace.Unlock()
@@ -235,6 +255,7 @@ func (r *Runtime) Close(ctx context.Context) error {
 		r.cancel()
 	}
 	r.generation++
+	r.ready = false
 	done := r.done
 	r.mu.Unlock()
 	if done != nil {
@@ -246,3 +267,6 @@ func (r *Runtime) Close(ctx context.Context) error {
 	}
 	return nil
 }
+
+// Ready reports whether a configuration is installed and is not draining.
+func (r *Runtime) Ready() bool { r.mu.Lock(); defer r.mu.Unlock(); return r.ready }

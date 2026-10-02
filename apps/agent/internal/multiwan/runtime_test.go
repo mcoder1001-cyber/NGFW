@@ -28,7 +28,7 @@ func TestRuntimeReplaceDrainsAndDiscardsLateResult(t *testing.T) {
 	first := make(chan struct{})
 	release := make(chan struct{})
 	var calls atomic.Int32
-	r := NewRuntime(func(ctx context.Context, _ string, _ *vrxv1.WanMonitor) CheckResult {
+	r := NewRuntime(func(_ context.Context, _ string, _ *vrxv1.WanMonitor) CheckResult {
 		if calls.Add(1) == 1 {
 			close(first)
 			<-release
@@ -50,6 +50,9 @@ func TestRuntimeReplaceDrainsAndDiscardsLateResult(t *testing.T) {
 	case <-replaced:
 		t.Fatal("replacement did not drain old probe")
 	case <-time.After(20 * time.Millisecond):
+	}
+	if r.Ready() || len(r.Snapshot()) != 0 {
+		t.Fatal("draining runtime exposed stale health")
 	}
 	if calls.Load() != 1 {
 		t.Fatal("replacement overlapped previous generation")
@@ -144,6 +147,33 @@ func TestRuntimeBoundsInvalidConfigurationDoesNotReplace(t *testing.T) {
 		t.Fatal("identical config reset hysteresis")
 	}
 	if err := r.Close(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRuntimeDeviceIdentityChangeInvalidatesHealth(t *testing.T) {
+	var blocked atomic.Bool
+	r := NewRuntime(func(ctx context.Context, _ string, _ *vrxv1.WanMonitor) CheckResult {
+		if blocked.Load() {
+			<-ctx.Done()
+			return CheckResult{Sent: 1}
+		}
+		return CheckResult{Sent: 1, Received: 1}
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := r.ReplaceWithIdentity(ctx, []*vrxv1.WanGroup{runtimeGroup()}, "device-old"); err != nil {
+		t.Fatal(err)
+	}
+	waitRuntime(t, func() bool { return r.Snapshot()[0].Members[0].Up })
+	blocked.Store(true)
+	if err := r.ReplaceWithIdentity(ctx, []*vrxv1.WanGroup{runtimeGroup()}, "device-new"); err != nil {
+		t.Fatal(err)
+	}
+	if r.Snapshot()[0].Members[0].Up {
+		t.Fatal("device replacement retained old healthy observation")
+	}
+	if err := r.Close(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }

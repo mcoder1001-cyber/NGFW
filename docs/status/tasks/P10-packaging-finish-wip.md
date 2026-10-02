@@ -52,3 +52,5 @@ before readiness. Actual dpkg fixture wrong-VPP-pin rejection PASS before output
 creation. Actual isolated GPG preflight fails because gpg-agent cannot start/connect
 in this environment; signing test explicitly SKIPPED/NOT RUN, not PASS. Reprepro
 actual generation and release-builder acceptance NOT RUN. Bash syntax PASS.
+
+Activation checkpoint: product-only VPP unit drop-in requires successful firstboot, not just ordering; API/agent also require firstboot. Meta postinst enables future boot units via deb-systemd-helper without starting/restarting VPP. Eight packaging fixture checks PASS, four firstboot fixture tests PASS. Target service boot/ordering acceptance NOT RUN.

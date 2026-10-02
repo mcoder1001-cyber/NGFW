@@ -1,7 +1,7 @@
 [Unit]
 Description=VRX management API
-Requires=vrx-agent.service
-After=vrx-agent.service postgresql.service valkey-server.service
+Requires=vrx-agent.service vrx-firstboot.service
+After=vrx-agent.service vrx-firstboot.service postgresql.service valkey-server.service
 ConditionPathExists=/var/lib/vrx/firstboot-complete
 
 [Service]

@@ -1,7 +1,7 @@
 [Unit]
 Description=VRX dataplane agent
-Requires=vpp.service
-After=vpp.service
+Requires=vpp.service vrx-firstboot.service
+After=vpp.service vrx-firstboot.service
 ConditionPathExists=/var/lib/vrx/firstboot-complete
 
 [Service]

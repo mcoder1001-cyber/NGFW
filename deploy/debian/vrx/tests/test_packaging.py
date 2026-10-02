@@ -89,6 +89,15 @@ class Packaging(unittest.TestCase):
             apply = (ROOT / 'deploy/vpp/apply-startup.sh').read_text()
             self.assertIn('${VRX_LIB_BIN:=/usr/lib/vrx/bin}', apply)
 
+    def test_vpp_waits_for_successful_firstboot_not_only_ordering(self):
+        dropin = (SOURCE / 'assets/vpp-firstboot.conf').read_text()
+        self.assertIn('Requires=vrx-firstboot.service', dropin)
+        self.assertIn('After=vrx-firstboot.service', dropin)
+        meta = (SOURCE / 'debian/vrx-meta.postinst').read_text()
+        self.assertIn('deb-systemd-helper enable', meta)
+        self.assertNotIn('systemctl start', meta)
+        self.assertNotIn('systemctl restart', meta)
+
     def test_maintainer_scripts_are_valid_and_no_destructive_actions(self):
         for path in (SOURCE / 'debian').glob('*.postinst'):
             subprocess.run(['sh', '-n', str(path)], check=True)

@@ -61,3 +61,67 @@ Product source remains a foundation only: composed executor/lock/capture
 lifecycle, packet-to-outcome correlation and whole-chain forwarding are genuinely
 NOTIMPLEMENTED. Existing support tests were not run against VPP. Fresh independent
 review and unchanged hosted quick are still required before foundation merge.
+
+Next delta fixes the review's stdout bound before future live activation:
+subprocess output is drained through a PIPE/selector, writes at most the explicit
+byte limit to its exclusive0600 log, refuses overflow, then cleans its own group.
+Default4MiB/max16MiB; existing timeout remains. Noisy producer fixture ignores
+TERM, floods1MiB writes, and proves exact4096-byte disk bound plus producer death;
+no unbounded log file is created. Foundation approval is preserved unchanged.
+Pure packet-correlation implementation is next on this branch; live remains
+NOTIMPLEMENTED. Strict suite17PASS (final time recorded in checkpoint message),
+including the existing actual descendant timeout/lease/evidence cases.
+
+Pure correlator checkpoint now implements typed packet-to-expectation matching:
+unique IPv4 ID/transport sequence, exact input/output flow, IPv4/port/ICMP-ID NAT
+translation, VLAN preserve/strip and explicit TTL change, TCP/ICMP payload/header
+identity, selected MAC/PBR, both ECMP paths, stable EI mapping across destinations.
+Drop needs a matched input, zero correlated output and a sufficient quiet capture
+window; late/duplicate/missing/unexpected records fail. Captures are distinct,
+slot/run/stage-bound, digest/accounting validated, at most2048 records/64 probes.
+Fixture status remains FIXTURE_CORRELATED, not live PASS; metadata alone does
+not attest genuine capture provenance or configuration cause. Locked composed
+executor/capture producer/config-counter linkage remain genuine code gaps.
+
+Strict runner27PASS3.460s0SKIP, including deterministic serialized Ethernet/
+802.1Q IPv4/TCP/ICMP source fixtures, NAT response direction, PBR/uRPF/drop/ECMP,
+latency/quiet-window loss/alias/stage/digest refusal. No tcpdump/netns/SSH/VPP/
+network/host installation was executed. New source delta requires independent
+review; foundation approval applies only to its prior frozen source.
+
+A3 split executed: all further source changes belong to the isolated
+NGFW-traffic-a-correlation worktree on task/TEST-traffic-A-correlation-20261002.
+Starting8f38ab39 preserves every old checkpoint; old branch/ref/worktree untouched.
+Read and copied ruling469c6d7e report-only (manager owns ARBITRATION-LOG).
+Continuation envelope records scope. Explicit packet_outcomes_proven=false is
+retained in correlation results. Further typed negatives enforce actual bridge/
+route TTL semantics and NAT preservation of remote endpoint identity; no named
+source-NAT outcome may silently accept destination translation. Source gaps and
+live NOTIMPLEMENTED states remain. New branch publication pending manager.
+
+Continuation source freeze f0fe88ac: strict runner28PASS2.470s, zero failures,
+errors, skips, expected failures or unexpected successes. Unchanged check with
+pinned toolchain (`source ../toolchain/env.sh; tools/ci.sh check --base
+origin/main`) EXIT0 in2s; gitleaks scanned95004bytes with no leaks. An initial
+unsourced check passed built-in checks but lacked gitleaks; the sourced rerun
+is the recorded complete check. No full hosted quick or live packet acceptance
+is claimed. Independent continuation review and exact-head hosted gate remain
+required. This appendix changes metadata only; product source is frozenf0fe88ac.
+
+Evidence-safety continuation after reviewedde8: single NOFOLLOW/CLOEXEC/NONBLOCK
+capture descriptor, owner0600/regular/16MiB limit, bounded identical bytes for
+hash+parse, opened-inode alias check and mutation refusal. IPv4/TCP/ICMP checksum
+validation; invalid/unknown offload checksum is typed INDETERMINATE, notMATCH.
+Unsupported Ethernet/IPv4 transport, fragments and truncation fail closed.
+Legitimate serialized synthetic packets now have correct checksums. Actual tests
+cover corruption of each checksum, zero/offload checksum, path replacement before
+read (ctime mutation refuses before parse), growing file, FIFO, owner/mode/size,
+fragments/short TCP/unsupported transport plus all prior matching/timeout cases.
+Strict33PASS3.496s, zero failures/errors/skips/expected failures/unexpected success.
+The first new run exposed that replacing the open path changes old inode ctime;
+the correct conservative contract refuses acquisition rather than accepting it.
+Regression now verifies refusal before any replacement bytes are parsed.
+Preserved independent first-continuation APPROVE report2e17a507 unchanged.
+Live producer/capture ownership and causal config linkage remain NOTIMPLEMENTED;
+all whole-chain/packet/live-provenance proof flags remain false. New delta needs
+fresh independent review; older approval does not cover it.

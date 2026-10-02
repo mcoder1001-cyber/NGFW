@@ -8,7 +8,7 @@ Design branch `task/P10-punt-design-current`, exact foundation `7f35978a`. Read-
 
 `subsystems/frr.go:registerP12` registers `tapGatedPairs`; its `Retrieve` delegates to owned `lcp.ItfPairDescriptor.Retrieve`. `lcp/lcp.go:Create` creates the Linux pair and persists ownership; `Delete` re-resolves ownership and removes it safely; Update returns ErrRecreate. `lcpmap.HostName` / FromDesired supply validated desired host names. `agent/service.go:applyLocked` and `resyncLocked` run the scheduler under existing transaction serialization. `scheduler.ApplyWith` owns rollback/verification. Use these seams rather than an eventually consistent post-commit watcher that could report APPLIED before firewall failure.
 
-## Recommended minimal typed implementation
+## Original singleton proposal — superseded by lifecycle correction below
 
 Add a separate product-only scheduler singleton `base-policy.punt-set/vrx`, internal typed value containing canonical root-netns LCP host names (sorted, unique, bounded64). Derive it in interfaces projection from explicitly configured LCP leaves; do not expose a new public schema/RPC or wildcard. Register its renderer only for the appliance globals owner with explicit base-policy input configuration; shared test agents remain off, and absence of an expected product base table is an error rather than silently passing.
 
@@ -33,3 +33,24 @@ Authorized scope: P10 base firewall, agent internal typed adapter/projection/reg
 ## Evidence
 
 Personally inspected foundation7f35978a: bootstrap renderer/scripts; LCP Create/Update/Delete/Retrieve, registerP12/tapGatedPairs, lcpmap.HostName/FromDesired, agent applyLocked/resyncLocked, scheduler.ApplyWith and nftables runner/ALLOWLIST. Source inspection only; no implementation tests or live host commands were run for this design. Manager should assign an agent developer and independent R1/R2/R4/R5/R8 review after the narrow contract/projection choices are written down.
+
+
+## Lifecycle correction: use per-membership descriptors, no generic planner change
+
+The original singleton dependency proposal is unsafe and withdrawn. Verified `scheduler/reconciler.go:543–586`: planning substitutes NEW desired values/dependencies into nodes, then emits **all deletes before updates**. Old singleton `{A,B}` changing to `{B}` no longer depends on A; the plan deletes pairA before the singleton update revokes A. Therefore dependencies alone cannot make a singleton replacement safe.
+
+Minimal correct shape: `base-policy.punt-interface/<hostIfName>` per dynamic admitted interface. Typed internal value `{host_if_name, lcp_pair_key}`; each membership depends on its corresponding `lcp.itf-pair/<vppName>`. Do not add generic transaction phases or planner changes for this feature. Fixed static bootstrap entries remain permanently separate and are not modeled as deletable dynamic entries; overlapping dynamic/static identity must be explicitly rejected or represented as permanent admission, never falsely promised revocable.
+
+Personally verified traces from planner/executor code (source traces, not executed tests):
+
+- Shrink A+B to B: nodes contain old deleted admissionA with old dependency pairA, and deleted pairA. Reverse topo DELETE admissionA precedes DELETE pairA; B unchanged.
+- Grow B to B+C: forward topo CREATE pairC precedes CREATE admissionC. A failing admission create leaves nft unchanged; scheduler reverses the successful pair creation.
+- Mixed remove A/add C: DELETE admissionA, DELETE pairA, CREATE pairC, CREATE admissionC. Journal reverse compensation deletes admissionC before pairC, recreates pairA before admissionA. Preserve typed partial-create/error semantics if a timeout has unknown nft outcome.
+- Rename host A to D on same pair key: old admissionA is a deletion, emitted before pair update; updated pair is recreated, then new admissionD is created.
+- Recreate same-name pair/type change: `executor.around` lines1112–1142 derives dependents from OLD `x.live` values, calls dependent Delete before pair recreation and Create after it. Its journal includes each dependent mutation. This is the existing appropriate typed lifecycle hook; no best-effort callback.
+
+Each membership mutation sends one atomic nft transaction with a precise add/delete element; do not flush the complete set in each member operation. Query membership to make idempotent operations explicit; absent element deletion succeeds without exposing an arbitrary user command. Prevalidate final static+dynamic distinct union <=64 through an existing scheduler Validator/afterView; validate runtime additions against bounded actual state as well so unforeseen drift cannot overflow the cap. This ensures mixed growth/shrink can free entries before growth, without validating an impossible interim union.
+
+Retrieve the set once per descriptor-family dump and match each non-static element to owned root-netns actual LCP pairs. Membership key is host name so stale orphan elements still get a deterministic deletable key when VPP pair disappeared; their typed readback value may carry empty pair identity and no dependency because that pair is already gone. Desired/Create values require a real pair key. Do not simply omit orphan members from Retrieve: doing so loses restart/drift cleanup. The dedicated packaging-owned dynamic set is exclusively owned by this product adapter, but static bootstrap entries must be excluded from deletion. Unknown/malformed or ambiguous actual mapping is an error, not adoption of foreign LCP pair. Consider splitting explicit static and dynamic sets/rules in the packaging base table to avoid ambiguity; that is a narrow P10 internal firewall layout decision with tests, not public schema/security privilege expansion.
+
+Tests required before developer approval: assert exact ordered call logs for all five traces, failure at every mutation and reverse compensation, removed pair with retained other membership, orphan readback cleanup after VPP crash, same-name device reuse, static entries preserved, namespace/default-netns transitions, and max64 mixed turnover. Existing fake scheduler machinery can execute these tests without real nft/VPP privileges. This document's traces are verified against source but not a substitute for those executable tests.

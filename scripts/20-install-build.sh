@@ -46,7 +46,9 @@ if [[ ! -x /usr/local/go/bin/go ]] || [[ "$(/usr/local/go/bin/go version)" != "g
   rm -f -- "$go_archive"
   trap - EXIT
 fi
-echo 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH' > /etc/profile.d/go.sh
+cat > /etc/profile.d/go.sh <<'GO_PROFILE'
+export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH
+GO_PROFILE
 export PATH=/usr/local/go/bin:$PATH
 hash -r
 [[ "$(go version)" == "go version go${GO_VER} linux/amd64" ]] || {

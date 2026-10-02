@@ -177,7 +177,10 @@ cmd_status() {
   if is_planned "$vm"; then echo "planned VM — not created yet; shape in docs/lab/vmware.md, inventory $TOPO_DIR/$vm.yml"; return 0; fi
   if ! is_local "$vm"; then
     echo "remote mode: probing over SSH"
-    run_on "$vm" bash -c 'hostname; . /etc/os-release && echo "$PRETTY_NAME"; systemctl is-active vpp; vppctl show version; vppctl show plugins | grep -cE "^ *[0-9]+\."' \
+    run_on "$vm" bash -c "$(cat <<'REMOTE'
+hostname; . /etc/os-release && echo "$PRETTY_NAME"; systemctl is-active vpp; vppctl show version; vppctl show plugins | grep -cE "^ *[0-9]+\."
+REMOTE
+)" \
       || { echo "unreachable"; return 1; }
     return 0
   fi
@@ -253,8 +256,7 @@ cmd_lock() {
 cmd_env() {
   local n="${1:-}" http web
   # slots 1-11 workers, 12 CI, 13 does not exist (13000-13999 = tools/app), 14-32 workers (D-156): 30 developer slots
-  [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= 32 && n != 13 )) \
-    || die "env <slot>: slot must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"
+  if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= 32 && n != 13 )); then :; else die "env <slot>: slot must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"; fi
   if (( n <= 12 )); then http=$(( 3000 + n * 100 )); web=$(( 5000 + n * 100 ))    # unchanged for the running slots
   else http=$(( 10000 + n * 100 )); web=$(( 14000 + n * 100 )); fi                # 3<N>00 would hit 5<M>00 of slots 1-12
   cat <<EOV
@@ -291,7 +293,7 @@ rig_resolve_slot() {  # <strict 0|1> → SLOT + addresses. w<N>: the prefix deci
   elif (( strict )); then
     die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export VRX_SLOT=<33..254> (10.<slot>.{1,2}.0/24); no hash fallback"
   else return 0; fi
-  [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )) || die "rig: slot '$SLOT' out of range 1..254"
+  if [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )); then :; else die "rig: slot '$SLOT' out of range 1..254"; fi
   LAN_GW="10.$SLOT.1.1"; LAN_IP="10.$SLOT.1.2"; WAN_GW="10.$SLOT.2.1"; WAN_IP="10.$SLOT.2.2"
 }
 rig_require_root() { [[ $EUID -eq 0 ]] || die "rig: must run as root (netns/veth/VPP CLI)"; }
@@ -357,11 +359,11 @@ rig_side_down() {  # <ns> <host-veth> <vpp-if>
     # V24/D-101: quiesce the socket first — af_packet_delete_if closes the fds before clib_file_del, so the epoll DEL fails
     # (EBADF) and a packet arriving during/after the delete can call a freed file handler (SIGSEGV PC 0x0, 2026-09-24 07:27)
     ip link set "$h" down 2>/dev/null || true; sleep 0.2
-    vpp_cli_ok delete host-interface name "$h" >/dev/null && echo "  delete vpp $vif" || warn "rig: VPP could not delete $vif"; fi
+    if vpp_cli_ok delete host-interface name "$h" >/dev/null && echo "  delete vpp $vif"; then :; else warn "rig: VPP could not delete $vif"; fi; fi
   # netns deletion tears the veth pair down asynchronously, so the host end can vanish between a check and a delete:
   # never fail on that race (P08 Q4 / re-review T6) — rig_leftovers decides whether anything is really left
-  if ip netns list | awk '{print $1}' | grep -qx "$ns"; then ip netns del "$ns" 2>/dev/null && echo "  delete netns $ns (and its veth peer)" || true; fi
-  if ip link show "$h" >/dev/null 2>&1; then ip link del "$h" 2>/dev/null && echo "  delete veth $h" || true; fi
+  if ip netns list | awk '{print $1}' | grep -qx "$ns"; then if ip netns del "$ns" 2>/dev/null && echo "  delete netns $ns (and its veth peer)"; then :; else true; fi; fi
+  if ip link show "$h" >/dev/null 2>&1; then if ip link del "$h" 2>/dev/null && echo "  delete veth $h"; then :; else true; fi; fi
 }
 # Exact, anchored rig-object matchers (review F1): prefix w1 must never match w11's ns-w11-lan / w11l0 / host-w11l0.
 rig_own_netns() { ip netns list 2>/dev/null | awk '{print $1}' | grep -E "^ns-${P}-(lan|wan)$" || true; }
@@ -403,7 +405,7 @@ cmd_rig() {
       rig_side_down "$NS_LAN" "$L0" "$VL"
       rig_side_down "$NS_WAN" "$W0" "$VW"
       local left; left="$(rig_leftovers)"
-      if [[ -n "$left" ]]; then echo "$left" | sed 's/^/  LEFTOVER /'; rig_print "partial"; die "rig down $P left objects behind (try: rig gc $P)"; fi
+      if [[ -n "$left" ]]; then printf '  LEFTOVER %s\n' "${left//$'\n'/$'\n  LEFTOVER '}"; rig_print "partial"; die "rig down $P left objects behind (try: rig gc $P)"; fi
       rig_print down ;;
     gc)
       rig_require_root; need ip
@@ -412,11 +414,11 @@ cmd_rig() {
       local n
       for n in $(rig_own_vpp); do
         ip link set "${n#host-}" down 2>/dev/null || true; sleep 0.2   # V24/D-101: quiesce before af_packet delete
-        vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n" || warn "could not delete $n"; done
-      for n in $(rig_own_netns); do ip netns del "$n" 2>/dev/null && echo "  delete netns $n" || true; done
-      for n in $(rig_own_links); do ip link del "$n" 2>/dev/null && echo "  delete veth $n" || true; done
+        if vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n"; then :; else warn "could not delete $n"; fi; done
+      for n in $(rig_own_netns); do if ip netns del "$n" 2>/dev/null && echo "  delete netns $n"; then :; else true; fi; done
+      for n in $(rig_own_links); do if ip link del "$n" 2>/dev/null && echo "  delete veth $n"; then :; else true; fi; done
       local left; left="$(rig_leftovers)"
-      [[ -z "$left" ]] || { echo "$left" | sed 's/^/  LEFTOVER /'; die "rig gc $P could not remove everything"; }
+      [[ -z "$left" ]] || { printf '  LEFTOVER %s\n' "${left//$'\n'/$'\n  LEFTOVER '}"; die "rig gc $P could not remove everything"; }
       rig_print down ;;
     show|status)
       rig_resolve_slot 0
@@ -435,37 +437,37 @@ cmd_provision_local_verify() {
   api_dir="${VPP_API_DIR:-/usr/share/vpp/api}"
   # shellcheck disable=SC1091
   local os_id; os_id="$(. /etc/os-release && echo "$ID-$VERSION_ID")"
-  [[ "$os_id" == "$want_os" ]] && ok "OS $os_id" || bad "OS is $os_id, inventory wants $want_os"
+  if [[ "$os_id" == "$want_os" ]] && ok "OS $os_id"; then :; else bad "OS is $os_id, inventory wants $want_os"; fi
   local pkg; pkg="$(dpkg-query -W -f='${Version}' vpp 2>/dev/null || true)"
-  [[ "$pkg" == 26.06* ]] && ok "vpp package $pkg (from ${c_bld}$(inv_get "$vm" vpp.source)${c_off}, D-001)" || bad "vpp package version '$pkg' (want 26.06-release from /root/vpp/build-root)"
+  if [[ "$pkg" == 26.06* ]] && ok "vpp package $pkg (from ${c_bld}$(inv_get "$vm" vpp.source)${c_off}, D-001)"; then :; else bad "vpp package version '$pkg' (want 26.06-release from /root/vpp/build-root)"; fi
   for p in vpp-plugin-core vpp-plugin-dpdk vpp-drivers vpp-crypto-engines libvppinfra python3-vpp-api; do
-    dpkg-query -W "$p" >/dev/null 2>&1 && ok "package $p" || bad "package $p missing"; done
-  [[ "$(systemctl is-active vpp 2>/dev/null)" == active ]] && ok "vpp.service active ($(svc_line vpp))" || bad "vpp.service not active"
-  [[ "$(systemctl is-enabled vpp 2>/dev/null)" == enabled ]] && ok "vpp.service enabled" || bad "vpp.service not enabled"
+    if dpkg-query -W "$p" >/dev/null 2>&1 && ok "package $p"; then :; else bad "package $p missing"; fi; done
+  if [[ "$(systemctl is-active vpp 2>/dev/null)" == active ]] && ok "vpp.service active ($(svc_line vpp))"; then :; else bad "vpp.service not active"; fi
+  if [[ "$(systemctl is-enabled vpp 2>/dev/null)" == enabled ]] && ok "vpp.service enabled"; then :; else bad "vpp.service not enabled"; fi
   for s in "$apisock" "$clisock" "$statsock"; do
     if [[ -S "$s" ]]; then ok "socket $s ($(stat -c '%U:%G %a' "$s"))"; else bad "socket $s missing"; fi; done
   local ver; ver="$(vppctl show version 2>/dev/null || true)"
-  [[ "$ver" == *"v26.06"* ]] && ok "show version: $ver" || bad "show version: '$ver' (want v26.06)"
+  if [[ "$ver" == *"v26.06"* ]] && ok "show version: $ver"; then :; else bad "show version: '$ver' (want v26.06)"; fi
   local plugins plugins_out; plugins_out="$(vpp_plugins)"; plugins="$(grep -cE '^ *[0-9]+\.' <<<"$plugins_out" || true)"
-  (( ${plugins:-0} >= 80 )) && ok "$plugins plugins loaded" || bad "only ${plugins:-0} plugins loaded"
-  vpp_has_plugin af_packet && ok "af_packet plugin loaded (rig path)" || bad "af_packet plugin not loaded"
+  if (( ${plugins:-0} >= 80 )) && ok "$plugins plugins loaded"; then :; else bad "only ${plugins:-0} plugins loaded"; fi
+  if vpp_has_plugin af_packet && ok "af_packet plugin loaded (rig path)"; then :; else bad "af_packet plugin not loaded"; fi
   for p in linux_cp linux_nl npt66; do
-    vpp_has_plugin "$p" && ok "$p plugin loaded" || echo "  ${c_yel}INFO${c_off}  $p plugin not loaded (needs startup.conf → after handover; tests t.Skip)"; done
+    if vpp_has_plugin "$p" && ok "$p plugin loaded"; then :; else echo "  ${c_yel}INFO${c_off}  $p plugin not loaded (needs startup.conf → after handover; tests t.Skip)"; fi; done
   local hp; hp="$(awk '/HugePages_Total/{print $2}' /proc/meminfo)"
-  (( hp >= 1024 )) && ok "hugepages $hp × 2 MB" || bad "hugepages $hp (< 1024)"
+  if (( hp >= 1024 )) && ok "hugepages $hp × 2 MB"; then :; else bad "hugepages $hp (< 1024)"; fi
   local nj; nj="$(find "$api_dir" -name '*.api.json' 2>/dev/null | wc -l)"
-  (( nj >= 100 )) && ok "$nj .api.json under $api_dir (binapi-gen.sh input)" || bad "$nj .api.json under $api_dir"
-  command -v "${HOME}/go/bin/binapi-generator" >/dev/null 2>&1 || command -v binapi-generator >/dev/null 2>&1 \
-    && ok "binapi-generator $("${HOME}/go/bin/binapi-generator" --version 2>/dev/null || binapi-generator --version)" || bad "binapi-generator not in \$HOME/go/bin or PATH"
-  command -v go >/dev/null 2>&1 && ok "$(go version)" || bad "go not installed"
-  for t in ip ping flock python3 jq psql valkey-cli; do command -v "$t" >/dev/null 2>&1 && ok "tool $t" || bad "tool $t missing"; done
-  python3 -c 'import yaml' 2>/dev/null && ok "python3-yaml" || bad "python3-yaml missing (inventory parser)"
-  [[ -w /run/lock ]] && ok "/run/lock writable ($LAB_LOCK, $VPP_LOCK)" || bad "/run/lock not writable"
-  [[ "$(sysctl -n net.ipv4.ip_forward 2>/dev/null)" == 1 ]] && ok "net.ipv4.ip_forward=1" || echo "  ${c_yel}INFO${c_off}  net.ipv4.ip_forward=0 (rig does not need it)"
+  if (( nj >= 100 )) && ok "$nj .api.json under $api_dir (binapi-gen.sh input)"; then :; else bad "$nj .api.json under $api_dir"; fi
+  if command -v "${HOME}/go/bin/binapi-generator" >/dev/null 2>&1 || command -v binapi-generator >/dev/null 2>&1 \
+    && ok "binapi-generator $("${HOME}/go/bin/binapi-generator" --version 2>/dev/null || binapi-generator --version)"; then :; else bad "binapi-generator not in \$HOME/go/bin or PATH"; fi
+  if command -v go >/dev/null 2>&1 && ok "$(go version)"; then :; else bad "go not installed"; fi
+  for t in ip ping flock python3 jq psql valkey-cli; do if command -v "$t" >/dev/null 2>&1 && ok "tool $t"; then :; else bad "tool $t missing"; fi; done
+  if python3 -c 'import yaml' 2>/dev/null && ok "python3-yaml"; then :; else bad "python3-yaml missing (inventory parser)"; fi
+  if [[ -w /run/lock ]] && ok "/run/lock writable ($LAB_LOCK, $VPP_LOCK)"; then :; else bad "/run/lock not writable"; fi
+  if [[ "$(sysctl -n net.ipv4.ip_forward 2>/dev/null)" == 1 ]] && ok "net.ipv4.ip_forward=1"; then :; else echo "  ${c_yel}INFO${c_off}  net.ipv4.ip_forward=0 (rig does not need it)"; fi
   local pgv; pgv="$(pg_lsclusters -h 2>/dev/null | awk '{print $1}' | sort -n | tail -1)"
-  [[ -n "$pgv" ]] && (( pgv >= $(inv_get "$vm" services.postgresql.min_version 16) )) && [[ "$(systemctl is-active postgresql)" == active ]] \
-    && ok "postgresql $pgv active, listen $(ss -Hltn | awk '$4 ~ /:5432$/ {print $4}' | tr '\n' ' ')" || bad "postgresql ≥16 not active"
-  [[ "$(valkey-cli -h 127.0.0.1 ping 2>/dev/null)" == PONG ]] && ok "valkey PONG on 127.0.0.1:6379 ($(valkey-server --version 2>/dev/null | grep -oE 'v=[0-9.]+'))" || bad "valkey not answering on 127.0.0.1"
+  if [[ -n "$pgv" ]] && (( pgv >= $(inv_get "$vm" services.postgresql.min_version 16) )) && [[ "$(systemctl is-active postgresql)" == active ]] \
+    && ok "postgresql $pgv active, listen $(ss -Hltn | awk '$4 ~ /:5432$/ {print $4}' | tr '\n' ' ')"; then :; else bad "postgresql ≥16 not active"; fi
+  if [[ "$(valkey-cli -h 127.0.0.1 ping 2>/dev/null)" == PONG ]] && ok "valkey PONG on 127.0.0.1:6379 ($(valkey-server --version 2>/dev/null | grep -oE 'v=[0-9.]+'))"; then :; else bad "valkey not answering on 127.0.0.1"; fi
   echo
   if (( FAILS == 0 )); then
     echo "${c_grn}verify: all checks passed${c_off} — $vm is ready for tools/lab rig, binapi-gen.sh and the integration suite."
@@ -532,7 +534,10 @@ cmd_provision() {
   local -a ship_files
   mapfile -t ship_files < <(python3 -c 'import json,sys; print("\n".join(p["file"] for p in json.loads(sys.argv[1])["packages"]))' "$selection")
   [[ ${#ship_files[@]} == 7 ]] || die "verified selection did not contain seven runtime files"
-  run_on "$vm" bash -c '. /etc/os-release && [[ "$VERSION_ID" == 26.04 ]] || { echo "not Ubuntu 26.04: $PRETTY_NAME"; exit 1; }'
+  run_on "$vm" bash -c "$(cat <<'REMOTE'
+. /etc/os-release && [[ "$VERSION_ID" == 26.04 ]] || { echo "not Ubuntu 26.04: $PRETTY_NAME"; exit 1; }
+REMOTE
+)"
   remote_dir=$(run_on "$vm" mktemp -d /tmp/vrx-debs.XXXXXXXX)
   [[ $remote_dir =~ ^/tmp/vrx-debs\.[A-Za-z0-9]{8}$ ]] || die "unexpected remote staging directory"
   local -a transfers=()
@@ -540,7 +545,7 @@ cmd_provision() {
   for file in "${ship_files[@]}"; do transfers+=("$src/$file"); done
   scp "${SSH_OPTS[@]}" "${transfers[@]}" "root@$ip:$remote_dir/"
   # Pass the checked selection as DATA, never interpolate it into shell source.
-  printf '%s\n' "$selection" | run_on "$vm" python3 -c '
+  printf '%s\n' "$selection" | run_on "$vm" python3 -c "$(cat <<'REMOTE_VERIFY'
 import hashlib,json,os,pathlib,subprocess,sys
 root=pathlib.Path(sys.argv[1]); selection=json.load(sys.stdin)
 for p in selection["packages"]:
@@ -564,7 +569,8 @@ subprocess.run(["apt-get","install","-y",*[str(root/p["file"]) for p in selectio
 for p in selection["packages"]:
     version=subprocess.check_output(["dpkg-query","-W","-f=${Version}",p["package"]],text=True).strip()
     if version!=selection["version"]: raise SystemExit("installed shipping runtime version mismatch")
-' "$remote_dir"
+REMOTE_VERIFY
+)" "$remote_dir"
   # Only verified and successfully installed runtimes reach configuration/driver
   # changes. The caller must restore its reviewed no-start policy deliberately.
   run_on "$vm" bash -c 'echo vm.nr_hugepages=1024 > /etc/sysctl.d/80-vpp.conf && sysctl -q --system'
@@ -580,10 +586,12 @@ for p in selection["packages"]:
 # ---------------------------------------------------------------- restart / kill VPP (guarded)
 vpp_cycle_locked() {  # <vm> <unit> <systemctl verb...> — the systemctl action AND the wait for api.sock run inside ONE flock -x on both
   local vm="$1" unit="$2"; shift 2   # locks, so shared-lock holders (integration tests, rig) cannot start against a booting VPP (review F5)
-  run_on "$vm" flock -x "$VPP_LOCK" flock -x "$LAB_LOCK" bash -c '
+  run_on "$vm" flock -x "$VPP_LOCK" flock -x "$LAB_LOCK" bash -c "$(cat <<'REMOTE_CYCLE'
     unit="$1"; shift; systemctl "$@" "$unit" || exit 1
     for i in $(seq 1 30); do [[ -S /run/vpp/api.sock ]] && vppctl show version >/dev/null 2>&1 && exit 0; sleep 1; done
-    echo "VPP did not answer on /run/vpp/api.sock within 30 s" >&2; exit 1' _ "$unit" "$@"
+    echo "VPP did not answer on /run/vpp/api.sock within 30 s" >&2; exit 1
+REMOTE_CYCLE
+)" _ "$unit" "$@"
   run_on "$vm" vppctl show version
 }
 cmd_restart_vpp() {

@@ -56,3 +56,7 @@ actual generation and release-builder acceptance NOT RUN. Bash syntax PASS.
 Activation checkpoint: product-only VPP unit drop-in requires successful firstboot, not just ordering; API/agent also require firstboot. Meta postinst enables future boot units via deb-systemd-helper without starting/restarting VPP. Eight packaging fixture checks PASS, four firstboot fixture tests PASS. Target service boot/ordering acceptance NOT RUN.
 
 Fresh arbiter input parity fix: DATABASE_URL and SECRET_KEY_FILE assignment counts must each be exactly one before exact canonical-value checks. Bootstrap exports the parsed validated persisted values. Five firstboot fixture tests PASS, including eight duplicate alternate/empty orderings across both critical fields; failures retain credentials/no marker.
+
+Added installation/upgrade instructions with current implementation and explicit release prerequisites; no WIP device install recommendation. Questions document missing license and exact approved capability/rsyslog-owner mismatch without broadening privileges.
+
+Fresh arbiter key precedence fix: initial api.env accepts only the three generated canonical variables; unsupported overrides such as JWT_KEY_FILE are refused, as is an inherited nonempty bootstrap JWT key-file override. Operators configure optional runtime settings after completed provisioning. Six firstboot fixture tests PASS including valid secret plus nonexistent key-file override preserving credentials/no marker.

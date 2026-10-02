@@ -104,6 +104,20 @@ class Firstboot(unittest.TestCase):
                         self.assertTrue(credentials.exists())
                         self.assertFalse((root / 'var/lib/vrx/firstboot-complete').exists())
 
+    def test_key_file_override_refuses_even_with_valid_secret(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, credentials, entry, env = self.fixture(directory)
+            env['FAIL_STAGE'] = 'nginx'
+            subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+            settings = root / 'etc/vrx/api.env'
+            with settings.open('a') as file:
+                file.write('VRX_JWT_KEY_FILE=/nonexistent/firstboot-keyring\n')
+            del env['FAIL_STAGE']
+            result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(credentials.exists())
+            self.assertFalse((root / 'var/lib/vrx/firstboot-complete').exists())
+
     def test_failures_retain_credentials_and_do_not_publish_completion(self):
         for stage in ['db', 'tls', 'startup', 'nginx']:
             with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:

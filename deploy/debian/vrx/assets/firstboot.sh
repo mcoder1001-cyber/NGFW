@@ -41,6 +41,16 @@ if [[ ! -e /etc/vrx/api.env ]]; then
   mv "$TEMP" /etc/vrx/api.env
 fi
 [[ -f /etc/vrx/api.env && ! -L /etc/vrx/api.env && $(stat -c '%u:%a' /etc/vrx/api.env) == 0:600 ]] || { echo 'invalid API environment file' >&2; exit 1; }
+# Initial API environment is canonical: optional runtime overrides are configured
+# after successful provisioning. In particular JWT_KEY_FILE wins over JWT_SECRET.
+/usr/bin/python3 - /etc/vrx/api.env <<'PYENV'
+import pathlib, sys
+allowed = {'VRX_DATABASE_URL', 'VRX_SECRET_KEY_FILE', 'VRX_JWT_SECRET'}
+lines = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8').splitlines()
+if any(line.split('=', 1)[0] not in allowed for line in lines):
+    sys.exit('initial API environment contains unsupported overrides')
+PYENV
+[[ -z ${VRX_JWT_KEY_FILE:-} ]] || { echo 'bootstrap JWT key-file override is unsupported' >&2; exit 1; }
 for VARIABLE in VRX_DATABASE_URL VRX_SECRET_KEY_FILE; do
   COUNT=$(grep -Ec "^[[:space:]]*$VARIABLE[[:space:]]*=" /etc/vrx/api.env || true)
   [[ $COUNT == 1 ]] || { echo 'invalid persisted API environment assignment count' >&2; exit 1; }

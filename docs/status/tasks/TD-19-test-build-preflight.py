@@ -85,7 +85,7 @@ class BuildPreflight(unittest.TestCase):
             'fresh install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2',
             'fresh install go.fd.io/govpp/cmd/binapi-generator@v0.13.0'])
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
-        self.assertIn("echo 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH'", source)
+        self.assertIn("<<'GO_PROFILE'\nexport PATH=/usr/local/go/bin:$HOME/go/bin:$PATH\nGO_PROFILE", source)
 
     def test_wrong_selected_version_refuses_generator_execution(self):
         result, calls = self.run_shadow('1.23.4')

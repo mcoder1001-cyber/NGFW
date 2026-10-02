@@ -13,7 +13,7 @@ B = 'B' * 40
 
 
 def primary(fingerprint):
-    return 'pub:-:2048:1:fixture:0:0:::::\nfpr:::::::::' + fingerprint + ':\nuid:::::::::Fixture:\n'
+    return 'pub:-:2048:1:0123456789ABCDEF:1:0:::::scSC:\nfpr:::::::::' + fingerprint + ':\nuid:::::::::Fixture:\n'
 
 
 class RepoKeys(unittest.TestCase):
@@ -118,10 +118,28 @@ else: raise SystemExit(91)
             self.assertNotIn('realpath:', result.stderr)
 
     def test_revoked_or_expired_primary_refused(self):
-        for validity in ('r','e'):
+        for validity in ('r', 'e', 'i', 'd', '?', 'n', 'w', 's', '', 'future'):
             result, _, output = self.run_gate(identities=primary(A).replace('pub:-:',f'pub:{validity}:'))
             self.assertNotEqual(result.returncode,0)
             self.assertFalse(output)
+
+    def test_malformed_primary_fields_and_disabled_or_nonsigning_capabilities_refused(self):
+        for index, value in ((2, ''), (2, 'bits'), (3, 'algorithm'), (4, 'short'), (5, 'created'), (6, 'expiry'), (11, 'scSCD'), (11, 'cC'), (11, '?')):
+            with self.subTest(index=index, value=value):
+                lines = primary(A).splitlines()
+                fields = lines[0].split(':'); fields[index] = value
+                lines[0] = ':'.join(fields)
+                result, calls, output = self.run_gate(identities='\n'.join(lines))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(output)
+                self.assertFalse(any('--dearmor' in call for call in calls))
+
+    def test_supported_unknown_and_valid_primary_states(self):
+        for validity in ('-', 'o', 'q', 'm', 'f', 'u'):
+            with self.subTest(validity=validity):
+                result, _, output = self.run_gate(identities=primary(A).replace('pub:-:', f'pub:{validity}:'))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(output)
 
 
 if __name__ == '__main__':

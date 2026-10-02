@@ -83,13 +83,23 @@ PYPACKETS
   gpg --no-options --homedir "$home" --batch --with-colons --with-fingerprint --show-keys "$key" > "$home/identities"
   python3 - "$home/identities" "$expected" <<'PYIDENTITY'
 import pathlib, re, sys
+# GnuPG doc/DETAILS: support ordinary unknown/undefined and valid trust levels.
+# Invalid, disabled, revoked, expired, not-valid and special/unknown states fail closed.
 primaries = []; pending = False
+allowed_validity = {'-', 'o', 'q', 'm', 'f', 'u'}
 for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
     fields = line.split(':'); kind = fields[0]
     if kind in ['sec', 'ssb']: raise SystemExit('secret key identity refused')
     if kind == 'pub':
-        if pending or len(fields) < 2 or fields[1] in ['r', 'e']:
-            raise SystemExit('invalid/revoked/expired primary key')
+        if (pending or len(fields) < 12 or fields[1] not in allowed_validity
+                or not re.fullmatch(r'[1-9][0-9]*', fields[2])
+                or not re.fullmatch(r'[1-9][0-9]*', fields[3])
+                or not re.fullmatch(r'[0-9A-F]{16}', fields[4])
+                or not re.fullmatch(r'[1-9][0-9]*', fields[5])
+                or (fields[6] and not re.fullmatch(r'[0-9]+', fields[6]))
+                or not re.fullmatch(r'[escaESCA]+', fields[11])
+                or not ('s' in fields[11] or 'S' in fields[11])):
+            raise SystemExit('unsupported validity or malformed/disabled/non-signing primary key')
         pending = True
     elif kind == 'fpr' and pending:
         if len(fields) <= 9 or not re.fullmatch(r'(?:[0-9A-F]{40}|[0-9A-F]{64})', fields[9]):
@@ -123,8 +133,8 @@ repo_work=$(mktemp -d /tmp/vrx-repo-keys.XXXXXXXX)
 repo_target=
 trap 'rm -rf -- "$repo_work"; [[ -z "$repo_target" ]] || rm -f -- "$repo_target"' EXIT
 mkdir -m 0700 "$repo_work/frr-home" "$repo_work/node-home"
-curl -fsSL --max-filesize 1048576 https://deb.frrouting.org/frr/keys.gpg -o "$repo_work/frr.key"
-curl -fsSL --max-filesize 1048576 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$repo_work/node.key"
+curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.frrouting.org/frr/keys.gpg -o "$repo_work/frr.key"
+curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$repo_work/node.key"
 verify_repo_key "$repo_work/frr.key" "$VRX_FRR_KEY_FINGERPRINTS" "$repo_work/frr-home" "$repo_work/frr.gpg"
 verify_repo_key "$repo_work/node.key" "$VRX_NODESOURCE_KEY_FINGERPRINTS" "$repo_work/node-home" "$repo_work/node.gpg"
 # Both exact public-key sets must validate before any global mutation.

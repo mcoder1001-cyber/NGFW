@@ -203,3 +203,28 @@ fingerprints were derived only from that fixture to test binary-input mechanics;
 this is not an independent trust decision, official FRR/NodeSource identity
 verification, or network retrieval. No global keyring was written. This extra
 OS-dependent check is recorded separately from the portable30-fixture suite.
+
+### Security review validity correction
+
+The initial security BLOCK is preserved. The primary GnuPG `doc/DETAILS`
+(https://github.com/gpg/gnupg/blob/master/doc/DETAILS, checked 2026-10-02)
+describes invalid/disabled/revoked/expired/not-valid statuses. The gate now
+allows only ordinary unknown/undefined or valid trust states `-`, `o`, `q`,
+`m`, `f`, `u`; every other value, including invalid `i`, disabled `d`, revoked
+`r`, expired `e`, not-valid `n`, empty and unknown statuses, fails closed.
+Supported trust-state parsing does not substitute for independently trusted
+expected fingerprint configuration. Structured primary records require numeric
+key size/algorithm/creation, full 16-hex key ID, numeric optional expiry and
+supported signing capabilities; disabled `D` and non-signing/malformed records
+fail before dearmoring. Both downloads now have10s connection/60s total limits.
+Public keyring replacement is atomic per file, not a transaction across both
+keyrings and source-list files; interrupted setup must be reconciled before
+installation acceptance.
+
+Nine key gate tests PASS4.089s, including explicit invalid/disabled/unknown and
+malformed record/capability negatives. Combined strict runner: **32 PASS9.120s,
+zero errors/failures/skips/expected failures/unexpected successes**. Actual GPG
+binary public-fixture check was repeated with the stricter parser: EXIT0,
+private output created, no network/global keyring writes. Syntax/diff PASS.
+Fresh security recheck remains required; no full task/published-pin acceptance
+is asserted.

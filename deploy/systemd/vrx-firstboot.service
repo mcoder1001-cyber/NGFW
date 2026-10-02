@@ -1,7 +1,7 @@
 [Unit]
 Description=VRX initial appliance provisioning
-Requires=postgresql.service valkey-server.service
-After=postgresql.service valkey-server.service
+Requires=postgresql.service valkey-server.service nftables.service
+After=postgresql.service valkey-server.service nftables.service
 Before=vpp.service vrx-agent.service vrx-api.service nginx.service
 
 [Service]

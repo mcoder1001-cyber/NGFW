@@ -13,7 +13,11 @@ verified from deploy/vpp, not FD.io/upstream unsuffixed packages.
    `apt-get install vrx-meta`; the installer must not start VPP before firstboot.
 2. Create `/etc/vrx/bootstrap.env` as root, mode 0600, using a local secure editor.
    It contains `VRX_BOOTSTRAP_ADMIN_USER` and `VRX_BOOTSTRAP_ADMIN_PASSWORD` in
-   systemd EnvironmentFile syntax. Passwords must meet the current API policy.
+   systemd EnvironmentFile syntax. Also specify `VRX_BOOTSTRAP_MGMT_IF` as the
+   explicit existing management interface and optional comma-separated
+   `VRX_BOOTSTRAP_PUNT_IFS` as existing VPP/Linux-CP interfaces (no wildcard).
+   Early firewall generation persists these nonsecret interface inputs separately
+   before the database/bootstrap phase. Passwords must meet the current API policy.
    Do not put credentials in command arguments, repository files or logs.
 3. Provision hugepages and management networking independently before boot.
    Startup generation deliberately refuses missing host facts instead of claiming
@@ -31,7 +35,11 @@ verified from deploy/vpp, not FD.io/upstream unsuffixed packages.
    Trust the self-signed certificate through a local verified fingerprint workflow,
    then replace it with the appliance management certificate.
 
-Remaining release prerequisites: base nftables management/punt policy, package
+Initial API env is canonical and accepts only the three generated database, secret-key
+and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
+the effective key precedence documented by the API.
+
+Remaining release prerequisites: dynamic LCP/punt-set synchronization, package
 licensing metadata and reviewed agent capability/daemon-file ownership compatibility.
 No installation is declared accepted until the deferred appliance campaign records
 actual command outputs and results. Later VPP startup changes use the reviewed

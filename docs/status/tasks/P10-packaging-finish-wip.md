@@ -60,3 +60,14 @@ Fresh arbiter input parity fix: DATABASE_URL and SECRET_KEY_FILE assignment coun
 Added installation/upgrade instructions with current implementation and explicit release prerequisites; no WIP device install recommendation. Questions document missing license and exact approved capability/rsyslog-owner mismatch without broadening privileges.
 
 Fresh arbiter key precedence fix: initial api.env accepts only the three generated canonical variables; unsupported overrides such as JWT_KEY_FILE are refused, as is an inherited nonempty bootstrap JWT key-file override. Operators configure optional runtime settings after completed provisioning. Six firstboot fixture tests PASS including valid secret plus nonexistent key-file override preserving credentials/no marker.
+
+Static firewall checkpoint (manager reserved D173): explicit management iface plus
+optional unique ≤64 punt iface list; initially empty punt set for no-data-NIC default.
+Packaging owns only inet vrx_base, atomic add/delete/recreate same named table; no
+flush or writes to renderer-owned inet vrx. Early generation is independent of DB/auth,
+preserves distro nftables early-boot ordering/enable target, and nftables requires this
+early helper. Main firstboot requires NFT success, then PG/auth. No host load performed;
+pure base-policy tests 3 PASS, packaging 8 PASS, firstboot fixtures 6 PASS. Actual nft -c
+and fresh full offline systemd graph validation still NOT RUN. Runtime LCP/punt-set sync
+is REAL UNBUILT functionality: static DROP can otherwise precede renderer accepts.
+P10 remains RUNNING; do not label this limitation a laboratory-only acceptance test.

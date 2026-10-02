@@ -135,7 +135,7 @@ class Foundation(unittest.TestCase):
         deadline=time.monotonic()+2
         while True:
             try:raw=Path(f"/proc/{identity['proc_pid']}/stat").read_text()
-            except FileNotFoundError:return
+            except (FileNotFoundError, ProcessLookupError):return
             fields=raw.rsplit(') ',1)[1].split()
             if fields[19]!=identity['birth'] or fields[0]=='Z':return
             if time.monotonic()>deadline:self.fail('verified same-birth child still executing')

@@ -32,3 +32,15 @@ Frozen PR67 final independent integration approval copied unchanged into this
 new branch; no PR67 tree mutation. Next command for reproduction:
 `python3 .github/scripts/packaging-fixtures.py` (local signing socket limitation
 means expected exit1, not a complete gate pass).
+
+Independent R7/R1 found that unittest expected failures can still make
+wasSuccessful() true. Corrected gate rejects expectedFailures explicitly and
+summarizes expected failures and unexpected successes. Seven separate tiny real
+unittest suites now execute the gate policy: success exits0; failure, error,
+skip, expected failure, unexpected success and zero tests each exit1. All seven
+policy regressions PASS (0.004s); the product fixture suite was not run twice.
+Workflow executes policy tests before all product fixtures. Bytecode cache files
+accidentally staged by the first guard-test run were immediately removed from
+the next checkpoint and are ignored; final source tree contains no bytecode.
+Fresh independent review of this correction remains pending. Real hosted signing
+still NOT RUN; local product signing skip remains an honest failing gate result.

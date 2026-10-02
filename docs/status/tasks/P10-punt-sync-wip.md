@@ -102,3 +102,15 @@ Defensive augmentation nevertheless prefers an explicit desired default-netns
 KV over current readback, and membership depends optionally on that singleton.
 Final root/nonroot precedence regression added. Actual owned pair dump supplies
 effective Netns for Create proof; unknown default namespace remains rejected.
+
+## Review and validation freeze
+
+Latest product source 00cb2cd3 published remote 77b32a; metadata checkpoint
+88cc40ad includes approved D174, installation/deferred campaign update and the
+necessary reachability table entry (exact rerun PASS). Lifecycle R2 approves
+00cb; first BLOCK and R2 reports preserved. Actual full local test failures are
+individually classified in P10-local-go-validation.md, not relabeled as passes.
+Final activation review and hosted unchanged full integration gate remain.
+No target NFT/VPP operations were performed. Next command: source
+../toolchain/env.sh; cd apps/agent; go test ./internal/renderers/basepolicy
+./internal/subsystems -run 'TestBasePolicy|TestReachabilityTable' -count=1.

@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthProvider';
 import type { LoginFailure, MfaStep } from '../auth/session';
+import { LoginBanner } from '../domains/system/identity/LoginBanner';
 import { MfaLoginStep } from '../domains/system/aaa/MfaLoginStep';
 import { readSsoHandover } from '../domains/system/aaa/queries';
 import { SsoButton, ssoErrorKey } from '../domains/system/aaa/SsoButton';
@@ -85,6 +86,7 @@ export function LoginPage() {
     <Box component="main" id="main" sx={{ display: 'grid', placeItems: 'center', minBlockSize: '100vh', p: 2, bgcolor: 'background.default' }}>
       <Card sx={{ inlineSize: '100%', maxInlineSize: 400 }} variant="outlined">
         <CardContent>
+          <LoginBanner />
           {mfa ? (
             <MfaLoginStep step={mfa} onDone={() => void navigate(next, { replace: true })} onCancel={() => setMfa(null)} />
           ) : (

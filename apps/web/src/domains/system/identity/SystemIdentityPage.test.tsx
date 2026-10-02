@@ -54,11 +54,29 @@ describe('System → Identity (F-system-identity)', () => {
   it('shows the candidate next to running, marks uncommitted rows and saves a merge patch', async () => {
     const api = installFakeApi('admin');
     await signIn();
+    api.on('GET /api/v1/state/system', {
+      body: {
+        agent: { reachable: true }, api: { version: 'test' }, sync: { state: 'in-sync' },
+        identity: {
+          hostname: 'installed-router',
+          timezone: 'UTC',
+          uptimeSeconds: 123,
+          resolverStatus: 'unavailable',
+          configuredNameServers: [],
+          configuredSearchDomains: [],
+          observedNameServers: [],
+          errors: ['resolver-runtime'],
+          retrievedAt: null,
+        },
+      },
+    });
     api.on('GET /api/v1/config/candidate/system', () => ({ body: CANDIDATE }));
     api.on('GET /api/v1/config/system', () => ({ body: RUNNING }));
     api.on('PATCH /api/v1/config/system', () => ({ body: CANDIDATE }));
     render(app('/system'));
     expect(await screen.findByRole('heading', { level: 2, name: 'System' })).toBeInTheDocument();
+    expect(await screen.findByText('Installed hostname: installed-router')).toBeInTheDocument();
+    expect(screen.getByText('Some observations are unavailable.')).toBeInTheDocument();
     const host = await screen.findByTestId('sys-hostname');
     await waitFor(() => expect(within(host).getByText('vrx')).toBeInTheDocument());
     expect(within(host).getByText('vrx-a')).toBeInTheDocument();
@@ -95,5 +113,37 @@ describe('System → Identity (F-system-identity)', () => {
     render(app('/system'));
     fireEvent.click(await screen.findByRole('button', { name: 'Save to candidate' }));
     expect(await screen.findByText(/U\+001B/)).toBeInTheDocument();
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Observed system state' })).getByText('Unavailable')).toBeInTheDocument());
+  });
+  it('formats observed uptime with Persian digits when enabled', async () => {
+    localStorage.setItem(
+      'vrx.ui.settings',
+      JSON.stringify({ mode: 'light', lang: 'fa', persianDigits: true, dense: true }),
+    );
+    await i18n.changeLanguage('fa');
+    const api = installFakeApi('admin');
+    await signIn();
+    api.on('GET /api/v1/config/candidate/system', { body: CANDIDATE });
+    api.on('GET /api/v1/config/system', { body: RUNNING });
+    api.on('GET /api/v1/state/system', {
+      body: {
+        agent: { reachable: true },
+        api: { version: 'test' },
+        sync: { state: 'in-sync' },
+        identity: {
+          hostname: 'installed-router',
+          timezone: 'UTC',
+          uptimeSeconds: 123,
+          resolverStatus: 'slot-only',
+          configuredNameServers: [],
+          configuredSearchDomains: [],
+          observedNameServers: [],
+          errors: [],
+          retrievedAt: null,
+        },
+      },
+    });
+    render(app('/system'));
+    expect(await screen.findByText('زمان روشن بودن میزبان (ثانیه): ۱۲۳')).toBeInTheDocument();
   });
 });

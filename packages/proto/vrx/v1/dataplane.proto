@@ -276,6 +276,9 @@ service Dataplane {
   rpc DnsState(DnsStateRequest) returns (DnsStateResponse);
   // NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
   // sourcestats / serverstats) and its pending start/restart request. Never mutates.
+  // F-system-identity: read-only installed identity and observed host facts.
+  rpc SystemIdentityState(SystemIdentityStateRequest) returns (SystemIdentityStateResponse);
+
   rpc NtpState(NtpStateRequest) returns (NtpStateResponse);
   // SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
   // counters, and the pending restart request. Never mutates.
@@ -7759,4 +7762,25 @@ message Nat46Mapping {
   optional string ipv6 = 3;
   // IPv6-side MTU; unset = VPP default.
   optional uint32 mtu = 4;
+}
+
+// F-system-identity operational state. Configuration remains in SystemConfig.
+message SystemIdentityStateRequest { string owner = 1; }
+message SystemIdentityStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // Read from the identity descriptor's installed hostname file (slot-scoped in tests).
+  string hostname = 3;
+  string timezone = 4;
+  // Host uptime observed through /proc/uptime; absent if unreadable.
+  optional double uptime_seconds = 5;
+  // Kernel hostname is exposed only for the globals owner, never as a slot's identity.
+  optional string kernel_hostname = 6;
+  // Installed resolver drop-in, not proof that a pending restart has occurred.
+  repeated string configured_name_servers = 7;
+  repeated string configured_search_domains = 8;
+  // Observed resolved runtime file, not a claim about daemon health.
+  string resolver_status = 9; // "observed" | "unavailable" | "slot-only"
+  repeated string observed_name_servers = 10;
+  repeated string errors = 11; // fixed field identifiers, no file contents
 }

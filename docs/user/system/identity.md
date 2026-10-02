@@ -57,5 +57,11 @@ A refused value comes back as problem+json with a pointer:
 - A name-server change takes effect when systemd-resolved restarts. The agent writes the configuration and logs the
   restart request, but does not restart the service itself in this release.
 - Committing the same settings again changes nothing on the router, and neither does an agent restart.
-- Not in this release: the live state endpoint `GET /api/v1/state/system` (uptime, resolver status), and the pre-login
-  banner on the web login page (see docs/status/tasks/F-system-identity.md).
+- `GET /api/v1/state/system` preserves health, revision and commit fields and adds `identity`: installed hostname/time zone,
+  host uptime, configured DNS and a separate runtime-file observation. Missing identity RPC returns `identity: null`.
+  The System screen shows these observations separately from candidate and running settings.
+- `resolverStatus: observed` means the resolved runtime file was readable, not that the service is healthy or its pending
+  restart ran. `unavailable` is explicit; slot agents return `slot-only` and never expose the shared host identity/resolver.
+- The login page reads only `GET /api/v1/auth/banner`, publicly returning the committed pre-login text with a 4096 UTF-16
+  code-unit cap. Candidate text and other system/user fields are never returned. Text is escaped and shown literally.
+  An unavailable banner does not block signing in. No daemon restart or authentication/session policy is changed.

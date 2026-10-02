@@ -85,6 +85,7 @@ const (
 	Dataplane_RoutingState_FullMethodName            = "/vrx.v1.Dataplane/RoutingState"
 	Dataplane_DhcpLeases_FullMethodName              = "/vrx.v1.Dataplane/DhcpLeases"
 	Dataplane_DnsState_FullMethodName                = "/vrx.v1.Dataplane/DnsState"
+	Dataplane_SystemIdentityState_FullMethodName     = "/vrx.v1.Dataplane/SystemIdentityState"
 	Dataplane_NtpState_FullMethodName                = "/vrx.v1.Dataplane/NtpState"
 	Dataplane_SyslogState_FullMethodName             = "/vrx.v1.Dataplane/SyslogState"
 	Dataplane_SyslogEntries_FullMethodName           = "/vrx.v1.Dataplane/SyslogEntries"
@@ -257,6 +258,8 @@ type DataplaneClient interface {
 	DnsState(ctx context.Context, in *DnsStateRequest, opts ...grpc.CallOption) (*DnsStateResponse, error)
 	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
 	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	// F-system-identity: read-only installed identity and observed host facts.
+	SystemIdentityState(ctx context.Context, in *SystemIdentityStateRequest, opts ...grpc.CallOption) (*SystemIdentityStateResponse, error)
 	NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error)
 	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
 	// counters, and the pending restart request. Never mutates.
@@ -723,6 +726,16 @@ func (c *dataplaneClient) DnsState(ctx context.Context, in *DnsStateRequest, opt
 	return out, nil
 }
 
+func (c *dataplaneClient) SystemIdentityState(ctx context.Context, in *SystemIdentityStateRequest, opts ...grpc.CallOption) (*SystemIdentityStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SystemIdentityStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_SystemIdentityState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataplaneClient) NtpState(ctx context.Context, in *NtpStateRequest, opts ...grpc.CallOption) (*NtpStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(NtpStateResponse)
@@ -974,6 +987,8 @@ type DataplaneServer interface {
 	DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error)
 	// NtpState reads the chronyd instance this agent renders (chronyc -c tracking / sources /
 	// sourcestats / serverstats) and its pending start/restart request. Never mutates.
+	// F-system-identity: read-only installed identity and observed host facts.
+	SystemIdentityState(context.Context, *SystemIdentityStateRequest) (*SystemIdentityStateResponse, error)
 	NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error)
 	// SyslogState reads the remote-syslog export this agent renders: per target the rsyslog impstats
 	// counters, and the pending restart request. Never mutates.
@@ -1130,6 +1145,9 @@ func (UnimplementedDataplaneServer) DhcpLeases(context.Context, *DhcpLeasesReque
 }
 func (UnimplementedDataplaneServer) DnsState(context.Context, *DnsStateRequest) (*DnsStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DnsState not implemented")
+}
+func (UnimplementedDataplaneServer) SystemIdentityState(context.Context, *SystemIdentityStateRequest) (*SystemIdentityStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SystemIdentityState not implemented")
 }
 func (UnimplementedDataplaneServer) NtpState(context.Context, *NtpStateRequest) (*NtpStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method NtpState not implemented")
@@ -1853,6 +1871,24 @@ func _Dataplane_DnsState_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_SystemIdentityState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SystemIdentityStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).SystemIdentityState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_SystemIdentityState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).SystemIdentityState(ctx, req.(*SystemIdentityStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Dataplane_NtpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(NtpStateRequest)
 	if err := dec(in); err != nil {
@@ -2161,6 +2197,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DnsState",
 			Handler:    _Dataplane_DnsState_Handler,
+		},
+		{
+			MethodName: "SystemIdentityState",
+			Handler:    _Dataplane_SystemIdentityState_Handler,
 		},
 		{
 			MethodName: "NtpState",

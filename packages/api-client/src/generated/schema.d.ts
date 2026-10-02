@@ -520,6 +520,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/auth/banner': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Configured running pre-login banner, literal text only */
+    get: operations['LoginBanner_banner'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/actions/{action}': {
     parameters: {
       query?: never;
@@ -11304,6 +11321,19 @@ export interface operations {
         };
         content: {
           'application/json': {
+            /** @description Observed installed identity; null when agent RPC is unavailable */
+            identity: {
+              hostname: string;
+              timezone: string;
+              uptimeSeconds?: number;
+              kernelHostname?: string;
+              resolverStatus: string;
+              configuredNameServers: string[];
+              configuredSearchDomains: string[];
+              observedNameServers: string[];
+              errors: string[];
+              retrievedAt: string | null;
+            } | null;
             api: {
               version: string;
               startedAt: string;
@@ -11662,6 +11692,36 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  LoginBanner_banner: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            banner: string;
+          };
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

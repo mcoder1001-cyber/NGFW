@@ -1,0 +1,50 @@
+name: FRR selector fixture gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/frr-selector-fixtures.yml'
+      - 'scripts/00-add-repos.sh'
+      - 'docs/status/tasks/TD-19-test-frr-selection.py'
+      - 'docs/status/tasks/TD-19-run-frr-selection.py'
+      - 'docs/status/tasks/TD-19-frr-selector-ci-policy.py'
+  push:
+    paths:
+      - '.github/workflows/frr-selector-fixtures.yml'
+      - 'scripts/00-add-repos.sh'
+      - 'docs/status/tasks/TD-19-test-frr-selection.py'
+      - 'docs/status/tasks/TD-19-run-frr-selection.py'
+      - 'docs/status/tasks/TD-19-frr-selector-ci-policy.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frr-selector-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  selector:
+    name: Exact13 private FRR certificate selection fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify and report fixture tool versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in python3 gpg gpgv gpgconf shellcheck; do
+            command -v "$tool" >/dev/null
+            "$tool" --version
+          done
+      - name: Check repository installer shell source
+        run: shellcheck -x -P SCRIPTDIR scripts/00-add-repos.sh
+      - name: Exercise strict inventory and result refusal controls
+        run: python3 docs/status/tasks/TD-19-frr-selector-ci-policy.py
+      - name: Run all13 named fixtures with no incomplete outcomes
+        run: python3 docs/status/tasks/TD-19-run-frr-selection.py

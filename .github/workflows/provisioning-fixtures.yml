@@ -1,0 +1,53 @@
+name: Provisioning fixture gate
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/provisioning-fixtures.yml'
+      - 'docs/status/tasks/TD-19-*.py'
+      - 'scripts/00-add-repos.sh'
+      - 'scripts/20-install-build.sh'
+      - 'scripts/40-install-lab.sh'
+      - 'tools/lab'
+      - 'deploy/vpp/**'
+      - 'apps/agent/go.mod'
+      - '.github/workflows/ci.yml'
+  push:
+    paths:
+      - '.github/workflows/provisioning-fixtures.yml'
+      - 'docs/status/tasks/TD-19-*.py'
+      - 'scripts/00-add-repos.sh'
+      - 'scripts/20-install-build.sh'
+      - 'scripts/40-install-lab.sh'
+      - 'tools/lab'
+      - 'deploy/vpp/**'
+      - 'apps/agent/go.mod'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provisioning-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    name: Offline artifact and pinned installer fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify fixture tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          for tool in python3 bash dpkg-deb sha256sum realpath; do
+            command -v "$tool" >/dev/null
+          done
+      - name: Run all fixed suites without skips
+        run: python3 docs/status/tasks/TD-19-run-fixtures.py

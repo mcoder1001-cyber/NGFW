@@ -515,8 +515,8 @@ cmd_provision() {
   hdr "provision $vm — REMOTE MODE (Ubuntu $(inv_get "$vm" os) + our .debs from $(inv_get "$vm" vpp.source) + DPDK dev <pci> on vmxnet3)"
   echo "plan:"
   echo "  1. ssh root@$(inv_get "$vm" mgmt) — check Ubuntu 26.04, hugepages sysctl (vm.nr_hugepages=1024), iommu/vfio-pci"
-  echo "  2. scp $(inv_get "$vm" vpp.source)/{libvppinfra,vpp,vpp-plugin-core,vpp-plugin-dpdk,vpp-drivers,vpp-crypto-engines,python3-vpp-api}_26.06-release_amd64.deb"
-  echo "  3. apt-get install -y ./*.deb   (never the FD.io repo, D-001)"
+  echo "  2. verify the published vpp.source manifest with the original install gate; transfer only its seven shipping runtimes"
+  echo "  3. verify transferred hashes/control fields, require no-start policy, then install exact shipping files and check manifest version (never FD.io, D-001)"
   echo "  4. write /etc/vpp/startup.conf:"; render_startup_conf "$vm" | sed 's/^/       /'
   echo "  5. driverctl set-override <pci> vfio-pci for each dpdk NIC; systemctl enable --now vpp; verify sockets + show version + show hardware"
   if is_planned "$vm"; then echo; echo "${c_yel}$vm is 'planned' — create the VM first (docs/lab/vmware.md), fill mgmt/pci in $TOPO_DIR/$vm.yml, then rerun with --apply.${c_off}"; return 3; fi
@@ -526,10 +526,48 @@ cmd_provision() {
   local ip src; ip="$(remote_ip "$vm")"; src="$(inv_get "$vm" vpp.source /root/vpp/build-root)"
   [[ "${VRX_LAB_REMOTE_APPLY:-}" == 1 ]] \
     || die "REFUSED: provision --apply writes /etc/vpp/startup.conf + /etc/sysctl.d/80-vpp.conf and installs packages on root@$ip — rerun with VRX_LAB_REMOTE_APPLY=1 to confirm"
+  # Validate locally BEFORE the first remote command or any host mutation.
+  local selection remote_dir
+  selection=$("$ROOT/scripts/00-add-repos.sh" --check-artifacts "$src")
+  local -a ship_files
+  mapfile -t ship_files < <(python3 -c 'import json,sys; print("\n".join(p["file"] for p in json.loads(sys.argv[1])["packages"]))' "$selection")
+  [[ ${#ship_files[@]} == 7 ]] || die "verified selection did not contain seven runtime files"
   run_on "$vm" bash -c '. /etc/os-release && [[ "$VERSION_ID" == 26.04 ]] || { echo "not Ubuntu 26.04: $PRETTY_NAME"; exit 1; }'
-  run_on "$vm" bash -c 'echo vm.nr_hugepages=1024 > /etc/sysctl.d/80-vpp.conf && sysctl -q --system && mkdir -p /tmp/vrx-debs'
-  scp "${SSH_OPTS[@]}" "$src"/{libvppinfra,vpp,vpp-plugin-core,vpp-plugin-dpdk,vpp-drivers,vpp-crypto-engines,python3-vpp-api}_26.06-release_amd64.deb "root@$ip:/tmp/vrx-debs/"
-  run_on "$vm" bash -c 'cd /tmp/vrx-debs && DEBIAN_FRONTEND=noninteractive apt-get install -y ./*.deb'
+  remote_dir=$(run_on "$vm" mktemp -d /tmp/vrx-debs.XXXXXXXX)
+  [[ $remote_dir =~ ^/tmp/vrx-debs\.[A-Za-z0-9]{8}$ ]] || die "unexpected remote staging directory"
+  local -a transfers=()
+  local file
+  for file in "${ship_files[@]}"; do transfers+=("$src/$file"); done
+  scp "${SSH_OPTS[@]}" "${transfers[@]}" "root@$ip:$remote_dir/"
+  # Pass the checked selection as DATA, never interpolate it into shell source.
+  printf '%s\n' "$selection" | run_on "$vm" python3 -c '
+import hashlib,json,os,pathlib,subprocess,sys
+root=pathlib.Path(sys.argv[1]); selection=json.load(sys.stdin)
+for p in selection["packages"]:
+    path=root/p["file"]
+    if path.is_symlink() or not path.is_file(): raise SystemExit("missing/nonregular shipping artifact")
+    h=hashlib.sha256()
+    with path.open("rb") as data:
+        for block in iter(lambda:data.read(1024*1024),b""): h.update(block)
+    if h.hexdigest()!=p["sha256"]: raise SystemExit("transferred artifact digest mismatch")
+    fields=subprocess.check_output(["dpkg-deb","-f",str(path),"Package","Version","Architecture"],text=True)
+    actual=dict(line.split(": ",1) for line in fields.splitlines() if ": " in line)
+    if any(actual.get(k)!=p[v] for k,v in [("Package","package"),("Version","version"),("Architecture","architecture")]):
+        raise SystemExit("transferred artifact control mismatch")
+policy=pathlib.Path("/usr/sbin/policy-rc.d")
+if policy.is_symlink() or not policy.is_file() or policy.stat().st_uid!=0 or policy.stat().st_mode & 0o022:
+    raise SystemExit("reviewed root-owned no-start policy required before APT")
+for action in ["start", "restart", "try-restart", "reload", "force-reload"]:
+    if subprocess.run([str(policy), "vpp", action], check=False).returncode != 101:
+        raise SystemExit("no-start policy must deny VPP activation before APT")
+subprocess.run(["apt-get","install","-y",*[str(root/p["file"]) for p in selection["packages"]]],check=True,env=dict(os.environ,DEBIAN_FRONTEND="noninteractive"))
+for p in selection["packages"]:
+    version=subprocess.check_output(["dpkg-query","-W","-f=${Version}",p["package"]],text=True).strip()
+    if version!=selection["version"]: raise SystemExit("installed shipping runtime version mismatch")
+' "$remote_dir"
+  # Only verified and successfully installed runtimes reach configuration/driver
+  # changes. The caller must restore its reviewed no-start policy deliberately.
+  run_on "$vm" bash -c 'echo vm.nr_hugepages=1024 > /etc/sysctl.d/80-vpp.conf && sysctl -q --system'
   render_startup_conf "$vm" | ssh "${SSH_OPTS[@]}" "root@$ip" 'install -d /etc/vpp && cat > /etc/vpp/startup.conf'
   # shellcheck disable=SC2034
   while read -r name pci model segment driver address; do

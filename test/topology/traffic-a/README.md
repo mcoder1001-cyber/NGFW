@@ -82,3 +82,12 @@ or unknown/offloaded checksums raise typed `INDETERMINATE`, never a matched/drop
 outcome. Arbitrary metadata cannot waive this check. Non-IPv4/unsupported
 transports, fragments and truncated records cannot establish correlation.
 Synthetic fixtures now encode correct checksums; they remain offline fixtures.
+
+`transaction.py` adds protected **fixture consistency** validation: private
+same-descriptor lease/binding snapshots, duplicate JSON refusal, explicit expected
+candidate digest/revision, boot/run/slot/expiry and typed two-side observations.
+Observations and protected snapshots must remain consistent across validation.
+This does not establish manager authority, hold a lab/slot lock or prove applied
+configuration. `tools/lab rig` currently reuses names without issuing an ownership
+binding. Live validation refuses `NOTIMPLEMENTED` before filesystem/observation
+calls. The speculative `source_fixture` binding format is not a live contract.

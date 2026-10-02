@@ -43,7 +43,8 @@ export default function NotificationsTab() {
   const fmt = useFormatters();
   const qc = useQueryClient();
   const candidate = useQuery({
-    queryKey: qk.candidate(PATH),
+    // Other management observers cache projections (users/alarms), not this document.
+    queryKey: [...qk.candidate(PATH), 'notifications'],
     queryFn: async ({ signal }) =>
       ((
         await call(

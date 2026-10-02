@@ -269,13 +269,17 @@ describe('System → Management (F-management-ui)', () => {
       },
     }));
     render(app('/system/management?tab=notifications'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Save' }));
+    // Submit only after the channel targeted by the server-validation fixture is mounted.
+    const name = await screen.findByRole('textbox', { name: /^name/i });
+    expect(name).toHaveValue('sink');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(screen.getByRole('textbox', { name: /^name/i })).toHaveAttribute(
         'aria-invalid',
         'true',
       ),
     );
+    expect(screen.getByRole('textbox', { name: /^name/i })).toHaveValue('sink');
     expect(screen.getByRole('textbox', { name: /^name/i })).toHaveAccessibleDescription(
       'Channel name is reserved',
     );

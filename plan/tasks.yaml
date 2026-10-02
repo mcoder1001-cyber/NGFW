@@ -1162,7 +1162,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: running
+  state: review
   parked_on: ''
   wbs:
   - D0.14
@@ -1171,7 +1171,7 @@ tasks:
     apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
   branch: codex/identity-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/NGFW-identity
-  owner: 'current recovery worker: identity'
+  owner: awaiting reviewed current-main hosted gate
   started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
@@ -2081,7 +2081,7 @@ tasks:
     (FD.io row and table rows; review 5.5a)'
   branch: codex/packaging-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/NGFW-packaging
-  owner: 'current recovery worker: packaging'
+  owner: awaiting hosted gate for secure packaging delta (PR63)
   started: ''
   finished: ''
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
@@ -3693,7 +3693,7 @@ tasks:
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
   branch: codex/notifications-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/NGFW-notifications
-  owner: 'current recovery worker: notifications'
+  owner: notifications (UI, reload and SMTP cancellation correction)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
@@ -3915,10 +3915,10 @@ tasks:
   parked_on: ''
   branch: codex/dashboard-resume-20261002
   worktree: /workspace/scratch/de92de7d9874/ngfw-dashboard
-  owner: 'current recovery worker: dashboard'
+  owner: awaiting reviewed current-main hosted gate
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: running
+  state: review
   wbs: []
   prompt: ''
   id: F-dashboard-prom-alarms-host
@@ -3937,9 +3937,9 @@ tasks:
     recovered into isolated local branch; direct owner publication approval received after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
 - template: ''
   parked_on: ''
-  branch: task/F-multiwan-host-codex
-  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
-  owner: awaiting resume (no live worker verified this session)
+  branch: codex/multiwan-monitor-resume-20261002
+  worktree: /workspace/scratch/de92de7d9874/ngfw-multiwan-monitor
+  owner: dashboard (monitor persistence correction)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running
@@ -3956,7 +3956,8 @@ tasks:
     WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
   files_owned: docs/status/tasks/F-multiwan*
   notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance
-    remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish'
+    remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish | 2026-10-02: PR65 is monitor-only; R1 found undurable
+    desired-state activation, correction required. Forwarding/NAT/VRF/ABF remain code follow-ups.'
 - id: F-aaa-login
   title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
   stage: S4

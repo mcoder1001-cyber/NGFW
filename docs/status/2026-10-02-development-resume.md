@@ -1,19 +1,16 @@
-# Development recovery — 2026-10-02
+# Development integration status — 2026-10-02
 
-چهار شاخهٔ توسعه از checkpointهای قبلی بازیابی شدند؛ بازسازی از صفر انجام نشد.
-تست‌های کامل محلی در حال اجراست؛ نتیجهٔ نهایی در گزارش هر شاخه ثبت می‌شود.
-اصلاحات تازه شامل محدودیت ارسال اعلان و پوشه‌های دادهٔ بستهٔ نصب است.
-مجوز مستقیم انتشار دریافت شد؛ PRهای 62، 63 و 64 منتشر شده‌اند و مرج تازه‌ای انجام نشده است.
-تعداد running برد نشانهٔ ایجنت زنده نیست؛ تست‌های آزمایشگاهی همچنان اجرا نشده‌اند.
+کدهای قبلی بازیابی و پنج PR توسعه منتشر شد؛ هیچ کار نیمه‌تمامی کامل اعلام نشده است.
+بنیاد بسته‌بندی در یک اجرای هم‌زمان دیگر با PR61 روی main ادغام شد؛ CI آن موفق است.
+داشبورد روی مبنای قبلی گیت کامل را گذراند؛ پس از تغییر main دوباره هماهنگ و در حال تست است.
+بازبینی امنیتی بسته‌بندی نقص لینک نمادین را یافت و اصلاح مستقل آن تأیید شد.
+ایرادهای اعلان و پایداری ذخیرهٔ تنظیمات پایش WAN در حال اصلاح است؛ آزمایشگاه اجرا نشده است.
 
-- Verified main baseline: `53a43ce5b91e71f3fedc282f9c5c54ba22fc9fb8` (PR60 build DAG fix present).
-- Board validation: `board ok: 156 tasks; progress 73.0% by hours, 112/156 merged; ready=10 running=15 parked=2`.
-- Four local development branches: `codex/dashboard-resume-20261002`, `codex/identity-resume-20261002`, `codex/notifications-resume-20261002`, `codex/packaging-resume-20261002`. Exact final checkpoint/test evidence is in each branch's task WIP/report.
-- Publication approval resolved: the owner directly replied «من تایید میکنم و مجوز میدم» after the publication blocker was explained. A fresh shell push was approved, then failed only because CLI credentials were absent. Authorized GitHub connector publication may proceed; CI/review gates still apply. Confirmed publication: dashboard PR62 `0fc393d8`, packaging checkpoint PR63 `952cd663`, identity PR64 `df239a9b`; unchanged hosted gates started. Notifications publication pending at this checkpoint.
-- Current session observed four developers and two dashboard reviewers. This is historical runtime evidence, not a persistent/live service claim after this turn ends. Unassigned running rows are explicitly awaiting resume.
-- Dashboard: recovered product unchanged from remote reviewed checkpoint; integrate current build DAG fix and run unchanged quick gate. Replacement PR62 published; old PR58 remains open/unmodified until replacement integration.
-- Identity: recovered later local finished work and existing independent review; fresh independent R1 code APPROVE and R2 exact-product carry-forward recorded in `tasks/identity-resume-review-R1.md` and `tasks/identity-resume-review-R2-carry-forward.md`. PR64 hosted gate pending.
-- Notifications: SMTP/webhook only. Preserve test-send throttles across config reloads. Real missing event semantics remain code follow-ups, not falsely classified as laboratory-only.
-- Packaging: safely create expected /data storage subdirectories without changing existing content or permissions. Independent R4 found/fixed the missing appliance VPP ID scope (`VRX_VPP_ID_RANGE=all`, appliance only). Dynamic firewall/punt integration and privilege-boundary questions remain open; do not claim all of P10 complete.
-- Multi-WAN remote checkpoint `codex/network-manager-20261002` remains awaiting resume; monitor slice exists, forwarding/NAT/VRF/ABF scope not complete.
-- At this checkpoint no new merge has been performed; branch publication and hosted-gate creation are in progress. Local quick results do not constitute a fresh hosted gate result. Live VPP/browser/appliance acceptance remains NOT RUN under `DEFERRED-ACCEPTANCE.md`.
+- Main observed31355cef (PR61 foundation merge by a concurrent session). Main hosted run37030950563 SUCCESS. This session did not perform that merge.
+- Dashboard PR62: old0fc393d8 full unchanged hosted gate37029066650 PASS (15m01s, literal CI GATE PASSED inspected). Merge attempt refused due newer-main documentation conflicts; no merge occurred. Archived old head; resolved documentation union; new44b927c0 is one commit on31355cef, product unchanged, fresh gate37031674326 pending.
+- Identity PR64: ad05dd10, one commit on31355cef, tree2fb5c63c, product matches reviewed implementation. R1/R2/R7 approve; D174 documented. Fresh unchanged hosted gate37031823556 pending. Local full gate and VCS build constraints remain honestly recorded in tasks/identity-resume-verification.md.
+- Packaging PR63: 9c3dcded, one commit on31355cef, secure delta only; foundation already on main. Original root-symlink bug found by R2 then corrected through descriptor-relative nofollow traversal. R1/R2/R4/R8 bounded approvals;27 packaging fixtures PASS; gate37032550193 pending. Full P10 remains incomplete: dynamic punt, licensing, file-ownership/security decisions and installed acceptance remain open.
+- Notifications draft PR66:426b1603 on31355cef, initial R1/R2 approvals and tests54+5+7. Subsequent R6/R8 found real nested Persian translation/error-pointer, reload wake and active SMTP cancellation defects. Do not merge until corrected and independently reverified. Telegram removed; VRF and IPsec notification adapter remain code follow-ups.
+- Multi-WAN monitor draft PR65:987c2c9f on31355cef, focused race/vet/check PASS and R2 APPROVE. R1 injected persistence failure reproduces activation from undurable desired state; correction required. Active remains empty and forwarding/NAT/VRF/ABF explicitly not implemented.
+- Owner directly authorized publication after automatic approval blocker; branches, PRs and remote archives are verified. No permission question remains for authorized development/review/green integration.
+- Board counts are task states, not live agents. Only observed workers/reviewers are active during this turn; no persistent service is claimed. Live laboratory/browser/appliance acceptance remains NOT RUN under DEFERRED-ACCEPTANCE.md.

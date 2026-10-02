@@ -7,8 +7,8 @@ Updated 2026-10-02 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 112 |
-| review | 0 |
-| running | 15 |
+| review | 2 |
+| running | 13 |
 | ready | 10 |
 | parked | 2 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-10-02 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 557.0 / 775.0 | 71.9% | 66/96 | 14 | 10 | 0 |
+| S4 | 557.0 / 775.0 | 71.9% | 66/96 | 12 | 10 | 0 |
 | S5 | 64 / 147.5 | 43.4% | 7/15 | 1 | 0 | 0 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -28,7 +28,7 @@ Updated 2026-10-02 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 - F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, awaiting resume (no live worker verified this session))
 - F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, awaiting resume (no live worker verified this session))
-- F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (running, current recovery worker: identity)
+- F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (review, awaiting reviewed current-main hosted gate)
 - F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (running, awaiting resume (no live worker verified this session))
 - F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (running, awaiting resume (no live worker verified this session))
 - P11 — Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards (running, awaiting resume (no live worker verified this session))
@@ -36,11 +36,11 @@ Updated 2026-10-02 from plan/tasks.yaml (estimated hours are the plan's, not act
 - F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (running, awaiting resume (no live worker verified this session))
 - F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (running, awaiting resume (no live worker verified this session))
 - F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (running, awaiting resume (no live worker verified this session))
-- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, current recovery worker: packaging)
-- F-notifications — Notifications: email (SMTP) and webhook for alarms, commits and link/VPN state (running, current recovery worker: notifications)
+- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, awaiting hosted gate for secure packaging delta (PR63))
+- F-notifications — Notifications: email (SMTP) and webhook for alarms, commits and link/VPN state (running, notifications (UI, reload and SMTP cancellation correction))
 - F-setup-wizard — First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit (running, awaiting resume (no live worker verified this session))
-- F-dashboard-prom-alarms-host — Dashboard/Prometheus/alarms on the lab VPP: real StatsSource + collector/listener wiring, rig acceptance (running, current recovery worker: dashboard)
-- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, awaiting resume (no live worker verified this session))
+- F-dashboard-prom-alarms-host — Dashboard/Prometheus/alarms on the lab VPP: real StatsSource + collector/listener wiring, rig acceptance (review, awaiting reviewed current-main hosted gate)
+- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, dashboard (monitor persistence correction))
 
 ## Parked
 

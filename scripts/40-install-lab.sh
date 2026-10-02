@@ -4,8 +4,8 @@ set -euo pipefail
 # Official srl-labs/containerlab release asset digest, checked 2026-10-02:
 # https://api.github.com/repos/srl-labs/containerlab/releases/tags/v0.79.0
 CONTAINERLAB_VER=0.79.0
-CONTAINERLAB_SHA256=f90d36d58bb6c4afd3b3a4dca006b81594c6d16f7a04be0184b03f44291085a2
-CONTAINERLAB_URL="https://github.com/srl-labs/containerlab/releases/download/v${CONTAINERLAB_VER}/containerlab_${CONTAINERLAB_VER}_linux_amd64.tar.gz"
+CONTAINERLAB_SHA256=a399d92a622b4664d8d1231bc9b7f53a1d210255a0306fa091c3f63779f65f13
+CONTAINERLAB_URL="https://github.com/srl-labs/containerlab/releases/download/v${CONTAINERLAB_VER}/containerlab_${CONTAINERLAB_VER}_linux_amd64.deb"
 [[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || {
   echo "only linux-amd64 lab bootstrap is supported" >&2; exit 1;
 }
@@ -24,34 +24,28 @@ BASE=(python3-venv python3-pip git curl jq docker.io frr)
 
 # Bootstrap prerequisites must already exist; do not run APT before validating
 # the fixed archive. The temporary directory is private and never reused.
-for prerequisite in curl python3 sha256sum install mktemp; do
+for prerequisite in curl dpkg-deb dpkg-query sha256sum mktemp; do
   command -v "$prerequisite" >/dev/null || { echo "missing bootstrap prerequisite: $prerequisite" >&2; exit 1; }
 done
 # BEGIN VERIFIED CONTAINERLAB
 containerlab_work=$(mktemp -d /tmp/vrx-containerlab.XXXXXXXX)
-containerlab_target=
-trap 'rm -rf -- "$containerlab_work"; [[ -z "$containerlab_target" ]] || rm -f -- "$containerlab_target"' EXIT
-curl -fsSL "$CONTAINERLAB_URL" -o "$containerlab_work/archive.tar.gz"
-printf '%s  %s\n' "$CONTAINERLAB_SHA256" "$containerlab_work/archive.tar.gz" | sha256sum --check --status
-# Extract only the exact regular binary, never archive paths or links.
-python3 - "$containerlab_work" <<'PYBIN'
-import pathlib, shutil, sys, tarfile
-root = pathlib.Path(sys.argv[1])
-with tarfile.open(root / "archive.tar.gz", "r:gz") as archive:
-    selected = [member for member in archive.getmembers() if member.name == "containerlab"]
-    if len(selected) != 1 or not selected[0].isreg() or not 0 < selected[0].size <= 256 * 1024 * 1024:
-        raise SystemExit("archive must contain one bounded regular containerlab binary")
-    with archive.extractfile(selected[0]) as source, (root / "containerlab").open("xb") as target:
-        shutil.copyfileobj(source, target)
-PYBIN
-# Only verified archive content reaches package installation or target changes.
+trap 'rm -rf -- "$containerlab_work"' EXIT
+containerlab_deb="$containerlab_work/containerlab_${CONTAINERLAB_VER}_linux_amd64.deb"
+curl -fsSL "$CONTAINERLAB_URL" -o "$containerlab_deb"
+printf '%s  %s\n' "$CONTAINERLAB_SHA256" "$containerlab_deb" | sha256sum --check --status
+# Never inspect or install an unverified package. Fields are DATA, not commands.
+[[ "$(dpkg-deb -f "$containerlab_deb" Package)" == containerlab &&
+   "$(dpkg-deb -f "$containerlab_deb" Version)" == "$CONTAINERLAB_VER" &&
+   "$(dpkg-deb -f "$containerlab_deb" Architecture)" == amd64 ]] || {
+  echo "REFUSED: containerlab Debian package identity does not match the pin" >&2
+  exit 1
+}
 apt-get update
-apt-get install -y "${VIRT[@]}" "${TRAFFIC[@]}" "${ANALYSIS[@]}" "${BASE[@]}"
-install -d -m 0755 /usr/local/bin
-containerlab_target=$(mktemp /usr/local/bin/.containerlab.XXXXXXXX)
-install -m 0755 "$containerlab_work/containerlab" "$containerlab_target"
-mv -fT -- "$containerlab_target" /usr/local/bin/containerlab
-containerlab_target=
+apt-get install -y "${VIRT[@]}" "${TRAFFIC[@]}" "${ANALYSIS[@]}" "${BASE[@]}" "$containerlab_deb"
+[[ "$(dpkg-query -W -f='${Version}' containerlab)" == "$CONTAINERLAB_VER" ]] || {
+  echo "REFUSED: installed containerlab version differs from the pin" >&2
+  exit 1
+}
 # END VERIFIED CONTAINERLAB
 
 # Test automation in a venv - never into the system Python.

@@ -83,7 +83,7 @@ three generator commands against a fake new Go with an older Go earlier in the
 original PATH. A wrong selected version invokes no generators. These are fake
 executables in temporary directories; no actual installation occurred.
 
-### Fixed containerlab archive continuation
+### Historical containerlab archive checkpoint (superseded by Debian scope)
 
 Script 40 replaces the floating curl-to-shell installer with fixed release
 v0.79.0 linux-amd64. The manager verified the primary official release API on
@@ -119,3 +119,31 @@ Unchanged `tools/ci.sh check --base origin/main` EXIT 0 (contract guard,
 forbidden patterns, gitleaks ~58.89KB, packet-trace ban and resource slots).
 Full quick and hosted final-head checks were not executed by this worker.
 These checks do not establish runtime installation/appliance acceptance.
+
+### Current containerlab Debian delivery scope
+
+The board requires a pinned `.deb`, so the earlier tar/binary checkpoint and
+its independent security review do not satisfy delivery acceptance. Script40
+now downloads only the official v0.79.0 linux-amd64 Debian asset:
+https://github.com/srl-labs/containerlab/releases/download/v0.79.0/containerlab_0.79.0_linux_amd64.deb
+Manager verified the official release API asset digest on 2026-10-02:
+`a399d92a622b4664d8d1231bc9b7f53a1d210255a0306fa091c3f63779f65f13`.
+
+Private-file digest verification precedes every dpkg-deb inspection and APT
+call. Package, version and architecture must be exactly containerlab/0.79.0/
+amd64. APT receives only the fixed selected path; dpkg-query must confirm the
+installed version before the existing Python setup continues. Staging cleanup
+runs on success/failure. No extracted-binary install or added permissions,
+capabilities or groups remain in the production source. Debian maintainer
+script/dependency effects still require actual installation acceptance; none
+was executed by this worker. Temporary fixture debs test the gate, not official
+package behavior. The official archive binary is not claimed locally inspected.
+
+Current Debian gate fixtures: six tests PASS (0.190s), using actual local
+`dpkg-deb --build` artifacts with fake curl/APT/dpkg-query. Wrong hashes invoke
+neither package inspection nor APT; mismatched identity fields refuse before
+APT; APT error and installed-version mismatch stop continuation and clean up.
+The first run exposed a fixture recorder argument-index typo; its field logging
+was corrected without changing production checks, then all six passed.
+Bash syntax/diff checks PASS. This newer `.deb` source requires fresh review;
+the preserved tar checkpoint approval is historical scope only.

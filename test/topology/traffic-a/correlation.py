@@ -125,10 +125,11 @@ def correlate(case, files, metadata, slot, run_id, fixture=False):
         raise Refused('ECMP requires at least two explicit next-hop MACs')
     if set(files) != {'lan', 'wan'} or set(metadata) != {'lan', 'wan'}:
         raise Refused('both input/output capture streams required')
-    left = files['lan'].lstat(); right = files['wan'].lstat()
-    if (left.st_dev, left.st_ino) == (right.st_dev, right.st_ino):
+    acquired = {side: capture(files[side], metadata[side], slot, side, run_id, fixture=fixture,
+                              expected_stage=case.stage, with_identity=True) for side in ('lan', 'wan')}
+    if acquired['lan'][1] == acquired['wan'][1]:
         raise Refused('input and output must be distinct executor capture files')
-    packets = {side: capture(files[side], metadata[side], slot, side, run_id, fixture=fixture, expected_stage=case.stage) for side in ('lan', 'wan')}
+    packets = {side: acquired[side][0] for side in ('lan', 'wan')}
     for side in ('lan', 'wan'):
         if not metadata[side]['started'] <= case.probe_started < case.probe_ended + case.settle_seconds <= metadata[side]['ended']:
             raise Refused('both capture intervals must bracket the entire probe window')

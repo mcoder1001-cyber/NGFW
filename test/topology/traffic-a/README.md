@@ -70,3 +70,15 @@ traffic PASS: `live_provenance_verified=false`, `whole_chain_proven=false`.
 Matching observed frames to an expectation does not attribute a drop to uRPF
 rather than ACL or prove configured ECMP/NAT semantics without live config/
 counter/executor linkage. That linkage remains a real implementation gap.
+
+Capture acquisition opens each path once with `O_NOFOLLOW`, `O_CLOEXEC` and
+`O_NONBLOCK`, validates the descriptor as an owned0600 regular file and reads a
+bounded snapshot. Hashing and parsing use those identical bytes; alias detection
+uses opened inode identities. Size/time changes during acquisition are refused.
+This does not attest the producer or make a mutable file cryptographically
+trusted; the protected live directory/producer contract remains unimplemented.
+IPv4 header, TCP pseudoheader/segment and ICMP checksums are validated. Invalid
+or unknown/offloaded checksums raise typed `INDETERMINATE`, never a matched/drop
+outcome. Arbitrary metadata cannot waive this check. Non-IPv4/unsupported
+transports, fragments and truncated records cannot establish correlation.
+Synthetic fixtures now encode correct checksums; they remain offline fixtures.

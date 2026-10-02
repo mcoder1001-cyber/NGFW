@@ -10,7 +10,7 @@ import unittest
 
 sys.dont_write_bytecode = True
 from correlation import ExpectedCase, Flow, Probe, correlate
-from evidence import read_pcap
+from evidence import read_pcap, checksum
 from scenario import Refused
 
 MARKER = b'vrx-traffic-a-fixture-nonce'
@@ -28,6 +28,12 @@ def packet(flow, ip_id=101, sequence=901, ttl=64, vlan=(), mac=MAC1, payload=MAR
         transport = bytes([flow.icmp_type, 0]) + b'\x00\x00' + struct.pack('!HH', flow.icmp_identifier, sequence) + payload
     ip = b'\x45\x00' + struct.pack('!HH', 20 + len(transport), ip_id) + b'\x40\x00' + bytes([ttl, flow.protocol]) + b'\x00\x00'
     ip += ipaddress.IPv4Address(flow.source).packed + ipaddress.IPv4Address(flow.destination).packed
+    if flow.protocol == 6:
+        value = checksum(ip[12:20] + struct.pack('!BBH', 0, 6, len(transport)) + transport)
+        transport = transport[:16] + struct.pack('!H', value) + transport[18:]
+    else:
+        transport = transport[:2] + struct.pack('!H', checksum(transport)) + transport[4:]
+    ip = ip[:10] + struct.pack('!H', checksum(ip)) + ip[12:]
     ethernet = bytes.fromhex(mac.replace(':','')) + b'\x02\x00\x00\x00\x00\x01'
     for tag in vlan: ethernet += b'\x81\x00' + struct.pack('!H',tag)
     frame = ethernet+b'\x08\x00'+ip+transport

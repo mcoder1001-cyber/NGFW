@@ -107,3 +107,21 @@ unsourced check passed built-in checks but lacked gitleaks; the sourced rerun
 is the recorded complete check. No full hosted quick or live packet acceptance
 is claimed. Independent continuation review and exact-head hosted gate remain
 required. This appendix changes metadata only; product source is frozenf0fe88ac.
+
+Evidence-safety continuation after reviewedde8: single NOFOLLOW/CLOEXEC/NONBLOCK
+capture descriptor, owner0600/regular/16MiB limit, bounded identical bytes for
+hash+parse, opened-inode alias check and mutation refusal. IPv4/TCP/ICMP checksum
+validation; invalid/unknown offload checksum is typed INDETERMINATE, notMATCH.
+Unsupported Ethernet/IPv4 transport, fragments and truncation fail closed.
+Legitimate serialized synthetic packets now have correct checksums. Actual tests
+cover corruption of each checksum, zero/offload checksum, path replacement before
+read (ctime mutation refuses before parse), growing file, FIFO, owner/mode/size,
+fragments/short TCP/unsupported transport plus all prior matching/timeout cases.
+Strict33PASS3.496s, zero failures/errors/skips/expected failures/unexpected success.
+The first new run exposed that replacing the open path changes old inode ctime;
+the correct conservative contract refuses acquisition rather than accepting it.
+Regression now verifies refusal before any replacement bytes are parsed.
+Preserved independent first-continuation APPROVE report2e17a507 unchanged.
+Live producer/capture ownership and causal config linkage remain NOTIMPLEMENTED;
+all whole-chain/packet/live-provenance proof flags remain false. New delta needs
+fresh independent review; older approval does not cover it.

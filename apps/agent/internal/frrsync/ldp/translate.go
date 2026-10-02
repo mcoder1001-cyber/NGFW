@@ -74,7 +74,21 @@ func Translate(bindings []Binding, table uint32, reverse map[string]string) ([]m
 		if err != nil {
 			return nil, err
 		}
-		r.Paths = paths
+		// VPP MrNPaths is uint8. Duplicate observations must not multiply
+		// forwarding paths, and a larger distinct set must never wrap to zero.
+		seen := map[string]bool{}
+		r.Paths = nil
+		for _, path := range paths {
+			key := fmt.Sprintf("%#v", path)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			r.Paths = append(r.Paths, path)
+		}
+		if len(r.Paths) > 255 {
+			return nil, fmt.Errorf("LDP route exceeds VPP limit of 255 paths")
+		}
 		if err := r.Validate(); err != nil {
 			return nil, err
 		}

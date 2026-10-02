@@ -1,6 +1,33 @@
 package ldp
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
+
+func TestPathCountBoundAndDeduplication(t *testing.T) {
+	base := Binding{FEC: "198.51.100.0/24", LocalLabel: 16000, RemoteLabel: 17000, NextHop: "192.0.2.1", LinuxInterface: "tap"}
+	duplicates := make([]Binding, 256)
+	for i := range duplicates {
+		duplicates[i] = base
+	}
+	mapping := map[string]string{"tap": "wan"}
+	routes, err := Translate(duplicates, 7000, mapping)
+	if err != nil || len(routes) != 1 || len(routes[0].Paths) != 1 {
+		t.Fatalf("duplicate paths: %+v %v", routes, err)
+	}
+	distinct := make([]Binding, 256)
+	for i := range distinct {
+		distinct[i] = base
+		distinct[i].NextHop = fmt.Sprintf("10.0.%d.%d", i/254, i%254+1)
+	}
+	if routes, err := Translate(distinct, 7000, mapping); err == nil || routes != nil {
+		t.Fatalf("overflow accepted: %v", err)
+	}
+	if routes, err := Translate(distinct[:255], 7000, mapping); err != nil || len(routes[0].Paths) != 255 {
+		t.Fatalf("255 paths rejected: %v", err)
+	}
+}
 
 func TestPHPAndECMP(t *testing.T) {
 	bindings := []Binding{

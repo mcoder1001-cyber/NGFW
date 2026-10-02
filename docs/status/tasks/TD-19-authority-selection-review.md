@@ -4,7 +4,13 @@ Reviewed research `b0f12494cf843fe1cf2565e4e545f90f1e713484`, based on main `344
 
 ## Authority verified independently
 
-Fresh primary-source retrieval of https://deb.frrouting.org/ confirms three full primary fingerprints documented as repository signing keys: `4A56C7738BB3F81595A805D2A832769908F13ED1`, `3D9968AC9AE7BE1169288DDB1FD5839895F57FDA`, `BBC9ACA9D13025A2C186FF7F741E92A1F6E3975B`; its table explicitly lists Ubuntu26.04/resolute and FRR10.7.1 amd64. Page text uses sec notation, but that does not mean downloaded bytes contain private keys. Actual public bundle inspection/unchanged validator rejects secret packets before identity selection. HTTPS publication is independent of downloaded certificate extraction; it is upstream public authority evidence, not a separate authenticated administrator channel or installed signature proof.
+Fresh primary-source retrieval of https://deb.frrouting.org/ confirms three full primary fingerprints documented for repository signatures. The public fingerprints are:
+
+- `4A56C7738BB3F81595A805D2A832769908F13ED1`
+- `3D9968AC9AE7BE1169288DDB1FD5839895F57FDA`
+- `BBC9ACA9D13025A2C186FF7F741E92A1F6E3975B`
+
+Its table explicitly lists Ubuntu26.04/resolute and FRR10.7.1 amd64. Page text uses sec notation, but that does not mean downloaded bytes contain private keys. Actual public bundle inspection/unchanged validator rejects secret packets before identity selection. HTTPS publication is independent of downloaded certificate extraction; it is upstream public authority evidence, not a separate authenticated administrator channel or installed signature proof.
 
 Actual fresh FRR download: 16112 bytes, SHA256 `bf10935b9296e2ce7c5d9855fa29ef30c35810b0fc4b1f53005494a04a33554d`. Five pub records match research: documented three plus unauthorized `A90FC36D9429409798E9C2D874DEED43AB194DBF` and duplicate BBC primary. Real unchanged verify_repo_key with documented three returned exit1, no output, exact-set mismatch. Nine unchanged controlled parser/gate tests PASS (3.892s).
 

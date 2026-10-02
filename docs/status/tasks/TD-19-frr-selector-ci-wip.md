@@ -52,3 +52,16 @@ No automatic A90 trust, Node fingerprint invention or Ubuntu26 support claim
 is included. Whole TD19 remains incomplete; target installation acceptance
 remains NOT RUN in central DEFERRED-ACCEPTANCE, distinct from source-authority
 gaps. No task-board state is changed by this checkpoint.
+
+## Final-head security gate result and documentation correction
+
+PR89 headf62e3248 full run37079456799/job111076547456 FAILED2026-10-02T23:53:30Z
+before build: generic-api-key finding solely in authority review paragraph
+containing upstream public FRR fingerprints. Artifact11257299829 ZIP SHA256
+33dd19f66335a3946189023216c5a2c98090f77ce4d10832ac082d1a2550bc45 verified.
+No confidential value is repeated here. Final integration reformats that public
+list; original report remains verbatim in archived source history. This is an
+editorial correction only, not a trust change, exception or gate allowlist.
+The rejected PR/head/history remain preserved; a new immutable main-parent
+candidate needs fresh exact-head full and applicable fixture success. Original
+selector/provisioning successes do not make the failed full run PASS.

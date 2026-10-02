@@ -8,7 +8,7 @@ no new decision/task/board entry or optimization is applied here. No local build
 ## Actual evidence
 
 - [main run37061921326/job111020348098](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37061921326/job/111020348098): runner log begins20:38:56.452, gate20:39:38.843→20:55:12.526, explicitCI GATE PASSED. MainSHA497b724b. Gate15m34s; runner-log-start→PASS16m16s.
-- [PR82 run37059936362/job111013825782](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37059936362/job/111013825782): log begins20:20:33.439, gate20:21:15.341→20:37:25.311, explicitCI GATE PASSED. Gate16m10s; runner-log-start→PASS16m52s.
+- [PR82 run37059936362/job111013825782](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37059936362/job/111013825782): log begins20:20:33.4345823, gate20:21:15.341→20:37:25.311, explicitCI GATE PASSED. Gate16m10s; runner-log-start→PASS16m52s.
 - Retrieved both complete job logs through GitHub. Inspected main uploaded artifact11251770419, ci-logs-37061921326-1,9019537compressed bytes, published digestsha256:facdf7fd7ef3270fe17c31f68a536ed74a908ac60ff49c282a421a498f7df80d. Inspected03-pnpm-gen.log,07-turbo.log,08-agent.log and11-build-startupgen.log directly inside ZIP; no executables run/extraction/build.
 
 | Measured phase (rounded job summary) | main497 | PR82 |

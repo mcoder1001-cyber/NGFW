@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/packaging-fixtures.yml'
       - '.github/scripts/packaging-fixtures.py'
+      - '.github/scripts/test_packaging_fixture_gate.py'
       - 'deploy/debian/vrx/**'
       - 'deploy/apt/**'
       - 'deploy/systemd/vrx-*'
@@ -17,6 +18,7 @@ on:
     paths:
       - '.github/workflows/packaging-fixtures.yml'
       - '.github/scripts/packaging-fixtures.py'
+      - '.github/scripts/test_packaging_fixture_gate.py'
       - 'deploy/debian/vrx/**'
       - 'deploy/apt/**'
       - 'deploy/systemd/vrx-*'
@@ -55,6 +57,8 @@ jobs:
           for tool in python3 node make bash openssl dpkg-deb gpg gpgv gpgconf gpg-agent flock realpath sync; do
             command -v "$tool" >/dev/null
           done
+      - name: Verify strict gate exit policy
+        run: python3 -m unittest discover -s .github/scripts -p test_packaging_fixture_gate.py -v
       - name: Run all fixtures without skips
         shell: bash
         env:

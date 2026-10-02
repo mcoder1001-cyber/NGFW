@@ -1,18 +1,76 @@
 #!/usr/bin/env bash
-# Add the third-party APT repositories VRX needs. Run once, as root, before any install script.
+# Configure non-VPP repositories only after verified product artifact preflight.
 set -euo pipefail
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+preflight_artifacts() {
+  local output=${1:?artifact directory required}
+  output=$(realpath -e -- "$output")
+  # Reject indirect/nonregular inputs before the original verifier reads them.
+  python3 - "$output" <<'PYPATHS'
+import json, pathlib, re, stat, sys
+root = pathlib.Path(sys.argv[1])
+def regular(path):
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        raise SystemExit('artifact metadata/package missing')
+    if not stat.S_ISREG(mode):
+        raise SystemExit('nonregular or symlink artifact refused')
+for name in ['manifest.json', 'SHA256SUMS']:
+    regular(root / name)
+if (root / 'manifest.json').stat().st_size > 1024 * 1024:
+    raise SystemExit('artifact manifest too large')
+manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+for entry in manifest['packages']:
+    name = entry.get('file', '')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+~-]*\.deb', name):
+        raise SystemExit('unsafe artifact filename refused')
+    regular(root / name)
+PYPATHS
+  "$ROOT/deploy/vpp/verify.sh" --require-files "$output" --install-gate >&2
+  # The original data parser owns the package set; never source VERSION.
+  # shellcheck source=../deploy/vpp/lib.sh
+  source "$ROOT/deploy/vpp/lib.sh"
+  vrx_parse_version "$ROOT/deploy/vpp/VERSION"
+  python3 - "$output" "$VPP_PACKAGES_SHIP" "$VPP_DEB_VERSION" <<'PYARTIFACT'
+import json, pathlib, re, sys
+root = pathlib.Path(sys.argv[1])
+manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+version = manifest.get('version', '')
+if not re.fullmatch(re.escape(sys.argv[3]) + r'\+vrx[1-9][0-9]*', version):
+    raise SystemExit('patched product VPP version required')
+packages = [entry for entry in manifest['packages'] if entry.get('ship') is True]
+expected = set(sys.argv[2].split())
+if len(packages) != 7 or len(expected) != 7 or {p['package'] for p in packages} != expected:
+    raise SystemExit('exact seven shipping product runtimes required')
+for package in packages:
+    name = package.get('file', '')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+~-]*\.deb', name):
+        raise SystemExit('unsafe artifact filename refused')
+    if package.get('version') != version or package.get('architecture') != 'amd64':
+        raise SystemExit('shipping runtime version/architecture mismatch')
+    if not re.fullmatch(r'[0-9a-f]{64}', package.get('sha256', '')):
+        raise SystemExit('shipping runtime digest missing')
+print(json.dumps(dict(version=version, packages=sorted(packages, key=lambda p: p['package']))))
+PYARTIFACT
+}
+if [[ ${1:-} == --check-artifacts ]]; then
+  [[ $# == 2 ]] || { echo 'usage: 00-add-repos.sh --check-artifacts DIRECTORY' >&2; exit 2; }
+  preflight_artifacts "$2"
+  exit 0
+fi
+[[ $# == 0 ]] || { echo 'unknown repository setup argument' >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
+[[ -n ${VRX_VPP_ARTIFACTS:-} ]] || { echo 'VRX_VPP_ARTIFACTS required before repository setup' >&2; exit 1; }
+preflight_artifacts "$VRX_VPP_ARTIFACTS" >/dev/null
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
 
 apt-get update
 apt-get install -y curl gnupg ca-certificates lsb-release apt-transport-https
 
-# --- FD.io VPP -------------------------------------------------------------
-# 'release' tracks the latest stable VPP. Pin a specific train instead (e.g. 2606)
-# once you choose the baseline; a data plane must never float.
-VPP_REPO="${VPP_REPO:-release}"
-curl -s "https://packagecloud.io/install/repositories/fdio/${VPP_REPO}/script.deb.sh" | bash
+# VPP comes only from the verified local product manifest. Never configure an
+# upstream FD.io repository or execute its installer (D-001 / TD-19).
 
 # --- FRRouting -------------------------------------------------------------
 # resolute is a new LTS (Apr 2026); if deb.frrouting.org hasn't published a
@@ -29,6 +87,6 @@ echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.
   > /etc/apt/sources.list.d/nodesource.list
 
 apt-get update
-echo "repositories added: fdio/${VPP_REPO}, frr-stable, nodesource node_22.x"
+echo "non-VPP repositories added: frr-stable, nodesource node_22.x"
 echo "NOTE: Kea and Valkey need no extra repo on resolute - kea-dhcp4-server (3.0.x)"
 echo "      and valkey-server are already in the Ubuntu archive. See docs/09-os-packages.md."

@@ -112,6 +112,91 @@ if pending or not primaries or len(set(primaries)) != len(primaries) or set(prim
 PYIDENTITY
   gpg --no-options --homedir "$home" --batch --yes --dearmor --output "$output" "$key"
 }
+# Distinct FRR preprocessing policy; the raw exact-set verifier stays unchanged.
+check_frr_selection_pins() {
+  python3 - "$1" <<'PYFRRPINS'
+import re, sys
+pins = sys.argv[1].split(',')
+if not 1 <= len(pins) <= 8 or len(set(pins)) != len(pins) or any(not re.fullmatch('[0-9A-F]{40}', pin) for pin in pins):
+    raise SystemExit('FRR selection requires explicit authorized full40 primary fingerprints')
+PYFRRPINS
+}
+select_frr_certificates() (
+  set -euo pipefail
+  local key=$1 expected=$2 output=$3 selection_work
+  check_frr_selection_pins "$expected"
+  selection_work=$(mktemp -d /tmp/vrx-frr-selection.XXXXXXXX)
+  trap 'rm -rf -- "$selection_work"' EXIT
+  mkdir -m 0700 "$selection_work/import" "$selection_work/verify"
+  # Open once without following the caller's final symlink; all GPG operations
+  # consume this bounded private snapshot rather than reopening caller input.
+  python3 - "$key" "$selection_work/raw.key" <<'PYFRRRAW'
+import os, pathlib, stat, sys
+key = pathlib.Path(sys.argv[1]); parent = key.parent.lstat()
+if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+        or stat.S_IMODE(parent.st_mode) != 0o700):
+    raise SystemExit('raw FRR input requires an owned private staging directory')
+fd = os.open(key, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
+try:
+    before = os.fstat(fd)
+    if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+            or not 0 < before.st_size <= 1024 * 1024):
+        raise SystemExit('raw FRR input must be a bounded nonempty regular public-key file')
+    with os.fdopen(fd, 'rb', closefd=False) as source:
+        data = source.read(1024 * 1024 + 1)
+    after = os.fstat(fd)
+    identity = lambda info: (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+    if not 0 < len(data) <= 1024 * 1024 or len(data) != before.st_size or identity(before) != identity(after):
+        raise SystemExit('raw FRR input changed during bounded snapshot')
+    target_fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    with os.fdopen(target_fd, 'wb') as target:
+        target.write(data)
+finally:
+    os.close(fd)
+PYFRRRAW
+  key="$selection_work/raw.key"
+  # Inspect ALL raw material before importing or discarding unselected primaries.
+  gpg --no-options --homedir "$selection_work/import" --batch --no-auto-key-retrieve --auto-key-locate clear --list-packets "$key" > "$selection_work/packets"
+  python3 - "$selection_work/packets" <<'PYFRRPACKETS'
+import pathlib, sys
+packets = pathlib.Path(sys.argv[1]).read_text()
+if ':secret key packet:' in packets or ':secret sub key packet:' in packets:
+    raise SystemExit('raw FRR secret key material refused')
+PYFRRPACKETS
+  gpg --no-options --homedir "$selection_work/import" --batch --no-auto-key-retrieve --auto-key-locate clear --with-colons --with-fingerprint --show-keys "$key" > "$selection_work/identities"
+  python3 - "$selection_work/identities" <<'PYFRRIDENTITY'
+import pathlib, sys
+if any(line.split(':', 1)[0] in {'sec', 'ssb'} for line in pathlib.Path(sys.argv[1]).read_text().splitlines()):
+    raise SystemExit('raw FRR secret identity refused')
+PYFRRIDENTITY
+  # ANY nonzero import aborts, even if GPG partially populated its private ring.
+  gpg --no-options --homedir "$selection_work/import" --batch --no-auto-key-retrieve --auto-key-locate clear --import "$key"
+  local -a fingerprints
+  IFS=',' read -r -a fingerprints <<< "$expected"
+  # Complete public export: no clean/minimal/filter options that lose revocations.
+  gpg --no-options --homedir "$selection_work/import" --batch --no-auto-key-retrieve --auto-key-locate clear --export "${fingerprints[@]}" > "$selection_work/selected.key"
+  verify_repo_key "$selection_work/selected.key" "$expected" "$selection_work/verify" "$selection_work/verified.gpg"
+  # Publish only validated bytes to our caller's private staging directory.
+  python3 - "$selection_work/verified.gpg" "$output" <<'PYFRROUT'
+import os, pathlib, stat, sys
+source, output = map(pathlib.Path, sys.argv[1:])
+parent = output.parent.lstat()
+if not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid() or stat.S_IMODE(parent.st_mode) != 0o700:
+    raise SystemExit('FRR selected output requires an owned private staging directory')
+data = source.read_bytes()
+if not 0 < len(data) <= 1024 * 1024:
+    raise SystemExit('verified FRR output must remain bounded')
+fd = os.open(output, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+try:
+    with os.fdopen(fd, 'wb') as target:
+        target.write(data)
+        target.flush()
+        os.fsync(target.fileno())
+except BaseException:
+    output.unlink()
+    raise
+PYFRROUT
+)
 if [[ ${1:-} == --check-artifacts ]]; then
   [[ $# == 2 ]] || { echo 'usage: 00-add-repos.sh --check-artifacts DIRECTORY' >&2; exit 2; }
   preflight_artifacts "$2"
@@ -121,6 +206,7 @@ fi
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 [[ -n ${VRX_VPP_ARTIFACTS:-} ]] || { echo 'VRX_VPP_ARTIFACTS required before repository setup' >&2; exit 1; }
 check_key_pins
+check_frr_selection_pins "$VRX_FRR_KEY_FINGERPRINTS"
 preflight_artifacts "$VRX_VPP_ARTIFACTS" >/dev/null
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
@@ -135,7 +221,7 @@ trap 'rm -rf -- "$repo_work"; [[ -z "$repo_target" ]] || rm -f -- "$repo_target"
 mkdir -m 0700 "$repo_work/frr-home" "$repo_work/node-home"
 curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.frrouting.org/frr/keys.gpg -o "$repo_work/frr.key"
 curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$repo_work/node.key"
-verify_repo_key "$repo_work/frr.key" "$VRX_FRR_KEY_FINGERPRINTS" "$repo_work/frr-home" "$repo_work/frr.gpg"
+select_frr_certificates "$repo_work/frr.key" "$VRX_FRR_KEY_FINGERPRINTS" "$repo_work/frr.gpg"
 verify_repo_key "$repo_work/node.key" "$VRX_NODESOURCE_KEY_FINGERPRINTS" "$repo_work/node-home" "$repo_work/node.gpg"
 # Both exact public-key sets must validate before any global mutation.
 apt-get update

@@ -71,3 +71,20 @@ no unbounded log file is created. Foundation approval is preserved unchanged.
 Pure packet-correlation implementation is next on this branch; live remains
 NOTIMPLEMENTED. Strict suite17PASS (final time recorded in checkpoint message),
 including the existing actual descendant timeout/lease/evidence cases.
+
+Pure correlator checkpoint now implements typed packet-to-expectation matching:
+unique IPv4 ID/transport sequence, exact input/output flow, IPv4/port/ICMP-ID NAT
+translation, VLAN preserve/strip and explicit TTL change, TCP/ICMP payload/header
+identity, selected MAC/PBR, both ECMP paths, stable EI mapping across destinations.
+Drop needs a matched input, zero correlated output and a sufficient quiet capture
+window; late/duplicate/missing/unexpected records fail. Captures are distinct,
+slot/run/stage-bound, digest/accounting validated, at most2048 records/64 probes.
+Fixture status remains FIXTURE_CORRELATED, not live PASS; metadata alone does
+not attest genuine capture provenance or configuration cause. Locked composed
+executor/capture producer/config-counter linkage remain genuine code gaps.
+
+Strict runner27PASS3.460s0SKIP, including deterministic serialized Ethernet/
+802.1Q IPv4/TCP/ICMP source fixtures, NAT response direction, PBR/uRPF/drop/ECMP,
+latency/quiet-window loss/alias/stage/digest refusal. No tcpdump/netns/SSH/VPP/
+network/host installation was executed. New source delta requires independent
+review; foundation approval applies only to its prior frozen source.

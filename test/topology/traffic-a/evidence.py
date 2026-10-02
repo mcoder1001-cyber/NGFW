@@ -21,6 +21,16 @@ class Packet:
     destination_port: int | None
     destination_mac: str
     vlans: tuple[int, ...]
+    ip_id: int = 0
+    ttl: int = 0
+    tcp_sequence: int | None = None
+    tcp_ack: int | None = None
+    tcp_flags: int | None = None
+    icmp_type: int | None = None
+    icmp_code: int | None = None
+    icmp_identifier: int | None = None
+    icmp_sequence: int | None = None
+    payload_sha256: str = ''
 
 
 def read_pcap(data):
@@ -46,6 +56,8 @@ def read_pcap(data):
             raise Refused('capture timestamps are not monotonic')
         previous = timestamp
         frame = data[offset:offset+length]; offset += length; count += 1
+        if count > 2048:
+            raise Refused('capture record count exceeds the bounded2048 limit')
         ethertype = struct.unpack('!H', frame[12:14])[0]; cursor = 14; vlans = []
         while ethertype in (0x8100, 0x88a8):
             if len(vlans) == 2 or len(frame) < cursor + 4:
@@ -65,24 +77,40 @@ def read_pcap(data):
         if protocol not in (1, 6):
             continue
         source_port = destination_port = None
+        tcp_sequence = tcp_ack = tcp_flags = None
+        icmp_type = icmp_code = icmp_identifier = icmp_sequence = None
+        application = b''
         if protocol == 6:
             if len(payload) < 20 or payload[12] >> 4 < 5 or (payload[12] >> 4)*4 > len(payload):
                 raise Refused('truncated TCP evidence')
             source_port, destination_port = struct.unpack('!HH', payload[:4])
+            tcp_sequence, tcp_ack = struct.unpack('!II', payload[4:12])
+            tcp_flags = ((payload[12] & 1) << 8) | payload[13]
+            application = payload[(payload[12] >> 4)*4:]
         elif len(payload) < 8:
             raise Refused('truncated ICMP evidence')
+        else:
+            icmp_type, icmp_code = payload[:2]
+            icmp_identifier, icmp_sequence = struct.unpack('!HH', payload[4:8])
+            application = payload[8:]
         packets.append(Packet(timestamp, str(ipaddress.IPv4Address(ip[12:16])),
                               str(ipaddress.IPv4Address(ip[16:20])), protocol,
-                              source_port, destination_port, ':'.join(f'{byte:02x}' for byte in frame[:6]), tuple(vlans)))
+                              source_port, destination_port, ':'.join(f'{byte:02x}' for byte in frame[:6]), tuple(vlans),
+                              struct.unpack('!H', ip[4:6])[0], ip[8], tcp_sequence, tcp_ack, tcp_flags,
+                              icmp_type, icmp_code, icmp_identifier, icmp_sequence, hashlib.sha256(application).hexdigest()))
     return packets, count
 
 
-def capture(path, metadata, slot, side, run_id, fixture=False):
+def capture(path, metadata, slot, side, run_id, fixture=False, expected_stage=None):
     """Validate one executor-owned capture, never a claimed pass from a log string."""
     values = slot_values(slot); prefix = values['VRX_TEST_PREFIX']
     if side not in ('lan', 'wan') or not re.fullmatch(r'[0-9a-f]{32}', run_id):
         raise Refused('invalid capture side/run identity')
     fields = {'origin', 'run_id', 'namespace', 'device', 'argv', 'sha256', 'started', 'ended', 'received', 'dropped'}
+    if expected_stage is not None:
+        if expected_stage not in {stage.name for stage in STAGES} or metadata.get('stage') != expected_stage:
+            raise Refused('capture does not identify the expected stage')
+        fields.add('stage')
     if set(metadata) != fields:
         raise Refused('capture metadata fields differ from the explicit contract')
     expected_origin = 'source_fixture' if fixture else 'tcpdump_live'
@@ -91,7 +119,8 @@ def capture(path, metadata, slot, side, run_id, fixture=False):
     if (metadata['origin'] != expected_origin or metadata['run_id'] != run_id
             or metadata['namespace'] != namespace or metadata['device'] != device or metadata['argv'] != expected_argv):
         raise Refused('capture provenance/argv does not identify this run and namespace')
-    if not fixture and str(path) != f'/run/vrx-test/{prefix}/traffic-a/{run_id}/{side}.pcap':
+    stage_path = f'{expected_stage}/' if expected_stage is not None else ''
+    if not fixture and str(path) != f'/run/vrx-test/{prefix}/traffic-a/{run_id}/{stage_path}{side}.pcap':
         raise Refused('live capture must be in the fixed private run/slot path')
     for name in ('started', 'ended'):
         if type(metadata[name]) not in (int, float) or not math.isfinite(metadata[name]):

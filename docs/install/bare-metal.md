@@ -39,11 +39,27 @@ Initial API env is canonical and accepts only the three generated database, secr
 and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
 the effective key precedence documented by the API.
 
+The API package provisions `/data`, `/data/backups`, `/data/updates` and
+`/data/support` as `vrx:vrx`, mode 0750. Package reconfiguration reapplies these
+directory permissions without changing the ownership, contents or permissions of
+existing files inside them. These paths reserve storage for backup, update and
+support operations; provisioning them does not imply those features are complete.
+Provisioning rejects symlinks in storage paths. Ownership and modes are applied
+through opened directory descriptors, so concurrent link replacement cannot redirect
+root's permission changes outside the selected directory. If configuration refuses
+an unexpected link, inspect and repair it through the appliance console; it is not
+silently removed or followed. Existing ancestor directories retain their ownership.
+
 Remaining release prerequisites: dynamic LCP/punt-set synchronization, package
 licensing metadata and reviewed agent capability/daemon-file ownership compatibility.
 No installation is declared accepted until the deferred appliance campaign records
 actual command outputs and results. Later VPP startup changes use the reviewed
 `apply-startup.sh --mode product` approval/recovery procedure, not firstboot.
+
+The product agent unit sets `VRX_VPP_ID_RANGE=all` for its dedicated appliance.
+Never start this unit on the shared development host: workers there must use their
+allocated `VRX_VPP_TABLE_BASE`. Do not set both variables in `agent.env`; the agent
+refuses ambiguous ID ownership instead of starting.
 
 The runtime-dependency installer temporarily denies package-driven service starts and
 restores the original policy-rc.d after completion/error. It does not make an incomplete

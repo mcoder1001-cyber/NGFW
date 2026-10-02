@@ -13,3 +13,5 @@ and both gates before host mutation. Rawduplicate/extra tests remain untouched.
 Next: implement narrow preprocessing helper, actual GPG/blocked-host fixtures,
 run meaningful local negatives and document unavailable positives honestly.
 No key authority invented/defaulted, no APT/network/lab or global keyring access.
+
+Source checkpoint implements distinct FRR selector with early full40 gate, complete raw sanity/secret checks, fresh private transient homes, strict import/export exit propagation, full certificate selection then unchanged raw verifier, exclusive0600 publication to caller-owned0700 directory. Node remains unchanged and both gates precede APT. Original raw verifier byte identity PASS; old nine parser/gate tests PASS (actual output recorded in next checkpoint). New actual GPG/blocked-host fixtures still pending; no positive selection/hosted PASS claimed.

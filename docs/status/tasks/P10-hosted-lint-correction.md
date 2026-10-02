@@ -29,3 +29,22 @@ repeat unchanged full hosted quick on the final corrected integration head
 before merging PR67. Port these source fixes into the separate fixture-gate
 integration after feature source is finalized; do not publish a stale product
 integration tree. Target appliance traffic/boot cases remain NOT RUN.
+
+## Recovery lesson
+
+The earlier local mandatory quick run stopped at TypeScript/API tests because
+Unix sockets and foreign-owner changes were restricted. Its Go stages were
+NOT REACHED; that is missing verification, not evidence that Go lint/tests or
+builds pass. Before integrating a change in a language whose full gate stage did
+not run, separately execute that language's complete pinned lint and meaningful
+tests/builds. Keep any actual environment failures explicit and still require
+the unchanged hosted full quick on the exact final integration commit.
+
+For this correction the exact full lint command was:
+`source ../toolchain/env.sh; cd apps/agent; golangci-lint run ./...`.
+Version2.13.2 exited0 with0issues;17basepolicy tests passed. The read-only
+configuration file Close result is explicitly discarded in deferred cleanup
+(the same prior behavior), not propagated or claimed to establish additional
+I/O durability. The negative fixture still has actual0644 public-read permission;
+only its expression now derives those bits from the existing temporary mode.
+No gate configuration, nolint annotation or analyzer suppression changed.

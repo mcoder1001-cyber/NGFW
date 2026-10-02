@@ -395,6 +395,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-A: P12
 	registerP12(r, w)
+	if err := registerBasePolicy(r, w); err != nil {
+		return nil, err
+	}
 	// wave-A: F-kea-dhcp-relay
 	if err := w.registerKea(r); err != nil {
 		return nil, err

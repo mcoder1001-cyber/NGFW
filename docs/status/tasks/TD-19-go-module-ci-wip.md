@@ -27,3 +27,7 @@ Next: manager publish checkpoint and dispatch independent gate review; inspect
 actual hosted ShellCheck result before claiming PASS, preserve source/provision36
 and actual main on final integration, run unchanged complete hosted quick on exact
 approved head. No final merge based solely on these local fixture checks.
+
+## Coherent preparation on cleanup main — 2026-10-02 22:32 UTC
+
+Actual main337cbef881ada5bc5ba20aafe396684c4cefd009 is merged in localfeb28877. Sourcebe646973 independently approvedef416dc3; six copied-script cases and eight extra parser/path controls passed. Source/archiveb489c462 and review1f91bd9a, strict-six gateb17b7f5d independently approved496c2ffc and archived5a212a78. Original36 provisioning workflow/runner remains unchanged; new12 gate policies+6 source cases passed. ShellCheck unavailable locally: NOT RUN, hosted ShellCheck/version output+sixcases and full quick remain mandatory. Initial sparse original36 run failure and recovered36 PASS remain attributed source evidence. This preparation does not install anything or mark TD19 whole DONE. Final composition review and refresh against timing-merged main are pending before one-commit integration; no PR86/87/main/board edits.

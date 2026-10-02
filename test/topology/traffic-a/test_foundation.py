@@ -105,64 +105,80 @@ class Foundation(unittest.TestCase):
             self.assertLess(time.monotonic() - started, 4)
             self.assertIn('started', output.read_text())
 
+    def cleanup_identity_script(self, ready):
+        return ('import signal,pathlib,json;signal.signal(signal.SIGTERM,signal.SIG_IGN);'
+                'raw=pathlib.Path("/proc/self/stat").read_text();fields=raw.rsplit(") ",1)[1].split();'
+                f'pathlib.Path({str(ready)!r}+".tmp").write_text(json.dumps(dict(proc_pid=int(raw.split(" ",1)[0]),birth=fields[19])));'
+                f'pathlib.Path({str(ready)!r}+".tmp").rename({str(ready)!r});')
+
+    def verified_ready_process(self, ready, observed, created):
+        original_popen=subprocess.Popen
+        def start(*arguments, **keywords):
+            process=original_popen(*arguments, **keywords);created.append(process)
+            deadline=time.monotonic()+5
+            while not ready.exists():
+                if process.poll() is not None or time.monotonic()>deadline:
+                    raise AssertionError('fixture did not publish SIG_IGN readiness')
+                time.sleep(.01)
+            identity=json.loads(ready.read_text())
+            self.assertEqual(set(identity),{'proc_pid','birth'})
+            raw=Path(f"/proc/{identity['proc_pid']}/stat").read_text()
+            fields=raw.rsplit(') ',1)[1].split()
+            self.assertEqual(int(raw.split(' ',1)[0]),identity['proc_pid'])
+            self.assertEqual(fields[19],identity['birth'])
+            self.assertIn(fields[0],('S','R'))
+            observed.append(identity)
+            return process
+        return start
+
+    def assert_verified_child_stopped(self, identity):
+        deadline=time.monotonic()+2
+        while True:
+            try:raw=Path(f"/proc/{identity['proc_pid']}/stat").read_text()
+            except (FileNotFoundError, ProcessLookupError):return
+            fields=raw.rsplit(') ',1)[1].split()
+            if fields[19]!=identity['birth'] or fields[0]=='Z':return
+            if time.monotonic()>deadline:self.fail('verified same-birth child still executing')
+            time.sleep(.01)
+
+    def cleanup_created_groups(self, processes):
+        # No signalling of namespace-reported numeric identities.
+        for process in processes:
+            if process.poll() is None:
+                try:os.killpg(process.pid,9)
+                except ProcessLookupError:pass
+                process.wait(timeout=2)
+            if process.stdout is not None and not process.stdout.closed:process.stdout.close()
+
     def test_timeout_stops_descendant_that_ignores_term(self):
         with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / 'log'
-            ready = Path(directory) / 'ready'
-            child = f'import signal,time,os,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];identity="child="+str(os.getpid())+" birth="+birth;pathlib.Path({str(ready)!r}).write_text(identity);print(identity,flush=True);time.sleep(20)'
-            leader = f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(20)'
-            pid = birth = None
-            def same_child():
-                if pid is None:return False
-                try:
-                    return Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()[19] == birth
-                except FileNotFoundError:return False
-            original_popen = subprocess.Popen
-            def ready_process(*arguments, **keywords):
-                process = original_popen(*arguments, **keywords)
-                deadline = time.monotonic() + 5
-                while time.monotonic() < deadline:
-                    if ready.exists() and 'birth=' in ready.read_text():return process
-                    time.sleep(0.01)
-                # The fixture must prove its child installed SIG_IGN before
-                # starting the production wait/timeout. Clean only our group.
-                os.killpg(process.pid, 9);process.wait(timeout=2)
-                raise AssertionError('fixture descendant never announced readiness')
+            output=Path(directory)/'log';ready=Path(directory)/'ready';observed=[];created=[]
+            child=self.cleanup_identity_script(ready)+'import time;print("ready",flush=True);time.sleep(20)'
+            leader=f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(20)'
             try:
-                with patch('commands.subprocess.Popen', ready_process):
+                with patch('commands.subprocess.Popen',self.verified_ready_process(ready,observed,created)):
                     with self.assertRaises(subprocess.TimeoutExpired):
-                        run_command([sys.executable, '-c', leader], directory, dict(os.environ), output, 0.15)
-                identity = ready.read_text().strip().split()
-                pid = int(identity[0].split('=')[1]);birth = identity[1].split('=')[1]
-                status = Path(f'/proc/{pid}/status')
-                deadline = time.monotonic() + 2
-                while same_child() and status.exists() and '\nState:\tZ' not in status.read_text() and time.monotonic() < deadline:
-                    time.sleep(0.01)
-                self.assertTrue(not same_child() or not status.exists() or '\nState:\tZ' in status.read_text(),
-                                'own descendant remains executing: '+(status.read_text() if status.exists() else 'gone'))
-            finally:
-                # Never signal a PID that has been reused by another worker.
-                if same_child():
-                    try: os.kill(pid, 9)
-                    except ProcessLookupError: pass
+                        run_command([sys.executable,'-c',leader],directory,dict(os.environ),output,.15)
+                self.assertEqual(len(observed),1)
+                self.assert_verified_child_stopped(observed[0])
+            finally:self.cleanup_created_groups(created)
 
     def test_noisy_child_is_stopped_at_exact_private_log_byte_limit(self):
         with tempfile.TemporaryDirectory() as directory:
-            output=Path(directory)/'noisy.log'; identity=Path(directory)/'identity'
-            script=f'import os,signal,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];pathlib.Path({str(identity)!r}).write_text(str(os.getpid())+" "+birth)\nwhile True:os.write(1,b"x"*1000000)'
+            output=Path(directory)/'noisy.log';ready=Path(directory)/'identity';observed=[];created=[]
+            script=self.cleanup_identity_script(ready)+'import os\nwhile True:os.write(1,b"x"*1000000)'
             started=time.monotonic()
-            with self.assertRaisesRegex(CommandFailed,'byte limit'):
-                run_command([sys.executable,'-c',script],directory,dict(os.environ),output,2,max_output=4096)
-            self.assertLess(time.monotonic()-started,4)
-            pid,birth=identity.read_text().split(); status=Path(f'/proc/{pid}/status')
-            deadline=time.monotonic()+1
-            while status.exists() and '\nState:\tZ' not in status.read_text() and time.monotonic()<deadline:time.sleep(0.01)
-            if status.exists():
-                current=Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()[19]
-                self.assertTrue(current!=birth or '\nState:\tZ' in status.read_text(),'noisy producer remains live')
-            self.assertEqual(output.stat().st_size,4096)
-            self.assertEqual(output.stat().st_mode & 0o777,0o600)
-            self.assertEqual(output.read_bytes(),b'x'*4096)
+            try:
+                with patch('commands.subprocess.Popen',self.verified_ready_process(ready,observed,created)):
+                    with self.assertRaisesRegex(CommandFailed,'byte limit'):
+                        run_command([sys.executable,'-c',script],directory,dict(os.environ),output,2,max_output=4096)
+                self.assertLess(time.monotonic()-started,4)
+                self.assertEqual(len(observed),1)
+                self.assert_verified_child_stopped(observed[0])
+                self.assertEqual(output.stat().st_size,4096)
+                self.assertEqual(output.stat().st_mode&0o777,0o600)
+                self.assertEqual(output.read_bytes(),b'x'*4096)
+            finally:self.cleanup_created_groups(created)
 
     def test_strict_source_gate_rejects_every_nonpassing_status(self):
         bodies={'pass':'pass','failure':'self.fail("fixture")','error':'raise RuntimeError("fixture")',

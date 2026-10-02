@@ -13,16 +13,20 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// DescriptorName identifies the per-host dynamic admission scheduler family.
 const DescriptorName = "base-policy.punt-interface"
 
 // OwnedPairs returns only this agent's actual LCP pairs, with effective Netns.
 type OwnedPairs func(context.Context) ([]lcp.ItfPair, error)
+
+// Descriptor journals dynamic host admissions against owned LCP dependencies.
 type Descriptor struct {
 	renderer *Renderer
 	config   Config
 	pairs    OwnedPairs
 }
 
+// NewDescriptor binds immutable bootstrap inputs and owned actual pair readback.
 func NewDescriptor(renderer *Renderer, config Config, pairs OwnedPairs) (*Descriptor, error) {
 	if renderer == nil || pairs == nil {
 		return nil, errors.New("basepolicy: missing descriptor dependency")
@@ -37,13 +41,21 @@ func NewDescriptor(renderer *Renderer, config Config, pairs OwnedPairs) (*Descri
 	renderer.permanent = slices.Clone(config.Permanent)
 	return &Descriptor{renderer: renderer, config: config, pairs: pairs}, nil
 }
-func (*Descriptor) Name() string        { return DescriptorName }
+
+// Name implements scheduler.Descriptor.
+func (*Descriptor) Name() string { return DescriptorName }
+
+// RecordsNoOwnership declares exclusive ownership of the packaging dynamic set.
 func (*Descriptor) RecordsNoOwnership() {}
+
+// KeyOf identifies admission by host name so old names remain revocable.
 func (*Descriptor) KeyOf(value proto.Message) scheduler.Key {
 	var a Admission
 	_ = dfkit.Decode(value, &a)
 	return scheduler.Join(DescriptorName, a.Host)
 }
+
+// Dependencies orders admission after its LCP pair and effective namespace.
 func (*Descriptor) Dependencies(value proto.Message) []scheduler.Dependency {
 	var a Admission
 	if dfkit.Decode(value, &a) != nil || a.Pair == "" {
@@ -87,6 +99,8 @@ func (d *Descriptor) actual(ctx context.Context) (map[string]string, error) {
 	}
 	return result, nil
 }
+
+// Create admits an actual owned root-namespace pair and journals uncertain adds.
 func (d *Descriptor) Create(ctx context.Context, value proto.Message) (any, error) {
 	a, err := d.spec(value, true)
 	if err != nil {
@@ -105,9 +119,13 @@ func (d *Descriptor) Create(ctx context.Context, value proto.Message) (any, erro
 	}
 	return nil, err
 }
+
+// Update requests recreation so old admission is revoked before replacement.
 func (d *Descriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
+
+// Delete revokes one dynamic admission, including orphan kernel members.
 func (d *Descriptor) Delete(ctx context.Context, value proto.Message, _ any) error {
 	a, err := d.spec(value, false)
 	if err != nil {
@@ -115,6 +133,8 @@ func (d *Descriptor) Delete(ctx context.Context, value proto.Message, _ any) err
 	}
 	return d.renderer.Element(ctx, a.Host, false)
 }
+
+// Retrieve reports exact dynamic kernel membership and retains orphan drift.
 func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	names, err := d.renderer.Retrieve(ctx)
 	if err != nil {
@@ -136,6 +156,8 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	}
 	return result, nil
 }
+
+// Validate enforces the final transaction admission union before mutations.
 func (d *Descriptor) Validate(_ context.Context, _ scheduler.Key, value proto.Message, view scheduler.ReadOnlyView) error {
 	if _, err := d.spec(value, true); err != nil {
 		return err

@@ -15,8 +15,13 @@ import (
 	"ngfw/agent/internal/renderers"
 )
 
+// NftBin is the sole executable allowed for dynamic set operations.
 const NftBin = "/usr/sbin/nft"
+
+// MaxMembers bounds the combined permanent and dynamic interface union.
 const MaxMembers = 64
+
+// MaxJSON bounds nft readback before parsing.
 const MaxJSON = 32768
 
 var interfaceName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,14}$`)
@@ -120,6 +125,7 @@ type Renderer struct {
 	permanent  []string
 }
 
+// New constructs a root-namespace renderer with validated management identity.
 func New(runner renderers.Runner, management string) (*Renderer, error) {
 	if _, err := Members(management, nil, nil); err != nil {
 		return nil, err
@@ -129,6 +135,8 @@ func New(runner renderers.Runner, management string) (*Renderer, error) {
 	}
 	return &Renderer{runner: runner, management: management}, nil
 }
+
+// Retrieve reads only the exact packaging-owned dynamic ifname set.
 func (r *Renderer) Retrieve(ctx context.Context) ([]string, error) {
 	out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: []string{"-j", "list", "set", "inet", "vrx_base", "dynamic_punt_interfaces"}, Timeout: 10 * time.Second})
 	if err != nil {

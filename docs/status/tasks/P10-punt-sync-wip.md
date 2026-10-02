@@ -52,3 +52,17 @@ Next command: source ../toolchain/env.sh; cd apps/agent; go test
 ./internal/renderers/basepolicy. Next code: precise per-element mutation and
 per-host descriptor with scheduler call-order/failure tests; product activation
 must supply actual default namespace and trusted configuration before use.
+
+## Per-host descriptor milestone
+
+Descriptor code now carries host-keyed pair dependency, validates owned actual
+root pair before Create, rejects permanent overlap, and retains orphan kernel
+members in Retrieve for deletion. Mutations use exact element operations with
+uncertain outcome compensation; unknown Create uses PartialCreate. An existing
+scheduler validator enforces final-view static/dynamic union limit.
+Eleven basepolicy Go tests PASS, including executable mixed shrink/grow,
+host rename, same-name type recreation with revoke-before-pair-delete order,
+and orphan cleanup. Registration/product projection remains UNBUILT. Further
+failure/rollback, boot and namespace integration tests are still required.
+Narrow scheduler uncertainty contract independently reviewed; preserved report
+P10-scheduler-uncertainty-review.md. No target host nft/VPP tests performed.

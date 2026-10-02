@@ -38,3 +38,5 @@ preserves generated keys and completes once. Two firstboot control-flow checks P
 seven earlier packaging checks PASS; node syntax and bash syntax PASS. Actual PostgreSQL,
 API deployment bootstrap, VPP rendering and appliance boot NOT RUN. Firstboot ordering,
 service activation/base nftables and signed APT remain pending; task still RUNNING.
+
+Firstboot fresh-review MAJOR fixed: no marker-negative unit condition; optional environment file allows scheduled cleanup after marker publication/crash. Production script still fails closed if first initialization lacks credentials. Three fixture-flow tests PASS incl actual unit condition/marker cleanup boundary.

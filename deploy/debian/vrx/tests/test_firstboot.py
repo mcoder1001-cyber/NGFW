@@ -44,6 +44,20 @@ class Firstboot(unittest.TestCase):
                    VRX_BOOTSTRAP_ADMIN_PASSWORD='fixture-only-bootstrap')
         return root, credentials, entry, env
 
+    def test_completed_marker_still_runs_unit_cleanup_after_crash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, credentials, entry, env = self.fixture(directory)
+            (root / 'var/lib/vrx/firstboot-complete').write_text('completed\n')
+            unit_path = SOURCE.parents[2] / 'deploy/systemd/vrx-firstboot.service'
+            if not unit_path.exists():
+                unit_path = SOURCE / 'stage/usr/lib/systemd/system/vrx-firstboot.service'
+            unit = unit_path.read_text()
+            self.assertNotIn('ConditionPathExists=!/var/lib/vrx/firstboot-complete', unit)
+            self.assertIn('EnvironmentFile=-/etc/vrx/bootstrap.env', unit)
+            subprocess.run(['bash', str(entry)], env=env, check=True, capture_output=True)
+            self.assertFalse(credentials.exists())
+            self.assertFalse((root / 'service-commands').exists())
+
     def test_failures_retain_credentials_and_do_not_publish_completion(self):
         for stage in ['db', 'tls', 'startup', 'nginx']:
             with self.subTest(stage=stage), tempfile.TemporaryDirectory() as directory:

@@ -3,11 +3,10 @@ Description=VRX initial appliance provisioning
 Requires=postgresql.service valkey-server.service
 After=postgresql.service valkey-server.service
 Before=vpp.service vrx-agent.service vrx-api.service nginx.service
-ConditionPathExists=!/var/lib/vrx/firstboot-complete
 
 [Service]
 Type=oneshot
-EnvironmentFile=/etc/vrx/bootstrap.env
+EnvironmentFile=-/etc/vrx/bootstrap.env
 ExecStart=/usr/lib/vrx/firstboot.sh
 RemainAfterExit=yes
 TimeoutStartSec=300

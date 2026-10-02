@@ -44,3 +44,9 @@ licensing metadata and reviewed agent capability/daemon-file ownership compatibi
 No installation is declared accepted until the deferred appliance campaign records
 actual command outputs and results. Later VPP startup changes use the reviewed
 `apply-startup.sh --mode product` approval/recovery procedure, not firstboot.
+
+The runtime-dependency installer temporarily denies package-driven service starts and
+restores the original policy-rc.d after completion/error. It does not make an incomplete
+installation boot-ready: provision the full product packages, explicit bootstrap/interface
+inputs and reviewed units before reboot. If forcibly terminated without EXIT cleanup,
+restore the retained original start-policy backup through the local console.

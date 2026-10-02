@@ -27,12 +27,15 @@ class Firstboot(unittest.TestCase):
         command('bin/chown', ':')
         command('bin/openssl', '''if [[ ${FAIL_STAGE:-} == random && "$*" == "rand -hex 32" ]]; then exit 1; fi; exec /usr/bin/openssl "$@"''')
         command('bin/install', '''args=(); while (( $# )); do case $1 in -o|-g) shift 2;; *) args+=("$1"); shift;; esac; done; /usr/bin/install "${args[@]}"''')
-        command('bin/stat', '''if [[ "$*" == *secret.key* ]]; then echo 32:600:vrx; else /usr/bin/stat "$@"; fi''')
+        command('bin/stat', '''if [[ "$*" == *secret.key* ]]; then echo 32:600:vrx; elif [[ "$*" == *bootstrap.env* || "$*" == *api.env* ]]; then echo 0:600; else /usr/bin/stat "$@"; fi''')
         command('bin/systemctl', 'echo "$*" >> "$FIXTURE_ROOT/service-commands"')
         command('usr/lib/vrx/tls-bootstrap.sh', '[[ ${FAIL_STAGE:-} != tls ]]')
         command('usr/lib/vrx/bin/vrx-startupgen', '[[ ${FAIL_STAGE:-} != startup ]]')
         command('nginx', '[[ ${FAIL_STAGE:-} != nginx ]]')
         script = (SOURCE / 'assets/firstboot.sh').read_text()
+        # Model root/unit identity in the redirected fixture so debhelper tests
+        # can run as an unprivileged builder. The shipped root guard is intact.
+        script = script.replace('[[ $EUID == 0 ]]', '[[ 1 == 1 ]]', 1)
         # A test-local copy redirects every absolute product path to a private
         # fixture; production script itself has no root bypass/environment hook.
         for prefix in ['/var/lib/vrx', '/usr/lib/vrx', '/run/lock', '/etc/vrx', '/etc/nginx']:

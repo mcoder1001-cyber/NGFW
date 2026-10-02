@@ -91,3 +91,17 @@ only seven ship:true local .debs consumed, no public FD.io fallback. Removed
 kea-ctrl-agent and added rsyslog-openssl; corrected obsolete strongSwan configure
 claims. Actual negative preflight fixture PASS and proves apt-get was never called.
 Runtime installation still NOT RUN.
+
+Fixture portability correction: redirected firstboot control-flow copy models root/unit identity and file metadata, so Debian Rules-Requires-Root:no tests run under nonroot builders without product root bypass. Production EUID/stat guards unchanged; six fixture tests PASS.
+
+Runtime installer fresh-review MAJOR fixed: serialized root-owned install lock,
+protected exact existing policy-rc.d backup (including symlink/mode/ownership), temporary
+no-start guard installed BEFORE every APT call, EXIT/error restoration, refusal to
+overwrite a concurrently changed policy. VPP is explicitly disabled after dependency
+installation until product units/firstboot are provisioned. Fixture APT actively attempts
+service activation and gets 101; missing/file/symlink originals restored on both success
+and APT failure (six variants). Two runtime profile tests PASS; no real APT/host service
+operation. An uncatchable kill may leave the no-start guard; original backup is retained
+for operator recovery. Remaining final source review/hosted full quick still required.
+
+Removed legacy package purges/autoremove and irqbalance stop from runtime profile: NetworkManager/cloud-init and host hardening are outside P10 and can disrupt preconfigured management. Runtime unit registration uses disable without --now; no stop/restart operation in installer. Two runtime fixture tests PASS again. Central manager-authored P10 deferred campaign added to the existing single DEFERRED-ACCEPTANCE.md, preserving real unbuilt/runtime security/license distinctions.

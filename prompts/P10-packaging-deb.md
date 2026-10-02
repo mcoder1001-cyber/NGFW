@@ -73,3 +73,15 @@ it to `/srv/vrx-artifacts/vpp/<version>/` (you decide the APT repository layout)
 ## Out of scope
 ISO installer (P14), A/B upgrade, cloud images, licensing, the nftables host-policy renderer (F-host-acl-nftables), hardening drop-ins
 (F-hardening-lite), the strongSwan package (P11), installing anything on this host.
+
+## Owner priority — 2026-10-02: portable installation for hardware testing
+
+The owner explicitly makes a complete portable appliance installation the first delivery priority. Coordinate P10, TD-19, P11, system identity, management UI and setup wizard; preserve dependency and review gates. This directive reprioritizes existing tasks and does not claim workers were resumed.
+
+Deliver a versioned transferable bundle containing product runtime .deb packages, all required third-party runtime .debs and their transitive dependencies, a local signed APT repository, an installer entry point, version/checksum/provenance manifest, configuration templates and Persian installation/testing instructions. Resolve the dependency closure for the supported clean Ubuntu 26.04 amd64 base; installation must not require a source checkout, compilation or developer tools on the target. Demonstrate installation from the copied bundle without external package downloads. Optional hardware-dependent components must be identified explicitly.
+
+Include VPP and approved runtime plugins, FRR plus frr-pythontools, the P11 strongSwan/VPP integration, Agent/API/web, Node.js, PostgreSQL, Valkey, nginx/TLS, Kea, Unbound, chrony, logging, monitoring and other runtime requirements in docs/09-os-packages.md as applicable. Do not label a full bundle complete while required runtime packages or integration are missing.
+
+Installer: validate OS/architecture and artifact integrity before changes; select management/WAN/LAN interfaces explicitly and preserve management access; initialize database/migrations, unique secrets and admin onboarding; install daemon configurations and systemd ordering; support repeat execution without overwriting existing data/secrets. Generate hardware-specific VPP configuration through the existing startup generator and apply gates.
+
+Acceptance: package inspection and dependency closure checks; clean target installation from the copied bundle; active services and HTTPS login; real two-NIC routing/NAT/ACL traffic; FRR configuration/reload and route propagation; reboot with restored configuration and dataplane; repeat-install behavior. Record exact commands, versions and actual results. Until physical hardware is available, distinguish bundle readiness and VM evidence from NOT RUN hardware acceptance. ISO remains a later deliverable.

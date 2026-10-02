@@ -176,3 +176,19 @@ under `/tmp` is rejected by the existing git-ancestor safety guard, and dependen
 fixtures then lack the generated key/license (366 API tests PASS). TMPDIR was set,
 but Turbo strict task environment did not pass it through. Do not disable the guard
 or claim a full local gate PASS; hosted unchanged quick remains the merge gate.
+
+Final local validation evidence (2026-10-02): full quick exited 1 at Turbo, 33/35
+tasks successful; Go gates were not reached. API: 366 passed / 4 licensing failures
+as described above. Web: 554 passed / 3 failures (collection missing Open red;
+interface edit 60s timeout; bridge view 45s timeout). Focused unchanged rerun of
+exactly those three suites with `vitest run ... --maxWorkers=1` PASSED all 24
+tests in 123.33s, with original timeout/assertions intact. This supports local
+contention as the cause, but does not turn the full quick result into a PASS.
+
+Independent R4 approved corrected product `d31af805`, with initial MAJOR and final
+bounded resolution retained alongside R8. Remote reviewed checkpoint is
+`952cd663bba89a4f8f37b28c2041e0bbde1c4fd8`, PR #63; remote archive
+`archive/packaging-resume-reviewed-20261002` preserves it. Hosted unchanged quick
+37029990072 was observed in progress. Manager requires a NEW single-commit
+integration branch on latest main after the dashboard merge; PR #63 remains a
+reviewed checkpoint and must not merge as-is. No host daemon/package changes.

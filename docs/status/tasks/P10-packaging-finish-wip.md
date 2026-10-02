@@ -44,3 +44,11 @@ Firstboot fresh-review MAJOR fixed: no marker-negative unit condition; optional 
 Firstboot JWT review fix: random generation separately checked before printf; existing api.env must contain exactly one 64-hex stable JWT key; the same persisted key is exported to bootstrap. Four fixture tests PASS including missing/empty/duplicate JWT and failed random command retaining bootstrap credentials with no completion marker.
 
 JWT re-review fix: independently count assignment lines before extracting key, because Bash strips trailing newlines and valid-plus-empty otherwise bypassed extraction regex. Tests now cover valid+empty and empty+valid orderings, both refuse without credential deletion. Four fixture tests PASS.
+
+Signed APT checkpoint: preflight verified VPP install-gate, four same-version product
+Debians, exact meta/VPP pin and seven ship:true runtimes; reprepro Release/InRelease
+signing with protected local GPG home, public trust anchor export and signature gate
+before readiness. Actual dpkg fixture wrong-VPP-pin rejection PASS before output/key
+creation. Actual isolated GPG preflight fails because gpg-agent cannot start/connect
+in this environment; signing test explicitly SKIPPED/NOT RUN, not PASS. Reprepro
+actual generation and release-builder acceptance NOT RUN. Bash syntax PASS.

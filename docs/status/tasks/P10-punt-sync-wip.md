@@ -33,3 +33,22 @@ transaction and bounded JSON readback tests, then transaction lifecycle seam.
 Scheduler integration must test delete/name change/recreate, failures and
 compensation, restart/resync, disabled agents, ownership and namespace handling.
 Real nft/VPP traffic and reboot NOT RUN in centralized deferred acceptance.
+
+## Renderer/projection milestone
+
+Pure renderer checkpoint 55917220 adds fixed command/atomic replacement and
+strict bounded ifname JSON readback, with three passing Go tests. No runtime
+registration, descriptor or live host calls exist yet. Corrected design cef45
+withdraws singleton integration: use per-host keyed admissions carrying pair
+identity, old dependencies retained for reverse deletion, and existing scheduler
+recreate-dependent journal. Generic engine remains unchanged.
+
+Pure typed admission projection now resolves explicit/default namespaces from
+an explicitly known caller-provided namespace state; unknown state fails closed.
+Only root pairs admitted, root host identity ambiguity rejected, permanent
+admission overlap rejected, management excluded and combined limit enforced.
+Four Go tests PASS including effective default-ns and foreign same-name cases.
+Next command: source ../toolchain/env.sh; cd apps/agent; go test
+./internal/renderers/basepolicy. Next code: precise per-element mutation and
+per-host descriptor with scheduler call-order/failure tests; product activation
+must supply actual default namespace and trusted configuration before use.

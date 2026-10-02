@@ -46,4 +46,4 @@ COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 VERSION=0.1.0~dev+$COMMIT
 sed -i "1s/(.*)/($VERSION)/" "$OUTPUT/debian/changelog"
 echo "Prepared source package: $OUTPUT"
-echo 'Firstboot/TLS/base policy are unfinished; this checkpoint is not a release.'
+echo 'Release gates remain: licensing, dynamic punt admission, privilege compatibility and appliance acceptance; this checkpoint is not a release.'

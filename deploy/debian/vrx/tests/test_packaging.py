@@ -1,15 +1,40 @@
 #!/usr/bin/env python3
 """Host-independent regression checks; never execute package installation."""
 import pathlib
+import importlib.util
+import os
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1]
 ROOT = SOURCE.parents[2]
+SPEC = importlib.util.spec_from_file_location('api_storage', SOURCE / 'assets/provision-api-storage.py')
+STORAGE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(STORAGE)
 
 
 class Packaging(unittest.TestCase):
+    def test_api_storage_reconfigure_preserves_existing_data(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            def configure():
+                STORAGE.provision(root / 'api', root / 'data', os.getuid(), os.getgid())
+            configure()
+            preserved = root / 'data/backups/operator-backup'
+            preserved.write_bytes(b'existing backup data')
+            preserved.chmod(0o600)
+            metadata = preserved.stat()
+            configure()
+            self.assertEqual(preserved.read_bytes(), b'existing backup data')
+            self.assertEqual(preserved.stat().st_mode, metadata.st_mode)
+            self.assertEqual(preserved.stat().st_uid, metadata.st_uid)
+            self.assertEqual(preserved.stat().st_gid, metadata.st_gid)
+            for name in ['', 'backups', 'updates', 'support']:
+                directory = root / 'data' / name
+                self.assertEqual(directory.stat().st_mode & 0o777, 0o750)
+
     def test_build_refuses_missing_verified_inputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             result = subprocess.run(
@@ -19,6 +44,67 @@ class Packaging(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('Missing verified VPP artifact version', result.stderr)
 
+    def test_api_storage_helper_is_shipped_with_direct_python_dependency(self):
+        postinst = (SOURCE / 'debian/vrx-api.postinst').read_text()
+        self.assertIn('/usr/bin/python3 /usr/lib/vrx/provision-api-storage.py', postinst)
+        self.assertNotIn('install -d', postinst)
+        self.assertIn('assets/provision-api-storage.py usr/lib/vrx/',
+                      (SOURCE / 'debian/vrx-api.install').read_text())
+        control = (SOURCE / 'debian/control').read_text().split('Package: vrx-api\n')[1].split('\n\n')[0]
+        self.assertIn('python3', control)
+
+    def test_api_storage_refuses_links_without_touching_targets(self):
+        for location in ('api', 'data', 'data/backups', 'data/updates', 'data/support'):
+            with self.subTest(location=location), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                target = root / 'external'
+                target.mkdir(mode=0o700)
+                (target / 'operator-data').write_bytes(b'keep')
+                before = target.stat()
+                link = root / location
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(target, target_is_directory=True)
+                with self.assertRaises(OSError):
+                    STORAGE.provision(root / 'api', root / 'data', os.getuid(), os.getgid())
+                after = target.stat()
+                self.assertEqual((after.st_mode, after.st_uid, after.st_gid),
+                                 (before.st_mode, before.st_uid, before.st_gid))
+                self.assertEqual((target / 'operator-data').read_bytes(), b'keep')
+                self.assertTrue(link.is_symlink())
+
+    def test_api_storage_child_swap_cannot_redirect_permissions(self):
+        for before_open in (True, False):
+            with self.subTest(before_open=before_open), tempfile.TemporaryDirectory() as temporary:
+                root = pathlib.Path(temporary)
+                data = root / 'data'
+                data.mkdir()
+                (data / 'backups').mkdir()
+                target = root / 'external'
+                target.mkdir(mode=0o700)
+                before = target.stat()
+                original_open = os.open
+                swapped = False
+                def racing_open(path, flags, *args, **kwargs):
+                    nonlocal swapped
+                    if path != 'backups' or swapped:
+                        return original_open(path, flags, *args, **kwargs)
+                    descriptor = None if before_open else original_open(path, flags, *args, **kwargs)
+                    (data / 'backups').rename(data / 'original-backups')
+                    (data / 'backups').symlink_to(target, target_is_directory=True)
+                    swapped = True
+                    return original_open(path, flags, *args, **kwargs) if before_open else descriptor
+                with mock.patch.object(STORAGE.os, 'open', side_effect=racing_open):
+                    if before_open:
+                        with self.assertRaises(OSError):
+                            STORAGE.provision(root / 'api', data, os.getuid(), os.getgid())
+                    else:
+                        STORAGE.provision(root / 'api', data, os.getuid(), os.getgid())
+                self.assertTrue(swapped)
+                after = target.stat()
+                self.assertEqual((after.st_mode, after.st_uid, after.st_gid),
+                                 (before.st_mode, before.st_uid, before.st_gid))
+                self.assertTrue((data / 'backups').is_symlink())
+
     def test_units_preserve_privilege_boundary(self):
         units = ROOT / 'deploy/systemd'
         if not units.is_dir():
@@ -26,6 +112,8 @@ class Packaging(unittest.TestCase):
         agent = (units / 'vrx-agent.service').read_text()
         api = (units / 'vrx-api.service').read_text()
         self.assertIn('Requires=vpp.service', agent)
+        self.assertIn('Environment=VRX_VPP_ID_RANGE=all', agent)
+        self.assertNotIn('VRX_VPP_TABLE_BASE=', agent)
         self.assertIn('CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK', agent)
         self.assertIn('AF_NETLINK', agent)
         self.assertIn('/etc/vrx/rsyslog-tls', agent)

@@ -1,0 +1,16 @@
+[Unit]
+Description=VRX initial appliance provisioning
+Requires=postgresql.service valkey-server.service nftables.service
+After=postgresql.service valkey-server.service nftables.service
+Before=vpp.service vrx-agent.service vrx-api.service nginx.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/vrx/bootstrap.env
+ExecStart=/usr/lib/vrx/firstboot.sh
+RemainAfterExit=yes
+TimeoutStartSec=300
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

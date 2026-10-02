@@ -21,3 +21,11 @@ Next command: implement Linux bound probe; then production lifecycle/RPC tests; 
 - Added protocol regressions using `net.Pipe` (HTTP no redirect, DNS transaction/response validation, ICMP echo and read cancellation), owner/filter errors, default-VRF/LCP fail closed, real Service Apply/removal watcher and interface replacement invalidation. These are unit/race tests using fake VPP/protocol peers, not laboratory evidence.
 - Recent evidence: focused monitor/protocol/RPC race suite x5 PASS (multiwan 1.906s, agent 1.212s); durable Apply/removal watcher race x2 PASS (5.079s); `go vet ./internal/multiwan ./internal/agent` PASS; full `golangci-lint run --timeout=5m` 0 issues. Final post-readiness-change checks rerun before publication.
 - Remaining: independently review this production monitor slice and hosted full quick CI; implement actual static IPv4/default-VRF owned route + generation-safe NAT cleanup in subsequent slice; dynamic gateways/VRF/ABF remain code follow-ups. All real VPP/network namespace/browser acceptance NOT RUN, deferred centrally.
+
+## Published recovery points and final checks
+
+- Remote first checkpoint: `161fb51d5bd0f3ad5743bca07f591e9c254d6c8f` (local `d19bdae5`).
+- Remote production checkpoint: `8a4672379f76261d0708add871ab4302937c9df4` (local `4c209508`), tree `69370d55f3a5ccf1eecf94d097ea796df729456a`.
+- Post-readiness-change focused race suite x3 PASS: multiwan 1.550s; agent 7.186s. `go vet ./internal/multiwan ./internal/agent` PASS. Full golangci-lint: 0 issues. Added draining-health regression: complete multiwan race suite x3 PASS (1.537s).
+- `tools/ci.sh check --base origin/main` PASS (0m02s): contracts unchanged, no forbidden patterns/secrets/trace, resource scheme verified. This is the check subcommand, not the complete quick gate.
+- Independent review requested from programme_manager; no approval or hosted full quick success claimed. No merge performed by this developer. Next manager command: archive checkpoint, arrange applicable R1/R2/R4/R5/R8 independent reviews, fix actual findings, squash against current main per D112, run unchanged hosted quick and merge only approved green scope.

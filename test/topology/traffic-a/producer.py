@@ -59,6 +59,7 @@ def produce(directory, slot, side, stage, run_id, timeout, *, executor=process_e
             raise Refused('capture directory must be owned0700')
         fd = os.open(filename, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
                      0o600, dir_fd=root)
+        os.fchmod(fd, 0o600)
         process = executor(tuple(argv), environment={'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
         # Executor contract is a genuine isolated subprocess, not supplied statuses.
         if os.getpgid(process.pid) != process.pid or process.pid == os.getpgrp():

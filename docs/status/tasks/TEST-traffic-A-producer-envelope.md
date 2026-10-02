@@ -29,3 +29,25 @@ zero-loss accounting and timestamps feed source_fixture metadata. Live fails
 before any host/file/process operation because the ownership contract is absent.
 No formal test/review executed pending manager's fresh arbitration/split ruling.
 Compile-only syntax check completed; substantive fixture tests still required.
+
+Fresh A3 ruling f7e7f04d executed: new isolated NGFW-traffic-a-producer worktree,
+branch task/TEST-traffic-A-producer-20261002, ancestry f5 WIP preserved. Approved
+correlation branch remains untouched. Formal round1 now covers only this phase.
+
+Implemented fixture producer returns FIXTURE_CAPTURED with all proof flags false.
+Its fixed piped argv now validates in evidence acquisition. Source stubs create
+correctly checksummed packet bytes at execution time and received/drop counters.
+Real success, loss/unknown/duplicate counts, stdout/stderr bounds, timeout with
+ready ignored-TERM descendant, directory symlink/uid/mode and existing output
+refusal are exercised without real ip/tcpdump. Earlier adversarial FIFO fixture
+had the wrong argv path index and refused before opening FIFO; corrected it to
+exercise NONBLOCK/fstat rejection as intended. Initial suite exposed the same
+piped-argv mismatch, now fixed. No assertion/gate was weakened.
+Live manager lease/namespace/device ownership and composed transaction/capture
+synchronization/config linkage still genuinely NOTIMPLEMENTED; live calls refuse
+before creating output or invoking an executor. No whole-task completion.
+
+Final actual strict suite:39PASS3.550s; zero failures/errors/skips/expected failures
+or unexpected success. Unchanged sourced tools/ci.sh check --base origin/main
+EXIT0 in2s; gitleaks122345bytes/no leaks; git diff --check clean. New producer
+source phase needs independent review/full unchanged hosted gate before merge.

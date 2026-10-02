@@ -139,8 +139,10 @@ def capture(path, metadata, slot, side, run_id, fixture=False, expected_stage=No
     expected_origin = 'source_fixture' if fixture else 'tcpdump_live'
     namespace = f'ns-{prefix}-{side}'; device = f'{prefix}{"l" if side == "lan" else "w"}1'
     expected_argv = ['ip', 'netns', 'exec', namespace, 'tcpdump', '-n', '-U', '-s', '65535', '-i', device, '-w', str(path), 'icmp', 'or', 'tcp']
+    pipe_argv = list(expected_argv); pipe_argv[12] = '-'
     if (metadata['origin'] != expected_origin or metadata['run_id'] != run_id
-            or metadata['namespace'] != namespace or metadata['device'] != device or metadata['argv'] != expected_argv):
+            or metadata['namespace'] != namespace or metadata['device'] != device
+            or metadata['argv'] not in (expected_argv, pipe_argv)):
         raise Refused('capture provenance/argv does not identify this run and namespace')
     stage_path = f'{expected_stage}/' if expected_stage is not None else ''
     if not fixture and str(path) != f'/run/vrx-test/{prefix}/traffic-a/{run_id}/{stage_path}{side}.pcap':

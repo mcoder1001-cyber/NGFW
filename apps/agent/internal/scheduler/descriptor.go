@@ -166,6 +166,12 @@ type Dependency struct {
 	Optional bool
 }
 
+// ErrUncertainOutcome marks a failed external mutation whose effect could not
+// be established or compensated. The transaction must report DEGRADED and
+// require resync; ordinary operation failure alone must not claim rollback.
+// Descriptors must preserve the original cause when wrapping this marker.
+var ErrUncertainOutcome = errors.New("external mutation outcome is uncertain")
+
 // ErrPartialCreate marks a Create error returned AFTER the Create changed VPP (see
 // Descriptor.Create): the Create is journaled — with the Meta returned alongside, nil included — and
 // the rollback Deletes the partial object. Wrap the error with PartialCreate; test with

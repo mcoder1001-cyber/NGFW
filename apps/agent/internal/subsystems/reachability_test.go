@@ -128,6 +128,7 @@ var rendererReach = map[string]reachEntry{
 	"rfkit":      {library, "RF-4 shared daemon-renderer kit"},
 	"rsyslog":    {wired, "F-unbound-chrony-syslog"},
 	"nftables":   {wired, "F-host-acl-nftables"},
+	"basepolicy": {wired, "P10"},
 	"pppoe":      {pending, "F-pppoe-client"},
 	"snmpd":      {wired, "F-snmp"},
 	"strongswan": {pending, "P11"},

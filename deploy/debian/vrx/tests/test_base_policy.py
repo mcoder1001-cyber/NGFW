@@ -15,6 +15,8 @@ class BasePolicy(unittest.TestCase):
     def test_no_dataplane_devices_has_empty_typed_punt_set(self):
         rendered = POLICY.render('ens192', '')
         self.assertIn('set punt_interfaces { type ifname;', rendered)
+        self.assertIn('set dynamic_punt_interfaces { type ifname; }', rendered)
+        self.assertIn('iifname @dynamic_punt_interfaces accept', rendered)
         self.assertNotIn('elements =', rendered)
         self.assertIn('policy drop', rendered)
         self.assertIn('iifname "ens192" tcp dport { 22, 443 } accept', rendered)
@@ -25,6 +27,7 @@ class BasePolicy(unittest.TestCase):
     def test_explicit_punts_are_sorted_and_invalid_inputs_refuse(self):
         rendered = POLICY.render('mgmt0', 'lan2,lan1')
         self.assertIn('elements = { "lan1", "lan2" }', rendered)
+        self.assertIn('set dynamic_punt_interfaces { type ifname; }', rendered)
         for management, punts in [('lo', ''), ('mgmt;accept', ''), ('mgmt0', 'mgmt0'),
                                   ('mgmt0', 'lan1,lan1'), ('mgmt0', 'vpp*'), ('mgmt0', 'lan\n0')]:
             with self.subTest(management=management, punts=punts):
@@ -36,6 +39,9 @@ class BasePolicy(unittest.TestCase):
         early = (units / 'vrx-firewall-bootstrap.service').read_text()
         firstboot = (units / 'vrx-firstboot.service').read_text()
         nft = (SOURCE / 'assets/nftables-vrx.conf').read_text()
+        agent = (units / 'vrx-agent.service').read_text()
+        self.assertIn('VRX_BASE_POLICY=1', agent)
+        self.assertIn('nftables.service', agent.split('[Service]')[0])
         self.assertIn('DefaultDependencies=no', early)
         self.assertIn('Before=nftables.service', early)
         self.assertNotIn('postgresql', early)

@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
+import { qk } from '../../../config/queries';
 import i18n from '../../../i18n';
 import { buildNav } from '../../../nav/nav';
 import { createTestRouter } from '../../../router';
@@ -10,10 +11,12 @@ import { installFakeApi, resetSession, signIn } from '../../../test-api';
 
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 
-function app(path: string) {
-  const queryClient = new QueryClient({
+function app(
+  path: string,
+  queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: 0 } },
-  });
+  }),
+) {
   return (
     <App
       router={createTestRouter([path], { devRoutes: false })}
@@ -233,7 +236,10 @@ describe('System → Management (F-management-ui)', () => {
     expect(screen.getAllByText('ارتقا به اتصال امن (STARTTLS)').length).toBeGreaterThan(0);
   });
 
-  it('Notifications: maps server pointers to the channel field', async () => {
+  it('Notifications: maps server pointers while another management consumer caches users', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 0 } },
+    });
     const api = installFakeApi('admin');
     await signIn();
     mock(api);
@@ -255,20 +261,29 @@ describe('System → Management (F-management-ui)', () => {
     api.on('GET /api/v1/state/management/notifications', () => ({
       body: { queued: 0, busy: false, error: null, configuredChannels: 1, deliveries: [] },
     }));
-    api.on('PATCH /api/v1/config/management', () => ({
-      status: 400,
-      body: {
-        title: 'Validation failed',
+    api.on('PATCH /api/v1/config/management', () => {
+      // The existing users consumer stores a users-only projection in the management cache.
+      // Its refresh must not replace the notification form's populated candidate.
+      void queryClient.fetchQuery({
+        queryKey: qk.candidate('management'),
+        queryFn: async () => [],
+        staleTime: 0,
+      });
+      return {
         status: 400,
-        errors: [
-          {
-            pointer: '/management/notifications/channels/0/name',
-            message: 'Channel name is reserved',
-          },
-        ],
-      },
-    }));
-    render(app('/system/management?tab=notifications'));
+        body: {
+          title: 'Validation failed',
+          status: 400,
+          errors: [
+            {
+              pointer: '/management/notifications/channels/0/name',
+              message: 'Channel name is reserved',
+            },
+          ],
+        },
+      };
+    });
+    render(app('/system/management?tab=notifications', queryClient));
     // Submit only after the channel targeted by the server-validation fixture is mounted.
     const name = await screen.findByRole('textbox', { name: /^name/i });
     expect(name).toHaveValue('sink');

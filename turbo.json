@@ -3,21 +3,40 @@
   "tasks": {
     "gen": {
       "cache": false,
-      "dependsOn": ["^gen"],
-      "outputs": ["dist/**", "gen/**", "src/generated/**"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        "gen/**",
+        "src/generated/**"
+      ]
     },
     "typecheck": {
-      "dependsOn": ["^build", "gen"]
+      "dependsOn": [
+        "^build",
+        "gen"
+      ]
     },
     "lint": {
-      "dependsOn": ["gen"]
+      "dependsOn": [
+        "gen"
+      ]
     },
     "test": {
-      "dependsOn": ["^build", "gen"]
+      "dependsOn": [
+        "^build",
+        "gen"
+      ]
     },
     "build": {
-      "dependsOn": ["^build", "gen"],
-      "outputs": ["dist/**"]
+      "dependsOn": [
+        "^build",
+        "gen"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
     },
     "dev": {
       "cache": false,

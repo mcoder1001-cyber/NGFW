@@ -14,7 +14,8 @@
     "openapi": "tsc -p tsconfig.build.json && node dist/openapi.js ../../packages/api-client/openapi.json",
     "test:e2e": "vitest run -c vitest.e2e.config.ts test/e2e",
     "test:integration": "vitest run -c vitest.e2e.config.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "openapi:built": "node dist/openapi.js ../../packages/api-client/openapi.json"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",

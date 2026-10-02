@@ -108,3 +108,14 @@ syntax and diff checks PASS. Independent review of the new script40 delta and
 hosted exact-head gate are still required. FRR/NodeSource key fingerprints remain
 unresolved; unpinned Python/pnpm package installation is an additional remaining
 reproducibility limitation, so no whole TD-19 DONE claim is made.
+
+### Combined checkpoint verification
+
+On source `f592f0c6`, all five independent fixture commands passed:
+preflight 6 (4.558s), transfer 3 (0.249s), provisioning order 3 (0.043s),
+build preflight/PATH 5 (0.031s), containerlab 5 (0.194s): **22 PASS, zero
+skipped**. `bash -n` for scripts 00/20/40 and tools/lab passed.
+Unchanged `tools/ci.sh check --base origin/main` EXIT 0 (contract guard,
+forbidden patterns, gitleaks ~58.89KB, packet-trace ban and resource slots).
+Full quick and hosted final-head checks were not executed by this worker.
+These checks do not establish runtime installation/appliance acceptance.

@@ -41,3 +41,7 @@ when prerequisites land: `git fetch origin main`, preserve new main paths and
 review overlap, publish one exact final current-main commit, run unchanged complete
 hosted quick and all applicable source gates, expected-head merge and verify main.
 No final PR now, no stale green or whole TEST-traffic-A DONE claim.
+
+## Actual-main final composition, 2026-10-02 21:33 UTC
+
+Foundation PR82, correlation PR83 and producer PR84 are merged. Actual main88a2cb19fb6b1c29663470202405ac5d190b8760 contains producer final1382bcc9 after unchanged full37065277931 explicitly PASSED21:27:42UTC and exact16/33/40 zero-non-success source fixtures with11/13/13 policies. Post-main16/33/40 fixtures37067129036/37067128954/37067128961SUCCESS; post-mainfull37067129055 remainsrunning, notPASS. Current merge preserves all new main metadata paths and exact approved source0cb plus approved47gatebf59. FlattenedREADME conflict resolved to approved transaction source; both main correlation/producer WIP appends retained verbatim. Narrow actual-main byte/mode/prefix/panel identity review pending, then immutableONEcommit actual88parent and unchangedfullquick plus every16/33/40/47 fixture/policy gate required. Cleanup-strength/ESRCH continuations excluded; inherited proof diagnosis remains open in THIShead, despite separate independently corrected continuation. Fixture callbacks have NOenforced deadline; live issuer/observer, lifecycle and seven whole-chain executors remain NOTIMPLEMENTED. No actual packet/whole-task proof or laboratoryPASS.

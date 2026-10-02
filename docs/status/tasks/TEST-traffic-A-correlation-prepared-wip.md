@@ -40,3 +40,7 @@ verify prepared base tree vs actual main; independently assess any new overlaps.
 Preserve checkpoint history before final one-commit current-main publication.
 Then run actual exact-head unchanged complete hosted quick and both source gates,
 merge with expected head only after approvals/green, verify main. No final PR now.
+
+## Actual-main final composition, 2026-10-02 20:40 UTC
+
+Foundation PR82 merged as497b724bb0197c5e5eb50d388e0e4bdaba2c5c8e after full37059936362 explicitly PASSED20:37:25 and strict16zero-skipPASS20:20:39. Post-main foundationfixture37061921336SUCCESS; post-main full37061921326 remains running, notPASS. Current composition533e7ae9944c79ed9d08465a962e01facdd79567 incorporates actual497main and has identical tree to independently approved prepared390ca06d; flattened add/add conflicts resolved to those approved bytes without product changes. Actual main497 entry preservation and applicable panel identities still need narrow independent final verification; final remote ONEcommit parentactual497, unchangedfullquick plus named16/11policy and whole33/13policy hosted gates remain NOTRUN until published. Producer/transaction/cleanup continuation source is excluded. Root issuer/lifecycle, seven composed executors and actual packet/lab acceptance remain NOTIMPLEMENTED or NOTRUN as documented; no wholeTESTA_DONE.

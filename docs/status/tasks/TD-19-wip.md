@@ -147,3 +147,19 @@ The first run exposed a fixture recorder argument-index typo; its field logging
 was corrected without changing production checks, then all six passed.
 Bash syntax/diff checks PASS. This newer `.deb` source requires fresh review;
 the preserved tar checkpoint approval is historical scope only.
+
+### Explicit strict fixture entry point
+
+Hyphenated test filenames are not discovered by ordinary unittest discovery.
+Use `python3 docs/status/tasks/TD-19-run-fixtures.py`, which imports a fixed
+explicit list of all five suites with safe module aliases and refuses any
+zero-test module, loading failure or empty total. Its result also rejects errors,
+failures, skips, expected failures and unexpected successes. Bytecode writes
+are disabled to keep the source checkout clean.
+
+Actual combined runner: **23 tests PASS in 4.562s**, failures/errors/skips/
+expected failures/unexpected successes all zero, EXIT 0. Separate real unittest
+status fixtures exercised pass/failure/error/skip/expected-failure/unexpected-
+success/zero results: only pass was accepted. No product suite was repeated
+for those guard checks. Bash syntax/diff checks PASS. The `.deb` approval report
+is preserved; this new runner requires its own independent recheck.

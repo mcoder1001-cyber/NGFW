@@ -35,3 +35,7 @@ unless composition/source changes justify them. Exact next manager step after
 prerequisite merges: `git fetch origin main`, compare prepared base to actual main,
 review new overlaps, publish one exact final commit and run unchanged hosted quick
 plus applicable16/33/40 gates, expected-head merge then verify main. No final PR yet.
+
+## Actual-main final composition, 2026-10-02 21:05 UTC
+
+Foundation PR82 and correlation PR83 have merged. Actual current maincb5cf4c1e21ffbc60a8129692c02437eebe715bb contains correlation finalbcc86b58; unchangedfull37062548864 explicitlyPASSED21:02:00UTC, original16/11policy37062548807 and whole33/13policy37062548800 zero-non-successPASS. Post-main16/33fixture37064467773/37064467812SUCCESS; post-mainfull37064467811 remainsrunning, notPASS. Compositionad0d372b178de70ec4f5e7ecbf4ec3c9a4204b06 incorporates actualcb5main: its entiretree differs from approvedpreparede156 only by the two new main correlation metadata paths, preserved verbatim. Flattenedsourceconflicts resolved to exactapprovede169 source; arbitration retains actualmainprefix plusproducerA3row. Narrow independent actualmain byte/mode verification remainspending, then immutableONEcommit parentactualcb5 and unchangedfullquick+original16/11, whole33/13, producer40/13 hosted gates are required. Transaction/cleanup continuations excluded; no root productioncaptureauthority/liveexecutor/packetacceptance or wholeTESTA_DONE.

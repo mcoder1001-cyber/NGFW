@@ -5,6 +5,28 @@ ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 preflight_artifacts() {
   local output=${1:?artifact directory required}
   output=$(realpath -e -- "$output")
+  # Reject indirect/nonregular inputs before the original verifier reads them.
+  python3 - "$output" <<'PYPATHS'
+import json, pathlib, re, stat, sys
+root = pathlib.Path(sys.argv[1])
+def regular(path):
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        raise SystemExit('artifact metadata/package missing')
+    if not stat.S_ISREG(mode):
+        raise SystemExit('nonregular or symlink artifact refused')
+for name in ['manifest.json', 'SHA256SUMS']:
+    regular(root / name)
+if (root / 'manifest.json').stat().st_size > 1024 * 1024:
+    raise SystemExit('artifact manifest too large')
+manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+for entry in manifest['packages']:
+    name = entry.get('file', '')
+    if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.+~-]*\.deb', name):
+        raise SystemExit('unsafe artifact filename refused')
+    regular(root / name)
+PYPATHS
   "$ROOT/deploy/vpp/verify.sh" --require-files "$output" --install-gate >&2
   # The original data parser owns the package set; never source VERSION.
   # shellcheck source=../deploy/vpp/lib.sh

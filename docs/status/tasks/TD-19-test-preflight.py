@@ -39,7 +39,10 @@ exit "${VERIFY_FAILURE:-0}"
         version = '26.06-release+vrx1'
         packages = [dict(package=name, file=f'{name}_{version}_amd64.deb', version=version,
                          architecture='amd64', ship=True, sha256='a' * 64) for name in SHIP]
-        packages.append(dict(package='vpp-dev', ship=False))
+        packages.append(dict(package='vpp-dev', ship=False, file='vpp-dev.deb'))
+        for package in packages:
+            (root / 'artifacts' / package['file']).write_bytes(b'nonrelease selection fixture')
+        (root / 'artifacts/SHA256SUMS').write_text('fixture metadata; original verifier is modeled')
         manifest = dict(schema='vrx.vpp-debs.manifest/v2', version=version, packages=packages)
         env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
                    VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'))
@@ -95,10 +98,27 @@ exit "${VERIFY_FAILURE:-0}"
 
     def test_original_verifier_rejects_missing_release_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
-            result = subprocess.run(['bash', str(ROOT / 'scripts/00-add-repos.sh'),
-                                     '--check-artifacts', directory], capture_output=True)
+            result = subprocess.run(['bash', str(ROOT / 'deploy/vpp/verify.sh'),
+                                     '--require-files', directory, '--install-gate'], capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn(b'cannot read', result.stderr)
+            self.assertIn(b'cannot read', result.stdout + result.stderr)
+
+    def test_foreign_symlink_inputs_refuse_before_original_verifier(self):
+        for name in ['manifest.json', 'SHA256SUMS', 'vpp_26.06-release+vrx1_amd64.deb']:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root, entry, manifest, env = self.fixture(directory)
+                (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))
+                target = root / 'artifacts' / name
+                foreign = root / ('foreign-' + name)
+                foreign.write_bytes(target.read_bytes())
+                target.unlink()
+                target.symlink_to(foreign)
+                result = subprocess.run(['bash', str(entry), '--check-artifacts', str(root / 'artifacts')],
+                                        env=env, capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(b'symlink artifact refused', result.stderr)
+                self.assertFalse((root / 'verify-log').exists())
+                self.assertFalse((root / 'host-log').exists())
 
 
 if __name__ == '__main__':

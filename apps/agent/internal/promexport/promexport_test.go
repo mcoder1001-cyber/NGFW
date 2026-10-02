@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 type fakeSource struct {
@@ -175,3 +176,40 @@ func httptestRecorder() *recorder {
 func (r *recorder) Header() http.Header         { return r.headers }
 func (r *recorder) Write(b []byte) (int, error) { return r.body.Write(b) }
 func (r *recorder) WriteHeader(c int)           { r.code = c }
+
+func TestListenerStopCancelsActiveRequestAfterGracePeriod(t *testing.T) {
+	entered := make(chan struct{})
+	cancelled := make(chan struct{})
+	finished := make(chan struct{})
+	var l Listener
+	h := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		close(entered)
+		<-r.Context().Done()
+		close(cancelled)
+		close(finished)
+	})
+	if err := l.Start("127.0.0.1:0", h); err != nil {
+		t.Fatal(err)
+	}
+	defer l.Stop()
+	response := make(chan error, 1)
+	go func() {
+		resp, err := http.Get("http://" + l.Addr() + "/metrics")
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+		response <- err
+	}()
+	waitSignal(t, entered)
+	l.Stop()
+	waitSignal(t, cancelled)
+	waitSignal(t, finished)
+	if l.Addr() != "" {
+		t.Fatal("stopped listener still bound")
+	}
+	select {
+	case <-response:
+	case <-time.After(5 * time.Second):
+		t.Fatal("request survived shutdown")
+	}
+}

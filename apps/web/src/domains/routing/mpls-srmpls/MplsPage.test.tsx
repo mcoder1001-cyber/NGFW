@@ -1,6 +1,7 @@
 import { QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
 import enMpls from '../../../locales/en/mpls-srmpls.json';
@@ -275,13 +276,18 @@ describe('MPLS screen', () => {
     await signIn();
     render(app('/routing/mpls?tab=interfaces'));
     await screen.findByRole('tab', { name: 'Interfaces & tables' }, { timeout: 15_000 });
-    await act(async () => {
-      await i18n.changeLanguage('fa');
-    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+    await user.click(await screen.findByLabelText('Language'));
+    await user.click(await screen.findByRole('option', { name: 'فارسی' }));
+    // The settings popover is modal: close it before querying page accessibility roles.
+    await user.keyboard('{Escape}');
     expect(
       await screen.findByRole('tab', { name: faMpls.tab.interfaces }, { timeout: 15_000 }),
     ).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: faMpls.tab.routes })).toBeInTheDocument();
+    expect(document.documentElement).toHaveAttribute('dir', 'rtl');
+    expect(document.documentElement).toHaveAttribute('lang', 'fa');
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toContain(
       faMpls.title,
     );

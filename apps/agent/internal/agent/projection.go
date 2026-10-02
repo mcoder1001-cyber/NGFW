@@ -391,6 +391,9 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (F-kea-dhcp-relay registers "dhcp" in desired/kea.go)
 	}
 	desired.HostServices(p, ds, in["services"], in["management"])
+	if in["management"] {
+		desired.Prometheus(p, ds)
+	} // F-dashboard-prom-alarms
 	if in["services"] {
 		desired.Lb(p, ds.GetServices(), subsystems.LbEnv()) // F-lb: services.lb (write-only, V20)
 	}
@@ -603,6 +606,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleQoS(ds, kvs)
 	}
 	desired.AssembleHostServices(ds, kvs, in["services"], in["management"])
+	if in["management"] {
+		desired.AssemblePrometheus(ds, kvs)
+	} // F-dashboard-prom-alarms
 	if in["system"] {
 		desired.AssembleSystemIdentity(ds, kvs) // F-system-identity (unanchored)
 	}

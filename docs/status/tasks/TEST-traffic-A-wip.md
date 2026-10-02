@@ -22,3 +22,24 @@ No Go module/rig/capture/SSH or lab traffic was executed. Capture/packet evidenc
 contract implementation is next; composed live transaction remains genuine
 NOTIMPLEMENTED source work. Next command: implement strict packet/evidence
 parser and failure-state fixtures, then obtain independent review.
+
+Evidence checkpoint adds bounded classic Ethernet pcap framing/IPv4 ICMP/TCP/
+VLAN parsing and fixed netns/device/argv capture metadata checks (run identity,
+private regular file, digest, interval and packet loss/accounting). Stage reports
+require both capture sides, exact expected outcomes, matching config readback and
+slot-scoped nonreset counters. Go JSON selected-suite checks reject zero-run,
+skips, foreign tests/packages and incomplete completion. All validation results
+explicitly keep packet_outcomes_proven=false and whole_chain_proven=false:
+packet correlation/composed executor remains unbuilt, not deferred-only.
+
+The independent subprocess finding was fixed: TERM followed by bounded leader
+wait and unconditional KILL of our own process group, even when the leader
+exited and a child ignored TERM. Real parent/child regression passes; cleanup
+covers success/failure/cancellation too. Lease fixtures map the fixed /run path
+and manager UID to real temporary file mode/type/content, with explicit foreign
+UID/symlink/expiry/boot/slot refusal. No host /run or traffic mutation occurs.
+Fifteen source fixtures PASS0.616s (before portable UID-model adjustment, rerun
+next); synthetic pcap fixtures remain source_fixture and cannot become live.
+Initial bytearray framing test exposed parser input normalization error; fixed,
+then framing/negative checks passed. Source README separates exact implemented
+mechanics from unfinished locked execution, capture lifecycle and packet outcomes.

@@ -71,6 +71,7 @@ def validate_environment(environment, slot):
 
 def validate_lease(path, slot, boot_id, now=None):
     """Read a manager-provisioned lease; never create or renew one ourselves."""
+    slot_values(slot)
     expected = f'/run/vrx-test/w{slot}/traffic-a-lease.json'
     if str(path) != expected:
         raise Refused('lease must be the fixed allocated-slot path')

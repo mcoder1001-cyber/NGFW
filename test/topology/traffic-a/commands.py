@@ -23,8 +23,9 @@ def run_command(argv, cwd, environment, output, timeout):
             status = process.wait(timeout=timeout)
             if status:
                 raise CommandFailed(f'command exited {status}; evidence retained in private log')
-        except BaseException:
-            # Includes timeout/cancellation; descendants are in our new group.
+        finally:
+            # Includes success, timeout and cancellation. Reap the leader and
+            # stop remaining descendants in the process group we created.
             try:
                 os.killpg(process.pid, signal.SIGTERM)
             except ProcessLookupError:
@@ -32,10 +33,11 @@ def run_command(argv, cwd, environment, output, timeout):
             try:
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                process.wait(timeout=2)
-            raise
+                pass
+            # The leader may have exited while a child ignored SIGTERM.
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=2)
     return {'exit_code': status, 'log': str(output)}

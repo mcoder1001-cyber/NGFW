@@ -46,8 +46,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for tool in python3 bash dpkg-deb sha256sum realpath; do
+          for tool in python3 bash dpkg-deb sha256sum realpath shellcheck; do
             command -v "$tool" >/dev/null
           done
+      - name: Check installer shell sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck --version
+          shellcheck -x -P SCRIPTDIR \
+            scripts/00-add-repos.sh \
+            scripts/20-install-build.sh \
+            scripts/40-install-lab.sh \
+            tools/lab
       - name: Run all fixed suites without skips
         run: python3 docs/status/tasks/TD-19-run-fixtures.py

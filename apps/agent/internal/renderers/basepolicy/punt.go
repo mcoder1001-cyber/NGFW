@@ -10,7 +10,6 @@ import (
 	"io"
 	"regexp"
 	"slices"
-	"strings"
 	"time"
 
 	"ngfw/agent/internal/renderers"
@@ -53,25 +52,6 @@ func Members(management string, permanent, dynamic []string) ([]string, error) {
 	return out, nil
 }
 func validName(name string) bool { return name != "lo" && interfaceName.MatchString(name) }
-
-// Transaction is an atomic replacement of one set, never a table/ruleset flush.
-func Transaction(management string, members []string) ([]byte, error) {
-	names, err := Members(management, nil, members)
-	if err != nil {
-		return nil, err
-	}
-	var b strings.Builder
-	b.WriteString("flush set inet vrx_base punt_interfaces\n")
-	if len(names) > 0 {
-		quoted := make([]string, len(names))
-		for i, name := range names {
-			data, _ := json.Marshal(name)
-			quoted[i] = string(data)
-		}
-		fmt.Fprintf(&b, "add element inet vrx_base punt_interfaces { %s }\n", strings.Join(quoted, ", "))
-	}
-	return []byte(b.String()), nil
-}
 
 // Parse reads only the exact simple ifname set; extensions with flags,
 // expressions, timeouts or unknown top-level objects fail closed.
@@ -157,32 +137,4 @@ func (r *Renderer) Retrieve(ctx context.Context) ([]string, error) {
 		return nil, errors.New("basepolicy: nft read failed")
 	}
 	return Parse(out.Stdout, r.management)
-}
-
-// Replace validates against the current kernel set, then atomically replaces
-// membership. A rejected nft transaction leaves previous membership intact.
-// Transaction/descriptor ownership must journal compensation after success.
-func (r *Renderer) Replace(ctx context.Context, members []string) error {
-	input, err := Transaction(r.management, members)
-	if err != nil {
-		return err
-	}
-	desired, _ := Members(r.management, nil, members)
-	actual, err := r.Retrieve(ctx)
-	if err != nil {
-		return err
-	}
-	if slices.Equal(actual, desired) {
-		return nil
-	}
-	for _, args := range [][]string{{"-c", "-f", "-"}, {"-f", "-"}} {
-		out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: args, Stdin: input, Timeout: 10 * time.Second})
-		if err != nil {
-			return err
-		}
-		if out.ExitCode != 0 {
-			return errors.New("basepolicy: nft transaction rejected")
-		}
-	}
-	return nil
 }

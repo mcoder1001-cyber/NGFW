@@ -1,11 +1,8 @@
 package basepolicy
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"ngfw/agent/internal/renderers"
 	"slices"
 	"strings"
 	"testing"
@@ -49,65 +46,5 @@ func TestParse(t *testing.T) {
 		if _, err := Parse(data, "mgmt0"); err == nil {
 			t.Fatalf("accepted %s", data)
 		}
-	}
-}
-
-type fakeNft struct {
-	state []string
-	calls []renderers.Command
-	fail  int
-}
-
-func (f *fakeNft) Run(_ context.Context, c renderers.Command) (renderers.Output, error) {
-	f.calls = append(f.calls, c)
-	if c.Path != NftBin {
-		return renderers.Output{}, errors.New("wrong executable")
-	}
-	if len(f.calls) == f.fail {
-		return renderers.Output{}, errors.New("injected nft failure")
-	}
-	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "vrx_base", "punt_interfaces"}) {
-		return renderers.Output{Stdout: kernel(f.state)}, nil
-	}
-	if !slices.Equal(c.Args, []string{"-c", "-f", "-"}) && !slices.Equal(c.Args, []string{"-f", "-"}) {
-		return renderers.Output{}, errors.New("unexpected argv")
-	}
-	if !strings.HasPrefix(string(c.Stdin), "flush set inet vrx_base punt_interfaces\n") {
-		return renderers.Output{}, errors.New("foreign mutation")
-	}
-	if slices.Equal(c.Args, []string{"-f", "-"}) {
-		f.state = nil
-		for _, token := range strings.Split(string(c.Stdin), `"`)[1:] {
-			if validName(token) {
-				f.state = append(f.state, token)
-			}
-		}
-	}
-	return renderers.Output{}, nil
-}
-func TestAtomicReplacementFailureAndNoOp(t *testing.T) {
-	for _, fail := range []int{1, 2, 3} {
-		f := &fakeNft{state: []string{"old"}, fail: fail}
-		r, _ := New(f, "mgmt0")
-		if err := r.Replace(context.Background(), []string{"new"}); err == nil {
-			t.Fatal("expected failure")
-		}
-		if !slices.Equal(f.state, []string{"old"}) {
-			t.Fatal("failed transaction mutated set")
-		}
-	}
-	f := &fakeNft{state: []string{"old"}}
-	r, _ := New(f, "mgmt0")
-	if err := r.Replace(context.Background(), []string{"old"}); err != nil || len(f.calls) != 1 {
-		t.Fatal("no-op wrote")
-	}
-	if err := r.Replace(context.Background(), []string{"new"}); err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(f.state, []string{"new"}) {
-		t.Fatal(f.state)
-	}
-	if err := r.Replace(context.Background(), nil); err != nil || len(f.state) != 0 {
-		t.Fatal("empty replacement failed")
 	}
 }

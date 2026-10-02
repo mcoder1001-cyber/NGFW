@@ -26,21 +26,21 @@ Updated 2026-10-02 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 ## Running / review
 
-- F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, unassigned)
-- F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, unassigned)
-- F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (running, identity_build)
-- F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (running, cloud session modest-keller)
-- F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (running, cloud session modest-keller)
-- P11 — Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards (running, Codex manager delegated worker)
-- F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (running, cloud session modest-keller)
-- F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (running, cloud session modest-keller)
-- F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (running, cloud session modest-keller)
-- F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (running, cloud session modest-keller)
-- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
-- F-notifications — Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state (running, notifications_build)
-- F-setup-wizard — First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit (running, setup_build)
-- F-dashboard-prom-alarms-host — Dashboard/Prometheus/alarms on the lab VPP: real StatsSource + collector/listener wiring, rig acceptance (running, PR58 pending hosted gate)
-- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, dashboard_finish)
+- F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, awaiting resume (no live worker verified this session))
+- F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, awaiting resume (no live worker verified this session))
+- F-system-identity — Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen (running, current recovery worker: identity)
+- F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (running, awaiting resume (no live worker verified this session))
+- F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (running, awaiting resume (no live worker verified this session))
+- P11 — Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards (running, awaiting resume (no live worker verified this session))
+- F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (running, awaiting resume (no live worker verified this session))
+- F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (running, awaiting resume (no live worker verified this session))
+- F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (running, awaiting resume (no live worker verified this session))
+- F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (running, awaiting resume (no live worker verified this session))
+- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, current recovery worker: packaging)
+- F-notifications — Notifications: email (SMTP) and webhook for alarms, commits and link/VPN state (running, current recovery worker: notifications)
+- F-setup-wizard — First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit (running, awaiting resume (no live worker verified this session))
+- F-dashboard-prom-alarms-host — Dashboard/Prometheus/alarms on the lab VPP: real StatsSource + collector/listener wiring, rig acceptance (running, current recovery worker: dashboard)
+- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, awaiting resume (no live worker verified this session))
 
 ## Parked
 

@@ -1114,7 +1114,7 @@ tasks:
   files_owned: '- apps/agent/internal/descriptors/dslite/** and docs/agent/descriptors/dslite.md (new)'
   branch: ''
   worktree: ''
-  owner: ''
+  owner: awaiting resume (no live worker verified this session)
   started: ''
   finished: ''
   notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md | cloud 2026-09-27: agent layer merged (review
@@ -1143,7 +1143,7 @@ tasks:
   files_owned: '- apps/agent/internal/descriptors/nat46/** and docs/agent/descriptors/nat46.md (new, if a descriptor family is needed)'
   branch: ''
   worktree: ''
-  owner: ''
+  owner: awaiting resume (no live worker verified this session)
   started: ''
   finished: ''
   notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry).
@@ -1169,13 +1169,14 @@ tasks:
   scope: apply the `system` schema domain on the box (renderer) and build its screen
   files_owned: apps/agent/internal/renderers/sysident/** docs/agent/renderers/sysident.md apps/agent/internal/desired/system*.go apps/agent/internal/subsystems/system*.go apps/web/src/domains/system/identity/**
     apps/web/src/locales/*/system-identity.json docs/user/system/identity.md test/topology/system-identity/**
-  branch: claude/modest-keller-upaw4m
-  worktree: ''
-  owner: identity_build
+  branch: codex/identity-resume-20261002
+  worktree: /workspace/scratch/de92de7d9874/NGFW-identity
+  owner: 'current recovery worker: identity'
   started: '2026-09-27'
-  finished: '2026-09-27'
+  finished: ''
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-02: recovered into isolated local branch; direct owner publication approval received
+    after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -1196,7 +1197,7 @@ tasks:
   files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
@@ -1223,7 +1224,7 @@ tasks:
   files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
@@ -1280,7 +1281,7 @@ tasks:
     test/topology/ipsec/** docs/status/tasks/P11* — plus apps/agent/internal/secrets/** ONLY if the manager assigns the API→agent secret channel to P11 (see coordination)'
   branch: task/P11-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-P11
-  owner: Codex manager delegated worker
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
@@ -1359,7 +1360,7 @@ tasks:
   files_owned: '- gap-only (DF-6 built them): apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/**, docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining code in review-lab-audit.md; lab alone
@@ -1445,7 +1446,7 @@ tasks:
   files_owned: '- apps/agent/internal/renderers/frr/ospf/** (both sections `ospf` and `ospf6`: orders 440/450 per wave-BC-numbers.md), docs/agent/renderers/frr-ospf.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: ''
   notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
@@ -1469,7 +1470,7 @@ tasks:
   files_owned: '- apps/agent/internal/renderers/frr/{isis,rip}/** (sections `isis` 470, `rip` 420, `ripng` 430 — RIPng lives in the rip package), docs/agent/renderers/frr-{isis,rip}.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: ''
   notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
@@ -1899,7 +1900,7 @@ tasks:
     docs/agent/renderers/keepalived.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining
@@ -2078,14 +2079,15 @@ tasks:
     signed APT repo / vrx-meta (5.5a); vrx-power@ hook unit
   files_owned: '- deploy/debian/vrx/** (the source package: control, rules, *.install, postinst/prerm/postrm, units wiring), deploy/debian/README.md, scripts/10-install-runtime.sh, docs/09-os-packages.md
     (FD.io row and table rows; review 5.5a)'
-  branch: ''
-  worktree: ''
-  owner: ''
+  branch: codex/packaging-resume-20261002
+  worktree: /workspace/scratch/de92de7d9874/NGFW-packaging
+  owner: 'current recovery worker: packaging'
   started: ''
   finished: ''
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
     security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
-    DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114)'
+    DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114) | 2026-10-02: recovered into isolated local branch; direct owner publication
+    approval received after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md
@@ -3675,7 +3677,7 @@ tasks:
   finished: '2026-09-27'
   notes: promoted from backlog BL-NET-03 by the product owner (2026-09-26)
 - id: F-notifications
-  title: 'Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state'
+  title: 'Notifications: email (SMTP) and webhook for alarms, commits and link/VPN state'
   prompt: prompts/features/F-notifications.md
   template: prompts/FEATURE-TEMPLATE.md
   stage: S4
@@ -3689,13 +3691,14 @@ tasks:
   wbs: []
   scope: see prompt
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
-  branch: task/F-notifications-codex
-  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-notifications
-  owner: notifications_build
+  branch: codex/notifications-resume-20261002
+  worktree: /workspace/scratch/de92de7d9874/NGFW-notifications
+  owner: 'current recovery worker: notifications'
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build | 2026-10-02: recovered into isolated local branch; direct owner publication approval received after
+    automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3756,7 +3759,7 @@ tasks:
   files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
   branch: task/F-setup-wizard-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-setup
-  owner: setup_build
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
@@ -3910,9 +3913,9 @@ tasks:
   notes: follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here
 - template: ''
   parked_on: ''
-  branch: task/F-dashboard-prom-alarms-host-codex
-  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-dashboard
-  owner: PR58 pending hosted gate
+  branch: codex/dashboard-resume-20261002
+  worktree: /workspace/scratch/de92de7d9874/ngfw-dashboard
+  owner: 'current recovery worker: dashboard'
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running
@@ -3930,12 +3933,13 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-02:
+    recovered into isolated local branch; direct owner publication approval received after automatic review blocker; publication/testing/review in progress; no new merge claimed. See docs/status/2026-10-02-development-resume.md.'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
-  owner: dashboard_finish
+  owner: awaiting resume (no live worker verified this session)
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running

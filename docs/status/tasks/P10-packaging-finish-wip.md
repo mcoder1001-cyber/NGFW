@@ -120,3 +120,96 @@ VPP/Valkey and product binaries; no ordering cycle emitted, but complete target 
 acceptance is NOT RUN. Fresh independent R4/R8 delta review still required. Global
 sysident atomic /etc parent write gap is recorded in parent-owned privilege PENDING;
 CAP_CHOWN alone cannot fix it and /etc is not made broadly writable.
+
+## Recovery checkpoint, 2026-10-02
+
+Recovered published `aa76368a` on branch `codex/packaging-resume-20261002` in
+`NGFW-packaging`; `git rebase origin/main` confirms current base `53a43ce5` is
+already included. Original remote history and independent rulings are preserved.
+New owned delta: API postinst provisions `/data/{backups,updates,support}` at
+0750 `vrx:vrx`, documents ownership, and updates obsolete preparation warning.
+A redirected-script test runs configure twice using only temporary paths and the
+builder UID/GID; existing backup bytes and metadata are preserved. Host account
+commands are removed from that fixture copy; production account setup unchanged.
+
+Actual checks: `python3 -m unittest discover -s deploy/debian/vrx/tests` ran 24
+checks: 23 PASS, 1 signing SKIP because isolated gpg-agent cannot run. Packaging
+suite after fixture hardening: 9 tests PASS. `bash -n prepare.sh`, `git diff --check`
+PASS. `tools/ci.sh check --base origin/main` PASS with explicit missing-gitleaks
+warning; this is not full CI GATE PASSED. Debian `dh` absent; no package installation
+or host service operation was attempted. No actual .deb build/installed boot PASS.
+
+Full unchanged hosted quick and independent R4/R8 review of recovered base-unit
+hardening plus this storage delta remain required. Dynamic punt admission, missing
+license/copyright, CAP_CHOWN/daemon ownership and atomic `/etc` writes remain real
+unresolved product constraints, not lab waivers. Actual signing and clean appliance
+acceptance remain NOT RUN. Publication paused by manager pending central destination
+authorization review; no outbound push attempted by this worker.
+
+Next command: `python3 -m unittest discover -s deploy/debian/vrx/tests` (after any
+review corrections); manager publishes this checkpoint and schedules exact-head CI.
+
+Follow-up validation on unchanged product checkpoint `db721ff49a747f8e7453ad1b4f4e11d085237d95`:
+automatic review allowed local escalated fixture execution. All 24 packaging tests
+PASS (23.814s), including actual isolated GPG generation/signature verification.
+The signing fixture still mocks reprepro and VPP verification; this proves signing
+control flow and key isolation, not actual signed product repository publication.
+No host package/service operation occurred. Unchanged full quick is running with
+private writable caches at `/tmp/p10-ci`; install, generation/output gate and
+real gitleaks PASS (132.10 KB scanned, no leaks). Turbo and Go results pending.
+
+Publication after explicit user approval succeeded through the connector:
+`codex/packaging-resume-20261002` remote `ec5d0ae0ca1fbc96e439ec473fd07b08a7d3533d`,
+draft PR #63. Its tree equals local `ee8c7ef9` (4c2ce4bc...), and its parent is the
+original `aa76368a`; no historical checkpoint was rewritten. Hosted quick run
+37029179165 was observed in progress, not PASS.
+
+Independent R8 approves the bounded storage/base-unit-hardening checkpoint (report
+preserved). R4 found a real fresh-appliance startup blocker: missing explicit VPP
+ID range. Local `d31af805` adds the already-specified dedicated-appliance
+`VRX_VPP_ID_RANGE=all` environment, static regression, and shared-host prohibition.
+Nine packaging tests PASS; independent R4 verification pending. The pending
+CAP_CHOWN and strict `/etc` write architecture remain untouched.
+
+Local full quick has four API licensing test failures: temporary signing output
+under `/tmp` is rejected by the existing git-ancestor safety guard, and dependent
+fixtures then lack the generated key/license (366 API tests PASS). TMPDIR was set,
+but Turbo strict task environment did not pass it through. Do not disable the guard
+or claim a full local gate PASS; hosted unchanged quick remains the merge gate.
+
+Final local validation evidence (2026-10-02): full quick exited 1 at Turbo, 33/35
+tasks successful; Go gates were not reached. API: 366 passed / 4 licensing failures
+as described above. Web: 554 passed / 3 failures (collection missing Open red;
+interface edit 60s timeout; bridge view 45s timeout). Focused unchanged rerun of
+exactly those three suites with `vitest run ... --maxWorkers=1` PASSED all 24
+tests in 123.33s, with original timeout/assertions intact. This supports local
+contention as the cause, but does not turn the full quick result into a PASS.
+
+Independent R4 approved corrected product `d31af805`, with initial MAJOR and final
+bounded resolution retained alongside R8. Remote reviewed checkpoint is
+`952cd663bba89a4f8f37b28c2041e0bbde1c4fd8`, PR #63; remote archive
+`archive/packaging-resume-reviewed-20261002` preserves it. Hosted unchanged quick
+37029990072 was observed in progress. Manager requires a NEW single-commit
+integration branch on latest main after the dashboard merge; PR #63 remains a
+reviewed checkpoint and must not merge as-is. No host daemon/package changes.
+
+R2 found a BLOCKER in the resumed storage postinst: pathname-based root `install -d`
+followed an API-owned storage child symlink and could change external directory
+ownership. This is a real security defect, not an acceptance waiver. Replaced all
+API storage directory provisioning with a shipped Python helper (direct vrx-api
+python3 dependency). Every component is opened relative to a directory descriptor
+with O_DIRECTORY|O_NOFOLLOW; leaf ownership/mode changes use fchown/fchmod, never a
+re-resolved pathname. Existing ancestors and operator contents remain unchanged.
+Tests cover every storage leaf symlink and deterministic swaps both before and after
+child open. Twelve packaging checks PASS, including preserved backup bytes/metadata.
+Independent R2 recheck requested before integration; previous delta approval alone
+is insufficient. Current main31355cef already contains the original foundation;
+next integration contains only resumed deltas and review evidence above that base.
+
+Secure storage correction rebased as resumed deltas onto foundation main
+`31355cef80b4e8ba3aaa6f95a47c7e7afc055fb6` on local
+`codex/packaging-integration-20261002`. Main's newer runtime-installer corrections
+and reports are preserved. All 27 packaging fixtures PASS in 7.306s on this tree;
+`tools/ci.sh check --base origin/main` with actual gitleaks PASS. No broad local
+quick rerun is claimed; unchanged hosted quick will gate the reviewed one-commit
+integration checkpoint. No security/privilege pending decision was broadened.

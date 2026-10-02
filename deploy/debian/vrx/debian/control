@@ -15,7 +15,7 @@ Description: VRX privileged declarative dataplane agent
 
 Package: vrx-api
 Architecture: amd64
-Depends: ${misc:Depends}, nodejs (>= 22), nodejs (<< 23), adduser
+Depends: ${misc:Depends}, nodejs (>= 22), nodejs (<< 23), adduser, python3
 Description: VRX unprivileged management API
  Provides transactional configuration and authenticated management endpoints.
 

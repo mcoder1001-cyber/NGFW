@@ -180,3 +180,9 @@ Items above that are not ticked keep their text; this table gives each one an ow
   neighbour poller are F-mpls-ldp-host. The contract, semantics, the MplsLdpState RPC + state routes, and the LDP tab
   are done and tested (the fake agent serves state from the applied config). Ingress label imposition and LDP IPv6 are
   out of scope; table 0 needs VRX_DF7_GLOBALS.
+
+## F-notifications bounded increment follow-ups (2026-10-02)
+
+| Recorded | Owner | Code/test debt and completion evidence | Due | Status |
+|---|---|---|---|---|
+| 2026-10-02 | F-notifications developer; development manager schedules and verifies | Implement nondefault management-VRF delivery binding and the IPsec notification adapter (strongSwan producer exists). Add successful real local SMTP/HTTPS receiver tests and browser acceptance; these are host-independent work, not lab deferrals. Queue/history are process-local and are lost on API restart; durable delivery storage is not implemented, and this limitation must remain disclosed. Record exact commands/results in the [task WIP](status/tasks/F-notifications-wip.md); real routing/database restart/commit acceptance stays NOT RUN in the [central campaign](status/DEFERRED-ACCEPTANCE.md). D-175 records the bounded increment and alternatives. | Before full F-notifications acceptance | Open; bounded increment only, not feature completion |

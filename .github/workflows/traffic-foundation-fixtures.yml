@@ -1,0 +1,36 @@
+name: Traffic foundation source fixtures
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/traffic-foundation-fixtures.yml'
+      - '.github/scripts/traffic-foundation-fixtures.py'
+      - 'test/topology/traffic-a/**'
+      - 'docs/status/tasks/TEST-traffic-A-*.md'
+  push:
+    paths:
+      - '.github/workflows/traffic-foundation-fixtures.yml'
+      - '.github/scripts/traffic-foundation-fixtures.py'
+      - 'test/topology/traffic-a/**'
+      - 'docs/status/tasks/TEST-traffic-A-*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: traffic-foundation-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    name: Inactive traffic foundation source fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Run exactly sixteen source cases without skips
+        run: python3 .github/scripts/traffic-foundation-fixtures.py

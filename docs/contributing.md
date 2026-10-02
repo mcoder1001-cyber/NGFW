@@ -83,6 +83,8 @@ the gate: no worker uses it. Only the manager runs `full`, on `main`, at most on
 
 ## Generated code is never hand-edited
 
+Run generation through the workspace scheduler: `pnpm gen`, or from the repository root `pnpm exec turbo run gen --filter=@ngfw/api-client` for only the client and its prerequisites. Generator package scripts are scheduled tasks; invoking the client generator directly requires its API and dependency builds to exist. Turbo orders generation after dependency builds so emitted declarations have one writer before consumers run. The API `openapi` command remains a standalone compile-and-export command; scheduled client generation uses `openapi:built` after the API build.
+
 `packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist` and `packages/api-client/src/generated` are outputs of `pnpm gen`
 (`buf generate` → Go/TS stubs; Zod → JSON Schema/OpenAPI components; NestJS → OpenAPI → `openapi-typescript`). They are committed
 so that a checkout builds without generators, and the gate regenerates them and fails if the committed files differ. Change the

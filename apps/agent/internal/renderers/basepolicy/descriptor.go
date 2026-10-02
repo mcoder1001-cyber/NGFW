@@ -34,6 +34,7 @@ func NewDescriptor(renderer *Renderer, config Config, pairs OwnedPairs) (*Descri
 		return nil, errors.New("basepolicy: management identity mismatch")
 	}
 	config.Permanent = slices.Clone(config.Permanent)
+	renderer.permanent = slices.Clone(config.Permanent)
 	return &Descriptor{renderer: renderer, config: config, pairs: pairs}, nil
 }
 func (*Descriptor) Name() string        { return DescriptorName }
@@ -48,7 +49,7 @@ func (*Descriptor) Dependencies(value proto.Message) []scheduler.Dependency {
 	if dfkit.Decode(value, &a) != nil || a.Pair == "" {
 		return nil
 	}
-	return []scheduler.Dependency{{Key: scheduler.Key(a.Pair)}}
+	return []scheduler.Dependency{{Key: scheduler.Key(a.Pair)}, {Key: lcp.KeyDefaultNetns, Optional: true}}
 }
 func (d *Descriptor) spec(value proto.Message, requiredPair bool) (Admission, error) {
 	var a Admission
@@ -126,7 +127,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	var result []scheduler.KV
 	for _, name := range names {
 		if slices.Contains(d.config.Permanent, name) {
-			continue
+			return nil, errors.New("basepolicy: dynamic set overlaps permanent admission")
 		}
 		a := Admission{Host: name, Pair: pairs[name]}
 		// Unmatched members are orphan admissions: retain them for fail-closed

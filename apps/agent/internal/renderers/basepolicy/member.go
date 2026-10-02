@@ -17,7 +17,7 @@ func elementTransaction(host string, add bool) []byte {
 		operation = "add"
 	}
 	quoted, _ := json.Marshal(host)
-	return []byte(operation + " element inet vrx_base punt_interfaces { " + string(quoted) + " }\n")
+	return []byte(operation + " element inet vrx_base dynamic_punt_interfaces { " + string(quoted) + " }\n")
 }
 func (r *Renderer) mutate(ctx context.Context, input []byte) error {
 	out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: []string{"-f", "-"}, Stdin: input, Timeout: 10 * time.Second})
@@ -52,7 +52,7 @@ func (r *Renderer) Element(ctx context.Context, host string, add bool) error {
 	} else {
 		after = slices.DeleteFunc(after, func(name string) bool { return name == host })
 	}
-	if _, err := Members(r.management, nil, after); err != nil {
+	if _, err := Members(r.management, r.permanent, after); err != nil {
 		return err
 	}
 	failure := r.mutate(ctx, elementTransaction(host, add))

@@ -26,6 +26,7 @@ add table inet vrx_base
 delete table inet vrx_base
 table inet vrx_base {{
     set punt_interfaces {{ type ifname;{elements} }}
+    set dynamic_punt_interfaces {{ type ifname; }}
     chain input {{
         type filter hook input priority -10; policy drop;
         iifname "lo" accept
@@ -34,6 +35,7 @@ table inet vrx_base {{
         iifname {json.dumps(management)} tcp dport {{ 22, 443 }} accept
         iifname {json.dumps(management)} meta l4proto ipv6-icmp icmpv6 type {{ nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert }} accept
         iifname @punt_interfaces accept
+        iifname @dynamic_punt_interfaces accept
     }}
 }}
 '''

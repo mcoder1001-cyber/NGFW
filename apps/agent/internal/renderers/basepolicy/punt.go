@@ -96,7 +96,7 @@ func Parse(data []byte, management string) ([]string, error) {
 		if err := sd.Decode(&set); err != nil {
 			return nil, fmt.Errorf("basepolicy: invalid set: %w", err)
 		}
-		if set.Family != "inet" || set.Table != "vrx_base" || set.Name != "punt_interfaces" || set.Type != "ifname" {
+		if set.Family != "inet" || set.Table != "vrx_base" || set.Name != "dynamic_punt_interfaces" || set.Type != "ifname" {
 			return nil, errors.New("basepolicy: wrong set identity/type")
 		}
 		var err error
@@ -117,6 +117,7 @@ func Parse(data []byte, management string) ([]string, error) {
 type Renderer struct {
 	runner     renderers.Runner
 	management string
+	permanent  []string
 }
 
 func New(runner renderers.Runner, management string) (*Renderer, error) {
@@ -129,7 +130,7 @@ func New(runner renderers.Runner, management string) (*Renderer, error) {
 	return &Renderer{runner: runner, management: management}, nil
 }
 func (r *Renderer) Retrieve(ctx context.Context) ([]string, error) {
-	out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: []string{"-j", "list", "set", "inet", "vrx_base", "punt_interfaces"}, Timeout: 10 * time.Second})
+	out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: []string{"-j", "list", "set", "inet", "vrx_base", "dynamic_punt_interfaces"}, Timeout: 10 * time.Second})
 	if err != nil {
 		return nil, err
 	}

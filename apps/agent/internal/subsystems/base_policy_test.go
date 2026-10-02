@@ -58,3 +58,22 @@ func TestBasePolicyActivationRequiresProductGlobalsOwner(t *testing.T) {
 		}
 	}
 }
+
+func TestBasePolicyProjectionUsesFinalDesiredNamespace(t *testing.T) {
+	owner := "punt-final-namespace-test"
+	defer basePolicyRuntimes.Delete(owner)
+	calls := 0
+	basePolicyRuntimes.Store(owner, &basePolicyRuntime{config: basepolicy.Config{Management: "mgmt0"}, namespace: func(context.Context) (string, error) { calls++; return "", nil }})
+	pair := lcp.ItfPair{Interface: "loop1", HostIfName: "tap1", HostIfType: "tap"}
+	kvs := []scheduler.KV{{Key: scheduler.Join(lcp.NameItfPair, pair.Interface), Value: pair.Proto()}, {Key: lcp.KeyDefaultNetns, Value: (lcp.DefaultNetns{Netns: "other"}).Proto()}}
+	sink := &puntSink{}
+	ProjectBasePolicy(context.Background(), owner, sink, kvs)
+	if len(sink.values) != 0 || sink.failures != 0 || calls != 0 {
+		t.Fatalf("old root namespace used %+v calls%d", sink, calls)
+	}
+	kvs[1].Value = (lcp.DefaultNetns{Netns: ""}).Proto()
+	ProjectBasePolicy(context.Background(), owner, sink, kvs)
+	if len(sink.values) != 1 || calls != 0 {
+		t.Fatal("final root namespace not admitted")
+	}
+}

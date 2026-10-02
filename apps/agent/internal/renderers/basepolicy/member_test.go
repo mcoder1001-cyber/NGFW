@@ -3,6 +3,8 @@ package basepolicy
 import (
 	"context"
 	"errors"
+	"fmt"
+	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/scheduler"
 	"slices"
@@ -24,7 +26,7 @@ func (f *memberNft) Run(ctx context.Context, c renderers.Command) (renderers.Out
 	if len(f.calls) > 2 && ctx.Err() != nil {
 		f.recoveryCanceled = true
 	}
-	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "vrx_base", "punt_interfaces"}) {
+	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "vrx_base", "dynamic_punt_interfaces"}) {
 		f.reads++
 		if f.mutations > 0 && f.reads == 2 && (f.mode == "compensate" || f.mode == "unknown" || f.mode == "unconfirmed") {
 			return renderers.Output{}, errors.New("EIO readback")
@@ -124,5 +126,20 @@ func TestElementCompensationUsesIndependentBoundedContext(t *testing.T) {
 	}
 	if f.recoveryCanceled || !slices.Contains(f.state, "tap1") {
 		t.Fatal("compensation used canceled context or failed restore")
+	}
+}
+
+func TestElementRuntimeCapIncludesPermanentEntries(t *testing.T) {
+	permanent := make([]string, 64)
+	for i := range permanent {
+		permanent[i] = fmt.Sprintf("static%d", i)
+	}
+	f := &memberNft{mode: "success"}
+	r, _ := New(f, "mgmt0")
+	if _, err := NewDescriptor(r, Config{Management: "mgmt0", Permanent: permanent}, func(context.Context) ([]lcp.ItfPair, error) { return nil, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Element(context.Background(), "dynamic1", true); err == nil || f.mutations != 0 {
+		t.Fatal("combined runtime cap not enforced")
 	}
 }

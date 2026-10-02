@@ -101,7 +101,24 @@ func ProjectBasePolicy(ctx context.Context, owner string, sink desired.Sink, kvs
 		}
 		pairs = append(pairs, pair)
 	}
-	namespace, err := runtime.namespace(ctx)
+	var namespace string
+	var err error
+	finalNamespace := false
+	for _, kv := range kvs {
+		if kv.Key == lcp.KeyDefaultNetns {
+			var setting lcp.DefaultNetns
+			err = dfkit.Decode(kv.Value, &setting)
+			if err == nil {
+				err = setting.Validate()
+			}
+			namespace = setting.Netns
+			finalNamespace = true
+			break
+		}
+	}
+	if !finalNamespace {
+		namespace, err = runtime.namespace(ctx)
+	}
 	if err != nil {
 		sink.Errorf("/interfaces", "basepolicy.namespace", "cannot establish effective LCP namespace: %v", err)
 		return

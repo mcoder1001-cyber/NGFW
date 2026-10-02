@@ -85,3 +85,20 @@ subsystems tests pass for disabled/product-only activation and namespace failure
 Agent/subsystems packages compile. Runtime nft/VPP and reboot remain NOT RUN;
 full hosted integration gate and fresh independent source review still needed.
 Original helper and descriptor BLOCK reports preserved alongside approvals.
+
+## Distinct dynamic ownership checkpoint
+
+Bootstrap now creates permanent punt_interfaces plus EMPTY
+ dynamic_punt_interfaces, with separate accept rules. Agent fixed commands and
+strict readback target dynamic_punt_interfaces only; no permanent set mutation.
+Static/dynamic overlap fails closed, final and runtime caps count permanent
+inputs plus dynamic membership, and management exclusion is unchanged.
+Seventeen basepolicy tests PASS; packaging suite rerun: 26 tests, 25 PASS and
+1 genuine signing SKIP (5.198s). New layout requires independent review; prior
+helper approvals do not cover this table-layout delta.
+
+Product presently exposes no default-netns document projection/registration.
+Defensive augmentation nevertheless prefers an explicit desired default-netns
+KV over current readback, and membership depends optionally on that singleton.
+Final root/nonroot precedence regression added. Actual owned pair dump supplies
+effective Netns for Create proof; unknown default namespace remains rejected.

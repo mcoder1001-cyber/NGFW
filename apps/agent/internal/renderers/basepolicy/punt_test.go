@@ -9,7 +9,7 @@ import (
 )
 
 func kernel(names []string) []byte {
-	b, _ := json.Marshal(map[string]any{"nftables": []any{map[string]any{"set": map[string]any{"family": "inet", "table": "vrx_base", "name": "punt_interfaces", "type": "ifname", "elem": names}}}})
+	b, _ := json.Marshal(map[string]any{"nftables": []any{map[string]any{"set": map[string]any{"family": "inet", "table": "vrx_base", "name": "dynamic_punt_interfaces", "type": "ifname", "elem": names}}}})
 	return b
 }
 func TestMembers(t *testing.T) {

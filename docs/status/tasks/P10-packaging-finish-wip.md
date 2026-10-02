@@ -84,3 +84,10 @@ failed socket setup. No assertion/gate changes. Full Go steps not reached. Logs:
 /tmp/vrx-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log and .scratch/p10-quick.log.
 This is NOT CI GATE PASSED. Hosted unchanged complete quick remains mandatory.
 Debian source build now directly declares Python3/OpenSSL used by its regression checks.
+
+Runtime profile correction: explicit fresh-appliance authorization flag and verified
+VPP artifact directory are required BEFORE APT; original VPP install gate must pass,
+only seven ship:true local .debs consumed, no public FD.io fallback. Removed
+kea-ctrl-agent and added rsyslog-openssl; corrected obsolete strongSwan configure
+claims. Actual negative preflight fixture PASS and proves apt-get was never called.
+Runtime installation still NOT RUN.

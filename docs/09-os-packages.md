@@ -19,7 +19,7 @@
 
 | مخزن | آدرس | چه می‌دهد | وضعیت |
 |---|---|---|---|
-| **FD.io** | `packagecloud.io/fdio/release` | vpp و پلاگین‌ها | تأییدشده — مخزن هر انتشار هم جداست (مثلاً `fdio/2606`) |
+| **VRX product APT** | مخزن امضاشدهٔ محصول | خروجی تأییدشدهٔ `deploy/vpp/build.sh` | هفت بستهٔ runtime با `ship: true` و نسخهٔ `26.06-release+vrx<N>`؛ FD.io/upstream مصرف نمی‌شود |
 | **FRRouting** | `deb.frrouting.org/frr` با `$(lsb_release -s -c)` و `frr-stable` | frr، frr-pythontools | resolute خیلی تازه است (فروردین ۱۴۰۵)؛ اگر مخزن هنوز سوییت `resolute` را منتشر نکرده باشد، بستهٔ `frr` خود آرشیو اوبونتو را جایگزین کنید |
 | **NodeSource** | `deb.nodesource.com/node_22.x` | Node.js 22 LTS | resolute خودش Node.js 22.x را دارد (کافی است)؛ NodeSource فقط برای پین دقیق نسخه و بروزرسانی مستقل از چرخهٔ اوبونتو نگه داشته می‌شود |
 | **PostgreSQL PGDG** | `apt.postgresql.org` | postgresql-16/17/18 | اختیاری؛ resolute خودش postgresql-18 دارد |
@@ -61,7 +61,7 @@
 
 | بسته | نقش |
 |---|---|
-| **strongSwan (از سورس)** | نسخهٔ مخزن resolute پلاگین `kernel-vpp` و `socket-vpp` را **ندارد**. باید با `--enable-kernel-vpp --enable-socket-vpp` کامپایل و به‌صورت `.deb` اختصاصی بسته‌بندی شود |
+| **strongSwan (از سورس)** | نسخهٔ مخزن resolute پلاگین `kernel-vpp` و `socket-vpp` را **ندارد**. باید از بستهٔ اختصاصی بازبینی‌شدهٔ `vrx-strongswan` در P11 استفاده شود؛ گزینه‌های configure به‌تنهایی پلاگین‌های خارجی را ایجاد نمی‌کنند |
 | `libstrongswan-extra-plugins` `libcharon-extra-plugins` | در صورت استفاده از strongSwan مخزن (مسیر بدون VPP) |
 | `wireguard-tools` | فقط ابزار `wg`؛ مسیر داده در پلاگین VPP است، نه ماژول کرنل |
 | `openssl` `libssl3` | PKI |
@@ -72,7 +72,7 @@
 
 | بسته | نقش |
 |---|---|
-| `kea-dhcp4-server` `kea-dhcp6-server` `kea-ctrl-agent` | DHCP + API کنترلی |
+| `kea-dhcp4-server` `kea-dhcp6-server` | DHCP با سوکت کنترل UNIX؛ بدون kea-ctrl-agent (D-079) |
 | `unbound` `dns-root-data` | resolver/forwarder + DNSSEC |
 | `chrony` | NTP |
 | `snmpd` `snmp` `libsnmp-base` | SNMP v2c/v3 |
@@ -97,7 +97,7 @@
 | بسته | نقش |
 |---|---|
 | `prometheus-node-exporter` | متریک میزبان (متریک VPP از پلاگین `prom` می‌آید) |
-| `rsyslog` `logrotate` | لاگ محلی و صدور syslog |
+| `rsyslog` `rsyslog-openssl` `logrotate` | لاگ محلی و صدور syslog TLS با درایور ossl |
 | `tcpdump` | ضبط روی اینترفیس‌های مدیریتی (مسیر داده با pcap خود VPP) |
 | `iproute2` `iputils-ping` `traceroute` `mtr-tiny` | ابزار پایه |
 | `jq` `curl` `gnupg` `unzip` `rsync` | ابزار اسکریپت و ارتقا |
@@ -200,3 +200,5 @@ fs.file-max = 2097152
 کد صفحهٔ کنترل شما را آلوده نمی‌کند. اگر strongSwan را **تغییر دادید** (که برای پلاگین
 `kernel-vpp` محتمل است)، آن تغییرات GPL می‌شوند و باید در اختیار مشتری قرار گیرند —
 پچ‌ها را در یک مخزن عمومی جدا نگه دارید و ترجیحاً upstream بفرستید.
+
+اسکریپت runtime فقط روی appliance تازه اجرا می‌شود و به `VRX_INSTALL_APPLIANCE=1` و `VRX_VPP_ARTIFACTS` (مسیر خروجی تأییدشدهٔ محصول) نیاز دارد. ابتدا install-gate را بررسی می‌کند؛ هیچ بستهٔ unsuffixed یا dev/debug از VPP انتخاب نمی‌شود. این دستور روی میزبان اشتراکی اجرا نشده است.

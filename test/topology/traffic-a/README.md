@@ -10,7 +10,7 @@ Read-only plan:
 
 ```sh
 python3 test/topology/traffic-a/run.py plan --slot 14
-PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/topology/traffic-a -p 'test_*.py' -v
+python3 test/topology/traffic-a/check.py
 ```
 
 Existing feature modules support separate configuration/readback and sometimes
@@ -29,7 +29,7 @@ Live opt-ins are `VRX_INTEGRATION=1`, `VRX_TRAFFIC_A_HOST=1`; global VPP ownersh
 and retained NAT64/global flags are refused. Shared lab lock, per-slot exclusivity
 and lease renewal/revalidation must be implemented before live enabling.
 
-Capture contract: both `ns-w<N>-lan/wan` peer devices, fixed argv, private
+Capture contract: both `ns-w<N>-lan/wan` peer devices, fixed argv, fixed `/run/vrx-test/w<N>/traffic-a/<run-id>/<side>.pcap`, private
 regular0600 bounded classic Ethernet pcap, run identity, content SHA256,
 bounded time window and zero dropped packets. Parser supports IPv4 ICMP/TCP
 and at most two VLAN headers, rejects truncated/fractured framing. Config

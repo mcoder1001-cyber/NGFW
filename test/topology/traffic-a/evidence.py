@@ -91,6 +91,8 @@ def capture(path, metadata, slot, side, run_id, fixture=False):
     if (metadata['origin'] != expected_origin or metadata['run_id'] != run_id
             or metadata['namespace'] != namespace or metadata['device'] != device or metadata['argv'] != expected_argv):
         raise Refused('capture provenance/argv does not identify this run and namespace')
+    if not fixture and str(path) != f'/run/vrx-test/{prefix}/traffic-a/{run_id}/{side}.pcap':
+        raise Refused('live capture must be in the fixed private run/slot path')
     for name in ('started', 'ended'):
         if type(metadata[name]) not in (int, float) or not math.isfinite(metadata[name]):
             raise Refused('invalid capture interval')

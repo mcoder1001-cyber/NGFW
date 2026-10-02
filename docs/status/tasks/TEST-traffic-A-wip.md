@@ -43,3 +43,21 @@ next); synthetic pcap fixtures remain source_fixture and cannot become live.
 Initial bytearray framing test exposed parser input normalization error; fixed,
 then framing/negative checks passed. Source README separates exact implemented
 mechanics from unfinished locked execution, capture lifecycle and packet outcomes.
+
+Final portable foundation correction: a subsequent suite rerun caught a
+transient descendant-state assertion failure; the isolated rerun passed. Ten
+regression repetitions then exposed fixture startup race (one child had not yet
+announced SIG_IGN readiness). The fixture now waits for a real child readiness
+handshake before the production timeout, records /proc birth identity and never
+signals a reused PID. No timeout/descendant assertion was removed. Ten genuine
+parent/child repetitions PASS1.939s, followed by all15 tests PASS0.404s.
+
+Strict `check.py` now rejects zero tests/failures/errors/skips/expected failures/
+unexpected successes; real seven-outcome status fixtures verify the guard.
+Live capture paths are additionally restricted to the fixed slot/run directory;
+fixture origin still cannot be promoted. Final strict runner **16 PASS0.415s,
+zero skipped/expected failures**, EXIT0. The first source BLOCK is preserved.
+Product source remains a foundation only: composed executor/lock/capture
+lifecycle, packet-to-outcome correlation and whole-chain forwarding are genuinely
+NOTIMPLEMENTED. Existing support tests were not run against VPP. Fresh independent
+review and unchanged hosted quick are still required before foundation merge.

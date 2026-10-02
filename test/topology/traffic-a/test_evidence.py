@@ -54,6 +54,8 @@ class Evidence(unittest.TestCase):
             self.assertEqual(len(capture(path,metadata,3,'lan','a'*32,fixture=True)),1)
             with self.assertRaisesRegex(Refused,'provenance'):
                 capture(path,metadata,3,'lan','a'*32)
+            with self.assertRaisesRegex(Refused,'fixed private'):
+                capture(path,dict(metadata,origin='tcpdump_live'),3,'lan','a'*32)
 
     def test_foreign_namespace_loss_digest_and_wrong_interval_refused(self):
         with tempfile.TemporaryDirectory() as directory:

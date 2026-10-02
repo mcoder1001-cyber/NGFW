@@ -1,15 +1,18 @@
 """Host-independent refusal, slot isolation and subprocess lifecycle checks."""
 import os
 import json
+import io
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 from commands import CommandFailed, run_command
+from check import accepted
 from scenario import Refused, plan, require_implemented, slot_values, validate_environment, validate_lease
 
 HERE = Path(__file__).resolve().parent
@@ -105,22 +108,54 @@ class Foundation(unittest.TestCase):
     def test_timeout_stops_descendant_that_ignores_term(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'log'
-            child = 'import signal,time,os;signal.signal(signal.SIGTERM,signal.SIG_IGN);print("child="+str(os.getpid()),flush=True);time.sleep(20)'
+            child = 'import signal,time,os,pathlib;signal.signal(signal.SIGTERM,signal.SIG_IGN);birth=pathlib.Path("/proc/self/stat").read_text().rsplit(")",1)[1].split()[19];print("child="+str(os.getpid())+" birth="+birth,flush=True);time.sleep(20)'
             leader = f'import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",{child!r}]);time.sleep(20)'
-            pid = None
+            pid = birth = None
+            def same_child():
+                if pid is None:return False
+                try:
+                    return Path(f'/proc/{pid}/stat').read_text().rsplit(')',1)[1].split()[19] == birth
+                except FileNotFoundError:return False
+            original_popen = subprocess.Popen
+            def ready_process(*arguments, **keywords):
+                process = original_popen(*arguments, **keywords)
+                deadline = time.monotonic() + 5
+                while time.monotonic() < deadline:
+                    if output.exists() and 'birth=' in output.read_text():return process
+                    time.sleep(0.01)
+                # The fixture must prove its child installed SIG_IGN before
+                # starting the production wait/timeout. Clean only our group.
+                os.killpg(process.pid, 9);process.wait(timeout=2)
+                raise AssertionError('fixture descendant never announced readiness')
             try:
-                with self.assertRaises(subprocess.TimeoutExpired):
-                    run_command([sys.executable, '-c', leader], directory, dict(os.environ), output, 0.4)
-                pid = int(output.read_text().split('child=')[1].splitlines()[0])
+                with patch('commands.subprocess.Popen', ready_process):
+                    with self.assertRaises(subprocess.TimeoutExpired):
+                        run_command([sys.executable, '-c', leader], directory, dict(os.environ), output, 0.15)
+                identity = output.read_text().strip().split()
+                pid = int(identity[0].split('=')[1]);birth = identity[1].split('=')[1]
                 status = Path(f'/proc/{pid}/status')
                 deadline = time.monotonic() + 2
-                while status.exists() and '\nState:\tZ' not in status.read_text() and time.monotonic() < deadline:
+                while same_child() and status.exists() and '\nState:\tZ' not in status.read_text() and time.monotonic() < deadline:
                     time.sleep(0.01)
-                self.assertTrue(not status.exists() or '\nState:\tZ' in status.read_text(), 'our descendant remains executing')
+                self.assertTrue(not same_child() or not status.exists() or '\nState:\tZ' in status.read_text(),
+                                'own descendant remains executing: '+(status.read_text() if status.exists() else 'gone'))
             finally:
-                if pid is not None:
+                # Never signal a PID that has been reused by another worker.
+                if same_child():
                     try: os.kill(pid, 9)
                     except ProcessLookupError: pass
+
+    def test_strict_source_gate_rejects_every_nonpassing_status(self):
+        bodies={'pass':'pass','failure':'self.fail("fixture")','error':'raise RuntimeError("fixture")',
+                'skip':'self.skipTest("fixture")','expectedFailure':'self.fail("fixture")','unexpectedSuccess':'pass'}
+        for name, body in bodies.items():
+            scope={'unittest':unittest}
+            decorator='    @unittest.expectedFailure\n' if name in ('expectedFailure','unexpectedSuccess') else ''
+            exec('class Fixture(unittest.TestCase):\n'+decorator+'    def test_case(self):\n        '+body+'\n',scope)
+            result=unittest.TextTestRunner(stream=io.StringIO()).run(unittest.defaultTestLoader.loadTestsFromTestCase(scope['Fixture']))
+            self.assertEqual(accepted(result),name=='pass',name)
+        result=unittest.TextTestRunner(stream=io.StringIO()).run(unittest.TestSuite())
+        self.assertFalse(accepted(result))
 
     def test_log_symlink_and_invalid_timeout_refused_without_execution(self):
         with tempfile.TemporaryDirectory() as directory:

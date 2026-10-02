@@ -1,0 +1,31 @@
+[Unit]
+Description=VRX dataplane agent
+Requires=vpp.service
+After=vpp.service
+ConditionPathExists=/var/lib/vrx/firstboot-complete
+
+[Service]
+Type=simple
+User=root
+Group=vrx
+ExecStart=/usr/sbin/vrx-agent
+Environment=VRX_GLOBALS_OWNER=1 VRX_SOCKET_GROUP=vrx VRX_AGENT_STATE_DIR=/var/lib/vrx/agent
+EnvironmentFile=-/etc/vrx/agent.env
+Restart=always
+RestartSec=3
+RuntimeDirectory=vrx
+RuntimeDirectoryMode=0750
+StateDirectory=vrx/agent
+StateDirectoryMode=0750
+UMask=0027
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ReadWritePaths=/var/lib/vrx/agent /run/vrx
+ReadWritePaths=-/etc/frr -/etc/swanctl -/etc/kea -/etc/unbound -/etc/chrony -/etc/rsyslog.d -/etc/snmp -/etc/keepalived
+
+[Install]
+WantedBy=multi-user.target

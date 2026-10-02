@@ -1,0 +1,33 @@
+Source: vrx
+Section: net
+Priority: optional
+Maintainer: VRX maintainers <maintainers@example.invalid>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/mcoder1001-cyber/NGFW
+
+Package: vrx-agent
+Architecture: amd64
+Depends: ${misc:Depends}, ${shlibs:Depends}, adduser
+Description: VRX privileged declarative dataplane agent
+ Reconciles VPP and daemon configuration through the local management socket.
+
+Package: vrx-api
+Architecture: amd64
+Depends: ${misc:Depends}, nodejs (>= 22), nodejs (<< 23), adduser
+Description: VRX unprivileged management API
+ Provides transactional configuration and authenticated management endpoints.
+
+Package: vrx-web
+Architecture: all
+Depends: ${misc:Depends}, nginx, openssl
+Description: VRX management web application
+ Browser application and TLS-only reverse proxy configuration.
+
+Package: vrx-meta
+Architecture: all
+Depends: ${misc:Depends}, vrx-agent (= ${binary:Version}), vrx-api (= ${binary:Version}), vrx-web (= ${binary:Version}), vpp (= ${vrx:VppVersion}), frr, frr-pythontools, postgresql (>= 16), valkey-server, kea-dhcp4-server, kea-dhcp6-server, unbound, chrony, rsyslog, rsyslog-gnutls, snmpd, keepalived, nftables
+Recommends: vrx-strongswan
+Description: VRX appliance runtime dependencies
+ Installs the management plane and the product-version-pinned VPP runtime.

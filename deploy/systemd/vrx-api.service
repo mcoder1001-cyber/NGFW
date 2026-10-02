@@ -1,0 +1,27 @@
+[Unit]
+Description=VRX management API
+Requires=vrx-agent.service
+After=vrx-agent.service postgresql.service valkey-server.service
+ConditionPathExists=/var/lib/vrx/firstboot-complete
+
+[Service]
+Type=simple
+User=vrx
+Group=vrx
+WorkingDirectory=/usr/lib/vrx/api
+ExecStart=/usr/bin/node dist/main.js
+Environment=NODE_ENV=production VRX_HTTP_HOST=127.0.0.1 VRX_HTTP_PORT=3000 VRX_COOKIE_SECURE=1
+EnvironmentFile=/etc/vrx/api.env
+Restart=always
+RestartSec=3
+UMask=0077
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/vrx /data
+
+[Install]
+WantedBy=multi-user.target

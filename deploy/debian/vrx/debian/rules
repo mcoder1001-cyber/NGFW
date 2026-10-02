@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+# Inputs are staged by prepare.sh, never downloaded by a maintainer script.
+%:
+	dh $@
+
+override_dh_auto_configure:
+	@test -s stage/VPP_VERSION || { echo 'Missing verified VPP artifact version' >&2; exit 1; }
+	@test -x stage/usr/sbin/vrx-agent
+	@test -x stage/usr/sbin/vrx-startupgen
+	@test -f stage/usr/lib/vrx/api/dist/main.js
+	@test -f stage/usr/share/vrx/web/index.html
+
+override_dh_auto_build:
+
+override_dh_auto_test:
+	python3 tests/test_packaging.py
+
+override_dh_auto_install:
+
+override_dh_gencontrol:
+	dh_gencontrol -- -Vvrx:VppVersion=$$(cat stage/VPP_VERSION)
+
+override_dh_installsystemd:
+	dh_installsystemd --no-enable --no-start

@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    getent group vrx >/dev/null || addgroup --system vrx
+    getent passwd vrx >/dev/null || adduser --system --ingroup vrx --home /var/lib/vrx --no-create-home vrx
+    install -d -m 0750 -o root -g vrx /var/lib/vrx/agent /etc/vrx
+fi
+#DEBHELPER#

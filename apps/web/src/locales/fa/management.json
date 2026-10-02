@@ -6,7 +6,8 @@
     "users": "کاربران",
     "aaa": "AAA",
     "tls": "TLS رابط برنامه‌نویسی",
-    "syslog": "Syslog راه دور"
+    "syslog": "Syslog راه دور",
+    "notifications": "اعلان‌ها"
   },
   "aaa": {
     "notAvailable": "ورود با RADIUS و TACACS+ هنوز ساخته نشده است (F-aaa). اکنون فقط کاربران محلی می‌توانند وارد شوند."
@@ -43,6 +44,81 @@
       "minVersion": {
         "title": "کمینه نسخه TLS"
       }
+    },
+    "notifications": {
+      "channels": {
+        "title": "کانال‌ها"
+      },
+      "rules": {
+        "title": "قواعد"
+      },
+      "name": {
+        "title": "نام"
+      },
+      "enabled": {
+        "title": "فعال"
+      },
+      "type": {
+        "title": "نوع"
+      },
+      "email": {
+        "title": "ایمیل"
+      },
+      "webhook": {
+        "title": "وب‌هوک"
+      },
+      "smtpHost": {
+        "title": "میزبان SMTP"
+      },
+      "port": {
+        "title": "درگاه"
+      },
+      "tls": {
+        "title": "امنیت TLS"
+      },
+      "username": {
+        "title": "نام کاربری"
+      },
+      "passwordRef": {
+        "title": "ارجاع رمز"
+      },
+      "from": {
+        "title": "فرستنده"
+      },
+      "to": {
+        "title": "گیرندگان"
+      },
+      "url": {
+        "title": "آدرس"
+      },
+      "secretRef": {
+        "title": "ارجاع کلید امضا"
+      },
+      "events": {
+        "title": "رویدادها"
+      },
+      "minSeverity": {
+        "title": "حداقل شدت"
+      },
+      "throttleSec": {
+        "title": "فاصله ارسال (ثانیه)"
+      }
+    }
+  },
+  "notifications": {
+    "title": "اعلان‌ها",
+    "intro": "ایمیل SMTP و وب‌هوک HTTPS امضاشده را تنظیم کنید. تغییرات پس از کامیت فعال می‌شوند.",
+    "deliveryTitle": "سابقه ارسال",
+    "degraded": "ارسال‌کننده در دسترس نیست",
+    "queue": "در صف: {{count}}",
+    "runningOnly": "تست فقط از کانال فعال در تنظیمات جاری استفاده می‌کند. کانال جدید را ابتدا کامیت کنید.",
+    "test": "ارسال تست: {{name}}",
+    "testLabel": "تست",
+    "testQueued": "تست در صف قرار گرفت. نتیجه واقعی را در سابقه ارسال ببینید.",
+    "result": {
+      "sent": "ارسال شد",
+      "failed": "ناموفق",
+      "discarded": "کنار گذاشته شد"
     }
   }
 }

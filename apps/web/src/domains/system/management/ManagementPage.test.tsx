@@ -85,7 +85,13 @@ describe('System → Management (F-management-ui)', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Management sections' })).getAllByRole(
       'tab',
     );
-    expect(tabs.map((t) => t.textContent)).toEqual(['Users', 'AAA', 'API TLS', 'Remote syslog']);
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'Notifications',
+      'Users',
+      'AAA',
+      'API TLS',
+      'Remote syslog',
+    ]);
     expect(await screen.findByTestId('aaa-not-available')).toHaveTextContent(/not built yet/);
   });
 
@@ -165,5 +171,16 @@ describe('System → Management (F-management-ui)', () => {
     expect(await screen.findByTestId('tls-error')).toHaveTextContent(
       /previous one is still in use/,
     );
+  });
+  it('Notifications: operators can inspect but cannot save configuration', async () => {
+    const api = installFakeApi('operator');
+    await signIn();
+    mock(api);
+    api.on('GET /api/v1/state/management/notifications', () => ({
+      body: { queued: 0, busy: false, error: null, configuredChannels: 0, deliveries: [] },
+    }));
+    render(app('/system/management?tab=notifications'));
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(api.calls.some((c) => c.method === 'PATCH')).toBe(false);
   });
 });

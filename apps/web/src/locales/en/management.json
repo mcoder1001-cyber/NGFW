@@ -6,7 +6,8 @@
     "users": "Users",
     "aaa": "AAA",
     "tls": "API TLS",
-    "syslog": "Remote syslog"
+    "syslog": "Remote syslog",
+    "notifications": "Notifications"
   },
   "aaa": {
     "notAvailable": "RADIUS and TACACS+ login are not built yet (F-aaa). Only local users can log in today."
@@ -43,6 +44,81 @@
       "minVersion": {
         "title": "Minimum TLS version"
       }
+    },
+    "notifications": {
+      "channels": {
+        "title": "channels"
+      },
+      "rules": {
+        "title": "rules"
+      },
+      "name": {
+        "title": "name"
+      },
+      "enabled": {
+        "title": "enabled"
+      },
+      "type": {
+        "title": "type"
+      },
+      "email": {
+        "title": "email"
+      },
+      "webhook": {
+        "title": "webhook"
+      },
+      "smtpHost": {
+        "title": "smtpHost"
+      },
+      "port": {
+        "title": "port"
+      },
+      "tls": {
+        "title": "tls"
+      },
+      "username": {
+        "title": "username"
+      },
+      "passwordRef": {
+        "title": "passwordRef"
+      },
+      "from": {
+        "title": "from"
+      },
+      "to": {
+        "title": "to"
+      },
+      "url": {
+        "title": "url"
+      },
+      "secretRef": {
+        "title": "secretRef"
+      },
+      "events": {
+        "title": "events"
+      },
+      "minSeverity": {
+        "title": "minSeverity"
+      },
+      "throttleSec": {
+        "title": "throttleSec"
+      }
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Configure SMTP email and signed HTTPS webhooks. Changes are staged; commit to activate.",
+    "deliveryTitle": "Delivery history",
+    "degraded": "Dispatcher unavailable",
+    "queue": "Queued: {{count}}",
+    "runningOnly": "Tests use enabled channels in the running configuration. Commit new channels before testing.",
+    "test": "Send test: {{name}}",
+    "testLabel": "Test",
+    "testQueued": "Test queued. Check delivery history for the actual result.",
+    "result": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "discarded": "Discarded"
     }
   }
 }

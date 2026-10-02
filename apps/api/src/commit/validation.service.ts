@@ -65,7 +65,12 @@ export class ValidationService {
 
   /** The agent's DesiredState for a parsed document: protobuf JSON projection without secret leaves (D-040). */
   static desiredState(config: Doc): DesiredState {
-    return DesiredState.fromJSON(redact(config));
+    const doc = redact(config);
+    const management = doc['management'];
+    if (management && typeof management === 'object' && !Array.isArray(management)) {
+      delete (management as Record<string, unknown>)['notifications'];
+    }
+    return DesiredState.fromJSON(doc);
   }
 
   /** Subsystems the agent implements (Health) and the top-level keys it does not. */
@@ -104,7 +109,8 @@ export class ValidationService {
       return { ...base, ok: false, tier: 'semantic', errors: missing, config };
     // F-management-ui (unanchored): the API TLS certificate/key pair must load before it is committed
     const tlsIssues = this.mgmtTls ? await this.mgmtTls.validate(config) : [];
-    if (tlsIssues.length > 0) return { ...base, ok: false, tier: 'semantic', errors: tlsIssues, config };
+    if (tlsIssues.length > 0)
+      return { ...base, ok: false, tier: 'semantic', errors: tlsIssues, config };
 
     // F-rule-expiry (unanchored): a new rule or a changed expiry already in the past (needs running to tell)
     if (opts.running !== undefined) {

@@ -1,8 +1,8 @@
 # Codex task envelope: F-notifications
 
-- Branch: `task/F-notifications-codex`
-- Worktree: `/workspace/scratch/96b8b6fbc8a7/NGFW-notifications`
-- Task scope: Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state
+- Branch: `codex/notifications-resume-20261002`
+- Worktree: `/workspace/scratch/de92de7d9874/NGFW-notifications`
+- Task scope: Notifications: email (SMTP) and webhook; Telegram explicitly removed by owner for alarms, commits and link/VPN state
 - Dependencies: F-dashboard-prom-alarms, F-management-ui
 - Scope source: `prompts/features/F-notifications.md`
 - Manager alone updates board and merges. Worker commits code, tests and real evidence.

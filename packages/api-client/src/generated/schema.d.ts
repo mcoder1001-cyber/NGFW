@@ -4,6 +4,40 @@
  */
 
 export interface paths {
+  '/api/v1/state/management/notifications': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Notification queue, worker health and bounded delivery history */
+    get: operations['Notifications_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/management/notifications/{name}/test': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Queue a test through an enabled running notification channel */
+    post: operations['Notifications_test'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/health': {
     parameters: {
       query?: never;
@@ -9160,6 +9194,60 @@ export interface components {
               };
         };
       };
+      /** Notifications */
+      notifications?: {
+        /** @default [] */
+        channels: {
+          /** Name */
+          name: string;
+          /** @default true */
+          enabled: boolean;
+          /** @enum {string} */
+          type: 'email' | 'webhook';
+          email?: {
+            /** Host */
+            smtpHost: string;
+            /**
+             * Port
+             * @default 587
+             */
+            port: number;
+            /**
+             * @default starttls
+             * @enum {string}
+             */
+            tls: 'starttls' | 'tls';
+            username?: string;
+            /** Secret reference */
+            passwordRef?: string;
+            /** Format: email */
+            from: string;
+            to: string[];
+          };
+          webhook?: {
+            /** Format: uri */
+            url: string;
+            /** Secret reference */
+            secretRef: string;
+          };
+        }[];
+        /** @default [] */
+        rules: {
+          /** Name */
+          name: string;
+          /** @default true */
+          enabled: boolean;
+          events: ('alarm' | 'commit' | 'link' | 'vpn' | 'global-blocking')[];
+          /**
+           * @default warning
+           * @enum {string}
+           */
+          minSeverity: 'info' | 'warning' | 'critical';
+          channels: string[];
+          /** @default 60 */
+          throttleSec: number;
+        }[];
+      };
     };
     /**
      * Security
@@ -9274,6 +9362,127 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  Notifications_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            queued: number;
+            busy: boolean;
+            error: string | null;
+            configuredChannels: number;
+            deliveries: {
+              channel: string;
+              rule: string | null;
+              kind: string;
+              at: string;
+              attempt: number;
+              /** @enum {string} */
+              result: 'sent' | 'failed' | 'discarded';
+              error: string | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Notifications_test: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @constant */
+            queued: true;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   Health_health: {
     parameters: {
       query?: never;

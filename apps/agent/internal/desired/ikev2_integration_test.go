@@ -163,6 +163,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		socket := filepath.Join(work, "agent.sock")
 		var process *exec.Cmd
 		processEnv := append(os.Environ(), "NGFW_AGENT_SOCKET="+socket, "NGFW_OWNER=w8", "NGFW_GLOBALS_OWNER=0", "NGFW_VPP_TABLE_BASE=8000", "NGFW_AGENT_STATE_DIR="+filepath.Join(work, "state"), "NGFW_METRICS_ADDR=127.0.0.1:0", "NGFW_SOCKET_GROUP=root")
+		//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 		logfile, e := os.Create(filepath.Join(work, "agent.log"))
 		if e != nil {
 			t.Fatal(e)
@@ -170,6 +171,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		defer func() { _ = logfile.Close() }()
 		t.Cleanup(func() {
 			if t.Failed() {
+				//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 				data, _ := os.ReadFile(filepath.Join(work, "agent.log"))
 				t.Log(string(data))
 			}
@@ -218,6 +220,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 			deadline := time.Now().Add(20 * time.Second)
 			for {
 				_, e := product.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "w8"})
+				//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 				data, _ := os.ReadFile(filepath.Join(work, "agent.log"))
 				resynced := int64(len(data)) > offset && bytes.Contains(data[offset:], []byte("\"msg\":\"resync finished\""))
 				if e == nil && resynced {
@@ -361,6 +364,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	}
 	t.Log(string(out))
 	t.Log(run("ip", "netns", "exec", peer, "ping", "-I", "198.18.82.2", "-c", "5", "-W", "2", "198.18.81.2"))
+	//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 	server := exec.CommandContext(ctx, "ip", "netns", "exec", peer, "python3", "-c", `import socket
 s=socket.socket();s.bind(('198.18.82.2',28081));s.listen(1)
 c,_=s.accept();data=b'x'*1048576;c.sendall(data);c.shutdown(socket.SHUT_WR);c.close();s.close()`)
@@ -577,6 +581,7 @@ print('TCP exact 1048576 bytes passed')`))
 	if state := cli("show interface ipip8001"); !strings.Contains(state, " down ") {
 		t.Fatal("IPIP not fail-closed after SA deletion", state)
 	}
+	//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 	if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "2", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 		t.Fatalf("traffic escaped after SA deletion: %s", out)
 	}

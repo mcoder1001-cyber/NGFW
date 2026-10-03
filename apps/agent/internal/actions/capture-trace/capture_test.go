@@ -827,6 +827,7 @@ func TestRecoveryRefusesForeignKeptFile(t *testing.T) {
 			if err != nil || got.State != "error" || !m.recovered {
 				t.Fatalf("refused kept file did not reach terminal state: %+v %v", got, err)
 			}
+			//nolint:gosec // Disposable fixture uses its own private directory and generated namespace with fixed command arguments.
 			data, err := os.ReadFile(target)
 			if err != nil || string(data) != string(original) {
 				t.Fatal("target changed", err)

@@ -134,6 +134,7 @@ OPERATIONS: dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], bool]] =
     "UnboundChronySyslog_ntp": ("GET", "/api/v1/state/ntp", (), (), False),
     "ObjectModel_fqdn": ("GET", "/api/v1/state/objects/fqdn", (), ('name',), False),
     "ObjectModel_usage": ("GET", "/api/v1/state/objects/usage", (), ('source', 'name'), False),
+    "Ospf_state": ("GET", "/api/v1/state/ospf", (), (), False),
     "RpfAdlPbr_pbr": ("GET", "/api/v1/state/pbr", (), ('pageSize', 'page'), False),
     "Pki_state": ("GET", "/api/v1/state/pki", (), (), False),
     "State_routes": ("GET", "/api/v1/state/routes", (), ('proto', 'source', 'prefix', 'family', 'pageSize', 'page', 'vrf'), False),
@@ -668,6 +669,10 @@ class Operations:
     def object_model_usage(self, *, source: str | None = None, name: str | None = None) -> "ObjectModelUsageResponse":
         'GET /api/v1/state/objects/usage — Where-used of an object, tag, zone or interface name: group members, tags, ACL rules and attachments, zones'
         return self._call("ObjectModel_usage", {}, {"source": source, "name": name})  # type: ignore[no-any-return]
+
+    def ospf_state(self) -> "OspfStateResponse":
+        'GET /api/v1/state/ospf — Bounded observed OSPFv2 neighbors; unavailable readers are explicit'
+        return self._call("Ospf_state", {}, {})  # type: ignore[no-any-return]
 
     def rpf_adl_pbr_pbr(self, *, page_size: int | None = None, page: int | None = None) -> "RpfAdlPbrPbrResponse":
         'GET /api/v1/state/pbr — Policy-based routing: running policies and attachments vs what the agent retrieves from VPP (attachments paged)'

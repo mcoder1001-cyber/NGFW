@@ -437,6 +437,8 @@ __all__ = [
     "ObjectsConfigTagsValue",
     "ObjectsConfigZonesValue",
     "OidcMethodsResponse",
+    "OspfStateResponse",
+    "OspfStateResponseNeighborsItem",
     "PkiCaBody",
     "PkiCaBodyKeySpec",
     "PkiCaResponse",
@@ -8795,6 +8797,30 @@ ObjectModelUsageResponse = TypedDict(
         "name": Required[str],
         "source": Required[Literal['running', 'candidate']],
         "usedBy": Required[list["ObjectModelUsageResponseUsedByItem"]],
+    },
+)
+
+OspfStateResponseNeighborsItem = TypedDict(
+    "OspfStateResponseNeighborsItem",
+    {
+        "address": Required[Union[str, None]],
+        "interface": Required[Union[str, None]],
+        "priority": Required[Union[int, None]],
+        "routerId": Required[str],
+        "state": Required[str],
+        "vrf": Required[str],
+    },
+)
+
+OspfStateResponse = TypedDict(
+    "OspfStateResponse",
+    {
+        "frrRunning": Required[bool],
+        "neighbors": Required[list["OspfStateResponseNeighborsItem"]],
+        "retrievedAt": Required[Union[str, None]],
+        "truncated": Required[bool],
+        "unavailable": Required[Union[Literal['frr-unavailable', 'reader-unavailable', 'reader-invalid', 'reader-limit-exceeded'], None]],
+        "warning": Required[Union[Literal['routing-observation-partial'], None]],
     },
 )
 

@@ -1,3 +1,5 @@
 # SDK OSPF regeneration WIP
 
 Ownbase436252eebe6bdbe19334cad2b28d5f6016ea4d29, branchcodex/ngfw-sdk-ospf-regen-20261003. Existingcanonicalgenerator fixes preserved. Waiting rootgeneration18178 EXIT0 andfreshOpenAPI SHA beforegeneration. No sourceproduct edits/tests yet; priorSDKfreeze remains untouched. Next verifyactualnewOpenAPI hash and canonicalgenerate, commitreviewableactualSDKdelta, SDKtests/generatorcheck. Liveinfra NOTRUN.
+
+Root actualOpenAPIgenerator18178 EXIT0 at436 source; independentlyvalidated1875798bytes/SHA6347e52b9cce2323c68be0028389a092d58c06c3e67fe848317cb5743a3a49dd beforecanonicalinput use. Actual read-only endpoint is /api/v1/state/ospf (initial extra assertion guessed /ospf/routes incorrectly; hash/size were valid, no API defect). CanonicalgenEXIT0: Python149operations806models; exact31lineaddition modelsOspfStateResponse+neighboritem and generated ospf_state method. TerraformoutputUNCHANGED; no field/testpolicy/generator/lock edits. Fullbase diffcheckPASS. Next coherentcommit thenfreshcanonicalcheck andPython35+Terraformrace verification, no installs/liveinfra.

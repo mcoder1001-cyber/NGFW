@@ -48,10 +48,10 @@ func needHostTools(t *testing.T) {
 
 func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 	needHostTools(t)
-	base := t.TempDir()
-	t.Setenv(subsystems.EnvHostServicesDir, base)
+	stateDir := t.TempDir()
+	base := hostDirOf(t, stateDir) // newSvc selects this same private host-service directory.
 	ctx := context.Background()
-	s := newSvc(t, coretest.New(), t.TempDir())
+	s := newSvc(t, coretest.New(), stateDir)
 	g := &server{svc: s}
 
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1", DesiredState: doc(t, hostServicesDoc)})
@@ -99,7 +99,10 @@ func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "h3", DesiredState: doc(t, `{"services": {}, "management": {}}`)})
 	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got, err = s.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"services", "management"}})
-	if err != nil || got.GetDesiredState().GetServices() != nil || got.GetDesiredState().GetManagement() != nil {
+	// Empty DHCP and QoS containers are always assembled for the services domain;
+	// every configured service, including DNS/NTP, must still be absent.
+	emptyServices := &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}, Qos: &vrxv1.QosService{}}
+	if err != nil || !proto.Equal(got.GetDesiredState().GetServices(), emptyServices) || got.GetDesiredState().GetManagement() != nil {
 		t.Fatalf("after removal: %v %v", got.GetDesiredState(), err)
 	}
 	conf, _ := os.ReadFile(filepath.Join(base, "unbound/unbound.conf")) //nolint:gosec // the test's own temp dir

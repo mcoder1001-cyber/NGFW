@@ -15,3 +15,14 @@ Current codefailure:none. Remaining: exactfinaltree remote publication, fresh in
 
 ## Final frozen handoff
 Tested product commit45164dc74fb6fec1a5c35329a83151299d7d2ba4/tree7f978b8df5a0e3bff2cec14454fe6842c93351db, final documentation-only SHA obtained after commit. Exact full9test output: Ran9tests35.745s; OK; exit0. Expected fatal:notagitrepository stderr belongs to real Git-missing negative fixture, not gatefailure. All previous RED evidence retained. Actual tools/ci.sh check --base454dd312 PASS (unchanged lightweight check, not completequick), raw/tmp/pipeline-cleanup-fix-check.log. Frozen source unchanged during check. No expensive redundant full localquick requested; unchanged exact-finalhostedquick and independentlyassigned panel remain mandatory. Remote finalcorrected checkpoint acknowledgement is pending coordinator; no publication claim for45164 until rootconfirms.
+
+## Independent BLOCK and quiescence correction
+Independent fresh reviewer blocked frozen6ed85b1/treea7ae despite independently passing9tests35.648s: after SIGKILL, process.wait only waits exitedwrapper, not actualdescendant termination. Preserve report/tmp/review-pipeline-cleanup-independent/report.txt and prior9GREEN; those do not resolve asynchronousKILL completion guarantee.
+
+Correction: Linux /proc ownedprocessgroup liveness reads processstate/group; only zombies/deadstates considered quiescent (no executablecode/filedescriptors). ExistingTERM10s grace now polls actualgroup; KILL followed bybounded5s groupquiescence barrier. Onlyafterverifiedgroupcompletion can finalGitcheck sealpassed. Anycleanup/procverificationerror or livegroup aftertimeout becomesfailed; no passed result saved. Wrapperwait retainsbounded5s. OwnedPIDgroup only, no sharedPID/globalhostkills or escapedgroupclaims.
+
+Meaningful new realchild observer captures childstate ATfinalpersistedsave, proving successfulparent withTERM-resistant descendant is recordedpassed onlywhen actualchild absent/Z/X. Another test usesactualownedchild but deliberatelyforcesquiescenceprobe timeout to verify failclosedfailed; this deterministicprobe is explicitly test-only, not mockedsource/gate success. Existing9tests retained unchangedsemantics.
+
+Actual PYTHONDONTWRITEBYTECODE=1 python3 tools/test_test_handoff.py: exit0; Ran11tests48.023s; OK,noskips. Raw/tmp/pipeline-cleanup-fix-quiescence.log. ExpectedGitmissingstderr isnegativefixture. Allspawnedownedchildren ended/privateflocksreleased. gitdiffcheckPASS; unchangedtools/ci.sh check --base454dd312 PASS, raw/tmp/pipeline-cleanup-fix-quiescence-check.log. Complete finalhostedquickstillmandatory.
+
+Currentcodefailure:none; correctionnotindependentlyapproved yet. Next: coordinatorpublishexactnewcheckpoint immediately; originalindependentreviewer rechecksBLOCK +new11tests, thenfinalcurrentmainparent candidate/fullquick. Do notuseprior6edapproval or author selfreview asreleaseproof.

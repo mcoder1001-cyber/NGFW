@@ -112,6 +112,21 @@ function emitType(w: Writer, node: Json): void {
     w.close();
     return;
   }
+  // Zod numeric literals use JSON Schema number+const, even for integers.
+  // Preserve the literal before the general number branch can widen it.
+  const literal = node['const'];
+  if (typeof literal === 'number') {
+    if (!Number.isSafeInteger(literal)) {
+      throw new Error(`YANG numeric literal must be a safe integer: ${literal}`);
+    }
+    const base = literal >= 0
+      ? (literal > 0xffffffff ? 'uint64' : 'uint32')
+      : (literal < -0x80000000 ? 'int64' : 'int32');
+    w.open(`type ${base}`);
+    w.line(`range ${qstr(String(literal))};`);
+    w.close();
+    return;
+  }
   const t = node['type'];
   if (t === 'boolean') {
     w.line('type boolean;');

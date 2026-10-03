@@ -56,6 +56,12 @@ const ADMIN_ONLY = new Set([
   'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
+  // F-pki: certificate/key creation, signing, import and CRL secret refresh.
+  'POST /api/v1/actions/pki/ca',
+  'POST /api/v1/actions/pki/csr',
+  'POST /api/v1/actions/pki/sign',
+  'POST /api/v1/actions/pki/import',
+  'POST /api/v1/actions/pki/crl/refresh',
   'GET /api/v1/state/logs', // F-unbound-chrony-syslog (review M2: the host journal; no SY1 anchor seeded)
 ]);
 

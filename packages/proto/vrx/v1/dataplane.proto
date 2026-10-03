@@ -82,6 +82,13 @@ service Dataplane {
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
+
+  // PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+  // its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+  // HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+  // semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+  rpc PkiFileState(PkiFileStateRequest) returns (PkiFileStateResponse);
+
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
@@ -4097,6 +4104,11 @@ message PkiCa {
   optional string ocsp_url = 4;
 
   // wave-BC: F-pki
+
+  // How the CA key pair was generated (F-pki); unset = unknown (imported).
+  PkiKeySpec key_spec = 5;
+  // Facts of the CA certificate recorded by the PKI actions (F-pki); unset = not recorded.
+  PkiIssued issued = 6;
 }
 
 // PkiCertificate mirrors `vpn.pki.certificates.<name>`.
@@ -4126,6 +4138,11 @@ message PkiCertificate {
   optional uint32 expiry_alert_days = 6;
 
   // wave-BC: F-pki
+
+  // Parameters of the key pair + CSR made by the PKI actions (F-pki); unset = imported.
+  PkiCsr csr = 7;
+  // Facts of the certificate recorded by the PKI actions (F-pki); unset = not recorded.
+  PkiIssued issued = 8;
 }
 
 // PkiConfig mirrors `vpn.pki`.
@@ -6267,6 +6284,91 @@ message CnatSessionPurgeAction {}
 // ----- F-vrrp-config-sync -----
 
 // ----- F-pki -----
+
+// PkiKeySpec mirrors `vpn.pki.cas.<name>.keySpec` and `vpn.pki.certificates.<name>.csr.keySpec`.
+message PkiKeySpec {
+  // "ecdsa" | "rsa".
+  optional string type = 1;
+  // ECDSA curve: "p256" | "p384".
+  optional string curve = 2;
+  // RSA modulus size: 2048 | 3072 | 4096.
+  optional uint32 bits = 3;
+}
+
+// PkiCsr mirrors `vpn.pki.certificates.<name>.csr`: the request parameters of a generated key pair + CSR.
+message PkiCsr {
+  // Subject distinguished name ("CN=gw.example.com, O=Example, C=CH").
+  optional string subject = 1;
+  // Subject alternative names: DNS names (leading "*." allowed), IP addresses, e-mail addresses.
+  repeated string san = 2;
+  // Key pair.
+  PkiKeySpec key_spec = 3;
+}
+
+// PkiIssued mirrors `vpn.pki.cas.<name>.issued` / `vpn.pki.certificates.<name>.issued`: public facts of the certificate
+// behind certificate_ref, recorded by the PKI actions. Never key material.
+message PkiIssued {
+  // Serial number, colon-separated upper-case hex bytes.
+  optional string serial = 1;
+  // Validity start (RFC 3339).
+  optional string not_before = 2;
+  // Validity end (RFC 3339).
+  optional string not_after = 3;
+  // Issuer distinguished name.
+  optional string issuer = 4;
+  // SHA-256 fingerprint of the DER certificate, colon-separated upper-case hex.
+  optional string fingerprint = 5;
+  // Subject distinguished name.
+  optional string subject = 6;
+  // basicConstraints CA:TRUE.
+  optional bool ca = 7;
+}
+
+// PkiFileStateRequest asks for the PKI files this agent materialised.
+message PkiFileStateRequest {
+  // Must equal the agent's owner (docs/contracts/proto.md §6).
+  string owner = 1;
+}
+
+// PkiFileStateFile is one PKI file under the swanctl directory. No key material: a private key appears only through its
+// keyed fingerprint.
+message PkiFileStateFile {
+  // "cert" (x509/) | "ca" (x509ca/) | "key" (private/) | "crl" (x509crl/).
+  string kind = 1;
+  // File name without ".pem": the vpn.pki object name.
+  string name = 2;
+  // The D-051 reference the content came from (`cert/<name>`, `key/<name>`); never material.
+  string ref = 3;
+  // "sha256:<hex>" of the file content (certificates, CRLs) or "hmac:<hex>" under the agent-local key (private keys).
+  string fingerprint = 4;
+  // Permission bits: 0644 (certificates, CRLs) or 0600 (private keys).
+  uint32 mode = 5;
+  // Size in bytes (PkiFileState only; 0 in PkiFileStateSet).
+  uint32 size = 6;
+  // The file is on disk (PkiFileState only: a file of the manifest that went missing is re-materialised by the next
+  // reconcile).
+  bool present = 7;
+}
+
+// PkiFileStateSet is the value of the agent's singleton scheduler object `pki.files/vrx` (desired: what must be on disk;
+// Retrieve: what is on disk), files sorted by kind, then name, with kind, name, ref, fingerprint and mode set.
+message PkiFileStateSet {
+  // The files.
+  repeated PkiFileStateFile files = 1;
+}
+
+// PkiFileStateResponse is the snapshot; retrieved_at is the agent's clock.
+message PkiFileStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // swanctl directory the files live under ("" when unavailable).
+  string root = 3;
+  // Files of the agent's manifest, sorted by kind, then name.
+  repeated PkiFileStateFile files = 4;
+  // Why this agent materialises no PKI files ("" = it does): no charon for this agent, materialiser not wired, …
+  string unavailable = 5;
+}
+
 
 // ----- F-ikev2-native -----
 

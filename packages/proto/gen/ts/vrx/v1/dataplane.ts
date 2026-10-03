@@ -5854,7 +5854,15 @@ export interface PkiCa {
     | PkiCa_Crl
     | undefined;
   /** OCSP responder URL. */
-  ocspUrl?: string | undefined;
+  ocspUrl?:
+    | string
+    | undefined;
+  /** How the CA key pair was generated (F-pki); unset = unknown (imported). */
+  keySpec:
+    | PkiKeySpec
+    | undefined;
+  /** Facts of the CA certificate recorded by the PKI actions (F-pki); unset = not recorded. */
+  issued: PkiIssued | undefined;
 }
 
 /** CRL settings. */
@@ -5890,7 +5898,15 @@ export interface PkiCertificate {
     | PkiCertificate_Acme
     | undefined;
   /** Alert this many days before expiry. */
-  expiryAlertDays?: number | undefined;
+  expiryAlertDays?:
+    | number
+    | undefined;
+  /** Parameters of the key pair + CSR made by the PKI actions (F-pki); unset = imported. */
+  csr:
+    | PkiCsr
+    | undefined;
+  /** Facts of the certificate recorded by the PKI actions (F-pki); unset = not recorded. */
+  issued: PkiIssued | undefined;
 }
 
 /** ACME settings. */
@@ -8444,6 +8460,118 @@ export interface Det44SessionCloseAction {
 
 /** CnatSessionPurgeAction purges every CNAT session (a VPP-global table; the globals owner only). */
 export interface CnatSessionPurgeAction {
+}
+
+/** PkiKeySpec mirrors `vpn.pki.cas.<name>.keySpec` and `vpn.pki.certificates.<name>.csr.keySpec`. */
+export interface PkiKeySpec {
+  /** "ecdsa" | "rsa". */
+  type?:
+    | string
+    | undefined;
+  /** ECDSA curve: "p256" | "p384". */
+  curve?:
+    | string
+    | undefined;
+  /** RSA modulus size: 2048 | 3072 | 4096. */
+  bits?: number | undefined;
+}
+
+/** PkiCsr mirrors `vpn.pki.certificates.<name>.csr`: the request parameters of a generated key pair + CSR. */
+export interface PkiCsr {
+  /** Subject distinguished name ("CN=gw.example.com, O=Example, C=CH"). */
+  subject?:
+    | string
+    | undefined;
+  /** Subject alternative names: DNS names (leading "*." allowed), IP addresses, e-mail addresses. */
+  san: string[];
+  /** Key pair. */
+  keySpec: PkiKeySpec | undefined;
+}
+
+/**
+ * PkiIssued mirrors `vpn.pki.cas.<name>.issued` / `vpn.pki.certificates.<name>.issued`: public facts of the certificate
+ * behind certificate_ref, recorded by the PKI actions. Never key material.
+ */
+export interface PkiIssued {
+  /** Serial number, colon-separated upper-case hex bytes. */
+  serial?:
+    | string
+    | undefined;
+  /** Validity start (RFC 3339). */
+  notBefore?:
+    | string
+    | undefined;
+  /** Validity end (RFC 3339). */
+  notAfter?:
+    | string
+    | undefined;
+  /** Issuer distinguished name. */
+  issuer?:
+    | string
+    | undefined;
+  /** SHA-256 fingerprint of the DER certificate, colon-separated upper-case hex. */
+  fingerprint?:
+    | string
+    | undefined;
+  /** Subject distinguished name. */
+  subject?:
+    | string
+    | undefined;
+  /** basicConstraints CA:TRUE. */
+  ca?: boolean | undefined;
+}
+
+/** PkiFileStateRequest asks for the PKI files this agent materialised. */
+export interface PkiFileStateRequest {
+  /** Must equal the agent's owner (docs/contracts/proto.md §6). */
+  owner: string;
+}
+
+/**
+ * PkiFileStateFile is one PKI file under the swanctl directory. No key material: a private key appears only through its
+ * keyed fingerprint.
+ */
+export interface PkiFileStateFile {
+  /** "cert" (x509/) | "ca" (x509ca/) | "key" (private/) | "crl" (x509crl/). */
+  kind: string;
+  /** File name without ".pem": the vpn.pki object name. */
+  name: string;
+  /** The D-051 reference the content came from (`cert/<name>`, `key/<name>`); never material. */
+  ref: string;
+  /** "sha256:<hex>" of the file content (certificates, CRLs) or "hmac:<hex>" under the agent-local key (private keys). */
+  fingerprint: string;
+  /** Permission bits: 0644 (certificates, CRLs) or 0600 (private keys). */
+  mode: number;
+  /** Size in bytes (PkiFileState only; 0 in PkiFileStateSet). */
+  size: number;
+  /**
+   * The file is on disk (PkiFileState only: a file of the manifest that went missing is re-materialised by the next
+   * reconcile).
+   */
+  present: boolean;
+}
+
+/**
+ * PkiFileStateSet is the value of the agent's singleton scheduler object `pki.files/vrx` (desired: what must be on disk;
+ * Retrieve: what is on disk), files sorted by kind, then name, with kind, name, ref, fingerprint and mode set.
+ */
+export interface PkiFileStateSet {
+  /** The files. */
+  files: PkiFileStateFile[];
+}
+
+/** PkiFileStateResponse is the snapshot; retrieved_at is the agent's clock. */
+export interface PkiFileStateResponse {
+  owner: string;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** swanctl directory the files live under ("" when unavailable). */
+  root: string;
+  /** Files of the agent's manifest, sorted by kind, then name. */
+  files: PkiFileStateFile[];
+  /** Why this agent materialises no PKI files ("" = it does): no charon for this agent, materialiser not wired, … */
+  unavailable: string;
 }
 
 /** MplsConfig mirrors `routing.mpls` (F-mpls-srmpls). Fields 1–9 are F-mpls-srmpls's; 10 is F-mpls-ldp's. */
@@ -50249,7 +50377,14 @@ export const WireguardConfig_InterfacesEntry: MessageFns<WireguardConfig_Interfa
 };
 
 function createBasePkiCa(): PkiCa {
-  return { description: undefined, certificateRef: undefined, crl: undefined, ocspUrl: undefined };
+  return {
+    description: undefined,
+    certificateRef: undefined,
+    crl: undefined,
+    ocspUrl: undefined,
+    keySpec: undefined,
+    issued: undefined,
+  };
 }
 
 export const PkiCa: MessageFns<PkiCa> = {
@@ -50265,6 +50400,12 @@ export const PkiCa: MessageFns<PkiCa> = {
     }
     if (message.ocspUrl !== undefined) {
       writer.uint32(34).string(message.ocspUrl);
+    }
+    if (message.keySpec !== undefined) {
+      PkiKeySpec.encode(message.keySpec, writer.uint32(42).fork()).join();
+    }
+    if (message.issued !== undefined) {
+      PkiIssued.encode(message.issued, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -50314,6 +50455,22 @@ export const PkiCa: MessageFns<PkiCa> = {
             message.ocspUrl = reader.string();
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.keySpec = PkiKeySpec.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.issued = PkiIssued.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -50340,6 +50497,12 @@ export const PkiCa: MessageFns<PkiCa> = {
         : isSet(object.ocsp_url)
         ? globalThis.String(object.ocsp_url)
         : undefined,
+      keySpec: isSet(object.keySpec)
+        ? PkiKeySpec.fromJSON(object.keySpec)
+        : isSet(object.key_spec)
+        ? PkiKeySpec.fromJSON(object.key_spec)
+        : undefined,
+      issued: isSet(object.issued) ? PkiIssued.fromJSON(object.issued) : undefined,
     };
   },
 
@@ -50357,6 +50520,12 @@ export const PkiCa: MessageFns<PkiCa> = {
     if (message.ocspUrl !== undefined) {
       obj.ocspUrl = message.ocspUrl;
     }
+    if (message.keySpec !== undefined) {
+      obj.keySpec = PkiKeySpec.toJSON(message.keySpec);
+    }
+    if (message.issued !== undefined) {
+      obj.issued = PkiIssued.toJSON(message.issued);
+    }
     return obj;
   },
 
@@ -50369,6 +50538,12 @@ export const PkiCa: MessageFns<PkiCa> = {
     message.certificateRef = object.certificateRef ?? undefined;
     message.crl = (object.crl !== undefined && object.crl !== null) ? PkiCa_Crl.fromPartial(object.crl) : undefined;
     message.ocspUrl = object.ocspUrl ?? undefined;
+    message.keySpec = (object.keySpec !== undefined && object.keySpec !== null)
+      ? PkiKeySpec.fromPartial(object.keySpec)
+      : undefined;
+    message.issued = (object.issued !== undefined && object.issued !== null)
+      ? PkiIssued.fromPartial(object.issued)
+      : undefined;
     return message;
   },
 };
@@ -50470,6 +50645,8 @@ function createBasePkiCertificate(): PkiCertificate {
     ca: undefined,
     acme: undefined,
     expiryAlertDays: undefined,
+    csr: undefined,
+    issued: undefined,
   };
 }
 
@@ -50492,6 +50669,12 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     }
     if (message.expiryAlertDays !== undefined) {
       writer.uint32(48).uint32(message.expiryAlertDays);
+    }
+    if (message.csr !== undefined) {
+      PkiCsr.encode(message.csr, writer.uint32(58).fork()).join();
+    }
+    if (message.issued !== undefined) {
+      PkiIssued.encode(message.issued, writer.uint32(66).fork()).join();
     }
     return writer;
   },
@@ -50557,6 +50740,22 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
             message.expiryAlertDays = reader.uint32();
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.csr = PkiCsr.decode(reader, reader.uint32());
+            continue;
+          }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.issued = PkiIssued.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -50589,6 +50788,8 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
         : isSet(object.expiry_alert_days)
         ? globalThis.Number(object.expiry_alert_days)
         : undefined,
+      csr: isSet(object.csr) ? PkiCsr.fromJSON(object.csr) : undefined,
+      issued: isSet(object.issued) ? PkiIssued.fromJSON(object.issued) : undefined,
     };
   },
 
@@ -50612,6 +50813,12 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
     if (message.expiryAlertDays !== undefined) {
       obj.expiryAlertDays = Math.round(message.expiryAlertDays);
     }
+    if (message.csr !== undefined) {
+      obj.csr = PkiCsr.toJSON(message.csr);
+    }
+    if (message.issued !== undefined) {
+      obj.issued = PkiIssued.toJSON(message.issued);
+    }
     return obj;
   },
 
@@ -50628,6 +50835,10 @@ export const PkiCertificate: MessageFns<PkiCertificate> = {
       ? PkiCertificate_Acme.fromPartial(object.acme)
       : undefined;
     message.expiryAlertDays = object.expiryAlertDays ?? undefined;
+    message.csr = (object.csr !== undefined && object.csr !== null) ? PkiCsr.fromPartial(object.csr) : undefined;
+    message.issued = (object.issued !== undefined && object.issued !== null)
+      ? PkiIssued.fromPartial(object.issued)
+      : undefined;
     return message;
   },
 };
@@ -74492,6 +74703,833 @@ export const CnatSessionPurgeAction: MessageFns<CnatSessionPurgeAction> = {
   },
 };
 
+function createBasePkiKeySpec(): PkiKeySpec {
+  return { type: undefined, curve: undefined, bits: undefined };
+}
+
+export const PkiKeySpec: MessageFns<PkiKeySpec> = {
+  encode(message: PkiKeySpec, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.curve !== undefined) {
+      writer.uint32(18).string(message.curve);
+    }
+    if (message.bits !== undefined) {
+      writer.uint32(24).uint32(message.bits);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiKeySpec {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiKeySpec();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.curve = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.bits = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiKeySpec {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      curve: isSet(object.curve) ? globalThis.String(object.curve) : undefined,
+      bits: isSet(object.bits) ? globalThis.Number(object.bits) : undefined,
+    };
+  },
+
+  toJSON(message: PkiKeySpec): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.curve !== undefined) {
+      obj.curve = message.curve;
+    }
+    if (message.bits !== undefined) {
+      obj.bits = Math.round(message.bits);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiKeySpec>): PkiKeySpec {
+    return PkiKeySpec.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiKeySpec>): PkiKeySpec {
+    const message = createBasePkiKeySpec();
+    message.type = object.type ?? undefined;
+    message.curve = object.curve ?? undefined;
+    message.bits = object.bits ?? undefined;
+    return message;
+  },
+};
+
+function createBasePkiCsr(): PkiCsr {
+  return { subject: undefined, san: [], keySpec: undefined };
+}
+
+export const PkiCsr: MessageFns<PkiCsr> = {
+  encode(message: PkiCsr, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.subject !== undefined) {
+      writer.uint32(10).string(message.subject);
+    }
+    for (const v of message.san) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.keySpec !== undefined) {
+      PkiKeySpec.encode(message.keySpec, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiCsr {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiCsr();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.subject = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.san.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.keySpec = PkiKeySpec.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiCsr {
+    return {
+      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
+      san: globalThis.Array.isArray(object?.san) ? object.san.map((e: any) => globalThis.String(e)) : [],
+      keySpec: isSet(object.keySpec)
+        ? PkiKeySpec.fromJSON(object.keySpec)
+        : isSet(object.key_spec)
+        ? PkiKeySpec.fromJSON(object.key_spec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: PkiCsr): unknown {
+    const obj: any = {};
+    if (message.subject !== undefined) {
+      obj.subject = message.subject;
+    }
+    if (message.san?.length) {
+      obj.san = message.san;
+    }
+    if (message.keySpec !== undefined) {
+      obj.keySpec = PkiKeySpec.toJSON(message.keySpec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiCsr>): PkiCsr {
+    return PkiCsr.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiCsr>): PkiCsr {
+    const message = createBasePkiCsr();
+    message.subject = object.subject ?? undefined;
+    message.san = object.san?.map((e) => e) || [];
+    message.keySpec = (object.keySpec !== undefined && object.keySpec !== null)
+      ? PkiKeySpec.fromPartial(object.keySpec)
+      : undefined;
+    return message;
+  },
+};
+
+function createBasePkiIssued(): PkiIssued {
+  return {
+    serial: undefined,
+    notBefore: undefined,
+    notAfter: undefined,
+    issuer: undefined,
+    fingerprint: undefined,
+    subject: undefined,
+    ca: undefined,
+  };
+}
+
+export const PkiIssued: MessageFns<PkiIssued> = {
+  encode(message: PkiIssued, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.serial !== undefined) {
+      writer.uint32(10).string(message.serial);
+    }
+    if (message.notBefore !== undefined) {
+      writer.uint32(18).string(message.notBefore);
+    }
+    if (message.notAfter !== undefined) {
+      writer.uint32(26).string(message.notAfter);
+    }
+    if (message.issuer !== undefined) {
+      writer.uint32(34).string(message.issuer);
+    }
+    if (message.fingerprint !== undefined) {
+      writer.uint32(42).string(message.fingerprint);
+    }
+    if (message.subject !== undefined) {
+      writer.uint32(50).string(message.subject);
+    }
+    if (message.ca !== undefined) {
+      writer.uint32(56).bool(message.ca);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiIssued {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiIssued();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.serial = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.notBefore = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.notAfter = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.issuer = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.fingerprint = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.subject = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.ca = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiIssued {
+    return {
+      serial: isSet(object.serial) ? globalThis.String(object.serial) : undefined,
+      notBefore: isSet(object.notBefore)
+        ? globalThis.String(object.notBefore)
+        : isSet(object.not_before)
+        ? globalThis.String(object.not_before)
+        : undefined,
+      notAfter: isSet(object.notAfter)
+        ? globalThis.String(object.notAfter)
+        : isSet(object.not_after)
+        ? globalThis.String(object.not_after)
+        : undefined,
+      issuer: isSet(object.issuer) ? globalThis.String(object.issuer) : undefined,
+      fingerprint: isSet(object.fingerprint) ? globalThis.String(object.fingerprint) : undefined,
+      subject: isSet(object.subject) ? globalThis.String(object.subject) : undefined,
+      ca: isSet(object.ca) ? globalThis.Boolean(object.ca) : undefined,
+    };
+  },
+
+  toJSON(message: PkiIssued): unknown {
+    const obj: any = {};
+    if (message.serial !== undefined) {
+      obj.serial = message.serial;
+    }
+    if (message.notBefore !== undefined) {
+      obj.notBefore = message.notBefore;
+    }
+    if (message.notAfter !== undefined) {
+      obj.notAfter = message.notAfter;
+    }
+    if (message.issuer !== undefined) {
+      obj.issuer = message.issuer;
+    }
+    if (message.fingerprint !== undefined) {
+      obj.fingerprint = message.fingerprint;
+    }
+    if (message.subject !== undefined) {
+      obj.subject = message.subject;
+    }
+    if (message.ca !== undefined) {
+      obj.ca = message.ca;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiIssued>): PkiIssued {
+    return PkiIssued.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiIssued>): PkiIssued {
+    const message = createBasePkiIssued();
+    message.serial = object.serial ?? undefined;
+    message.notBefore = object.notBefore ?? undefined;
+    message.notAfter = object.notAfter ?? undefined;
+    message.issuer = object.issuer ?? undefined;
+    message.fingerprint = object.fingerprint ?? undefined;
+    message.subject = object.subject ?? undefined;
+    message.ca = object.ca ?? undefined;
+    return message;
+  },
+};
+
+function createBasePkiFileStateRequest(): PkiFileStateRequest {
+  return { owner: "" };
+}
+
+export const PkiFileStateRequest: MessageFns<PkiFileStateRequest> = {
+  encode(message: PkiFileStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiFileStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiFileStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiFileStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: PkiFileStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiFileStateRequest>): PkiFileStateRequest {
+    return PkiFileStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiFileStateRequest>): PkiFileStateRequest {
+    const message = createBasePkiFileStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBasePkiFileStateFile(): PkiFileStateFile {
+  return { kind: "", name: "", ref: "", fingerprint: "", mode: 0, size: 0, present: false };
+}
+
+export const PkiFileStateFile: MessageFns<PkiFileStateFile> = {
+  encode(message: PkiFileStateFile, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== "") {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.ref !== "") {
+      writer.uint32(26).string(message.ref);
+    }
+    if (message.fingerprint !== "") {
+      writer.uint32(34).string(message.fingerprint);
+    }
+    if (message.mode !== 0) {
+      writer.uint32(40).uint32(message.mode);
+    }
+    if (message.size !== 0) {
+      writer.uint32(48).uint32(message.size);
+    }
+    if (message.present !== false) {
+      writer.uint32(56).bool(message.present);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiFileStateFile {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiFileStateFile();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.ref = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.fingerprint = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.mode = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.size = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.present = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiFileStateFile {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      ref: isSet(object.ref) ? globalThis.String(object.ref) : "",
+      fingerprint: isSet(object.fingerprint) ? globalThis.String(object.fingerprint) : "",
+      mode: isSet(object.mode) ? globalThis.Number(object.mode) : 0,
+      size: isSet(object.size) ? globalThis.Number(object.size) : 0,
+      present: isSet(object.present) ? globalThis.Boolean(object.present) : false,
+    };
+  },
+
+  toJSON(message: PkiFileStateFile): unknown {
+    const obj: any = {};
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.ref !== "") {
+      obj.ref = message.ref;
+    }
+    if (message.fingerprint !== "") {
+      obj.fingerprint = message.fingerprint;
+    }
+    if (message.mode !== 0) {
+      obj.mode = Math.round(message.mode);
+    }
+    if (message.size !== 0) {
+      obj.size = Math.round(message.size);
+    }
+    if (message.present !== false) {
+      obj.present = message.present;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiFileStateFile>): PkiFileStateFile {
+    return PkiFileStateFile.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiFileStateFile>): PkiFileStateFile {
+    const message = createBasePkiFileStateFile();
+    message.kind = object.kind ?? "";
+    message.name = object.name ?? "";
+    message.ref = object.ref ?? "";
+    message.fingerprint = object.fingerprint ?? "";
+    message.mode = object.mode ?? 0;
+    message.size = object.size ?? 0;
+    message.present = object.present ?? false;
+    return message;
+  },
+};
+
+function createBasePkiFileStateSet(): PkiFileStateSet {
+  return { files: [] };
+}
+
+export const PkiFileStateSet: MessageFns<PkiFileStateSet> = {
+  encode(message: PkiFileStateSet, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.files) {
+      PkiFileStateFile.encode(v!, writer.uint32(10).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiFileStateSet {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiFileStateSet();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.files.push(PkiFileStateFile.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiFileStateSet {
+    return {
+      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => PkiFileStateFile.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PkiFileStateSet): unknown {
+    const obj: any = {};
+    if (message.files?.length) {
+      obj.files = message.files.map((e) => PkiFileStateFile.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiFileStateSet>): PkiFileStateSet {
+    return PkiFileStateSet.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiFileStateSet>): PkiFileStateSet {
+    const message = createBasePkiFileStateSet();
+    message.files = object.files?.map((e) => PkiFileStateFile.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePkiFileStateResponse(): PkiFileStateResponse {
+  return { owner: "", retrievedAt: undefined, root: "", files: [], unavailable: "" };
+}
+
+export const PkiFileStateResponse: MessageFns<PkiFileStateResponse> = {
+  encode(message: PkiFileStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    if (message.root !== "") {
+      writer.uint32(26).string(message.root);
+    }
+    for (const v of message.files) {
+      PkiFileStateFile.encode(v!, writer.uint32(34).fork()).join();
+    }
+    if (message.unavailable !== "") {
+      writer.uint32(42).string(message.unavailable);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PkiFileStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePkiFileStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.root = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.files.push(PkiFileStateFile.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.unavailable = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PkiFileStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      root: isSet(object.root) ? globalThis.String(object.root) : "",
+      files: globalThis.Array.isArray(object?.files) ? object.files.map((e: any) => PkiFileStateFile.fromJSON(e)) : [],
+      unavailable: isSet(object.unavailable) ? globalThis.String(object.unavailable) : "",
+    };
+  },
+
+  toJSON(message: PkiFileStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.root !== "") {
+      obj.root = message.root;
+    }
+    if (message.files?.length) {
+      obj.files = message.files.map((e) => PkiFileStateFile.toJSON(e));
+    }
+    if (message.unavailable !== "") {
+      obj.unavailable = message.unavailable;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PkiFileStateResponse>): PkiFileStateResponse {
+    return PkiFileStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PkiFileStateResponse>): PkiFileStateResponse {
+    const message = createBasePkiFileStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.root = object.root ?? "";
+    message.files = object.files?.map((e) => PkiFileStateFile.fromPartial(e)) || [];
+    message.unavailable = object.unavailable ?? "";
+    return message;
+  },
+};
+
 function createBaseMplsConfig(): MplsConfig {
   return { interfaces: [], tables: {}, labelRoutes: [], ipBindings: [], tunnels: {}, sr: undefined, ldp: undefined };
 }
@@ -93060,6 +94098,22 @@ export const DataplaneService = {
     responseDeserialize: (value: Buffer): CnatSessionsResponse => CnatSessionsResponse.decode(value),
   },
   /**
+   * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+   * its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+   * HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+   * semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+   */
+  pkiFileState: {
+    path: "/vrx.v1.Dataplane/PkiFileState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: PkiFileStateRequest): Buffer => Buffer.from(PkiFileStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): PkiFileStateRequest => PkiFileStateRequest.decode(value),
+    responseSerialize: (value: PkiFileStateResponse): Buffer =>
+      Buffer.from(PkiFileStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): PkiFileStateResponse => PkiFileStateResponse.decode(value),
+  },
+  /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
    * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
    * (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -93672,6 +94726,13 @@ export interface DataplaneServer extends UntypedServiceImplementation {
   /** CnatSessions pages the CNAT session table (cnat_session_dump; read-only). */
   cnatSessions: handleUnaryCall<CnatSessionsRequest, CnatSessionsResponse>;
   /**
+   * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+   * its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+   * HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+   * semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+   */
+  pkiFileState: handleUnaryCall<PkiFileStateRequest, PkiFileStateResponse>;
+  /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
    * paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
    * (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -94073,6 +95134,27 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: CnatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+   * its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+   * HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+   * semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+   */
+  pkiFileState(
+    request: PkiFileStateRequest,
+    callback: (error: ServiceError | null, response: PkiFileStateResponse) => void,
+  ): ClientUnaryCall;
+  pkiFileState(
+    request: PkiFileStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: PkiFileStateResponse) => void,
+  ): ClientUnaryCall;
+  pkiFileState(
+    request: PkiFileStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: PkiFileStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and

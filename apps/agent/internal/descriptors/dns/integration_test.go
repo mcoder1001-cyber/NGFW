@@ -24,8 +24,8 @@ func TestDNSOnHost(t *testing.T) {
 	// D-064: a host test that can crash the shared VPP is opt-in twice — VPP 26.06 segfaults on dns_resolve_name while
 	// its dns plugin has no name server (2026-09-25 04:27, docs/vpp-code-track.md), so the dns.api path runs only when
 	// the manager asks for it in a window.
-	if os.Getenv("VRX_DNS_VPP_HOST") != "1" {
-		t.Skip("dns.api on the shared VPP can crash it (V-item of F-unbound-chrony-syslog): set VRX_DNS_VPP_HOST=1 (and VRX_DF8_GLOBALS=1) in a manager window")
+	if os.Getenv("NGFW_DNS_VPP_HOST") != "1" {
+		t.Skip("dns.api on the shared VPP can crash it (V-item of F-unbound-chrony-syslog): set NGFW_DNS_VPP_HOST=1 (and NGFW_DF8_GLOBALS=1) in a manager window")
 	}
 	dfkittest.SkipUnlessGlobals(t, "dns_enable_disable / dns_name_server_add_del")
 	h := dfkittest.ConnectHost(t)

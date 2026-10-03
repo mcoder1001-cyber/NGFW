@@ -7,7 +7,7 @@
 //     scheduler.Descriptor;
 //   - the ownership Scope for NAT objects that carry no tag (address pools, prefixes, maps):
 //     derived from the owner id — "w<N>" (a test slot) owns 10.<N>.0.0/16, fd00:<N>::/32 and
-//     tables N000–N999; every other owner (the production agent, "vrx") owns everything;
+//     tables N000–N999; every other owner (the production agent, "ngfw") owns everything;
 //   - the interface table (name <-> sw_if_index <-> owner tag) and address helpers;
 //   - VPP error classification (already enabled / already disabled / no such entry).
 package natcommon

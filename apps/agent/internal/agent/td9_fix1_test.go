@@ -13,7 +13,7 @@ import (
 
 	"go.fd.io/govpp/api"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
@@ -30,13 +30,13 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 	blue := doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)
 	cases := []struct {
 		name  string
-		want  vrxv1.ApplyStatus
+		want  ngfwv1.ApplyStatus
 		stage func(fv *flakyVPP)
 	}{
-		{"plan", vrxv1.ApplyStatus_APPLY_STATUS_FAILED, func(fv *flakyVPP) {
+		{"plan", ngfwv1.ApplyStatus_APPLY_STATUS_FAILED, func(fv *flakyVPP) {
 			fv.set(func(f *flakyVPP) { f.dumpErr = errDumpTimeout })
 		}},
-		{"verify", vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK, func(fv *flakyVPP) {
+		{"verify", ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK, func(fv *flakyVPP) {
 			fv.set(func(f *flakyVPP) { // the dump after blue's last table add (verify) times out, once
 				f.onInvoke = func(m api.Message) {
 					if tableAdd(7002, true)(m) {
@@ -45,7 +45,7 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 				}
 			})
 		}},
-		{"verify+rollback", vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED, func(fv *flakyVPP) {
+		{"verify+rollback", ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED, func(fv *flakyVPP) {
 			fv.set(func(f *flakyVPP) { // every dump from verify on times out
 				f.onInvoke = func(m api.Message) {
 					if tableAdd(7002, true)(m) {
@@ -60,15 +60,15 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 			fv := newFlaky()
 			s := newSvcWith(t, fv, t.TempDir())
 			fv.releaseAtEnd(t)
-			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 			tc.stage(fv)
-			resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: blue})
+			resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: blue})
 			mustStatus(t, resp, tc.want)
 			if !strings.Contains(resp.GetMessage()+fmt.Sprint(resp.GetResults()), "no reply in time") {
 				t.Fatalf("not a timeout: %s %v", resp.GetMessage(), resp.GetResults())
 			}
 			fv.set(func(f *flakyVPP) { f.dumpErr, f.dumpErrOnce, f.onInvoke = nil, false, nil })
-			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: blue}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: blue}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 			if !fv.HasTable(7002, false) || !fv.HasTable(7002, true) {
 				t.Fatal("the retry did not apply blue")
 			}
@@ -81,8 +81,8 @@ func TestTimeoutOutcomesAreNeverStored(t *testing.T) {
 func TestNarrowerSupersedeOfAnOwedRevertStillResyncs(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}},"routing":{"static":[{"prefix":"10.7.99.0/24","blackhole":true}]}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}},"routing":{}}`), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}},"routing":{"static":[{"prefix":"10.7.99.0/24","blackhole":true}]}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}},"routing":{}}`), ConfirmTimeoutSec: 1}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	// Another owner takes the prefix: the revert cannot restore the route and stays owed.
 	reg := scheduler.NewRegistry()
 	core.Register(reg, core.Env{Client: v, Owner: "w7x", Owned: ownertable.NewMemory()})
@@ -96,7 +96,7 @@ func TestNarrowerSupersedeOfAnOwedRevertStillResyncs(t *testing.T) {
 	})
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
 	// A vrfs-only Apply supersedes the owed revert: APPLIED, but it does not cover routing.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if h := s.Health(); !h.GetDegraded() || h.GetPendingConfirmTxnId() != "" {
 		t.Fatalf("after the narrower supersede: %v", h)
 	}
@@ -114,7 +114,7 @@ func TestHookPanicsHaveTheirOwnLabel(t *testing.T) {
 	a := &Agent{log: newSvc(t, coretest.New(), t.TempDir()).log, metrics: m}
 	a.safely("wiring connect hook", func() { panic("hook bug") })
 	out := scrape(m)
-	if !strings.Contains(out, `vrx_agent_panics_total{where="hook"} 1`) || !strings.Contains(out, `vrx_agent_panics_total{where="transaction"} 0`) {
+	if !strings.Contains(out, `ngfw_agent_panics_total{where="hook"} 1`) || !strings.Contains(out, `ngfw_agent_panics_total{where="transaction"} 0`) {
 		t.Fatalf("hook panic counted as:\n%s", out)
 	}
 }
@@ -138,14 +138,14 @@ func TestFlushClaimsContextAndFailure(t *testing.T) {
 		}
 	}
 	s.unlock()
-	req := &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}
+	req := &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}
 	resp := apply(t, s, req)
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED)
 	if !strings.Contains(resp.GetMessage(), "claim stores not persisted") {
 		t.Fatalf("message %q", resp.GetMessage())
 	}
 	failing.Store(false)
-	mustStatus(t, apply(t, s, req), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED) // not the stored DEGRADED
+	mustStatus(t, apply(t, s, req), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED) // not the stored DEGRADED
 }
 
 // L5: the drift check's Plan has a short bound of its own, so a slow VPP cannot keep an Apply waiting
@@ -155,7 +155,7 @@ func TestDriftPlanIsBoundedTightly(t *testing.T) {
 	fv := newFlaky()
 	s := newSvcWith(t, fv, t.TempDir())
 	fv.releaseAtEnd(t)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	fv.set(func(f *flakyVPP) { f.dumpDelay = time.Second })
 	_, took := within(t, 30*time.Second, "CheckDrift", func() bool { checkDrift(s); return true })
 	if took > 2*time.Second {
@@ -166,15 +166,15 @@ func TestDriftPlanIsBoundedTightly(t *testing.T) {
 // L6: a reply timeout below govpp's health-check window refuses to start: a late reply on a reused
 // channel id could otherwise reach a later call before the health check reconnects.
 func TestReplyTimeoutBelowTheHealthCheckWindowRefused(t *testing.T) {
-	t.Setenv("VRX_VPP_ID_RANGE", "all") // TD-8b: no id range refuses start-up
+	t.Setenv("NGFW_VPP_ID_RANGE", "all") // TD-8b: no id range refuses start-up
 	for _, in := range []string{"5", "1500ms", "14s"} {
-		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
-		if err := ConfigFromEnv().Validate(); err == nil || !strings.Contains(err.Error(), "VRX_AGENT_VPP_REPLY_TIMEOUT") {
+		t.Setenv("NGFW_AGENT_VPP_REPLY_TIMEOUT", in)
+		if err := ConfigFromEnv().Validate(); err == nil || !strings.Contains(err.Error(), "NGFW_AGENT_VPP_REPLY_TIMEOUT") {
 			t.Errorf("%q accepted: %v", in, err)
 		}
 	}
 	for _, in := range []string{"15", "30s", "2m"} {
-		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
+		t.Setenv("NGFW_AGENT_VPP_REPLY_TIMEOUT", in)
 		if err := ConfigFromEnv().Validate(); err != nil {
 			t.Errorf("%q: %v", in, err)
 		}

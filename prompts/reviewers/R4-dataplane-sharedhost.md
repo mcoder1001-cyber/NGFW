@@ -1,7 +1,7 @@
 # Reviewer R4 — data-plane / VPP safety & shared-host rules   (prepend 00-CONTEXT.md, then ../REVIEW-PROMPT.md)
 
 Mandatory when the diff touches `apps/agent/**`, `deploy/vpp/**`, `test/topology/**`, `tools/lab`, or creates VPP objects,
-daemons, ports, tables or DB rows on the shared host. Read `docs/lab/shared-host-rules.md` and `docs/lab/host-vrx-a.md` first.
+daemons, ports, tables or DB rows on the shared host. Read `docs/lab/shared-host-rules.md` and `docs/lab/host-ngfw-a.md` first.
 
 ## Check
 1. **VPP API provenance:** every message used exists in `apps/agent/binapi/`; the branch does not modify `binapi/` or

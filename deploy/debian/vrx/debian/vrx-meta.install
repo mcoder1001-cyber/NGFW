@@ -1,7 +1,0 @@
-assets/firstboot.sh usr/lib/vrx/
-stage/usr/lib/systemd/system/vrx-firstboot.service usr/lib/systemd/system/
-assets/vpp-firstboot.conf usr/lib/systemd/system/vpp.service.d/
-assets/render-base-policy.py usr/lib/vrx/
-assets/nftables-vrx.conf usr/lib/systemd/system/nftables.service.d/
-assets/firewall-bootstrap.sh usr/lib/vrx/
-stage/usr/lib/systemd/system/vrx-firewall-bootstrap.service usr/lib/systemd/system/

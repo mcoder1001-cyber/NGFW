@@ -38,5 +38,5 @@ through the descriptor are ErrRecreate (disable + enable), so drift only comes f
 ## Host test gated (D-087)
 
 The host test ran together with the VRRP host test when VPP crashed (SIGSEGV in `ip4_options_node_fn`, IGMP
-router-alert packets looped back on loopbacks; DF-7-questions Q9). It runs only with `VRX_DF7_IGMP_HOST=1`, alone,
+router-alert packets looped back on loopbacks; DF-7-questions Q9). It runs only with `NGFW_DF7_IGMP_HOST=1`, alone,
 in a manager window.

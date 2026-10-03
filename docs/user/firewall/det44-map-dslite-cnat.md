@@ -6,7 +6,7 @@ usual candidate → diff → commit → rollback cycle.
 > **Status of this build.** The agent programs and retrieves every translator below. The REST state/actions
 > (DET44 session browser and lookup, CNAT sessions), the NAT page tabs (CGNAT, MAP, CNAT, PNAT) and PNAT (`nat.pnat`)
 > are **not in this build yet** (see docs/status/tasks/F-det44-map-dslite-cnat.md). Configure through the configuration
-> document / `vrx merge nat …` for now.
+> document / `ngfw merge nat …` for now.
 
 | translator | configuration | VPP plugin | what it is for |
 |---|---|---|---|
@@ -118,8 +118,8 @@ and the lookup), **MAP**, **CNAT** (form, sessions, purge for admins) and **PNAT
 ## CLI equivalent
 
 ```
-vrx merge nat '{"det44":{"enabled":true,"inside":["ge0/0/1"],"outside":["ge0/0/0"],"mappings":[{"inside":"100.64.0.0/22","outside":"203.0.113.0/28"}]}}'
-vrx commit
+ngfw merge nat '{"det44":{"enabled":true,"inside":["ge0/0/1"],"outside":["ge0/0/0"],"mappings":[{"inside":"100.64.0.0/22","outside":"203.0.113.0/28"}]}}'
+ngfw commit
 ```
 
 VPP's own view (read-only, for troubleshooting): `vppctl show det44 mappings`, `show map domain`, `show dslite aftr

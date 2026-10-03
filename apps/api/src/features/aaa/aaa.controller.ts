@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { AaaService } from './aaa.service.js';
@@ -39,7 +39,7 @@ export class AaaController {
   })
   @ApiBody({ schema: openapi(TestBody) })
   @ApiOkResponse({ schema: openapi(TestOut, 'output') })
-  async test(@Body(new ZodPipe(TestBody)) body: z.output<typeof TestBody>, @Req() req: VrxRequest) {
+  async test(@Body(new ZodPipe(TestBody)) body: z.output<typeof TestBody>, @Req() req: NgfwRequest) {
     const r = await this.aaa.test(body.method, body.username, body.password);
     req.audit = {
       resource: 'actions/aaa/test',

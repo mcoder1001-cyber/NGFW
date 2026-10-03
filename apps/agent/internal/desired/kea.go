@@ -2,8 +2,8 @@ package desired
 
 // F-kea-dhcp-relay: the `services` domain's DHCP part.
 //
-//	services.dhcp.servers (family ipv4) → kea.dhcp4/vrx  Value = kea.Input(document, 4)
-//	services.dhcp.servers (family ipv6) → kea.dhcp6/vrx  Value = kea.Input(document, 6)
+//	services.dhcp.servers (family ipv4) → kea.dhcp4/ngfw  Value = kea.Input(document, 4)
+//	services.dhcp.servers (family ipv6) → kea.dhcp6/ngfw  Value = kea.Input(document, 6)
 //	services.dhcp.relays.<name>         → dhcp.proxy/<rx table>/<server table>/<server> per server (enabled relays)
 //	                                      + dhcp.relay/<name> (the relay record, dhcp_relay.go)
 //
@@ -15,7 +15,7 @@ package desired
 import (
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/kea"
 	"ngfw/agent/internal/scheduler"
 )
@@ -28,7 +28,7 @@ func init() { ServicesImplemented["dhcp"] = true }
 // "One Kea VRF per family" is the semantic rule services.kea-dhcp-relay-one-vrf-per-family (API, 400) and the
 // renderer's own check at apply time (ErrInvalid); it is not a projection error because the P02c example
 // services-dhcp-dns.json (two IPv4 servers in two VRFs) must stay projectable (questions Q3).
-func Kea(s Sink, ds *vrxv1.DesiredState) {
+func Kea(s Sink, ds *ngfwv1.DesiredState) {
 	servers := ds.GetServices().GetDhcp().GetServers()
 	bad := false
 	for _, name := range sortedKeys(servers) {
@@ -49,35 +49,35 @@ func Kea(s Sink, ds *vrxv1.DesiredState) {
 
 // AssembleKea adds the servers of the retrieved Kea objects to ds (a Kea configuration that drifted from its own
 // input is reported by its descriptor as a *structpb.Struct and contributes nothing, so the drift is visible).
-func AssembleKea(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleKea(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
 		d := kv.Key.Descriptor()
 		if d != kea.NameDhcp4 && d != kea.NameDhcp6 {
 			continue
 		}
-		in, ok := kv.Value.(*vrxv1.DesiredState)
+		in, ok := kv.Value.(*ngfwv1.DesiredState)
 		if !ok {
 			continue
 		}
 		for name, srv := range in.GetServices().GetDhcp().GetServers() {
-			dhcpOf(ds).Servers[name] = proto.Clone(srv).(*vrxv1.DhcpServer)
+			dhcpOf(ds).Servers[name] = proto.Clone(srv).(*ngfwv1.DhcpServer)
 		}
 	}
 }
 
 // dhcpOf returns ds.services.dhcp with both maps allocated.
-func dhcpOf(ds *vrxv1.DesiredState) *vrxv1.DhcpService {
+func dhcpOf(ds *ngfwv1.DesiredState) *ngfwv1.DhcpService {
 	if ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
 	if ds.Services.Dhcp == nil {
-		ds.Services.Dhcp = &vrxv1.DhcpService{}
+		ds.Services.Dhcp = &ngfwv1.DhcpService{}
 	}
 	if ds.Services.Dhcp.Servers == nil {
-		ds.Services.Dhcp.Servers = map[string]*vrxv1.DhcpServer{}
+		ds.Services.Dhcp.Servers = map[string]*ngfwv1.DhcpServer{}
 	}
 	if ds.Services.Dhcp.Relays == nil {
-		ds.Services.Dhcp.Relays = map[string]*vrxv1.DhcpRelay{}
+		ds.Services.Dhcp.Relays = map[string]*ngfwv1.DhcpRelay{}
 	}
 	return ds.Services.Dhcp
 }

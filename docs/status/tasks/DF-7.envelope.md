@@ -3,7 +3,7 @@ id: DF-7   branch: task/DF-7   worktree: /root/ngfw-wt/DF-7   base: main@c791087
 title: Descriptors: policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls
 prompt: prompts/factories/DF-7.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D7.8, D7.9, D1.10, D1.7, D3.8, D9.1, D2.9, D2.8
 merged deps you can rely on: P05a, P04, DF-4 (acl — merged example of a finished factory)
-slot: 10 → VRX_SLOT=10 VRX_TEST_PREFIX=w10 VRX_HTTP_PORT=4000 VRX_WEB_PORT=6000 VRX_METRICS_PORT=9201 VRX_AGENT_SOCKET=/run/vrx-test/w10/agent.sock VRX_PG_DATABASE=vrx_w10 VRX_VALKEY_DB=10 VRX_VPP_TABLE_BASE=10000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock  (source of truth: `eval "$(tools/lab env 10)"`)
+slot: 10 → NGFW_SLOT=10 NGFW_TEST_PREFIX=w10 NGFW_HTTP_PORT=4000 NGFW_WEB_PORT=6000 NGFW_METRICS_PORT=9201 NGFW_AGENT_SOCKET=/run/ngfw-test/w10/agent.sock NGFW_PG_DATABASE=ngfw_w10 NGFW_VALKEY_DB=10 NGFW_VPP_TABLE_BASE=10000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock  (source of truth: `eval "$(tools/lab env 10)"`)
 daemon-owner: none
 rules added 2026-09-24: interface references use the alias key `interface/<name>` (D-065); descriptors without a VPP dump return ErrRetrieveUnsupported and are write-only (D-063); before/after the first host run of each plugin check `systemctl show vpp -p NRestarts` — a crash → stop, gate the test behind an opt-in env var, report the message in questions (D-064)
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-7>/** docs/agent/descriptors/<plugins>.md docs/status/tasks/DF-7*

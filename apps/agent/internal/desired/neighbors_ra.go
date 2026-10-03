@@ -7,7 +7,7 @@ package desired
 //	                                                       fresh state: DF-2's Retrieve omits default-state interfaces)
 //	                                    .ipv6Ra.prefixes → ip6-nd.ra-prefix/<if>/<prefix>
 //	                                    .proxyArp        → arp.proxy-interface/<if>          (true only)
-//	                                    .proxyNd[]       → ip6-nd.proxy/<if>/<ip6>           (opt-in, VRX_DF2_PROXY_ND=1, V12)
+//	                                    .proxyNd[]       → ip6-nd.proxy/<if>/<ip6>           (opt-in, NGFW_DF2_PROXY_ND=1, V12)
 //	vrfs.<name>.proxyArpRanges[]                         → arp.proxy-range/<table>/<low>-<high>
 //	routing.neighbors.static[]                           → ip-neighbor.neighbor/<if>/<ip>
 //	routing.neighbors.ipv4Limits / ipv6Limits            → ip-neighbor.config/<ipv4|ipv6>    (globals owner only, D-071;
@@ -28,7 +28,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/arp"
 	"ngfw/agent/internal/descriptors/df2"
 	ip6nd "ngfw/agent/internal/descriptors/ip6_nd"
@@ -38,9 +38,9 @@ import (
 
 // EnvProxyNd opts in to DF-2's proxy-ND descriptor (D-064, docs/vpp-code-track.md V12): VPP aborted after the first
 // ip6nd_proxy_add_del on the shared host, so the product exposes proxy ND as experimental and off by default.
-const EnvProxyNd = "VRX_DF2_PROXY_ND"
+const EnvProxyNd = "NGFW_DF2_PROXY_ND"
 
-// ProxyNdEnabled reports whether this process opted in to proxy ND (VRX_DF2_PROXY_ND=1).
+// ProxyNdEnabled reports whether this process opted in to proxy ND (NGFW_DF2_PROXY_ND=1).
 func ProxyNdEnabled() bool { return os.Getenv(EnvProxyNd) == "1" }
 
 // NeighborsRaOptions are the registration facts the projection must agree with: which of DF-2's conditional
@@ -48,7 +48,7 @@ func ProxyNdEnabled() bool { return os.Getenv(EnvProxyNd) == "1" }
 type NeighborsRaOptions struct {
 	// GlobalsOwner: ip-neighbor.config and ip6-nd.dad are registered (D-071).
 	GlobalsOwner bool
-	// ProxyNd: ip6-nd.proxy is registered (VRX_DF2_PROXY_ND=1).
+	// ProxyNd: ip6-nd.proxy is registered (NGFW_DF2_PROXY_ND=1).
 	ProxyNd bool
 }
 
@@ -73,12 +73,12 @@ const ruleUnsupported = "agent.unsupported-field"
 type raNode struct {
 	name     string
 	pointer  string
-	ra       *vrxv1.Ipv6Ra
+	ra       *ngfwv1.Ipv6Ra
 	proxyArp *bool
 	proxyNd  []string
 }
 
-func raNodes(ifs map[string]*vrxv1.Interface) []raNode {
+func raNodes(ifs map[string]*ngfwv1.Interface) []raNode {
 	var out []raNode
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
@@ -93,7 +93,7 @@ func raNodes(ifs map[string]*vrxv1.Interface) []raNode {
 
 // RaConfigOf is the DF-2 value of an ipv6Ra leaf (normalised the way Retrieve reports it). Unset scalars take the
 // schema defaults (VPP's own).
-func RaConfigOf(name string, ra *vrxv1.Ipv6Ra) *ip6nd.RaConfig {
+func RaConfigOf(name string, ra *ngfwv1.Ipv6Ra) *ip6nd.RaConfig {
 	u := func(p *uint32, def uint32) uint32 {
 		if p == nil {
 			return def
@@ -121,7 +121,7 @@ func IsDefaultRaConfig(c *ip6nd.RaConfig) bool {
 }
 
 // NeighborsRa emits the F-neighbors-ra objects of the domains in scope (in). vrfID maps a VRF name to its table.
-func NeighborsRa(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
+func NeighborsRa(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
 	opts := NeighborsRaSettings()
 	if in["interfaces"] {
 		for _, n := range raNodes(ds.GetInterfaces()) {
@@ -206,7 +206,7 @@ func NeighborsRa(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(
 			af  df2.AddressFamily
 			id  string
 			key string
-			l   *vrxv1.NeighborLimits
+			l   *ngfwv1.NeighborLimits
 		}{{df2.AddressFamily_IPV4, "ipv4", "ipv4Limits", nb.GetIpv4Limits()}, {df2.AddressFamily_IPV6, "ipv6", "ipv6Limits", nb.GetIpv6Limits()}}
 		for _, l := range limits {
 			pt := Ptr("routing", "neighbors", l.key)
@@ -258,7 +258,7 @@ func ptrSegs(p string) []string {
 // stored is the agent's stored `interfaces` document: for an interface it names with a leaf VPP shows in its default
 // ("off") state, the leaf is reported in that state — VPP's own value, in the document's representation — so a
 // configuration that holds defaults is not drift. tableName names a FIB table.
-func AssembleNeighborsRa(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, stored map[string]*vrxv1.Interface, tableName func(uint32) string) {
+func AssembleNeighborsRa(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, stored map[string]*ngfwv1.Interface, tableName func(uint32) string) {
 	if in["interfaces"] {
 		assembleInterfaces(ds, kvs, stored, tableName)
 	}
@@ -273,14 +273,14 @@ func AssembleNeighborsRa(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[stri
 		for _, r := range ranges {
 			name := tableName(r.GetTableId())
 			if ds.Vrfs == nil {
-				ds.Vrfs = map[string]*vrxv1.Vrf{}
+				ds.Vrfs = map[string]*ngfwv1.Vrf{}
 			}
 			v := ds.Vrfs[name]
 			if v == nil {
-				v = &vrxv1.Vrf{Id: proto.Uint32(r.GetTableId())}
+				v = &ngfwv1.Vrf{Id: proto.Uint32(r.GetTableId())}
 				ds.Vrfs[name] = v
 			}
-			v.ProxyArpRanges = append(v.ProxyArpRanges, &vrxv1.ProxyArpRange{Low: proto.String(r.GetLow()), High: proto.String(r.GetHigh())})
+			v.ProxyArpRanges = append(v.ProxyArpRanges, &ngfwv1.ProxyArpRange{Low: proto.String(r.GetLow()), High: proto.String(r.GetHigh())})
 		}
 	}
 	if in["routing"] {
@@ -304,12 +304,12 @@ func rangeLess(a, b *arp.ProxyRange) bool {
 
 // raTarget is the assembled (sub-)interface message that holds the leaves of one logical name.
 type raTarget struct {
-	ra       **vrxv1.Ipv6Ra
+	ra       **ngfwv1.Ipv6Ra
 	proxyArp **bool
 	proxyNd  *[]string
 }
 
-func assembleInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string]*vrxv1.Interface, tableName func(uint32) string) {
+func assembleInterfaces(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, tableName func(uint32) string) {
 	target := func(name string, create bool) (raTarget, bool) {
 		if itf, ok := ds.Interfaces[name]; ok {
 			return raTarget{&itf.Ipv6Ra, &itf.ProxyArp, &itf.ProxyNd}, true
@@ -326,13 +326,13 @@ func assembleInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[s
 		}
 		// an object on an interface desired.Assemble did not report (e.g. an untagged NIC the document no longer names)
 		if ds.Interfaces == nil {
-			ds.Interfaces = map[string]*vrxv1.Interface{}
+			ds.Interfaces = map[string]*ngfwv1.Interface{}
 		}
-		itf := &vrxv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
+		itf := &ngfwv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
 		ds.Interfaces[name] = itf
 		return raTarget{&itf.Ipv6Ra, &itf.ProxyArp, &itf.ProxyNd}, true
 	}
-	raOf := func(t raTarget) *vrxv1.Ipv6Ra {
+	raOf := func(t raTarget) *ngfwv1.Ipv6Ra {
 		if *t.ra == nil {
 			*t.ra = defaultIpv6Ra()
 		}
@@ -349,9 +349,9 @@ func assembleInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[s
 			t, _ := target(v.GetInterface(), true)
 			ra := raOf(t)
 			if ra.Prefixes == nil {
-				ra.Prefixes = map[string]*vrxv1.Ipv6RaPrefix{}
+				ra.Prefixes = map[string]*ngfwv1.Ipv6RaPrefix{}
 			}
-			ra.Prefixes[v.GetPrefix()] = &vrxv1.Ipv6RaPrefix{
+			ra.Prefixes[v.GetPrefix()] = &ngfwv1.Ipv6RaPrefix{
 				ValidSec: proto.Uint32(v.GetValidLifetime()), PreferredSec: proto.Uint32(v.GetPreferredLifetime()),
 				OffLink: proto.Bool(v.GetOffLink()), NoAutoconfig: proto.Bool(v.GetNoAutoconfig()),
 			}
@@ -367,13 +367,13 @@ func assembleInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[s
 	for name, itf := range stored {
 		nodes := []struct {
 			name string
-			ra   *vrxv1.Ipv6Ra
+			ra   *ngfwv1.Ipv6Ra
 			pa   *bool
 		}{{name, itf.GetIpv6Ra(), itf.ProxyArp}}
 		for id, sub := range itf.GetSubinterfaces() {
 			nodes = append(nodes, struct {
 				name string
-				ra   *vrxv1.Ipv6Ra
+				ra   *ngfwv1.Ipv6Ra
 				pa   *bool
 			}{SubName(name, id), sub.GetIpv6Ra(), sub.ProxyArp})
 		}
@@ -399,8 +399,8 @@ func assembleInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[s
 }
 
 // defaultIpv6Ra is VPP's fresh-interface RA state in the document's form.
-func defaultIpv6Ra() *vrxv1.Ipv6Ra {
-	return &vrxv1.Ipv6Ra{
+func defaultIpv6Ra() *ngfwv1.Ipv6Ra {
+	return &ngfwv1.Ipv6Ra{
 		Suppress: proto.Bool(ip6nd.DefaultSuppress), Managed: proto.Bool(false), Other: proto.Bool(false),
 		LifetimeSec: proto.Uint32(ip6nd.DefaultRouterLifetime), MaxIntervalSec: proto.Uint32(ip6nd.DefaultMaxInterval),
 		MinIntervalSec: proto.Uint32(ip6nd.DefaultMinInterval),
@@ -416,8 +416,8 @@ func addrLess(a, b string) bool {
 	return x.Less(y)
 }
 
-func assembleRouting(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
-	nb := &vrxv1.NeighborsConfig{}
+func assembleRouting(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
+	nb := &ngfwv1.NeighborsConfig{}
 	var statics []*ipneighbor.Neighbor
 	for _, kv := range kvs {
 		switch v := kv.Value.(type) {
@@ -427,14 +427,14 @@ func assembleRouting(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 			if v.GetMaxNumber() == ipneighbor.DefaultMaxNumber && v.GetMaxAge() == ipneighbor.DefaultMaxAge && v.GetRecycle() == ipneighbor.DefaultRecycle {
 				continue // VPP defaults = "absent" in the document
 			}
-			l := &vrxv1.NeighborLimits{MaxNumber: proto.Uint32(v.GetMaxNumber()), MaxAgeSec: proto.Uint32(v.GetMaxAge()), Recycle: proto.Bool(v.GetRecycle())}
+			l := &ngfwv1.NeighborLimits{MaxNumber: proto.Uint32(v.GetMaxNumber()), MaxAgeSec: proto.Uint32(v.GetMaxAge()), Recycle: proto.Bool(v.GetRecycle())}
 			if v.GetAf() == df2.AddressFamily_IPV6 {
 				nb.Ipv6Limits = l
 			} else {
 				nb.Ipv4Limits = l
 			}
 		case *ip6nd.Dad:
-			nb.Dad = &vrxv1.NeighborDad{Transmits: proto.Uint32(v.GetTransmits()), DelayMs: proto.Uint32(uint32(math.Round(v.GetRetransmitDelay() * 1000)))}
+			nb.Dad = &ngfwv1.NeighborDad{Transmits: proto.Uint32(v.GetTransmits()), DelayMs: proto.Uint32(uint32(math.Round(v.GetRetransmitDelay() * 1000)))}
 		}
 	}
 	sort.Slice(statics, func(i, j int) bool {
@@ -444,7 +444,7 @@ func assembleRouting(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		return addrLess(statics[i].GetIpAddress(), statics[j].GetIpAddress())
 	})
 	for _, v := range statics {
-		nb.Static = append(nb.Static, &vrxv1.StaticNeighbor{
+		nb.Static = append(nb.Static, &ngfwv1.StaticNeighbor{
 			Interface: proto.String(v.GetInterface()), Ip: proto.String(v.GetIpAddress()),
 			Mac: proto.String(v.GetMacAddress()), NoFibEntry: proto.Bool(v.GetNoFibEntry()),
 		})
@@ -453,7 +453,7 @@ func assembleRouting(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		return
 	}
 	if ds.Routing == nil {
-		ds.Routing = &vrxv1.RoutingConfig{}
+		ds.Routing = &ngfwv1.RoutingConfig{}
 	}
 	ds.Routing.Neighbors = nb
 }

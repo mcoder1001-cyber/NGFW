@@ -11,14 +11,14 @@ Field-by-field mapping: `docs/agent/renderers/strongswan.md`.
 | file | product path | mode | content |
 |---|---|---|---|
 | strongswan.conf | `/etc/strongswan.conf` | 0640 root:root | `charon { load_modular = no; load = …; plugins.vici.socket; filelog/journal }`, `swanctl { load; socket }` |
-| vrx.conf | `/etc/swanctl/conf.d/vrx.conf` | 0640 root:root | `connections { … }`, `pools { … }`, `authorities { … }` |
-| vrx-secrets.conf | `/etc/swanctl/conf.d/vrx-secrets.conf` | **0600** root:root, `File.Secret` | `secrets { ike-<conn> { id-local; id-remote; secret = 0s<base64> } }` |
+| ngfw.conf | `/etc/swanctl/conf.d/ngfw.conf` | 0640 root:root | `connections { … }`, `pools { … }`, `authorities { … }` |
+| ngfw-secrets.conf | `/etc/swanctl/conf.d/ngfw-secrets.conf` | **0600** root:root, `File.Secret` | `secrets { ike-<conn> { id-local; id-remote; secret = 0s<base64> } }` |
 
 The packaged `/etc/swanctl/swanctl.conf` (`include conf.d/*.conf`) is not rendered; at boot the
 unit's `swanctl --load-all` loads the same files the renderer loaded over VICI.
-Tests: `TestPaths(prefix, instance)` → `/run/vrx-test/<prefix>/swan/<instance>/…`. `Paths` is
+Tests: `TestPaths(prefix, instance)` → `/run/ngfw-test/<prefix>/swan/<instance>/…`. `Paths` is
 **required** (`WithPaths`; no implicit product default — review M2). `Paths.BootRecord`
-(product `/var/lib/vrx/agent/strongswan-charon-boot`) persists the acknowledged charon start time.
+(product `/var/lib/ngfw/agent/strongswan-charon-boot`) persists the acknowledged charon start time.
 
 `WithOwnerPrefix(p)`: every rendered connection/pool/authority name must start with `p`, and
 Apply/State only touch objects with that prefix (shared secrets `ike-<p>…`), so several owners —
@@ -144,13 +144,13 @@ memory (test-only; the integration test points `TMPDIR` at the slot's tmpfs — 
   golden stores `secret = <redacted>` and the decoded values are asserted separately), hostile
   strings in every field, strict parser, tampered files, fake-charon Apply/rollback/convergence,
   planted secret, Retrieve bounds, events and Watch reconnect;
-- integration (`VRX_INTEGRATION=1`, lab lock, slot prefix): `swantest` starts charon-systemd in
+- integration (`NGFW_INTEGRATION=1`, lab lock, slot prefix): `swantest` starts charon-systemd in
   `ns-<prefix>-a|b|v` (veth `<prefix>-a`↔`<prefix>-b`, `10.<N>.250.1/2`), IKEv2 PSK tunnel
   end to end. Without an installed strongSwan, extract the stock packages (no install, nothing
   under `/etc`):
 
   ```
-  D=/run/vrx-test/<prefix>/swan-stock; mkdir -p $D/debs $D/root; cd $D/debs
+  D=/run/ngfw-test/<prefix>/swan-stock; mkdir -p $D/debs $D/root; cd $D/debs
   apt-get download strongswan-charon strongswan-swanctl strongswan-libcharon libstrongswan charon-systemd
   for f in *.deb; do dpkg -x $f ../root; done
   ```
@@ -165,4 +165,4 @@ memory (test-only; the integration test points `TMPDIR` at the slot's tmpfs — 
 `swantest.Crash` simulates a charon crash (SIGKILL): its xfrm states stay in the namespace
 (`FlushXfrm` cleans them; `Stop` flushes after a SIGKILL fallback). A `go test -timeout` panic
 skips `t.Cleanup` (review L6): the next run refuses the slot while a daemon answers; clean up by
-hand with `pgrep -af /run/vrx-test/<prefix>/swan` → `kill <pid>`, `ip netns delete ns-<prefix>-{a,b,v}`.
+hand with `pgrep -af /run/ngfw-test/<prefix>/swan` → `kill <pid>`, `ip netns delete ns-<prefix>-{a,b,v}`.

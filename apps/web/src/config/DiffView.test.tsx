@@ -1,4 +1,4 @@
-import { VrxThemeProvider } from '@ngfw/ui-kit';
+import { NgfwThemeProvider } from '@ngfw/ui-kit';
 import { render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import i18n from '../i18n';
@@ -23,9 +23,9 @@ describe('DiffView presentation', () => {
     ];
     const original = structuredClone(changes);
     const { container } = render(
-      <VrxThemeProvider mode="light" lang="en" dir="ltr">
+      <NgfwThemeProvider mode="light" lang="en" dir="ltr">
         <DiffView changes={changes} />
-      </VrxThemeProvider>,
+      </NgfwThemeProvider>,
     );
     expect(container).not.toHaveTextContent(/frr|vpp|strongswan/i);
     expect(screen.getByText('/services/dns/dataplaneCache')).toBeInTheDocument();
@@ -52,9 +52,9 @@ describe('DiffView presentation', () => {
       },
     ];
     const { container } = render(
-      <VrxThemeProvider mode="light" lang="en" dir="ltr">
+      <NgfwThemeProvider mode="light" lang="en" dir="ltr">
         <DiffView changes={changes} />
-      </VrxThemeProvider>,
+      </NgfwThemeProvider>,
     );
     expect(screen.getByText('/interfaces/vpp~1frr')).toBeInTheDocument();
     expect(container).toHaveTextContent('strongSwan branch');

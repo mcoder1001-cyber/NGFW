@@ -28,9 +28,9 @@ $ pnpm --filter @ngfw/web test          (after `turbo run test` built the worksp
  Test Files  15 passed (15)      Tests  107 passed (107)
 $ packages/schema: vitest run src/semantic/kea-dhcp-relay.test.ts     Tests  10 passed (10)
 $ apps/api: vitest run (unit)                                           Test Files 10 passed · Tests 96 passed
-$ apps/api e2e, dhcp module only, on an isolated reviewer DB (VRX_TEST_PREFIX=rvkea, created and dropped by global-setup; no VPP):
+$ apps/api e2e, dhcp module only, on an isolated reviewer DB (NGFW_TEST_PREFIX=rvkea, created and dropped by global-setup; no VPP):
  ✓ test/e2e/kea-dhcp-relay.e2e.test.ts (6 tests) 3425ms
- drop database vrx_rvkea · drop role vrx_rvkea · ok nothing named vrx_rvkea remains
+ drop database ngfw_rvkea · drop role ngfw_rvkea · ok nothing named ngfw_rvkea remains
 $ git -C /root/ngfw merge-tree --write-tree main task/F-kea-dhcp-relay
 e35a379c55873a0cde2356c688adc65ba4064b16        (exit 0: no conflicts with main)
 ```
@@ -46,7 +46,7 @@ Retrieve = 0 kvs, err=<nil>
 
 ## 1. Architecture
 
-- **One singleton per daemon (`kea.dhcp4/vrx`, `kea.dhcp6/vrx`) is sound under D-109(d).**
+- **One singleton per daemon (`kea.dhcp4/ngfw`, `kea.dhcp6/ngfw`) is sound under D-109(d).**
   - It keeps D-109(d)'s point: a descriptor wraps the renderer, and `service.go` gets no stage.
   - Splitting by daemon isolates each family. Each Apply carries one file, so a failed `config-set` rolls back only its own
     family (`renderer.go` Apply loops over the families present).
@@ -85,7 +85,7 @@ Retrieve = 0 kvs, err=<nil>
 ## 2. Safety and security
 
 - **Q7: `ip netns exec` in the product binary.** Rated **L**. There is no privilege gain.
-  - **How test mode is chosen:** only by the agent's environment, `VRX_KEA_MODE=test` (`subsystems/kea.go:83-99`).
+  - **How test mode is chosen:** only by the agent's environment, `NGFW_KEA_MODE=test` (`subsystems/kea.go:83-99`).
     - Neither the API nor the config document can reach it. Only root can set a unit's environment.
     - An unknown value refuses to start.
   - **The command:** fixed argv `ip netns exec <ns> /usr/sbin/kea-dhcp{4,6} -t <staged file>` (`renderer.go:245-250`).
@@ -94,7 +94,7 @@ Retrieve = 0 kvs, err=<nil>
     - The binary is fixed, and the staged path is created by the agent.
     - `SystemRunner` checks the allowlist and runs `exec.CommandContext` with no shell (`helpers_exec.go:136-157`).
   - **The residual risks are misconfiguration and documentation:**
-    - A product unit that inherits `VRX_KEA_MODE=test` would silently write its configs to `/run/vrx-test/...`.
+    - A product unit that inherits `NGFW_KEA_MODE=test` would silently write its configs to `/run/ngfw-test/...`.
     - RF-3's invariant says `ip` is never in the product. `ALLOWLIST.md:69` still reads "test-only, never in
       kea.Binaries()". That stays literally true, but the product binary now builds such a runner (`kea.go:143-144`) and
       the document does not say so.
@@ -102,7 +102,7 @@ Retrieve = 0 kvs, err=<nil>
 - **Hostile input into the Kea JSON is safe.**
   - Configs are marshalled with `encoding/json`, and RF-3's checks are unchanged: `check.go` handles names, hostnames,
     MAC/DUID, printable option data and escaped descriptions.
-  - The new `user-context.vrx` carries base64 protobuf plus a name list; `encoding/json` escapes the names, and the list
+  - The new `user-context.ngfw` carries base64 protobuf plus a name list; `encoding/json` escapes the names, and the list
     is never read back.
   - The schema has no client classes and this branch adds none.
   - Zod and Go validate the same things, with one gap: the length of DHCPv4 option data (L2).
@@ -279,13 +279,13 @@ Retrieve = 0 kvs, err=<nil>
   - (a) Until P12 and TD-13, an enabled server fails at apply (`NoMapper`), with a rollback and no 400. The guide should
     say "refused at commit", not imply validation.
   - (b) This dev host's integrated stack (tools/app) runs the agent in product mode. A committed server, even a disabled
-    one, is rendered into `/etc/kea/kea-dhcp4.conf`. Set `VRX_KEA_MODE=off` in tools/app until P12, so the shared host's
+    one, is rendered into `/etc/kea/kea-dhcp4.conf`. Set `NGFW_KEA_MODE=off` in tools/app until P12, so the shared host's
     `/etc/kea` stays untouched.
 - **Q7**: keep the env-selected test mode. A `labtest` build tag is not needed, and it would make the host test exercise
   a different binary from the product. Harden it, all small:
-  - (a) refuse `VRX_KEA_MODE=test` when the owner is the product owner (`vrx`) or `IDs.All`;
+  - (a) refuse `NGFW_KEA_MODE=test` when the owner is the product owner (`ngfw`) or `IDs.All`;
   - (b) log the mode at WARN when it is `test`;
-  - (c) extend the `ALLOWLIST.md:69` row: "also the agent's `VRX_KEA_MODE=test` runner (`subsystems/kea.go`), fixed
+  - (c) extend the `ALLOWLIST.md:69` row: "also the agent's `NGFW_KEA_MODE=test` runner (`subsystems/kea.go`), fixed
     argv, never in product mode";
   - (d) a unit test that product mode's runner refuses `/usr/bin/ip`.
   Severity is L: no user input and no privilege gain; the risk is misconfiguration.

@@ -6,20 +6,20 @@ import (
 )
 
 // PlaypenOID is net-snmp's netSnmpPlaypen (NET-SNMP-MIB: "for local experiments"), the documented
-// PLACEHOLDER under which VRX-MIB lives until the product owner registers a Private Enterprise Number
-// (docs/status/tasks/F-snmp-questions.md). Change VRXMIBOID and deploy/snmp/VRX-MIB.txt together.
+// PLACEHOLDER under which NGFW-MIB lives until the product owner registers a Private Enterprise Number
+// (docs/status/tasks/F-snmp-questions.md). Change NGFWMIBOID and deploy/snmp/NGFW-MIB.txt together.
 const PlaypenOID = ".1.3.6.1.4.1.8072.9999.9999"
 
-// VRXMIBOID is the registered subtree: vrxMIB = netSnmpPlaypen.7853.
-var VRXMIBOID = MustOID(PlaypenOID + ".7853")
+// NGFWMIBOID is the registered subtree: ngfwMIB = netSnmpPlaypen.7853.
+var NGFWMIBOID = MustOID(PlaypenOID + ".7853")
 
-// Subtrees of VRX-MIB (deploy/snmp/VRX-MIB.txt).
+// Subtrees of NGFW-MIB (deploy/snmp/NGFW-MIB.txt).
 var (
-	oidAgent   = VRXMIBOID.Append(1) // vrxAgent scalars
-	oidIfEntry = VRXMIBOID.Append(2, 1)
+	oidAgent   = NGFWMIBOID.Append(1) // ngfwAgent scalars
+	oidIfEntry = NGFWMIBOID.Append(2, 1)
 )
 
-// Agent scalars (vrxAgent.N.0).
+// Agent scalars (ngfwAgent.N.0).
 const (
 	agentVersion      = 1
 	agentVppConnected = 2
@@ -28,7 +28,7 @@ const (
 	agentDegraded     = 5
 )
 
-// vrxIfEntry columns.
+// ngfwIfEntry columns.
 const (
 	colIndex      = 1
 	colName       = 2
@@ -57,7 +57,7 @@ type Interface struct {
 	InErrors, OutErrors uint64
 }
 
-// AgentInfo is the vrxAgent group.
+// AgentInfo is the ngfwAgent group.
 type AgentInfo struct {
 	Version      string
 	VppConnected bool
@@ -156,7 +156,7 @@ func (v view) get(name OID) VarBind {
 		return v[i]
 	}
 	// An OID inside a known object (scalar or column) without the instance is noSuchInstance.
-	if name.HasPrefix(VRXMIBOID) {
+	if name.HasPrefix(NGFWMIBOID) {
 		return VarBind{Name: name, Value: Value{Type: TypeNoSuchInstance}}
 	}
 	return VarBind{Name: name, Value: Value{Type: TypeNoSuchObject}}

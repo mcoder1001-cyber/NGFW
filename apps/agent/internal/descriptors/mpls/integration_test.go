@@ -16,7 +16,7 @@ import (
 // Host test: MPLS tables <base>+90/+91 named "<prefix>:<id>", routes and a tunnel via this
 // slot's loopback loop<slot>90 (10.<slot>.90.1/24). MPLS table 0 is VPP-global (MPLS on an
 // interface and label bindings need it and would create/lock it): those subtests run only when
-// table 0 already exists, or for the globals owner (VRX_DF7_GLOBALS=1, D-071).
+// table 0 already exists, or for the globals owner (NGFW_DF7_GLOBALS=1, D-071).
 func TestMPLSOnHost(t *testing.T) {
 	h := df7test.StartHost(t)
 	td, id, rd, bd, nd := NewTable(h.C, h.Owner), NewInterface(h.C, h.Owner), NewRoute(h.C, h.Owner), NewIPBind(h.C, h.Owner), NewTunnel(h.C, h.Owner)

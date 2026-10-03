@@ -123,7 +123,7 @@ type State struct {
 	Error string
 }
 
-var liveTargetRe = regexp.MustCompile(`action\(type="omfwd" name="(vrx_export_[0-9]{1,2}_[0-9a-f]{8})" target="([^"]*)" port="([0-9]+)" protocol="(udp|tcp)"`)
+var liveTargetRe = regexp.MustCompile(`action\(type="omfwd" name="(ngfw_export_[0-9]{1,2}_[0-9a-f]{8})" target="([^"]*)" port="([0-9]+)" protocol="(udp|tcp)"`)
 
 // State reads the live config for the rendered actions and impstats (bounded tail) for their
 // counters. Missing stats are reported in Error, not as an error.

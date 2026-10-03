@@ -17,7 +17,7 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
       <Box
         component="ul"
         dir="ltr"
-        sx={{ columns: 2, fontFamily: (th) => th.vrx.monoFontFamily, m: 0 }}
+        sx={{ columns: 2, fontFamily: (th) => th.ngfw.monoFontFamily, m: 0 }}
       >
         {codes.map((c) => (
           <li key={c}>{c}</li>

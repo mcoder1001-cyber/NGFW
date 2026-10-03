@@ -4,7 +4,7 @@
  * arbitrary strings (pre-formatted counters, interface names are left alone by callers).
  */
 
-export type VrxCalendar = 'gregory' | 'persian';
+export type NgfwCalendar = 'gregory' | 'persian';
 
 export interface FormatterOptions {
   /** BCP 47 tag, e.g. 'en' or 'fa'. */
@@ -12,7 +12,7 @@ export interface FormatterOptions {
   /** Render digits as Persian (۰–۹). Only meaningful for fa but honoured for any locale. */
   persianDigits?: boolean;
   /** Calendar for dates; defaults to persian for `fa`, gregory otherwise. */
-  calendar?: VrxCalendar;
+  calendar?: NgfwCalendar;
   /** IANA time zone; defaults to the browser's. */
   timeZone?: string;
 }
@@ -46,7 +46,7 @@ function toDate(v: Date | number | string): Date {
   return v instanceof Date ? v : new Date(v);
 }
 
-function withExtensions(locale: string, persianDigits: boolean, calendar?: VrxCalendar): string {
+function withExtensions(locale: string, persianDigits: boolean, calendar?: NgfwCalendar): string {
   const base = locale.split('-u-')[0]!;
   const ext: string[] = [];
   ext.push(`nu-${persianDigits ? 'arabext' : 'latn'}`);
@@ -68,7 +68,7 @@ export function createFormatters({
   timeZone,
 }: FormatterOptions): Formatters {
   const lang = locale.split('-')[0]!;
-  const cal: VrxCalendar = calendar ?? (lang === 'fa' ? 'persian' : 'gregory');
+  const cal: NgfwCalendar = calendar ?? (lang === 'fa' ? 'persian' : 'gregory');
   const numLocale = withExtensions(locale, persianDigits);
   const dateLocale = withExtensions(locale, persianDigits, cal);
   const tz = timeZone === undefined ? {} : { timeZone };

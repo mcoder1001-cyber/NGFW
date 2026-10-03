@@ -9,7 +9,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src test",
     "test": "vitest run",
-    "dev": "node tools/dev.mjs",
+    "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
     "openapi": "tsc -p tsconfig.build.json && node dist/openapi.js ../../packages/api-client/openapi.json",
     "test:e2e": "vitest run -c vitest.e2e.config.ts test/e2e",

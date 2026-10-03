@@ -16,7 +16,7 @@ The provisional verdict so far is **APPROVE WITH CHANGES**. It is not final beca
 | 8 | UI honesty | done. The screen calls the real `/state/interfaces` and the generic config routes, with no TODO, mock or stub. Screenshots are present. The Playwright video is missing (F6). |
 | 9 | Scope creep | done. DF-5 `IPsecOptions/IKEv2Options`, `KeyedClaims` and `ClassifyStore` are wiring the envelope asked for (obligations table), so they are acceptable. |
 | 10 | i18n | done. en and fa `interfaces.json` have identical key sets. No `margin-left/right`. The drawer anchor follows the theme direction. |
-| 11 | Own `tools/ci.sh` run | **NOT finished.** Command: `VRX_CI_SLOT=1 tools/ci.sh full --base main`, started 13:19. The quick part **passed** every step: contract guard ok, gen gate, forbidden patterns + gitleaks, turbo 30/30, agent `make lint test build`, test/ modules. The integration step (slot 1, rig w1, lock converted to shared) was still running at 13:40, with NRestarts 0 → 0 so far. Log: `/root/ngfw-wt/logs/ci/P08-20260924-131914-10894`. I left it running so that ci.sh does its own rig-down/cleanup. |
+| 11 | Own `tools/ci.sh` run | **NOT finished.** Command: `NGFW_CI_SLOT=1 tools/ci.sh full --base main`, started 13:19. The quick part **passed** every step: contract guard ok, gen gate, forbidden patterns + gitleaks, turbo 30/30, agent `make lint test build`, test/ modules. The integration step (slot 1, rig w1, lock converted to shared) was still running at 13:40, with NRestarts 0 → 0 so far. Log: `/root/ngfw-wt/logs/ci/P08-20260924-131914-10894`. I left it running so that ci.sh does its own rig-down/cleanup. |
 
 ### Item 11 — the CI run finished after the stop order (14:01), result recorded without new checks
 - **Result:** `EXIT 1`, `CI GATE FAILED — Go integration tests failed in apps/agent`. NRestarts stayed 0 before and after. The rig is down (no `w1l0/w1w0` veths remain).
@@ -30,7 +30,7 @@ The provisional verdict so far is **APPROVE WITH CHANGES**. It is not final beca
 ## Findings so far (ranked)
 **F1 — medium. `/state/interfaces` changed the meaning of `items[].config`, and the CLI still reads the old meaning.**
 - **What changed:** `apps/api/src/state/state.controller.ts` (`interfaces()`, `config: runIfs.get(name)?.value ?? null`). Before P08, `config` held the Retrieve (data-plane) view and was never null. Now it holds the running configuration, may be null, and the old meaning has moved to `actual`. The list also now includes every live VPP interface.
-- **Who breaks:** `apps/cli/internal/cli/cmd_op.go:184-221` (`showInterfaces`) still renders `it.Config` as "retrieved". Unconfigured live interfaces now print as empty rows, and the command no longer shows data-plane state. P08's own user doc (`docs/user/interfaces/basics.md:78-81`) names `vrx show interfaces` as the CLI equivalent.
+- **Who breaks:** `apps/cli/internal/cli/cmd_op.go:184-221` (`showInterfaces`) still renders `it.Config` as "retrieved". Unconfigured live interfaces now print as empty rows, and the command no longer shows data-plane state. P08's own user doc (`docs/user/interfaces/basics.md:78-81`) names `ngfw show interfaces` as the CLI equivalent.
 - **Contract note:** `P08-contract.md` calls this change "additive". It is not.
 - **Fix:** update the CLI to use `state`/`actual` and correct `P08-contract.md`, or keep the old meaning of `config` and add `running`.
 

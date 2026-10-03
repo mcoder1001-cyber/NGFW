@@ -29,8 +29,8 @@ Retrieve — the dump does not carry it).
 - `ipfix_all_exporter_get` returns exporter 0 first; `ipfix.exporter` skips it. VPP identifies additional exporters by
   collector address alone (one exporter per collector IP).
 - Ownership: exporters by collector address (`WithCollectorScope`; tests `10.<N>.0.0/16`); classify tables through this owner's DF-2 classify store (a name that is not a live table of ours is `ErrNoClassifyTable`; Delete of a gone table is a no-op, a stale index is never used). Singletons are VPP-global: reported only when set (not at VPP's defaults); exporter 0 is tested
-  read-first under the lab-wide lock `/run/lock/vrx-globals.lock`; the classify stream has no getter, so the classify host
-  test is opt-in (`VRX_DF8_GLOBALS=1`, review M3).
+  read-first under the lab-wide lock `/run/lock/ngfw-globals.lock`; the classify stream has no getter, so the classify host
+  test is opt-in (`NGFW_DF8_GLOBALS=1`, review M3).
 - VPP 26.06 has no `show ipfix …` CLI; the evidence is the Retrieve log of the host run.
 
 ## Registration, ownership and restarts (D-069, D-071, D-074, D-076)

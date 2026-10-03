@@ -2,16 +2,16 @@
 
 ## Goal
 Operational visibility (WBS D8.1, D8.3, D8.4, D6.10 in `plan/wbs.csv`): a real dashboard (per-worker CPU, interface rates, drops/errors,
-buffers, system health), a Prometheus endpoint with VRX metrics + Grafana dashboards, and an event/alarm engine (thresholds, raise/clear,
+buffers, system health), a Prometheus endpoint with NGFW metrics + Grafana dashboards, and an event/alarm engine (thresholds, raise/clear,
 email/webhook; SNMP trap target via F-snmp later), plus tunnel dashboards for whatever tunnel state exists at start time.
 Reference: TNSR "Dashboard", "Prometheus exporter"; VPP plugin `prom` and the stats segment.
 
 ## Inputs to read first
-- `packages/proto/vrx/v1/dataplane.proto` — `StreamStats` → `StatsBatch{interface_counters, worker_cpu}`, `StreamEvents` → `Event`
+- `packages/proto/ngfw/v1/dataplane.proto` — `StreamStats` → `StatsBatch{interface_counters, worker_cpu}`, `StreamEvents` → `Event`
   (`EVENT_KIND_LINK_UP/DOWN`, `RECONCILE_*`, `ERROR`, `CONFIRM_REVERTED`, `VPP_(DIS)CONNECTED`, `DEGRADED`); P05 `apps/agent/internal/agent/{telemetry,
-  metrics,events}.go` (existing agent metrics — reuse, do not fork). **The agent already serves `/metrics`** on `VRX_METRICS_ADDR` /
-  `127.0.0.1:$VRX_METRICS_PORT` (`agent/metrics.go`: hand-written text format 0.0.4, `vrx_agent_*` families incl.
-  `vrx_agent_retrieve_unsupported_*` (D-063); **no `prometheus/client_golang` in go.mod** — stay stdlib). `internal/agent/*.go` is agent core
+  metrics,events}.go` (existing agent metrics — reuse, do not fork). **The agent already serves `/metrics`** on `NGFW_METRICS_ADDR` /
+  `127.0.0.1:$NGFW_METRICS_PORT` (`agent/metrics.go`: hand-written text format 0.0.4, `ngfw_agent_*` families incl.
+  `ngfw_agent_retrieve_unsupported_*` (D-063); **no `prometheus/client_golang` in go.mod** — stay stdlib). `internal/agent/*.go` is agent core
   (read-only, A5): your families plug into that endpoint through a collector hook the manager seeds (ask in the questions file if it is not
   on main — never edit agent.go/metrics.go yourself); background work starts from your own `subsystems/dashboard_prom_alarms*.go`
 - `apps/api/src/telemetry/{relay.service,stream.route}.ts`, `apps/api/src/infra/bus.ts` (`TOPICS`), `apps/api/src/state/state.controller.ts`
@@ -21,7 +21,7 @@ Reference: TNSR "Dashboard", "Prometheus exporter"; VPP plugin `prom` and the st
   (D-153)**: do not replace it; add your alarms card as one entry in `apps/web/src/domains/dashboard/overview/cards.ts`
 - host facts (checked 2026-09-24): no Prometheus, promtool, Grafana, SMTP relay/`sendmail` installed (no package installs) — validate the
   exposition format with a Go/TS parser test, Grafana JSON stays import-ready only; `prometheus-node-exporter` is the **host's own** service
-  on :9100 (active) — never touch it; vrx-a has **no VPP worker threads** (main core only), so worker CPU shows `vpp_main` only
+  on :9100 (active) — never touch it; ngfw-a has **no VPP worker threads** (main core only), so worker CPU shows `vpp_main` only
 - **V18 / D-077**: VPP's `prom_plugin.so` is on disk and loaded but has **no binary API** — it is enabled only through a `prom { … }` stanza in
   startup.conf (F-startup-gen, D-081; applying startup.conf is a manager step, never this task). Fallback that needs no VPP change: the
   agent's own exporter reading the stats segment (`apps/agent/internal/promexport/`)
@@ -43,10 +43,10 @@ Files you own and shared hotspots: your TASK ENVELOPE is authoritative (the boar
 Shared files: registration lines under your anchor only (agent registry, `app.module.ts`, router, i18n, bus topic, DB schema/migrations).
 1. **Agent**: `promexport` — Prometheus text format, **stdlib only** (like `agent/metrics.go`), with interface counters, worker CPU/vectors,
    buffer usage, error counters by node (top-N) from the stats segment (own govpp stats connection; the P05 reader is unexported core). The
-   existing `vrx_agent_*` reconcile/apply/`retrieve_unsupported` families (D-063) are **reused** through the manager's collector hook, not
+   existing `ngfw_agent_*` reconcile/apply/`retrieve_unsupported` families (D-063) are **reused** through the manager's collector hook, not
    re-implemented. `management.prometheus` → one singleton scheduler descriptor (D-109 d) under `Domains["management"]` (shared with
    F-unbound-chrony-syslog: whoever lands first adds the key) that runs the external listener on the configured address with the allow-list
-   enforced (slot port in tests); the loopback `VRX_METRICS_PORT` endpoint stays as P05 built it.
+   enforced (slot port in tests); the loopback `NGFW_METRICS_PORT` endpoint stays as P05 built it.
 2. **API**: alarm engine as a Nest service with its own upstream `StreamStats`/`StreamEvents` subscriptions (the relay's stats stream runs
    only while a WS client listens): threshold rules with hysteresis (`forSec`), active/cleared alarm table in PostgreSQL (DB migration
    protocol in your envelope), `GET /api/v1/state/alarms?active&page`, `POST /api/v1/actions/alarms/{id}/ack` (static route in your own
@@ -54,11 +54,11 @@ Shared files: registration lines under your anchor only (agent registry, `app.mo
    `GET /api/v1/state/dashboard` summary (one call for the tiles).
 3. **UI**: dashboard tiles + charts (interface bps/pps, worker CPU, drops, alarms list, system health); tunnel dashboard card listing
    IPsec/WireGuard/tunnel state **only for features already merged** (otherwise "not available"); alarm rules editor via SchemaForm; en + fa.
-4. **Grafana**: `deploy/grafana/vrx-overview.json` (import-ready) using the metric names above; document the prom-plugin alternative.
+4. **Grafana**: `deploy/grafana/ngfw-overview.json` (import-ready) using the metric names above; document the prom-plugin alternative.
 5. **Docs**: `docs/user/dashboard/dashboard-prom-alarms.md` — scrape config, alarm rule example (link down, drops/s), webhook payload.
 
 ## Acceptance (paste the evidence)
-- [ ] `curl http://127.0.0.1:<slot port>/metrics` shows `vrx_interface_rx_bytes_total{interface="<prefixed>"}` increasing after rig traffic
+- [ ] `curl http://127.0.0.1:<slot port>/metrics` shows `ngfw_interface_rx_bytes_total{interface="<prefixed>"}` increasing after rig traffic
 - [ ] Link-down on a slot interface raises an alarm within 5 s and clears on link-up; webhook receiver (slot port) got both (pasted)
 - [ ] Agent/API restart simulation → exporter back, active alarms re-evaluated, no duplicate notifications (log excerpt)
 - [ ] Rollback of an alarm rule removes it (DB/API state)

@@ -105,7 +105,7 @@ Confirmed gap-only: no edits to `descriptors/df7/**` (read-only, verified not in
 - `QosPolicerState`, `QosPolicerReset` + 6 new messages match `docs/status/wave-BC-numbers.md` §F-qos-flat exactly.
 - `QosService` field 5, `QosPolicer` field 13, `QosInterface` field 7 are **not used** anywhere in the diff (grepped
   the full message bodies) — matches "no gap" in F-qos-flat-contract.md.
-- Checked `task/{F-lb,F-srv6,F-mpls-srmpls,F-kea-dhcp-relay,F-unbound-chrony-syslog}:packages/proto/vrx/v1/dataplane.proto`:
+- Checked `task/{F-lb,F-srv6,F-mpls-srmpls,F-kea-dhcp-relay,F-unbound-chrony-syslog}:packages/proto/ngfw/v1/dataplane.proto`:
   none defines `QosPolicerState`/`QosPolicerReset`, and none of their `QosService`/`QosPolicer`/`QosInterface`
   bodies touch fields 5/13/7 — **no collision** with any in-flight branch.
 - Reserved-field rule respected (no `ActionRequest` member, no `EventKind` added).
@@ -148,7 +148,7 @@ blocking review finding.
 
 ## 9. Host test script (`test/topology/qos-flat/run.sh`, `qos_test.go`)
 
-- Slot-local: `run.sh` requires `VRX_TEST_PREFIX` matching `^w([0-9]{1,2})$`, uses `/run/vrx-test/$VRX_TEST_PREFIX`,
+- Slot-local: `run.sh` requires `NGFW_TEST_PREFIX` matching `^w([0-9]{1,2})$`, uses `/run/ngfw-test/$NGFW_TEST_PREFIX`,
   takes `tools/lab lock shared` before running. `qos_test.go`'s `slotFromEnv` derives table base / metrics port /
   socket from the same prefix; policer/map names and interfaces are all slot-prefixed per the file's own header
   comment.
@@ -160,8 +160,8 @@ blocking review finding.
   stop a future edit from adding `vppctl(t, "show", "trace")`; consider tightening the guard to also reject
   `"trace"` anywhere in `args` (cheap, and matches the stated intent literally, not just by current usage). Not
   blocking — no such call exists today.
-- Skips cleanly without `VRX_INTEGRATION=1` (line 314-315), naming TD-25 as the reason. Builds the agent binary
-  itself (`go build -o bin/vrx-agent`) rather than assuming a stale one. Looks safe to run once TD-25 reopens host
+- Skips cleanly without `NGFW_INTEGRATION=1` (line 314-315), naming TD-25 as the reason. Builds the agent binary
+  itself (`go build -o bin/ngfw-agent`) rather than assuming a stale one. Looks safe to run once TD-25 reopens host
   runs.
 
 ## Findings summary

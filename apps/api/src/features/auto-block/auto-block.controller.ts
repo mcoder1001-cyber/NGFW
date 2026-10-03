@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { problems } from '../../common/problem.js';
@@ -55,7 +55,7 @@ export class AutoBlockController {
   @ApiOperation({ summary: 'Admin: remove a source from the auto-block set' })
   @ApiBody({ schema: openapi(UnblockBody, 'input') })
   @ApiOkResponse({ schema: openapi(UnblockOut, 'output') })
-  async unblock(@Body(new ZodPipe(UnblockBody)) body: z.output<typeof UnblockBody>, @Req() req: VrxRequest) {
+  async unblock(@Body(new ZodPipe(UnblockBody)) body: z.output<typeof UnblockBody>, @Req() req: NgfwRequest) {
     const unblocked = await this.svc.unblock(body.source, req.principal!);
     if (!unblocked) throw problems.notFound(`${body.source} is not blocked`);
     req.audit = { resource: 'actions/auto-block/unblock', after: { source: body.source } };
@@ -69,7 +69,7 @@ export class AutoBlockController {
   @ApiOperation({ summary: 'Admin: block a source by hand (refused for an allow-listed source)' })
   @ApiBody({ schema: openapi(BlockBody, 'input') })
   @ApiOkResponse({ schema: openapi(BlockedEntryOut, 'output') })
-  async block(@Body(new ZodPipe(BlockBody)) body: z.output<typeof BlockBody>, @Req() req: VrxRequest) {
+  async block(@Body(new ZodPipe(BlockBody)) body: z.output<typeof BlockBody>, @Req() req: NgfwRequest) {
     const entry = await this.svc.manualBlock(body.source, body.blockSec, body.note, req.principal!);
     req.audit = {
       resource: 'actions/auto-block/block',

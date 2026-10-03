@@ -44,8 +44,8 @@ func TestReviewFixesOnTheRealStack(t *testing.T) {
 			t.Errorf("%s: comment not rendered visibly: %q", name, text)
 		}
 	}
-	if p := os.Getenv("VRX_E2E_TRANSCRIPT"); p != "" {
-		_ = os.WriteFile(p+".h1", []byte("$ vrx commit comment <ESC]0;PWNED BEL ESC[2K CR …>\n"+out+"$ vrx show revisions 1\n"+rev), 0o600)
+	if p := os.Getenv("NGFW_E2E_TRANSCRIPT"); p != "" {
+		_ = os.WriteFile(p+".h1", []byte("$ ngfw commit comment <ESC]0;PWNED BEL ESC[2K CR …>\n"+out+"$ ngfw show revisions 1\n"+rev), 0o600)
 	}
 
 	// ---- a proxy in front of the real API that holds GET /state/drift for 20 s (a slow command to interrupt)
@@ -64,7 +64,7 @@ func TestReviewFixesOnTheRealStack(t *testing.T) {
 		rp.ServeHTTP(w, r)
 	}))
 	defer proxy.Close()
-	env := append(s.env(), "VRX_API_URL="+proxy.URL, "VRX_SESSION_FILE="+filepath.Join(s.dir, "private", "repl-session.json"))
+	env := append(s.env(), "NGFW_API_URL="+proxy.URL, "NGFW_SESSION_FILE="+filepath.Join(s.dir, "private", "repl-session.json"))
 	r := spawn(t, env, s.bin)
 	pw, _ := os.ReadFile(pwFile)
 	r.expect(`Username: `, long)
@@ -78,7 +78,7 @@ func TestReviewFixesOnTheRealStack(t *testing.T) {
 	r.command(`commit confirm 60 comment "review H2"`)
 	r.expect(`NOT confirmed: it reverts automatically at \d\d:\d\d:\d\d [+-]\d{4} \(in \d+ s\)`, long)
 	r.expect(`! commit \w+ is applied but NOT confirmed: it reverts at [^\n]*type .confirm. to keep it`, long)
-	r.expect(`admin@vrx\[!\d+s\]# `, long)
+	r.expect(`admin@ngfw\[!\d+s\]# `, long)
 	r.command("run show drift")
 	select {
 	case <-arrived:
@@ -117,7 +117,7 @@ func TestReviewFixesOnTheRealStack(t *testing.T) {
 	if code := r.wait(long); code != 0 {
 		t.Fatalf("REPL exit code %d", code)
 	}
-	if p := os.Getenv("VRX_E2E_TRANSCRIPT"); p != "" {
+	if p := os.Getenv("NGFW_E2E_TRANSCRIPT"); p != "" {
 		_ = os.WriteFile(p+".review", []byte(r.transcript()+"\n"), 0o600)
 	}
 	mtu, _, _ := s.oneShot(t, nil, "show", "configuration", "interfaces", If, "mtu")

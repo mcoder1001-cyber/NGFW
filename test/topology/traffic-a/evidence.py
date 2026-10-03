@@ -126,7 +126,7 @@ def read_pcap(data):
 
 def capture(path, metadata, slot, side, run_id, fixture=False, expected_stage=None, with_identity=False):
     """Validate one executor-owned capture, never a claimed pass from a log string."""
-    values = slot_values(slot); prefix = values['VRX_TEST_PREFIX']
+    values = slot_values(slot); prefix = values['NGFW_TEST_PREFIX']
     if side not in ('lan', 'wan') or not re.fullmatch(r'[0-9a-f]{32}', run_id):
         raise Refused('invalid capture side/run identity')
     fields = {'origin', 'run_id', 'namespace', 'device', 'argv', 'sha256', 'started', 'ended', 'received', 'dropped'}
@@ -145,7 +145,7 @@ def capture(path, metadata, slot, side, run_id, fixture=False, expected_stage=No
             or metadata['argv'] not in (expected_argv, pipe_argv)):
         raise Refused('capture provenance/argv does not identify this run and namespace')
     stage_path = f'{expected_stage}/' if expected_stage is not None else ''
-    if not fixture and str(path) != f'/run/vrx-test/{prefix}/traffic-a/{run_id}/{stage_path}{side}.pcap':
+    if not fixture and str(path) != f'/run/ngfw-test/{prefix}/traffic-a/{run_id}/{stage_path}{side}.pcap':
         raise Refused('live capture must be in the fixed private run/slot path')
     for name in ('started', 'ended'):
         if type(metadata[name]) not in (int, float) or not math.isfinite(metadata[name]):

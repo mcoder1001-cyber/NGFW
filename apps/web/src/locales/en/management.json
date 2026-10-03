@@ -18,7 +18,7 @@
     "save": "Save to candidate",
     "pending": "uncommitted",
     "activeTitle": "Certificate in use",
-    "noListener": "The API is not serving HTTPS on this device (VRX_HTTPS_PORT is not set). The certificate is still checked and loaded, and is used as soon as the HTTPS listener is enabled.",
+    "noListener": "The API is not serving HTTPS on this device (NGFW_HTTPS_PORT is not set). The certificate is still checked and loaded, and is used as soon as the HTTPS listener is enabled.",
     "loadError": "The committed certificate could not be loaded; the previous one is still in use: {{error}}",
     "none": "No certificate is configured.",
     "subject": "Subject",

@@ -41,21 +41,21 @@ describe('services.hostStack schema', () => {
   });
 
   it.each([
-    '/var/lib/vrx/www/../../etc',
+    '/var/lib/ngfw/www/../../etc',
     '/etc/passwd',
-    '/var/lib/vrx/www/a\u0001b',
-    '/var/lib/vrx/wwwx',
+    '/var/lib/ngfw/www/a\u0001b',
+    '/var/lib/ngfw/wwwx',
   ])('rejects wwwRootPath %j (D-049)', (p) => {
     const d = base();
     hs(d).httpStatic = { enabled: true, wwwRootPath: p, uri: 'tcp://10.1.1.1/80' };
     expect(schemaPaths(d)).toContain('/services/hostStack/httpStatic/wwwRootPath');
   });
 
-  it('accepts a web root under /var/lib/vrx/www/', () => {
+  it('accepts a web root under /var/lib/ngfw/www/', () => {
     const d = base();
     hs(d).httpStatic = {
       enabled: true,
-      wwwRootPath: '/var/lib/vrx/www/site',
+      wwwRootPath: '/var/lib/ngfw/www/site',
       uri: 'tcp://10.1.1.1/80',
     };
     expect(schemaPaths(d)).toEqual([]);
@@ -124,7 +124,7 @@ describe('services.hostStack.httpStatic uri', () => {
     'refuses %s',
     (uri) => {
       const d = base();
-      hs(d).httpStatic = { enabled: true, wwwRootPath: '/var/lib/vrx/www/site', uri };
+      hs(d).httpStatic = { enabled: true, wwwRootPath: '/var/lib/ngfw/www/site', uri };
       expect(schemaPaths(d)).toContain('/services/hostStack/httpStatic/uri');
     },
   );

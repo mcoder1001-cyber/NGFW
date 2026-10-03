@@ -1,13 +1,13 @@
 # DF-7 — review (independent reviewer, 2026-09-24)
 
-Branch `task/DF-7` @ 27a742a, reviewed in `/root/ngfw-wt/DF-7` on the host, slot 10 (`w10`), `VRX_DF7_GLOBALS` unset.
+Branch `task/DF-7` @ 27a742a, reviewed in `/root/ngfw-wt/DF-7` on the host, slot 10 (`w10`), `NGFW_DF7_GLOBALS` unset.
 Paths below are relative to `apps/agent/internal/descriptors/` unless they start with `docs/` or `/root/vpp`.
 
 ## What I ran
 
 - `tools/ci.sh --base main` → `CI GATE PASSED` (quick, 1m11s; only warning: the merge commit subject is not
   Conventional Commits). Matches the output pasted in `DF-7.md`.
-- Host tests, one package at a time, `VRX_INTEGRATION=1 go test -count=1 -v -run OnHost`, and
+- Host tests, one package at a time, `NGFW_INTEGRATION=1 go test -count=1 -v -run OnHost`, and
   `systemctl show vpp -p NRestarts` before and after each package: **2 before and 2 after every package**. All PASS.
   Skips: `policer.bind` (no workers), `lldp.global` / `lb.conf` / `bfd.echo-source` / `igmp.group-prefix` / MPLS table 0
   (globals opt-in). `lldp.interface` was also **skipped in my run** ("no loopback with sw_if_index == hw_if_index").
@@ -96,7 +96,7 @@ because VPP frees them only through the CLI GC (`cli.c:136/263/333`; the `lb_con
 product, every `lb.vip` Update (`ErrRecreate`) leaks one pool entry and its FIB tracking until VPP restarts.
 
 Fix:
-- make `TestLBOnHost` opt-in (e.g. `VRX_DF7_LB=1`) until V20 is fixed, as done for the crash tests (D-064);
+- make `TestLBOnHost` opt-in (e.g. `NGFW_DF7_LB=1`) until V20 is fixed, as done for the crash tests (D-064);
 - correct the numbers in Q1 and V20;
 - state the per-update leak in `lb.md`.
 The global CLI GC is a manager decision (D-071).
@@ -182,7 +182,7 @@ H1 is fixed.
   (D-039), re-check fields where 0 is meaningful: `qos.store.value` (DSCP 0), `lb.conf` 0 = keep current.
   `DisallowUnknownFields` is good.
 - **BFD secrets**: resolved only through `Secrets` at Create. They never appear in a Value, in Retrieve, in errors or
-  in logs, and the request copy is zeroed (`bfd/bfd.go:185-210`). Fixtures use `VRX_TEST_PSK_<id>`, and gitleaks is
+  in logs, and the request copy is zeroed (`bfd/bfd.go:185-210`). Fixtures use `NGFW_TEST_PSK_<id>`, and gitleaks is
   clean. The resolver's own slice is not zeroed. A new secret under the same conf-key id is never pushed (documented:
   rotate by id).
 - **MPLS keys**: `mpls-table/<id>` and `mpls-interface/<name>` match what DF-6 uses (`df6/keys.go`,

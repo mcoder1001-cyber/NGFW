@@ -26,7 +26,7 @@ Branch `task/TD-11a`, base be53867. Review REVIEW-2026-09-24 items 3(a), 3(b), 3
    to the pointer → `GET /api/v1/state/drift` must list the pointer's domain in `subsystems`, not ignore the
    pointer, and report no changes (Retrieve() == desired). `VerifyCommit`/`VerifyDrift` are exported for tests
    that commit by other means. Unit tests use an httptest fake API; `TestReachabilityLoopback` is the live check
-   (needs `VRX_INTEGRATION=1`, `VRX_API_URL`, `VRX_API_TOKEN`; optional `VRX_REACH_LOOPBACK`) and **skips here** —
+   (needs `NGFW_INTEGRATION=1`, `NGFW_API_URL`, `NGFW_API_TOKEN`; optional `NGFW_REACH_LOOPBACK`) and **skips here** —
    no API/agent/VPP in this container, so the live path is not proven.
 5. `tools/ci.sh`: no change needed — `do_test_modules` already vets and unit-tests every Go module under `test/`.
 
@@ -42,7 +42,7 @@ $ go -C test/integration/reachability test -count=1 -v ./...
 --- PASS: TestCheck (0.01s)          # 7 cases: reachable, partially-applied, notApplied, unsupported-field, drift, domain not retrieved, leaf ignored
 --- PASS: TestCheckRejectsRoot
 --- PASS: TestHTTPErrorSurfaces
---- SKIP: TestReachabilityLoopback   # VRX_INTEGRATION != 1
+--- SKIP: TestReachabilityLoopback   # NGFW_INTEGRATION != 1
 ok  	ngfw/test/integration/reachability
 $ go vet ./... (apps/agent) — clean; gofmt — clean
 $ go test ./... (apps/agent) — all ok except internal/renderers/strongswan TestWatchResync: flaky, pre-existing

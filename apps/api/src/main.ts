@@ -23,7 +23,7 @@ app.get(RelayService).start();
 await app.get(AlarmsService).start();
 // F-bruteforce-block: load thresholds/allow-list and start the auto-block expiry sweep
 await app.get(AutoBlockService).start();
-await app.listen({ port: env.VRX_HTTP_PORT, host: env.VRX_HTTP_HOST });
+await app.listen({ port: env.NGFW_HTTP_PORT, host: env.NGFW_HTTP_HOST });
 console.log(
-  `vrx-api listening on http://${env.VRX_HTTP_HOST}:${env.VRX_HTTP_PORT} (docs at /api/docs)`,
+  `ngfw-api listening on http://${env.NGFW_HTTP_HOST}:${env.NGFW_HTTP_PORT} (docs at /api/docs)`,
 );

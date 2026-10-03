@@ -1,13 +1,13 @@
 package ikev2_test
 
-// Host checks against the shared VPP (VRX_INTEGRATION=1, shared lab lock, slot prefix), through
+// Host checks against the shared VPP (NGFW_INTEGRATION=1, shared lab lock, slot prefix), through
 // P05's reconciler (vpntest.Agent) including the restart simulation. Profiles are named "<prefix>-…", fixtures are prefixed loopbacks, addresses
 // are in 10.<slot>.0.0/16, the ipsec-over-udp port is 20000+100*slot+1 (DF-5 port scheme,
 // docs/agent/descriptors/ikev2.md). The rsa-sig certificate and the local key are throwaway
-// material generated at test time under /run/vrx-test/<prefix>/ and removed in Cleanup. The
+// material generated at test time under /run/ngfw-test/<prefix>/ and removed in Cleanup. The
 // VPP-globals (sleep interval, liveness, local key) are only read or required as a non-owner;
-// the owner's setters of the getter-less ones run only behind VRX_DF5_GLOBALS=1. No peer
-// exists: configuration is asserted, not negotiation. VRX_DF5_PAUSE=<seconds> holds the objects
+// the owner's setters of the getter-less ones run only behind NGFW_DF5_GLOBALS=1. No peer
+// exists: configuration is asserted, not negotiation. NGFW_DF5_PAUSE=<seconds> holds the objects
 // before cleanup so CLI show evidence can be captured.
 
 import (
@@ -40,9 +40,9 @@ import (
 
 func pauseForEvidence(t *testing.T) {
 	t.Helper()
-	if s := os.Getenv("VRX_DF5_PAUSE"); s != "" {
+	if s := os.Getenv("NGFW_DF5_PAUSE"); s != "" {
 		n, _ := strconv.Atoi(s)
-		t.Logf("VRX_DF5_PAUSE: holding objects for %ds", n)
+		t.Logf("NGFW_DF5_PAUSE: holding objects for %ds", n)
 		time.Sleep(time.Duration(n) * time.Second)
 	}
 }
@@ -83,7 +83,7 @@ func throwawayRSA(t *testing.T, dir string) (certFile, keyFile string) {
 		t.Fatal(err)
 	}
 	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "vrx-df5-test"},
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "ngfw-df5-test"},
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
 	}
 	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
@@ -121,7 +121,7 @@ func TestIkev2OnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := ikev2d.Config{Keys: keys, Client: c, Owner: owner, Secrets: secrets, Boot: store}
-	dir := filepath.Join("/run/vrx-test", owner)
+	dir := filepath.Join("/run/ngfw-test", owner)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +159,7 @@ func TestIkev2OnHost(t *testing.T) {
 	psk := &vpnpb.Ikev2Profile{
 		Name:      "df5-psk",
 		Auth:      &vpnpb.Ikev2Auth{Method: "psk", Psk: pskRef},
-		LocalId:   &vpnpb.Ikev2Id{Type: "fqdn", Value: owner + "-local.vrx.test"},
+		LocalId:   &vpnpb.Ikev2Id{Type: "fqdn", Value: owner + "-local.ngfw.test"},
 		RemoteId:  &vpnpb.Ikev2Id{Type: "ip4", Value: vpntest.SlotAddr(t, 5, 2)},
 		LocalTs:   &vpnpb.Ikev2Ts{Protocol: 0, StartPort: 0, EndPort: 65535, StartAddr: vpntest.SlotAddr(t, 6, 0), EndAddr: vpntest.SlotAddr(t, 6, 255)},
 		RemoteTs:  &vpnpb.Ikev2Ts{Protocol: 17, StartPort: 1000, EndPort: 2000, StartAddr: vpntest.SlotAddr(t, 7, 0), EndAddr: vpntest.SlotAddr(t, 7, 255)},
@@ -174,7 +174,7 @@ func TestIkev2OnHost(t *testing.T) {
 		Auth:    &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: certFile},
 		LocalId: &vpnpb.Ikev2Id{Type: "ip4", Value: vpntest.SlotAddr(t, 5, 1)},
 	}
-	hn := &vpnpb.Ikev2ResponderHostname{Profile: rsaP.Name, Interface: respIf, Hostname: "peer." + owner + ".vrx.test"}
+	hn := &vpnpb.Ikev2ResponderHostname{Profile: rsaP.Name, Interface: respIf, Hostname: "peer." + owner + ".ngfw.test"}
 	desired := []proto.Message{psk, rsaP, hn}
 	pd := []scheduler.Descriptor{profile, hostname}
 	t.Cleanup(func() {
@@ -188,7 +188,7 @@ func TestIkev2OnHost(t *testing.T) {
 
 	// update in place: new remote id, new ESP transforms, new port → one Update
 	psk2 := proto.Clone(psk).(*vpnpb.Ikev2Profile)
-	psk2.RemoteId = &vpnpb.Ikev2Id{Type: "rfc822", Value: "peer@" + owner + ".vrx.test"}
+	psk2.RemoteId = &vpnpb.Ikev2Id{Type: "rfc822", Value: "peer@" + owner + ".ngfw.test"}
 	psk2.Esp = &vpnpb.Ikev2EspTransforms{CryptoAlg: "aes-cbc", CryptoKeySize: 128, IntegAlg: "sha1-96"}
 	psk2.IpsecOverUdpPort = udpPort + 1
 	desired2 := []proto.Message{psk2, rsaP, hn}
@@ -251,7 +251,7 @@ func TestIkev2OnHost(t *testing.T) {
 }
 
 // TestIkev2GlobalsOwnerOnHost exercises the globals owner's setters of the getter-less
-// liveness and local key. Opt-in only (VRX_DF5_GLOBALS=1, exclusive globals lock): their previous
+// liveness and local key. Opt-in only (NGFW_DF5_GLOBALS=1, exclusive globals lock): their previous
 // values cannot be read back, so they cannot be restored (shared-host-rules §7).
 func TestIkev2GlobalsOwnerOnHost(t *testing.T) {
 	vpntest.SkipUnlessGlobals(t, "ikev2 liveness / local key")
@@ -259,7 +259,7 @@ func TestIkev2GlobalsOwnerOnHost(t *testing.T) {
 	ctx := vpntest.Context(t)
 	owner := vpptest.Prefix(t)
 	vpntest.LockGlobals(t, true)
-	dir := filepath.Join("/run/vrx-test", owner)
+	dir := filepath.Join("/run/ngfw-test", owner)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}

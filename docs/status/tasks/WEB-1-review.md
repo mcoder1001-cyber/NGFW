@@ -3,7 +3,7 @@
 Reviewer: independent review agent, 2026-09-24. Branch `task/WEB-1` @ 7d6c547, base `16b622a`. Diff: `git -C /root/ngfw-wt/WEB-1 diff 16b622a...task/WEB-1`.
 No host runs (no VPP, no dev server). The only browser used was headless Chrome, to render one static bidi test page from scratch.
 
-**Verdict: APPROVE WITH CHANGES.** The design is right. Every widget is driven only by `x-vrx-ui.widget`/`itemKey`, JSON Schema
+**Verdict: APPROVE WITH CHANGES.** The design is right. Every widget is driven only by `x-ngfw-ui.widget`/`itemKey`, JSON Schema
 `format`/`pattern`/`required`/`default`. The only domain names in `packages/ui-kit/src/schema-form` are in comments. There is no
 contract change, and only owned files are touched. `withDefaults` without options behaves as before, and the P07a/P07b `SchemaForm.test.tsx`
 is unchanged and green. The P08 suite also passes against this ui-kit. Before merge, fix H1 (a merge-time condition: the merger removes P08 code) and
@@ -45,7 +45,7 @@ M1–M3. The rest can be a follow-up.
 
 ### M2 — `isolate()` puts Persian help that begins with a Latin word in the wrong order (RTL-1 regression for P08's fa texts)
 - Where: `fields/bidi.tsx:7-9` (`<bdi>` without `dir` is `dir=auto`, which takes the direction from the first strong character). The same pattern is at `composites.tsx:485, 577`.
-- Scenario: P08's `localizeSchema` puts translated help into `x-vrx-ui.help`, for example fa `interfaces:field.mtu.help` = "MTU لایه‌ی ۳ به بایت …" and
+- Scenario: P08's `localizeSchema` puts translated help into `x-ngfw-ui.help`, for example fa `interfaces:field.mtu.help` = "MTU لایه‌ی ۳ به بایت …" and
   `rxMode.help` = "polling (پیش‌فرض DPDK)، interrupt یا adaptive". I rendered both in headless Chrome (fa page, `dir=rtl`). Without
   `<bdi>`, main shows them correctly. With `<bdi>`, the line is laid out LTR: "MTU" becomes the *last* word read, and the rxMode
   sentence reads "adaptive یا interrupt …". Many network help texts start with an acronym (MTU, VLAN, BGP, IPv4).
@@ -85,7 +85,7 @@ the move in docs/05 when that file is owned.
 The copy predates this branch, but it is growing, and the widget names (`IDENTIFIER_WIDGETS` plus the `switch` in `inputs.tsx`) are a second hand-kept list.
 Fix, either:
 - use `import type { UiHints } from '@ngfw/schema'` (type-only, no runtime dependency) and extend it; or
-- add an apps/web test that walks `rootSchema` and asserts that every `x-vrx-ui.widget` is known to ui-kit (export a `KNOWN_WIDGETS` set).
+- add an apps/web test that walks `rootSchema` and asserts that every `x-ngfw-ui.widget` is known to ui-kit (export a `KNOWN_WIDGETS` set).
 
 ### L6 — Accessibility details
 - `composites.tsx:473/588`: the toggles change their accessible name ("Open row 1" ↔ "Close row 1") *and* set `aria-expanded`. Use a stable
@@ -120,7 +120,7 @@ The additions outside the literal scope are generic, small and justified. I acce
 |---|---|
 | 1 contract | none |
 | 2–5, 7 | not applicable (UI-only, no VPP objects) |
-| 6 security | no shell/exec; secrets are left out of summaries and table columns; the fixture uses `VRX_TEST_PSK_web1` |
+| 6 security | no shell/exec; secrets are left out of summaries and table columns; the fixture uses `NGFW_TEST_PSK_web1` |
 | 8 UI honesty | the demo route only; screenshots present |
 | 9 scope | see above |
 | 10 i18n | 13 new keys, en/fa identical; logical CSS only |

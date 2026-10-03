@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/subsystems"
 )
@@ -39,9 +39,9 @@ const tunnelsRetrieved = `{
     "vrf": "default", "ipv6": ["2001:db8:9::1/64"], "vni": 100, "srcPort": 4789, "dstPort": 4789, "decap": "ip6"}}
 }`
 
-func tunnelsRetrieve(t *testing.T, s *Service) *vrxv1.DesiredState {
+func tunnelsRetrieve(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "tunnels"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "tunnels"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,11 +54,11 @@ func TestTunnelsApplyRetrieveRestartRollback(t *testing.T) {
 	dir := t.TempDir()
 	s := newLispSvc(t, v, dir, false)
 
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, tunnelsDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, tunnelsDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := v.TunnelCount(); n != 3 {
 		t.Fatalf("VPP holds %d tunnels, want 3", n)
 	}
-	want := &vrxv1.TunnelsConfig{}
+	want := &ngfwv1.TunnelsConfig{}
 	if err := protojson.Unmarshal([]byte(tunnelsRetrieved), want); err != nil {
 		t.Fatal(err)
 	}
@@ -79,12 +79,12 @@ func TestTunnelsApplyRetrieveRestartRollback(t *testing.T) {
 	}
 
 	// idempotent re-apply, then an agent restart (same state dir, same VPP): nothing to do, names kept
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, tunnelsDoc)}); changes(r) != 0 {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, tunnelsDoc)}); changes(r) != 0 {
 		t.Fatalf("re-apply changed %d objects", changes(r))
 	}
 	s.Close()
 	s2 := newLispSvc(t, v, dir, false)
-	if r := apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, tunnelsDoc)}); changes(r) != 0 {
+	if r := apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, tunnelsDoc)}); changes(r) != 0 {
 		t.Fatalf("apply after restart changed %d objects: %s", changes(r), protojson.Format(r))
 	}
 	if got := tunnelsRetrieve(t, s2).GetTunnels(); !proto.Equal(got, want) {
@@ -93,18 +93,18 @@ func TestTunnelsApplyRetrieveRestartRollback(t *testing.T) {
 
 	// a tunnel lost behind the agent's back is re-created by the next apply
 	v.DeleteInterface("ipip7002")
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t4", DesiredState: doc(t, tunnelsDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "t4", DesiredState: doc(t, tunnelsDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("ipip7002"); !ok {
 		t.Fatal("ipip7002 not re-created")
 	}
 
 	// rollback to no tunnels: every tunnel and its attributes go, the loopback stays
-	rb := apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t5", DesiredState: doc(t, `{"vrfs": {"red": {"id": 7100}}, "interfaces": {"loop7001": {"ipv4": ["10.7.1.1/24"]}}, "tunnels": {}}`)})
-	mustStatus(t, rb, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	rb := apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "t5", DesiredState: doc(t, `{"vrfs": {"red": {"id": 7100}}, "interfaces": {"loop7001": {"ipv4": ["10.7.1.1/24"]}}, "tunnels": {}}`)})
+	mustStatus(t, rb, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var dels []string
 	tunnelAt, lastAttr := map[string]int{}, map[string]int{}
 	for _, r := range rb.GetResults() {
-		if r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_DELETE {
+		if r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_DELETE {
 			continue
 		}
 		parts := strings.SplitN(r.GetKey(), "/", 3)
@@ -141,8 +141,8 @@ func TestTunnelsNeverTakeOverForeignTunnel(t *testing.T) {
 	if got := tunnelsRetrieve(t, s).GetTunnels(); len(got.GetGre()) != 0 {
 		t.Fatalf("another owner's tunnel reported: %s", protojson.Format(got))
 	}
-	r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "f1", DesiredState: doc(t, tunnelsDoc)})
-	if r.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "f1", DesiredState: doc(t, tunnelsDoc)})
+	if r.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatal("applied over another owner's gre7001")
 	}
 	if i, _ := v.InterfaceByName("gre7001"); i.Tag != "w9:gre7001" {
@@ -181,7 +181,7 @@ func TestTunnelsProjection(t *testing.T) {
 			p := project(doc(t, c.js), []string{"interfaces", "tunnels"}, nil, nil)
 			var found bool
 			for _, is := range p.issues {
-				found = found || (is.pointer == c.ptr && is.rule == c.rule && is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR)
+				found = found || (is.pointer == c.ptr && is.rule == c.rule && is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR)
 			}
 			if !found {
 				t.Fatalf("want %s %s, issues %+v", c.ptr, c.rule, p.issues)
@@ -216,8 +216,8 @@ func TestTunnelsL2VxlanInBridgeDomain(t *testing.T) {
 	js := `{"interfaces": {"loop7001": {"ipv4": ["10.7.1.1/24"]}},
 	  "routing": {"l2": {"bridgeDomains": {"lan": {"id": 7010}}}},
 	  "tunnels": {"vxlan": {"vx": {"instance": 7004, "src": "10.7.1.1", "dst": "10.7.1.9", "vni": 7004, "bridgeDomain": 7010}}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, js)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing", "tunnels"}})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, js)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing", "tunnels"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestTunnelsL2VxlanInBridgeDomain(t *testing.T) {
 	if _, ok := ds.GetInterfaces()["vxlan_tunnel7004"]; ok {
 		t.Fatalf("the bridge membership was reported again as interfaces.vxlan_tunnel7004: %s", protojson.Format(ds.GetInterfaces()["vxlan_tunnel7004"]))
 	}
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, js)}); changes(r) != 0 {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, js)}); changes(r) != 0 {
 		t.Fatalf("re-apply changed %d objects: %s", changes(r), protojson.Format(r))
 	}
 }

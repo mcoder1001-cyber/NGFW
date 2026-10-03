@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/descriptors/df7"
@@ -19,14 +19,14 @@ import (
 // panics); with them, Wiring forwards exactly what it was given.
 func TestEventAndResyncHooksDefaultInert(t *testing.T) {
 	w := &Wiring{}
-	w.Publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ERROR, Message: "dropped"})
+	w.Publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_ERROR, Message: "dropped"})
 	w.Publish(nil)
 	w.RequestResync()
 
-	var got []*vrxv1.Event
+	var got []*ngfwv1.Event
 	resyncs := 0
-	w = &Wiring{env: Env{Publish: func(ev *vrxv1.Event) { got = append(got, ev) }, Resync: func() { resyncs++ }}}
-	ev := &vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ERROR, Message: "x"}
+	w = &Wiring{env: Env{Publish: func(ev *ngfwv1.Event) { got = append(got, ev) }, Resync: func() { resyncs++ }}}
+	ev := &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_ERROR, Message: "x"}
 	w.Publish(ev)
 	w.Publish(nil) // a nil event never reaches the sink
 	w.RequestResync()
@@ -36,7 +36,7 @@ func TestEventAndResyncHooksDefaultInert(t *testing.T) {
 }
 
 // TD-8: the id range fails closed — unset is ErrNoIDRange (no id), never "every id"; every id needs
-// VRX_VPP_ID_RANGE=all explicitly, and contradictory or malformed settings are errors.
+// NGFW_VPP_ID_RANGE=all explicitly, and contradictory or malformed settings are errors.
 func TestSlotIDRange(t *testing.T) {
 	t.Setenv(EnvTableBase, "")
 	t.Setenv(EnvIDRange, "")
@@ -134,7 +134,7 @@ func TestWiringIDRangeFailsClosed(t *testing.T) {
 
 // TD-8b (TD-8 verify V2): the Register-line pattern of an id-allocating df7 family —
 // df7.WithIDs(ids.DF7()) from w.IDRange(), never nil or a missing option — owns nothing with NoIDs(),
-// exactly the slot's range with one, and every id only with VRX_VPP_ID_RANGE=all.
+// exactly the slot's range with one, and every id only with NGFW_VPP_ID_RANGE=all.
 func TestDF7FamilyTakesItsRangeFromTheWiring(t *testing.T) {
 	opts := func(env Env) df7.Options {
 		ids, _ := (&Wiring{env: env}).IDRange() // a family that fails on the error never gets here
@@ -160,7 +160,7 @@ func TestDF7FamilyTakesItsRangeFromTheWiring(t *testing.T) {
 
 // S1: AddDynamicSource keeps sources out of the configuration domains and apart from each other.
 func TestAddDynamicSourceValidation(t *testing.T) {
-	desired := func(*vrxv1.DesiredState) []scheduler.KV { return nil }
+	desired := func(*ngfwv1.DesiredState) []scheduler.KV { return nil }
 	w := &Wiring{}
 	if got := w.DynamicSources(); len(got) != 0 {
 		t.Fatalf("default: %v", got)

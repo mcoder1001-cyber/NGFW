@@ -71,12 +71,12 @@ const WARNING = {
 };
 
 describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-td10a-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-td10a-'));
   const socket = join(dir, 'agent.sock');
   const env = testEnv({
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: 'w1',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: 'w1',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;
@@ -106,7 +106,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
     return svc;
   }
   const shortEnv = (ms: string) =>
-    testEnv({ VRX_AGENT_SOCKET: socket, VRX_AGENT_OWNER: 'w1', VRX_AGENT_TIMEOUT_MS: ms });
+    testEnv({ NGFW_AGENT_SOCKET: socket, NGFW_AGENT_OWNER: 'w1', NGFW_AGENT_TIMEOUT_MS: ms });
 
   beforeAll(async () => {
     fake = new FakeAgent({ owner: 'w1' });
@@ -192,7 +192,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       fake.revertNow();
       const p = await problem(commits.confirm(ADMIN));
       expect(p.status).toBe(409);
-      expect(p.body['type']).toBe('https://vrx.dev/problems/commit-reverted');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/commit-reverted');
       expect(await commits.pendingInfo()).toBeNull();
       expect(repo.state.revisions).toEqual([]);
       expect(fake.current['interfaces']).toBeUndefined();
@@ -276,7 +276,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       fake.applyDelayMs = 800;
       await ds.patchCandidate(ADMIN, '/system', { hostname: 'warned' });
       const p = await problem(c2.commit(ADMIN, {}));
-      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/running-unknown');
       expect(p.body['warnings']).toEqual([
         { pointer: '/system', message: WARNING.message, rule: WARNING.rule },
       ]);
@@ -303,13 +303,13 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
         const t0 = Date.now();
         const p = await problem(second());
         expect(p.status).toBe(409);
-        expect(p.body['type']).toBe('https://vrx.dev/problems/commit-busy');
+        expect(p.body['type']).toBe('https://ngfw.dev/problems/commit-busy');
         expect(Date.now() - t0).toBeLessThan(2000);
       }
       expect((await first).status).toBe('applied');
     });
 
-    it('DryRun and Apply carry the budget deadlines even when VRX_AGENT_TIMEOUT_MS is larger', async () => {
+    it('DryRun and Apply carry the budget deadlines even when NGFW_AGENT_TIMEOUT_MS is larger', async () => {
       const big = service(shortEnv('120000'), true);
       await ds.patchCandidate(ADMIN, '/system', { hostname: 'budget' });
       const t0 = Date.now();
@@ -480,7 +480,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       await ds.patchCandidate(ADMIN, '/interfaces/loop1', { ipv4: ['10.1.0.1/24'] });
       fake.applyDelayMs = 800;
       const p = await problem(c2.commit(ADMIN, {}));
-      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/running-unknown');
       const txn = fake.lastTxnId;
       // the agent is still running that Apply (its lock held): last_txn_id not yet updated
       fake.lastTxnId = 'previous';
@@ -522,7 +522,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       const t0 = Date.now();
       const p = await problem(secrets.delete('psk', 'x'));
       expect(p.status).toBe(409);
-      expect(p.body['type']).toBe('https://vrx.dev/problems/commit-busy');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/commit-busy');
       expect(Date.now() - t0).toBeLessThan(2500);
       expect(tx).not.toHaveBeenCalled();
       expect((await first).status).toBe('applied');
@@ -536,7 +536,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       await ds.patchCandidate(ADMIN, '/interfaces/loop2', { ipv4: ['10.2.0.1/24'] });
       fake.applyDelayMs = 800; // C is applied, its answer is lost: A marks sync UNKNOWN in the database
       const p = await problem(a.commit(ADMIN, {}));
-      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/running-unknown');
       const lostTxn = fake.lastTxnId;
       fake.applyDelayMs = 0;
       const n = applies(fake).length;
@@ -559,7 +559,7 @@ describe('TD-10a commit engine (fake agent over gRPC)', { timeout: 20_000 }, () 
       await vi.waitFor(() => expect(fake.lastTxnId).toBe(r.txnId), { timeout: 2000, interval: 10 });
       fake.failAllWith = grpcStatus.UNAVAILABLE; // Health unreachable while the confirm answer is lost
       const p = await confirming;
-      expect(p.body['type']).toBe('https://vrx.dev/problems/running-unknown');
+      expect(p.body['type']).toBe('https://ngfw.dev/problems/running-unknown');
       expect(p.body['sync']).toMatchObject({ state: 'unknown' });
       expect(repo.state.revisions).toEqual([]);
       fake.failAllWith = undefined;

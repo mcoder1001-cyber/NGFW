@@ -64,7 +64,7 @@ type Plugin struct {
 	VRFTable         *natcommon.Descriptor[VRFTableSpec]
 }
 
-// New constructs the family for client and owner (VRX_OWNER or a test's VRX_TEST_PREFIX).
+// New constructs the family for client and owner (NGFW_OWNER or a test's NGFW_TEST_PREFIX).
 // Globals (enable, timeouts, forwarding) are managed only with natcommon.WithGlobalsOwner
 // (D-071); otherwise they are required, never set.
 func New(client vpp.Client, owner string, opts ...natcommon.Option) *Plugin {

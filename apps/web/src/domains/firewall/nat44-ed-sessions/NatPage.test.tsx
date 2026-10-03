@@ -364,7 +364,7 @@ describe('NAT screen', () => {
     api.on('POST /api/v1/actions/nat/sessions/kill', {
       status: 404,
       body: {
-        type: 'https://vrx.dev/problems/not-found',
+        type: 'https://ngfw.dev/problems/not-found',
         title: 'Not found',
         status: 404,
         detail: 'agent: no such session',

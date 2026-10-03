@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // FlushDelay is how long the store waits after the last change before it writes (review F1): a
@@ -37,7 +37,7 @@ type Store struct {
 	log  *slog.Logger
 
 	mu    sync.RWMutex
-	doc   *vrxv1.ObjectsConfig
+	doc   *ngfwv1.ObjectsConfig
 	gen   uint64 // bumped by every change
 	saved uint64 // gen of the last successful write
 	timer *time.Timer
@@ -50,13 +50,13 @@ type Store struct {
 
 // OpenStore loads the store at path; a missing file is an empty store. A file that does not parse is
 // moved aside to <path>.corrupt-<unix time>, logged as an ERROR and counted
-// (vrx_agent_objects_store_corrupt_total); the store starts empty and the next resync re-applies the
+// (ngfw_agent_objects_store_corrupt_total); the store starts empty and the next resync re-applies the
 // configuration (review F2). Only an unreadable file (an I/O error) is an error.
 func OpenStore(path string, log *slog.Logger) (*Store, error) {
 	if log == nil {
 		log = slog.Default()
 	}
-	s := &Store{path: path, log: log, doc: &vrxv1.ObjectsConfig{}}
+	s := &Store{path: path, log: log, doc: &ngfwv1.ObjectsConfig{}}
 	raw, err := os.ReadFile(path) //nolint:gosec // agent state file in the configured state dir
 	switch {
 	case errors.Is(err, os.ErrNotExist):
@@ -65,7 +65,7 @@ func OpenStore(path string, log *slog.Logger) (*Store, error) {
 		return nil, fmt.Errorf("objects store: %w", err)
 	}
 	if perr := protojson.Unmarshal(raw, s.doc); perr != nil {
-		s.doc = &vrxv1.ObjectsConfig{}
+		s.doc = &ngfwv1.ObjectsConfig{}
 		aside := path + ".corrupt-" + strconv.FormatInt(time.Now().Unix(), 10)
 		if rerr := os.Rename(path, aside); rerr != nil {
 			aside = "(not moved: " + rerr.Error() + "; the next write replaces it)"
@@ -81,10 +81,10 @@ func OpenStore(path string, log *slog.Logger) (*Store, error) {
 func (s *Store) Path() string { return s.path }
 
 // Snapshot returns a deep copy of the applied objects document (diagnostics and tests).
-func (s *Store) Snapshot() *vrxv1.ObjectsConfig {
+func (s *Store) Snapshot() *ngfwv1.ObjectsConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return proto.Clone(s.doc).(*vrxv1.ObjectsConfig)
+	return proto.Clone(s.doc).(*ngfwv1.ObjectsConfig)
 }
 
 // entries returns (name, value) of one kind, sorted by name, values cloned.
@@ -138,7 +138,7 @@ func (s *Store) change(k Kind, name string, v proto.Message) error {
 }
 
 // fqdnOf is the FQDN of address object name in doc, "" when it is none (or k is not addresses).
-func fqdnOf(doc *vrxv1.ObjectsConfig, k Kind, name string) string {
+func fqdnOf(doc *ngfwv1.ObjectsConfig, k Kind, name string) string {
 	if k != KindAddresses {
 		return ""
 	}
@@ -169,7 +169,7 @@ func (s *Store) Dirty() bool {
 }
 
 // Flush writes the document if it changed since the last write: one marshal, one atomic write. A write
-// error is logged, counted (vrx_agent_objects_store_persist_errors_total) and returned; the changes stay
+// error is logged, counted (ngfw_agent_objects_store_persist_errors_total) and returned; the changes stay
 // in memory and the next flush writes them.
 func (s *Store) Flush() error {
 	s.wmu.Lock()
@@ -210,7 +210,7 @@ func (s *Store) Close() error {
 }
 
 // listKind returns kind k's entries of doc sorted by name (values not cloned).
-func listKind(doc *vrxv1.ObjectsConfig, k Kind) []namedValue {
+func listKind(doc *ngfwv1.ObjectsConfig, k Kind) []namedValue {
 	var out []namedValue
 	add := func(name string, v proto.Message) { out = append(out, namedValue{name, v}) }
 	switch k {
@@ -248,7 +248,7 @@ func listKind(doc *vrxv1.ObjectsConfig, k Kind) []namedValue {
 }
 
 // setEntry sets (v != nil) or deletes (v == nil) kind k's entry name in doc.
-func setEntry(doc *vrxv1.ObjectsConfig, k Kind, name string, v proto.Message) error {
+func setEntry(doc *ngfwv1.ObjectsConfig, k Kind, name string, v proto.Message) error {
 	wrong := func() error { return fmt.Errorf("%w: a %T is not a %s entry", ErrInvalid, v, k) }
 	switch k {
 	case KindAddresses:

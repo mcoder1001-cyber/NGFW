@@ -4,8 +4,8 @@
 // (the framework's convergence check fails on anything else); see docs/agent/renderers/frr-bgp.md.
 //
 // Route-map `match community` and `match as-path` take a *list name* in FRR, while the document carries the value: the
-// section generates one list per route-map entry (`bgp community-list standard vrx-<map>-<seq> seq 5 permit <c>`,
-// `bgp as-path access-list vrx-<map>-<seq> seq 5 permit <regex>`), so a list never outlives its entry.
+// section generates one list per route-map entry (`bgp community-list standard ngfw-<map>-<seq> seq 5 permit <c>`,
+// `bgp as-path access-list ngfw-<map>-<seq> seq 5 permit <regex>`), so a list never outlives its entry.
 package policy
 
 import (
@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 )
@@ -90,7 +90,7 @@ func AsPath(s string) (string, error) {
 }
 
 // family is "ip" or "ipv6" (the FRR keyword) of a prefix list.
-func family(pl *vrxv1.PrefixList) string {
+func family(pl *ngfwv1.PrefixList) string {
 	if pl.GetFamily() == "ipv6" {
 		return "ipv6"
 	}
@@ -98,7 +98,7 @@ func family(pl *vrxv1.PrefixList) string {
 }
 
 // Render returns the section's lines for pol (nil = nothing). mapIf maps `match interface` names (VPP → Linux).
-func Render(pol *vrxv1.RoutingPolicy, mapIf frr.InterfaceMapper) ([]string, error) {
+func Render(pol *ngfwv1.RoutingPolicy, mapIf frr.InterfaceMapper) ([]string, error) {
 	if pol == nil {
 		return nil, nil
 	}
@@ -125,7 +125,7 @@ func Render(pol *vrxv1.RoutingPolicy, mapIf frr.InterfaceMapper) ([]string, erro
 	return append(out, blocks...), nil
 }
 
-func prefixList(name string, pl *vrxv1.PrefixList) ([]string, error) {
+func prefixList(name string, pl *ngfwv1.PrefixList) ([]string, error) {
 	path := P("routing", "policy", "prefixLists", name)
 	if _, err := ObjectName("prefix list", name); err != nil {
 		return nil, Wrap(path, err)
@@ -157,7 +157,7 @@ func action(a string) (string, error) {
 	return a, nil
 }
 
-func prefixListRule(fam, name string, r *vrxv1.PrefixListRule) (string, error) {
+func prefixListRule(fam, name string, r *ngfwv1.PrefixListRule) (string, error) {
 	if r.GetSeq() == 0 {
 		return "", fmt.Errorf("%w: seq must be 1–4294967295", frr.ErrInput)
 	}
@@ -194,7 +194,7 @@ func prefixListRule(fam, name string, r *vrxv1.PrefixListRule) (string, error) {
 }
 
 // routeMap returns the generated community / as-path lists and the route-map blocks of one route map.
-func routeMap(name string, rm *vrxv1.RouteMap, pls map[string]*vrxv1.PrefixList, mapIf frr.InterfaceMapper) (lists, blocks []string, err error) {
+func routeMap(name string, rm *ngfwv1.RouteMap, pls map[string]*ngfwv1.PrefixList, mapIf frr.InterfaceMapper) (lists, blocks []string, err error) {
 	path := P("routing", "policy", "routeMaps", name)
 	if _, err := ObjectName("route map", name); err != nil {
 		return nil, nil, Wrap(path, err)
@@ -220,10 +220,10 @@ func routeMap(name string, rm *vrxv1.RouteMap, pls map[string]*vrxv1.PrefixList,
 
 // GeneratedListName is the community-list / as-path access-list name generated for a route-map entry.
 func GeneratedListName(routeMap string, seq uint32) string {
-	return fmt.Sprintf("vrx-%s-%d", routeMap, seq)
+	return fmt.Sprintf("ngfw-%s-%d", routeMap, seq)
 }
 
-func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.PrefixList, mapIf frr.InterfaceMapper, ep Path) (lists, block []string, err error) {
+func routeMapEntry(name string, e *ngfwv1.RouteMapEntry, pls map[string]*ngfwv1.PrefixList, mapIf frr.InterfaceMapper, ep Path) (lists, block []string, err error) {
 	if e.GetSeq() == 0 || e.GetSeq() > 65535 {
 		// FRR's route-map sequence is 1–65535 (the schema allows a uint32; routing.bgp-route-map-seq says so first)
 		return nil, nil, Errf(ep.At("seq"), "seq %d: FRR route-map sequence numbers are 1–65535", e.GetSeq())
@@ -243,7 +243,7 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 	gen := GeneratedListName(name, e.GetSeq())
 	m := e.GetMatch()
 	if m == nil {
-		m = &vrxv1.RouteMapMatch{}
+		m = &ngfwv1.RouteMapMatch{}
 	}
 	plFamily := func(pl string) (string, error) {
 		if _, err := ObjectName("prefix list", pl); err != nil {
@@ -314,7 +314,7 @@ func routeMapEntry(name string, e *vrxv1.RouteMapEntry, pls map[string]*vrxv1.Pr
 	return lists, append(block, "exit"), nil
 }
 
-func setLines(s *vrxv1.RouteMapSet) ([]string, error) {
+func setLines(s *ngfwv1.RouteMapSet) ([]string, error) {
 	if s == nil {
 		return nil, nil
 	}

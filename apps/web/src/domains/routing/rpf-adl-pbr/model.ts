@@ -104,7 +104,7 @@ export function localize(schema: JsonSchema, t: Translate, prefix: string): Json
     const next: Record<string, unknown> = {};
     for (const [name, prop] of Object.entries(props)) {
       const key = `${prefix}.${name}`;
-      const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+      const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       const help = t(`${key}.help`, {
         defaultValue: typeof hints['help'] === 'string' ? hints['help'] : '',
       });
@@ -123,7 +123,7 @@ export function localize(schema: JsonSchema, t: Translate, prefix: string): Json
         title: t(`${key}.title`, {
           defaultValue: typeof prop['title'] === 'string' ? prop['title'] : name,
         }),
-        'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(enumLabels ? { enumLabels } : {}) },
+        'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(enumLabels ? { enumLabels } : {}) },
       };
     }
     out['properties'] = next;

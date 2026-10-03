@@ -1,7 +1,7 @@
 # PKI modern integration WIP — 2026-10-03
 
 Branch: `codex/pki-integration-20261003`; base `origin/main` = `a2378278`. Publication is delegated to root; no push/merge authorized here.
-Owned paths: additive PKI hunk in `packages/schema/src/domains/vpn.ts`, PKI schema contract tests, additive PKI messages/RPC in `packages/proto/vrx/v1/dataplane.proto`, PKI fixture and regenerated contract outputs, standalone API PKI paths and registration anchors, task-specific status/docs.
+Owned paths: additive PKI hunk in `packages/schema/src/domains/vpn.ts`, PKI schema contract tests, additive PKI messages/RPC in `packages/proto/ngfw/v1/dataplane.proto`, PKI fixture and regenerated contract outputs, standalone API PKI paths and registration anchors, task-specific status/docs.
 
 Completed sources: extracted the exact historical PKI schema additions (163 inserted lines, no unrelated IPsec change); inserted only 102 proto lines covering PKI fields, messages and read-only RPC while preserving modern domains. Added contract tests preserving reference-only configuration and checking algorithms, CSR fields, CA facts, alert validity and issuer metadata. No consumers transferred yet.
 

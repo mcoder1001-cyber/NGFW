@@ -11,7 +11,7 @@ current `main` (26 commits ahead) is clean.
 | 2 | Real verification | OK for a UI task. The browser E2E drives headless Chrome against the real P06 API and the real P05 agent (owner `w1`) on the host VPP. I re-ran it (below). The users-only changes create no VPP objects. |
 | 3 | Restart safety | N/A (no new VPP object type). |
 | 4 | VPP API provenance | N/A. `binapi/` is untouched. |
-| 5 | Shared-host rules | OK. Slot-1 ports, `vrx_w1`, Valkey db 1 / `vrx:w1:`. Vite binds 127.0.0.1 with `strictPort`. Prefixed test user `w1ro`. The author's leftovers `/run/vrx-test/w1/{admin.pw,jwt.key,agent-state/}` are still there (questions #7), so the manager has to remove them. |
+| 5 | Shared-host rules | OK. Slot-1 ports, `ngfw_w1`, Valkey db 1 / `ngfw:w1:`. Vite binds 127.0.0.1 with `strictPort`. Prefixed test user `w1ro`. The author's leftovers `/run/ngfw-test/w1/{admin.pw,jwt.key,agent-state/}` are still there (questions #7), so the manager has to remove them. |
 | 6 | Security | **Findings H1, M4, M5 below.** No `dangerouslySetInnerHTML`, `innerHTML`, `eval` or `new Function` in `apps/web` or `packages/ui-kit`, and no `child_process`. Token storage is correct (see "Verified" below). |
 | 7 | Transaction semantics (UI) | **Findings M1, M2, M3.** The countdown math is correct and ends early rather than late. The outcome is read back rather than assumed. |
 | 8 | UI honesty | Every screen calls real P06 endpoints. The only stand-in is `src/test-api.ts`, used by unit tests only (verified not in `dist/`). No TODO, mock or stub markers. There are 23 screenshots (en/fa). **But** M1: the apply result of a confirmed commit is thrown away. |
@@ -20,8 +20,8 @@ current `main` (26 commits ahead) is clean.
 | 11 | Tests actually run | OK. `tools/ci.sh --base main` in this worktree with the slot-1 env gives **CI GATE PASSED, EXIT=0** (wall 3m37s; turbo 30/30 successful, 24 cached). Because turbo hid most runs behind its cache, I also ran them directly: web `vitest` **56/56** (9 files), ui-kit `src/ws` **13/13** (5 files), and `pnpm build` gives initial **332.5 kB** gz of 600 kB with `check-no-dev-routes: OK`. All of these match the pasted output. |
 
 ### E2E re-run (real stack, slot 1, by PID; lab lock held shared only for the agent + test run, D-094)
-Fresh `vrx_w1` (`pg-test.sh create w1`), API `apps/api/dist/main.js` on 3100, vite on 5100, `vrx-agent` owner `w1` with a fresh
-state dir. The run was `flock -s /run/lock/vrx-lab.lock run-e2e.sh`, and the agent was stopped as soon as the run ended.
+Fresh `ngfw_w1` (`pg-test.sh create w1`), API `apps/api/dist/main.js` on 3100, vite on 5100, `ngfw-agent` owner `w1` with a fresh
+state dir. The run was `flock -s /run/lock/ngfw-lab.lock run-e2e.sh`, and the agent was stopped as soon as the run ended.
 ```
 $ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --keyboard --revert --shots <scratch>
 ok   [en] protected route redirects to /login?next=%2Fsystem%2Fusers
@@ -32,8 +32,8 @@ E2E PASSED (50 checks)
 agent stopped; E2E_RC=0
 agent log: confirm timer armed ×6 · transaction confirmed ×5 · confirm timeout: reverting ×1
 ```
-Teardown: vite, API and agent stopped by PID. `pg-test.sh drop w1` → `ok nothing named vrx_w1 / vrx_w1 remains`. 24 Valkey
-keys `vrx:w1:*` in db 1 deleted (0 left). Ports 3100/5100/9111 are free. No `agent.sock` is left.
+Teardown: vite, API and agent stopped by PID. `pg-test.sh drop w1` → `ok nothing named ngfw_w1 / ngfw_w1 remains`. 24 Valkey
+keys `ngfw:w1:*` in db 1 deleted (0 left). Ports 3100/5100/9111 are free. No `agent.sock` is left.
 
 ### Q#8 probe against the real API (same stack, before teardown)
 ```
@@ -89,7 +89,7 @@ with 0 changes), `pages/RevisionsPage.tsx:165` (`dirty` from visible changes onl
 - Failure scenarios:
   - (a) Admin signs out in tab A on a shared console. Tab B still has a valid access token (P06 logout revokes only the refresh family; access JWTs live 15 min) and an open WebSocket. For up to about 12 minutes it can still edit, commit and confirm, until its scheduled refresh fails.
   - (b) Tab A signs in as `bob` while tab B was `alice`. Tab B's next scheduled refresh uses the shared cookie, and `accept()` replaces `alice` with `bob` without clearing the query cache or the confirm store. Tab B keeps showing `alice`'s cached data and "your commit" banners as `bob`.
-- Fix: a `BroadcastChannel('vrx-auth')` (fallback: a `storage` event on a nonce key) that posts `logout` and `login:{userId}`. Receivers call `setAnonymous('signedOut')` or clear the cache. In `accept()`, if `user.id` changed, clear the query cache and `confirmStore` and close/reconnect the WS.
+- Fix: a `BroadcastChannel('ngfw-auth')` (fallback: a `storage` event on a nonce key) that posts `logout` and `login:{userId}`. Receivers call `setAnonymous('signedOut')` or clear the cache. In `accept()`, if `user.id` changed, clear the query cache and `confirmStore` and close/reconnect the WS.
 
 **M5 — "Break lock" is a single click that discards another user's uncommitted work**
 `config/PendingChangeBar.tsx:136-140`
@@ -125,7 +125,7 @@ with 0 changes), `pages/RevisionsPage.tsx:165` (`dirty` from visible changes onl
 - Q#5: the Lighthouse a11y ≥ 90 acceptance item is still unmeasured, because of the environment. The keyboard-only path is proven. The manager should record this as an open acceptance item.
 
 ### Verified (no finding)
-- **Token storage.** The access token lives only in memory (`Session.token`). Grep of `src` and the built `dist/`: localStorage holds only UI settings and MUI's colour-scheme keys; sessionStorage holds only `vrx.confirm` (txnId and deadlines, no credentials). There is no IndexedDB or service worker. The refresh token stays in P06's httpOnly `SameSite=Strict` cookie scoped to `/api/v1/auth`. The WS credential is sent as a subprotocol, never in the URL.
+- **Token storage.** The access token lives only in memory (`Session.token`). Grep of `src` and the built `dist/`: localStorage holds only UI settings and MUI's colour-scheme keys; sessionStorage holds only `ngfw.confirm` (txnId and deadlines, no credentials). There is no IndexedDB or service worker. The refresh token stays in P06's httpOnly `SameSite=Strict` cookie scoped to `/api/v1/auth`. The WS credential is sent as a subprotocol, never in the URL.
 - **Refresh.** Refreshes are single-flight within a tab and serialised by a Web Lock across tabs, so there is no refresh-token replay that would revoke the family. The 401 → refresh → retry path uses a clone of the body. Logout clears the query and mutation caches and closes the WS in the current tab.
 - **CSRF.** Every non-auth route needs the bearer header. The cookie routes (refresh, logout) are covered by `SameSite=Strict`.
 - **XSS.** Comments, usernames, fullName, problem `detail`, agent messages and diff values are all rendered as React text. i18next `escapeValue:false` is correct with React, and `skipOnVariables` is the default. There is no HTML sink.

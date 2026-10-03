@@ -96,7 +96,7 @@ func jsonSubset(want, have any) bool {
 }
 
 // mergeSensitive overlays the write-only `sensitive_value` onto `value` (both located at ptr). Objects merge
-// member-wise. Arrays listed in keyedArrayPointers (x-vrx-ui.itemKey, e.g. management.users by username) merge by
+// member-wise. Arrays listed in keyedArrayPointers (x-ngfw-ui.itemKey, e.g. management.users by username) merge by
 // that key — a sensitive element must name its key and match exactly one element of value; other arrays must have
 // the same length and merge index-wise. Anything that cannot be matched is an error: a hash must never attach to the
 // wrong element (the plan cannot show a write-only value).

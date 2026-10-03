@@ -1,6 +1,6 @@
 package vrfstaticecmp
 
-// F-vrf-static-ecmp topology test on the host (VRX_INTEGRATION=1, root, shared lab lock): the real vrx-agent and vrx-api
+// F-vrf-static-ecmp topology test on the host (NGFW_INTEGRATION=1, root, shared lab lock): the real ngfw-agent and ngfw-api
 // of this tree, the host VPP, the slot's af_packet rig for the ping. It proves the acceptance items end to end:
 //
 //   - commit VRFs (+ source VRF select) and static routes (weighted ECMP, next hop in another VRF, blackhole) through the
@@ -13,7 +13,7 @@ package vrfstaticecmp
 //   - rollback to the revision before: routes then tables removed, no stray entry (V15: the table ids re-created hold only
 //     VPP's defaults)
 //
-// Optional screenshots (VRX_VSE_SHOTS=<node script>, VRX_VSE_SHOTS_OUT=<dir>): vite preview of apps/web/dist on the slot web
+// Optional screenshots (NGFW_VSE_SHOTS=<node script>, NGFW_VSE_SHOTS_OUT=<dir>): vite preview of apps/web/dist on the slot web
 // port and an external headless-browser script (P07a/P07b/P08 approach; nothing installed, nothing committed).
 
 import (
@@ -40,8 +40,8 @@ import (
 const apiSocket = "/run/vpp/api.sock"
 
 func TestVrfStaticEcmpTopology(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-vrf-static-ecmp topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-vrf-static-ecmp topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -63,8 +63,8 @@ func TestVrfStaticEcmpTopology(t *testing.T) {
 	conn := connectVPP(t)
 
 	// the rig (ping target 10.<n>.2.2 behind host-<p>w0) — the V19 preflight first (D-095): no packet before it passes
-	pre, err := run(t, "go", "-C", filepath.Join(s.repo, "apps", "agent"), "run", "./cmd/vrx-vpp-preflight")
-	t.Logf("vrx-vpp-preflight: %v\n%s", err, pre)
+	pre, err := run(t, "go", "-C", filepath.Join(s.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	t.Logf("ngfw-vpp-preflight: %v\n%s", err, pre)
 	if err != nil {
 		t.Fatalf("V19 preflight failed: no packet may cross the rig")
 	}
@@ -153,7 +153,7 @@ func TestVrfStaticEcmpTopology(t *testing.T) {
 		t.Errorf("ping in a non-default VRF: want 400 with pointer /vrf")
 	}
 
-	if script, out := os.Getenv("VRX_VSE_SHOTS"), os.Getenv("VRX_VSE_SHOTS_OUT"); script != "" && out != "" {
+	if script, out := os.Getenv("NGFW_VSE_SHOTS"), os.Getenv("NGFW_VSE_SHOTS_OUT"); script != "" && out != "" {
 		screenshots(t, s, st, script, out)
 	}
 
@@ -362,12 +362,12 @@ func probeTable(t *testing.T, conn vppapi.Connection, id uint32, name string) (i
 // (node <script> <baseUrl> <outDir> <adminPasswordFile>).
 func screenshots(t *testing.T, s slot, st *stack, script, out string) {
 	t.Helper()
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(s.runDir, "vse", "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	defer pv.stop(t)
 	pwFile := filepath.Join(s.runDir, "vse", "admin.pw")

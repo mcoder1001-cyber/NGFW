@@ -29,32 +29,32 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     const lib = await h.call(admin, 'GET', '/restconf/data/ietf-yang-library:yang-library');
     expect(lib.status, lib.raw).toBe(200);
     const modules = lib.body['ietf-yang-library:yang-library']['module-set'][0].module;
-    expect(modules.some((m: { name: string }) => m.name === 'vrx-interfaces')).toBe(true);
+    expect(modules.some((m: { name: string }) => m.name === 'ngfw-interfaces')).toBe(true);
   });
 
   it('GET returns the running config, module-qualified', async () => {
-    const r = await h.call(admin, 'GET', '/restconf/data/vrx-system:system');
+    const r = await h.call(admin, 'GET', '/restconf/data/ngfw-system:system');
     expect(r.status, r.raw).toBe(200);
-    expect(r.body).toHaveProperty('vrx-system:system');
+    expect(r.body).toHaveProperty('ngfw-system:system');
     expect(String(r.headers['content-type'])).toContain('application/yang-data+json');
   });
 
-  it('PATCH + operations/vrx:commit changes the running config and makes a new revision', async () => {
+  it('PATCH + operations/ngfw:commit changes the running config and makes a new revision', async () => {
     const before = await h.call(admin, 'GET', '/api/v1/config/revisions?limit=1&offset=0');
     const beforeRev = before.body.items[0]?.id ?? 0;
 
     const patch = await h.call(
       admin,
       'PATCH',
-      '/restconf/data/vrx-system:system',
-      { 'vrx-system:system': { hostname: 'restconf-box' } },
+      '/restconf/data/ngfw-system:system',
+      { 'ngfw-system:system': { hostname: 'restconf-box' } },
       YANG,
     );
     expect(patch.status, patch.raw).toBe(200);
 
-    const commit = await h.call(admin, 'POST', '/restconf/operations/vrx:commit', { input: {} }, YANG);
+    const commit = await h.call(admin, 'POST', '/restconf/operations/ngfw:commit', { input: {} }, YANG);
     expect(commit.status, commit.raw).toBe(200);
-    expect(commit.body['vrx-restconf:output'].status).toBeDefined();
+    expect(commit.body['ngfw-restconf:output'].status).toBeDefined();
 
     const cfg = await h.call(admin, 'GET', '/api/v1/config/system');
     expect(cfg.body.hostname).toBe('restconf-box');
@@ -67,8 +67,8 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     const bad = await h.call(
       admin,
       'PATCH',
-      '/restconf/data/vrx-system:system',
-      { 'vrx-system:system': { hostname: 'not a valid hostname!' } },
+      '/restconf/data/ngfw-system:system',
+      { 'ngfw-system:system': { hostname: 'not a valid hostname!' } },
       YANG,
     );
     expect(bad.status).toBe(400);
@@ -82,7 +82,7 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     const all = await h.call(admin, 'GET', '/restconf/data');
     expect(all.status, all.raw).toBe(200);
     expect(all.raw).not.toContain('passwordHash');
-    const mgmt = await h.call(admin, 'GET', '/restconf/data/vrx-management:management');
+    const mgmt = await h.call(admin, 'GET', '/restconf/data/ngfw-management:management');
     expect(mgmt.raw).not.toContain('passwordHash');
   });
 
@@ -91,11 +91,11 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     await h.call(
       admin,
       'PATCH',
-      '/restconf/data/vrx-system:system',
-      { 'vrx-system:system': { hostname: 'second-name' } },
+      '/restconf/data/ngfw-system:system',
+      { 'ngfw-system:system': { hostname: 'second-name' } },
       YANG,
     );
-    await h.call(admin, 'POST', '/restconf/operations/vrx:commit', { input: {} }, YANG);
+    await h.call(admin, 'POST', '/restconf/operations/ngfw:commit', { input: {} }, YANG);
     const revs = await h.call(admin, 'GET', '/api/v1/config/revisions?limit=5&offset=0');
     // the revision that set hostname=restconf-box (one before the latest)
     const target = revs.body.items[1].id;
@@ -103,7 +103,7 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
     const rb = await h.call(
       admin,
       'POST',
-      '/restconf/operations/vrx:rollback',
+      '/restconf/operations/ngfw:rollback',
       { input: { revision: target } },
       YANG,
     );
@@ -115,10 +115,10 @@ describe('F-restconf-yang e2e (PostgreSQL + fake agent)', () => {
   it('lists and downloads generated YANG modules', async () => {
     const list = await h.call(admin, 'GET', '/api/v1/system/yang');
     expect(list.body.modules.length).toBeGreaterThan(10);
-    const one = await h.call(admin, 'GET', '/api/v1/system/yang/vrx-interfaces');
-    expect(one.body.name).toBe('vrx-interfaces');
-    expect(one.body.yang).toContain('module vrx-interfaces {');
-    const missing = await h.call(admin, 'GET', '/api/v1/system/yang/vrx-nope');
+    const one = await h.call(admin, 'GET', '/api/v1/system/yang/ngfw-interfaces');
+    expect(one.body.name).toBe('ngfw-interfaces');
+    expect(one.body.yang).toContain('module ngfw-interfaces {');
+    const missing = await h.call(admin, 'GET', '/api/v1/system/yang/ngfw-nope');
     expect(missing.status).toBe(404);
   });
 });

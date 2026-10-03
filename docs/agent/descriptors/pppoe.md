@@ -15,4 +15,4 @@ PPPoE clients and DF-6 sends no packets, so the host test verifies that typed er
 (Q3). PPPoE client/server daemons are out of scope.
 
 `pppoe_add_del_cp` sets VPP's single `cp_if_index` (review M2), so it is a global singleton under D-071; its host test is
-opt-in (`VRX_DF6_PPPOE_CP_HOST=1`) and never runs on the shared VPP.
+opt-in (`NGFW_DF6_PPPOE_CP_HOST=1`) and never runs on the shared VPP.

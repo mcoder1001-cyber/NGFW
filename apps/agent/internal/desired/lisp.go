@@ -1,6 +1,6 @@
 package desired
 
-// LISP / LISP-GPE builder and assembler (F-lisp, WBS D6.8): `tunnels.lisp` (vrx.v1.LispConfig) ⇄ DF-6's
+// LISP / LISP-GPE builder and assembler (F-lisp, WBS D6.8): `tunnels.lisp` (ngfw.v1.LispConfig) ⇄ DF-6's
 // lisp descriptors.
 //
 //	enabled                       → lisp.enable/global          (setter on the globals owner, require variant elsewhere)
@@ -28,7 +28,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/lisp"
 	"ngfw/agent/internal/scheduler"
@@ -74,7 +74,7 @@ func lispPtr(segs ...string) string { return Ptr(append([]string{"tunnels", "lis
 
 // Lisp projects tunnels.lisp. vrfID maps VRF names to table ids. Unset lisp: nothing (every owned LISP
 // object is deleted when `tunnels` is authoritative). gre / vxlan / ipip are F-tunnels' (tunnels.go).
-func Lisp(s Sink, t *vrxv1.TunnelsConfig, vrfID func(string) (uint32, bool)) {
+func Lisp(s Sink, t *ngfwv1.TunnelsConfig, vrfID func(string) (uint32, bool)) {
 	l := t.GetLisp()
 	if l == nil {
 		return
@@ -225,22 +225,22 @@ func Lisp(s Sink, t *vrxv1.TunnelsConfig, vrfID func(string) (uint32, bool)) {
 
 // AssembleLisp sets ds.tunnels.lisp from retrieved objects (left unset when no LISP object is
 // reported). nameOf maps a table id to its VRF name.
-func AssembleLisp(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(uint32) string) {
+func AssembleLisp(ds *ngfwv1.DesiredState, kvs []scheduler.KV, nameOf func(uint32) string) {
 	if l := assembleLisp(kvs, nameOf); l != nil {
 		if ds.Tunnels == nil {
-			ds.Tunnels = &vrxv1.TunnelsConfig{}
+			ds.Tunnels = &ngfwv1.TunnelsConfig{}
 		}
 		ds.Tunnels.Lisp = l
 	}
 }
 
-func assembleLisp(kvs []scheduler.KV, nameOf func(uint32) string) *vrxv1.LispConfig {
-	l := &vrxv1.LispConfig{}
+func assembleLisp(kvs []scheduler.KV, nameOf func(uint32) string) *ngfwv1.LispConfig {
+	l := &ngfwv1.LispConfig{}
 	globals := false
-	sets := map[string]*vrxv1.LispLocatorSet{}
-	set := func(n string) *vrxv1.LispLocatorSet {
+	sets := map[string]*ngfwv1.LispLocatorSet{}
+	set := func(n string) *ngfwv1.LispLocatorSet {
 		if sets[n] == nil {
-			sets[n] = &vrxv1.LispLocatorSet{}
+			sets[n] = &ngfwv1.LispLocatorSet{}
 		}
 		return sets[n]
 	}
@@ -258,16 +258,16 @@ func assembleLisp(kvs []scheduler.KV, nameOf func(uint32) string) *vrxv1.LispCon
 			objects = true
 		case *lisp.Locator:
 			ls := set(v.GetLocatorSet())
-			ls.Locators = append(ls.Locators, &vrxv1.LispLocator{Interface: proto.String(v.GetInterface()), Priority: proto.Uint32(v.GetPriority()), Weight: proto.Uint32(v.GetWeight())})
+			ls.Locators = append(ls.Locators, &ngfwv1.LispLocator{Interface: proto.String(v.GetInterface()), Priority: proto.Uint32(v.GetPriority()), Weight: proto.Uint32(v.GetWeight())})
 			objects = true
 		case *lisp.LocalEid:
-			l.LocalEids = append(l.LocalEids, &vrxv1.LispLocalEid{Vni: proto.Uint32(v.GetVni()), Eid: proto.String(v.GetEid()), LocatorSet: proto.String(v.GetLocatorSet())})
+			l.LocalEids = append(l.LocalEids, &ngfwv1.LispLocalEid{Vni: proto.Uint32(v.GetVni()), Eid: proto.String(v.GetEid()), LocatorSet: proto.String(v.GetLocatorSet())})
 			objects = true
 		case *lisp.EidTableMap:
 			if l.EidTables == nil {
-				l.EidTables = map[string]*vrxv1.LispEidTable{}
+				l.EidTables = map[string]*ngfwv1.LispEidTable{}
 			}
-			t := &vrxv1.LispEidTable{}
+			t := &ngfwv1.LispEidTable{}
 			if v.GetIsL2() {
 				t.BridgeDomain = proto.Uint32(v.GetDpTable())
 			} else {
@@ -276,14 +276,14 @@ func assembleLisp(kvs []scheduler.KV, nameOf func(uint32) string) *vrxv1.LispCon
 			l.EidTables[df6.U32(v.GetVni())] = t
 			objects = true
 		case *lisp.RemoteMapping:
-			m := &vrxv1.LispRemoteMapping{Vni: proto.Uint32(v.GetVni()), Eid: proto.String(v.GetEid()), Action: proto.String(lispActionName(v.GetAction()))}
+			m := &ngfwv1.LispRemoteMapping{Vni: proto.Uint32(v.GetVni()), Eid: proto.String(v.GetEid()), Action: proto.String(lispActionName(v.GetAction()))}
 			for _, r := range v.GetRlocs() {
-				m.Rlocs = append(m.Rlocs, &vrxv1.LispRloc{Address: proto.String(r.GetAddress()), Priority: proto.Uint32(r.GetPriority()), Weight: proto.Uint32(r.GetWeight())})
+				m.Rlocs = append(m.Rlocs, &ngfwv1.LispRloc{Address: proto.String(r.GetAddress()), Priority: proto.Uint32(r.GetPriority()), Weight: proto.Uint32(r.GetWeight())})
 			}
 			l.RemoteMappings = append(l.RemoteMappings, m)
 			objects = true
 		case *lisp.Adjacency:
-			l.Adjacencies = append(l.Adjacencies, &vrxv1.LispAdjacency{Vni: proto.Uint32(v.GetVni()), Reid: proto.String(v.GetReid()), Leid: proto.String(v.GetLeid())})
+			l.Adjacencies = append(l.Adjacencies, &ngfwv1.LispAdjacency{Vni: proto.Uint32(v.GetVni()), Reid: proto.String(v.GetReid()), Leid: proto.String(v.GetLeid())})
 			objects = true
 		case *lisp.MapResolver:
 			l.MapResolvers = append(l.MapResolvers, v.GetAddress())
@@ -302,7 +302,7 @@ func assembleLisp(kvs []scheduler.KV, nameOf func(uint32) string) *vrxv1.LispCon
 	for n, ls := range sets {
 		sort.Slice(ls.Locators, func(a, b int) bool { return ls.Locators[a].GetInterface() < ls.Locators[b].GetInterface() })
 		if l.LocatorSets == nil {
-			l.LocatorSets = map[string]*vrxv1.LispLocatorSet{}
+			l.LocatorSets = map[string]*ngfwv1.LispLocatorSet{}
 		}
 		l.LocatorSets[n] = ls
 	}

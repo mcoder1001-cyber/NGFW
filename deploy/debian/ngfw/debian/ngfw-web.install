@@ -1,0 +1,3 @@
+stage/usr/share/ngfw/web usr/share/ngfw/
+assets/nginx.conf etc/ngfw/
+assets/tls-bootstrap.sh usr/lib/ngfw/

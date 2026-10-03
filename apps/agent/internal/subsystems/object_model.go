@@ -19,14 +19,14 @@ import (
 // Environment of the objects domain (read once at start).
 const (
 	// EnvFQDNRefresh is the FQDN refresh interval in seconds (default 60; clamped to 30–3600).
-	EnvFQDNRefresh = "VRX_OBJECTS_FQDN_REFRESH_SEC"
+	EnvFQDNRefresh = "NGFW_OBJECTS_FQDN_REFRESH_SEC"
 	// EnvFQDNMaxStale is how long a failing FQDN keeps its last good answers, in seconds (default 86400 =
 	// 24 h, D-129; clamped to 60 s – 30 days); after that the object expands to nothing, with a warning.
-	EnvFQDNMaxStale = "VRX_OBJECTS_FQDN_MAX_STALE_SEC"
+	EnvFQDNMaxStale = "NGFW_OBJECTS_FQDN_MAX_STALE_SEC"
 	// EnvDNSServers lists "ip:port" DNS servers (comma-separated) the FQDN resolver asks instead of
 	// the system configuration (/etc/resolv.conf) — for test slots and their in-process responder;
 	// the product agent leaves it unset.
-	EnvDNSServers = "VRX_OBJECTS_DNS_SERVERS"
+	EnvDNSServers = "NGFW_OBJECTS_DNS_SERVERS"
 )
 
 // objectModelDescriptors is Domains["objects"].

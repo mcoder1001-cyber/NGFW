@@ -1,7 +1,7 @@
-# VRX unattended installer ISO
+# NGFW unattended installer ISO
 
 The ISO builder combines Ubuntu Server 26.04 amd64 installation media, a signed
-offline package pool and a VRX autoinstall seed. The source and focused fixture
+offline package pool and a NGFW autoinstall seed. The source and focused fixture
 checks exist; a complete production signed ISO and an unattended VM installation
 have **NOT RUN** acceptance as of 2026-10-03. This guide describes implemented
 behavior and the evidence still required, not a production-ready release.
@@ -10,19 +10,19 @@ behavior and the evidence still required, not a production-ready release.
 
 Both Install and Reinstall erase the **largest disk selected by the storage
 layout**, with a minimum fixed-disk size check of 96 GiB. Reinstall does not select
-the disk containing an existing VRX installation. An existing installation on a
+the disk containing an existing NGFW installation. An existing installation on a
 smaller disk does not protect a larger unrelated disk. Use disposable disks for
 acceptance and check the VM's attached disks before booting the media.
 
 The default GRUB entry is unattended Install, with a five-second menu timeout.
-Reinstall adds `vrx.reinstall=1`. The early guard refuses disk inventory errors,
+Reinstall adds `ngfw.reinstall=1`. The early guard refuses disk inventory errors,
 including partial failed inventory output, even with that flag. Without the flag,
-finding the `vrx-rootA` label or partition name refuses installation. The installer
+finding the `ngfw-rootA` label or partition name refuses installation. The installer
 prints its reason and attempts to power off after 60 seconds. The Ubuntu interactive
 installer remains available in a separate submenu.
 
-The layout includes BIOS GRUB space, the `VRX-EFI` ESP, `vrx-rootA`, reserved
-`vrx-rootB`, `vrx-log`, `vrx-pg` and `vrx-data`. RootB reserves space for later A/B
+The layout includes BIOS GRUB space, the `NGFW-EFI` ESP, `ngfw-rootA`, reserved
+`ngfw-rootB`, `ngfw-log`, `ngfw-pg` and `ngfw-data`. RootB reserves space for later A/B
 work; this installer does not implement an upgrade mechanism. UEFI boots target the
 ESP; the early script adjusts GRUB's target for BIOS. The builder replays the base
 ISO's boot configuration with xorriso. Actual BIOS and UEFI boot remain NOT RUN.
@@ -42,8 +42,8 @@ Required inputs are:
   The current default filename is `ubuntu-26.04.1-live-server-amd64.iso`.
   `--base-iso` supplies another explicit path; its basename must appear in the signed
   sums. The builder checks its pinned Ubuntu CD signer and SHA-256.
-- P10's signed repository containing `vrx-meta` and the shipped VPP package set.
-  Supply `--vrx-repo` and an independently trusted 40-hex `--vrx-key-fpr`; obtaining
+- P10's signed repository containing `ngfw-meta` and the shipped VPP package set.
+  Supply `--ngfw-repo` and an independently trusted 40-hex `--ngfw-key-fpr`; obtaining
   the fingerprint from the same untrusted repository is not independent trust.
 - The matching VPP producer v2 `manifest.json`, supplied with `--vpp-manifest`.
   Its package set and ship flags must match `deploy/vpp/VERSION`; shipped archives
@@ -57,7 +57,7 @@ Required inputs are:
   checkout. `--gen-key` can create a dedicated key if none is present; choose key
   custody and distribution through the release process before using that option.
 
-The external package/pool builder must deliver the signed VRX repository and
+The external package/pool builder must deliver the signed NGFW repository and
 matching VPP manifest. The ISO resolver additionally needs access to Ubuntu/FRR
 archives to download the complete dependency closure, including Recommends.
 This build-time access is distinct from the intended offline installation.
@@ -79,8 +79,8 @@ deploy/image/iso/build-iso.sh --help
 
 deploy/image/iso/build-iso.sh \
   --base-iso "$PWD/.scratch/base/ubuntu-26.04.1-live-server-amd64.iso" \
-  --vrx-repo /path/to/signed-vrx-repository \
-  --vrx-key-fpr TRUSTED_40_HEX_FINGERPRINT \
+  --ngfw-repo /path/to/signed-ngfw-repository \
+  --ngfw-key-fpr TRUSTED_40_HEX_FINGERPRINT \
   --vpp-manifest /path/to/matching/manifest.json \
   --ubuntu-keyring /path/to/ubuntu-archive-keyring.gpg \
   --frr-keyring /path/to/frrouting.gpg \
@@ -104,7 +104,7 @@ files outside that directory before starting another invocation.
 
 Repeat the same invocation with the appropriate `--stage` after reviewing the
 preceding evidence. Outputs default to `.scratch/out`; evidence is below its
-`evidence` directory. The final files are `vrx-<version>.iso`, `.iso.sha256` and
+`evidence` directory. The final files are `ngfw-<version>.iso`, `.iso.sha256` and
 `.iso.asc`, with `build-info.json` and `pool.manifest`. Build-info records base and
 repository hashes, VPP provenance/build inputs and selected options.
 Use `--lock /path/to/saved/pool.manifest` for exact-version dependency rebuilding.
@@ -123,7 +123,7 @@ boot unlock; it does not add a passphrase prompt or encrypt the root volumes.
 
 The seed requests no interactive sections, disables installer refresh and uses
 English/US keyboard/UTC. Late commands use only the signed embedded pool to install
-VRX packages, purge unwanted packages and apply appliance/kernel settings.
+NGFW packages, purge unwanted packages and apply appliance/kernel settings.
 There is no default OS user or password SSH login. Optional root authorized keys
 are embedded only when explicitly supplied. The API bootstrap administrator's
 random password is generated on the target, not baked into the ISO.
@@ -132,7 +132,7 @@ The console banner shows management address/HTTPS URL and bootstrap credentials.
 After firstboot is complete, a periodic database check removes the console password
 copy once no unused bootstrap administrator remains. A database failure preserves
 the copy for retry. Real first-login/banner cleanup acceptance remains NOT RUN.
-Installer logs include `/var/log/vrx-early.log` and `/var/log/vrx-late.log`; late logs
+Installer logs include `/var/log/ngfw-early.log` and `/var/log/ngfw-late.log`; late logs
 are copied to the installed system's `/var/log/installer`.
 
 ## Acceptance still required

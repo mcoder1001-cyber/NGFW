@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Model is the typed, validated view of what the templates render. Every string in it has
@@ -122,32 +122,32 @@ type Authority struct {
 // tunnels are rejected.
 type IfIDMapper func(ipipInterface string) (in, out uint32, ok bool)
 
-// Desired extracts the typed desired state from a *vrxv1.DesiredState or (D-055 stand-in) a
+// Desired extracts the typed desired state from a *ngfwv1.DesiredState or (D-055 stand-in) a
 // *structpb.Struct holding the configuration document.
-func Desired(msg proto.Message) (*vrxv1.DesiredState, error) {
+func Desired(msg proto.Message) (*ngfwv1.DesiredState, error) {
 	switch m := msg.(type) {
 	case nil:
-		return &vrxv1.DesiredState{}, nil
-	case *vrxv1.DesiredState:
+		return &ngfwv1.DesiredState{}, nil
+	case *ngfwv1.DesiredState:
 		if m == nil {
-			return &vrxv1.DesiredState{}, nil
+			return &ngfwv1.DesiredState{}, nil
 		}
 		return m, nil
 	case *structpb.Struct:
 		if m == nil {
-			return &vrxv1.DesiredState{}, nil
+			return &ngfwv1.DesiredState{}, nil
 		}
 		raw, err := protojson.Marshal(m)
 		if err != nil {
 			return nil, fmt.Errorf("%w: encode document: %v", ErrInput, err)
 		}
-		ds := &vrxv1.DesiredState{}
+		ds := &ngfwv1.DesiredState{}
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, ds); err != nil {
 			return nil, fmt.Errorf("%w: decode document: %v", ErrInput, err)
 		}
 		return ds, nil
 	default:
-		return nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState or *structpb.Struct)", ErrInput, msg)
+		return nil, fmt.Errorf("%w: unsupported input type %T (want *ngfwv1.DesiredState or *structpb.Struct)", ErrInput, msg)
 	}
 }
 
@@ -160,7 +160,7 @@ type buildOptions struct {
 // BuildModel validates vpn.ipsec and returns the model. Tunnels with enabled=false or
 // engine "vpp-ikev2" are not rendered (the latter is a VPP descriptor's). Secrets are resolved
 // through resolve; errors never contain secret values.
-func BuildModel(ctx context.Context, ds *vrxv1.DesiredState, opt buildOptions) (*Model, error) {
+func BuildModel(ctx context.Context, ds *ngfwv1.DesiredState, opt buildOptions) (*Model, error) {
 	ipsec := ds.GetVpn().GetIpsec()
 	m := &Model{}
 	names := slices.Sorted(mapKeys(ipsec.GetTunnels()))
@@ -204,7 +204,7 @@ func mapKeys[V any](m map[string]V) func(func(string) bool) {
 	}
 }
 
-func buildConn(ctx context.Context, name string, t *vrxv1.IpsecTunnel, proposals map[string]*vrxv1.IpsecProposal, opt buildOptions) (*Conn, *Secret, error) {
+func buildConn(ctx context.Context, name string, t *ngfwv1.IpsecTunnel, proposals map[string]*ngfwv1.IpsecProposal, opt buildOptions) (*Conn, *Secret, error) {
 	at := func(field string) string { return "vpn.ipsec.tunnels." + name + "." + field }
 	errf := func(field, format string, a ...any) error {
 		return fmt.Errorf("%w: %s: %s", ErrInput, at(field), fmt.Sprintf(format, a...))
@@ -354,7 +354,7 @@ func buildConn(ctx context.Context, name string, t *vrxv1.IpsecTunnel, proposals
 	}
 	rk := t.GetRekey()
 	if rk == nil {
-		rk = &vrxv1.IpsecRekey{}
+		rk = &ngfwv1.IpsecRekey{}
 	}
 	ikeLife := orDefault(rk.IkeSec, 14400)
 	if ikeLife < 60 || ikeLife > 604800 {
@@ -375,7 +375,7 @@ func buildConn(ctx context.Context, name string, t *vrxv1.IpsecTunnel, proposals
 	return c, sec, nil
 }
 
-func buildChild(name, cname string, t *vrxv1.IpsecTunnel, p *vrxv1.IpsecProposal, opt buildOptions, errf func(field, format string, a ...any) error) (*Child, error) {
+func buildChild(name, cname string, t *ngfwv1.IpsecTunnel, p *ngfwv1.IpsecProposal, opt buildOptions, errf func(field, format string, a ...any) error) (*Child, error) {
 	ch := &Child{Name: cname, Mode: "tunnel"}
 	if t.Mode != nil {
 		if err := oneOf("mode", t.GetMode(), []string{"tunnel", "transport"}); err != nil {
@@ -456,7 +456,7 @@ func buildChild(name, cname string, t *vrxv1.IpsecTunnel, p *vrxv1.IpsecProposal
 	}
 	rk := t.GetRekey()
 	if rk == nil {
-		rk = &vrxv1.IpsecRekey{}
+		rk = &ngfwv1.IpsecRekey{}
 	}
 	ch.RekeyTime = orDefault(rk.EspSec, 3600)
 	if ch.RekeyTime < 60 || ch.RekeyTime > 604800 {

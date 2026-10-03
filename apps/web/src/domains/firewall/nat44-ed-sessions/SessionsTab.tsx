@@ -325,7 +325,7 @@ export function SessionsTab() {
             <Typography
               component="p"
               dir="ltr"
-              sx={{ mt: 1, fontFamily: (th) => th.vrx.monoFontFamily, textAlign: 'start' }}
+              sx={{ mt: 1, fontFamily: (th) => th.ngfw.monoFontFamily, textAlign: 'start' }}
               data-testid="nat-kill-tuple"
             >
               {(() => {

@@ -20,7 +20,7 @@
           "address": "192.168.10.1"
         }
       ],
-      "sysName": "vrx-a",
+      "sysName": "ngfw-a",
       "sysLocation": "rack 12",
       "sysContact": "noc@lab.example",
       "sysServices": 72,

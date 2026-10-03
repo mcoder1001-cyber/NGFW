@@ -19,7 +19,7 @@ import (
 	"ngfw/agent/binapi/memclnt"
 	mplsapi "ngfw/agent/binapi/mpls"
 	srmplsapi "ngfw/agent/binapi/sr_mpls"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/mpls"
 	srmpls "ngfw/agent/internal/descriptors/sr_mpls"
@@ -110,9 +110,9 @@ func mplsModel(t *testing.T) *coretest.VPP {
 	return v
 }
 
-func retrievedMpls(t *testing.T, s *Service) *vrxv1.MplsConfig {
+func retrievedMpls(t *testing.T, s *Service) *ngfwv1.MplsConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestMplsProjection(t *testing.T) {
 	// review M1: the write-only leaves carry the note /state/drift skips (D-147); nothing else is reported
 	notes := map[string]string{}
 	for _, is := range pj.issues {
-		if is.rule == desired.RuleWriteOnly && is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+		if is.rule == desired.RuleWriteOnly && is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 			notes[is.pointer] = is.rule
 			continue
 		}
@@ -191,7 +191,7 @@ func TestMplsProjection(t *testing.T) {
 	pj = project(ds, []string{"routing"}, nil, nil)
 	var errs []issue
 	for _, is := range pj.issues {
-		if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			errs = append(errs, is)
 		}
 	}
@@ -206,10 +206,10 @@ func TestMplsProjection(t *testing.T) {
 // non-owner never touches MPLS table 0.
 func TestMplsApplyRetrieveRollback(t *testing.T) {
 	v := mplsModel(t)
-	v.AddMplsTable(0, "vrx:0") // the globals owner's table 0 (D-071)
+	v.AddMplsTable(0, "ngfw:0") // the globals owner's table 0 (D-071)
 	s, _ := newMplsSvc(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "m1", DesiredState: doc(t, mplsDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m1", DesiredState: doc(t, mplsDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	if got := v.MplsLabels(5001); strings.Join(got, ",") != "50016/eos" {
 		t.Fatalf("table 5001 labels %v", got)
@@ -217,7 +217,7 @@ func TestMplsApplyRetrieveRollback(t *testing.T) {
 	if got := v.MplsLabels(0); strings.Join(got, ",") != "50020/neos,50030/eos,50040/eos,50100/eos" {
 		t.Fatalf("table 0 labels %v (route, route, binding, BSID)", got)
 	}
-	if n := v.MplsTableNames(); n[5001] != "w5:5001" || n[0] != "vrx:0" {
+	if n := v.MplsTableNames(); n[5001] != "w5:5001" || n[0] != "ngfw:0" {
 		t.Fatalf("tables %v", n)
 	}
 	if tn := v.MplsTunnelsByTag(); tn["w5:t1"] == 0 {
@@ -238,8 +238,8 @@ func TestMplsApplyRetrieveRollback(t *testing.T) {
 	}
 
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "m2", DesiredState: doc(t, mplsDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m2", DesiredState: doc(t, mplsDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for _, c := range v.Calls() {
 		switch n := c.GetMessageName(); n {
 		case "mpls_table_add_del", "mpls_route_add_del", "sw_interface_set_mpls_enable", "mpls_tunnel_add_del",
@@ -249,8 +249,8 @@ func TestMplsApplyRetrieveRollback(t *testing.T) {
 	}
 
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "m3", DesiredState: doc(t, `{"vrfs": {"red": {"id": 5010}}, "interfaces": {"loop5001": {"ipv4": ["10.5.1.1/24"]}}, "routing": {}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m3", DesiredState: doc(t, `{"vrfs": {"red": {"id": 5010}}, "interfaces": {"loop5001": {"ipv4": ["10.5.1.1/24"]}}, "routing": {}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	order := mplsCallOrder(v)
 	for _, pair := range [][2]string{
 		{"route-del 5001", "table-del 5001"},
@@ -264,7 +264,7 @@ func TestMplsApplyRetrieveRollback(t *testing.T) {
 	if got := v.MplsLabels(0); len(got) != 0 {
 		t.Fatalf("table 0 still has %v", got)
 	}
-	if n := v.MplsTableNames(); len(n) != 1 || n[0] != "vrx:0" {
+	if n := v.MplsTableNames(); len(n) != 1 || n[0] != "ngfw:0" {
 		t.Fatalf("tables after rollback %v (table 0 stays: not ours)", n)
 	}
 	if len(v.SRPolicies()) != 0 || v.HasRoute(0, "10.5.60.0/24") || len(v.MplsBindings()) != 0 || len(v.MplsTunnelsByTag()) != 0 {
@@ -275,9 +275,9 @@ func TestMplsApplyRetrieveRollback(t *testing.T) {
 	}
 }
 
-func mplsFromJSON(t *testing.T, js string) *vrxv1.MplsConfig {
+func mplsFromJSON(t *testing.T, js string) *ngfwv1.MplsConfig {
 	t.Helper()
-	m := &vrxv1.MplsConfig{}
+	m := &ngfwv1.MplsConfig{}
 	if err := protojson.Unmarshal([]byte(js), m); err != nil {
 		t.Fatal(err)
 	}
@@ -343,26 +343,26 @@ func before(order []string, a, b string) bool {
 func TestMplsTableZeroRequired(t *testing.T) {
 	v := mplsModel(t)
 	s, _ := newMplsSvc(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "z1", DesiredState: doc(t, `{"interfaces": {"loop5001": {}}, "routing": {"mpls": {"interfaces": ["loop5001"]}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "z1", DesiredState: doc(t, `{"interfaces": {"loop5001": {}}, "routing": {"mpls": {"interfaces": ["loop5001"]}}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if !strings.Contains(protojson.Format(resp), "only the globals owner creates it (D-071)") {
 		t.Fatalf("the failure must name the globals-owner rule: %s", protojson.Format(resp))
 	}
 	if len(v.MplsTableNames()) != 0 {
 		t.Fatal("a non-owner created an MPLS table")
 	}
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "z2", DesiredState: doc(t, `{"interfaces": {"loop5001": {"ipv4": ["10.5.1.1/24"]}}, "routing": {"mpls": {
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "z2", DesiredState: doc(t, `{"interfaces": {"loop5001": {"ipv4": ["10.5.1.1/24"]}}, "routing": {"mpls": {
 	  "tables": {"5001": {}},
 	  "labelRoutes": [{"table": 5001, "label": 50016, "eos": true, "paths": [{"nextHop": "10.5.1.2", "interface": "loop5001", "outLabels": [50017], "weight": 1}]}],
 	  "tunnels": {"t1": {"paths": [{"nextHop": "10.5.1.2", "interface": "loop5001", "outLabels": [50050], "weight": 1}], "l2Only": false}}}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := v.MplsTableNames(); len(n) != 1 || n[5001] != "w5:5001" {
 		t.Fatalf("tables %v", n)
 	}
 	// the globals owner creates table 0 itself
 	g := mplsModel(t)
 	gs, _ := newMplsSvc(t, g, t.TempDir(), true)
-	mustStatus(t, apply(t, gs, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, `{"interfaces": {"loop5001": {}}, "routing": {"mpls": {"interfaces": ["loop5001"]}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, gs, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, `{"interfaces": {"loop5001": {}}, "routing": {"mpls": {"interfaces": ["loop5001"]}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := g.MplsTableNames(); n[0] != "w5:0" {
 		t.Fatalf("globals owner's table 0: %v", n)
 	}
@@ -373,10 +373,10 @@ func TestMplsTableZeroRequired(t *testing.T) {
 // policy re-applied once for this VPP instance (D-076/D-080), the label routes from their dump.
 func TestMplsRestartSimulation(t *testing.T) {
 	v := mplsModel(t)
-	v.AddMplsTable(0, "vrx:0")
+	v.AddMplsTable(0, "ngfw:0")
 	dir := t.TempDir()
 	s, _ := newMplsSvc(t, v, dir, false)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, mplsDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, mplsDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close()
 	if !v.DeleteMplsRoute(5001, 50016, true) || !v.DeleteMplsRoute(0, 50030, true) || !v.DeleteSRPolicy(50100) {
 		t.Fatal("simulated loss")
@@ -384,7 +384,7 @@ func TestMplsRestartSimulation(t *testing.T) {
 	s2, _ := newMplsSvc(t, v, dir, false)
 	start := time.Now()
 	resp := s2.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if time.Since(start) > 30*time.Second {
 		t.Fatal("resync took more than 30 s")
 	}
@@ -399,7 +399,7 @@ func TestMplsRestartSimulation(t *testing.T) {
 	}
 	// a second resync on the same VPP instance re-applies nothing of the write-only policy
 	v.Reset()
-	mustStatus(t, s2.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s2.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := len(v.CallsNamed("sr_mpls_policy_add")); n != 0 {
 		t.Fatalf("policy re-added %d times on the same VPP instance", n)
 	}
@@ -409,14 +409,14 @@ func TestMplsRestartSimulation(t *testing.T) {
 // ones, request validation, and one walk at a time (D-132).
 func TestMplsStateRPC(t *testing.T) {
 	v := mplsModel(t)
-	v.AddMplsTable(0, "vrx:0")
+	v.AddMplsTable(0, "ngfw:0")
 	v.AddMplsTable(3001, "w3:3001") // another owner's table
 	s, _ := newMplsSvc(t, v, t.TempDir(), false)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, mplsDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, mplsDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	g := &server{svc: s}
 	ctx := context.Background()
 
-	r, err := g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "fib", TableId: 0})
+	r, err := g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "fib", TableId: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,24 +438,24 @@ func TestMplsStateRPC(t *testing.T) {
 		t.Fatalf("50030 %v", r.GetEntries()[4])
 	}
 
-	r, err = g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "fib", TableId: 0, Offset: 2, Limit: 2})
+	r, err = g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "fib", TableId: 0, Offset: 2, Limit: 2})
 	if err != nil || len(r.GetEntries()) != 2 || r.GetEntries()[0].GetLabel() != 2 || r.GetEntries()[1].GetLabel() != 50020 || r.GetTotal() != 7 {
 		t.Fatalf("page 2×2: %v %v", r.GetEntries(), err)
 	}
-	r, err = g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "fib", TableId: 5001, Label: 50016})
+	r, err = g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "fib", TableId: 5001, Label: 50016})
 	if err != nil || len(r.GetEntries()) != 1 || r.GetTotal() != 1 || r.GetEntries()[0].GetPaths()[0].GetNextHop() != "10.5.1.2" {
 		t.Fatalf("label filter: %v %v", r, err)
 	}
 	for _, bad := range []struct {
-		req  *vrxv1.MplsStateRequest
+		req  *ngfwv1.MplsStateRequest
 		code codes.Code
 	}{
-		{&vrxv1.MplsStateRequest{View: "fib", TableId: 3001}, codes.NotFound},
-		{&vrxv1.MplsStateRequest{View: "fib", TableId: 5002}, codes.NotFound},
-		{&vrxv1.MplsStateRequest{View: "bogus"}, codes.InvalidArgument},
-		{&vrxv1.MplsStateRequest{View: "fib", Limit: 1001}, codes.InvalidArgument},
-		{&vrxv1.MplsStateRequest{View: "fib", Offset: 99_950, Limit: 100}, codes.InvalidArgument},
-		{&vrxv1.MplsStateRequest{View: "fib", Owner: "w3"}, codes.InvalidArgument},
+		{&ngfwv1.MplsStateRequest{View: "fib", TableId: 3001}, codes.NotFound},
+		{&ngfwv1.MplsStateRequest{View: "fib", TableId: 5002}, codes.NotFound},
+		{&ngfwv1.MplsStateRequest{View: "bogus"}, codes.InvalidArgument},
+		{&ngfwv1.MplsStateRequest{View: "fib", Limit: 1001}, codes.InvalidArgument},
+		{&ngfwv1.MplsStateRequest{View: "fib", Offset: 99_950, Limit: 100}, codes.InvalidArgument},
+		{&ngfwv1.MplsStateRequest{View: "fib", Owner: "w3"}, codes.InvalidArgument},
 	} {
 		if _, err := g.MplsState(ctx, bad.req); grpcCode(err) != bad.code {
 			t.Errorf("%v: %v, want %s", bad.req, err, bad.code)
@@ -466,7 +466,7 @@ func TestMplsStateRPC(t *testing.T) {
 	v.AddMplsRoute(mplsapi.MplsRoute{}) // noise in table 0's key space must not matter
 	addTunnel(t, v, "")
 	addTunnel(t, v, "w3:theirs")
-	r, err = g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "tunnels"})
+	r, err = g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "tunnels"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -481,13 +481,13 @@ func TestMplsStateRPC(t *testing.T) {
 	// one MPLS FIB walk at a time: a second reader waits, then gets UNAVAILABLE
 	mplsWalkSem <- struct{}{}
 	start := time.Now()
-	_, err = g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "fib"})
+	_, err = g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "fib"})
 	<-mplsWalkSem
 	if grpcCode(err) != codes.Unavailable || time.Since(start) < mplsWalkWait {
 		t.Fatalf("busy walk: %v after %s", err, time.Since(start))
 	}
 	v.SetConnected(false)
-	if _, err := g.MplsState(ctx, &vrxv1.MplsStateRequest{View: "tunnels"}); grpcCode(err) != codes.Unavailable {
+	if _, err := g.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "tunnels"}); grpcCode(err) != codes.Unavailable {
 		t.Fatalf("disconnected: %v", err)
 	}
 }

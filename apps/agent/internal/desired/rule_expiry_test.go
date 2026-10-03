@@ -10,7 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/subsystems/ruleexpiry"
@@ -22,17 +22,17 @@ func TestACLRuleExpiry(t *testing.T) {
 	now := time.Date(2026, 9, 27, 12, 0, 0, 0, time.UTC)
 	rec := aclstate.NewRecord(0)
 	withEnv(t, ACLEnv{Owner: "w3", Now: func() time.Time { return now }, Record: rec})
-	ds := &vrxv1.DesiredState{Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{"l": {Rules: []*vrxv1.AclRule{
-		rule(10, "permit", func(r *vrxv1.AclRule) {
+	ds := &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"l": {Rules: []*ngfwv1.AclRule{
+		rule(10, "permit", func(r *ngfwv1.AclRule) {
 			r.Source = prefix("10.3.1.0/24")
 			r.ExpiresAt = proto.String("2026-09-27T11:00:00Z") // expired an hour ago
 			r.Owner, r.Ticket = proto.String("netops"), proto.String("CHG-1")
 		}),
-		rule(20, "deny", func(r *vrxv1.AclRule) {
+		rule(20, "deny", func(r *ngfwv1.AclRule) {
 			r.Source = prefix("10.3.2.0/24")
 			r.ExpiresAt = proto.String("2026-09-27T13:00:00Z") // in an hour
 		}),
-		rule(30, "permit", func(r *vrxv1.AclRule) { r.Source = prefix("10.3.3.0/24") }),
+		rule(30, "permit", func(r *ngfwv1.AclRule) { r.Source = prefix("10.3.3.0/24") }),
 	}}}}}
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true})
@@ -51,14 +51,14 @@ func TestACLRuleExpiry(t *testing.T) {
 	if len(a.Rules) != 2 { // rules 20 and 30: one IPv4 VPP rule each
 		t.Fatalf("rendered %+v", a.Rules)
 	}
-	var statuses []vrxv1.AclRuleStatus
+	var statuses []ngfwv1.AclRuleStatus
 	exp, ok := rec.ACL("l", aclstate.Fingerprint(a.Rules), aclstate.ConfigHash(ds.Acl.Lists["l"]))
 	if ok {
 		for _, r := range exp.Rules {
 			statuses = append(statuses, r.Status)
 		}
 	}
-	if len(statuses) != 3 || statuses[0] != vrxv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED || statuses[1] != vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED {
+	if len(statuses) != 3 || statuses[0] != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED || statuses[1] != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED {
 		t.Fatalf("rule statuses %v", statuses)
 	}
 	if p := ruleexpiry.Pending(); len(p) != 1 || !p[0].Equal(now.Add(time.Hour)) {
@@ -94,8 +94,8 @@ func TestNATStaticMappingExpiry(t *testing.T) {
 	ruleexpiry.Now = func() time.Time { return now }
 	t.Cleanup(func() { ruleexpiry.Now = prev })
 	s := newRecSink()
-	expired := &vrxv1.NatStaticMapping{Name: proto.String("old"), ExpiresAt: proto.String("2026-09-27T11:00:00Z")}
-	later := &vrxv1.NatStaticMapping{Name: proto.String("web"), ExpiresAt: proto.String("2026-09-28T12:00:00Z")}
+	expired := &ngfwv1.NatStaticMapping{Name: proto.String("old"), ExpiresAt: proto.String("2026-09-27T11:00:00Z")}
+	later := &ngfwv1.NatStaticMapping{Name: proto.String("web"), ExpiresAt: proto.String("2026-09-28T12:00:00Z")}
 	if !natMappingExpired(s, expired, 0) || natMappingExpired(s, later, 1) {
 		t.Fatal("expired/later mis-classified")
 	}

@@ -62,7 +62,7 @@ import { srv6FakeState } from '../features/srv6/fake.js'; // F-srv6 (P5)
 import { mplsSrmplsFake } from '../features/mpls-srmpls/fake.js';
 
 /**
- * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
+ * In-process fake of the P03 `ngfw.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
  * semantics of docs/contracts/proto.md that the API depends on: owner check, D-041 subsystem selection, txn_id
  * idempotency, one pending confirm at a time with a self-revert timer (CONFIRM_REVERTED + RECONCILE events), DryRun
  * without side effects, Retrieve of the applied state, 1 Hz-style StreamStats and StreamEvents with per-stream seq.

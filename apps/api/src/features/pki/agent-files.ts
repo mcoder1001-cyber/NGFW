@@ -17,7 +17,7 @@ export class PkiAgentFiles implements OnModuleDestroy {
 
   private get c(): DataplaneClient {
     this.client ??= new DataplaneClient(
-      `unix:${this.env.VRX_AGENT_SOCKET}`,
+      `unix:${this.env.NGFW_AGENT_SOCKET}`,
       credentials.createInsecure(),
       {
         'grpc.max_reconnect_backoff_ms': 5000,
@@ -30,7 +30,7 @@ export class PkiAgentFiles implements OnModuleDestroy {
   state(timeoutMs = 3000): Promise<PkiFileStateResponse | { error: string }> {
     return new Promise((resolve) => {
       this.c.pkiFileState(
-        { owner: this.env.VRX_AGENT_OWNER },
+        { owner: this.env.NGFW_AGENT_OWNER },
         new Metadata(),
         { deadline: new Date(Date.now() + timeoutMs) },
         (err: ServiceError | null, res: PkiFileStateResponse) =>

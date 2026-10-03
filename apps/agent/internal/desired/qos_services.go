@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // ServicesImplemented lists the `services` sub-keys (JSON names) that this build projects. A feature that projects
@@ -18,7 +18,7 @@ import (
 var ServicesImplemented = map[string]bool{}
 
 // ServicesUnsupported warns agent.unsupported-field for every non-empty `services` sub-key that no builder projects.
-func ServicesUnsupported(s Sink, svc *vrxv1.ServicesConfig) {
+func ServicesUnsupported(s Sink, svc *ngfwv1.ServicesConfig) {
 	if svc == nil {
 		return
 	}

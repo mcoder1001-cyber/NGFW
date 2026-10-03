@@ -17,18 +17,18 @@ main merged into the branch (`266d1dc`, `4431c24`), findings fixed — see "Fix 
 | agent: svs (new) | `svs.table/<id>`, `svs.interface/<if>`, `svs.route/<table>/<prefix>` (docs/agent/descriptors/svs.md): named tables via `ip_table_add_del`, enablements from `svs_dump`, routes from `ip_route_v2_dump` of the `svs` source + a boot-keyed applied-once record for the selected table (D-076/D-080; never desired state) |
 | agent: wiring | `subsystems/vrf_static_ecmp.go`: svs registration with the persisted BootStore, the D-072 selector (`viaFrr`) through `sync.Once`, `SvsRange()` (slot range top / product high range); `desired/vrf_static_ecmp.go`: builder (svs objects, viaFrr notice) + assembler |
 | agent: RPCs | `ListRoutes` (`rpc_vrf_static_ecmp.go` → `internal/actions/vrf-static-ecmp/fib.go`: one streamed dump per family through a 64k-reply stream, filters vrf/family/prefix/source (source pushed to VPP), bounded heap of offset+limit); Action `ping` (VPP ping plugin, default VRF only, count × interval ≤ 5 s, serialised) and `traceroute` → UNIMPLEMENTED |
-| API | `GET /api/v1/state/routes` moved to `VrfStaticEcmpController` (agent-side paging, filters, paths/DPO detail; operationId `State_routes` kept for the CLI; all-VRF listing for `vrx show ip route`); `POST /api/v1/actions/:action` = Action bridge (ping/traceroute; agent INVALID_ARGUMENT → 400 with the field's pointer); `AgentClient.listRoutes` / `runAction`; fake behaviour in `features/vrf-static-ecmp/fake.ts` |
+| API | `GET /api/v1/state/routes` moved to `VrfStaticEcmpController` (agent-side paging, filters, paths/DPO detail; operationId `State_routes` kept for the CLI; all-VRF listing for `ngfw show ip route`); `POST /api/v1/actions/:action` = Action bridge (ping/traceroute; agent INVALID_ARGUMENT → 400 with the field's pointer); `AgentClient.listRoutes` / `runAction`; fake behaviour in `features/vrf-static-ecmp/fake.ts` |
 | UI | `/routing/vrfs` (VRF list with live FIB count, schema form incl. source VRF select), `/routing` tabs: static routes grid (live status) + ECMP path editor, FIB browser (ServerDataGrid, agent-paged), ping; en + fa |
 | docs | `docs/user/routing/vrf-static-ecmp.md`, `docs/agent/descriptors/svs.md`, `docs/vpp-code-track.md` V-new |
 
 ## Acceptance — evidence (pasted real output)
 
-All host runs on vrx-a, slot 2 (`w2`, tables 2000–2999, 10.2.0.0/16), shared lab lock, `NRestarts` read before and after
+All host runs on ngfw-a, slot 2 (`w2`, tables 2000–2999, 10.2.0.0/16), shared lab lock, `NRestarts` read before and after
 every run (1 → 1: the only restart, 18:41:08, was the `show trace` crash of D-128, not this task — Q7).
 
 ### 1. `vppctl show ip fib table <id> <prefix>` shows both weighted paths; Retrieve == desired
 
-Full stack (`test/topology/vrf-static-ecmp/run.sh`, 19:35, real vrx-agent + vrx-api + rig): the committed ECMP default route of
+Full stack (`test/topology/vrf-static-ecmp/run.sh`, 19:35, real ngfw-agent + ngfw-api + rig): the committed ECMP default route of
 VRF `red` (table 2021), next hops 3:1 — VPP's load-balance has 4 buckets, 3 to `.2` and 1 to `.3`:
 
 ```
@@ -196,7 +196,7 @@ vse_test.go:204: V15 probe: table 2960 re-created holds 5 entries: 0.0.0.0/0(src
 ### 5. Next hop in an undeclared VRF → 400 problem+json with `pointer`
 
 ```
-vse_test.go:135: commit with a next hop in an undeclared VRF → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/static/0/nextHops/0/vrf","message":"VRF 'nope' does not exist"}]}
+vse_test.go:135: commit with a next hop in an undeclared VRF → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/static/0/nextHops/0/vrf","message":"VRF 'nope' does not exist"}]}
 ```
 
 (Same in the API e2e suite: `apps/api/test/e2e/vrf-static-ecmp.e2e.test.ts`, 5/5 passed, and at DryRun/Apply in the agent:
@@ -209,7 +209,7 @@ The screenshot script (headless Chrome of P07a/P07b/P08, outside the product cod
 
 ```
 vse_test.go:146: POST /api/v1/actions/ping 10.2.2.2 → {"action":"ping","lines":["PING 10.2.2.2 (default VRF): 5 packets transmitted, 1 received, 80% packet loss"],"done":{"summary":"PING 10.2.2.2 (default VRF): 5 packets transmitted, 1 received, 80% packet loss","exitCode":0,"stats":{"transmitted":"5","received":"1","loss_pct":"80"}}}
-vse_test.go:151: ping in VRF red → 400 {"type":"https://vrx.dev/problems/bad-request","title":"Bad request","status":400,"detail":"invalid action argument: vrf: ping in VRF \"red\": VPP's ping API has no table and always pings from the default VRF (docs/vpp-code-track.md V-new (F-vrf-static-ecmp))","instance":"/api/v1/actions/ping","errors":[{"pointer":"/vrf","message":"invalid action argument: vrf: ping in VRF \"red\": VPP's ping API has no table and always pings from the default VRF (docs/vpp-code-track.md V-new (F-vrf-static-ecmp))"}]}
+vse_test.go:151: ping in VRF red → 400 {"type":"https://ngfw.dev/problems/bad-request","title":"Bad request","status":400,"detail":"invalid action argument: vrf: ping in VRF \"red\": VPP's ping API has no table and always pings from the default VRF (docs/vpp-code-track.md V-new (F-vrf-static-ecmp))","instance":"/api/v1/actions/ping","errors":[{"pointer":"/vrf","message":"invalid action argument: vrf: ping in VRF \"red\": VPP's ping API has no table and always pings from the default VRF (docs/vpp-code-track.md V-new (F-vrf-static-ecmp))"}]}
 ```
 
 Replies arrive from the rig peer 10.2.2.2 (`ns-w2-wan`); VPP's ping **API** under-counts them on a busy binary API (1–2 of 3
@@ -234,7 +234,7 @@ Screenshots (`docs/status/tasks/F-vrf-static-ecmp-screens/`, en + fa/RTL): `vrfs
 | lister + ping | `apps/agent/internal/actions/vrf-static-ecmp/vse_test.go` | pass |
 | API e2e (PostgreSQL + fake agent) | `apps/api/test/e2e/vrf-static-ecmp.e2e.test.ts` | 5/5 |
 | web model | `apps/web/src/domains/routing/vrf-static-ecmp/model.test.ts` | 4/4 |
-| host: descriptors | `svs_integration_test.go`, `fib_integration_test.go` (`VRX_INTEGRATION=1`, one package at a time) | PASS (above) |
+| host: descriptors | `svs_integration_test.go`, `fib_integration_test.go` (`NGFW_INTEGRATION=1`, one package at a time) | PASS (above) |
 | host: full stack | `test/topology/vrf-static-ecmp/run.sh` (+ screenshots) | PASS 78.6 s |
 
 ## Shared hunks (append-only under `wave-A: F-vrf-static-ecmp` unless stated)
@@ -249,7 +249,7 @@ Screenshots (`docs/status/tasks/F-vrf-static-ecmp-screens/`, en + fa/RTL): `vrfs
 | C1 | `packages/schema/src/domains/{vrfs,routing}.ts` | `sourceSelect: vrfSourceSelect`, `vrf: nextHopVrf`, `viaFrr: staticRouteViaFrr` under the anchors **+ one import line each, outside the anchor** (Q5) |
 | C2/C3 | `packages/schema/src/semantic/index.ts`, `packages/schema/src/index.ts` | import + spread; `export *` |
 | C4 | `packages/proto/test/fixtures/vrf-static-ecmp-full.json` | new file; **`packages/proto/test/desired-state.test.ts`**: `toEqual` → `toMatchObject` on the `vrfs['customer-a']` line (Q6) |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | `rpc ListRoutes` under the service anchor; `Vrf.source_select = 3`, `StaticRoute.via_frr = 7` under their anchors; `NextHop.vrf = 4` (no anchor; NextHop is touched only by this task); messages in `// ----- F-vrf-static-ecmp -----` |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | `rpc ListRoutes` under the service anchor; `Vrf.source_select = 3`, `StaticRoute.via_frr = 7` under their anchors; `NextHop.vrf = 4` (no anchor; NextHop is touched only by this task); messages in `// ----- F-vrf-static-ecmp -----` |
 | C6 | `docs/contracts/proto.md` | `### F-vrf-static-ecmp: ListRoutes` |
 | C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go`, `docs/user/cli/reference.md` (regenerated, never hand-edited) |
 | P1 | `apps/api/src/app.module.ts` | import + `...vrfStaticEcmpFeature.controllers` / `.providers` |
@@ -269,7 +269,7 @@ Branch gate, `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` on `bc83330` (22:58–23
 Q12 did not hit):
 
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /root/ngfw-wt/F-vrf-static-ecmp
 branch    task/F-vrf-static-ecmp @ bc83330   (base: main)
 ...
@@ -302,7 +302,7 @@ without shard support; this task does not touch `deploy/vpp`). It goes away with
 ## Cleanup (23:09)
 
 No process of slot 2 running (agent/API/vite of the topology run were stopped by PID in the run), lab lock not held,
-`vrx_w2` absent (`select count(*) from pg_database where datname like 'vrx_w2%'` → `0`), rig down (`ip netns list | grep -c w2`
+`ngfw_w2` absent (`select count(*) from pg_database where datname like 'ngfw_w2%'` → `0`), rig down (`ip netns list | grep -c w2`
 → `0`), `NRestarts=1` (unchanged since the 18:41 `show trace` crash, D-128). Nothing of slot 2 in VPP:
 
 ```
@@ -324,7 +324,7 @@ $ vppctl show ip fib | grep -cE '^10\.2\.'
 0
 ```
 
-Not removed: the `rm -rf` of `/run/vrx-test/w2/vse` (the topology run's logs + agent state), the git-ignored build output
+Not removed: the `rm -rf` of `/run/ngfw-test/w2/vse` (the topology run's logs + agent state), the git-ignored build output
 (`apps/{api,web}/dist`, `packages/{schema,proto,api-client,ui-kit}/dist`, `apps/{agent,cli}/bin`, left by the CI run) was
 refused by the session's permission check, and I did not work around it — the manager may delete them (nothing tracked).
 
@@ -494,9 +494,9 @@ Everything else in owned files.
 
 ### Cleanup
 
-No process of mine running; `vrx_w2` dropped by the e2e teardown (`select count(*) … like 'vrx_w2%'` → `0`); VPP
+No process of mine running; `ngfw_w2` dropped by the e2e teardown (`select count(*) … like 'ngfw_w2%'` → `0`); VPP
 untouched in this round (`show ip table` lists no w2 table; `NRestarts=1`, unchanged since D-128). Not removed (the `rm`
-was refused by the permission check earlier): `/run/vrx-test/w2/{vse,kea,kea-relay}` (the topology run's logs; the
+was refused by the permission check earlier): `/run/ngfw-test/w2/{vse,kea,kea-relay}` (the topology run's logs; the
 `kea*` directories are the kea renderer tests' scratch paths from the CI run) and the git-ignored `dist/`/`bin/` output.
 
 ## Follow-up after TD-11b (2026-09-25)
@@ -507,6 +507,6 @@ kept, the V-new section after it). TD-11b's start-up guard refused the svs descr
 table's VPP name `<owner>:svs:<id>` / by that table), `svs.route` `CheckPersistent()` = `dfkit.CheckBoot` over its
 applied-once BootStore (the persisted `Wiring.BootStore`). Core `vrf`/`route` were already declared by TD-11b
 (`core/ownership.go`). `TestSvsRangeFromSlot` failed on TD-8's fail-closed id range: `SvsRange()` now follows
-`ResolveIDScope()` (slot range → top 100; `VRX_VPP_ID_RANGE=all` → the product range; none/bad → empty, the projection
+`ResolveIDScope()` (slot range → top 100; `NGFW_VPP_ID_RANGE=all` → the product range; none/bad → empty, the projection
 refuses a source select) — why not `Wiring.IDRange`: Q16. `go test -race -count=1` of `internal/agent`, `subsystems`,
 `descriptors/svs`, `descriptors/core`, `actions/vrf-static-ecmp`: all `ok`. No host run.

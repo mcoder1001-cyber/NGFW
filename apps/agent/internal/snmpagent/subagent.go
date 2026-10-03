@@ -22,14 +22,14 @@ const (
 	closeReasonShutdn = 5 // reasonShutdown
 )
 
-// Subagent connects to the AgentX master socket of snmpd and serves VRX-MIB until its context ends,
+// Subagent connects to the AgentX master socket of snmpd and serves NGFW-MIB until its context ends,
 // reconnecting (and re-registering) whenever the master goes away.
 type Subagent struct {
 	// Socket is the master's unix socket (snmpd.Paths.AgentXSocket).
 	Socket string
 	Source Source
 	Log    *slog.Logger
-	// Descr is the Open description (default "vrx-agent VRX-MIB").
+	// Descr is the Open description (default "ngfw-agent NGFW-MIB").
 	Descr string
 
 	mu         sync.Mutex
@@ -178,8 +178,8 @@ func (s *Subagent) session(ctx context.Context) error {
 	e.u8(openTimeoutSec)
 	e.u8(0)
 	e.u16(0)
-	e.oid(VRXMIBOID, false)
-	e.octets([]byte(cmpOr(s.Descr, "vrx-agent VRX-MIB")))
+	e.oid(NGFWMIBOID, false)
+	e.octets([]byte(cmpOr(s.Descr, "ngfw-agent NGFW-MIB")))
 	h, err := c.request(pduOpen, e.b)
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
@@ -191,15 +191,15 @@ func (s *Subagent) session(ctx context.Context) error {
 	e.u8(DefaultPriority)
 	e.u8(0) // range_subid
 	e.u8(0)
-	e.oid(VRXMIBOID, false)
+	e.oid(NGFWMIBOID, false)
 	if _, err := c.request(pduRegister, e.b); err != nil {
-		return fmt.Errorf("register %s: %w", VRXMIBOID, err)
+		return fmt.Errorf("register %s: %w", NGFWMIBOID, err)
 	}
 	s.mu.Lock()
 	s.registered, s.sessions, s.since, s.lastErr = true, s.sessions+1, time.Now(), ""
 	n := s.sessions
 	s.mu.Unlock()
-	s.log().Info("VRX-MIB registered with the AgentX master", "socket", s.Socket, "subtree", VRXMIBOID.String(), "session", c.session, "registrations", n)
+	s.log().Info("NGFW-MIB registered with the AgentX master", "socket", s.Socket, "subtree", NGFWMIBOID.String(), "session", c.session, "registrations", n)
 
 	go func() { // keepalive: a dead master shows up as a write error / EOF
 		t := time.NewTicker(pingInterval)
@@ -298,7 +298,7 @@ func (s *Subagent) answer(ctx context.Context, h header, p []byte) []byte {
 	defer cancel()
 	snap, err := s.Source.Snapshot(sctx)
 	if err != nil {
-		s.log().Warn("VRX-MIB snapshot", "err", err)
+		s.log().Warn("NGFW-MIB snapshot", "err", err)
 		return response(errGenErr, 1, nil)
 	}
 	v := buildView(snap)

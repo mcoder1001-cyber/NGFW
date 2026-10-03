@@ -18,7 +18,7 @@ file — please copy the ones you accept).
   with `refs:8` (plus `10.10.31.2/32`, `10.10.31.3/32`, RR-sourced drop entries of AS addresses — not API routes,
   not removable via the API). Every host run added three removed VIPs; each VIP delete or change (ErrRecreate)
   leaks one. The VPP crash-restart of 2026-09-24 02:23 (D-087, Q9) wiped them: after it `show lb vips` is empty and
-  `show ip fib` has no `10.10.*` entry. **Now**: the lb host test is opt-in (`VRX_DF7_LB=1`) so CI adds no new
+  `show ip fib` has no `10.10.*` entry. **Now**: the lb host test is opt-in (`NGFW_DF7_LB=1`) so CI adds no new
   leftovers; the per-update leak is documented in `lb.md`. Table 0 is never deleted, so V15 does not apply.
   Options: (a) the globals owner runs `vppctl lb conf` once after lb churn (global GC, keeps the conf values) — I do
   not, it is a global CLI action (D-071); (b) leave until the next VPP restart; (c) VPP patch (V-item: ntohl in the
@@ -58,7 +58,7 @@ wants it.
 
 VPP creates no MPLS table. `sw_interface_set_mpls_enable` needs table 0 (`NO_SUCH_FIB` otherwise — host run) and
 locks it; `mpls_ip_bind_unbind` creates/locks it. The host has no table 0, so `mpls-interface` / `mpls-ip-bind` are
-only exercised on the host with `VRX_DF7_GLOBALS=1` (unit tests cover them). Proposal: the globals owner's desired
+only exercised on the host with `NGFW_DF7_GLOBALS=1` (unit tests cover them). Proposal: the globals owner's desired
 state declares `mpls-table/0` when any MPLS feature is on; `mpls-interface` depends on it optionally.
 
 ## Q6 — other VPP 26.06 findings (V-item candidates)
@@ -135,7 +135,7 @@ without a crash, so it is timing- or state-dependent (e.g. both a VRRP join and 
 exact line needs the debug build / core (no core on the host).
 
 Done: (1) host tests only one package at a time (`go test -p 1`, one package per run, NRestarts before/after each;
-evidence in DF-7.md); (2) `TestVRRPOnHost` and `TestIGMPOnHost` are opt-in (`VRX_DF7_VRRP_HOST=1`,
-`VRX_DF7_IGMP_HOST=1`, `df7test.CrashOptIn`) — run them alone in a manager window; unit tests stay on the fake.
+evidence in DF-7.md); (2) `TestVRRPOnHost` and `TestIGMPOnHost` are opt-in (`NGFW_DF7_VRRP_HOST=1`,
+`NGFW_DF7_IGMP_HOST=1`, `df7test.CrashOptIn`) — run them alone in a manager window; unit tests stay on the fake.
 For `docs/vpp-code-track.md`: V-item candidate "ip4-options SIGSEGV on looped-back Router-Alert IGMP (VRRP join /
 IGMP host) on loopbacks, VPP 26.06".

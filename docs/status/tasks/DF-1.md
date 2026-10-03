@@ -59,7 +59,7 @@ ok  	ngfw/agent/internal/descriptors/memif	0.019s
 ok  	ngfw/agent/internal/descriptors/tapv2	0.019s
 ```
 
-### Integration on the host VPP — `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w2 VRX_SLOT=2 VRX_VPP_TABLE_BASE=2000 go test -count=1 -v ./internal/descriptors/...` (excerpt)
+### Integration on the host VPP — `NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w2 NGFW_SLOT=2 NGFW_VPP_TABLE_BASE=2000 go test -count=1 -v ./internal/descriptors/...` (excerpt)
 ```
 af-packet.host-interface: Retrieve == desired: af-packet.host-interface/w2-af50 name:"w2-af50"  host_if_name:"w2-af50"
 af-packet.host-interface: Retrieve == desired: af-packet.host-interface/w2-af50p name:"w2-af50p"  host_if_name:"w2-af50p"  mode:MODE_IP
@@ -90,7 +90,7 @@ l2.vlan-tag-rewrite: Retrieve == desired: l2.vlan-tag-rewrite/w2-tap11.100 inter
 --- PASS: TestL2OnHost (1.75s)
 l3xc.l3xc: Retrieve == desired: l3xc.l3xc/w2-tap30/ip4 interface:"tapv2.tap/w2-tap30"  paths:{next_hop:"10.2.30.253"  interface:"interface.loopback/loop230"  weight:1}  paths:{next_hop:"10.2.30.254"  interface:"interface.loopback/loop230"  weight:1}
 --- PASS: TestL3xcOnHost (0.84s)
-memif.socket: Retrieve == desired: memif.socket/2040 id:2040  filename:"/run/vrx-test/w2/memif/w2-memif40.sock"
+memif.socket: Retrieve == desired: memif.socket/2040 id:2040  filename:"/run/ngfw-test/w2/memif/w2-memif40.sock"
 memif.memif: Retrieve == desired: memif.memif/w2-memif40 name:"w2-memif40"  id:40  socket:2040
 --- PASS: TestMemifOnHost (0.62s)
 tapv2.tap: Retrieve == desired: tapv2.tap/w2-tap40 name:"w2-tap40"  id:240  host_if_name:"w2-tap40"  host_ip4_prefix:"10.2.40.1/24"  host_ip6_prefix:"fd00:2:40::1/64"  host_mtu:1400  rx_ring_size:512  tx_ring_size:256  gso:true (sw_if_index {SwIfIndex:4})
@@ -125,7 +125,7 @@ second apply by the same agent is not empty: ["delete interface.mtu/w2-tap62.100
 plus, found by a probe on the host: `interface.mtu` reported every fresh interface (`{9000,0,0,0}`) and
 its Delete wrote `{0,0,0,0}` to hardware interfaces. The fixes are in 85588b5 (see Decisions D2–D5).
 
-### vppctl, prefixed objects during the restart simulation (`VRX_DF1_HOLD=20`, excerpt)
+### vppctl, prefixed objects during the restart simulation (`NGFW_DF1_HOLD=20`, excerpt)
 ```
 vpp# show interface
               Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count
@@ -163,7 +163,7 @@ vpp# show memif
 sockets
   id  listener    filename
   0   no          /run/vpp/memif.sock
-  206 yes (1)     /run/vrx-test/w2/memif-restart/w2-memif60.sock
+  206 yes (1)     /run/ngfw-test/w2/memif-restart/w2-memif60.sock
 interface memif2060/60
   socket-id 2060 id 60 mode ethernet
 vpp# show l2fib bd_id 2060
@@ -248,7 +248,7 @@ untagged "ens161" NIC, local0 skipped; Create sends nothing but `sw_interface_du
 leaves the foreign interface; missing / local0 / creator-name mismatch / wrong kind / bad ref / empty rejected;
 disconnected error surfaces).
 
-Host (`VRX_INTEGRATION=1 … go test -count=1 -v ./internal/descriptors/...`, excerpt):
+Host (`NGFW_INTEGRATION=1 … go test -count=1 -v ./internal/descriptors/...`, excerpt):
 ```
 alias_integration_test.go:69: interface alias: Retrieve == desired: interface/loop270 name:"loop270" creator:"interface.loopback/loop270" deps=[{interface.loopback/loop270 false}] meta={SwIfIndex:4}
 alias_integration_test.go:69: interface alias: Retrieve == desired: interface/tap271 name:"tap271" deps=[] meta={SwIfIndex:14}
@@ -319,7 +319,7 @@ VPP health around the host runs: `systemctl show vpp -p NRestarts` → `NRestart
 `NRestarts=2` after all eight packages (no crash); afterwards `vppctl show interface` shows no `w2`
 object (only local0 and other slots' `lisp_gpe*`), `ip -br link | grep -c '^w2'` → `0`.
 
-Host runs (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w2 VRX_SLOT=2 VRX_VPP_TABLE_BASE=2000 go test -count=1 -v ./internal/descriptors/<pkg>/`, one package at a time):
+Host runs (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w2 NGFW_SLOT=2 NGFW_VPP_TABLE_BASE=2000 go test -count=1 -v ./internal/descriptors/<pkg>/`, one package at a time):
 ```
 interface rc=0 ok  	ngfw/agent/internal/descriptors/interface	1.557s
 tapv2 rc=0 ok  	ngfw/agent/internal/descriptors/tapv2	0.103s
@@ -451,7 +451,7 @@ or the name VPP would pick).
   `l2.fib-entry`.
 - D6 `l2.xconnect` = one object per direction (rx → tx), keyed on rx.
 - D7 Sub-interfaces via `create_subif` only (not `create_vlan_subif`), one decoding path.
-- D8 memif socket ownership = file directly in the owner's socket dir (`/run/vrx/memif`, tests
-  `/run/vrx-test/<owner>/memif`); bridge domains by `bd_tag`; l3xc by owned rx interface.
+- D8 memif socket ownership = file directly in the owner's socket dir (`/run/ngfw/memif`, tests
+  `/run/ngfw-test/<owner>/memif`); bridge domains by `bd_tag`; l3xc by owned rx interface.
 - D10 (D-065) `interface/<name>` alias descriptor in DF-1; consumers depend only on it; creator keys stay DF-1-internal.
 - D9 Merged main into the task branch (bf4c137) so the branch is gated by the current P09 `tools/ci.sh`.

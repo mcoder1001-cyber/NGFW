@@ -10,7 +10,7 @@ package desired
 //	            nsim.output)
 
 import (
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -18,12 +18,12 @@ import (
 type LoopbackBviGsoLldpSpanEnv struct {
 	// GlobalsOwner is D-071's flag: lldp.global and nsim are applied only by the globals owner.
 	GlobalsOwner bool
-	// Nsim is the lab gate (review M2): the globals owner with VRX_NSIM=lab; nsim is applied only then.
+	// Nsim is the lab gate (review M2): the globals owner with NGFW_NSIM=lab; nsim is applied only then.
 	Nsim bool
 }
 
 // LoopbackBviGsoLldpSpan emits the feature's objects for the domains in `in`.
-func LoopbackBviGsoLldpSpan(s Sink, ds *vrxv1.DesiredState, in map[string]bool, env LoopbackBviGsoLldpSpanEnv) {
+func LoopbackBviGsoLldpSpan(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, env LoopbackBviGsoLldpSpanEnv) {
 	if in["interfaces"] {
 		Gso(s, ds.GetInterfaces())
 		Mirror(s, ds.GetInterfaces())
@@ -38,12 +38,12 @@ func LoopbackBviGsoLldpSpan(s Sink, ds *vrxv1.DesiredState, in map[string]bool, 
 // AssembleLoopbackBviGsoLldpSpan adds the feature's retrievable leaves to ds: interfaces.<if>.gso and
 // interfaces.<if>.mirror. services.lldp and services.nsim are write-only (nothing to report); `services`
 // itself is present whenever it is requested (an implemented domain), like F-rpf-adl-pbr's assembler does.
-func AssembleLoopbackBviGsoLldpSpan(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, stored map[string]*vrxv1.Interface) {
+func AssembleLoopbackBviGsoLldpSpan(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, stored map[string]*ngfwv1.Interface) {
 	if in["interfaces"] {
 		AssembleGso(ds, kvs, stored)
 		AssembleMirror(ds, kvs, stored)
 	}
 	if in["services"] && ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
 }

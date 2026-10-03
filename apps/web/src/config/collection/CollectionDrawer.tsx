@@ -38,7 +38,7 @@ export function CollectionDrawer({ open, onClose, title, titleIsKey = true, labe
               component="h3"
               variant="h6"
               {...(titleIsKey ? LTR : {})}
-              sx={titleIsKey ? { flex: 1, textAlign: 'start', fontFamily: (th) => th.vrx.monoFontFamily } : { flex: 1, textAlign: 'start' }}
+              sx={titleIsKey ? { flex: 1, textAlign: 'start', fontFamily: (th) => th.ngfw.monoFontFamily } : { flex: 1, textAlign: 'start' }}
             >
               {title}
             </Typography>

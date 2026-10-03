@@ -56,8 +56,8 @@ describe('notification dispatcher', () => {
         rule: 'cpu',
         type: 'raised',
         severity: 'critical',
-        message: 'VRX_TEST_PSK_sensitive',
-        password: 'VRX_TEST_PSK_sensitive',
+        message: 'NGFW_TEST_PSK_sensitive',
+        password: 'NGFW_TEST_PSK_sensitive',
       });
     expect(s.state().queued).toBe(1);
     await s.run();
@@ -70,7 +70,7 @@ describe('notification dispatcher', () => {
     let clock = 1000;
     s.now = () => clock;
     s.deliver = vi.fn(async () => {
-      throw new Error('VRX_TEST_PSK_sensitive https://user:pass@private/');
+      throw new Error('NGFW_TEST_PSK_sensitive https://user:pass@private/');
     });
     s.emit('alarm', 'warning', 'cpu', 'raised');
     await s.run();
@@ -253,8 +253,8 @@ describe('notification dispatcher', () => {
       Event.fromPartial({
         kind: EventKind.EVENT_KIND_LINK_DOWN,
         interface: 'wan',
-        message: 'VRX_TEST_PSK_sensitive',
-        attributes: { private_key: 'VRX_TEST_PSK_sensitive' },
+        message: 'NGFW_TEST_PSK_sensitive',
+        attributes: { private_key: 'NGFW_TEST_PSK_sensitive' },
       }),
     );
     clock += 1001;
@@ -262,14 +262,14 @@ describe('notification dispatcher', () => {
       Event.fromPartial({
         kind: EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED,
         interface: 'wg0',
-        attributes: { dead: 'true', private_key: 'VRX_TEST_PSK_sensitive' },
+        attributes: { dead: 'true', private_key: 'NGFW_TEST_PSK_sensitive' },
       }),
     );
     clock += 1001;
     bus.publish('security.events', {
       type: 'global-blocking-fetch-failed',
       list: 'threats',
-      reason: 'VRX_TEST_PSK_sensitive',
+      reason: 'NGFW_TEST_PSK_sensitive',
     });
     await s.run();
     await s.run();
@@ -292,14 +292,14 @@ describe('notification dispatcher', () => {
       bus.agentEvent(
         Event.fromPartial({
           kind: event === 'daemon' ? EventKind.EVENT_KIND_ERROR : EventKind.EVENT_KIND_UNSPECIFIED,
-          message: 'VRX_TEST_PSK_sensitive',
+          message: 'NGFW_TEST_PSK_sensitive',
           attributes: {
             source: 'strongswan',
             event,
             tunnel: 'site-a',
             up: 'no',
-            'private-key': 'VRX_TEST_PSK_sensitive',
-            'remote-id': 'VRX_TEST_PSK_sensitive',
+            'private-key': 'NGFW_TEST_PSK_sensitive',
+            'remote-id': 'NGFW_TEST_PSK_sensitive',
           },
         }),
       );
@@ -391,7 +391,7 @@ describe('notification dispatcher', () => {
   });
   it('commit notices use latest running configuration after successful reload', async () => {
     const { s, bus } = service();
-    bus.publish('commit.events', { type: 'applied', secret: 'VRX_TEST_PSK_sensitive' });
+    bus.publish('commit.events', { type: 'applied', secret: 'NGFW_TEST_PSK_sensitive' });
     await vi.waitFor(() => expect(s.deliver).toHaveBeenCalledTimes(1));
     expect(JSON.stringify(vi.mocked(s.deliver).mock.calls)).not.toContain('sensitive');
     expect(JSON.parse(vi.mocked(s.deliver).mock.calls[0]![1])).toMatchObject({
@@ -402,7 +402,7 @@ describe('notification dispatcher', () => {
   it('rejects arbitrary provider error reasons from delivery GET history', async () => {
     const { s } = service();
     s.deliver = vi.fn(async () => {
-      throw new DeliveryError('VRX_TEST_PSK_sensitive');
+      throw new DeliveryError('NGFW_TEST_PSK_sensitive');
     });
     s.emit('alarm', 'warning', 'cpu', 'raised');
     await s.run();

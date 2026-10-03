@@ -10,7 +10,7 @@ import (
 )
 
 // TestTunnelOnHost: create → Retrieve shows it → delete → Retrieve shows nothing of ours, on
-// the shared host VPP (VRX_INTEGRATION=1, shared lab lock, slot-prefixed objects only).
+// the shared host VPP (NGFW_INTEGRATION=1, shared lab lock, slot-prefixed objects only).
 func TestTunnelOnHost(t *testing.T) {
 	h := df6test.Connect(t)
 	loop, _ := h.Loopback(1, h.IP4(1, 1)+"/24")

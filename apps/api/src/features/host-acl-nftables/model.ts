@@ -24,7 +24,7 @@ export const HostAclRuleOut = z.object({
   verdict: z.string().describe('accept | drop | reject'),
   comment: z
     .string()
-    .describe('nftables comment, the rule identity vrx:<list>:<sequence>/<n>:<hash>'),
+    .describe('nftables comment, the rule identity ngfw:<list>:<sequence>/<n>:<hash>'),
   packets: counter,
   bytes: counter,
 });
@@ -61,7 +61,7 @@ export const HostAclStateOut = z.object({
   retrievedAt: z.string().optional(),
   table: z
     .string()
-    .describe('nftables table in family inet: vrx (product) or vrx_<owner> (test slots)'),
+    .describe('nftables table in family inet: ngfw (product) or ngfw_<owner> (test slots)'),
   mode: z
     .enum(['apply', 'netns', 'check'])
     .describe(

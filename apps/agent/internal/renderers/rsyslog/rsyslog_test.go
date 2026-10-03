@@ -17,18 +17,18 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/rfkit"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
-// Planted TLS material (VRX_TEST_PSK_ fixtures).
+// Planted TLS material (NGFW_TEST_PSK_ fixtures).
 const (
-	keyPEM  = "-----BEGIN PRIVATE KEY-----\nVRX_TEST_PSK_RF4_tlskey\n-----END PRIVATE KEY-----\n" // VRX_TEST_PSK_ fixture
-	certPEM = "-----BEGIN CERTIFICATE-----\nVRX_TEST_PSK_RF4_cert\n-----END CERTIFICATE-----\n"
-	keyMark = "VRX_TEST_PSK_RF4_tlskey"
+	keyPEM  = "-----BEGIN PRIVATE KEY-----\nNGFW_TEST_PSK_RF4_tlskey\n-----END PRIVATE KEY-----\n" // NGFW_TEST_PSK_ fixture
+	certPEM = "-----BEGIN CERTIFICATE-----\nNGFW_TEST_PSK_RF4_cert\n-----END CERTIFICATE-----\n"
+	keyMark = "NGFW_TEST_PSK_RF4_tlskey"
 )
 
 func doc(t testing.TB, targets []any) *structpb.Struct {
@@ -185,7 +185,7 @@ func TestTLSFiles(t *testing.T) {
 
 func TestTypedInput(t *testing.T) {
 	a, sev := "192.0.2.1", "critical"
-	ds := &vrxv1.DesiredState{Management: &vrxv1.ManagementConfig{Syslog: []*vrxv1.SyslogTarget{{Address: &a, Severity: &sev}}}}
+	ds := &ngfwv1.DesiredState{Management: &ngfwv1.ManagementConfig{Syslog: []*ngfwv1.SyslogTarget{{Address: &a, Severity: &sev}}}}
 	r := newRenderer(productLike())
 	files, err := r.Render(context.Background(), ds)
 	if err != nil {
@@ -255,7 +255,7 @@ func TestHostileStrings(t *testing.T) {
 
 func TestInvalidUTF8Typed(t *testing.T) {
 	a := "logs\xff.example"
-	ds := &vrxv1.DesiredState{Management: &vrxv1.ManagementConfig{Syslog: []*vrxv1.SyslogTarget{{Address: &a}}}}
+	ds := &ngfwv1.DesiredState{Management: &ngfwv1.ManagementConfig{Syslog: []*ngfwv1.SyslogTarget{{Address: &a}}}}
 	if _, err := newRenderer(productLike()).Render(context.Background(), ds); !errors.Is(err, ErrInput) {
 		t.Fatalf("invalid UTF-8 accepted: %v", err)
 	}
@@ -399,7 +399,7 @@ func (f *fakeRsyslog) Restart(context.Context) error {
 func TestApplyConvergesRollsBackAndRetrieves(t *testing.T) {
 	dir := t.TempDir()
 	p := productLike()
-	p.ConfFile, p.StatsFile, p.TLSDir = filepath.Join(dir, "50-vrx-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls")
+	p.ConfFile, p.StatsFile, p.TLSDir = filepath.Join(dir, "50-ngfw-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls")
 	p.ModuleDir = dir
 	fake := &fakeRsyslog{p: p}
 	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
@@ -505,7 +505,7 @@ func TestProductDefaults(t *testing.T) {
 func TestUnchangedApplyDoesNotRestart(t *testing.T) {
 	dir := t.TempDir()
 	p := productLike()
-	p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir, p.HostConfigs = filepath.Join(dir, "50-vrx-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls"), dir, nil
+	p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir, p.HostConfigs = filepath.Join(dir, "50-ngfw-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls"), dir, nil
 	fake := &fakeRsyslog{p: p}
 	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
 	ctx := context.Background()
@@ -551,13 +551,13 @@ func TestHostImpstats(t *testing.T) {
 	}
 	paths := func() Paths {
 		p := productLike()
-		p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir = filepath.Join(dropIns, "50-vrx-export.conf"), filepath.Join(dir, "vrx.json"), filepath.Join(dir, "tls"), dir
+		p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir = filepath.Join(dropIns, "50-ngfw-export.conf"), filepath.Join(dir, "ngfw.json"), filepath.Join(dir, "tls"), dir
 		p.HostConfigs = []string{mainConf, filepath.Join(dropIns, "*.conf")}
 		return p
 	}
 	ctx := context.Background()
 	// Our own previous file loading impstats is not "the host".
-	write(filepath.Join(dropIns, "50-vrx-export.conf"), `module(load="impstats" format="json" log.file="/x")`+"\n")
+	write(filepath.Join(dropIns, "50-ngfw-export.conf"), `module(load="impstats" format="json" log.file="/x")`+"\n")
 	write(mainConf, "# module(load=\"impstats\")\n$WorkDirectory /var/spool/rsyslog\n")
 	if hs, err := ScanHost(paths()); err != nil || hs.Loaded {
 		t.Fatalf("commented load / own file counted: %+v %v", hs, err)

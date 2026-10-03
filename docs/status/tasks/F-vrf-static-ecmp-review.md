@@ -1,6 +1,6 @@
 # F-vrf-static-ecmp — review
 
-Reviewer: review agent (vrx-bot), 2026-09-24. Branch `task/F-vrf-static-ecmp` @ `89ccb9b`. Diff base: `df67a8e` (the old
+Reviewer: review agent (ngfw-bot), 2026-09-24. Branch `task/F-vrf-static-ecmp` @ `89ccb9b`. Diff base: `df67a8e` (the old
 W-seed tip this branch merged): 93 files, +10 218 / −757. Main has meanwhile re-cut W-seed as a squash (`a303f0b`/`0ae3559`)
 and carries TD-2 (`7082cc6`), so the manager's main merge is not a fast union (see M3).
 Read: 00-CONTEXT, REVIEW-PROMPT, the feature prompt, the envelope, wave-A-hotspots (§0–§4), the status, contract, questions
@@ -26,7 +26,7 @@ selector) do not change. M3 is a checklist for the manager's merge.
   encodes and sends every entry before it returns. `ip_api_hookup` (`ip_api.c:2140-2164`) marks only route add/del and
   `ip_address_dump` as thread-safe. The dispatcher therefore wraps this handler in `vl_msg_api_barrier_sync()`
   (`vlibapi/api_shared.c:545-565` → `vpp/vnet/main.c:485-489` = `vlib_worker_thread_barrier_sync`). With workers, every
-  worker stops for the whole dump. On vrx-a (main core only) the main thread polls no input during the dump either.
+  worker stops for the whole dump. On ngfw-a (main core only) the main thread polls no input during the dump either.
   The `src` filter does not help: `fib_table_walk_w_src` (`fib/fib_table.c:1280-1306`) walks every entry and compares the
   best source. Measured by the task: 0.79–1.12 s per page at 100 k routes on the shared host. The prompt's 1 M-route
   target is about 10× that per read.
@@ -53,7 +53,7 @@ selector) do not change. M3 is a checklist for the manager's merge.
   (d) API: the web UI always sends `vrf`. Document that the all-VRF form costs one walk per VRF.
   (e) `docs/vpp-code-track.md` V-new (d): add that the dump is not mp-safe and holds the worker barrier for the whole
   walk. The existing text mentions only the missing cursor.
-  (f) Manager/CLI owner (TD): `vrx show ip route` should require `<vrf>` or cap its pages on a large table.
+  (f) Manager/CLI owner (TD): `ngfw show ip route` should require `<vrf>` or cap its pages on a large table.
 
 ### M1 — the VPP ping API holds the worker barrier while it waits (a stall of up to 5 s per ping with workers)
 - `want_ping_finished_events` is handled in `/root/vpp/src/plugins/ping/ping_api.c:44-134`. The handler suspends in
@@ -61,7 +61,7 @@ selector) do not change. M3 is a checklist for the manager's merge.
   (`ping_plugin_api_hookup`, `:139-148`), so the dispatcher holds `vlib_worker_thread_barrier_sync` across the suspension
   (`api_shared.c:545-565`). The CLI `ping` is `.is_mp_safe = 1` (`ping.c:1576`); the API is not. On a VPP with workers,
   every UI ping would stop all workers for up to 5 s. Echo replies that arrive on worker-polled interfaces could not be
-  counted either. vrx-a runs no workers (`docs/lab/host-vrx-a.md:11`, `cpu { }`), so the host run could not show this.
+  counted either. ngfw-a runs no workers (`docs/lab/host-ngfw-a.md:11`, `cpu { }`), so the host run could not show this.
   I derived it from the source and did not measure it.
 - V-new (b) describes only the binary-API wait and the under-count.
 - **Fix:** (a) In `ValidatePing`/`Ping` (`apps/agent/internal/actions/vrf-static-ecmp/ping.go:94-112`), refuse the API
@@ -105,7 +105,7 @@ selector) do not change. M3 is a checklist for the manager's merge.
 
 ### L1 — the `source` filter is "best source", not "carries the source"
 `fib_table_walk_w_src_cb` (`fib/fib_table.c:1280-1290`) keeps an entry only when `src` is its **best** source. The proto
-comment on `ListRoutesRequest.source` (`packages/proto/vrx/v1/dataplane.proto`, the `// ----- F-vrf-static-ecmp -----`
+comment on `ListRoutesRequest.source` (`packages/proto/ngfw/v1/dataplane.proto`, the `// ----- F-vrf-static-ecmp -----`
 section) and proto.md §11 say "routes that carry this FIB source". A static route shadowed by a better source for the
 same prefix is missing from `source=API`, and `StaticRoutesTab` then marks it "not installed". **Fix:** a comment-only
 contract edit ("whose best source is") in the proto, proto.md, the API `@describe` and the tab's tooltip. The comment in
@@ -128,7 +128,7 @@ never call `frr.RegisterStaticSelector`; the selector is `subsystems.ViaFrr`.
 **Fix:** in `ActionsController.run`, set `req.audit = { resource: 'actions/ping', after: { target, count, intervalMs } }`.
 
 ### L5 — the CLI regressed and its docs are stale (not owned; manager merge commit or CLI TD)
-`vrx ping <host>` now gets 400 (`/target` required) instead of 501 (Q9). `docs/user/cli/reference.md:86,96,103,144` still
+`ngfw ping <host>` now gets 400 (`/target` required) instead of 501 (Q9). `docs/user/cli/reference.md:86,96,103,144` still
 says "answers 501 until the agent implements actions" and "(connected + static)". Those descriptions come from
 `apps/cli/internal/cli/cmd_op.go`, so a regeneration does not fix them. The status C7 row lists `reference.md` as
 regenerated, but the branch does not change it. **Fix:** one line in `cmd_op.go` (`{"target": args[0]}`), new
@@ -179,7 +179,7 @@ honestly, and FAST MODE forbids tuning. No action beyond H1.
 - **Q8 (manager, TD):** agreed, and it is cross-cutting. On a loaded host, a big-table `Retrieve` in any descriptor (for
   example P05 `RouteDescriptor.dumpTable`) can miss entries and re-create them, which ends in `ErrRouteConflict`. Open a TD
   on `internal/vpp`: a default `WithReplySize` for dump streams, or a dfkit dump helper.
-- **Q9 (manager):** L5. Fix the CLI body in the merge commit or as a TD, so that `vrx ping` does not ship as a 400.
+- **Q9 (manager):** L5. Fix the CLI body in the merge commit or as a TD, so that `ngfw ping` does not ship as a 400.
 - **Q10 (manager):** M3. Resolve the conflict by keeping the removal. Before F-neighbors-ra or F-nat44-ed need fake Action
   behaviour, lift a small dispatch table into `fake-agent.ts` (case → handler, one anchor line per feature).
 - **Q11 (manager):** move `tabs.ts` to `domains/routing/tabs.ts` when P12 adds BGP/OSPF tabs. No change needed now.

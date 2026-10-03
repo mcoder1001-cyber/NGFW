@@ -10,7 +10,7 @@
 // recorded in the owner's BootStore (D-076).
 //
 // The capture file: VPP accepts a bare file name and writes /tmp/<name> (unformat_vlib_tmpfile
-// rejects "/" and ".."), so files cannot live under /run/vrx-test/<prefix>/; tests use
+// rejects "/" and ".."), so files cannot live under /run/ngfw-test/<prefix>/; tests use
 // "<prefix>-….pcap" and remove the file. The file name must start with "<owner>-" (review L1).
 // VPP creates it world-readable (vppinfra/pcap.c opens it 0664): F-capture-trace must move or
 // chmod it to 0600 into an agent directory after pcap_trace_off and apply a retention policy.

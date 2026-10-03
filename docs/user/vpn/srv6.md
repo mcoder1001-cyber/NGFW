@@ -2,9 +2,9 @@
 
 **Where:** VPN → **SRv6** tab (sub-tabs **Local SIDs**, **Policies**, **Steering**). **REST:** configuration through the
 generic routes under `/api/v1/config/routing` (`routing.srv6`), live state `GET /api/v1/state/srv6`.
-**CLI:** `vrx set routing srv6 …` / `vrx show configuration routing srv6` (see the end of this page).
+**CLI:** `ngfw set routing srv6 …` / `ngfw show configuration routing srv6` (see the end of this page).
 
-VRX programs SRv6 in the VPP data plane (VPP 26.06 core `sr`): the agent creates the local SIDs, SR policies and
+NGFW programs SRv6 in the VPP data plane (VPP 26.06 core `sr`): the agent creates the local SIDs, SR policies and
 steering entries of `routing.srv6` on commit, removes them on rollback and re-creates them after an agent or VPP
 restart. Only objects this router created are touched; objects someone else created in VPP are never adopted, changed
 or deleted.
@@ -92,7 +92,7 @@ Addresses and prefixes are written as the data plane reports them: lower case, s
 
 ![Local SIDs in Persian (RTL)](img/srv6-sids-fa-rtl.png) ![The segment-list editor in Persian (RTL)](img/srv6-sid-list-editor-fa-rtl.png)
 
-(Screenshots of the production web build against the real vrx-api; the agent behind it was the API's test agent while
+(Screenshots of the production web build against the real ngfw-api; the agent behind it was the API's test agent while
 host runs were closed, so the counters are sample values.)
 
 The lists show the configuration being edited (the candidate) joined with the data plane. Status: **Installed**
@@ -153,7 +153,7 @@ The reverse direction is the mirror image (an `end.dt4` SID on PE1, a policy and
 PE1:
 
 ```
-vrx configure
+ngfw configure
 set vrfs cust-a id 100
 set routing srv6 encapSource 2001:db8:1::1
 merge routing srv6 policies '{"2001:db8:1:bb::1":{"encap":true,"sidLists":[{"sids":["2001:db8:2:ff::a"],"weight":1}]}}'
@@ -166,13 +166,13 @@ confirm
 PE2:
 
 ```
-vrx configure
+ngfw configure
 set vrfs cust-a id 100
 merge routing srv6 localSids '{"2001:db8:2:ff::a":{"behavior":"end.dt4","lookupVrf":"cust-a"}}'
 commit comment "srv6 end.dt4 cust-a"
 ```
 
-`vrx show configuration routing srv6` shows the running SRv6 configuration and `vrx show drift` compares it with the
+`ngfw show configuration routing srv6` shows the running SRv6 configuration and `ngfw show drift` compares it with the
 data plane. The live state has no dedicated CLI command in this release; call the REST operation (`Srv6_state`):
 
 ```
@@ -200,7 +200,7 @@ checks (problem+json pointers):
 ## Limits in this release
 
 - **No service-chaining proxies (End.AD, End.AM, End.AS).** VPP 26.06 ships them as plugins that are configured only
-  through its command line; they have no binary API, so VRX cannot program them (tracked in `docs/vpp-code-track.md`,
+  through its command line; they have no binary API, so NGFW cannot program them (tracked in `docs/vpp-code-track.md`,
   V-new F-srv6). The behaviour list refuses them.
 - **No SRv6-mobile** (GTP4/GTP6 behaviours), **no uSID** (micro-SIDs / locators), **no path tracing**.
 - SRv6 signalling by BGP or IS-IS is not part of this feature.

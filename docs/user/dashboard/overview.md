@@ -17,7 +17,7 @@ The landing page (`/`) summarises the router at a glance. Everything on it is li
 | Busiest interfaces | `iface.counters` + interface state | top five by in + out, split into receive / transmit |
 | Recent events | `GET /api/v1/state/events?limit=6` | commits, link changes, engine connection; known event codes are translated |
 
-Host figures (`GET /api/v1/state/host`) are read by vrx-api from the kernel of the appliance it runs on (`/proc/meminfo`,
+Host figures (`GET /api/v1/state/host`) are read by ngfw-api from the kernel of the appliance it runs on (`/proc/meminfo`,
 CPU times, `statfs`): no shell, and nothing from the engine (D-154).
 
 The user interface calls the packet-processing data plane "the engine" everywhere (D-155).

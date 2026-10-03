@@ -12,7 +12,7 @@ schema alone (00-CONTEXT rule 5); no domain needs its own code:
 | shape | examples | key from the schema |
 |---|---|---|
 | `map` | `interfaces.<name>`, `vrfs.<name>`, `objects.addresses.<name>`, nested `interfaces.<name>.subinterfaces.<id>` | `propertyNames` (pattern, length) |
-| `list` | `management.users[]` (`username`), `routing.static[]` (`vrf`+`prefix`), `management.aaa.radius.servers[]` (`address`+`authPort`) | the array's `x-vrx-ui.itemKey` |
+| `list` | `management.users[]` (`username`), `routing.static[]` (`vrf`+`prefix`), `management.aaa.radius.servers[]` (`address`+`authPort`) | the array's `x-ngfw-ui.itemKey` |
 
 | file | what |
 |---|---|
@@ -108,12 +108,12 @@ What these tests pin down:
 
 ### 4.2 CI gate: `TMPDIR=/tmp/g-WEB-2 tools/ci.sh --base main`
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/WEB-2 @ 3b53c2a   (base: main)
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main:            # P08's (the base), not WEB-2's — see below
-  apps/agent/gen/vrx/v1/dataplane.pb.go · apps/agent/gen/vrx/v1/dataplane_grpc.pb.go · packages/api-client/src/generated/schema.d.ts
-  packages/proto/gen/ts/vrx/v1/dataplane.ts · packages/proto/vrx/v1/dataplane.proto
+  apps/agent/gen/ngfw/v1/dataplane.pb.go · apps/agent/gen/ngfw/v1/dataplane_grpc.pb.go · packages/api-client/src/generated/schema.d.ts
+  packages/proto/gen/ts/ngfw/v1/dataplane.ts · packages/proto/ngfw/v1/dataplane.proto
 ok — contract commit(s) on the branch:
   6ce08c2 contract(api-client): … (P08)   f6fbdf3 contract(api-client): … (P08)   c02aa32 contract(api-client): … (P08)   51b7c42 contract(proto): … (P08)
 == generate + generated-output gate ==
@@ -151,7 +151,7 @@ CI GATE PASSED
 
 ### 4.3 The Secrets page's requests against the REAL API (slot 1, no mocks)
 The page is not routed (Q2), so there is no browser E2E. Instead, the exact request sequence the page sends ran against
-this worktree's P06 API on slot 1: port 3100, database `vrx_w1` from `deploy/dev/pg-test.sh`, Valkey db 1 with the
+this worktree's P06 API on slot 1: port 3100, database `ngfw_w1` from `deploy/dev/pg-test.sh`, Valkey db 1 with the
 prefix `w1web2:`, and a bootstrap password and JWT key read from 0600 files. The final DELETE goes through the generated
 openapi-fetch client, as `api.DELETE` does in the page. Script: `docs/status/tasks/WEB-2-secrets-real-api.mjs`.
 ```
@@ -159,20 +159,20 @@ $ PWFILE=… API_CLIENT=packages/api-client/dist/index.js node docs/status/tasks
 PASS  login admin → 200
 PASS  create → 200 {"ref":"psk/w1-web2","created":true,"version":1}
 PASS  create answer does not contain the value
-PASS  create again → 409 https://vrx.dev/problems/secret-exists (page: name-field error)
+PASS  create again → 409 https://ngfw.dev/problems/secret-exists (page: name-field error)
 PASS  409 problem does not echo the value
 PASS  rotate (?replace=true) → 200 {"ref":"psk/w1-web2","created":false,"version":2}
 PASS  oversized value → 400 pointers ["/value"] (page: value-field error)
 PASS  list → 200 {"ref":"psk/w1-web2","kind":"psk","version":2,"createdAt":"2026-09-24T15:47:25.544Z","name":"w1-web2"} (no value)
 PASS  candidate references psk/w1-web2 → 200
-PASS  delete while referenced → 409 https://vrx.dev/problems/secret-in-use [{"pointer":"/management/aaa/radius/servers/0/secretRef","message":"references psk/w1-web2"}]
+PASS  delete while referenced → 409 https://ngfw.dev/problems/secret-in-use [{"pointer":"/management/aaa/radius/servers/0/secretRef","message":"references psk/w1-web2"}]
 PASS  discard candidate → 200
 PASS  delete via the generated client (the page's api.DELETE) → 204
 PASS  delete again → 404
 
-$ grep -c VRX_TEST_PSK_WEB2 api.log                 # API at VRX_LOG_LEVEL=debug, 54 lines
+$ grep -c NGFW_TEST_PSK_WEB2 api.log                 # API at NGFW_LOG_LEVEL=debug, 54 lines
 0
-$ psql vrx_w1 …
+$ psql ngfw_w1 …
 audit rows for secret/psk/w1-web2: 8
 audit rows containing the value: 0
 system_event rows (secrets): 6, containing the value: 0
@@ -182,8 +182,8 @@ The first run of the script had a bug of its own: it sent `content-type: applica
 Fastify answers with 400. After the fix above, it was re-run from a clean state.
 
 Clean-up: the API was stopped by its PID (`api 2482953 stopped`, port 3100 free), `pg-test.sh drop w1` reported
-"nothing named vrx_w1 / vrx_w1 remains", the 6 Valkey keys `w1web2:*` in db 1 were deleted (0 left), and
-`/run/vrx-test/w1/web2` was removed. No process of this task is left running, and no daemon or VPP object was touched.
+"nothing named ngfw_w1 / ngfw_w1 remains", the 6 Valkey keys `w1web2:*` in db 1 were deleted (0 left), and
+`/run/ngfw-test/w1/web2` was removed. No process of this task is left running, and no daemon or VPP object was touched.
 
 ## 5. Out of scope
 - Moving P08 interfaces and Users onto the kit (their files are not WEB-2's; see Q4).
@@ -300,9 +300,9 @@ above was not done:
 ```
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main:
-  apps/agent/gen/vrx/v1/dataplane.pb.go · apps/agent/gen/vrx/v1/dataplane_grpc.pb.go ·
-  packages/api-client/src/generated/schema.d.ts · packages/proto/gen/ts/vrx/v1/dataplane.ts ·
-  packages/proto/vrx/v1/dataplane.proto
+  apps/agent/gen/ngfw/v1/dataplane.pb.go · apps/agent/gen/ngfw/v1/dataplane_grpc.pb.go ·
+  packages/api-client/src/generated/schema.d.ts · packages/proto/gen/ts/ngfw/v1/dataplane.ts ·
+  packages/proto/ngfw/v1/dataplane.proto
 CI GATE FAILED — CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT.
 ```
 This is base drift, not a regression from this fix round: `task/WEB-2` is still built on the old `main` plus P08's own

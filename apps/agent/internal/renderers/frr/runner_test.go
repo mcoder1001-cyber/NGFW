@@ -132,7 +132,7 @@ func TestDryRunArgvAndDiff(t *testing.T) {
 	}
 	for _, empty := range []string{
 		"Lines To Delete\n===============\n\nLines To Add\n============\n",
-		"Lines To Delete\n===============\nno hostname ubuntu-26.04\n\nLines To Add\n============\nhostname vrx-a\n",
+		"Lines To Delete\n===============\nno hostname ubuntu-26.04\n\nLines To Add\n============\nhostname ngfw-a\n",
 		"INFO: x\nLines To Add\n============\n",
 	} {
 		if got := NormalizeDiff(empty); got != "" {
@@ -238,11 +238,11 @@ const (
 	ribV4 = `{"default":{"10.12.200.0/24":[{"prefix":"10.12.200.0/24","protocol":"static","vrfName":"default","distance":1,"selected":true,"installed":true,"nexthops":[{"ip":"10.12.1.1","interfaceName":"w12f0","active":true,"fib":true}]}]},"w12red":{"10.12.210.0/24":[{"prefix":"10.12.210.0/24","protocol":"static","vrfName":"w12red","tag":100,"distance":50,"nexthops":[{"blackhole":true,"unreachable":true,"active":true}]}]}}`
 	ribV6 = `{"default":{}}`
 	ifs   = `{"default":{"w12f0":{"operationalStatus":"up","description":"\"; rm -rf /","vrfName":"default"},"lo":{"operationalStatus":"up","vrfName":"default"}}}`
-	rc    = "Building configuration...\n\nCurrent configuration:\n!\nfrr version 10.7.1\nfrr defaults traditional\nhostname vrx-a\n!\nip route 10.12.200.0/24 10.12.1.1\n!\nend\n"
+	rc    = "Building configuration...\n\nCurrent configuration:\n!\nfrr version 10.7.1\nfrr defaults traditional\nhostname ngfw-a\n!\nip route 10.12.200.0/24 10.12.1.1\n!\nend\n"
 	vrfs  = "vrf w12red id 5 table 12001\nvrf w12blue inactive (configured)\n"
 	sumV4 = `{"default":{"routes":[{"fib":1,"rib":1,"type":"connected"},{"fib":1,"rib":1,"type":"local"},{"fib":1,"rib":1,"type":"static"}],"routesTotal":3},"w12red":{"routes":[{"fib":1,"rib":1,"type":"static"}],"routesTotal":1}}`
 	sumV6 = `{"default":{"routes":[{"fib":1,"rib":1,"type":"connected"}],"routesTotal":1}}`
-	ver   = "FRRouting 10.7.1 (vrx-a) on Linux(7.0.0-31-generic).\nCopyright 1996-2005 Kunihiro Ishiguro, et al.\n"
+	ver   = "FRRouting 10.7.1 (ngfw-a) on Linux(7.0.0-31-generic).\nCopyright 1996-2005 Kunihiro Ishiguro, et al.\n"
 )
 
 func standardAnswers() map[ShowCommand]string {
@@ -339,7 +339,7 @@ func TestShowCommandsAreConstants(t *testing.T) {
 
 func TestNormalizeConfigDropsNoise(t *testing.T) {
 	got := NormalizeConfig(rc)
-	want := []string{"frr defaults traditional", "hostname vrx-a", "ip route 10.12.200.0/24 10.12.1.1"}
+	want := []string{"frr defaults traditional", "hostname ngfw-a", "ip route 10.12.200.0/24 10.12.1.1"}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %q", got)
 	}

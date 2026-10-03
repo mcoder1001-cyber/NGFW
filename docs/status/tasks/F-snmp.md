@@ -1,7 +1,7 @@
 # F-snmp — SNMP v2c/v3 via snmpd + private MIB (WBS D7.5)
 
 Branch `task/F-snmp` (worktree /home/user/wt/F-snmp), base be53867. Cloud container: **no VPP, no snmpd binary, no
-PostgreSQL, no browser** — every host-dependent step is written and gated (`VRX_INTEGRATION`), not run here.
+PostgreSQL, no browser** — every host-dependent step is written and gated (`NGFW_INTEGRATION`), not run here.
 
 ## What was built
 
@@ -10,8 +10,8 @@ PostgreSQL, no browser** — every host-dependent step is written and gated (`VR
 | contract (D-086 stand-ins + `SnmpState` RPC) | `contract(schema)` c93628e, `contract(proto)` 1bd44a0 + 74a3955; `F-snmp-contract.md`; `docs/contracts/proto.md` §11 |
 | schema sub-schemas, semantic rules (credential when enabled, view exists) | `packages/schema/src/domains/ext/snmp.ts`, `semantic/snmp{,.fixtures,.test}.ts` |
 | renderer gap: typed fields instead of structpb stand-ins | `renderers/snmpd/model.go` (tests **TestTypedStandIns**, **TestSecretRefRules** — 3 new typed cases replace "unknown stand-in key"); goldens unchanged; redaction, parse run, pending restart untouched |
-| singleton descriptor `snmpd.config/vrx` under `Domains["services"]` (D-109 d) | `internal/subsystems/snmp.go`, `internal/desired/snmp.go`, one line each in subsystems.go / projection.go |
-| AgentX subagent (pure Go RFC 2741 subset, no new dependency) + VRX-MIB | `internal/snmpagent/**`, `deploy/snmp/VRX-MIB.txt` |
+| singleton descriptor `snmpd.config/ngfw` under `Domains["services"]` (D-109 d) | `internal/subsystems/snmp.go`, `internal/desired/snmp.go`, one line each in subsystems.go / projection.go |
+| AgentX subagent (pure Go RFC 2741 subset, no new dependency) + NGFW-MIB | `internal/snmpagent/**`, `deploy/snmp/NGFW-MIB.txt` |
 | `SnmpState` RPC | `internal/agent/rpc_snmp.go` |
 | API `GET /api/v1/state/snmp` (config via generic pointer routes) | `apps/api/src/features/snmp/**`, e2e `apps/api/test/e2e/snmp.e2e.test.ts` |
 | UI Services → SNMP (general, communities, v3 users, trap receivers, state), en + fa | `apps/web/src/domains/services/snmp/**`, `locales/{en,fa}/snmp.json` |
@@ -31,22 +31,22 @@ PostgreSQL, no browser** — every host-dependent step is written and gated (`VR
 - **VRF:** `vrf` ≠ `default` stays rejected — binding snmpd to a VRF needs a Linux VRF (linux-cp): not cheap.
 - **Default listen:** unchanged, loopback only with the `# WARNING:` line (RF-4 M1).
 - **Enterprise OID:** placeholder under net-snmp's `netSnmpPlaypen` (`.1.3.6.1.4.1.8072.9999.9999.7853`) — question Q1.
-- **Secrets:** refs resolve only through the slot fixture resolver (`VRX_SNMP_FIXTURE_SECRETS`, 0600, values must be
-  `VRX_TEST_PSK_F-snmp_*`); otherwise refused with the PENDING-secret-channel message.
-- **IF-MIB:** VPP interfaces only in `vrxIfTable`; IF-MIB stays net-snmp's (Linux) — question Q3.
+- **Secrets:** refs resolve only through the slot fixture resolver (`NGFW_SNMP_FIXTURE_SECRETS`, 0600, values must be
+  `NGFW_TEST_PSK_F-snmp_*`); otherwise refused with the PENDING-secret-channel message.
+- **IF-MIB:** VPP interfaces only in `ngfwIfTable`; IF-MIB stays net-snmp's (Linux) — question Q3.
 
 ## Verification (real output, this container)
 
 ```
 $ go test -count=1 -v -run 'TestSubagentWalk|TestSubagentReregisters' ./internal/snmpagent/
-INFO VRX-MIB registered with the AgentX master socket=/tmp/TestSubagentWalk…/agentx.sock subtree=.1.3.6.1.4.1.8072.9999.9999.7853 session=42 registrations=1
+INFO NGFW-MIB registered with the AgentX master socket=/tmp/TestSubagentWalk…/agentx.sock subtree=.1.3.6.1.4.1.8072.9999.9999.7853 session=42 registrations=1
     subagent_test.go:178: .1.3.6.1.4.1.8072.9999.9999.7853.1.3.0 = type 4 … str "txn-17"
     subagent_test.go:178: .1.3.6.1.4.1.8072.9999.9999.7853.2.1.2.1 = type 4 … str "local0"
     subagent_test.go:178: .1.3.6.1.4.1.8072.9999.9999.7853.2.1.2.2 = type 4 … str "loop0"
     subagent_test.go:178: .1.3.6.1.4.1.8072.9999.9999.7853.2.1.5.2 = type 70 … u64 1099511627776
 --- PASS: TestSubagentWalk (0.01s)
-INFO VRX-MIB registered with the AgentX master … registrations=1
-INFO VRX-MIB registered with the AgentX master … registrations=2
+INFO NGFW-MIB registered with the AgentX master … registrations=1
+INFO NGFW-MIB registered with the AgentX master … registrations=2
     subagent_test.go:229: re-registered after master restart in 501.014904ms
 --- PASS: TestSubagentReregisters (0.51s)
 
@@ -84,7 +84,7 @@ Generated outputs regenerated with the pinned plugins (protoc-gen-go v1.36.12, p
 committed: `apps/agent/gen`, `packages/proto/gen/ts` (timestamp.ts kept as on base), `packages/api-client/src/generated`,
 `apps/cli/internal/api/operations_gen.go`, `docs/user/cli/reference.md`.
 
-Secrets: `grep -rn VRX_TEST_PSK_F-snmp_` hits only test literals/prefix constants (snmp.go prefix check, *_test.go,
+Secrets: `grep -rn NGFW_TEST_PSK_F-snmp_` hits only test literals/prefix constants (snmp.go prefix check, *_test.go,
 e2e test, questions, envelope, prompt); `TestSnmpStageLifecycle` asserts no fixture value in the stage log;
 `snmp.test.ts` asserts no `password/` ref in the state output; the record file holds refs only.
 
@@ -92,7 +92,7 @@ e2e test, questions, envelope, prompt); `TestSnmpStageLifecycle` asserts no fixt
 
 | item | status |
 |---|---|
-| gosnmp walk v2c + v3 authPriv returns sysName + VRX-MIB table | **written, not run** (`TestSnmpStageIntegration`, needs snmpd + `VRX_INTEGRATION=1` on vrx-a); protocol + table proven against an in-process AgentX master (above) |
+| gosnmp walk v2c + v3 authPriv returns sysName + NGFW-MIB table | **written, not run** (`TestSnmpStageIntegration`, needs snmpd + `NGFW_INTEGRATION=1` on ngfw-a); protocol + table proven against an in-process AgentX master (above) |
 | TrapListener receives a trap (coldStart) | **written, not run** (same test, gosnmp TrapListener on 3<N>62) |
 | agent restart → re-rendered, subagent re-registers < 30 s | fake-master re-registration 0.5 s (above); fresh-stage re-render in the integration test (not run) |
 | rollback removes the community | unit: **TestSnmpStageRollbackRemovesCommunity** (file); walk-level in the integration test (not run) |
@@ -132,4 +132,4 @@ docs/status/tasks/F-snmp-questions.md (PEN, secret channel, IF-MIB, last-trap ti
 shared tests, examples naming, global check hook, services-domain warnings).
 
 ## Cleanup
-No process was started outside tests (no snmpd, API, vite); `apps/agent/bin` removed; nothing under /run/vrx-test.
+No process was started outside tests (no snmpd, API, vite); `apps/agent/bin` removed; nothing under /run/ngfw-test.

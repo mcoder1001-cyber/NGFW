@@ -24,7 +24,7 @@ describe('withinCommitLock', () => {
     expect(err).toBeInstanceOf(ProblemError);
     expect((err as ProblemError).getStatus()).toBe(409);
     expect((err as ProblemError).body()).toMatchObject({
-      type: 'https://vrx.dev/problems/commit-busy',
+      type: 'https://ngfw.dev/problems/commit-busy',
       retryAfterSec: 2,
     });
     expect(waited).toBeGreaterThanOrEqual(190);

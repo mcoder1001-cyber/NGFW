@@ -25,10 +25,10 @@ compiled into the product agent, and in a product build it is **always empty**:
 - no RPC, proto field, socket or file fills it (grep of the non-test tree: `Put`/`PutBase64` are called only from the
   fixture loader);
 - it is not persisted (no state-dir file, no sealed cache);
-- the only non-test fill path is `wireguard_fixture.go`. That file is behind `//go:build vrxtestsecrets` (line 1) and
+- the only non-test fill path is `wireguard_fixture.go`. That file is behind `//go:build ngfwtestsecrets` (line 1) and
   hooked through the nil-by-default `wireguardFixture` var (`subsystems/wireguard.go:49-51, 75-79`). It reads a
-  0600, same-uid, `O_NOFOLLOW` JSON file named by `VRX_TEST_WG_SECRETS`, and it logs a WARN when it loads. The product
-  `Makefile` builds without tags. Only `test/topology/wireguard/stack.sh:57` builds `bin/vrx-agent-wgtest` with the tag.
+  0600, same-uid, `O_NOFOLLOW` JSON file named by `NGFW_TEST_WG_SECRETS`, and it logs a WARN when it loads. The product
+  `Makefile` builds without tags. Only `test/topology/wireguard/stack.sh:57` builds `bin/ngfw-agent-wgtest` with the tag.
 
 This is the envelope's "slot-local `vpn.MapResolver` fixture", extended to a test-build agent binary. It is test-only
 and sits behind the Resolver seam, so **not BLOCK**. Two caveats:
@@ -57,7 +57,7 @@ and sits behind the Resolver seam, so **not BLOCK**. Two caveats:
 | WS `wireguard.events` | the attributes are `public_key`, `peer_index`, `established`, `dead` (`subsystems/wireguard.go:219-239`) |
 | audit rows | see above |
 | `vppctl` evidence in docs | every pasted `show wireguard interface/peer` line carries `private-key: <redacted>`, `pre-shared key: <redacted>` or `<hex-redacted>`. `stack.sh:30-37` redacts everything after `private-key` on VPP's one-line format (public key and mac-key included) |
-| fixtures / tests | vectors are SHA-256 of `VRX_TEST_PSK_F-wireguard_*` labels (derivable, not secrets, 00-CONTEXT fixture rule). The stack fixture file is written at run time under `/run/vrx-test/w6/wg` (0700 dir, 0600 file) and removed on exit. Every key-shaped string the branch adds is a **public** key: `HIgo9…ykw=`, `xTIBA5…8Dg=` (both already in `packages/schema/examples/vpn-wireguard.json` on main), the byte-ramp test value `AAECAw…Hh8=`, and the host peers' public keys in the status file |
+| fixtures / tests | vectors are SHA-256 of `NGFW_TEST_PSK_F-wireguard_*` labels (derivable, not secrets, 00-CONTEXT fixture rule). The stack fixture file is written at run time under `/run/ngfw-test/w6/wg` (0700 dir, 0600 file) and removed on exit. Every key-shaped string the branch adds is a **public** key: `HIgo9…ykw=`, `xTIBA5…8Dg=` (both already in `packages/schema/examples/vpn-wireguard.json` on main), the byte-ramp test value `AAECAw…Hh8=`, and the host peers' public keys in the status file |
 | UI | the browser-generated client private key lives only in React state (`WireguardPage.tsx:104`), goes into a Blob download whose URL is revoked, and is never sent. The key-pair screenshot shows the reference and public key only (checked the PNG) |
 
 **PSK rule (Q1).** A peer is never created without its PSK. The builder emits `unavailable:<psk ref>`, and
@@ -178,7 +178,7 @@ Host evidence, judged from the pasted output (it is consistent and specific):
 - **Handshake.** A real kernel WireGuard peer in the netns, reached over a **tap**, not af_packet (V24). The run shows
   the `EVENT_KIND_WIREGUARD_PEER_CHANGED established` event, a ping through the tunnel with 0 % loss, and the UI chip
   turning Established from the relayed event. VPP `NRestarts` stayed unchanged (1→1, 2→2). The Go handshake test
-  relies on the tap descriptor's TD-3 sanitizer; `stack.sh` additionally ran `vrx-vpp-preflight`.
+  relies on the tap descriptor's TD-3 sanitizer; `stack.sh` additionally ran `ngfw-vpp-preflight`.
 - **Duplicate public key.** 400 with pointer `/vpn/wireguard/interfaces/b/peers/dup/publicKey` (e2e and stack).
 - **Limitation.** Every end-to-end run used the test-build fixture. The product path is proven only as "fails loudly,
   leaves nothing" (unit test), as designed until the PENDING is answered. IPv6 and `0/0` auto-routes were not exercised
@@ -212,7 +212,7 @@ Host evidence, judged from the pasted output (it is consistent and specific):
 | id | sev | where | finding | action |
 |---|---|---|---|---|
 | F1 | **M (required)** | `desired/wireguard.go:211-223`, `packages/schema/src/semantic/wireguard.ts`, `docs/user/vpn/wireguard.md:66` | With `routeAllowedIps`, every allowed IP becomes `ip.route/<overlay table>/<prefix>`, including `0.0.0.0/0` / `::/0`. When `vrf == underlayVrf` and an allowed IP covers a peer's endpoint (the classic full-tunnel peer), the peer's midchain stacks on the endpoint /32 in the underlay table, which now resolves via `wg<N>` itself. The result is a FIB loop, a dead tunnel, and that VRF's default route hijacked. Nothing rejects it, and the user doc shows `0.0.0.0/0 via 0.0.0.1 wg0` without a warning | Add a semantic rule in the owned `semantic/wireguard.ts` (e.g. `vpn.wireguard-route-loop`): with `routeAllowedIps` and `vrf` == `underlayVrf`, an allowed IP that contains a peer's IP endpoint is an error at that allowedIps pointer. Add a warning paragraph to the user doc. A static route with the same prefix already fails as `agent.duplicate-object`; say so in the doc |
-| F2 | **M (required)** | `subsystems/wireguard.go:49-51, 75-79`, `wireguard_fixture.go:1, 26` | The file secret channel is test-only by build tag alone | Add an untagged unit test asserting `wireguardFixture == nil` in a default build. It fails if the `init` ever moves out of the tagged file. The manager adds `vrxtestsecrets` to `tools/ci.sh` forbidden patterns outside `wireguard_fixture.go` / `test/topology/wireguard/` / docs (ci.sh is not this row's) |
+| F2 | **M (required)** | `subsystems/wireguard.go:49-51, 75-79`, `wireguard_fixture.go:1, 26` | The file secret channel is test-only by build tag alone | Add an untagged unit test asserting `wireguardFixture == nil` in a default build. It fails if the `init` ever moves out of the tagged file. The manager adds `ngfwtestsecrets` to `tools/ci.sh` forbidden patterns outside `wireguard_fixture.go` / `test/topology/wireguard/` / docs (ci.sh is not this row's) |
 | F3 | **M (required, doc)** | `desired/wireguard.go:90-102`; `descriptors/wireguard/interface.go:124-126`, `peer.go:145-147`; questions Q1 | "When the channel lands … nothing else changes" is wrong. The marker `unavailable:<ref>` differs from the retrieved `x25519:<pub>`/`hmac:`, both descriptors answer `ErrRecreate`, and a resync without material therefore **deletes working tunnels** (Delete succeeds, Create fails). This is harmless today (the product cannot create WireGuard), but it is a hard requirement for the channel | Correct Q1 and the status file. The manager adds to PENDING-secret-channel: "material must be loaded before the first resync (option 1's sealed cache is mandatory, not optional); otherwise the descriptors must keep existing objects while material is unavailable (needs a scheduler hook)" |
 | F4 | L | commit path (API/agent) | With the WARNING design, a user commit applies unrelated objects, then fails at the WireGuard object and rolls back (AD-4 wants validate-before-touch). The agent must keep WARNING for resync (§1) | Follow-up (TD-10a): the API commit engine treats `agent.secret-unavailable` in the DryRun report as blocking for user commits |
 | F5 | L | `subsystems/wireguard_secrets.go:73-77` | Two D-051 refs with identical material share one DF-5 ref. Replacing one zeroes and deletes the shared `byRef` entry, so the other ref still maps (`Ref`) but can no longer be resolved. It fails loudly and leaks nothing | Refcount `byRef`, or re-point it to the surviving ref's copy |
@@ -254,5 +254,5 @@ Host evidence, judged from the pasted output (it is consistent and specific):
   is needed.
 - **Q13.** An environment problem. Re-run `stack.sh`'s real-agent rollback step after TD-25 (non-blocking; add F12 to
   that run).
-- **Q14.** A CLI follow-up row: `vrx show wireguard [<interface>]` and `vrx request wireguard keypair <name>` over the
+- **Q14.** A CLI follow-up row: `ngfw show wireguard [<interface>]` and `ngfw request wireguard keypair <name>` over the
   existing REST operations.

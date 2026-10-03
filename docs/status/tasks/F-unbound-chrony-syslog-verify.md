@@ -46,7 +46,7 @@ apps/agent $ TMPDIR=/tmp/g-rv10 go test -race -count=1 ./internal/renderers/{unb
              ./internal/subsystems/ ./internal/agent/ ./internal/desired/ ./internal/actions/unbound-chrony-syslog/ ./internal/vpp/bootid/
 ok  renderers/unbound 2.079s · renderers/chrony 1.667s · renderers/rsyslog 7.140s · descriptors/dns 7.952s · subsystems 6.838s
 ok  agent 13.076s · desired 1.215s · actions/unbound-chrony-syslog 1.076s · vpp/bootid 1.074s
-apps/agent $ env -u VRX_INTEGRATION TMPDIR=/tmp/g-rv10 go test -count=1 ./...        → no FAIL (every package ok / no test files)
+apps/agent $ env -u NGFW_INTEGRATION TMPDIR=/tmp/g-rv10 go test -count=1 ./...        → no FAIL (every package ok / no test files)
 packages/schema $ npx vitest run    Test Files 38 passed (38)   Tests 1237 passed (1237)
 apps/api        $ npx vitest run    Test Files 11 passed (11)   Tests 102 passed (102)
 apps/web        $ npx vitest run    Test Files 16 passed (16)   Tests 105 passed (105)   (incl. LoggingTab.test.tsx; workspace deps rebuilt first: gen-check had cleaned ui-kit/api-client dist)

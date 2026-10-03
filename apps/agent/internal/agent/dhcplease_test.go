@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	interfaces "ngfw/agent/binapi/interface"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -57,7 +57,7 @@ func TestDHCPLeaseSurvivesReconcileResyncRestart(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, leaseDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, leaseDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if c, ok := v.DHCPClientOf(leaseIf); !ok || c.Lease.IsValid() {
 		t.Fatalf("dhcp client on %s: %+v %v", leaseIf, c, ok)
 	}
@@ -80,14 +80,14 @@ func TestDHCPLeaseSurvivesReconcileResyncRestart(t *testing.T) {
 		}
 	}
 	// a commit of the same document, then two resyncs
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "l2", DesiredState: doc(t, leaseDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l2", DesiredState: doc(t, leaseDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply with a bound lease changed %v", resp.GetResults())
 	}
 	check("commit")
 	for i := range 2 {
-		if r := s.Resync(ctx); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetDeleted() != 0 {
+		if r := s.Resync(ctx); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetDeleted() != 0 {
 			t.Fatalf("resync %d: %v", i, r)
 		}
 	}
@@ -97,14 +97,14 @@ func TestDHCPLeaseSurvivesReconcileResyncRestart(t *testing.T) {
 	s.Close()
 	s = newSvc(t, v, dir)
 	for i := range 2 {
-		if r := s.Resync(ctx); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetDeleted() != 0 {
+		if r := s.Resync(ctx); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetDeleted() != 0 {
 			t.Fatalf("restart resync %d: %v", i, r)
 		}
 	}
 	check("restart")
 
 	// the live table still shows the lease (state, not config)
-	st, err := s.InterfaceState(ctx, &vrxv1.InterfaceStateRequest{Names: []string{leaseIf}})
+	st, err := s.InterfaceState(ctx, &ngfwv1.InterfaceStateRequest{Names: []string{leaseIf}})
 	if err != nil || len(st.GetInterfaces()) != 1 || !slices.Contains(st.GetInterfaces()[0].GetIpv4(), leaseAddr) {
 		t.Fatalf("InterfaceState %v %v", st, err)
 	}
@@ -114,7 +114,7 @@ func TestDHCPLeaseSurvivesReconcileResyncRestart(t *testing.T) {
 	static := doc(t, leaseDoc)
 	sub := static.Interfaces["host-w1w0"].Subinterfaces["100"]
 	sub.DhcpClient, sub.Ipv4 = nil, []string{leaseAddr}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l3", DesiredState: static}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l3", DesiredState: static}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.DHCPClientOf(leaseIf); ok {
 		t.Fatalf("dhcp client still on %s", leaseIf)
 	}

@@ -50,7 +50,7 @@ Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt 
 ### P10 dynamic admission follow-up
 
 Source 00cb2cd3 implements per-host transaction-owned dynamic admissions in
-`inet vrx_base dynamic_punt_interfaces`; permanent bootstrap `punt_interfaces`
+`inet ngfw_base dynamic_punt_interfaces`; permanent bootstrap `punt_interfaces`
 remains separate. All target cases below remain **NOT RUN**: actual nft element
 add/delete and JSON identity/readback; LCP create/delete/rename/type-recreate
 traffic admission/revocation; static/dynamic combined64 turnover; explicit and
@@ -64,7 +64,7 @@ release license remain unresolved, so P10 stays RUNNING.
 ### TD-19 provisioning and pinned installers
 
 All target cases remain **NOT RUN**: genuine product artifact transfer and
-installation on vrx-b/vrx-c; installed exact seven-package manifest version
+installation on ngfw-b/ngfw-c; installed exact seven-package manifest version
 readback; root-owned service-suppression policy and appliance ownership handover;
 actual Go/containerlab downloads, installation and selected executable version;
 Ubuntu 26.04 package availability and subsequent appliance boot. Offline fixture

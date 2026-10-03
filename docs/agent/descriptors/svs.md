@@ -20,7 +20,7 @@ entry (`source_table_id` = the VRF's table id, 0 for `default`).
 
 **Table ids** (`svs.Allocate`): interfaces in name order each take the first free id probing downward from
 `Hi − fnv32a(name) mod size` in the svs range, skipping declared VRF ids — stable while other interfaces come and go. Range:
-`svs.DefaultRange` 4294967040–4294967294 on the product agent; a test slot (`VRX_VPP_TABLE_BASE=N000`) uses the top 100 ids of
+`svs.DefaultRange` 4294967040–4294967294 on the product agent; a test slot (`NGFW_VPP_TABLE_BASE=N000`) uses the top 100 ids of
 its range (`svs.RangeIn`, e.g. 2900–2999).
 
 ## Ownership and readback (D-063/D-071/D-076/D-080)
@@ -52,6 +52,6 @@ interface's table once, when it is enabled (and VPP's rebind callback is buggy, 
 
 `svs_test.go` (coretest model with `InstallVrfStaticEcmp`: svs handlers modelling VPP's duplicate-add behaviour,
 `fib_source_dump`, the `src` filter of `ip_route_v2_dump`): apply/retrieve/idempotency/delete, record loss and a new VPP
-identity, foreign table, rebind re-creation, allocation. `svs_integration_test.go` (`VRX_INTEGRATION=1`, host VPP): weighted
+identity, foreign table, rebind re-creation, allocation. `svs_integration_test.go` (`NGFW_INTEGRATION=1`, host VPP): weighted
 ECMP, next hop in another table, blackhole and source VRF select; `vppctl show ip fib …`, `show svs`; loss → resync; rollback
 and the V15 probe (the table ids re-created hold only VPP's 5 default entries).

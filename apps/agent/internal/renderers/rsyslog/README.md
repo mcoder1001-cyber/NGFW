@@ -7,16 +7,16 @@ convergence from impstats → state from impstats → 1 Hz events. Mapping table
 
 | | product (`ProductPaths`) | tests (`TestPaths("w8", 3814)`) |
 |---|---|---|
-| config | `/etc/rsyslog.d/50-vrx-export.conf`, `root:root 0644` — an include of the host's rsyslog | `/run/vrx-test/w8/rsyslog/rsyslog.conf`, standalone |
-| impstats | `/var/spool/rsyslog/vrx-impstats.json` (rsyslog drops privileges to `syslog`) | `<dir>/impstats.json` |
-| TLS material | `/etc/vrx/rsyslog-tls/export-<i>-{ca,cert}.pem` 0644, `-key.pem` `root:syslog 0640` `Secret` | `<dir>/tls/` |
+| config | `/etc/rsyslog.d/50-ngfw-export.conf`, `root:root 0644` — an include of the host's rsyslog | `/run/ngfw-test/w8/rsyslog/rsyslog.conf`, standalone |
+| impstats | `/var/spool/rsyslog/ngfw-impstats.json` (rsyslog drops privileges to `syslog`) | `<dir>/impstats.json` |
+| TLS material | `/etc/ngfw/rsyslog-tls/export-<i>-{ca,cert}.pem` 0644, `-key.pem` `root:syslog 0640` `Secret` | `<dir>/tls/` |
 | inputs, `global()` | none — the host's `/etc/rsyslog.conf` owns them (imuxsock, `$WorkDirectory`) | `imuxsock` on `<dir>/log.sock` (`SysSock.Use="off"`: never `/dev/log`), `imtcp` on `127.0.0.1:3<N>14`, `global(workDirectory=…)` |
 | control channel | `systemctl restart rsyslog` | stop the child PID, start a new child |
 
-Each target is a `ruleset(name="vrx_export_<i>_<hash>") { action(type="omfwd" …) }` called from the main flow
+Each target is a `ruleset(name="ngfw_export_<i>_<hash>") { action(type="omfwd" …) }` called from the main flow
 under `if prifilt("<facilities>.<severity>")`. The name carries an FNV-32a hash of the target's settings, so a
 changed target reports to impstats under a new name — this is what lets Apply tell the new configuration from
-the old one. Template: our fixed `vrx_rfc5424` (`<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID SD MSG`) or the
+the old one. Template: our fixed `ngfw_rfc5424` (`<PRI>1 TIMESTAMP HOSTNAME APP-NAME PROCID MSGID SD MSG`) or the
 built-in `RSYSLOG_TraditionalForwardFormat` (stand-in `format: rfc3164`); TCP RFC 5424 uses octet-counted framing
 (RFC 6587). Queue: `LinkedList`, `queue.size` 10000 (stand-in `queueSize`), `action.resumeRetryCount="-1"`.
 

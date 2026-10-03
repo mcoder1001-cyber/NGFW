@@ -12,8 +12,8 @@ There are no VPP objects in this task. Reference: TNSR "Address / port tables", 
   `…service-group-members`, `…names-disjoint`, `…schedule-valid`, `…zone-interfaces`, `…tags-exist`, `…address-range-valid`
   — reuse, do not fork. D-062: one shared namespace across addresses/services/groups; groups may be empty, a rule may not
   reference an empty group; `nat.enabled` inference is not yours.
-- `docs/contracts/schema-nat-objects-acl.md` (objects table, examples `acl-basic.json`), `packages/proto/vrx/v1/dataplane.proto`
-  (`Objects` messages) and D-078 (`vrx.model.acl.v1` agent-internal models)
+- `docs/contracts/schema-nat-objects-acl.md` (objects table, examples `acl-basic.json`), `packages/proto/ngfw/v1/dataplane.proto`
+  (`Objects` messages) and D-078 (`ngfw.model.acl.v1` agent-internal models)
 - `apps/agent/internal/descriptors/acl/spec.go` (DF-4) — the shape the expansion must produce for F-acl (prefix + port ranges +
   proto + tcp flags), and `docs/agent/descriptors/acl.md`
 - `apps/agent/internal/renderers/unbound` (RF-3) only to know what resolver the box runs — you do **not** configure it

@@ -27,7 +27,7 @@ export const MgmtTlsStateOut = z
     listener: z.object({
       enabled: z
         .boolean()
-        .describe('VRX_HTTPS_PORT is set: the API serves HTTPS with this certificate'),
+        .describe('NGFW_HTTPS_PORT is set: the API serves HTTPS with this certificate'),
       port: z.number().int().nullable(),
     }),
     loadedRevision: z

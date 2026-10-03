@@ -29,8 +29,8 @@ describe('RootConfig', () => {
   });
 
   it('accepts a partial document and keeps the given domains', () => {
-    const r = RootConfig.parse({ system: { hostname: 'vrx-a' } });
-    expect(r.system).toMatchObject({ hostname: 'vrx-a' });
+    const r = RootConfig.parse({ system: { hostname: 'ngfw-a' } });
+    expect(r.system).toMatchObject({ hostname: 'ngfw-a' });
     expect(r.vrfs).toBeTypeOf('object');
   });
 

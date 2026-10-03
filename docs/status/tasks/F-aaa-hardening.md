@@ -27,7 +27,7 @@ Unit: `src/auth/apikey-mfa.test.ts` (4), `src/features/aaa/oidc.test.ts` (+1 JWK
 @ngfw/api:test:       Tests  365 passed (365)
  Tasks:    10 successful, 10 total
 ```
-PostgreSQL e2e: temporary pg16 cluster (initdb in /tmp/vrx-pg-w9, 127.0.0.1:5432, trust) + redis-server
+PostgreSQL e2e: temporary pg16 cluster (initdb in /tmp/ngfw-pg-w9, 127.0.0.1:5432, trust) + redis-server
 127.0.0.1:6379, prefix w9, both stopped afterwards (data dir left in place). `aaa-mfa-lockout` extended (pre-MFA key
 → 401 mfa-required after the raise, MFA-minted key works, pre-MFA key works again after lowering); new
 `aaa-username-ci` (index present, `W9Case` after `w9case` refused).

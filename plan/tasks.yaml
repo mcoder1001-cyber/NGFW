@@ -199,7 +199,7 @@ tasks:
   finished: ''
   notes: ' | merged 2026-09-23-1346'
 - id: P04
-  title: Lab tooling (local mode for vrx-a), veth/netns packet rig, binapi for all plugins, local postgres/valkey
+  title: Lab tooling (local mode for ngfw-a), veth/netns packet rig, binapi for all plugins, local postgres/valkey
   prompt: prompts/P04-dev-environment.md
   template: ''
   stage: S1
@@ -212,14 +212,14 @@ tasks:
   wbs:
   - D0.13
   - D1.1
-  scope: no changes to /etc/vpp; provision vrx-a = verify only
+  scope: no changes to /etc/vpp; provision ngfw-a = verify only
   files_owned: tools/lab tools/binapi-gen.sh apps/agent/binapi/** test/topology/** test/integration/smoke/** deploy/dev/** docs/lab/vmware.md
   branch: task/P04
   worktree: /root/ngfw-wt/P04
   owner: desktop-agent slot3
   started: 2026-09-23T13:13
   finished: ''
-  notes: 'host facts in docs/lab/host-vrx-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix | merged 2026-09-23-1510 after review fixes'
+  notes: 'host facts in docs/lab/host-ngfw-a.md; no data NICs (D-010) | review: BLOCK (F1-F4); worker respawned to fix | merged 2026-09-23-1510 after review fixes'
 - id: P09
   title: CI gate for local-only git (tools/ci.sh quick|full|--base, hooks, golangci-lint, gitleaks)
   prompt: prompts/P09-ci-pipeline.md
@@ -586,7 +586,7 @@ tasks:
     spawned; open: Q4 VPP+FRR double-programming of static routes (for P12) | review APPROVE WITH CHANGES d17febd (H1 pipe in description, H2 silent reload failure, M1 nexthop keywords, M2 secrets, M3 4MiB
     cap, M4 harness lock); fix round 1; Q4 → D-072 | fix round b9bb030; merged 6c9f9e0; main CI green'
 - id: RF-2
-  title: 'Renderers: strongswan (swanctl/VICI path; vrx build lands in P11)'
+  title: 'Renderers: strongswan (swanctl/VICI path; ngfw build lands in P11)'
   prompt: prompts/factories/RF-2.md
   template: prompts/RENDERER-FACTORY-TEMPLATE.md
   stage: S2
@@ -599,7 +599,7 @@ tasks:
   parked_on: ''
   wbs:
   - D6.2
-  scope: strongswan (swanctl/VICI path; vrx build lands in P11)
+  scope: strongswan (swanctl/VICI path; ngfw build lands in P11)
   files_owned: apps/agent/internal/renderers/<daemons of RF-2>/**
   branch: task/RF-2
   worktree: /root/ngfw-wt/RF-2
@@ -678,7 +678,7 @@ tasks:
   - D1.2
   - D1.3
   scope: packet path = af_packet/veth rig (D-010)
-  files_owned: apps/agent/cmd/vrx-agent/** apps/agent/internal/{agent,subsystems,desired}/** apps/api/src/state/** apps/web/src/domains/interfaces/** test/topology/interfaces/** docs/user/interfaces/**
+  files_owned: apps/agent/cmd/ngfw-agent/** apps/agent/internal/{agent,subsystems,desired}/** apps/api/src/state/** apps/web/src/domains/interfaces/** test/topology/interfaces/** docs/user/interfaces/**
   branch: task/P08
   worktree: /root/ngfw-wt/P08
   owner: ngfw-46 slot1
@@ -1252,7 +1252,7 @@ tasks:
   finished: '2026-09-26'
   notes: Added 2026-09-26 at the product owner's request (dashboard in parallel, better visuals; D-153). Inline SVG charts, no new dependency; en + fa; host metrics route GET /api/v1/state/host (D-154);
     UI says the engine, never VPP (D-155); 15 unit tests; screenshots in docs/user/dashboard/ taken against a scripted stand-in (no VPP in the cloud container) — a real-stack screenshot is still owed on
-    vrx-a.
+    ngfw-a.
 - id: P11
   title: 'Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards'
   prompt: prompts/P11-strongswan-vpp.md
@@ -1273,7 +1273,7 @@ tasks:
   - D6.2
   - D6.10
   scope: strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards
-  files_owned: 'deploy/strongswan/** deploy/debian/vrx-strongswan/** apps/agent/internal/renderers/strongswan/** (gap-only: `AckRestart(ctx, since)` per DF-5 Q13, kernel-vpp plugin list/paths, the IPsec
+  files_owned: 'deploy/strongswan/** deploy/debian/ngfw-strongswan/** apps/agent/internal/renderers/strongswan/** (gap-only: `AckRestart(ctx, since)` per DF-5 Q13, kernel-vpp plugin list/paths, the IPsec
     state message; keep RF-2''s owner-prefix scoping) apps/agent/internal/descriptors/ipsec/** (gap-only; keep TD-3''s sanitizer hunk in itf.go) apps/agent/internal/charon/** (charon lifecycle: stop → sweep
     → start → AckRestart, SA state/event glue) apps/agent/internal/desired/ipsec*.go apps/agent/internal/subsystems/ipsec*.go apps/agent/internal/agent/rpc_ipsec*.go packages/schema/src/semantic/ipsec*.ts
     apps/api/src/features/ipsec/** apps/api/test/e2e/ipsec* apps/web/src/domains/vpn/ipsec/** apps/web/src/locales/{en,fa}/ipsec.json docs/user/vpn/ipsec.md docs/agent/renderers/strongswan.md docs/agent/descriptors/ipsec.md
@@ -2029,8 +2029,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'prompts-s4: suggested deps +F-ab-upgrade (upgrade UI D8.7 drives vrx-upgrade); +P07b/P08 (web frame; overlap check) — docs/status/tasks/prompts-s4.md | D-125 envelope: POST /api/v1/actions/{reboot,shutdown}
-    through vrx-power@<op>.service (review 6.3b, +2 h)'
+  notes: 'prompts-s4: suggested deps +F-ab-upgrade (upgrade UI D8.7 drives ngfw-upgrade); +P07b/P08 (web frame; overlap check) — docs/status/tasks/prompts-s4.md | D-125 envelope: POST /api/v1/actions/{reboot,shutdown}
+    through ngfw-power@<op>.service (review 6.3b, +2 h)'
 - id: F-ra-vpn
   title: remote-access VPN IKEv2+EAP
   prompt: prompts/features/F-ra-vpn.md
@@ -2048,8 +2048,8 @@ tasks:
   wbs:
   - D6.9
   scope: remote-access VPN IKEv2+EAP
-  files_owned: '- NEW files in P11''s renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/vrx-ra*.tmpl (prefer a separate conf.d
-    `vrx-ra.conf`, a 0600 `vrx-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11''s templates), apps/agent/internal/renderers/strongswan/testdata/ra-*'
+  files_owned: '- NEW files in P11''s renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer a separate conf.d
+    `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11''s templates), apps/agent/internal/renderers/strongswan/testdata/ra-*'
   branch: ''
   worktree: ''
   owner: ''
@@ -2075,8 +2075,8 @@ tasks:
   wbs:
   - D0.4
   scope: Debian packaging + systemd + install (26.04, our VPP debs); + nginx CSP/HSTS/X-Content-Type-Options/Referrer-Policy; scripts/10-install-runtime.sh + docs/09-os-packages.md install from the local
-    signed APT repo / vrx-meta (5.5a); vrx-power@ hook unit
-  files_owned: '- deploy/debian/vrx/** (the source package: control, rules, *.install, postinst/prerm/postrm, units wiring), deploy/debian/README.md, scripts/10-install-runtime.sh, docs/09-os-packages.md
+    signed APT repo / ngfw-meta (5.5a); ngfw-power@ hook unit
+  files_owned: '- deploy/debian/ngfw/** (the source package: control, rules, *.install, postinst/prerm/postrm, units wiring), deploy/debian/README.md, scripts/10-install-runtime.sh, docs/09-os-packages.md
     (FD.io row and table rows; review 5.5a)'
   branch: ''
   worktree: ''
@@ -2084,7 +2084,7 @@ tasks:
   started: ''
   finished: ''
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
-    security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
+    security headers, +5.5a (+1 h), +ngfw-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
     DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114)'
 - id: P14
   title: Unattended installer ISO (26.04)
@@ -2156,7 +2156,7 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +P14 (autoinstall + offline pool reuse) — docs/status/tasks/prompts-s4.md'
 - id: F-hardening-lite
-  title: CIS-lite OS hardening, systemd hardening, package signing (consumes F-host-acl-nftables' inet vrx renderer, D-057)
+  title: CIS-lite OS hardening, systemd hardening, package signing (consumes F-host-acl-nftables' inet ngfw renderer, D-057)
   prompt: prompts/features/F-hardening-lite.md
   template: prompts/FEATURE-TEMPLATE.md
   stage: S5
@@ -2171,7 +2171,7 @@ tasks:
   wbs:
   - D12.1
   scope: systemd hardening, package signing; consumes the nftables host-policy renderer owned by F-host-acl-nftables (D-057)
-  files_owned: '- deploy/hardening/** (baseline/, systemd/<unit>.d/10-vrx-hardening.conf, signing/, check.sh, tests/run.sh)'
+  files_owned: '- deploy/hardening/** (baseline/, systemd/<unit>.d/10-ngfw-hardening.conf, signing/, check.sh, tests/run.sh)'
   branch: ''
   worktree: ''
   owner: ''
@@ -2524,7 +2524,7 @@ tasks:
   finished: '2026-09-24'
   notes: 'D-058: added; P10 consumes its output | worker done 90dbb81 (45 min build, 11 debs = host set); review spawned; D-089 | review APPROVE WITH CHANGES afb833a (H1 unpinned wheels from /root/vpp,
     H2 demo patch unsuffixed, M1 fuzz, M2 rm -rf guards, M3 apt rc); fix round 1 | fix round 03e343c (D-092); merged f68bfe5; main CI green; worktree kept for build artefacts (.build/out) until P10 publishes
-    to /srv/vrx-artifacts'
+    to /srv/ngfw-artifacts'
 - id: F-ha-state-sync
   title: 'HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation'
   prompt: prompts/features/F-ha-state-sync.md
@@ -2707,13 +2707,13 @@ tasks:
   wbs:
   - D0.6
   scope: D-103; F-startup-apply-verify.md V1–V9 + L1
-  files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/vrx-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
+  files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/ngfw-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
   branch: task/TD-6
   worktree: /root/ngfw-wt/TD-6
   owner: ngfw-46 slot6
   started: 2026-09-24T07:58
   finished: ''
-  notes: 'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md
+  notes: 'D-103: must merge before any real --apply on ngfw-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned, envelope /root/ngfw-wt/TD-6.continue.md
     | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified); next: serial rerun of failed scenarios on quiet host
     (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md — serial rerun of the 24 load failures, CI, TD-6.md | worker
     done b388ca7 (code 85a6ed5), CI green, harness 128/128; review spawned by ngfw-46, envelope /root/ngfw-wt/TD-6.review.md | review APPROVE WITH CHANGES 621d1e2 → merge now, F1/F2 → TD-7 (D-116); handed
@@ -2904,7 +2904,7 @@ tasks:
     1.5b deadline from AppliedAt; 1.5c log level; 1.5e non-loopback metrics address; tech-debt ''P05 owed revert dropped''. Audit ARCH-01 agent half: a failed state save answers DEGRADED, not APPLIED (service.go:286-289,
     365-367; TestStateCrashInjection updated). D-entry for the timeouts amends docs/contracts/proto.md §2 item 3; test: fake-VPP ''never reply'' hook'
   files_owned: apps/agent/internal/agent/{agent,service,state,server}.go (non-seam hunks) apps/agent/internal/scheduler/reconciler.go (ApplyWith ctx / rollback ctx and descriptor-call recover wrappers only)
-    apps/agent/internal/vpp/conn.go apps/agent/internal/ownertable/** apps/agent/internal/descriptors/dfkit/boot.go apps/agent/cmd/vrx-agent/** docs/contracts/proto.md (§2) docs/status/tasks/TD-9*
+    apps/agent/internal/vpp/conn.go apps/agent/internal/ownertable/** apps/agent/internal/descriptors/dfkit/boot.go apps/agent/cmd/ngfw-agent/** docs/contracts/proto.md (§2) docs/status/tasks/TD-9*
   branch: task/TD-9
   worktree: /root/ngfw-wt/TD-9
   owner: ''
@@ -2937,7 +2937,7 @@ tasks:
   owner: ngfw-46 slot5
   started: 2026-09-24T19:17
   finished: '2026-09-25'
-  notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on vrx-a | done
+  notes: D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows on ngfw-a | done
     30381b6, CI green; review running | fix round 1 c365a95; verify APPROVE 00d3ab9f; queued with the merger
 - id: TD-10b
   title: API auth, session, audit
@@ -2952,9 +2952,9 @@ tasks:
   parked_on: ''
   wbs:
   - D0.9
-  scope: 'review 2.3a (lockout keyed by (user, IP); the last admin is only throttled; root-only break-glass unlock tool, packaged by P10), 2.3b (trustProxy / VRX_TRUST_PROXY, loopback default; vite xfwd),
-    2.3c (logout per-sid revocation; demotion/deletion revocation per PENDING-session-revocation), 2.3d (VRX_SESSION_MAX_SEC absolute lifetime), 2.3e (audit logout/refresh/401 mutations; audit write failure
-    → system_event + counter), 2.3g (/api/docs option a or b); tech-debt P06: JWT key rotation, VRX_TRUST_PROXY (tech-debt.md:21), key-file owner check. LOG decisions: lockout key, per-sid logout, VRX_SESSION_MAX_SEC,
+  scope: 'review 2.3a (lockout keyed by (user, IP); the last admin is only throttled; root-only break-glass unlock tool, packaged by P10), 2.3b (trustProxy / NGFW_TRUST_PROXY, loopback default; vite xfwd),
+    2.3c (logout per-sid revocation; demotion/deletion revocation per PENDING-session-revocation), 2.3d (NGFW_SESSION_MAX_SEC absolute lifetime), 2.3e (audit logout/refresh/401 mutations; audit write failure
+    → system_event + counter), 2.3g (/api/docs option a or b); tech-debt P06: JWT key rotation, NGFW_TRUST_PROXY (tech-debt.md:21), key-file owner check. LOG decisions: lockout key, per-sid logout, NGFW_SESSION_MAX_SEC,
     fail closed on audit write error for privileged routes, /api/docs (a)/(b)'
   files_owned: apps/api/src/{auth,users,audit}/** apps/api/src/common/principal.ts apps/api/src/app.ts (trustProxy + /api/docs hook) apps/api/src/datastore/pg-repo.ts (syncUsers hunk) tools/app (vite xfwd
     + banner) new root-only break-glass unlock tool docs/status/tasks/TD-10b*
@@ -2964,7 +2964,7 @@ tasks:
   started: 2026-09-25T00:14
   finished: '2026-09-25'
   notes: 'D-125 | not a wave-A gate; dep of P10, F-aaa, SEC-auth | TD-4 Q3 (demote/delete revoke) is PENDING-session-revocation (policy #4): build the recommended option, only that hunk follows the answer
-    | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 VRX_TRUST_PROXY=none in tools/app, C2 authctl, C3 split revocation hunk — PENDING-session-revocation)
+    | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 NGFW_TRUST_PROXY=none in tools/app, C2 authctl, C3 split revocation hunk — PENDING-session-revocation)
     | fix round 1 c9f5d296; verify APPROVE faed447d; merger: after TD-10a; revert cb74843d before squash unless PENDING-session-revocation = option 1'
 - id: TD-11a
   title: 'Agent reachability check: desired state to data plane'
@@ -3129,7 +3129,7 @@ tasks:
   parked_on: ''
   wbs:
   - D0.6
-  scope: 'review 6.4 item 3: installed binary paths (e.g. /usr/lib/vrx/bin); an appliance approval gate bound to the sha256 plus the dead-man, reading no docs/lab or PENDING files; the lab gate kept as
+  scope: 'review 6.4 item 3: installed binary paths (e.g. /usr/lib/ngfw/bin); an appliance approval gate bound to the sha256 plus the dead-man, reading no docs/lab or PENDING files; the lab gate kept as
     a mode'
   files_owned: deploy/vpp/apply-startup.sh docs/status/tasks/TD-17*
   branch: claude/modest-keller-upaw4m
@@ -3184,7 +3184,7 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision vrx-b|vrx-c --apply`'
+  notes: 'D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision ngfw-b|ngfw-c --apply`'
 - id: SEC-auth
   title: Auth security review, moved forward from SECURITY-REVIEW (read-only, 3 lenses + adversarial verify)
   prompt: ''
@@ -3347,8 +3347,8 @@ tasks:
   parked_on: PENDING-vpp-host-hardening
   wbs:
   - D0.13
-  scope: 'review 6.5: `tools/lab vpp up|down <slot>` — a per-slot VPP with runtime-dir /run/vrx-test/wN/vpp, api-segment prefix wN, own api/cli/stats sockets, dpdk plugin disabled, main-heap ~512M, small
-    buffers, startup.conf rendered by vrx-startupgen; `tools/lab env` exports the socket variables and `vppctl -s`; tests that hard-code /run/vpp/*.sock migrate; CI slot 12 gets its own VPP; the shared
+  scope: 'review 6.5: `tools/lab vpp up|down <slot>` — a per-slot VPP with runtime-dir /run/ngfw-test/wN/vpp, api-segment prefix wN, own api/cli/stats sockets, dpdk plugin disabled, main-heap ~512M, small
+    buffers, startup.conf rendered by ngfw-startupgen; `tools/lab env` exports the socket variables and `vppctl -s`; tests that hard-code /run/vpp/*.sock migrate; CI slot 12 gets its own VPP; the shared
     VPP stays for tools/app'
   files_owned: tools/lab (vpp up|down|env hunks) socket-path hunks in tests that hard-code /run/vpp/*.sock docs/status/tasks/LAB-vpp-per-slot*
   branch: ''
@@ -3408,7 +3408,7 @@ tasks:
   wbs: *id002
   prompt: ''
   id: TD-8b
-  title: 'Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app VRX_VPP_TABLE_BASE=13000, topology
+  title: 'Agent seams follow-up: quarantine only the failing dynamic object (not the whole source), SyncFunc doc for goroutines, ID-range flip to refuse start-up (tools/app NGFW_VPP_TABLE_BASE=13000, topology
     harness passthrough, P10 unit `all`, df7.WithIDs + feature-prompt rule)'
   stage: S4
   deps:
@@ -3926,7 +3926,7 @@ tasks:
   priority: 3
   est_hours: 2
   scope: 'lab host only (needs VPP + Prometheus): wire the govpp StatsSource over the VPP stats segment, register the metrics collector (manager hook) and the management.prometheus listener descriptor under
-    Domains[management]; /metrics shows vrx_interface_rx_bytes_total increasing after rig traffic; link-down raises an alarm within 5s and clears on link-up with the webhook receiving both; agent/API restart
+    Domains[management]; /metrics shows ngfw_interface_rx_bytes_total increasing after rig traffic; link-down raises an alarm within 5s and clears on link-up with the webhook receiving both; agent/API restart
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
@@ -4042,4 +4042,4 @@ tasks:
   scope: render the mpls ldp FRR section (RF-1); frrsync/ldp reads show mpls ldp binding/neighbor json and installs mpls-route.ldp in table 0 via ip_mroute path through seam S1 (LCP mapping); neighbour
     up/down events -> mpls-ldp.events; host session test (peer ldpd, OPERATIONAL, binding synced to VPP mfib, withdraw removes it, restart re-derives)
   files_owned: apps/agent/internal/**
-  notes: 'follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0 only with VRX_DF7_GLOBALS)'
+  notes: 'follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0 only with NGFW_DF7_GLOBALS)'

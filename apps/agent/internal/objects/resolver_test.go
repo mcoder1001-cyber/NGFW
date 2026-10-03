@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // fakeClock is the resolver's clock in tests; the resolver loop is not started, the test calls
@@ -51,8 +51,8 @@ func openRT(t *testing.T, dir string, dns *dnsResponder, clock *fakeClock, lb *l
 	return rt
 }
 
-func fqdnObject(host string) *vrxv1.AddressObject {
-	return &vrxv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr(host)}
+func fqdnObject(host string) *ngfwv1.AddressObject {
+	return &ngfwv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr(host)}
 }
 
 func addrsOf(rt *Runtime, name string) string {

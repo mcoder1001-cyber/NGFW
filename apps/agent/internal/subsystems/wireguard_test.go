@@ -17,8 +17,8 @@ import (
 
 func TestWireguardSecrets(t *testing.T) {
 	s := NewWireguardSecrets(vpntest.Keys)
-	priv := sha256.Sum256([]byte("VRX_TEST_PSK_F-wireguard_unit_itf"))
-	psk := sha256.Sum256([]byte("VRX_TEST_PSK_F-wireguard_unit_psk"))
+	priv := sha256.Sum256([]byte("NGFW_TEST_PSK_F-wireguard_unit_itf"))
+	psk := sha256.Sum256([]byte("NGFW_TEST_PSK_F-wireguard_unit_psk"))
 	if err := s.Put("key/a", priv[:]); err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestWireguardSecrets(t *testing.T) {
 		t.Fatal("32 bytes only")
 	}
 	// replacing a reference drops the old material
-	other := sha256.Sum256([]byte("VRX_TEST_PSK_F-wireguard_unit_psk2"))
+	other := sha256.Sum256([]byte("NGFW_TEST_PSK_F-wireguard_unit_psk2"))
 	if err := s.Put("psk/b", other[:]); err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,7 @@ additive; no existing field is renamed, reshaped or removed:
 |---|---|
 | new operation `POST /api/v1/users/{name}/password` (`Users_setPassword`, body `{password, current?, keepApiKeys?}`, 200 `{self, apiKeysRevoked[{id,name}]}`; fix round 1: was 204 before review, the route is new on this branch so nothing merged changes) | #1, D-097 |
 | `EditOut.ignoredSecrets?` (import: password hashes dropped, D-097) | fix round 1 |
-| `GET /api/v1/health` 200 response schema `{status:'ok', service:'vrx-api', version, time}` (was `content?: never`) | #3 |
+| `GET /api/v1/health` 200 response schema `{status:'ok', service:'ngfw-api', version, time}` (was `content?: never`) | #3 |
 | `pattern` (no C0/C1/DEL/bidi overrides; fix round 1 adds U+2028/U+2029) on `comment` (commit, rollback), API key `name`, login `username`, `vrf`; 400 added to the secret delete, API key delete and action routes | #4 |
 | `LockOut.ownerKeyId`, `LockOut.ownerKey` (also inside 409 `lock`) | #5 |
 | diff entries: optional `redacted: true` (no `from`/`to`); `EditOut.secretChanges?`; revision meta `secretChanges[]`; new `GET /api/v1/config/revisions/{rev}/diff` | #6 |

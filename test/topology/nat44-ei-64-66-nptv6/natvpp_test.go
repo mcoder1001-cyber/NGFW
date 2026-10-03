@@ -32,10 +32,10 @@ import (
 	"ngfw/agent/binapi/npt66"
 )
 
-const globalsLock = "/run/lock/vrx-globals.lock" // D-082: tests that read VPP-wide settings hold it shared
+const globalsLock = "/run/lock/ngfw-globals.lock" // D-082: tests that read VPP-wide settings hold it shared
 
 // fixtureLock is nattest.EnsurePlugin's host-wide lock for a plugin ("nat44-ei", "nat64", "nat66").
-func fixtureLock(plugin string) string { return "/run/lock/vrx-nat-fixture-" + plugin + ".lock" }
+func fixtureLock(plugin string) string { return "/run/lock/ngfw-nat-fixture-" + plugin + ".lock" }
 
 func flock(t *testing.T, path string, how int) *os.File {
 	t.Helper()

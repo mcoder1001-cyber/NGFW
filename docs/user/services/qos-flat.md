@@ -2,10 +2,10 @@
 
 **Screen:** *Services → QoS* (`/services?tab=qos`). **Configuration:** `services.qos` through the generic
 configuration routes (`/api/v1/config/services`). **Live state:** `GET /api/v1/state/services/qos/policers`.
-**Action:** `POST /api/v1/actions/qos/policers/{name}/reset`. **CLI:** `vrx set services qos …`, `vrx merge …`
+**Action:** `POST /api/v1/actions/qos/policers/{name}/reset`. **CLI:** `ngfw set services qos …`, `ngfw merge …`
 (`docs/user/cli/reference.md`).
 
-VRX configures VPP's flat QoS: **policers** (token-bucket metering with conform / exceed / violate actions),
+NGFW configures VPP's flat QoS: **policers** (token-bucket metering with conform / exceed / violate actions),
 **rate limits** on egress (the schema's `shapers`), **recording** the DSCP / 802.1p / MPLS EXP bits of received
 packets, **storing** a fixed QoS value, and **marking** (rewriting) those bits on egress through **translation maps**.
 
@@ -17,7 +17,7 @@ packets, **storing** a fixed QoS value, and **marking** (rewriting) those bits o
 
 | object | what it is | VPP |
 |---|---|---|
-| `policers.<name>` | a token-bucket meter: algorithm `1r2c` (one rate, conform/exceed), `1r3c-rfc2697`, `2r3c-rfc2698`, `2r3c-rfc4115`, `2r3c-mef5cf1` (two rates: `cir` + `eir`, `cb` + `eb`); rates in kbit/s (bursts in bytes) or packets/s (bursts in packets); per colour an action `transmit`, `drop` or `mark-and-transmit` (with a DSCP) | `policer_add`, named `<owner>:<name>` (the product: `vrx:<name>`) |
+| `policers.<name>` | a token-bucket meter: algorithm `1r2c` (one rate, conform/exceed), `1r3c-rfc2697`, `2r3c-rfc2698`, `2r3c-rfc4115`, `2r3c-mef5cf1` (two rates: `cir` + `eir`, `cb` + `eb`); rates in kbit/s (bursts in bytes) or packets/s (bursts in packets); per colour an action `transmit`, `drop` or `mark-and-transmit` (with a DSCP) | `policer_add`, named `<owner>:<name>` (the product: `ngfw:<name>`) |
 | `shapers.<name>` — shown as **Rate limits (egress)** | `rateKbps` and an optional `burstBytes` | an egress policer `shaper:<name>`: `1r2c`, cir = rate, burst = `burstBytes` or ≈ 10 ms of traffic (at least 3000 bytes), exceed → **drop** |
 | `maps.<name>` | a translation table per recorded source: `rows.ip` (DSCP 0–63), `rows.vlan` (802.1p 0–7), `rows.mpls` (EXP 0–7), `rows.ext` (0–255); each entry maps a recorded value (`from`) to an output value (`to`); unlisted values map to 0; optional fixed `id` | `qos_egress_map_update` (VPP egress map id: `id`, else the lowest free id the agent owns, in name order) |
 | `interfaces.<if>` | the QoS of one interface (the VPP interface name): `policer.input` (ingress), `policer.output` or `shaper` (egress — one of the two), `record` (ingress: copy the bits of this header into the packet's QoS record), `store` (ingress: give every packet this value; **ip only**), `mark` (egress: rewrite the `output` header from the recorded bits through `map`) | `policer_input` / `policer_output`, `qos_record_enable_disable`, `qos_store_enable_disable`, `qos_mark_enable_disable` |
@@ -31,7 +31,7 @@ policer name with the owner prefix (about 56 characters for a policer, 49 for a 
 
 ## Rate limits are drop-based
 
-A "shaper" in VRX is **not** a queueing shaper: it is an egress policer that **drops** every packet above the rate
+A "shaper" in NGFW is **not** a queueing shaper: it is an egress policer that **drops** every packet above the rate
 (VPP has no queue to delay it in). TCP adapts to it, but bursts are cut instead of smoothed, and the burst matters: the
 default ≈ 10 ms of traffic (never less than two 1500-byte frames) keeps full-size packets passing at low rates; raise
 `burstBytes` for bursty traffic. The screen labels them *Rate limits (egress)* for this reason. A real shaper would
@@ -103,13 +103,13 @@ Edits go to the candidate; the pending-change bar at the top shows the diff and 
 ## The same with the CLI and REST
 
 ```sh
-vrx set services qos policers cust-a cir 20000
-vrx set services qos policers cust-a cb 25000
-vrx set services qos interfaces GigabitEthernet0/8/0 policer input cust-a
-vrx merge /services/qos/maps '{"remark": {"rows": {"ip": [{"from": 46, "to": 34}]}}}'
-vrx show configuration diff
-vrx commit confirm 120
-vrx confirm
+ngfw set services qos policers cust-a cir 20000
+ngfw set services qos policers cust-a cb 25000
+ngfw set services qos interfaces GigabitEthernet0/8/0 policer input cust-a
+ngfw merge /services/qos/maps '{"remark": {"rows": {"ip": [{"from": 46, "to": 34}]}}}'
+ngfw show configuration diff
+ngfw commit confirm 120
+ngfw confirm
 
 # live policer state and counters (REST; readonly role is enough)
 curl -s -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/state/services/qos/policers
@@ -118,6 +118,6 @@ curl -s -X POST -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/actio
 curl -s -X POST -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/actions/qos/policers/shaper%3Auplink/reset
 ```
 
-This release has no dedicated `vrx show qos` command; `vrx --json show configuration services qos` shows the
+This release has no dedicated `ngfw show qos` command; `ngfw --json show configuration services qos` shows the
 configuration. On the box, VPP's own view: `vppctl show policer`, `vppctl show qos egress map`, `vppctl show qos mark`,
 `vppctl show qos record`, `vppctl show qos store`.

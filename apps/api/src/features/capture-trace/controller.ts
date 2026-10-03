@@ -12,7 +12,7 @@ import type { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { MinRole } from '../../auth/decorators.js';
-import { sourceIp, type VrxRequest } from '../../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../../common/principal.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
@@ -56,7 +56,7 @@ export class CaptureTraceController {
   @ApiOkResponse({ schema: openapi(CaptureStarted, 'output') })
   async start(
     @Body(new ZodPipe(CaptureBody)) body: z.output<typeof CaptureBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `captures/${body.interface}`, before: body };
     try {
@@ -99,7 +99,7 @@ export class CaptureTraceController {
   })
   async file(
     @Param('id') id: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     checkId(id);
@@ -142,7 +142,7 @@ export class CaptureTraceController {
   @Protected(403, 404, 409, 501, 502, 503)
   @ApiParam({ name: 'id', schema: { type: 'string' } })
   @ApiOperation({ summary: 'Delete one kept capture file (409 while it is running)' })
-  async remove(@Param('id') id: string, @Req() req: VrxRequest) {
+  async remove(@Param('id') id: string, @Req() req: NgfwRequest) {
     checkId(id);
     req.audit = { resource: `captures/${id}` };
     try {

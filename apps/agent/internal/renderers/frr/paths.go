@@ -55,9 +55,9 @@ func ProductPaths() Paths {
 }
 
 // TestPaths are the test-scoped paths for slot prefix ("w12"): everything under
-// /run/vrx-test/<prefix>/frr, pathspace <prefix>, files owned by the test process.
+// /run/ngfw-test/<prefix>/frr, pathspace <prefix>, files owned by the test process.
 func TestPaths(prefix string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "frr")
+	base := filepath.Join("/run/ngfw-test", prefix, "frr")
 	return Paths{
 		ConfDir:   filepath.Join(base, "etc"),
 		RunDir:    filepath.Join(base, "run"),
@@ -69,13 +69,13 @@ func TestPaths(prefix string) Paths {
 }
 
 // TestInstancePaths are the paths of one more test-scoped FRR instance of slot prefix ("w12") named instance ("p1"):
-// everything under /run/vrx-test/<prefix>/frr-<instance>, pathspace <prefix><instance> (P12: the peers of a topology
-// test next to the VRX-side instance of TestPaths). instance "" is TestPaths.
+// everything under /run/ngfw-test/<prefix>/frr-<instance>, pathspace <prefix><instance> (P12: the peers of a topology
+// test next to the NGFW-side instance of TestPaths). instance "" is TestPaths.
 func TestInstancePaths(prefix, instance string) Paths {
 	if instance == "" {
 		return TestPaths(prefix)
 	}
-	base := filepath.Join("/run/vrx-test", prefix, "frr-"+instance)
+	base := filepath.Join("/run/ngfw-test", prefix, "frr-"+instance)
 	return Paths{
 		ConfDir:   filepath.Join(base, "etc"),
 		RunDir:    filepath.Join(base, "run"),

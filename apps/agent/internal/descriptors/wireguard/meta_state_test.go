@@ -65,7 +65,7 @@ func TestMetaDescriptor(t *testing.T) {
 		t.Fatal("an entry without a name must be refused")
 	}
 	raw, _ := os.ReadFile(path) //nolint:gosec // G304: the test's own temp file
-	if strings.Contains(string(raw), "VRX_TEST") {
+	if strings.Contains(string(raw), "NGFW_TEST") {
 		t.Fatal("the store holds references only")
 	}
 }

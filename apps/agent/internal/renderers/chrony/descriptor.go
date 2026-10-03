@@ -11,17 +11,17 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
 // The chrony renderer inside the agent (F-unbound-chrony-syslog; D-109 d: one singleton scheduler descriptor):
 //
-//	chrony.config/vrx   Value = Input(services.ntp) (*vrxv1.NtpService, only while enabled)
+//	chrony.config/ngfw   Value = Input(services.ntp) (*ngfwv1.NtpService, only while enabled)
 //	Create / Update     Render → Validate (chronyd -p on staged copies) → Apply (atomic write → `chronyc reload
 //	                    sources` / `rekey`, or a start/restart request: chrony.conf changes need a restart, D-079)
 //	Delete              the disabled rendering (no sources, no server)
-//	Retrieve            vrx.sources as written → the embedded input → re-rendered → chrony.conf, vrx.sources and
+//	Retrieve            ngfw.sources as written → the embedded input → re-rendered → chrony.conf, ngfw.sources and
 //	                    chrony.keys byte-equal: the input is the Value; different: a drift Value
 //
 // A start/restart request is not a transaction failure (reported by Pending, NtpState). The agent never starts or
@@ -30,7 +30,7 @@ import (
 // Descriptor name and singleton object id.
 const (
 	Name     = "chrony.config"
-	ObjectID = "vrx"
+	ObjectID = "ngfw"
 )
 
 // Key is the key of the singleton object.
@@ -74,9 +74,9 @@ func (d *Descriptor) Dependencies(proto.Message) []scheduler.Dependency { return
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*vrxv1.NtpService)
+	in, ok := obj.(*ngfwv1.NtpService)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *vrx.v1.NtpService", ErrInvalid, Name, obj)
+		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.NtpService", ErrInvalid, Name, obj)
 	}
 	return nil, d.apply(ctx, in)
 }
@@ -91,7 +91,7 @@ func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	return d.apply(ctx, nil)
 }
 
-func (d *Descriptor) apply(ctx context.Context, in *vrxv1.NtpService) error {
+func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.NtpService) error {
 	if d.prepare != nil {
 		if err := d.prepare(); err != nil {
 			return err

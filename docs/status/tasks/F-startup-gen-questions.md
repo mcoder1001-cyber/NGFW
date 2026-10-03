@@ -16,7 +16,7 @@ fed from a hand-made JSON file. Proposal: additive fields with these exact names
 D-045/D-053); the schema-level checks mirroring `BuildModel` (logical-name regex, mgmt ∉ devices, PCI canonical
 uniqueness) belong in `semantic/dataplane.ts`. `pciWhitelist` could later be deprecated in favour of `devices`.
 
-## Q2 — NIC → port-group mapping on vrx-a (product owner)
+## Q2 — NIC → port-group mapping on ngfw-a (product owner)
 Still unknown. The six-NIC golden uses a clearly marked SAMPLE: `0000:04:00.0 wan`, `0000:0c:00.0 lan`,
 `0000:13:00.0 dmz`, `0000:14:00.0 p2p`, `0000:1b:00.0 lan2`, `0000:1c:00.0 sync`. The real mapping only changes the
 input document, never the code.
@@ -28,8 +28,8 @@ the apply list (or must treat `ErrManagerStep` as "restart pending", not as a co
 the generator should stay CLI-only.
 
 ## Q4 — `tools/lab provision` has its own shell template for remote VMs
-`render_startup_conf()` in `tools/lab` (P04) renders startup.conf for remote vrx VMs by hand (no plugins block, one mgmt
-blacklist). Suggest a follow-up on its owner to call `vrx-startupgen` instead, so there is one generator (not in my file set).
+`render_startup_conf()` in `tools/lab` (P04) renders startup.conf for remote ngfw VMs by hand (no plugins block, one mgmt
+blacklist). Suggest a follow-up on its owner to call `ngfw-startupgen` instead, so there is one generator (not in my file set).
 
 ## Q5 — isolcpus rule interpretation (decided, see F-startup-gen.md D-SG-3 — overturn if wrong)
 The prompt says "workers + main core … disjoint from isolcpus rules". Implemented: when the host isolates CPUs, worker

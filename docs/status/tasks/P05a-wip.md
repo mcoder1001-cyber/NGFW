@@ -10,7 +10,7 @@ Branch `task/P05a`, worktree `/root/ngfw-wt/P05a`, slot 2 (`w2`). Task: `prompts
   create / retrieve == desired / update / ErrRecreate / delete / owner filtering / VPP errors).
 - `apps/agent/internal/vpp/` — `client.go` (`Client` = superset of govpp `api.Connection` + `Connected()`, compile-time
   asserted), `tag.go` (`OwnerTag`/`ParseOwnerTag`), `fake/` (recording in-memory client: Invoke, dump streams with
-  control-ping replay, WatchEvent/Emit, handlers by message name), `vpptest/` (VRX_INTEGRATION gate, slot-derived
+  control-ping replay, WatchEvent/Emit, handlers by message name), `vpptest/` (NGFW_INTEGRATION gate, slot-derived
   prefix/instances/tables/NAT pool, shared lab flock).
 - `apps/agent/internal/renderers/` — `renderer.go` (`Renderer`, `Files`, `File{Mode,Owner,Content,Secret}`, Validate/
   Paths/Redacted), `helpers_files.go` (WriteFileAtomic, WriteFiles, TakeSnapshot/Restore, Stage), `helpers_exec.go`

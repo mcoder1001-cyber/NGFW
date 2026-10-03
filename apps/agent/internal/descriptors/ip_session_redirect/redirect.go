@@ -140,7 +140,7 @@ func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error)
 }
 
 // Update implements scheduler.Descriptor: VPP rejects re-adding an existing session with
-// different contents (ip_session_redirect_add_v2 returned -52 on vrx-a), so every change is
+// different contents (ip_session_redirect_add_v2 returned -52 on ngfw-a), so every change is
 // a delete + add by the scheduler.
 func (*Descriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate

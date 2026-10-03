@@ -22,7 +22,7 @@ Your TASK ENVELOPE names it: `/root/ngfw-wt/<id>` on the host, branch `task/<id>
 ## Rules that matter on a shared host (docs/lab/shared-host-rules.md)
 - Only your worktree. Never `/root/ngfw` (main), never another `/root/ngfw-wt/*`, never `/etc/vpp`, never `/root/vpp`.
 - Everything you create on VPP, in PostgreSQL/Valkey, or as processes carries your slot prefix from the envelope
-  (`VRX_TEST_PREFIX`, ports, table range). Kill only PIDs you started. No `pkill`/`killall`. No VPP restarts.
+  (`NGFW_TEST_PREFIX`, ports, table range). Kill only PIDs you started. No `pkill`/`killall`. No VPP restarts.
 - `pnpm install` on the host uses the shared store; run `pnpm install` (not frozen) only if you added a dependency, and commit the lockfile.
 - Long commands: `$WT run` has no time limit but your tool call does — for anything over ~8 minutes run it with
   `nohup … > /root/ngfw-wt/logs/<id>-<step>.log 2>&1 &` and poll the log.

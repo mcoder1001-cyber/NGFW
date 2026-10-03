@@ -2,7 +2,7 @@
 
 **Status: DECIDED 2026-09-23 — Ubuntu 26.04 LTS, VPP v26.06 built from source (`/root/vpp`, `make pkg-deb`) and shipped as our own .debs.**
 
-Lab: the dev host `172.30.126.195` is also the first router (`vrx-a`). VPP bring-up on it is owned by a separate agent — do not touch `/root/vpp`, `/etc/vpp` or the vpp service from this repo's tasks until that agent hands over. Further router/host VMs on vSphere are created by the product owner.
+Lab: the dev host `172.30.126.195` is also the first router (`ngfw-a`). VPP bring-up on it is owned by a separate agent — do not touch `/root/vpp`, `/etc/vpp` or the vpp service from this repo's tasks until that agent hands over. Further router/host VMs on vSphere are created by the product owner.
 
 | Option | Pros | Cons |
 |---|---|---|

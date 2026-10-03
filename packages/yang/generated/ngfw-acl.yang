@@ -1,0 +1,487 @@
+module ngfw-acl {
+  yang-version 1.1;
+  namespace "urn:ngfw:acl";
+  prefix ngfw-acl;
+
+  organization "NGFW";
+  contact "https://ngfw.dev";
+  description "Configuration of the 'acl' domain, generated from the NGFW Zod schema (F-restconf-yang).";
+
+  revision 2026-01-01 {
+    description "Generated from the NGFW schema.";
+  }
+
+  container acl {
+    description "L3/L4, MACIP and host access-control lists and their attachments to interfaces, zones and host chains.";
+    list lists {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      list rules {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf sequence {
+          type uint32 {
+            range "1..2147483647";
+          }
+          mandatory true;
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf enabled {
+          type boolean;
+          default "true";
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+            enum "reflect";
+          }
+          mandatory true;
+        }
+        leaf ipVersion {
+          type enumeration {
+            enum "ipv4";
+            enum "ipv6";
+            enum "any";
+          }
+          default "any";
+          description "any = both families (must agree with prefixes and ICMP protocol)";
+        }
+        leaf source {
+          type string;
+        }
+        leaf destination {
+          type string;
+        }
+        leaf service {
+          type string;
+        }
+        leaf schedule {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          description "objects.schedules; omit = always";
+        }
+        leaf log {
+          type boolean;
+          default "false";
+        }
+        leaf expiresAt {
+          type string {
+            pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+          }
+          description "RFC 3339; the rule stops matching at this time without a commit and stays in the configuration marked expired";
+        }
+        leaf owner {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "1..64";
+          }
+          description "who asked for this rule";
+        }
+        leaf ticket {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "1..64";
+          }
+          description "change or ticket reference, e.g. CHG-1234";
+        }
+      }
+    }
+    list macip {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      list rules {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf sequence {
+          type uint32 {
+            range "1..2147483647";
+          }
+          mandatory true;
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf action {
+          type enumeration {
+            enum "permit";
+            enum "deny";
+          }
+          mandatory true;
+        }
+        leaf sourceMac {
+          type string {
+            pattern "[0-9a-fA-F]{2}([:-])([0-9a-fA-F]{2}\\1){4}[0-9a-fA-F]{2}";
+          }
+          mandatory true;
+        }
+        leaf sourceMacMask {
+          type string {
+            pattern "[0-9a-fA-F]{2}([:-])([0-9a-fA-F]{2}\\1){4}[0-9a-fA-F]{2}";
+          }
+          default "ff:ff:ff:ff:ff:ff";
+          description "ff:ff:ff:ff:ff:ff = exact match";
+        }
+        leaf sourcePrefix {
+          type union {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+            }
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+            }
+          }
+          description "omit = any address";
+        }
+      }
+    }
+    list host {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+      leaf-list tags {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Names of entries in objects.tags";
+      }
+      list rules {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf sequence {
+          type uint32 {
+            range "1..2147483647";
+          }
+          mandatory true;
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf enabled {
+          type boolean;
+          default "true";
+        }
+        leaf action {
+          type enumeration {
+            enum "accept";
+            enum "drop";
+            enum "reject";
+          }
+          mandatory true;
+        }
+        leaf ipVersion {
+          type enumeration {
+            enum "ipv4";
+            enum "ipv6";
+            enum "any";
+          }
+          default "any";
+        }
+        leaf source {
+          type string;
+        }
+        leaf destination {
+          type string;
+        }
+        leaf service {
+          type string;
+        }
+        leaf interface {
+          type string {
+            pattern "[A-Za-z0-9_.-]{1,15}";
+          }
+        }
+        leaf log {
+          type boolean;
+          default "false";
+        }
+        leaf expiresAt {
+          type string {
+            pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+          }
+          description "RFC 3339; the rule stops matching at this time without a commit and stays in the configuration marked expired";
+        }
+        leaf owner {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "1..64";
+          }
+          description "who asked for this rule";
+        }
+        leaf ticket {
+          type string {
+            // pattern dropped: not XSD-expressible
+            length "1..64";
+          }
+          description "change or ticket reference, e.g. CHG-1234";
+        }
+      }
+    }
+    list attachments {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf list {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf target {
+        type string;
+        mandatory true;
+      }
+      leaf direction {
+        type enumeration {
+          enum "in";
+          enum "out";
+        }
+        default "in";
+      }
+      leaf sequence {
+        type uint32 {
+          range "1..2147483647";
+        }
+        mandatory true;
+        description "Order among several lists on the same interface and direction";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Must match the VRF of the target interface";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+    }
+    list macipAttachments {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf list {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf interface {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "Must match the VRF of the target interface";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+    }
+    list hostAttachments {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      leaf list {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        mandatory true;
+      }
+      leaf chain {
+        type enumeration {
+          enum "input";
+          enum "output";
+          enum "forward";
+        }
+        mandatory true;
+      }
+      leaf priority {
+        type int32 {
+          range "-500..500";
+        }
+        default "0";
+        description "nftables chain priority; lower runs first";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          length "0..255";
+        }
+      }
+    }
+    container hostSettings {
+      leaf defaultInput {
+        type enumeration {
+          enum "accept";
+          enum "drop";
+        }
+        default "accept";
+        description "Policy of the input chains: drop = only traffic a rule (or the anti-lockout rule) accepts reaches the host";
+      }
+      leaf allowIcmp {
+        type boolean;
+        default "true";
+        description "Accept ICMP and ICMPv6 in input chains before the rules (IPv6 neighbour discovery is always accepted)";
+      }
+      container antiLockout {
+        leaf enabled {
+          type boolean;
+          default "true";
+          description "Accept management SSH/HTTPS at the top of every input chain. Off: the rules themselves must accept it (checked on commit)";
+        }
+        leaf-list sources {
+          type union {
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+            }
+            type string {
+              pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+            }
+          }
+          description "Prefixes management connections come from; empty = any source";
+        }
+        leaf-list interfaces {
+          type string {
+            pattern "[A-Za-z0-9_.-]{1,15}";
+          }
+          description "Linux interfaces management connections arrive on; empty = any interface";
+        }
+        leaf-list ports {
+          type uint32 {
+            range "1..65535";
+          }
+          description "SSH and HTTPS by default";
+        }
+      }
+    }
+    container globalBlocking {
+      description "IP block lists enforced before the access lists.";
+      list lists {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        leaf enabled {
+          type boolean;
+          default "true";
+        }
+        leaf description {
+          type string {
+            length "0..255";
+          }
+        }
+        leaf source {
+          type string;
+        }
+        leaf allInterfaces {
+          type boolean;
+          default "false";
+          description "every L3 interface, including interfaces added later";
+        }
+        leaf-list interfaces {
+          type string {
+            pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+            length "1..63";
+          }
+          description "where the list is enforced (at least one unless All interfaces)";
+        }
+        leaf direction {
+          type enumeration {
+            enum "both";
+            enum "inbound";
+            enum "outbound";
+          }
+          default "both";
+          description "inbound = traffic arriving on the interface from a listed address; outbound = leaving to one";
+        }
+        leaf protectHost {
+          type boolean;
+          default "true";
+          description "also drop traffic from listed addresses to the box itself (management plane, nftables)";
+        }
+        leaf log {
+          type boolean;
+          default "false";
+        }
+        leaf-list entries {
+          type string {
+            pattern "[0-9a-fA-F:.]+/\\d{1,3}";
+            length "0..49";
+          }
+          description "imported from a file or the server URL; one prefix per entry";
+        }
+      }
+    }
+  }
+}

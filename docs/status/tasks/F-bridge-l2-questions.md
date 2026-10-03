@@ -60,7 +60,7 @@ descriptor (D-104).
 
 ## Q8 — VPP crash 18:41:08 (manager incident note): not F-bridge-l2
 Answer to the manager's incident message: no F-bridge-l2 code or test touched VPP before 19:14. Until then this slot ran
-only fake-VPP unit tests (`go test ./...` without `VRX_INTEGRATION`, all host tests skip), the API e2e with the in-process
+only fake-VPP unit tests (`go test ./...` without `NGFW_INTEGRATION`, all host tests skip), the API e2e with the in-process
 fake agent and web unit tests. The first host run was `TestMactimeOnHost` at 19:14 (NRestarts 1 before and after, i.e.
 already 1 from the 18:41 crash). F-bridge-l2 has no classify code; its only interface cleanup is `ifacetest.Loopback`'s
 `ifsanitize.BeforeDelete` on its own loopback (recorded bindings only). D-126 noted: no sweeps; the topology test sends

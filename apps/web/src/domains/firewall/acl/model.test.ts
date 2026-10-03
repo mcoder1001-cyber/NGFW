@@ -157,14 +157,14 @@ describe('ACL rule editor helpers', () => {
     const objectVariant = rule.properties['source']?.oneOf?.find(
       (v) => v.properties?.['kind']?.const === 'object',
     );
-    expect(objectVariant?.properties?.['name']?.['x-vrx-ui']).toMatchObject({
+    expect(objectVariant?.properties?.['name']?.['x-ngfw-ui']).toMatchObject({
       widget: 'object-picker',
     });
-    expect(rule.properties['schedule']?.['x-vrx-ui']).toMatchObject({ widget: 'object-picker' });
+    expect(rule.properties['schedule']?.['x-ngfw-ui']).toMatchObject({ widget: 'object-picker' });
     expect(Object.keys(listMetaSchema().properties ?? {})).toEqual(['description', 'tags']);
     const att = attachmentSchema(['web-in', 'mgmt']).properties?.['list'];
     expect(att?.enum).toEqual(['web-in', 'mgmt']);
-    expect(att?.['x-vrx-ui']).toMatchObject({ widget: 'select' });
+    expect(att?.['x-ngfw-ui']).toMatchObject({ widget: 'select' });
   });
 
   it('an optional object with required members (tcpFlags) is edited as JSON text: SchemaForm would fill it when absent', () => {
@@ -173,10 +173,10 @@ describe('ACL rule editor helpers', () => {
       (v) => v.properties?.['kind']?.const === 'inline',
     );
     const tcp = inline?.properties?.['spec']?.oneOf?.find((v) => v.properties?.['tcpFlags']);
-    expect(tcp?.properties?.['tcpFlags']?.['x-vrx-ui']).toMatchObject({ widget: 'json' });
+    expect(tcp?.properties?.['tcpFlags']?.['x-ngfw-ui']).toMatchObject({ widget: 'json' });
     // required objects and unions keep their own editors
-    expect(form.properties?.['source']?.['x-vrx-ui']).not.toMatchObject({ widget: 'json' });
-    expect(inline?.properties?.['spec']?.['x-vrx-ui']).not.toMatchObject({ widget: 'json' });
+    expect(form.properties?.['source']?.['x-ngfw-ui']).not.toMatchObject({ widget: 'json' });
+    expect(inline?.properties?.['spec']?.['x-ngfw-ui']).not.toMatchObject({ widget: 'json' });
   });
 
   it('localizeSchema: titles, help and enum labels from the acl namespace; picker kinds survive a translated help', () => {
@@ -190,18 +190,18 @@ describe('ACL rule editor helpers', () => {
       dict[k] ?? String(o?.['defaultValue'] ?? k);
     const s = localizeSchema(ruleSchema(), tr);
     expect(s.properties?.['action']?.title).toBe('کنش');
-    expect(s.properties?.['action']?.['x-vrx-ui']).toMatchObject({
+    expect(s.properties?.['action']?.['x-ngfw-ui']).toMatchObject({
       enumLabels: { permit: 'اجازه', deny: 'deny' },
     });
     const obj = s.properties?.['destination']?.oneOf?.find((v) => v.title === 'شیء');
-    expect(obj?.properties?.['name']?.['x-vrx-ui']).toMatchObject({
+    expect(obj?.properties?.['name']?.['x-ngfw-ui']).toMatchObject({
       help: 'یک شیء از صفحهٔ اشیا',
       objectKinds: ['addresses', 'addressGroups'],
     });
     const svc = s.properties?.['service']?.oneOf?.find(
       (v) => v.properties?.['kind']?.const === 'object',
     );
-    expect(svc?.properties?.['name']?.['x-vrx-ui']).toMatchObject({
+    expect(svc?.properties?.['name']?.['x-ngfw-ui']).toMatchObject({
       objectKinds: ['services', 'serviceGroups'],
     });
   });

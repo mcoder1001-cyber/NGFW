@@ -25,7 +25,7 @@ exists (whoever created it), otherwise the transaction fails with "MPLS table 0 
 only the globals owner creates it (D-071)"; it never creates or deletes it.
 Options considered: (a) the globals owner declares it whenever `routing.mpls` is non-empty (the envelope's proposal) —
 would make a slot agent with only slot tables fail on the shared host; (b) declare only when needed + role in the
-descriptor (chosen); (c) the projection reads VRX_GLOBALS_OWNER — the projection runs in the service, which has no
+descriptor (chosen); (c) the projection reads NGFW_GLOBALS_OWNER — the projection runs in the service, which has no
 wiring, and duplicating `ConfigFromEnv` would drift.
 **For F-mpls-ldp:** LDP-learned labels live in table 0 — add `ldp` to `MplsNeedsTableZero` (anchor
 `// wave-BC: F-mpls-ldp` in `desired/mpls_srmpls.go`).
@@ -87,10 +87,10 @@ At 11:07 I copied my API e2e log to the session scratchpad as `e2e.log`, overwri
 had one there. My evidence now lives in `/tmp/g-w5/evidence/`; sorry if that `e2e.log` was someone else's.
 
 ## Host steps pending (host runs closed until TD-25; table-0 parts need a manager window)
-1. After TD-25: `eval "$(tools/lab env 5)"; cd apps/agent; VRX_INTEGRATION=1 go test -count=1 -run TestMplsOnHost -v
+1. After TD-25: `eval "$(tools/lab env 5)"; cd apps/agent; NGFW_INTEGRATION=1 go test -count=1 -run TestMplsOnHost -v
    ./internal/agent/` — slot MPLS table 5001, label routes, tunnel, idempotent re-apply, MplsState, restart simulation,
    rollback, `vppctl show mpls fib table 5001` / `show mpls tunnel`. No packet is sent, no af_packet is used.
-2. Manager window (D-071/D-082): the same with `VRX_DF7_GLOBALS=1` (the test takes `flock -x /run/lock/vrx-globals.lock`,
+2. Manager window (D-071/D-082): the same with `NGFW_DF7_GLOBALS=1` (the test takes `flock -x /run/lock/ngfw-globals.lock`,
    creates MPLS table 0 only if none exists and deletes it after): MPLS on the loopback, a label binding, a table-0 label
    route, SR-MPLS policy + steering; `show sr mpls policies`, `show mpls interface`, `show mpls fib table 0`.
 3. Optional: real-stack screenshots (the committed ones use the API's fake agent).

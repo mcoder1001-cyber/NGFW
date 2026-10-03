@@ -1,4 +1,4 @@
-# strongswan.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# strongswan.conf: rendered by ngfw-agent (strongswan renderer); every change is overwritten.
 charon {
 	load_modular = no
 	load = "random nonce openssl pem pkcs1 pkcs8 x509 pubkey revocation constraints kernel-netlink socket-default vici"

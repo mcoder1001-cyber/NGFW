@@ -288,7 +288,7 @@ export function optionalObjectsAsJson(schema: JsonSchema): JsonSchema {
             k,
             {
               ...p,
-              'x-vrx-ui': { ...((p['x-vrx-ui'] ?? {}) as Record<string, unknown>), widget: 'json' },
+              'x-ngfw-ui': { ...((p['x-ngfw-ui'] ?? {}) as Record<string, unknown>), widget: 'json' },
             },
           ];
         }
@@ -343,9 +343,9 @@ function withListChoice(item: JsonSchema, lists: readonly string[]): JsonSchema 
   const props = { ...(item.properties ?? {}) };
   const list = props['list'];
   if (list) {
-    const hints = { ...((list['x-vrx-ui'] ?? {}) as Record<string, unknown>) };
+    const hints = { ...((list['x-ngfw-ui'] ?? {}) as Record<string, unknown>) };
     delete hints.widget;
-    props['list'] = { ...list, enum: [...lists], 'x-vrx-ui': { ...hints, widget: 'select' } };
+    props['list'] = { ...list, enum: [...lists], 'x-ngfw-ui': { ...hints, widget: 'select' } };
   }
   return { ...item, properties: props };
 }
@@ -353,14 +353,14 @@ function withListChoice(item: JsonSchema, lists: readonly string[]): JsonSchema 
 /**
  * Titles, help, enum labels and union-variant titles in the UI language (`acl:field.<prop>.title|help`,
  * `acl:enum.<prop>.<value>`, `acl:variant.<value>`), the schema's English text as fallback, recursively. Object-picker
- * fields keep the kinds their original help names (`x-vrx-ui.objectKinds`): the translated help may not name them.
+ * fields keep the kinds their original help names (`x-ngfw-ui.objectKinds`): the translated help may not name them.
  */
 export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
   const out: JsonSchema = { ...schema };
   if (schema.properties) {
     const props: Record<string, JsonSchema> = {};
     for (const [name, prop] of Object.entries(schema.properties)) {
-      const ph = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+      const ph = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       const help = t(`field.${name}.help`, {
         defaultValue: typeof ph.help === 'string' ? ph.help : '',
       });
@@ -383,7 +383,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
           ...(prop.const === undefined
             ? { title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }) }
             : {}),
-          'x-vrx-ui': { ...ph, ...extra, ...(help ? { help } : {}) },
+          'x-ngfw-ui': { ...ph, ...extra, ...(help ? { help } : {}) },
         } as JsonSchema,
         t,
       );

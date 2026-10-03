@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
@@ -49,7 +49,7 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 		if is.rule == "agent.unsupported-field" && strings.Contains(is.message, "drives no FRR") {
 			warned = true
 		}
-		if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			t.Fatalf("error issue %+v", is)
 		}
 	}
@@ -59,7 +59,7 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 	// review M4: a pair outside the linux-cp default netns is invisible to linux-nl — a warning at the field
 	var netnsWarn []string
 	for _, is := range pj.issues {
-		if is.rule == "routing.bgp-lcp-netns" && is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+		if is.rule == "routing.bgp-lcp-netns" && is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 			netnsWarn = append(netnsWarn, is.pointer)
 		}
 	}
@@ -68,20 +68,20 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 	}
 
 	// D-217: one table cannot mix default and nondefault namespace pairs.
-	refused := apply(t, s, &vrxv1.ApplyRequest{TxnId: "mixed-ns", DesiredState: ds, Subsystems: []string{"interfaces"}})
-	mustStatus(t, refused, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	refused := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "mixed-ns", DesiredState: ds, Subsystems: []string{"interfaces"}})
+	mustStatus(t, refused, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if !strings.Contains(refused.String(), "one table must not mix both kinds") {
 		t.Fatalf("mixed namespaces unexpectedly accepted: %v", refused)
 	}
 	// Keep the lifecycle fixture in one namespace so API multicast ownership is coherent.
 	ds.Interfaces["loop822"].Lcp.Netns = proto.String("ns-w8-frr")
 	// the pairs reach VPP (the tap gate lets lcp_itf_pair_get through once a tap exists) and Retrieve reports them
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: ds, Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l1", DesiredState: ds, Subsystems: []string{"interfaces"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for name, want := range map[string]*vrxv1.InterfaceLcp{
+	for name, want := range map[string]*ngfwv1.InterfaceLcp{
 		"loop821": {HostIfName: proto.String("w8-l21"), HostIfType: proto.String("tap"), Netns: proto.String("ns-w8-frr")},
 		"loop822": {HostIfType: proto.String("tap"), Netns: proto.String("ns-w8-frr")}, // hostIfName = the VPP name: canonical form leaves it out
 	} {
@@ -90,14 +90,14 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 		}
 	}
 	// idempotent: the second apply changes nothing
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "l2", DesiredState: ds, Subsystems: []string{"interfaces"}})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l2", DesiredState: ds, Subsystems: []string{"interfaces"}})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("second apply: %v", resp.GetResults())
 	}
 	// removing the leaf removes the pair (and VPP's end of the tap)
 	ds.Interfaces["loop822"].Lcp = nil
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l3", DesiredState: ds, Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l3", DesiredState: ds, Subsystems: []string{"interfaces"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	kvs, err := s.sched.Retrieve(context.Background(), scheduler.Only(lcp.NameItfPair))
 	if err != nil || len(kvs) != 1 || kvs[0].Key != "lcp.itf-pair/loop821" {
 		t.Fatalf("pairs after removal: %v %v", kvs, err)
@@ -164,8 +164,8 @@ func TestP12ProjectionWithFRR(t *testing.T) {
 func TestP12AssembleFRR(t *testing.T) {
 	ds := doc(t, `{"routing":{"bgp":{"asn":65080},"policy":{"routeMaps":{"rm":{"entries":[{"seq":1,"action":"permit"}]}}},
 	  "static":[{"prefix":"10.9.0.0/16","vrf":"default","blackhole":true,"viaFrr":true,"tag":7}]}}`)
-	fdoc := desired.FRRDoc(ds, func(_ int, sr *vrxv1.StaticRoute) bool { return sr.GetViaFrr() })
-	out := &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+	fdoc := desired.FRRDoc(ds, func(_ int, sr *ngfwv1.StaticRoute) bool { return sr.GetViaFrr() })
+	out := &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
 		{Prefix: proto.String("10.10.0.0/16"), Vrf: proto.String("default"), Blackhole: proto.Bool(true)},
 		{Prefix: proto.String("10.8.0.0/16"), Vrf: proto.String("default"), Blackhole: proto.Bool(true)},
 	}}}
@@ -181,7 +181,7 @@ func TestP12AssembleFRR(t *testing.T) {
 		t.Fatalf("static order %v", order)
 	}
 	// drift: nothing is reported for the FRR leaves
-	out = &vrxv1.DesiredState{}
+	out = &ngfwv1.DesiredState{}
 	desired.AssembleFRR(out, []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(fdoc, desired.FRRDrift)}})
 	if out.GetRouting().GetBgp() != nil {
 		t.Fatal("a drifted FRR config is not reported as the desired one")

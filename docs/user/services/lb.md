@@ -3,8 +3,8 @@
 **Screen:** *Services → Load balancer* (`/services?tab=lb`). **REST:** configuration through the generic routes
 (`/api/v1/config/services/lb`, e.g. `PATCH /api/v1/config/services` with `{"lb": …}`), live state
 `GET /api/v1/state/lb/vips`, action `POST /api/v1/actions/lb/vips/{name}/flush`. **CLI:** the generic configuration
-commands (`docs/user/cli/reference.md`): `vrx show configuration services lb`, `vrx set services lb vips web prefix
-198.51.100.10/32`, `vrx merge services lb '<json>'`, then `vrx commit`; the live state and the flush have no curated
+commands (`docs/user/cli/reference.md`): `ngfw show configuration services lb`, `ngfw set services lb vips web prefix
+198.51.100.10/32`, `ngfw merge services lb '<json>'`, then `ngfw commit`; the live state and the flush have no curated
 CLI command in this release (REST operations `Lb_vips`, `Lb_flush`).
 
 The load balancer spreads **new flows** to a **virtual IP (VIP)** over a set of **application servers (AS)** with

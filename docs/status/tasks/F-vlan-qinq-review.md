@@ -94,7 +94,7 @@ did not come from 802.1ad frames, the classify reset or V24. D-126's rules there
 - Run 1 (the pasted evidence) used the test at b8fa14e. The committed test (f764283 + 01b80ff: opt-in packets, CLI step,
   password-file removal) only ran as run 2, which crashed in the packet phase. The pasted CI run is at c06785c, before
   01b80ff's test change.
-- I re-checked HEAD: gofmt clean, `go vet` ok and unit-mode `go test` ok (skips without `VRX_INTEGRATION`) in
+- I re-checked HEAD: gofmt clean, `go vet` ok and unit-mode `go test` ok (skips without `NGFW_INTEGRATION`) in
   `test/topology/vlan-qinq`.
 - **Fix:** after H1, one clean `test/topology/vlan-qinq/run.sh -run TestVlanQinqTopology` without packets, NRestarts
   before and after pasted, and a CI re-run at the final HEAD. The manager must grant it (Q0's ask).
@@ -153,7 +153,7 @@ VPP) and host run 1. Follow-up: the P5 owner fixes the fake (Q2). Nothing on thi
 | 2 | real verification | Host run 1 against `/run/vpp/api.sock` asserts `sw_interface_dump` rows, Retrieve through `/state/interfaces` `config` == desired, and `vppctl show interface [address]`. The fake-VPP tests use the product wiring |
 | 3 | restart safety | Pasted: agent stopped, addresses then `delete_subif` through binapi (D-095c), agent started, all three back in 1.46 s, reconcile 1.332 s from the log. No new object type. The subinterface descriptor keeps DF-1's Retrieve |
 | 4 | VPP API provenance | The test uses generated binapi only (`interface`, `af_packet`, `classify`, `acl`, `ipsec`, `ip`). No `binapi/` or `binapi-gen.sh` change |
-| 5 | shared host | Slot prefix w5, rig 10.5/16, PIDs stopped, `vrx_w5` dropped, rig down, lock `-s`, NRestarts checked. **But `show trace` (H1)** |
+| 5 | shared host | Slot prefix w5, rig 10.5/16, PIDs stopped, `ngfw_w5` dropped, rig down, lock `-s`, NRestarts checked. **But `show trace` (H1)** |
 | 6 | security | `exec` only in test code with fixed or derived arguments. The CLI password is in a 0600 file inside a 0700 directory and is removed. No secrets in the status files. No new routes |
 | 7 | transaction semantics | Rollback deletes attributes, then sub-interfaces (the Q1 fix, verified on the host and in unit tests) |
 | 8 | UI honesty | The table reads the real `/state/interfaces` and the candidate. Screenshots en and fa/RTL are real (headless Chrome, disclosed). No TODO, mock or stub |

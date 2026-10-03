@@ -17,7 +17,7 @@
 5. **`.prefault({})` instead of `.default({})`** on the root keys (D-016 below). Both emit `default: {}` in JSON
    Schema; only prefault fills nested field defaults on `RootConfig.parse({})`. Say so if you prefer `.default`.
 6. **OpenAPI component names** are `RootConfig` + `<Key>Config` (`InterfacesConfig` …); domain JSON Schemas carry
-   `default: {}` and `x-vrx-ui: { order }`. P06 (API) and the UI SchemaForm should build on these names —
+   `default: {}` and `x-ngfw-ui: { order }`. P06 (API) and the UI SchemaForm should build on these names —
    flag if a different convention is already assumed.
 
 ## Decisions taken (to be copied to docs/decisions/LOG.md by the manager)
@@ -25,6 +25,6 @@
 |---|---|---|---|---|---|---|
 | 2026-09-23 | D-016 | Root keys use `<Key>Schema.prefault({})`; domain schemas must accept `{}` | (a) `.default({})` (b) `.prefault({})` | (b) runs the domain schema so nested defaults are filled; identical JSON Schema | trivial | P02* |
 | 2026-09-23 | D-017 | Semantic validators live in `semantic/<key>.ts` (one array per domain) aggregated by `semantic/index.ts`; registry class + `validateSemantics()` | (a) one registry file all groups edit (b) per-domain arrays | (b) avoids three groups editing the same file | trivial | P02*, P06 |
-| 2026-09-23 | D-018 | `x-vrx-ui` hints via `withUi()` → Zod `.meta()`; Zod 4 copies meta into JSON Schema/OpenAPI | (a) side table of hints (b) `.meta()` | (b) zero extra plumbing, one source | low | P02*, UI |
+| 2026-09-23 | D-018 | `x-ngfw-ui` hints via `withUi()` → Zod `.meta()`; Zod 4 copies meta into JSON Schema/OpenAPI | (a) side table of hints (b) `.meta()` | (b) zero extra plumbing, one source | low | P02*, UI |
 | 2026-09-23 | D-019 | Placeholders use `z.looseObject({})` (Zod 4 name for passthrough) and root `z.strictObject` | (a) deprecated `.passthrough()`/`.strict()` (b) Zod 4 functions | same semantics, not deprecated | trivial | P02s |
 | 2026-09-23 | D-020 | Pointers/diff/merge-patch shipped as small working implementations (RFC 6901/6902 ops/7386), arrays are diff leaves | (a) throwing stubs (b) minimal working code | P02a/b/c can use them immediately; tests define the contract | low | P02a |

@@ -74,7 +74,7 @@ export function Mono({ children }: { children: ReactNode }) {
     <Box
       component="span"
       dir="ltr"
-      sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 13 }}
+      sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 13 }}
     >
       {children}
     </Box>

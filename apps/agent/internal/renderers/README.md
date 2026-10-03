@@ -16,7 +16,7 @@ apps/agent/internal/renderers/<daemon>/
   templates/*.tmpl             text/template sources, embedded with //go:embed
   testdata/*.golden            expected output per template path (go test -update to refresh)
   <daemon>_test.go             unit: golden files + hostile strings, RecordingRunner
-  <daemon>_integration_test.go integration: VRX_INTEGRATION=1, child daemon, slot port
+  <daemon>_integration_test.go integration: NGFW_INTEGRATION=1, child daemon, slot port
   README.md                    daemon specifics: paths, checker, reload channel, limitations
 docs/agent/renderers/<daemon>.md   desired state ↔ rendered directives table
 internal/renderers/ALLOWLIST.md    one row per binary you invoke (test-enforced)
@@ -106,18 +106,18 @@ Unit (`make test`, always on):
 - `RecordingRunner`: Validate/Apply issue exactly the expected argv; Apply restores the snapshot
   when the reload fails.
 
-Integration (`VRX_INTEGRATION=1`, `vpptest.SkipUnlessIntegration(t)`, `vpptest.LockLab(t)`), on
+Integration (`NGFW_INTEGRATION=1`, `vpptest.SkipUnlessIntegration(t)`, `vpptest.LockLab(t)`), on
 the shared host, following `docs/lab/shared-host-rules.md` §3 and §5:
 
 - **Never** the system unit, never `/etc/<daemon>` paths, never `systemctl` on a unit you do not
   own. Start the daemon as a **child process** with a test-scoped config dir and pidfile
   (`zebra -N <ns> -f <cfg>`, `kea-dhcp4 -c <cfg>`, `unbound -c <cfg>`, `chronyd -f <cfg> -x`,
   `snmpd -f -c <cfg> -p <pid> 127.0.0.1:<port>`, `keepalived -f <cfg>` inside a rig namespace).
-- Bind only to `127.0.0.1:<your slot port>` (envelope: `VRX_HTTP_PORT`-family ports, `w<N>`
+- Bind only to `127.0.0.1:<your slot port>` (envelope: `NGFW_HTTP_PORT`-family ports, `w<N>`
   prefix) or to rig veths inside `ns-<prefix>-*`; assert the rendered listen list before starting;
   never `ens192`.
 - The task envelope names the daemon you own (`daemon-owner:`); everybody else mocks or skips
   with `t.Skip`. Kill by the PID you spawned (`cmd.Process.Kill()` in `t.Cleanup`), never
   `pkill`. Leave the system unit stopped and disabled. `pgrep -f <your cfg dir>` must be empty
   after the run.
-- Redact secrets in fixtures: the literal `VRX_TEST_PSK_<id>`, never a real PSK.
+- Redact secrets in fixtures: the literal `NGFW_TEST_PSK_<id>`, never a real PSK.

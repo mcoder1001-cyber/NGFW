@@ -36,9 +36,9 @@ describe('Services → SNMP states (S-web-polish)', () => {
     const api = installFakeApi();
     api.on('GET /api/v1/config/candidate/services%2Fsnmp', {
       status: 422,
-      body: { type: 'https://vrx.dev/problems/validation', title: 'Validation failed', status: 422, detail: 'engine id is not hex', errors: [{ pointer: '/services/snmp/engineId', message: 'bad hex' }] },
+      body: { type: 'https://ngfw.dev/problems/validation', title: 'Validation failed', status: 422, detail: 'engine id is not hex', errors: [{ pointer: '/services/snmp/engineId', message: 'bad hex' }] },
     });
-    api.on('GET /api/v1/state/snmp', { status: 503, body: { type: 'https://vrx.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'snmpd is down' } });
+    api.on('GET /api/v1/state/snmp', { status: 503, body: { type: 'https://ngfw.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'snmpd is down' } });
     await signIn();
     render(app('/services?tab=snmp'));
     expect(await screen.findByText(/engine id is not hex/)).toBeInTheDocument();

@@ -39,7 +39,7 @@ is not part of the VR (DF-7-questions.md). Ownership: the VR's interface (claim 
 ## Host test gated (D-087)
 
 VPP crashed (SIGSEGV in `ip4_options_node_fn`) one second after this host test started VRs on its loopback while the
-IGMP host test ran in parallel (DF-7-questions Q9). It runs only with `VRX_DF7_VRRP_HOST=1`, alone, in a manager
+IGMP host test ran in parallel (DF-7-questions Q9). It runs only with `NGFW_DF7_VRRP_HOST=1`, alone, in a manager
 window, with `NRestarts` checked before and after.
 
 ## Wired by F-vrrp-config-sync

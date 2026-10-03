@@ -56,7 +56,7 @@ Dependencies always use the alias `interface/<name>` (D-065); `ipsec.itf` provid
   * P05/P08 must pass a **persisted** store (`WithBootStore(dfkit.NewFileBootStore(...))`, one per
     owner, shared by the DF-5 packages): with the in-memory default a restarted agent recognises
     none of its SPDs/SAs/bindings and fails to re-create them (it never deletes or adopts them).
-* `WithIDRange` additionally confines SPD / SA ids (tests: the slot's `VRX_VPP_TABLE_BASE..+499`;
+* `WithIDRange` additionally confines SPD / SA ids (tests: the slot's `NGFW_VPP_TABLE_BASE..+499`;
   production: the zero range = every id). Create refuses an id outside it.
 * **Deletes re-verify** (D-071, D-074): right before a delete by id or index each descriptor
   re-reads the object — SA by id (same SPI, our record), SPD (exists, our record), policy (still in
@@ -182,7 +182,7 @@ interfaces at reused indexes.
 ## Port and id scheme (tests)
 
 `20000 + 100*slot + k`: k=0 SA UDP encap (ipsec), k=1–2 IKEv2 ipsec-over-udp, k=10–11 WireGuard
-listen/peer ports. Never 500 / 4500 / 51820. Ids: `VRX_VPP_TABLE_BASE + 1…499` descriptors,
+listen/peer ports. Never 500 / 4500 / 51820. Ids: `NGFW_VPP_TABLE_BASE + 1…499` descriptors,
 `+500…599` the simulated charon of the sweep test.
 
 ## Tests
@@ -196,7 +196,7 @@ listen/peer ports. Never 500 / 4500 / 51820. Ids: `VRX_VPP_TABLE_BASE + 1…499`
   in-use via protection or our SPD, failing policy delete → SA never unlocked across two sweeps on a
   fake that models VPP's SA lock counting, ack gate), write-ahead records, legacy references, pasted
   plaintext never echoed, no material in output.
-* Host (`VRX_INTEGRATION=1`, shared lab lock, slot prefix, one package at a time): `TestIpsecOnHost`
+* Host (`NGFW_INTEGRATION=1`, shared lab lock, slot prefix, one package at a time): `TestIpsecOnHost`
   runs through **P05's reconciler** (`vpntest.Agent` = scheduler + DF-1 alias + these descriptors,
   persisted record store): apply → Retrieve == desired per object type (tagged and untagged
   loopback bindings, SAs, protect on an ipip fixture, itf) → in-place SA swap = 1 Update → same
@@ -204,6 +204,6 @@ listen/peer ports. Never 500 / 4500 / 51820. Ids: `VRX_VPP_TABLE_BASE + 1…499`
   record store = empty plan; a store without our records retrieves and adopts nothing; SA + NIC
   binding deleted via the API → plan = exactly their two creates → re-applied → empty → non-owner
   globals (backend requirement, async mode refused) → charon sweep → the empty desired state
-  deletes all of ours and nothing else. `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show`
+  deletes all of ours and nothing else. `NGFW_DF5_PAUSE=<s>` holds the objects for `vppctl show`
   evidence (VPP prints SA keys in `show ipsec sa <id>` detail — evidence is captured through a
   redaction filter).

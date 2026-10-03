@@ -7,27 +7,27 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
 // The render input (F-unbound-chrony-syslog). The agent drives chronyd through one singleton scheduler descriptor
 // (descriptor.go) whose Value is exactly this input: services.ntp while it is enabled. Render embeds the input in
-// sources.d/vrx.sources — the file chrony reloads at run time (`reload sources`), so an input change alone never
-// costs a restart — as `# vrx-input: <base64 of the deterministic protobuf encoding>`. Retrieve reads it back,
-// re-renders it and proves byte for byte that chrony.conf, vrx.sources and chrony.keys are exactly that rendering
+// sources.d/ngfw.sources — the file chrony reloads at run time (`reload sources`), so an input change alone never
+// costs a restart — as `# ngfw-input: <base64 of the deterministic protobuf encoding>`. Retrieve reads it back,
+// re-renders it and proves byte for byte that chrony.conf, ngfw.sources and chrony.keys are exactly that rendering
 // (the F-kea-dhcp-relay pattern, D-063).
 
 // Input returns the render input of ntp: ntp itself while it is enabled, else nil.
-func Input(ntp *vrxv1.NtpService) *vrxv1.NtpService {
+func Input(ntp *ngfwv1.NtpService) *ngfwv1.NtpService {
 	if !ntp.GetEnabled() {
 		return nil
 	}
-	return proto.Clone(ntp).(*vrxv1.NtpService)
+	return proto.Clone(ntp).(*ngfwv1.NtpService)
 }
 
-// InputOf is Input for any accepted renderer input (*vrxv1.DesiredState, *vrxv1.ServicesConfig, *vrxv1.NtpService).
-func InputOf(desired proto.Message) (*vrxv1.NtpService, error) {
+// InputOf is Input for any accepted renderer input (*ngfwv1.DesiredState, *ngfwv1.ServicesConfig, *ngfwv1.NtpService).
+func InputOf(desired proto.Message) (*ngfwv1.NtpService, error) {
 	in, err := extract(desired)
 	if err != nil {
 		return nil, err
@@ -35,14 +35,14 @@ func InputOf(desired proto.Message) (*vrxv1.NtpService, error) {
 	return Input(in.ntp), nil
 }
 
-const inputPrefix = "# vrx-input: "
+const inputPrefix = "# ngfw-input: "
 
 var (
-	inputLineRe = regexp.MustCompile(`(?m)^# vrx-input: ([A-Za-z0-9+/]*={0,2})$`)
+	inputLineRe = regexp.MustCompile(`(?m)^# ngfw-input: ([A-Za-z0-9+/]*={0,2})$`)
 	base64Re    = regexp.MustCompile(`^[A-Za-z0-9+/]*={0,2}$`)
 )
 
-func encodeInput(in *vrxv1.NtpService) (string, error) {
+func encodeInput(in *ngfwv1.NtpService) (string, error) {
 	if in == nil {
 		return "", nil
 	}
@@ -61,9 +61,9 @@ func b64(s string) (string, error) {
 	return s, nil
 }
 
-// EmbeddedInput reads the render input back from a rendered vrx.sources. ok is false for a file without one (the
+// EmbeddedInput reads the render input back from a rendered ngfw.sources. ok is false for a file without one (the
 // disabled rendering, or a file this renderer did not write).
-func EmbeddedInput(sources []byte) (*vrxv1.NtpService, bool, error) {
+func EmbeddedInput(sources []byte) (*ngfwv1.NtpService, bool, error) {
 	m := inputLineRe.FindAllSubmatch(sources, 2)
 	switch len(m) {
 	case 0:
@@ -76,7 +76,7 @@ func EmbeddedInput(sources []byte) (*vrxv1.NtpService, bool, error) {
 	if err != nil {
 		return nil, false, fmt.Errorf("chrony: render input: %w", err)
 	}
-	in := &vrxv1.NtpService{}
+	in := &ngfwv1.NtpService{}
 	if err := proto.Unmarshal(raw, in); err != nil {
 		return nil, false, fmt.Errorf("chrony: render input: %w", err)
 	}

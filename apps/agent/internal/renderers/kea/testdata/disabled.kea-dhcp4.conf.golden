@@ -7,13 +7,13 @@
     "control-sockets": [
       {
         "socket-type": "unix",
-        "socket-name": "/run/vrx-test/w0/kea/run/kea4.sock"
+        "socket-name": "/run/ngfw-test/w0/kea/run/kea4.sock"
       }
     ],
     "lease-database": {
       "type": "memfile",
       "persist": true,
-      "name": "/run/vrx-test/w0/kea/lib/leases4.csv",
+      "name": "/run/ngfw-test/w0/kea/lib/leases4.csv",
       "lfc-interval": 3600
     },
     "hooks-libraries": [
@@ -27,7 +27,7 @@
         "name": "kea-dhcp4",
         "output-options": [
           {
-            "output": "/run/vrx-test/w0/kea/log/kea-dhcp4.log",
+            "output": "/run/ngfw-test/w0/kea/log/kea-dhcp4.log",
             "maxsize": 10485760,
             "maxver": 4
           }
@@ -36,7 +36,7 @@
       }
     ],
     "user-context": {
-      "vrx": {
+      "ngfw": {
         "input": "WhUKEwoRCgNvZmYSCggAKgZlbnMxOTI=",
         "servers": [
           "off"

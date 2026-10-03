@@ -6,11 +6,11 @@ import (
 	"time"
 	_ "time/tzdata" // DST edges must not depend on the host's zoneinfo
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
-func recurring(days []string, start, end string) *vrxv1.Schedule {
-	return &vrxv1.Schedule{Type: ptr("recurring"), Days: days, Start: ptr(start), End: ptr(end)}
+func recurring(days []string, start, end string) *ngfwv1.Schedule {
+	return &ngfwv1.Schedule{Type: ptr("recurring"), Days: days, Start: ptr(start), End: ptr(end)}
 }
 
 func mustLoc(t *testing.T, name string) *time.Location {
@@ -59,7 +59,7 @@ func TestActiveDSTChange(t *testing.T) {
 	repeated := recurring(sunday, "02:15", "02:45") // inside the repeated hour on 25 Oct
 	spanning := recurring(sunday, "01:30", "03:30") // across the change
 	at := func(s string) time.Time { t, _ := time.Parse(time.RFC3339, s); return t }
-	check := func(name string, s *vrxv1.Schedule, utc string, want bool) {
+	check := func(name string, s *ngfwv1.Schedule, utc string, want bool) {
 		t.Helper()
 		got, err := Active(s, at(utc), berlin)
 		if err != nil || got != want {
@@ -89,7 +89,7 @@ func TestActiveDSTChange(t *testing.T) {
 
 func TestActiveOnce(t *testing.T) {
 	// a maintenance window written with an offset; instants are absolute, loc does not matter
-	w := &vrxv1.Schedule{Type: ptr("once"), Start: ptr("2026-10-01T22:00:00+03:30"), End: ptr("2026-10-02T02:00:00.5+03:30")}
+	w := &ngfwv1.Schedule{Type: ptr("once"), Start: ptr("2026-10-01T22:00:00+03:30"), End: ptr("2026-10-02T02:00:00.5+03:30")}
 	for _, c := range []struct {
 		at   string
 		want bool
@@ -110,7 +110,7 @@ func TestActiveOnce(t *testing.T) {
 
 func TestActiveInvalid(t *testing.T) {
 	now := time.Now()
-	for name, s := range map[string]*vrxv1.Schedule{
+	for name, s := range map[string]*ngfwv1.Schedule{
 		"nil-type":   {},
 		"bad-day":    recurring([]string{"mon", "xyz"}, "08:00", "09:00"),
 		"end≤start":  recurring([]string{"mon"}, "09:00", "09:00"),

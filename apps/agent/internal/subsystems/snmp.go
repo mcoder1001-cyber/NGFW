@@ -1,7 +1,7 @@
 package subsystems
 
 // F-snmp: the snmpd renderer stage (D-109 (d)) — one singleton scheduler descriptor `snmpd.config`
-// (key snmpd.config/vrx, domain `services`) wrapping RF-4's renderer, plus the VRX-MIB AgentX subagent
+// (key snmpd.config/ngfw, domain `services`) wrapping RF-4's renderer, plus the NGFW-MIB AgentX subagent
 // as background work owned by that descriptor (started when an enabled configuration is applied,
 // stopped by Delete). Choice logged in docs/status/tasks/F-snmp.md (options: this singleton / a shared
 // renderer stage in the agent core / an API-side commit hook).
@@ -17,7 +17,7 @@ package subsystems
 //
 // Secrets: communities and USM passphrases are D-051 refs. No API→agent secret channel exists yet
 // (docs/decisions/PENDING-secret-channel.md); until it does, refs resolve through a slot-local fixture
-// file (VRX_SNMP_FIXTURE_SECRETS, 0600, values `VRX_TEST_PSK_F-snmp_*` only) and are refused otherwise.
+// file (NGFW_SNMP_FIXTURE_SECRETS, 0600, values `NGFW_TEST_PSK_F-snmp_*` only) and are refused otherwise.
 
 import (
 	"bytes"
@@ -38,7 +38,7 @@ import (
 
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/renderers"
@@ -50,13 +50,13 @@ import (
 
 // Environment of the snmpd stage.
 const (
-	// EnvSnmpFixtureSecrets names the slot-local fixture secret file (JSON {"password/<n>": "VRX_TEST_PSK_F-snmp_…"}).
-	EnvSnmpFixtureSecrets = "VRX_SNMP_FIXTURE_SECRETS" //nolint:gosec // env var name, not a credential
+	// EnvSnmpFixtureSecrets names the slot-local fixture secret file (JSON {"password/<n>": "NGFW_TEST_PSK_F-snmp_…"}).
+	EnvSnmpFixtureSecrets = "NGFW_SNMP_FIXTURE_SECRETS" //nolint:gosec // env var name, not a credential
 	// EnvTestPrefix selects snmpd.TestPaths(<prefix>) and a pidfile controller: a slot agent never
 	// touches /etc/snmp or the system snmpd unit.
-	EnvTestPrefix = "VRX_TEST_PREFIX"
+	EnvTestPrefix = "NGFW_TEST_PREFIX"
 	// FixtureSecretPrefix is the only value prefix the fixture resolver accepts.
-	FixtureSecretPrefix = "VRX_TEST_PSK_F-snmp_" //nolint:gosec // fixture prefix, not a credential
+	FixtureSecretPrefix = "NGFW_TEST_PSK_F-snmp_" //nolint:gosec // fixture prefix, not a credential
 )
 
 // ErrNoSecretChannel is returned for every secret ref while no channel exists.
@@ -133,19 +133,19 @@ func (s *SnmpStage) KeyOf(proto.Message) scheduler.Key { return desired.SnmpKey 
 // Dependencies implements scheduler.Descriptor.
 func (s *SnmpStage) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
-func docOf(v *vrxv1.SnmpService) *vrxv1.DesiredState {
-	return &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Snmp: v}}
+func docOf(v *ngfwv1.SnmpService) *ngfwv1.DesiredState {
+	return &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Snmp: v}}
 }
 
 // Check is the projection's pre-transaction check (D-125): render + parse run, cached by content.
-func (s *SnmpStage) Check(v *vrxv1.SnmpService) error {
+func (s *SnmpStage) Check(v *ngfwv1.SnmpService) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	_, err := s.renderValidated(ctx, v)
 	return err
 }
 
-func (s *SnmpStage) renderValidated(ctx context.Context, v *vrxv1.SnmpService) (renderers.Files, error) {
+func (s *SnmpStage) renderValidated(ctx context.Context, v *ngfwv1.SnmpService) (renderers.Files, error) {
 	files, err := s.r.Render(ctx, docOf(v))
 	if err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (s *SnmpStage) renderValidated(ctx context.Context, v *vrxv1.SnmpService) (
 	return files, nil
 }
 
-func (s *SnmpStage) apply(ctx context.Context, v *vrxv1.SnmpService) error {
+func (s *SnmpStage) apply(ctx context.Context, v *ngfwv1.SnmpService) error {
 	files, err := s.renderValidated(ctx, v)
 	if err != nil {
 		return err
@@ -199,7 +199,7 @@ func (s *SnmpStage) apply(ctx context.Context, v *vrxv1.SnmpService) error {
 
 // Create implements scheduler.Descriptor.
 func (s *SnmpStage) Create(ctx context.Context, obj proto.Message) (any, error) {
-	v, ok := obj.(*vrxv1.SnmpService)
+	v, ok := obj.(*ngfwv1.SnmpService)
 	if !ok {
 		return nil, fmt.Errorf("snmpd.config: unexpected value %T", obj)
 	}
@@ -214,7 +214,7 @@ func (s *SnmpStage) Update(ctx context.Context, _, newObj proto.Message, _ any) 
 // Delete implements scheduler.Descriptor: the disabled rendering.
 func (s *SnmpStage) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	s.subagent(false)
-	if err := s.apply(ctx, &vrxv1.SnmpService{Enabled: proto.Bool(false)}); err != nil {
+	if err := s.apply(ctx, &ngfwv1.SnmpService{Enabled: proto.Bool(false)}); err != nil {
 		return err
 	}
 	if err := os.Remove(s.record); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -242,7 +242,7 @@ func (s *SnmpStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	return []scheduler.KV{{Key: desired.SnmpKey, Value: v}}, nil
 }
 
-func (s *SnmpStage) saveRecord(v *vrxv1.SnmpService) error {
+func (s *SnmpStage) saveRecord(v *ngfwv1.SnmpService) error {
 	raw, err := protojson.Marshal(v)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (s *SnmpStage) saveRecord(v *vrxv1.SnmpService) error {
 	return os.Rename(tmp, s.record)
 }
 
-func (s *SnmpStage) loadRecord() (*vrxv1.SnmpService, error) {
+func (s *SnmpStage) loadRecord() (*ngfwv1.SnmpService, error) {
 	raw, err := os.ReadFile(s.record)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -265,14 +265,14 @@ func (s *SnmpStage) loadRecord() (*vrxv1.SnmpService, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &vrxv1.SnmpService{}
+	v := &ngfwv1.SnmpService{}
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, v); err != nil {
 		return nil, fmt.Errorf("snmpd record %s: %w", s.record, err)
 	}
 	return v, nil
 }
 
-// subagent starts or stops the VRX-MIB subagent.
+// subagent starts or stops the NGFW-MIB subagent.
 func (s *SnmpStage) subagent(on bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -283,7 +283,7 @@ func (s *SnmpStage) subagent(on bool) {
 		s.subStop()
 		<-s.subDone
 		s.subStop, s.subDone, s.sub = nil, nil, nil
-		s.log.Info("VRX-MIB subagent stopped")
+		s.log.Info("NGFW-MIB subagent stopped")
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -293,7 +293,7 @@ func (s *SnmpStage) subagent(on bool) {
 		defer close(done)
 		sub.Run(ctx)
 	}(s.sub, s.subDone)
-	s.log.Info("VRX-MIB subagent started", "socket", s.r.Paths().AgentXSocket)
+	s.log.Info("NGFW-MIB subagent started", "socket", s.r.Paths().AgentXSocket)
 }
 
 // Close stops the subagent and unregisters the stage (agent shutdown).
@@ -399,5 +399,5 @@ func ifStatus(name string, d *ifapi.SwInterfaceDetails) snmpagent.IfStatus {
 	}
 }
 
-// AgentVersion is reported as vrxAgentVersion (set by the agent's main through -ldflags when it has one).
+// AgentVersion is reported as ngfwAgentVersion (set by the agent's main through -ldflags when it has one).
 var AgentVersion = "dev"

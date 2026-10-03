@@ -9,7 +9,7 @@ Additive only, per the task prompt and `docs/status/wave-A-hotspots.md` (C1–C5
 
 ## Schema (`packages/schema`)
 Sub-schemas in the new `src/domains/ext/rpf-adl-pbr.ts`; one key line under this task's anchor in each domain
-(`x-vrx-ui` group `rpf-adl-pbr` on all four):
+(`x-ngfw-ui` group `rpf-adl-pbr` on all four):
 
 | Path | Shape | Absent / defaults |
 |---|---|---|
@@ -26,7 +26,7 @@ exist), `routing.rpf-adl-pbr-path-family` (no policy mixes IPv4 and IPv6 next ho
 (policy and interface exist; attachment family = next-hop family), `routing.rpf-adl-pbr-attachment-unique`,
 `interfaces.rpf-adl-pbr-adl-vrf-exists`.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`)
 Numbers exactly as allocated in wave-A-hotspots §2: `Interface.urpf = 18`, `Interface.adl = 19`, `RoutingConfig.pbr = 11`,
 `ServicesConfig.auto_sdl = 8`. New messages in the `// ----- F-rpf-adl-pbr -----` section: `UrpfConfig`, `AdlConfig`,
 `PbrConfig`, `PbrPolicy`, `PbrPath`, `PbrAttachment`, `AutoSdlConfig` (every scalar `optional`, D-039). Sub-interfaces are

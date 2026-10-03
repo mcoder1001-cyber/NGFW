@@ -76,7 +76,7 @@ def load_report(path, expected_sha256):
     report = json.loads(content, object_pairs_hook=unique_object)
     if (not isinstance(report, dict)
             or set(report) != {'schema', 'source_commit', 'archive_bytes', 'sha256', 'launcher', 'files'}
-            or report['schema'] != 'vrx.recipient-helpers/v1'
+            or report['schema'] != 'ngfw.recipient-helpers/v1'
             or not isinstance(report['source_commit'], str)
             or not re.fullmatch('[0-9a-f]{40}', report['source_commit'])
             or type(report['archive_bytes']) is not int or not 0 < report['archive_bytes'] <= MAX_TAR
@@ -146,7 +146,7 @@ def launch(delivery, manifest, helpers, report_path, report_sha256, install=Fals
     launcher = read_regular(Path(__file__), MAX_HELPER)
     if len(launcher) != report['launcher']['size'] or hashlib.sha256(launcher).hexdigest() != report['launcher']['sha256']:
         raise ValueError('launcher differs from separately trusted report')
-    with tempfile.TemporaryDirectory(prefix='vrx-helpers-', dir='/var/tmp') as temporary:
+    with tempfile.TemporaryDirectory(prefix='ngfw-helpers-', dir='/var/tmp') as temporary:
         private = Path(temporary)
         unpack_helpers(helpers, report, private)
         command = ['/usr/bin/python3', '-I', str(private / 'deploy/debian/bundle/install.py'),

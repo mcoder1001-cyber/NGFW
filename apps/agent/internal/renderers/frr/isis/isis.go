@@ -1,4 +1,4 @@
-// Package isis renders `routing.isis` into FRR's `router isis vrx` block (the `isis` section of the RF-1 framework,
+// Package isis renders `routing.isis` into FRR's `router isis ngfw` block (the `isis` section of the RF-1 framework,
 // order 470 per docs/status/wave-BC-numbers.md, F-isis-rip) and its per-interface `ip router isis` / `isis …` lines
 // through the framework's interface-lines seam (S2), and reads IS-IS adjacencies back (`show isis vrf all neighbor
 // json` state reader, the `isis-adjacencies` poller). Canonical forms and open points: docs/agent/renderers/frr-isis.md.
@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/policy"
 )
@@ -32,7 +32,7 @@ const OrderISIS = 470
 const Name = "isis"
 
 // Tag is the FRR IS-IS instance name the agent owns.
-const Tag = "vrx"
+const Tag = "ngfw"
 
 func init() {
 	frr.RegisterSection(Section{})
@@ -74,7 +74,7 @@ var levels = map[string]struct {
 	"level-1-2": {"level-1-2", "level-1-2", 3},
 }
 
-func level(o *vrxv1.IsisConfig) (string, error) {
+func level(o *ngfwv1.IsisConfig) (string, error) {
 	l := o.GetLevel()
 	if l == "" {
 		l = "level-1-2"
@@ -85,8 +85,8 @@ func level(o *vrxv1.IsisConfig) (string, error) {
 	return l, nil
 }
 
-// Render returns the `router isis vrx` block for o (nil = IS-IS not configured).
-func Render(o *vrxv1.IsisConfig) ([]string, error) {
+// Render returns the `router isis ngfw` block for o (nil = IS-IS not configured).
+func Render(o *ngfwv1.IsisConfig) ([]string, error) {
 	if o == nil {
 		return nil, nil
 	}
@@ -120,7 +120,7 @@ func Render(o *vrxv1.IsisConfig) ([]string, error) {
 
 // redistribute renders `redistribute ipv4|ipv6 <src> level-N …` lines (FRR's route-type order, both families where the
 // source has an IPv6 twin under the same name).
-func redistribute(r *vrxv1.Redistribute, lvl string) ([]string, error) {
+func redistribute(r *ngfwv1.Redistribute, lvl string) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
@@ -137,7 +137,7 @@ func redistribute(r *vrxv1.Redistribute, lvl string) ([]string, error) {
 	var out []string
 	for _, src := range []struct {
 		name, v6 string
-		opt      *vrxv1.RedistributeOptions
+		opt      *ngfwv1.RedistributeOptions
 	}{
 		{"connected", "connected", r.GetConnected()}, {"static", "static", r.GetStatic()}, {"rip", "", r.GetRip()},
 		{"ospf", "", r.GetOspf()}, {"bgp", "bgp", r.GetBgp()},
@@ -169,7 +169,7 @@ func redistribute(r *vrxv1.Redistribute, lvl string) ([]string, error) {
 }
 
 // RenderInterfaces returns the IS-IS interface lines per Linux interface (nil = IS-IS not configured).
-func RenderInterfaces(o *vrxv1.IsisConfig, mapIf frr.InterfaceMapper) (map[string][]string, error) {
+func RenderInterfaces(o *ngfwv1.IsisConfig, mapIf frr.InterfaceMapper) (map[string][]string, error) {
 	if o == nil || len(o.GetInterfaces()) == 0 {
 		return nil, nil
 	}

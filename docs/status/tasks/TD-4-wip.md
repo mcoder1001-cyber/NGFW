@@ -13,7 +13,7 @@ Started 2026-09-24 15:35 (+0330), branch `task/TD-4` from `task/TD-2@4391a44` (s
 - Whole API e2e on slot 8: 71 passed, 3 skipped. Negative control for (3): old access token 200 with TD-2's `syncUsers`.
 - Generated outputs clean. CLI REPL e2e: the TD-4 test passes (P13's review test red since TD-2, questions 7).
 - main merged after TD-2 landed (`e16b0f0`); `TMPDIR=/tmp/g-w8 tools/ci.sh --base main` → CI GATE PASSED.
-- Slot clean: no processes, no vrx_w8, 0 Valkey keys, build outputs deleted.
+- Slot clean: no processes, no ngfw_w8, 0 Valkey keys, build outputs deleted.
 
 ## Next
 - Nothing left. Manager: review and merge.

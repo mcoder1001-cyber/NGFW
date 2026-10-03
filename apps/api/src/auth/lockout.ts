@@ -5,7 +5,7 @@ import type { Db } from '../db/db.js';
 import { appUser, type Role } from '../db/schema.js';
 import type { Valkey } from '../infra/valkey.js';
 
-/** A throttle never exceeds this (seconds), nor VRX_LOGIN_LOCKOUT_SEC. */
+/** A throttle never exceeds this (seconds), nor NGFW_LOGIN_LOCKOUT_SEC. */
 export const THROTTLE_CAP_SEC = 60;
 
 export type LockState = 'open' | 'locked' | 'throttled';
@@ -24,8 +24,8 @@ export interface LockSubject {
  * remote guesser locks the account only for its own address, never for the owner elsewhere (before: one lock per
  * account, and ~10 guesses per 15 min kept any account, the only admin included, locked for everyone).
  *
- * - `lkf:<uid>:<gen>:<client>` counts failures (sliding window VRX_LOGIN_LOCKOUT_SEC); at VRX_LOGIN_MAX_FAILURES
- *   `lk:<uid>:<gen>:<client>` = `lock` for VRX_LOGIN_LOCKOUT_SEC.
+ * - `lkf:<uid>:<gen>:<client>` counts failures (sliding window NGFW_LOGIN_LOCKOUT_SEC); at NGFW_LOGIN_MAX_FAILURES
+ *   `lk:<uid>:<gen>:<client>` = `lock` for NGFW_LOGIN_LOCKOUT_SEC.
  * - The LAST ADMIN is only throttled, never locked: when no other enabled admin could still log in from that client
  *   address (not locked there, not locked account-wide), the lock is `throttle` for 1, 2, 4 … ≤ 60 s instead. Decided
  *   atomically in one script together with the other admins' keys, so two parallel bursts cannot lock two admins.
@@ -70,14 +70,14 @@ export class Lockout {
             ),
           )
       : [];
-    const lockSec = this.env.VRX_LOGIN_LOCKOUT_SEC;
+    const lockSec = this.env.NGFW_LOGIN_LOCKOUT_SEC;
     const r = (await this.kv.eval(
       FAIL_SCRIPT,
       2 + others.length,
       k.fails,
       k.lock,
       ...others.map((o) => this.keys(o.id, o.gen, ip).lock),
-      String(this.env.VRX_LOGIN_MAX_FAILURES),
+      String(this.env.NGFW_LOGIN_MAX_FAILURES),
       String(lockSec),
       admin ? '1' : '0',
       String(Math.min(THROTTLE_CAP_SEC, lockSec)),

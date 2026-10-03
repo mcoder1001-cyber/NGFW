@@ -1,7 +1,7 @@
 # RF-1 — questions for the manager (work continued on the stated default)
 
 ## Q1 — proto: static-route `tag` and blackhole next hop are missing (D-055 stand-in used)
-`vrxv1.StaticRoute` has no `tag`; `vrxv1.NextHop` has no blackhole/reject kind (and the P02a schema refine demands
+`ngfwv1.StaticRoute` has no `tag`; `ngfwv1.NextHop` has no blackhole/reject kind (and the P02a schema refine demands
 address or interface). The task requires both. **Default taken:** `Render` also accepts a `*structpb.Struct`
 configuration document and reads the stand-ins at `routing.static[i].tag` and `routing.static[i].nextHops[j].blackhole`
 (`frr.Desired`, `frr.Extensions`). **Ask (P03b/P02a, additive):** `StaticRoute.tag` (uint32, 6) and
@@ -19,7 +19,7 @@ Route-count and future neighbour-state changes map to `EVENT_KIND_UNSPECIFIED` w
 `EVENT_KIND_ROUTING_CHANGE` (and P12 may want `EVENT_KIND_NEIGHBOR_STATE`).
 
 ## Q4 — who owns static routes: VPP descriptor or FRR staticd?
-The P02a schema comment says "Static routes … are programmed in VPP by vrx-agent" (descriptor, `ip_route_add_del`),
+The P02a schema comment says "Static routes … are programmed in VPP by ngfw-agent" (descriptor, `ip_route_add_del`),
 and RF-1 renders the same `routing.static` into staticd. With linux-cp/linux-nl (P12) a staticd route installed in
 the kernel is synced into VPP again → double programming of the same prefix. **Default taken:** the framework renders
 `routing.static` (as the task says), and P12 decides the ownership when it wires linux-nl (options: (a) VPP descriptor
@@ -32,9 +32,9 @@ frr rows. **Done:** added the frr rows (moved vtysh / frr-reload.py from *Planne
 `ip` and daemon rows); no other line changed. Other RF-* branches editing the same table may conflict textually on
 merge (append-only rows, trivial to resolve).
 
-## Q6 — `/run/frr/<prefix>` symlink outside `/run/vrx-test/<prefix>`
+## Q6 — `/run/frr/<prefix>` symlink outside `/run/ngfw-test/<prefix>`
 FRR 10.7 mgmtd binds its front/back-end sockets in `/var/run/frr/<pathspace>` regardless of `--vty_socket`. The
-harness creates `/run/frr/w12 → /run/vrx-test/w12/frr/run/w12` for the test's duration (refuses if the path exists
+harness creates `/run/frr/w12 → /run/ngfw-test/w12/frr/run/w12` for the test's duration (refuses if the path exists
 and is anything else; removed on Stop). It is pathspace-scoped (the system FRR uses `/run/frr` itself, never
 `/run/frr/w12`). Alternative would be a private mount namespace (`unshare -m` + bind mount), which needs a shell or
 a new helper in `helpers_exec.go`. Please confirm this is acceptable under shared-host-rules §5.
@@ -52,6 +52,6 @@ harness creates its own `ns-<prefix>-frr` (no VPP dependency: FRR tests should n
 - Q4: decided by D-072 (one programmer per route, default VPP). Implemented: `frr.StaticOwnedByFRR`; P05's static-route
   descriptor must call it and skip FRR-owned routes (please put that on P05's board entry).
 - Q5/Q6/Q7: accepted by the reviewer. Follow-up for P04/P09 (not RF-1): teach `tools/lab rig gc` / the nightly sweep
-  about `ns-<prefix>-frr`, `/run/frr/<prefix>` and `/run/vrx-test/<prefix>/frr.lock`.
+  about `ns-<prefix>-frr`, `/run/frr/<prefix>` and `/run/ngfw-test/<prefix>/frr.lock`.
 - New Q8: `Section.Render` now takes `*frr.RenderContext` (typed state, `MapInterface`, `Secret`) instead of
   `proto.Message` — a framework API change before any consumer exists (review M2 + interface-mapper exposure).

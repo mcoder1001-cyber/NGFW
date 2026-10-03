@@ -109,7 +109,7 @@ describe('F-global-blocking e2e (PostgreSQL + fake agent)', () => {
 
     const ex = await h.call(op, 'GET', '/api/v1/security/global-blocking/lists/bad/export');
     expect(ex.raw).toBe(
-      '# vrx block list bad (running, 3 entries)\n10.0.0.0/8\n192.0.2.7/32\n2001:db8::1/128\n',
+      '# ngfw block list bad (running, 3 entries)\n10.0.0.0/8\n192.0.2.7/32\n2001:db8::1/128\n',
     );
 
     setFakeAclCounters(h.fake, true);

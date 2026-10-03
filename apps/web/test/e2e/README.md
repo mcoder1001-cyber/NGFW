@@ -5,7 +5,7 @@ reproducible and cheap instead of a hand-rolled `shots.mjs` per feature (P08's s
 F-nat44-ed-sessions each wrote a private one — review F6).
 
 **`tools/app` is NOT this harness's target.** Everything here talks to your own slot's stack only (docs/lab/shared-host-rules.md):
-your own `vite` dev/preview port, your own API port, your own agent. Never point `--base`/`VRX_E2E_BASE` at 3000/8080/9101.
+your own `vite` dev/preview port, your own API port, your own agent. Never point `--base`/`NGFW_E2E_BASE` at 3000/8080/9101.
 
 ## Layout
 
@@ -43,47 +43,47 @@ apps/web/test/e2e/
 ## Running against your slot stack
 
 ```bash
-eval "$(tools/lab env <slot>)"                       # VRX_SLOT, VRX_TEST_PREFIX, VRX_HTTP_PORT, VRX_WEB_PORT, ...
-deploy/dev/pg-test.sh create "$VRX_TEST_PREFIX"       # once per fresh run; idempotent
-apps/cli/test/devstack.sh start                       # vrx-agent (owner = your prefix) + vrx-api on VRX_HTTP_PORT
-                                                       # prints nothing secret; admin password -> /run/vrx-test/<prefix>/admin.pw
+eval "$(tools/lab env <slot>)"                       # NGFW_SLOT, NGFW_TEST_PREFIX, NGFW_HTTP_PORT, NGFW_WEB_PORT, ...
+deploy/dev/pg-test.sh create "$NGFW_TEST_PREFIX"       # once per fresh run; idempotent
+apps/cli/test/devstack.sh start                       # ngfw-agent (owner = your prefix) + ngfw-api on NGFW_HTTP_PORT
+                                                       # prints nothing secret; admin password -> /run/ngfw-test/<prefix>/admin.pw
 pnpm --filter @ngfw/web build                         # or `pnpm --filter @ngfw/web dev` for a dev server instead of preview
 # `pnpm preview` FORKS the real vite server as a CHILD process — the $! below is the pnpm wrapper, not the
-# process actually listening on VRX_WEB_PORT. Killing only the wrapper at teardown leaves that child running and
+# process actually listening on NGFW_WEB_PORT. Killing only the wrapper at teardown leaves that child running and
 # the port "in use" for your next run. See the teardown block below, which stops the real listener by port.
-( cd apps/web && VRX_WEB_PORT=$VRX_WEB_PORT VRX_HTTP_PORT=$VRX_HTTP_PORT pnpm preview ) &
+( cd apps/web && NGFW_WEB_PORT=$NGFW_WEB_PORT NGFW_HTTP_PORT=$NGFW_HTTP_PORT pnpm preview ) &
 WEB_PID=$!
-# wait for it, e.g.: until curl -fsS "http://127.0.0.1:$VRX_WEB_PORT" >/dev/null 2>&1; do sleep 0.2; done
+# wait for it, e.g.: until curl -fsS "http://127.0.0.1:$NGFW_WEB_PORT" >/dev/null 2>&1; do sleep 0.2; done
 
-export VRX_PLAYWRIGHT_CORE=<path to an installed playwright-core>   # e.g. the npx cache; nothing is installed for you
-export VRX_CHROME=<path to a chrome-headless-shell binary>          # + LD_LIBRARY_PATH for its shared libs if needed
+export NGFW_PLAYWRIGHT_CORE=<path to an installed playwright-core>   # e.g. the npx cache; nothing is installed for you
+export NGFW_CHROME=<path to a chrome-headless-shell binary>          # + LD_LIBRARY_PATH for its shared libs if needed
 
 node apps/web/test/e2e/shots.mjs \
-  --base "http://127.0.0.1:$VRX_WEB_PORT" \
+  --base "http://127.0.0.1:$NGFW_WEB_PORT" \
   --screens interfaces,users \
   --out /tmp/shots-<slot> \
   --langs en,fa \
-  --admin-password-file "/run/vrx-test/$VRX_TEST_PREFIX/admin.pw"
+  --admin-password-file "/run/ngfw-test/$NGFW_TEST_PREFIX/admin.pw"
 
 # the P07b/ui-nav-collapse flow (unrelated to --screens; runs its own login/commit/rollback checks):
-VRX_E2E_BASE="http://127.0.0.1:$VRX_WEB_PORT" \
-VRX_E2E_ADMIN_PASSWORD_FILE="/run/vrx-test/$VRX_TEST_PREFIX/admin.pw" \
-VRX_TEST_PREFIX="$VRX_TEST_PREFIX" \
+NGFW_E2E_BASE="http://127.0.0.1:$NGFW_WEB_PORT" \
+NGFW_E2E_ADMIN_PASSWORD_FILE="/run/ngfw-test/$NGFW_TEST_PREFIX/admin.pw" \
+NGFW_TEST_PREFIX="$NGFW_TEST_PREFIX" \
   node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots /tmp/shots-<slot>
 
 # teardown — stop everything you started, by PID, and leave no state behind:
 # vite preview's REAL listener is a child of $WEB_PID (see the note above) — find it by the port it's actually
 # bound to, not by the wrapper's PID, and kill that. No pkill (docs/lab/shared-host-rules.md): this still targets
 # one specific PID, found from your own slot's own port.
-WEB_LISTEN_PID=$(ss -ltnp "sport = :$VRX_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
+WEB_LISTEN_PID=$(ss -ltnp "sport = :$NGFW_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
 [ -n "$WEB_LISTEN_PID" ] && kill "$WEB_LISTEN_PID"
 kill "$WEB_PID" 2>/dev/null   # the pnpm wrapper, if it's still around
 apps/cli/test/devstack.sh stop
-deploy/dev/pg-test.sh drop "$VRX_TEST_PREFIX"
-valkey-cli -h 127.0.0.1 -n "$VRX_VALKEY_DB" flushdb
-rm -rf "/run/vrx-test/$VRX_TEST_PREFIX"
+deploy/dev/pg-test.sh drop "$NGFW_TEST_PREFIX"
+valkey-cli -h 127.0.0.1 -n "$NGFW_VALKEY_DB" flushdb
+rm -rf "/run/ngfw-test/$NGFW_TEST_PREFIX"
 # verify — a run that "tore down" but left the port open blocks your own next run and looks like it needs pkill:
-ss -ltn "sport = :$VRX_WEB_PORT" | grep -q LISTEN && echo "WARNING: $VRX_WEB_PORT still open" || echo "port $VRX_WEB_PORT closed"
+ss -ltn "sport = :$NGFW_WEB_PORT" | grep -q LISTEN && echo "WARNING: $NGFW_WEB_PORT still open" || echo "port $NGFW_WEB_PORT closed"
 ```
 
 Both `shots.mjs` and `flow.e2e.mjs` exit non-zero on any failed check **or any browser `pageerror`** — a run that
@@ -99,18 +99,18 @@ they are not screen evidence for a feature, just the flow's own record.
 ## Environment / what is NOT a dependency
 
 Playwright is deliberately **not** a workspace package (00-CONTEXT: `pnpm test` is unit-only and packages may not be
-installed on the shared host). Every script here loads `playwright-core` from `VRX_PLAYWRIGHT_CORE` (point it at an
+installed on the shared host). Every script here loads `playwright-core` from `NGFW_PLAYWRIGHT_CORE` (point it at an
 existing install — e.g. the npx cache — never `pnpm add` it) and drives a Chrome-for-Testing `chrome-headless-shell`
-binary at `VRX_CHROME` (its shared libraries via `LD_LIBRARY_PATH` if it needs any that are not already on the
+binary at `NGFW_CHROME` (its shared libraries via `LD_LIBRARY_PATH` if it needs any that are not already on the
 host — `apt-get download` + `dpkg-deb -x` into a scratch dir, nothing installed system-wide, as P07a/P07b did). No new
 dependency is added by this harness.
 
 ## Rules this harness follows (docs/lab/shared-host-rules.md)
 
-- Every object your run creates (test users, revisions, ...) is prefixed with your slot's `VRX_TEST_PREFIX`.
+- Every object your run creates (test users, revisions, ...) is prefixed with your slot's `NGFW_TEST_PREFIX`.
 - Never `pkill`/`killall` — stop exactly the PIDs you started (`devstack.sh stop`, and for `vite preview`, the PID
-  actually bound to `VRX_WEB_PORT` — see the teardown snippet above, not just `$WEB_PID`).
+  actually bound to `NGFW_WEB_PORT` — see the teardown snippet above, not just `$WEB_PID`).
 - Never `show trace`/`trace add` (banned on the shared VPP, D-128) — this harness never touches VPP directly; it only
   drives the browser against the API/web stack.
 - Tear down everything before you finish: `devstack.sh stop`, drop your database, flush your Valkey db, remove
-  `/run/vrx-test/<prefix>`.
+  `/run/ngfw-test/<prefix>`.

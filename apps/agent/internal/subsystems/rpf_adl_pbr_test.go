@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/agent"
 	"ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/core/coretest"
@@ -71,7 +71,7 @@ func rpfServiceWith(t *testing.T, c vpp.Client, owner, dir string, log *slog.Log
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	scope, _ := subsystems.ResolveIDScope() // VRX_VPP_TABLE_BASE the tests set; empty (fail-closed) without it
+	scope, _ := subsystems.ResolveIDScope() // NGFW_VPP_TABLE_BASE the tests set; empty (fail-closed) without it
 	w, err := subsystems.Register(reg, subsystems.Env{Client: c, Owner: owner, StateDir: dir, Owned: owned, Log: log, IDs: scope})
 	if err != nil {
 		t.Fatal(err)
@@ -91,9 +91,9 @@ func rpfServiceWith(t *testing.T, c vpp.Client, owner, dir string, log *slog.Log
 	return svc
 }
 
-func parseDoc(t *testing.T, js string) *vrxv1.DesiredState {
+func parseDoc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("doc: %v", err)
 	}
@@ -102,7 +102,7 @@ func parseDoc(t *testing.T, js string) *vrxv1.DesiredState {
 
 // rpfDocs returns the test document and its canonical Retrieve form for owner prefix p (slot n,
 // tables base+1/base+2, loopbacks loop<n>01/loop<n>02).
-func rpfDocs(t *testing.T, n int, base uint32, l1, l2 string) (desired, canonical *vrxv1.DesiredState) {
+func rpfDocs(t *testing.T, n int, base uint32, l1, l2 string) (desired, canonical *ngfwv1.DesiredState) {
 	t.Helper()
 	js := fmt.Sprintf(`{
 	  "vrfs": {"red": {"id": %[2]d}, "allow": {"id": %[3]d}},
@@ -145,18 +145,18 @@ func rpfDocs(t *testing.T, n int, base uint32, l1, l2 string) (desired, canonica
 }
 
 // retrieveDomains Retrieves the three domains the test document uses.
-func retrieveDomains(t *testing.T, svc *agent.Service) *vrxv1.DesiredState {
+func retrieveDomains(t *testing.T, svc *agent.Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := svc.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	got, err := svc.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got.GetDesiredState()
 }
 
-func mustApplied(t *testing.T, resp *vrxv1.ApplyResponse, err error) {
+func mustApplied(t *testing.T, resp *ngfwv1.ApplyResponse, err error) {
 	t.Helper()
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %s", err, protojson.Format(resp))
 	}
 }
@@ -172,7 +172,7 @@ func fakeIdentity(t *testing.T, pid *int) {
 }
 
 func TestRpfAdlPbrOnFake(t *testing.T) {
-	t.Setenv("VRX_VPP_TABLE_BASE", "3000")
+	t.Setenv("NGFW_VPP_TABLE_BASE", "3000")
 	pid := 1000
 	fakeIdentity(t, &pid)
 	var logs syncBuffer
@@ -185,7 +185,7 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	desired, canonical := rpfDocs(t, 3, 3000, "loop301", "loop302")
 	ctx := context.Background()
 
-	resp, err := svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: desired})
+	resp, err := svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: desired})
 	mustApplied(t, resp, err)
 	urpfs, adls, policies, attach := v.RpfAdlPbrState()
 	if len(urpfs) != 3 || len(adls) != 1 || len(policies) != 2 || len(attach) != 2 {
@@ -206,13 +206,13 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	}
 	// idempotent: nothing sent but reads; the write-only allow-list is not re-added
 	calls := len(v.CallsNamed("adl_allowlist_enable_disable"))
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: desired})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: desired})
 	mustApplied(t, resp, err)
 	if len(resp.GetResults()) != 0 || len(v.CallsNamed("adl_allowlist_enable_disable")) != calls {
 		t.Fatalf("second apply changed something: %s", protojson.Format(resp))
 	}
 	// DryRun: the write-only ADL leaves are marked, nothing else is flagged
-	rep, err := svc.DryRun(ctx, &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	rep, err := svc.DryRun(ctx, &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %s", err, protojson.Format(rep))
 	}
@@ -232,7 +232,7 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	calls = len(v.CallsNamed("adl_allowlist_enable_disable"))
 	svc = rpfService(t, v, "w3", dir, log)
 	resp = svc.Resync(ctx)
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetCreated() == 0 {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync: %s", protojson.Format(resp))
 	}
 	if got := retrieveDomains(t, svc); !proto.Equal(got, canonical) {
@@ -252,16 +252,16 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	}
 
 	// validation failures carry pointers and change nothing
-	bad := proto.Clone(desired).(*vrxv1.DesiredState)
+	bad := proto.Clone(desired).(*ngfwv1.DesiredState)
 	bad.Interfaces["loop301"].Adl.DefaultAllow = proto.Bool(false)
-	bad.Routing.Pbr.Attachments = append(bad.Routing.Pbr.Attachments, &vrxv1.PbrAttachment{Policy: proto.String("nope"), Interface: proto.String("loop301"), Family: proto.String("ipv4")})
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "bad", DesiredState: bad})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_FAILED {
+	bad.Routing.Pbr.Attachments = append(bad.Routing.Pbr.Attachments, &ngfwv1.PbrAttachment{Policy: proto.String("nope"), Interface: proto.String("loop301"), Family: proto.String("ipv4")})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "bad", DesiredState: bad})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_FAILED {
 		t.Fatalf("invalid apply: %v %s", err, protojson.Format(resp))
 	}
 	var ptrs []string
 	for _, is := range resp.GetValidation().GetErrors() {
-		if is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			ptrs = append(ptrs, is.GetPointer()+" "+is.GetRule())
 		}
 	}
@@ -270,13 +270,13 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	}
 
 	// rollback to a document without the feature: attachments go before policies, uRPF/ADL cleared
-	plain := proto.Clone(desired).(*vrxv1.DesiredState)
+	plain := proto.Clone(desired).(*ngfwv1.DesiredState)
 	for _, itf := range plain.GetInterfaces() {
 		itf.Urpf, itf.Adl = nil, nil
 	}
-	plain.Routing = &vrxv1.RoutingConfig{}
+	plain.Routing = &ngfwv1.RoutingConfig{}
 	calls = len(v.CallsNamed("adl_allowlist_enable_disable"))
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: plain})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: plain})
 	mustApplied(t, resp, err)
 	urpfs, adls, policies, attach = v.RpfAdlPbrState()
 	if len(urpfs)+len(adls)+len(policies)+len(attach) != 0 {
@@ -312,7 +312,7 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 // TestRpfAdlPbrPolicyNamesPersist: the pbr.policy name records survive an agent restart, so Retrieve
 // names the policies VPP holds; a leftover policy of this owner without a record shows as "#<id>".
 func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
-	t.Setenv("VRX_VPP_TABLE_BASE", "3000")
+	t.Setenv("NGFW_VPP_TABLE_BASE", "3000")
 	pid := 1
 	fakeIdentity(t, &pid)
 	log := slog.New(slog.DiscardHandler)
@@ -321,7 +321,7 @@ func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
 	dir := t.TempDir()
 	svc := rpfService(t, v, "w3", dir, log)
 	desired, canonical := rpfDocs(t, 3, 3000, "loop301", "loop302")
-	resp, err := svc.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: desired})
+	resp, err := svc.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: desired})
 	mustApplied(t, resp, err)
 	svc.Close()
 	svc = rpfService(t, v, "w3", dir, log)
@@ -347,7 +347,7 @@ func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
 // the observe-only pbr.acl-ref bridge resolves a policy's ACL from the owner-tagged ACLs in VPP, and an ACL
 // VPP does not have is a dependency error with the policy's pointer.
 func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
-	t.Setenv("VRX_VPP_TABLE_BASE", "3000")
+	t.Setenv("NGFW_VPP_TABLE_BASE", "3000")
 	pid := 1
 	fakeIdentity(t, &pid)
 	log := slog.New(slog.DiscardHandler)
@@ -355,8 +355,8 @@ func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
 	svc := rpfServiceWith(t, v, "w3", t.TempDir(), log, false)
 	desired, canonical := rpfDocs(t, 3, 3000, "loop301", "loop302")
 	ctx := context.Background()
-	resp, err := svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "no-acl", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_FAILED {
+	resp, err := svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "no-acl", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_FAILED {
 		t.Fatalf("apply without the ACL in VPP: %v %s", err, protojson.Format(resp))
 	}
 	var missing []string
@@ -369,7 +369,7 @@ func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
 		t.Fatalf("dependency errors = %v (%s)", missing, protojson.Format(resp))
 	}
 	v.AddACL("w3:lan-b")
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "acl", DesiredState: desired})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "acl", DesiredState: desired})
 	mustApplied(t, resp, err)
 	if got := retrieveDomains(t, svc); !proto.Equal(got, canonical) {
 		t.Fatalf("Retrieve:\n got %s\nwant %s", protojson.Format(got), protojson.Format(canonical))
@@ -380,7 +380,7 @@ func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
 // acl.acl first (F-acl's registration ran before this task's): the bridge is not registered and nothing panics.
 // acl.acl after: the bridge is registered but inert — no aliases, no Retrieve result, no acl_dump sent.
 func TestACLBridgeRegistration(t *testing.T) {
-	t.Setenv("VRX_VPP_TABLE_BASE", "3000")
+	t.Setenv("NGFW_VPP_TABLE_BASE", "3000")
 	log := slog.New(slog.DiscardHandler)
 	env := func(t *testing.T, v *coretest.VPP) subsystems.Env {
 		dir := t.TempDir()

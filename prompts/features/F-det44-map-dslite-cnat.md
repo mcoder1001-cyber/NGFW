@@ -11,7 +11,7 @@ Reference: TNSR "CGNAT / MAP-T"; VPP plugins `det44`, `map`, `dslite`, `cnat`, `
   `nat.dslite{aftr{ipv6,ipv4?}, b4{ipv6,ipv4?}, pools[]}`, `nat.cnat{translations[], snat{policy, addresses, interfaces[], excludePrefixes[]}}`
   exist (D-043 M2/M3, `nat.cnat-valid`, `nat.prefixes-are-networks`). **PNAT has no schema** → contract addition below.
 - `docs/agent/descriptors/nat-common.md` first (D-071 globals owner, claims, D-063/D-076 write-only re-apply, D-080 boot identity,
-  cnat host lock `/run/lock/vrx-nat-cnat.lock`), then `det44.md`, `map.md`, `cnat.md`, `pnat.md`; packages
+  cnat host lock `/run/lock/ngfw-nat-cnat.lock`), then `det44.md`, `map.md`, `cnat.md`, `pnat.md`; packages
   `descriptors/{det44,mapnat,cnat,pnat}` (DF-3) and `natcommon` (shared, read-only for you)
 - **P08 + F-nat44-ed-sessions (merged)**: builders live in `apps/agent/internal/desired/`, registration + `Domains["nat"]` in
   `apps/agent/internal/subsystems/subsystems.go`, persisted NAT claims via `Wiring.KeyedClaims("nat")`, the hook in
@@ -20,7 +20,7 @@ Reference: TNSR "CGNAT / MAP-T"; VPP plugins `det44`, `map`, `dslite`, `cnat`, `
   run in parallel and appends to the same two places (anchors, see the envelope).
 - `apps/agent/binapi/dslite/` — **no DS-Lite descriptor exists** (DF-3 Q5): messages `dslite_set_aftr_addr`/`dslite_get_aftr_addr`,
   `dslite_set_b4_addr`/`dslite_get_b4_addr`, `dslite_add_del_pool_addr_range`/`dslite_address_dump` → build `descriptors/dslite`
-- `docs/vpp-code-track.md`: **V9** det44 disable segfaults → det44 is never disabled, host test opt-in `VRX_DF3_DET44=1`;
+- `docs/vpp-code-track.md`: **V9** det44 disable segfaults → det44 is never disabled, host test opt-in `NGFW_DF3_DET44=1`;
   **V10** cnat NULL default SNAT entry / `n_paths=0` → guards stay; **V11** pnat lazy-init crash + detach side effects → guarded calls,
   index via `pnat_bindings_get`; D-064 (crash rule, check `systemctl show vpp -p NRestarts` before/after), D-068, D-082
 

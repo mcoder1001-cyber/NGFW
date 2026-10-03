@@ -24,7 +24,7 @@ function app(path: string) {
 const STATE = {
   captures: [
     {
-      id: 'vrx-20260927T100000-1',
+      id: 'ngfw-20260927T100000-1',
       state: 'done',
       interface: 'loop501',
       direction: 'rx,tx',
@@ -77,7 +77,7 @@ describe('Tools → Packet capture (F-capture-trace)', () => {
     }));
     await signIn();
     render(app('/tools/capture'));
-    expect(await screen.findByText('vrx-20260927T100000-1')).toBeInTheDocument();
+    expect(await screen.findByText('ngfw-20260927T100000-1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
     fireEvent.change(screen.getByTestId('bpf'), { target: { value: 'host "x"' } });
     expect(screen.getByText(/Only the pcap-filter alphabet/)).toBeInTheDocument();

@@ -1,6 +1,6 @@
 # F-vrf-static-ecmp — verification of fix round 1 (focused)
 
-Reviewer: review agent (vrx-bot), 2026-09-25. Branch `task/F-vrf-static-ecmp` @ `8e779aad`. The original review is
+Reviewer: review agent (ngfw-bot), 2026-09-25. Branch `task/F-vrf-static-ecmp` @ `8e779aad`. The original review is
 `4435fcf`. The branch merged main (`266d1dc`, `4431c24` = main `f13b744`); the fixes are in `b7d45081` (agent),
 `5f619ae1` (API/web) and `9cdee9c8` (contract). Scope, per `F-vrf-static-ecmp.verify1.md`: my findings, the main merge
 and the contract commit. I made no host runs and changed no product code. The mutation tests ran on a `git archive`
@@ -59,7 +59,7 @@ mutations (scratch copy): walkSem removed → OneWalkAtATime FAIL (peak 6), Busy
                           refuseWithWorkers removed → TestPingRefusedWithWorkerThreads FAIL, TestVrfStaticEcmpRPCs FAIL
 ```
 
-Afterwards: no slot-2 database is left (`pg_database like 'vrx_w2%'` returns nothing), no vitest process is running,
+Afterwards: no slot-2 database is left (`pg_database like 'ngfw_w2%'` returns nothing), no vitest process is running,
 and the worktree is clean.
 
 ## Notes (non-blocking)
@@ -70,7 +70,7 @@ and the worktree is clean.
    assertion each: `FIB_ON_DEMAND` has no interval and `FIB_STATUS_POLL_MS ≥ 30 000`; `page=101&pageSize=1000` → 400;
    the init test.
 2. **M1 on the real VPP is not yet exercised.** If VPP ever reported more than one thread on a main-core-only VPP, ping
-   would be refused everywhere. The source says 1 on vrx-a, and the topology test's ping under `ci.sh full` confirms
+   would be refused everywhere. The source says 1 on ngfw-a, and the topology test's ping under `ci.sh full` confirms
    it at merge.
 3. **Merge note for the manager (D-112 squash):** main has moved on since `f13b744` (TD-7, TD-8, TD-20). Three feature
    files overlap:

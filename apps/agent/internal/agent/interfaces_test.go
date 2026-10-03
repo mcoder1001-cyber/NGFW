@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/interface_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -39,9 +39,9 @@ const canonicalIfDoc = `{
   }
 }`
 
-func retrieveIfs(t *testing.T, s *Service) *vrxv1.DesiredState {
+func retrieveIfs(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,9 +52,9 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "i1", DesiredState: doc(t, ifDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	byKey := map[string]*vrxv1.ObjectResult{}
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i1", DesiredState: doc(t, ifDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	byKey := map[string]*ngfwv1.ObjectResult{}
 	for _, r := range resp.GetResults() {
 		byKey[r.GetKey()] = r
 	}
@@ -81,23 +81,23 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	}
 	// Idempotent: an empty plan, only dumps.
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "i2", DesiredState: doc(t, ifDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i2", DesiredState: doc(t, ifDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
 	// The retrieved document re-applies as a no-op too (running-vs-actual has no drift).
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "i3", DesiredState: doc(t, canonicalIfDoc)})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i3", DesiredState: doc(t, canonicalIfDoc)})
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("re-applying the retrieved document changed %v", resp.GetResults())
 	}
 
 	// InterfaceState: the live table.
-	st, err := s.InterfaceState(context.Background(), &vrxv1.InterfaceStateRequest{})
+	st, err := s.InterfaceState(context.Background(), &ngfwv1.InterfaceStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	by := map[string]*vrxv1.InterfaceState{}
+	by := map[string]*ngfwv1.InterfaceState{}
 	for _, i := range st.GetInterfaces() {
 		by[i.GetName()] = i
 	}
@@ -112,7 +112,7 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	if lo := by["loop101"]; lo == nil || lo.GetType() != "loopback" || lo.GetAdminUp() {
 		t.Fatalf("loop101 state %v", lo)
 	}
-	if st, _ := s.InterfaceState(context.Background(), &vrxv1.InterfaceStateRequest{Names: []string{"loop101"}}); len(st.GetInterfaces()) != 1 {
+	if st, _ := s.InterfaceState(context.Background(), &ngfwv1.InterfaceStateRequest{Names: []string{"loop101"}}); len(st.GetInterfaces()) != 1 {
 		t.Fatalf("names filter %v", st)
 	}
 
@@ -120,7 +120,7 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	base := doc(t, ifDoc)
 	base.Interfaces["host-w1l0"].Mtu = nil
 	base.Interfaces["host-w1l0"].Ipv4 = nil
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "i4", DesiredState: base}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i4", DesiredState: base}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if v.MTU("host-w1l0") != 9000 {
 		t.Fatalf("MTU not restored to the default: %d", v.MTU("host-w1l0"))
 	}
@@ -130,11 +130,11 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	}
 
 	// Simulated loss of both host-interfaces (and the sub-interface) → resync re-creates everything.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "i5", DesiredState: doc(t, ifDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i5", DesiredState: doc(t, ifDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !v.DeleteHostInterface("w1l0") || !v.DeleteHostInterface("w1w0") {
 		t.Fatal("loss simulation")
 	}
-	if r := s.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
+	if r := s.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync %v", r)
 	}
 	if got, want := retrieveIfs(t, s), doc(t, canonicalIfDoc); !proto.Equal(got, want) {
@@ -145,7 +145,7 @@ func TestInterfacesDomainOnFake(t *testing.T) {
 	s.Close()
 	s2 := newSvc(t, v, dir)
 	v.Reset()
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated()+r.GetSummary().GetDeleted()+r.GetSummary().GetUpdated() != 1 {
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated()+r.GetSummary().GetDeleted()+r.GetSummary().GetUpdated() != 1 {
 		// the only operation is the tolerated MTU 9000 no-op (per-process memory, re-learned once)
 		t.Fatalf("restart resync %v", r)
 	}
@@ -164,8 +164,8 @@ func TestPhysicalInterfaceOnFake(t *testing.T) {
 	v.AddInterface("lan", "dpdk", "")
 	s := newSvc(t, v, t.TempDir())
 	d := `{"interfaces":{"lan":{"enabled":true,"mtu":1500}}}`
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, d)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, d)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !v.AdminUp("lan") || v.MTU("lan") != 1500 {
 		t.Fatalf("lan %s", v.Snapshot())
 	}
@@ -173,18 +173,18 @@ func TestPhysicalInterfaceOnFake(t *testing.T) {
 	if got == nil || !got.GetEnabled() || got.GetMtu() != 1500 {
 		t.Fatalf("Retrieve lan %v", got)
 	}
-	st, _ := s.InterfaceState(context.Background(), &vrxv1.InterfaceStateRequest{Names: []string{"lan"}})
+	st, _ := s.InterfaceState(context.Background(), &ngfwv1.InterfaceStateRequest{Names: []string{"lan"}})
 	if len(st.GetInterfaces()) != 1 || !st.GetInterfaces()[0].GetManaged() || st.GetInterfaces()[0].GetType() != "dpdk" {
 		t.Fatalf("lan state %v", st)
 	}
 	// Removing it from the document: attributes are released (admin down, MTU default), the NIC stays.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p2", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p2", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("lan"); !ok || v.AdminUp("lan") {
 		t.Fatalf("lan after removal %s", v.Snapshot())
 	}
 	// A NIC that does not exist: the alias fails, nothing is applied.
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "p3", DesiredState: doc(t, `{"interfaces":{"wan":{"enabled":true}}}`)})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p3", DesiredState: doc(t, `{"interfaces":{"wan":{"enabled":true}}}`)})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("missing NIC applied: %v", resp)
 	}
 }
@@ -195,19 +195,19 @@ func TestPhysicalInterfaceOnFake(t *testing.T) {
 func TestMtuToDefaultIsJournaled(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	withMtu := func(mtu uint32) *vrxv1.DesiredState {
+	withMtu := func(mtu uint32) *ngfwv1.DesiredState {
 		d := doc(t, `{"interfaces":{"host-w1l0":{"enabled":true,"ipv4":["10.1.1.1/24"]}}}`)
 		d.Interfaces["host-w1l0"].Mtu = proto.Uint32(mtu)
 		return d
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "m1", DesiredState: withMtu(1400)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m1", DesiredState: withMtu(1400)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if v.MTU("host-w1l0") != 1400 {
 		t.Fatalf("MTU %d", v.MTU("host-w1l0"))
 	}
 
 	// 1400 → 9000 (af_packet default): a recreate, VPP at the default, Retrieve reports 9000, re-apply is empty
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "m2", DesiredState: withMtu(9000)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m2", DesiredState: withMtu(9000)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var ops []string
 	for _, r := range resp.GetResults() {
 		ops = append(ops, r.GetKey()+":"+r.GetOp().String())
@@ -221,21 +221,21 @@ func TestMtuToDefaultIsJournaled(t *testing.T) {
 	if got := retrieveIfs(t, s).GetInterfaces()["host-w1l0"].GetMtu(); got != 9000 {
 		t.Fatalf("Retrieve mtu %d", got)
 	}
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "m3", DesiredState: withMtu(9000)}); len(r.GetResults()) != 0 {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m3", DesiredState: withMtu(9000)}); len(r.GetResults()) != 0 {
 		t.Fatalf("re-apply %v", r.GetResults())
 	}
 
 	// back to 1400, then 1400 → 9000 while VPP does not take the default (it keeps 8999): the create
 	// fails, the transaction rolls back and the journaled delete is undone — VPP has 1400 again
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "m4", DesiredState: withMtu(1400)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m4", DesiredState: withMtu(1400)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.SetMtuFilter(func(_ uint32, m [4]uint32) [4]uint32 {
 		if m[0] == 9000 {
 			m[0] = 8999
 		}
 		return m
 	})
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "m5", DesiredState: withMtu(9000)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "m5", DesiredState: withMtu(9000)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	v.SetMtuFilter(nil)
 	if v.MTU("host-w1l0") != 1400 {
 		t.Fatalf("after the rolled-back change to the default VPP has MTU %d, want the old 1400", v.MTU("host-w1l0"))
@@ -256,9 +256,9 @@ func TestRememberedDefaultThenChange(t *testing.T) {
 	v.Ifaces[idx].Mtu = [4]uint32{1500}
 	v.Ifaces[idx].RxMode = interface_types.RX_MODE_API_POLLING
 	s := newSvc(t, v, t.TempDir())
-	set := func(txn, attrs string, want vrxv1.ApplyStatus) []string {
+	set := func(txn, attrs string, want ngfwv1.ApplyStatus) []string {
 		t.Helper()
-		resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: txn, DesiredState: doc(t, `{"interfaces":{"lan":{"enabled":true,`+attrs+`}}}`)})
+		resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: doc(t, `{"interfaces":{"lan":{"enabled":true,`+attrs+`}}}`)})
 		mustStatus(t, resp, want)
 		var ops []string
 		for _, r := range resp.GetResults() {
@@ -266,7 +266,7 @@ func TestRememberedDefaultThenChange(t *testing.T) {
 		}
 		return ops
 	}
-	const applied, rolledBack = vrxv1.ApplyStatus_APPLY_STATUS_APPLIED, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK
+	const applied, rolledBack = ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK
 	converged := func(txn, attrs string, mtu uint32) {
 		t.Helper()
 		if v.MTU("lan") != mtu {
@@ -324,11 +324,11 @@ func TestRememberedDefaultThenChange(t *testing.T) {
 func TestAfPacketOnlyOnVeth(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"interfaces":{
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"interfaces":{
 	  "host-ens192":{"enabled":true,"ipv4":["10.1.9.1/24"]},
 	  "host-br-lab":{"enabled":true},
 	  "host-w1l0":{"enabled":true}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	rules := map[string]string{}
 	for _, e := range resp.GetValidation().GetErrors() {
 		rules[e.GetPointer()] = e.GetRule() + ": " + e.GetMessage()
@@ -346,8 +346,8 @@ func TestAfPacketOnlyOnVeth(t *testing.T) {
 	}
 
 	// missing netdev: validation passes, the Create guard refuses before VPP is asked
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, `{"interfaces":{"host-gone0":{"enabled":true}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, `{"interfaces":{"host-gone0":{"enabled":true}}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if !strings.Contains(resp.GetMessage(), `no Linux netdev "gone0"`) || len(v.CallsNamed("af_packet_create_v3")) != 0 {
 		t.Fatalf("missing netdev: %v (af_packet_create_v3 calls %d)", resp.GetMessage(), len(v.CallsNamed("af_packet_create_v3")))
 	}

@@ -3,9 +3,9 @@
 Branch `task/F-licensing` (base be53867). Cloud container run: no PostgreSQL, Valkey, VPP, agent or systemd.
 
 ## What was built
-- **Format + CLI** `tools/license/`: `.vrxlic` = `{format:"vrxlic/1", license:{version, licenseId, customer, issuedAt,
+- **Format + CLI** `tools/license/`: `.ngfwlic` = `{format:"ngfwlic/1", license:{version, licenseId, customer, issuedAt,
   notBefore, expiresAt, binding{machineIdHash?, serial?}, entitlements{features[], limits{}}}, signature}`; detached
-  Ed25519 over canonical JSON (keys sorted recursively). `vrx-license` (`vrx-license.mjs`, node:crypto only, shell shim):
+  Ed25519 over canonical JSON (keys sorted recursively). `ngfw-license` (`ngfw-license.mjs`, node:crypto only, shell shim):
   `keygen` (refuses to write inside a git repo, key 0600, prints paths), `issue`, `verify`, `inspect`. Canonical JSON is
   duplicated in `apps/api/src/features/licensing/format.ts`; `cli.test.ts` proves the API verifies what the CLI signs.
 - **API** `apps/api/src/features/licensing/`: `PUT /api/v1/system/license` (`@MinRole('admin')`, audited via the global
@@ -16,9 +16,9 @@ Branch `task/F-licensing` (base be53867). Cloud container run: no PostgreSQL, Va
   (warning in `warnings[]`, commit proceeds). No licence / invalid / expired past grace = `COMMUNITY` (one table,
   `entitlements.ts`, marked SAMPLE). **Grandfathering**: a node already in running never offends — expiry never forces
   removal of running config. Expiry: `system_event` subsystem `licensing`, codes `license.grace` / `license.expired`
-  (on transition; hourly timer + every status read). Licence stored as a file (`VRX_LICENSE_FILE`, default
-  `/var/lib/vrx/license.vrxlic`, atomic write 0640) — no DB table/migration. Public key embedded in
-  `licensing.config.ts` (placeholder; see questions); `VRX_LICENSE_PUBKEY_FILE` adds a dev/test key.
+  (on transition; hourly timer + every status read). Licence stored as a file (`NGFW_LICENSE_FILE`, default
+  `/var/lib/ngfw/license.ngfwlic`, atomic write 0640) — no DB table/migration. Public key embedded in
+  `licensing.config.ts` (placeholder; see questions); `NGFW_LICENSE_PUBKEY_FILE` adds a dev/test key.
 - **UI** `apps/web/src/domains/system/licensing/`: page (status chip, details, entitlement table, upload for admins),
   `LicenseBanner` in the shell (grace / expired / invalid; silent on errors), en + fa `locales/*/licensing.json`,
   nav item System → Licence, route `/system/licensing`.
@@ -70,10 +70,10 @@ upload, grace banner en + fa). eslint api/web: 0 errors; `tsc` api/web clean; `p
 
 CLI transcript (temp dir shown as `<tmp>`):
 ```
-signing key: <tmp>/keys/vrx-license-signing.pem
-public key:  <tmp>/keys/vrx-license-public.pem
-vrx-license: refusing to write a signing key inside a git repository (/home/user/wt/F-licensing/apps/x)
-issued LIC-DEMO-1 → <tmp>/a.vrxlic
+signing key: <tmp>/keys/ngfw-license-signing.pem
+public key:  <tmp>/keys/ngfw-license-public.pem
+ngfw-license: refusing to write a signing key inside a git repository (/home/user/wt/F-licensing/apps/x)
+issued LIC-DEMO-1 → <tmp>/a.ngfwlic
 signature OK; status valid (licence LIC-DEMO-1, expires 2027-09-25T09:04:39.898Z)
 INVALID: signature does not verify        (one byte of the customer changed)
 exit 1

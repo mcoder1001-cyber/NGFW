@@ -113,8 +113,8 @@ describe('VrrpInstanceSchema', () => {
 });
 
 const cluster = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
-  nodeName: 'vrx-a',
-  peers: [{ name: 'vrx-b', address: '192.168.10.3' }],
+  nodeName: 'ngfw-a',
+  peers: [{ name: 'ngfw-b', address: '192.168.10.3' }],
   secretRef: 'key/cluster',
   ...extra,
 });
@@ -132,7 +132,7 @@ describe('HaClusterSchema', () => {
   it.each([
     [
       'peer named like this node',
-      cluster({ peers: [{ name: 'vrx-a', address: '192.168.10.3' }] }),
+      cluster({ peers: [{ name: 'ngfw-a', address: '192.168.10.3' }] }),
       'peers.0.name',
     ],
     [
@@ -161,7 +161,7 @@ describe('HaClusterSchema', () => {
     ['secretRef of the wrong kind', cluster({ secretRef: 'psk/cluster' }), 'secretRef'],
     [
       'missing secretRef',
-      { nodeName: 'vrx-a', peers: [{ name: 'vrx-b', address: '10.0.0.1' }] },
+      { nodeName: 'ngfw-a', peers: [{ name: 'ngfw-b', address: '10.0.0.1' }] },
       'secretRef',
     ],
     ['bad port', cluster({ port: 70000 }), 'port'],

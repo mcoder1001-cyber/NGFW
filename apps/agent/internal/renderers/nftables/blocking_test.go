@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/nftables"
 	"ngfw/agent/internal/renderers/nftables/nftest"
 )
@@ -19,9 +19,9 @@ import (
 // b4_/b6_ sets; overlapping entries are reduced to the outermost prefix; lists without protectHost,
 // disabled or empty lists render nothing; anti-lockout accepts come first only with explicit sources.
 
-func gbDoc(t *testing.T, js string) *vrxv1.DesiredState {
+func gbDoc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -47,21 +47,21 @@ func TestBlockListsBuild(t *testing.T) {
 	if c.GetName() != nftables.BlockChain || c.GetHook() != "input" || c.GetPriority() != nftables.BlockPriority || c.GetPolicy() != "accept" || len(c.GetRules()) != 2 {
 		t.Fatalf("chain: %v", c)
 	}
-	if got := c.GetRules()[0].GetText(); got != `ip saddr @b4_bad counter log prefix "vrx:gb:bad " drop` {
+	if got := c.GetRules()[0].GetText(); got != `ip saddr @b4_bad counter log prefix "ngfw:gb:bad " drop` {
 		t.Fatalf("rule text %q", got)
 	}
-	if r := c.GetRules()[1]; r.GetText() != `ip6 saddr @b6_bad counter log prefix "vrx:gb:bad " drop` || r.GetKind() != nftables.KindGlobalBlocking || r.GetList() != "bad" {
+	if r := c.GetRules()[1]; r.GetText() != `ip6 saddr @b6_bad counter log prefix "ngfw:gb:bad " drop` || r.GetKind() != nftables.KindGlobalBlocking || r.GetList() != "bad" {
 		t.Fatalf("rule %v", r)
 	}
 	if len(v.GetSets()) != 2 || strings.Join(v.GetSets()[0].GetElements(), ",") != "10.0.0.0/8,192.0.2.7/32" || v.GetSets()[1].GetName() != "b6_bad" {
 		t.Fatalf("sets: %v", v.GetSets())
 	}
-	if _, err := nftables.RenderText("vrx", v); err != nil {
+	if _, err := nftables.RenderText("ngfw", v); err != nil {
 		t.Fatalf("render: %v", err)
 	}
 
 	// with host lists and anti-lockout sources: the block chain comes first and accepts management first
-	ds.Acl.HostSettings = &vrxv1.HostAclSettings{AntiLockout: &vrxv1.HostAclAntiLockout{Enabled: proto.Bool(true), Sources: []string{"192.0.2.0/24"}, Ports: []uint32{22}}}
+	ds.Acl.HostSettings = &ngfwv1.HostAclSettings{AntiLockout: &ngfwv1.HostAclAntiLockout{Enabled: proto.Bool(true), Sources: []string{"192.0.2.0/24"}, Ports: []uint32{22}}}
 	v, _ = nftables.Build(nftables.Input{ACL: ds.GetAcl()})
 	if c := v.GetChains()[0]; c.GetName() != nftables.BlockChain || c.GetRules()[0].GetKind() != nftables.KindAntiLockout || len(c.GetRules()) != 3 {
 		t.Fatalf("with anti-lockout: %v", c)
@@ -88,7 +88,7 @@ func manyHosts(n, skip int) string {
 	return b.String()
 }
 
-// Integration (VRX_INTEGRATION=1): a block list with the peer's address drops its connections to the box
+// Integration (NGFW_INTEGRATION=1): a block list with the peer's address drops its connections to the box
 // (the drop rule counts them); without it the peer connects; a 200 000-entry set applies in a measured
 // time and Retrieve == desired; a one-entry change re-applies.
 func TestIntegrationBlockListProtectsHost(t *testing.T) {

@@ -23,7 +23,7 @@ export interface AppProps {
 /** Providers in dependency order: server state → UI settings/theme/i18n → the single WebSocket → session → routes. */
 export function App({ router, streamUrl, queryClient, session = appSession }: AppProps) {
   const appRouter = useMemo(() => router ?? createAppRouter(), [router]);
-  // The stream authenticates with subprotocols (vrx.v1 + bearer.<access token>), read on every (re)connect.
+  // The stream authenticates with subprotocols (ngfw.v1 + bearer.<access token>), read on every (re)connect.
   const wsOptions = useMemo(() => ({ url: streamUrl ?? defaultStreamUrl(), protocols: () => streamProtocols(session) }), [streamUrl, session]);
   return (
     <QueryClientProvider client={queryClient ?? defaultQueryClient}>

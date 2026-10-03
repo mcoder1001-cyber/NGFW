@@ -63,7 +63,7 @@ slower):
 Method: `go test -overlay` with a scratch test, nothing written to the tree.
 
 Failure scenario: a commit, rollback or resync after a lost store with about 2 500 or more objects goes past the API's
-agent deadline (`VRX_AGENT_TIMEOUT_MS` = 60 s, `apps/api/src/config.ts:26`). The API returns 504 and records the commit as
+agent deadline (`NGFW_AGENT_TIMEOUT_MS` = 60 s, `apps/api/src/config.ts:26`). The API returns 504 and records the commit as
 failed or unknown while the agent keeps applying, so PostgreSQL and the agent diverge until the next resync. A restart
 with a lost store takes minutes.
 
@@ -77,7 +77,7 @@ Fix, owned files only:
 
 **F2 — Medium (required). A corrupt objects store stops the whole agent.**
 Code: `apps/agent/internal/objects/store.go:42`, test `descriptors_test.go` `TestStoreCorruptFailsClosed`.
-Failure scenario: after a torn write or disk error, `vrx-agent` does not start at all, so no domain converges and the data
+Failure scenario: after a torn write or disk error, `ngfw-agent` does not start at all, so no domain converges and the data
 plane is not rebuilt, all because of a cache.
 Fix: rename the file to `objects-<owner>.json.corrupt-<unix>`, log ERROR, start empty. The API's resync re-applies it, the
 same path the topology test proves. Flip the test to assert the move-aside and the empty Retrieve. (The claim stores fail
@@ -85,7 +85,7 @@ closed for a reason that does not apply here: they guard adoption and deletion o
 
 **F3 — Medium (required, cheap now, expensive after F-acl). The documented consumer pattern falls back to the applied store.**
 Code: `docs/agent/objects.md:21,32-38`, `objects/runtime.go:131`.
-Failure scenario: F-acl copies the example. A partial Apply (`vrx-agentctl`, tests) or a transaction with an explicitly
+Failure scenario: F-acl copies the example. A partial Apply (`ngfw-agentctl`, tests) or a transaction with an explicitly
 empty `objects` then expands ACL references against whatever was last applied. The resulting ACL is not a function of the
 request, and determinism breaks during a rebuild.
 Fix: document "expand from `ds.GetObjects()` whenever `objects` ∈ the transaction's domains (nil = empty); the product API
@@ -100,7 +100,7 @@ as `widget: 'object-picker'` with no help text. Once F-acl passes `objectModelWi
 objects* as an enum, and the correct ACL list cannot be chosen.
 Fix: when there is no `objectKinds` hint, no kinds in the help text and no known property name, render the plain field
 (delegate to `SchemaField` without an enum) instead of guessing. Add a test for `acl.attachments[].list`.
-Follow-up (manager or P02b, questions file): put explicit `x-vrx-ui.objectKinds` on every `object-picker` field in
+Follow-up (manager or P02b, questions file): put explicit `x-ngfw-ui.objectKinds` on every `object-picker` field in
 `objects.ts`/`acl.ts`. The widget already honours it, and parsing English help text is brittle.
 Low companion issue: while the objects query loads, or when a reference dangles, `enum` is `[]` or lacks the current
 value, and MUI renders the select blank. Always include the current value, labelled as missing.
@@ -169,7 +169,7 @@ Checked and fine:
   the owned `subsystems/object_model.go`, not from `agent.go`.
 - **No shell, no user input into resolv:** Go resolver with `PreferGo`. Nothing ever writes `/etc/resolv.conf` or daemon
   configuration. The configured FQDN goes only to `LookupNetIP` as a DNS name, and the schema `hostname` pattern plus Go's
-  name check bound it. `VRX_OBJECTS_DNS_SERVERS` is operator environment, parsed as `ip:port`.
+  name check bound it. `NGFW_OBJECTS_DNS_SERVERS` is operator environment, parsed as `ip:port`.
 - **Last-good:** kept per address family. An authoritative "no A" with AAAA answers clears v4, which is correct.
   NXDOMAIN or no records keeps the last-good answers (see F7).
 - **1 h dormancy:** sound. A rollback or a resync after a lost store gets the answers back without a query, and they are

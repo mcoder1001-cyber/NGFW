@@ -77,23 +77,23 @@ func TestCollect(t *testing.T) {
 		t.Fatal(err)
 	}
 	fam := parseFamilies(t, buf.Bytes())
-	if fam[`vrx_interface_rx_bytes_total{interface="w1-loop0"}`] != "100" {
+	if fam[`ngfw_interface_rx_bytes_total{interface="w1-loop0"}`] != "100" {
 		t.Fatalf("rx bytes: %v", fam)
 	}
-	if fam[`vrx_interface_rx_drops_total{interface="w1-loop0"}`] != "3" {
+	if fam[`ngfw_interface_rx_drops_total{interface="w1-loop0"}`] != "3" {
 		t.Fatal("drops")
 	}
-	if fam[`vrx_interface_admin_up{interface="w1-loop0"}`] != "1" || fam[`vrx_interface_link_up{interface="w1-weird\"if"}`] != "0" {
+	if fam[`ngfw_interface_admin_up{interface="w1-loop0"}`] != "1" || fam[`ngfw_interface_link_up{interface="w1-weird\"if"}`] != "0" {
 		t.Fatalf("admin/link or label escaping wrong: %v", fam)
 	}
-	if fam[`vrx_worker_vectors_per_call{worker="vpp_main"}`] != "1.5" {
+	if fam[`ngfw_worker_vectors_per_call{worker="vpp_main"}`] != "1.5" {
 		t.Fatal("worker")
 	}
-	if fam[`vrx_buffer_used_percent{pool="default-numa-0"}`] != "25" {
-		t.Fatalf("buffer pct: %v", fam[`vrx_buffer_used_percent{pool="default-numa-0"}`])
+	if fam[`ngfw_buffer_used_percent{pool="default-numa-0"}`] != "25" {
+		t.Fatalf("buffer pct: %v", fam[`ngfw_buffer_used_percent{pool="default-numa-0"}`])
 	}
 	// top-N ordering: highest count first (both present, count 9 and 2)
-	if fam[`vrx_node_errors_total{node="ip4-input",reason="checksum"}`] != "9" {
+	if fam[`ngfw_node_errors_total{node="ip4-input",reason="checksum"}`] != "9" {
 		t.Fatal("node errors")
 	}
 }
@@ -133,7 +133,7 @@ func TestHandlerAllowList(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "/metrics", nil)
 	req.RemoteAddr = "203.0.113.9:1"
 	open.ServeHTTP(rec, req)
-	if rec.code != 200 || !strings.Contains(rec.body.String(), "vrx_interface_rx_bytes_total") {
+	if rec.code != 200 || !strings.Contains(rec.body.String(), "ngfw_interface_rx_bytes_total") {
 		t.Fatalf("open handler: %d %q", rec.code, rec.body.String())
 	}
 }
@@ -150,7 +150,7 @@ func TestListenerServes(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != 200 || !strings.Contains(string(body), "vrx_worker_vectors_per_call") {
+	if resp.StatusCode != 200 || !strings.Contains(string(body), "ngfw_worker_vectors_per_call") {
 		t.Fatalf("listener: %d %q", resp.StatusCode, body)
 	}
 	r2, err := http.Get("http://" + l.Addr() + "/other")

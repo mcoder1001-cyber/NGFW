@@ -16,8 +16,8 @@ import { startHarness, type Harness } from '../support/harness.js';
  * session stops at a raised MFA policy; no shared secret / bind password / TOTP seed in GET config or audit rows.
  */
 const MP = { 'content-type': 'application/merge-patch+json' };
-const RSECRET = 'VRX_TEST_PSK_FAAA_RADIUS';
-const LSECRET = 'VRX_TEST_PSK_FAAA_LDAP';
+const RSECRET = 'NGFW_TEST_PSK_FAAA_RADIUS';
+const LSECRET = 'NGFW_TEST_PSK_FAAA_LDAP';
 const SEC_PW = 'W1sec-long-password-9';
 
 function decodePw(enc: Buffer, secret: string, auth: Buffer): string {
@@ -71,7 +71,7 @@ describe('F-aaa-login e2e (PostgreSQL + fake agent)', () => {
   };
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '200' });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: '200' });
     admin = await h.login('admin', h.adminPassword);
     h.app.get(AaaService).ldapFactory = () => ldapFake();
     radius = dgram.createSocket('udp4');

@@ -21,7 +21,7 @@ and pnat, and applied D-063/D-064/D-065.
 
 Every package has `Register(registry, client, owner)` (the entry point P05 wires), a unit test on
 `internal/vpp/fake` (create, idempotent re-apply, update/recreate, delete, dependencies, Retrieve decoding, foreign
-objects filtered, VPP errors) and a host integration test (`VRX_INTEGRATION=1`, shared lab lock, slot-prefixed
+objects filtered, VPP errors) and a host integration test (`NGFW_INTEGRATION=1`, shared lab lock, slot-prefixed
 objects, cleanup in `t.Cleanup`). Dependencies use `interface/<name>` (D-065) and `vrf/<id>` (optional).
 
 ## How it was verified (real output)
@@ -41,7 +41,7 @@ ok  	ngfw/agent/internal/descriptors/pnat	0.029s
 ```
 
 ### Host integration: all 8 packages, serial, on `/run/vpp/api.sock` (log `/root/ngfw-wt/logs/DF-3-integration.log`)
-Command: `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w9 VRX_SLOT=9 VRX_VPP_TABLE_BASE=9000 VRX_DF3_DET44=1 go test -p 1 -count=1 -v ./internal/descriptors/{nat44ed,nat44ei,nat64,nat66,det44,mapnat,cnat,pnat}/ -run OnHost`
+Command: `NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w9 NGFW_SLOT=9 NGFW_VPP_TABLE_BASE=9000 NGFW_DF3_DET44=1 go test -p 1 -count=1 -v ./internal/descriptors/{nat44ed,nat44ei,nat64,nat66,det44,mapnat,cnat,pnat}/ -run OnHost`
 (this ran at 403cd72; the only later commit is a lint annotation in the test harness). "plan … after re-apply: empty"
 is the **same-desired-state-twice → empty plan** check: Retrieve is `proto.Equal` to desired for every object.
 ```
@@ -386,7 +386,7 @@ exit=0
 1. **det44 disable crashes VPP** (`det44_plugin_disable`: a pool is iterated as a vector, and an unformat function is
    used as a format). The DF-3 det44 test triggered it twice (2026-09-23 16:03, first worker; 2026-09-24 00:19, this
    worker's first run) and systemd restarted VPP each time. **Fix:** `det44.enable` never sends a disable, and the
-   host test is opt-in (`VRX_DF3_DET44=1`, D-064). Also, a det44 interface delete re-enables the feature
+   host test is opt-in (`NGFW_DF3_DET44=1`, D-064). Also, a det44 interface delete re-enables the feature
    (`is_enable=1`).
 2. **cnat:** `cnat_set_snat_policy` and `cnat_snat_policy_add_del_exclude_pfx` dereference NULL without a default
    SNAT entry, and `cnat_translation_update` with n_paths=0 underflows. Guarded, never triggered.
@@ -415,7 +415,7 @@ exit=0
 - **D-DF3-4** map.interface key includes the mode (`map-e|map-t`), because VPP keeps two independent bitmaps.
 - **D-DF3-5** cnat translation write-only fields are not modelled rather than cached (D-063).
 - **D-DF3-6** scope follows the envelope (no npt66/dslite), per the precedence rule in 00-CONTEXT.
-- **D-DF3-7** test-only evidence hook `nattest.Pause` (`VRX_EVIDENCE_DIR`), so descriptors/tests never exec `vppctl`.
+- **D-DF3-7** test-only evidence hook `nattest.Pause` (`NGFW_EVIDENCE_DIR`), so descriptors/tests never exec `vppctl`.
 
 ## Open questions
 See `docs/status/tasks/DF-3-questions.md`: Q0 (det44 crash, V-item), Q4 (vrf_tables_v2 quirk), Q5 (npt66/dslite),
@@ -428,7 +428,7 @@ Q6 (write-only objects), Q7/Q8 (cnat/pnat hazards, V-items), Q9 (`ErrRetrieveUns
 
 Rules applied in this round: D-071 (globals owner, claim rule, re-verified deletes), D-069 (logical interface names via
 DF-1's `iface.ResolveName`), D-076 (idempotent write-only re-application), D-064 (NRestarts around host runs;
-`VRX_DF3_DET44` was never set). The semantics are written up once in `docs/agent/descriptors/nat-common.md`, which every
+`NGFW_DF3_DET44` was never set). The semantics are written up once in `docs/agent/descriptors/nat-common.md`, which every
 plugin doc links to.
 
 | Finding | Fix | Commit(s) | Evidence |
@@ -437,10 +437,10 @@ plugin doc links to.
 | **H2** interface-bound static/identity mappings retrieved twice under one key | `dedupeByName` keeps the interface-bound (to-resolve) record and collapses multi-local identity details (ED+EI). The generic `Descriptor.Retrieve` fails with `ErrDuplicateKey`, and `nattest.Apply`/`AssertPlan` fail on duplicate keys too | 9790a00 | fakes now dump the twins like VPP; `TestMappings` asserts one `srv` key with `ExternalSwIfIndex 2`; host: `nat44-ed.static-mapping` 4 objects incl. `ifmap` and EI `eiif` converge under the strict check |
 | **H3** pnat index recovery non-atomic; delete/attach by index unverified; duplicate tuples; cnat/map deletes by bare id | pnat: recovery accepted only when before/after `get(0)` snapshots are identical (retry, else `ErrUnstable`). `bindingAt` re-verifies live index + match + rewrite right before `pnat_binding_del` / `attach`, and `bindingIDAt` before detach. An attached binding is never deleted (`ErrAttached`). Duplicate tuples → `<id>#<index>` extras (`BindingSpec.Extra`). cnat translation Delete re-dumps and compares VIP/port/proto at the id. map domain/rule Delete re-checks the tag at the index; duplicate domain tags → `<name>#<index>` | 9790a00 | `TestRecoveryConcurrentDelete` (delete behind the recovery's back, stale-index delete not sent, duplicate extra deleted), `TestBindingAndAttachment` (attached binding refused), cnat `TestTranslation` (reused id not deleted), map `TestDeleteReverifies` |
 | **M4** globals claimed by every slot; tests reset to defaults | Globals: see H1. Tests run as non-owners: plugins are fixtures (`nattest.EnsurePlugin`: enable if off; disable only if this test enabled it **and** the plugin is empty). Globals are checked as requirements, and the values before/after are asserted equal, so nothing is reset. The cnat SNAT entry is a fixture created only when absent | 9790a00, cd63b88 | host log: "globals required only … unchanged (D-071)", "fixture: … disabled again (previous state restored)" |
-| **M5** production scope claims everything; Create accepts foreign interfaces | Claim rule: own tag → ours; any foreign tag → never; untagged (interfaces and untagged objects) → only via a `ClaimStore` record (`Item.NeedsClaim`; Create claims, Delete releases; slot ranges are a slot's standing claim). Create resolves interfaces with `ResolveOwned` = DF-1 `iface.ResolveName`, so foreign → `ErrForeignInterface`. Retrieve reports logical names (D-069) | 9790a00, 08d0af4 | `TestClaimRule` (foreign refused; `vrx` sees none of w9's objects; untagged NIC/pool only after claim), natcommon `TestScope`, `TestClaimsAndDuplicates` |
+| **M5** production scope claims everything; Create accepts foreign interfaces | Claim rule: own tag → ours; any foreign tag → never; untagged (interfaces and untagged objects) → only via a `ClaimStore` record (`Item.NeedsClaim`; Create claims, Delete releases; slot ranges are a slot's standing claim). Create resolves interfaces with `ResolveOwned` = DF-1 `iface.ResolveName`, so foreign → `ErrForeignInterface`. Retrieve reports logical names (D-069) | 9790a00, 08d0af4 | `TestClaimRule` (foreign refused; `ngfw` sees none of w9's objects; untagged NIC/pool only after claim), natcommon `TestScope`, `TestClaimsAndDuplicates` |
 | **M6** write-only enables silently ignore a VRF change | nat66/det44 remember the VRFs this process enabled with. A differing Create → `nat66.ErrVRFChange` / `det44.ErrVRFChangeUnsafe`. Enabled before this process → unverifiable (documented) | 9790a00 | nat66/det44 unit tests ("vrf change via create") |
 | **L7** pnat attachment Delete errors when nothing can be attached; interfaces_get single batch | Delete returns nil when no pnat interface exists (the crashing detach is still never sent). `pnatInterfaces` follows EAGAIN cursors | 9790a00 | `TestBindingAndAttachment` (fake fails if detach were sent) |
-| **L8** cnat guards check-then-act across processes; policy Delete on a foreign entry | Host-wide flock `/run/lock/vrx-nat-cnat.lock`: shared around guard+policy/exclude, exclusive around entry create/delete. Policy/entry are globals (non-owner Delete = no-op) | 9790a00 | cnat `TestSnat` (non-owner never deletes the entry or resets the policy) |
+| **L8** cnat guards check-then-act across processes; policy Delete on a foreign entry | Host-wide flock `/run/lock/ngfw-nat-cnat.lock`: shared around guard+policy/exclude, exclusive around entry create/delete. Policy/entry are globals (non-owner Delete = no-op) | 9790a00 | cnat `TestSnat` (non-owner never deletes the entry or resets the policy) |
 | **L9** branch does not merge | `git merge main` twice; go.mod/go.sum are main's | abb2ece, 6e81620 | `git diff main -- apps/agent/go.mod apps/agent/go.sum` empty |
 | D-069 / D-065 | interface refs stay `interface/<name>`; names are logical (owner-tag id / VPP name of untagged) | 08d0af4 | all unit + host tests |
 | D-076 | only `cnat.snat-exclude-prefix` is non-idempotent in VPP (refcount per add) → claim record `<key>@vpp<main-thread PID>` skips re-adds on the same VPP process and re-adds once after a restart. The other write-only Creates are idempotent in VPP (see nat-common.md). The fake models the duplicate add | 08d0af4 | `TestExcludePrefixIdempotentAcrossResyncs` (3 resyncs → 1 instance; restart → re-added once) |
@@ -504,8 +504,8 @@ ok  	ngfw/agent/internal/descriptors/mapnat	0.030s
 ```
 
 ### Host integration, all packages, non-owner (log `/root/ngfw-wt/logs/DF-3-r1-integration.log`)
-`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w9 VRX_SLOT=9 VRX_VPP_TABLE_BASE=9000 go test -p 1 -count=1 -v …{nat44ed,nat44ei,nat64,nat66,det44,mapnat,cnat,pnat}/ -run OnHost`
-(`VRX_DF3_DET44` unset, so det44 SKIP per D-064).
+`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w9 NGFW_SLOT=9 NGFW_VPP_TABLE_BASE=9000 go test -p 1 -count=1 -v …{nat44ed,nat44ei,nat64,nat66,det44,mapnat,cnat,pnat}/ -run OnHost`
+(`NGFW_DF3_DET44` unset, so det44 SKIP per D-064).
 ```
 $ git log --oneline -1: 7529e46 docs(DF-3): nat-common.md (D-071 globals, claim rule, unique keys, identity re-verification, D-076, host lock, test model); plugin docs updated
 restarts before: ActiveEnterTimestamp=Thu 2026-09-24 00:26:04 +0330 NRestarts=2 
@@ -560,7 +560,7 @@ ok  	ngfw/agent/internal/descriptors/nat64	0.280s
 --- PASS: TestNat66OnHost (0.14s)
 PASS
 ok  	ngfw/agent/internal/descriptors/nat66	0.163s
-    det44_integration_test.go:22: det44 host test is opt-in (D-064): set VRX_DF3_DET44=1
+    det44_integration_test.go:22: det44 host test is opt-in (D-064): set NGFW_DF3_DET44=1
 --- SKIP: TestDet44OnHost (0.00s)
 PASS
 ok  	ngfw/agent/internal/descriptors/det44	0.018s
@@ -792,15 +792,15 @@ exit=0
 
 ## Fix round 2: re-review `docs/status/tasks/DF-3-rereview.md` (56b39a9), verdict APPROVE WITH CHANGES
 
-Main was merged first (contracts-v1 and P03b `vrx.model.nat.v1`; per D-078 the descriptors keep their own specs and the
-build stays green). `VRX_DF3_DET44` was never set.
+Main was merged first (contracts-v1 and P03b `ngfw.model.nat.v1`; per D-078 the descriptors keep their own specs and the
+build stays green). `NGFW_DF3_DET44` was never set.
 
 | Finding | Fix | Commit | Evidence |
 |---|---|---|---|
 | **N1** MAP host test compares uninitialised `map_param_get` fields | The test compares only the fields VPP fills (`modelled()` → `ParamsSpec`). `map.md` notes the 4 uninitialised reply fields | e2397fb | 10× runs below (plus 10/10 earlier in the round): 0 failures |
 | **N2** excluded-prefix record outlives the default SNAT entry | Record `<key>@<entry identity>`: the D-080 boot identity (`natcommon.BootIdentity`: kernel boot_id, VPP main PID, `/proc/<pid>/stat` start time) + the entry fingerprint (addresses, interface) + an entry generation the owner bumps on every Set/Reset. A miss sends del+add (exactly one instance whatever VPP held). The superseded record is released (I2). Limitation: an external recreate with identical addresses has no VPP-observable identity (documented; D-071: only the owner mutates it) | e2397fb | unit `TestExcludePrefixIdempotentAcrossResyncs`; **host `TestCnatExcludeReaddOnHost`**: 3 resyncs → 1 add; entry deleted+recreated on the same VPP → re-added once; external recreate → re-added once; vppctl shows the prefix present |
 | **N3** `dedupeByName` merges different mappings sharing a tag | `natcommon.DedupeTagged` merges only the same mapping (static: local ip/port/proto/vrf; identity: proto/port). Others become `<name>#<n>` extras and are deleted. `#` is rejected in desired names. The fake deletes by endpoint like VPP | e2397fb | unit `TestSameTagDifferentMappings` |
-| **N4** fixture disable check-then-act | `nattest.EnsurePlugin` holds `/run/lock/vrx-nat-fixture-<plugin>.lock` shared for the test's lifetime and converts it to exclusive around `Empty` + disable | e2397fb | host log: "disabled again under the exclusive fixture lock" |
+| **N4** fixture disable check-then-act | `nattest.EnsurePlugin` holds `/run/lock/ngfw-nat-fixture-<plugin>.lock` shared for the test's lifetime and converts it to exclusive around `Empty` + disable | e2397fb | host log: "disabled again under the exclusive fixture lock" |
 
 ### Unit (`go test ./internal/descriptors/...`, DF-3 packages)
 ```
@@ -871,7 +871,7 @@ ok  	ngfw/agent/internal/descriptors/nat64	0.276s
 --- PASS: TestNat66OnHost (0.13s)
 PASS
 ok  	ngfw/agent/internal/descriptors/nat66	0.158s
-    det44_integration_test.go:22: det44 host test is opt-in (D-064): set VRX_DF3_DET44=1
+    det44_integration_test.go:22: det44 host test is opt-in (D-064): set NGFW_DF3_DET44=1
 --- SKIP: TestDet44OnHost (0.00s)
 PASS
 ok  	ngfw/agent/internal/descriptors/det44	0.025s

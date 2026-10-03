@@ -16,13 +16,13 @@ import (
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	vse "ngfw/agent/internal/actions/vrf-static-ecmp"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestFIBBrowser100kOnHost (VRX_INTEGRATION=1, shared lab lock): 100 000 prefixes inside 10.<slot>.0.0/16 in one table
+// TestFIBBrowser100kOnHost (NGFW_INTEGRATION=1, shared lab lock): 100 000 prefixes inside 10.<slot>.0.0/16 in one table
 // of the slot's range (base+100, named "<prefix>f:fib"), then ListRoutes pages of 1000: the timing of each page and the
 // size of the gRPC answer (only the page) are logged. Cleanup removes the routes first, then the table (V15). No tuning:
 // FAST MODE records the timing only.
@@ -115,7 +115,7 @@ func TestFIBBrowser100kOnHost(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		resp := &vrxv1.ListRoutesResponse{Routes: page.Routes, Total: page.Total, TableId: table, RetrievedAt: timestamppb.Now()}
+		resp := &ngfwv1.ListRoutesResponse{Routes: page.Routes, Total: page.Total, TableId: table, RetrievedAt: timestamppb.Now()}
 		t.Logf("ListRoutes offset=%d limit=%d prefix=%q source=%q: %d routes of total %d in %v; gRPC answer %d bytes (first %s, last %s)",
 			q.Offset, q.Limit, q.Prefix, q.Source, len(page.Routes), page.Total, took.Round(time.Millisecond), proto.Size(resp),
 			first(page), last(page))
@@ -188,7 +188,7 @@ func nRestarts(t *testing.T) string {
 
 func dialVPP(t *testing.T) *vpp.Conn {
 	t.Helper()
-	path := os.Getenv("VRX_VPP_API_SOCKET")
+	path := os.Getenv("NGFW_VPP_API_SOCKET")
 	if path == "" {
 		path = "/run/vpp/api.sock"
 	}

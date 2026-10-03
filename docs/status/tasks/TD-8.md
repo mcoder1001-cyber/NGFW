@@ -40,15 +40,15 @@ nothing until a feature uses it.
      outside `metrics.mu`, so a slow collector never blocks a transaction, with a 5 s deadline each on the request's
      context.
    - A collector's output is buffered. A collector that returns an error serves nothing and increments
-     `vrx_agent_metrics_collector_errors_total{collector}`.
+     `ngfw_agent_metrics_collector_errors_total{collector}`.
    - With no collector, the exposition is byte-identical to before.
 4. **The id range goes through Env and fails closed.**
-   - `subsystems.ResolveIDScope()` reads `VRX_VPP_TABLE_BASE=<base>` (base..base+999) or `VRX_VPP_ID_RANGE=all` (every
+   - `subsystems.ResolveIDScope()` reads `NGFW_VPP_TABLE_BASE=<base>` (base..base+999) or `NGFW_VPP_ID_RANGE=all` (every
      id).
    - `ConfigFromEnv` stores the result in `Config.IDs`. `Start` passes it on as `Env.IDs`, and families read it with
      `w.IDRange()`, which never reads the environment.
    - Neither variable set: the zero scope, so `w.IDRange()` returns `ErrNoIDRange` and start-up warns.
-   - Both variables set, a malformed base, or another `VRX_VPP_ID_RANGE` value: `Config.Validate` refuses to start.
+   - Both variables set, a malformed base, or another `NGFW_VPP_ID_RANGE` value: `Config.Validate` refuses to start.
    - `SlotIDRange()` is kept and now returns `ErrNoIDRange` when unset, instead of nil. Why "unset" does not refuse
      start-up yet: Q3.
    - The §12 text for `docs/lab/shared-host-rules.md` is below.
@@ -72,31 +72,31 @@ Files: `internal/agent/{agent,service,events,metrics}.go` (seam hunks), the new 
 
 ```markdown
 ## 11. VPP numeric id ranges: explicit, fail closed (TD-8)
-Every vrx-agent on this host has an explicit range for the VPP numeric ids its families allocate: FIB/VRF tables, SPD/SA ids,
+Every ngfw-agent on this host has an explicit range for the VPP numeric ids its families allocate: FIB/VRF tables, SPD/SA ids,
 policy, map and pool ids. No agent owns "every id" by default.
 
 | agent | setting | ids |
 |---|---|---|
-| worker slot N (1–11) | `VRX_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
-| CI slot 12 (`tools/ci.sh full`) | `VRX_VPP_TABLE_BASE=12000` | 12000–12999 |
-| `tools/app`: the integrated main build, owner `vrx`, `/run/vrx/agent.sock` | `VRX_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
-| the product agent on a box of its own (P10's unit) | `VRX_VPP_ID_RANGE=all` | every id |
+| worker slot N (1–11) | `NGFW_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
+| CI slot 12 (`tools/ci.sh full`) | `NGFW_VPP_TABLE_BASE=12000` | 12000–12999 |
+| `tools/app`: the integrated main build, owner `ngfw`, `/run/ngfw/agent.sock` | `NGFW_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
+| the product agent on a box of its own (P10's unit) | `NGFW_VPP_ID_RANGE=all` | every id |
 
-- `VRX_VPP_ID_RANGE=all` is never set on this shared host.
+- `NGFW_VPP_ID_RANGE=all` is never set on this shared host.
 - Neither variable set: the agent owns no id. Start-up logs a warning, and a family that allocates ids refuses to register,
   so the agent then does not start.
-- Both variables set, a malformed base, or any other `VRX_VPP_ID_RANGE` value: the agent refuses to start.
-- A harness that starts `vrx-agent` with a clean environment passes `VRX_VPP_TABLE_BASE` through.
+- Both variables set, a malformed base, or any other `NGFW_VPP_ID_RANGE` value: the agent refuses to start.
+- A harness that starts `ngfw-agent` with a clean environment passes `NGFW_VPP_TABLE_BASE` through.
 - Take VRF table ids typed by hand into tools/app from 13000–13999 too. The `vrf` descriptor does not check them.
 ```
 
 ## How verified
 
-All runs are unit-only (`VRX_INTEGRATION` unset), in `/root/ngfw-wt/TD-8`, 2026-09-24 18:25–19:30, at host load 15–40.
+All runs are unit-only (`NGFW_INTEGRATION` unset), in `/root/ngfw-wt/TD-8`, 2026-09-24 18:25–19:30, at host load 15–40.
 
 ### 1. The seam tests (`-race`)
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 -v -run 'TestStartWires|TestStartIDRange|TestConfigFromEnvIDRange|TestMetricsCollectors|TestDynamicSource|TestNewServiceRefuses|TestWatchVPPResyncsOnEveryConnect|TestMetricsExposition' ./internal/agent/
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 -v -run 'TestStartWires|TestStartIDRange|TestConfigFromEnvIDRange|TestMetricsCollectors|TestDynamicSource|TestNewServiceRefuses|TestWatchVPPResyncsOnEveryConnect|TestMetricsExposition' ./internal/agent/
 --- PASS: TestStartWiresFeatureEventsAndResync (0.46s)
 --- PASS: TestStartIDRangeFailsClosed (0.01s)
 --- PASS: TestConfigFromEnvIDRange (0.00s)
@@ -110,7 +110,7 @@ $ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 -v -run 'TestSt
 --- PASS: TestWatchVPPResyncsOnEveryConnect (0.12s)
 PASS
 ok  	ngfw/agent/internal/agent	2.629s
-$ env -u VRX_INTEGRATION go test -race -count=1 -v -run 'TestEventAndResync|TestSlotIDRange|TestWiringIDRange|TestAddDynamicSource|TestAddMetricsCollector' ./internal/subsystems/
+$ env -u NGFW_INTEGRATION go test -race -count=1 -v -run 'TestEventAndResync|TestSlotIDRange|TestWiringIDRange|TestAddDynamicSource|TestAddMetricsCollector' ./internal/subsystems/
 --- PASS: TestEventAndResyncHooksDefaultInert (0.00s)
 --- PASS: TestSlotIDRange (0.00s)
 --- PASS: TestWiringIDRangeFailsClosed (0.00s)
@@ -161,7 +161,7 @@ What each test covers:
     - `all` → every id;
     - base `3000` → 3000–3999;
     - both set, `ALL`, `1000-1999`, `0`, `x` → an error, no id, and `Validate` refuses.
-  - `TestWiringIDRangeFailsClosed`: a zero `Env.IDs` gives `ErrNoIDRange` even with `VRX_VPP_TABLE_BASE` set in the environment.
+  - `TestWiringIDRangeFailsClosed`: a zero `Env.IDs` gives `ErrNoIDRange` even with `NGFW_VPP_TABLE_BASE` set in the environment.
     The returned range is a copy.
   - `TestStartIDRangeFailsClosed`: a Config built in code gives `ErrNoIDRange`.
   - `TestDynamicSourceKeyOutsideItsDescriptorsFails`: the sync errors, and the config Apply is FAILED with `agent.dynamic-source`
@@ -215,7 +215,7 @@ Getting to that pass took several runs:
 - **Two earlier gates** failed only in `@ngfw/web#test`, at host load 28–41, on web tests TD-8 does not touch.
   `git diff df67a8e HEAD -- apps/web packages` is empty.
   - `App.test.tsx › code-splits the developer routes …` timed out in 30 s.
-  - `flows.test.tsx › redirects to /login?next=…` could not find `Sign in to VRX`. It also failed when run alone at load 37.
+  - `flows.test.tsx › redirects to /login?next=…` could not find `Sign in to NGFW`. It also failed when run alone at load 37.
     It passed in the final gate.
 
   These are the base's load-sensitive tests. The manager may want a timeout pass like `5204b81`.
@@ -251,7 +251,7 @@ only writer, and no state is persisted beyond the stored document.
 | finding | fix | tests |
 |---|---|---|
 | R1 HIGH: cold source cache flushes dynamic objects on restart | **Readiness gate.** Every source starts out of sync. It is in sync after its first successful sync: Run's first sync, or, for a source without Run, the sync `startSources` runs once after the first resync. A source that is out of sync takes part in no Apply, resync, revert or DryRun: no KVs, and its descriptors are out of scope. | probe E `TestDynamicSourceAgentRestartKeepsDynamicObjects` (`deleted:0`); `TestDynamicSourceStartAndRunFailure/no_Run` |
-| R2 HIGH: a dynamic object fails the commit or the post-restart resync | **Config-only fallback in `applySources`, under the same lock.** A source whose Desired panics, or returns a key outside its descriptors or a duplicate, is left out before the transaction runs. If the merged transaction then ends FAILED/ROLLED_BACK because of a dynamic key (plan issue, the first failed operation, or a Retrieve/verify error that names a source descriptor), the transaction runs **once** more without the sources. It does not rerun after DEGRADED or after a cancelled ctx. Each culprit is reported: a SKIPPED `ObjectResult` (key, source, cause; no pointer or subsystem), an `ERROR` event (`attributes.source/reason/key`, the txn id), and `vrx_agent_dynamic_source_errors_total{source,reason}` (`invalid`, `panic`, `rejected`, `stopped`; rendered only when sources exist). Every source left out is out of sync. The agent retries its sync with backoff (`retryMin` 5 s doubling to `retryMax` 60 s, one timer per source, stopped by `Close`). DryRun mirrors this at plan level with a WARNING issue `agent.dynamic-source-skipped`. | probe A `…DoesNotFailTheCommit`, probe B `…DoesNotRollBackTheResync`, `TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut` (was `…Fails`), `TestDynamicSourceLeftOutRejoinsThroughTheRetry` |
+| R2 HIGH: a dynamic object fails the commit or the post-restart resync | **Config-only fallback in `applySources`, under the same lock.** A source whose Desired panics, or returns a key outside its descriptors or a duplicate, is left out before the transaction runs. If the merged transaction then ends FAILED/ROLLED_BACK because of a dynamic key (plan issue, the first failed operation, or a Retrieve/verify error that names a source descriptor), the transaction runs **once** more without the sources. It does not rerun after DEGRADED or after a cancelled ctx. Each culprit is reported: a SKIPPED `ObjectResult` (key, source, cause; no pointer or subsystem), an `ERROR` event (`attributes.source/reason/key`, the txn id), and `ngfw_agent_dynamic_source_errors_total{source,reason}` (`invalid`, `panic`, `rejected`, `stopped`; rendered only when sources exist). Every source left out is out of sync. The agent retries its sync with backoff (`retryMin` 5 s doubling to `retryMax` 60 s, one timer per source, stopped by `Close`). DryRun mirrors this at plan level with a WARNING issue `agent.dynamic-source-skipped`. | probe A `…DoesNotFailTheCommit`, probe B `…DoesNotRollBackTheResync`, `TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut` (was `…Fails`), `TestDynamicSourceLeftOutRejoinsThroughTheRetry` |
 | R3 MEDIUM: panics | **Recovered.** Desired: `desiredOf` recovers and the source is left out (reason `panic`). A panic during a sync: recovered, and it also marks DEGRADED, because a descriptor that panics mid-transaction leaves no journal rollback. Run: recovered in the `startSources` goroutine. A Run that panics or returns before ctx is done stops its source until restart: out of sync, objects untouched, sync refused with FAILED_PRECONDITION. Collect: `runCollector` recovers, and the panic counts as a collector error. | probe C `TestDynamicSourcePanicIsContained`, `TestDynamicSourceStartAndRunFailure/{Run_panics,Run_returns_early}`, `TestMetricsCollectors` ("boom") |
 | R4 MEDIUM: the id range fails open for a family that ignores the error | `Wiring.IDRange()` and `SlotIDRange()` return `NoIDs()` = `&IDRange{Lo: 1, Hi: 0}` with the error. Converters: `ids.DF2()`/`ids.DF7()` (nil → nil = every id) and `ids.VPN()` (nil → zero = every id; empty or 0..0 → `{1,0}`, owns nothing). The df2/df7/vpn packages are unchanged: their `Owns`/`Contains` already treat Lo > Hi as owning nothing, and nil/zero must keep meaning "every id" for the product agent. `SlotIDRange` is marked `Deprecated` (Q4). | `TestWiringIDRangeFailsClosed` (direct casts and the converters), `TestSlotIDRange`, `TestStartIDRangeFailsClosed` |
 | R6 (low): sync from inside a transaction deadlocks | Refused at once with FAILED_PRECONDITION ("… inside a transaction …"). The guard compares goroutine ids (`goid()`, from the `runtime.Stack` header): the txn lock's holder, recorded only when sources exist, and the goroutines inside a Desired call, so DryRun is covered too. Documented on `SyncFunc`. | probe D `TestDynamicSourceSyncInsideATransactionRefused` (from Desired and from a descriptor Create) |
@@ -263,7 +263,7 @@ only writer, and no state is persisted beyond the stored document.
 | review note (`metrics.go`) | `writeCtx` renders the agent's families into a buffer before it writes, so a stalled scraper never holds `metrics.mu`, which `observe` takes under the txn lock. | `TestMetricsExposition`, `TestMetricsCollectors` |
 
 Behaviour notes:
-- `vrx_agent_objects` counts only the configuration's objects of the last transaction. Dynamic ones are no longer
+- `ngfw_agent_objects` counts only the configuration's objects of the last transaction. Dynamic ones are no longer
   included.
 - R10b (freeze `AddDynamicSource` after `Start`) is not done. It was not in the fix envelope, and
   `TestAddDynamicSourceValidation` reads the registry before it adds to it. It needs an explicit `Seal()` that
@@ -284,10 +284,10 @@ The review's probes fail on the pre-fix code. Command: `git archive ca435ec apps
 ```
 On `95d7dde`:
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
 ok  	ngfw/agent/internal/agent	13.575s
 ok  	ngfw/agent/internal/subsystems	1.166s
-$ env -u VRX_INTEGRATION go test -race -count=3 -run 'TestDynamicSource|TestRequestedResyncs' ./internal/agent/   → ok (9.4s)
+$ env -u NGFW_INTEGRATION go test -race -count=3 -run 'TestDynamicSource|TestRequestedResyncs' ./internal/agent/   → ok (9.4s)
 $ make lint                                                                                 → go vet clean, golangci-lint 0 issues
 ```
 - The probe-C nil-map write in the test is now an explicit `panic(...)` with the same message, because staticcheck
@@ -305,10 +305,10 @@ $ make lint                                                                     
 - **Q4:** `SlotIDRange` is marked `// Deprecated: …`.
 - **Q3, staged.** The flip "refuse start-up when no range is set" must merge before the first family that allocates
   ids. None of its pieces are in TD-8's files, so they are listed here for the manager:
-  1. `tools/app` (the integrated main build): `VRX_VPP_TABLE_BASE=13000`.
-  2. `test/topology/interfaces`: the harness must pass `VRX_VPP_TABLE_BASE` through to the `vrx-agent` it starts with a
+  1. `tools/app` (the integrated main build): `NGFW_VPP_TABLE_BASE=13000`.
+  2. `test/topology/interfaces`: the harness must pass `NGFW_VPP_TABLE_BASE` through to the `ngfw-agent` it starts with a
      clean environment.
-  3. P10's systemd unit: `VRX_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test.
+  3. P10's systemd unit: `NGFW_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test.
   4. Then `ConfigFromEnv` stops clearing `ErrNoIDRange` (`agent.go`, the `idsErr = nil` line) and start-up refuses.
 
   The §12 text above still applies.

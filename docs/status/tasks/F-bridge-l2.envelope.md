@@ -6,14 +6,14 @@ scope: the L2 model + its builder onto DF-1's l2/l3xc descriptors (incl. l2.vlan
 merged deps you can rely on: P08, DF-1
   - P08: desired/ Sink + Ptr + Assemble, subsystems registry + Wiring stores, projection.go, InterfaceState state-RPC pattern, test/topology/interfaces
   - DF-1: l2.bridge-domain/-member/xconnect/fib-entry/flags/vlan-tag-rewrite, l3xc.l3xc, interface/<name> alias, ClaimStore
-  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight; every new interface starts in L3 mode) and TD-2 (API auth/users follow-ups)
+  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/ngfw-vpp-preflight; every new interface starts in L3 mode) and TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-bridge-l2.md · docs/status/vertical-slice.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers; your ids: A1, A2, A6, A7, C1–C7, P1, P4, P5, W1, W2, W3, D1) · docs/agent/descriptors/{l2,l3xc,interface}.md · docs/decisions/LOG.md D-045, D-053, D-063, D-065, D-069, D-071, D-076, D-080, D-095, D-101, D-104
-slot: 7 → VRX_SLOT=7 VRX_TEST_PREFIX=w7 VRX_HTTP_PORT=3000+100·7 VRX_WEB_PORT=5000+100·7 VRX_METRICS_PORT=9100+10·7+1 VRX_AGENT_SOCKET=/run/vrx-test/w7/agent.sock VRX_PG_DATABASE=vrx_w7 VRX_VALKEY_DB=7 VRX_VPP_TABLE_BASE=7000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 7 → NGFW_SLOT=7 NGFW_TEST_PREFIX=w7 NGFW_HTTP_PORT=3000+100·7 NGFW_WEB_PORT=5000+100·7 NGFW_METRICS_PORT=9100+10·7+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w7/agent.sock NGFW_PG_DATABASE=ngfw_w7 NGFW_VALKEY_DB=7 NGFW_VPP_TABLE_BASE=7000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 7)"`
   - rig prefix w7 → 10.7.{1,2}.0/24
   - bridge-domain ids come from 7000–7999
   - mactime device names start with w7
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 L2 model placement (the manager fills this in before spawn, logged as a D-id): D-109 (c): per-member leaves Interface.l2 (14) / Subinterface.l2 (12) plus a NAMED CONTAINER for bridge-domain records inside an existing domain object (variant b; never a new root key — that would be a reshape, always-PENDING #1)
@@ -50,7 +50,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge). Inser
   - C1 packages/schema/src/domains/<file named by the placement answer>.ts: key lines
   - C3 packages/schema/src/index.ts: one export
   - C2 packages/schema/src/semantic/index.ts: one spread
-  - C5 packages/proto/vrx/v1/dataplane.proto: your numbers + the RPCs under the service anchor + a `// ----- F-bridge-l2 -----` message section
+  - C5 packages/proto/ngfw/v1/dataplane.proto: your numbers + the RPCs under the service anchor + a `// ----- F-bridge-l2 -----` message section
   - C6 docs/contracts/proto.md
   - P1 apps/api/src/app.module.ts
   - P4 apps/api/src/agent/agent.client.ts
@@ -76,20 +76,20 @@ files you must not touch:
   - sibling wave-A dirs: apps/agent/internal/descriptors/{bond,lldp,span,gso,nsim}/**, apps/web/src/domains/interfaces/{subinterfaces,bonding,loopback-bvi-gso-lldp-span}/**
 host rules:
   - bridge only w7 interfaces: loopbacks, the rig's host-w7…, their sub-interfaces, fixture taps
-  - V19 SAFETY: send no packets through the rig or a BD until TD-3's pre-flight (`go -C apps/agent run ./cmd/vrx-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces' sw_if_index
+  - V19 SAFETY: send no packets through the rig or a BD until TD-3's pre-flight (`go -C apps/agent run ./cmd/ngfw-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces' sw_if_index
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises
-  - with VRX_INTEGRATION=1, run one Go package at a time
+  - with NGFW_INTEGRATION=1, run one Go package at a time
   - hold `flock -s` on the lab lock only during a run (D-094)
 evidence: Playwright is not installed. Take the UI screenshot with the headless Chrome approach of P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`), kept outside the product code, and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-bridge-l2.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-bridge-l2-wip.md current
-CI: `TMPDIR=/tmp/g-w7 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w7 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-bridge-l2.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup:
   - stop every process you started (API/agent/vite), by PID
   - lab lock released
-  - vrx_w7 dropped
+  - ngfw_w7 dropped
   - your rig removed
   - no w7 BDs, cross-connects, l3xc or mactime devices left (dump pasted)
   - dist/ and apps/agent/bin removed

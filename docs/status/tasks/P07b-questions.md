@@ -23,9 +23,9 @@
 6. **Playwright is not a workspace dependency**: `apps/web/test/e2e/flow.e2e.mjs` loads `playwright-core` and a
    Chrome binary from env paths (as P07a's screenshots did). Add `@playwright/test` + a pinned browser to the lab image
    if E2E should run in `tools/ci.sh full`.
-7. **Slot leftovers I could not delete** (the permission prompt denied `rm` under /run): `/run/vrx-test/w1/{admin.pw,
-   jwt.key,agent-state/}` (random dev secrets, tmpfs, 0600). Database `vrx_w1` is dropped and the Valkey keys
-   `vrx:w1:*` are deleted. Please remove `/run/vrx-test/w1` or allow it.
+7. **Slot leftovers I could not delete** (the permission prompt denied `rm` under /run): `/run/ngfw-test/w1/{admin.pw,
+   jwt.key,agent-state/}` (random dev secrets, tmpfs, 0600). Database `ngfw_w1` is dropped and the Valkey keys
+   `ngfw:w1:*` are deleted. Please remove `/run/ngfw-test/w1` or allow it.
 8. Redacted-only edits are invisible in the diff: changing only a user's `passwordHash` leaves the redacted diff empty,
    so the pending-change bar does not appear although the candidate differs. Should `/config/diff` report
    `{op:'replace', pointer, redacted:true}` for write-only members?

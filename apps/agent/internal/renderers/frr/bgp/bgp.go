@@ -25,7 +25,7 @@ import (
 	"slices"
 	"strconv"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/policy"
@@ -73,11 +73,11 @@ type peer interface {
 	GetKeepaliveSec() uint32
 	GetHoldTimeSec() uint32
 	GetBfd() bool
-	GetAfi() *vrxv1.BgpAfi
+	GetAfi() *ngfwv1.BgpAfi
 }
 
 // Render returns the `router bgp` block for b (nil = BGP not configured).
-func Render(b *vrxv1.BgpConfig, rc Secrets) ([]string, error) {
+func Render(b *ngfwv1.BgpConfig, rc Secrets) ([]string, error) {
 	if b == nil {
 		return nil, nil
 	}
@@ -168,10 +168,10 @@ type neighbor struct {
 	key  string // document key
 	addr string // canonical address
 	ip   netip.Addr
-	cfg  *vrxv1.BgpNeighbor
+	cfg  *ngfwv1.BgpNeighbor
 }
 
-func sortedNeighbors(m map[string]*vrxv1.BgpNeighbor, path policy.Path) ([]neighbor, error) {
+func sortedNeighbors(m map[string]*ngfwv1.BgpNeighbor, path policy.Path) ([]neighbor, error) {
 	out := make([]neighbor, 0, len(m))
 	seen := map[netip.Addr]string{}
 	for k, v := range m {
@@ -195,7 +195,7 @@ func peerLines(id string, p peer, path policy.Path, rc Secrets) ([]string, error
 	add := func(format string, a ...any) {
 		out = append(out, fmt.Sprintf(" neighbor %s "+format, append([]any{id}, a...)...))
 	}
-	if _, isGroup := p.(*vrxv1.BgpPeerGroup); isGroup && p.GetRemoteAs() != 0 {
+	if _, isGroup := p.(*ngfwv1.BgpPeerGroup); isGroup && p.GetRemoteAs() != 0 {
 		add("remote-as %d", p.GetRemoteAs())
 	}
 	if d := p.GetDescription(); d != "" {
@@ -262,20 +262,20 @@ type afi struct {
 	key   string // document key
 	frr   string // FRR address-family keyword
 	is6   bool
-	get   func(*vrxv1.BgpAfi) *vrxv1.BgpAddressFamily
+	get   func(*ngfwv1.BgpAfi) *ngfwv1.BgpAddressFamily
 	plFam string
 }
 
 var (
-	afiIPv4 = afi{key: "ipv4Unicast", frr: "ipv4 unicast", get: (*vrxv1.BgpAfi).GetIpv4Unicast, plFam: "ipv4"}
-	afiIPv6 = afi{key: "ipv6Unicast", frr: "ipv6 unicast", is6: true, get: (*vrxv1.BgpAfi).GetIpv6Unicast, plFam: "ipv6"}
+	afiIPv4 = afi{key: "ipv4Unicast", frr: "ipv4 unicast", get: (*ngfwv1.BgpAfi).GetIpv4Unicast, plFam: "ipv4"}
+	afiIPv6 = afi{key: "ipv6Unicast", frr: "ipv6 unicast", is6: true, get: (*ngfwv1.BgpAfi).GetIpv6Unicast, plFam: "ipv6"}
 )
 
 // afBlock renders one `address-family … exit-address-family` block, or nothing when it has no content.
-func afBlock(af afi, b *vrxv1.BgpConfig, groups []string, nbrs []neighbor) ([]string, error) {
+func afBlock(af afi, b *ngfwv1.BgpConfig, groups []string, nbrs []neighbor) ([]string, error) {
 	var in []string
 	nets := slices.Clone(b.GetNetworks())
-	slices.SortStableFunc(nets, func(x, y *vrxv1.BgpNetwork) int { return cmp.Compare(x.GetPrefix(), y.GetPrefix()) })
+	slices.SortStableFunc(nets, func(x, y *ngfwv1.BgpNetwork) int { return cmp.Compare(x.GetPrefix(), y.GetPrefix()) })
 	var pfxs []netip.Prefix
 	for i, n := range nets {
 		path := policy.P("routing", "bgp", "networks").Index(i)
@@ -347,14 +347,14 @@ func sortByPrefix(lines []string, pfxs []netip.Prefix) {
 }
 
 // redistribute renders `redistribute <source> [metric N] [route-map R]` in FRR's source order.
-func redistribute(r *vrxv1.Redistribute) ([]string, error) {
+func redistribute(r *ngfwv1.Redistribute) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
 	var out []string
 	for _, src := range []struct {
 		name string
-		opt  *vrxv1.RedistributeOptions
+		opt  *ngfwv1.RedistributeOptions
 	}{
 		{"connected", r.GetConnected()}, {"static", r.GetStatic()}, {"rip", r.GetRip()},
 		{"ospf", r.GetOspf()}, {"isis", r.GetIsis()},
@@ -381,7 +381,7 @@ func redistribute(r *vrxv1.Redistribute) ([]string, error) {
 }
 
 // peerAF renders one peer's lines inside an address family; active reports whether the peer activates it.
-func peerAF(id string, af afi, a *vrxv1.BgpAfi, path policy.Path) ([]string, bool, error) {
+func peerAF(id string, af afi, a *ngfwv1.BgpAfi, path policy.Path) ([]string, bool, error) {
 	f := af.get(a)
 	if f == nil || (f.Enabled != nil && !f.GetEnabled()) {
 		return nil, false, nil

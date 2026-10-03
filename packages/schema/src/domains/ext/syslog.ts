@@ -8,7 +8,7 @@ import { withUi } from '../../ui.js';
  * change parse to exactly the same value:
  *
  *   facilities   absent/empty = every facility (`*.<severity>`), otherwise `kern,daemon.<severity>`
- *   format       absent = `rfc5424` (fixed template `vrx_rfc5424`; TCP uses octet-counted framing, RFC 6587)
+ *   format       absent = `rfc5424` (fixed template `ngfw_rfc5424`; TCP uses octet-counted framing, RFC 6587)
  *   queueSize    absent = 10000 messages (rsyslog `queue.size` of the export action, LinkedList queue)
  *   tls          only with `protocol: tls` (semantic rule `management.unbound-chrony-syslog-tls`): CA reference
  *                required; client certificate and key references go together; the key needs the API→agent secret
@@ -17,7 +17,7 @@ import { withUi } from '../../ui.js';
  * The TLS material is referenced (D-051: `cert/<name>`, `key/<name>`), never inline.
  */
 
-/** `x-vrx-ui` group of every field of this feature (wave-A-hotspots C1: group = task slug). */
+/** `x-ngfw-ui` group of every field of this feature (wave-A-hotspots C1: group = task slug). */
 export const UNBOUND_CHRONY_SYSLOG_GROUP = 'unbound-chrony-syslog';
 
 /** Syslog facilities (RFC 5424 §6.2.1 names as rsyslog spells them). */

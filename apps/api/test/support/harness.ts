@@ -45,7 +45,7 @@ export function runSecret(): string {
 
 /**
  * One API instance per test file: fresh schema in the slot database (dropped + migrated), the slot's Valkey db with
- * the e2e key prefix, an in-process fake agent on /run/vrx-test/<prefix>/fake-agent.sock (the slot's real agent
+ * the e2e key prefix, an in-process fake agent on /run/ngfw-test/<prefix>/fake-agent.sock (the slot's real agent
  * socket stays free for the integration test), a random bootstrap admin password.
  */
 export async function startHarness(overrides: Record<string, string> = {}): Promise<Harness> {
@@ -57,17 +57,17 @@ export async function startHarness(overrides: Record<string, string> = {}): Prom
   await fake.start(socket);
   const adminPassword = runSecret();
   const env = loadEnv({
-    VRX_DATABASE_URL: inject('pgDsn'),
-    VRX_VALKEY_DB: String(inject('valkeyDb')),
-    VRX_VALKEY_PREFIX: `vrx:${prefix}:e2e:${randomBytes(3).toString('hex')}:`,
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: prefix,
-    VRX_AGENT_TIMEOUT_MS: '5000',
-    VRX_JWT_SECRET: runSecret() + runSecret(),
-    VRX_SECRET_KEY_FILE: keyFile,
-    VRX_BOOTSTRAP_ADMIN_PASSWORD: adminPassword,
-    VRX_HTTP_PORT: process.env['VRX_HTTP_PORT'] ?? '3100',
-    VRX_WS_HEARTBEAT_MS: '500',
+    NGFW_DATABASE_URL: inject('pgDsn'),
+    NGFW_VALKEY_DB: String(inject('valkeyDb')),
+    NGFW_VALKEY_PREFIX: `ngfw:${prefix}:e2e:${randomBytes(3).toString('hex')}:`,
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: prefix,
+    NGFW_AGENT_TIMEOUT_MS: '5000',
+    NGFW_JWT_SECRET: runSecret() + runSecret(),
+    NGFW_SECRET_KEY_FILE: keyFile,
+    NGFW_BOOTSTRAP_ADMIN_PASSWORD: adminPassword,
+    NGFW_HTTP_PORT: process.env['NGFW_HTTP_PORT'] ?? '3100',
+    NGFW_WS_HEARTBEAT_MS: '500',
     ...overrides,
   });
   const app = await createApp({ env, logger: ['error'] });
@@ -114,7 +114,7 @@ export async function startHarness(overrides: Record<string, string> = {}): Prom
     call,
     async createUsers(token, users) {
       const list = [
-        { username: env.VRX_BOOTSTRAP_ADMIN_USER, role: 'admin' },
+        { username: env.NGFW_BOOTSTRAP_ADMIN_USER, role: 'admin' },
         ...(await Promise.all(
           users.map(async (u) => ({
             username: u.username,

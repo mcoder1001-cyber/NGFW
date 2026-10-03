@@ -8,7 +8,7 @@ package subsystems
 // VPP 26.06 frees a deleted VIP or AS ("removed", V20) only in its garbage collection, which the binary API never
 // runs for a removed VIP. In the globals owner a successful lb.vip or lb.as Delete — including the delete half of a
 // change (ErrRecreate) and a rollback — (re)arms one timer; lb.GCDelay after the last such delete the constant
-// lb.GCCommand runs once through cli_inband (lb.GarbageCollect, ALLOWLIST.md). Slot agents (VRX_GLOBALS_OWNER=0) never
+// lb.GCCommand runs once through cli_inband (lb.GarbageCollect, ALLOWLIST.md). Slot agents (NGFW_GLOBALS_OWNER=0) never
 // send it (TestLbSlotAgentNeverCollects).
 
 import (

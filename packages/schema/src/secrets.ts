@@ -2,11 +2,11 @@ import { z } from 'zod';
 import { RootConfig } from './index.js';
 import { isPlainObject } from './json.js';
 import { jsonPointer } from './pointer.js';
-import { X_VRX_UI, type UiHints } from './ui.js';
+import { X_NGFW_UI, type UiHints } from './ui.js';
 
 /**
  * Secret leaves of the configuration document (D-046, review M4). A leaf is secret when its schema carries
- * `x-vrx-ui.secret` (emitted as JSON Schema `writeOnly: true`) — today `management.users[].passwordHash`; every
+ * `x-ngfw-ui.secret` (emitted as JSON Schema `writeOnly: true`) — today `management.users[].passwordHash`; every
  * other secret is a `secretRef` into the secret store and is not secret itself.
  *
  * The API uses these helpers wherever a document leaves the write path: `GET /config/**`, `GET /config/diff`
@@ -60,7 +60,7 @@ function alternatives(schema: unknown, root: Node, seen = new Set<unknown>()): N
 
 function isSecret(schemas: readonly Node[]): boolean {
   return schemas.some(
-    (s) => s['writeOnly'] === true || (s[X_VRX_UI] as UiHints | undefined)?.secret === true,
+    (s) => s['writeOnly'] === true || (s[X_NGFW_UI] as UiHints | undefined)?.secret === true,
   );
 }
 

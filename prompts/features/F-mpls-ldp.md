@@ -14,7 +14,7 @@ LDP (RFC 5036, IPv4) label distribution in FAST MODE. FRR `ldpd` runs the protoc
 the resulting label state from FRR JSON. **The agent programs VPP MPLS label routes through its own scheduler.**
 
 This is `docs/vpp-code-track.md` **V5**. linux-nl syncs unicast IPv4/IPv6 only, so the fallback — the agent reads FRR JSON and
-calls the VPP API, with no VPP code — is the plan, not a workaround. The result is a VRX that works as an LDP **transit LSR and
+calls the VPP API, with no VPP code — is the plan, not a workaround. The result is a NGFW that works as an LDP **transit LSR and
 penultimate hop**. Reference: FRR ldpd (https://docs.frrouting.org/en/latest/ldpd.html); VPP `mpls` (`mpls_route_add_del`).
 WBS D2.8 in `plan/wbs.csv` (T2, "MPLS: label operations, LSP, …"); `docs/08-master-schedule-en.md` §3 D2 "MPLS + SR-MPLS"
 (the FRR side is D3's framework).
@@ -35,8 +35,8 @@ WBS D2.8 in `plan/wbs.csv` (T2, "MPLS: label operations, LSP, …"); `docs/08-ma
   - Dependencies: `mpls-table/<t>` + `interface/<if>`.
   - **Shared table 0 (review H2):** in table 0, a route is reported, updated or deleted only when this owner recorded it
     (D-080 boot record). Create refuses a foreign label (`dfkit.ErrNotOurs`).
-  - Table 0 is VPP-global (D-071). On the shared host it does not exist. It is created only with `VRX_DF7_GLOBALS=1` under
-    `flock -x /run/lock/vrx-globals.lock` (D-082).
+  - Table 0 is VPP-global (D-071). On the shared host it does not exist. It is created only with `NGFW_DF7_GLOBALS=1` under
+    `flock -x /run/lock/ngfw-globals.lock` (D-082).
 - **RF-1** (`apps/agent/internal/renderers/frr/README.md`, `section.go`, `state.go`, `events.go`, `frrtest/`):
   - `frr.RegisterSection` from `init()` (order 400–899);
   - `frr.RegisterStateReader` (keys `^[a-z][A-Za-z0-9]{0,63}$`, constant `show … json` only);
@@ -208,7 +208,7 @@ route constructor / record scope) and `docs/agent/descriptors/mpls.md`.
 
 **Shared hotspots (append-only, one line under your `// wave-BC: F-mpls-ldp` anchor, conflicts resolved by the manager at merge):**
 - F-mpls-srmpls' `packages/schema/src/domains/ext/mpls-srmpls.ts` (`MplsSchema.ldp` key line) + its `MplsConfig` in
-  `packages/proto/vrx/v1/dataplane.proto` (field 10); your messages go in `// ----- F-mpls-ldp -----`
+  `packages/proto/ngfw/v1/dataplane.proto` (field 10); your messages go in `// ----- F-mpls-ldp -----`
 - `packages/schema/src/semantic/index.ts`, `packages/schema/src/index.ts`
 - `apps/agent/internal/subsystems/subsystems.go` (one call into your `mpls_ldp.go`)
 - seam S1 (above) — **not** an edit of `apps/agent/internal/agent/{service,agent}.go`
@@ -222,15 +222,15 @@ Do **not** create a shared `apps/agent/internal/frrsync/` root package. Keep you
 - [ ] Commit `routing.mpls.ldp` → the rendered `mpls ldp` block equals the harness FRR's `show running-config` (slot pathspace,
       pasted). Rollback removes it.
 - [ ] LDP session with a peer ldpd.
-  - Setup: the peer runs in `ns-<prefix>-wan` (own pathspace). The VRX-side FRR runs over the LCP pair of `host-<prefix>w0`,
+  - Setup: the peer runs in `ns-<prefix>-wan` (own pathspace). The NGFW-side FRR runs over the LCP pair of `host-<prefix>w0`,
     P12 pattern, `path: af_packet`. If linux-cp does not deliver the LDP hellos (224.0.0.2 / UDP+TCP 646), use two netns
     ldpd instances on a veth plus a test mapper onto the rig interface instead, and file a V1 entry.
   - Evidence: `show mpls ldp neighbor` shows OPERATIONAL, and the peer's loopback FEC is in `show mpls ldp binding`.
   - The sync installs `mpls-route.ldp` in your slot MPLS table: `vppctl show mpls fib <table>` shows local label → out-label
     (or pop) via the peer address on `host-<prefix>w0` (pasted).
   - The peer withdraws → the entry is gone within 10 s.
-  - The table-0 variant runs only with `VRX_DF7_GLOBALS=1` under the exclusive globals lock. Otherwise say it was not run.
-- [ ] Stop the VRX-side ldpd (your PID): VPP entries stay until the hold-down, then they are flushed (log excerpt with timestamps).
+  - The table-0 variant runs only with `NGFW_DF7_GLOBALS=1` under the exclusive globals lock. Otherwise say it was not run.
+- [ ] Stop the NGFW-side ldpd (your PID): VPP entries stay until the hold-down, then they are flushed (log excerpt with timestamps).
 - [ ] Agent-restart simulation: stop your agent, delete the LDP routes via binapi, plant one stale recorded route, start the
       agent → the set is re-derived from FRR within 30 s, and the stale route is deleted (log + Retrieve).
 - [ ] An unrelated routing commit plans **no** `mpls-route.ldp` operation (plan output pasted). A commit deleting the table

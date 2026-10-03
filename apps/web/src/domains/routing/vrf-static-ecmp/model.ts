@@ -36,13 +36,13 @@ export function localizeSchema(schema: JsonSchema, t: Translate, prefix = ''): J
     const next: Record<string, JsonSchema> = {};
     for (const [name, prop] of Object.entries(props)) {
       const key = prefix + name;
-      const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+      const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       const help = t(`field.${key}.help`, { defaultValue: '' });
       const loc = localizeSchema(prop, t, `${key}.`);
       next[name] = {
         ...loc,
         title: t(`field.${key}.title`, { defaultValue: prop.title ?? name }),
-        'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
+        'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
       } as JsonSchema;
     }
     out['properties'] = next;

@@ -5,7 +5,7 @@ import { DEFAULT_VRF } from '../vrfs.js';
 
 /**
  * F-srv6 (WBS D6.7): `routing.srv6` — SRv6 local SIDs (network programming), SR policies with weighted segment lists,
- * L2/L3 steering into a policy's binding SID, and the two VPP-wide encapsulation settings. vrx-agent programs it with
+ * L2/L3 steering into a policy's binding SID, and the two VPP-wide encapsulation settings. ngfw-agent programs it with
  * DF-6's `sr.*` descriptors (VPP core `sr` binary API); `docs/user/vpn/srv6.md` is the user guide.
  *
  * - `localSids.<sid>`: one local SID per IPv6 address (`sr_localsid_add_del`). Behaviours END, END.X, END.T, END.DX2,
@@ -27,7 +27,7 @@ import { DEFAULT_VRF } from '../vrfs.js';
  * steering BSIDs and uniqueness) live in `../../semantic/srv6.ts`.
  */
 
-/** UI group of the feature (x-vrx-ui group = task slug, wave-A-hotspots C1). */
+/** UI group of the feature (x-ngfw-ui group = task slug, wave-A-hotspots C1). */
 export const SRV6_GROUP = 'srv6';
 
 /** Size of `srv6_sid_list.sids` in the VPP 26.06 binary API. */

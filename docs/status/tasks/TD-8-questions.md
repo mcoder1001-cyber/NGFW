@@ -12,19 +12,19 @@ edited. To exercise `Start`'s real wiring against a fake VPP, `agent.go` gained
 `var dialVPP = func(socket, opts) vppConn { return vpp.Dial(socket, opts) }`. Production behaviour is unchanged.
 
 ## Q3. Fail closed means "owns no id", not "refuses to start", while unset (decided; one line flips it)
-`VRX_VPP_TABLE_BASE` and `VRX_VPP_ID_RANGE` both unset → `Config.IDs` is the zero `IDScope`, and `Wiring.IDRange()` returns
+`NGFW_VPP_TABLE_BASE` and `NGFW_VPP_ID_RANGE` both unset → `Config.IDs` is the zero `IDScope`, and `Wiring.IDRange()` returns
 `ErrNoIDRange`. Start-up logs a warning. A family that allocates ids fails its registration, so once such a family is wired, the
-agent refuses to start. A malformed value, both variables set, or `VRX_VPP_ID_RANGE` other than `all` refuses start-up now
+agent refuses to start. A malformed value, both variables set, or `NGFW_VPP_ID_RANGE` other than `all` refuses start-up now
 (`Config.Validate`).
-I did not refuse start-up on "unset" yet. Two launchers that I do not own start `vrx-agent` without either variable, and
+I did not refuse start-up on "unset" yet. Two launchers that I do not own start `ngfw-agent` without either variable, and
 refusing now would break them the moment TD-8 merges:
-- `tools/app` (`start_svc agent env … VRX_OWNER=vrx …`): add `VRX_VPP_TABLE_BASE=13000` (§12 below).
+- `tools/app` (`start_svc agent env … NGFW_OWNER=ngfw …`): add `NGFW_VPP_TABLE_BASE=13000` (§12 below).
 - `test/topology/interfaces/interfaces_test.go` (`st.agentEnv` is a clean environment, run by `tools/ci.sh full`): pass
-  `"VRX_VPP_TABLE_BASE="+os.Getenv("VRX_VPP_TABLE_BASE")` through. `live.sh` and `apps/api/test/integration/agent.int.test.ts`
+  `"NGFW_VPP_TABLE_BASE="+os.Getenv("NGFW_VPP_TABLE_BASE")` through. `live.sh` and `apps/api/test/integration/agent.int.test.ts`
   inherit the slot environment already.
 
 With both changed, the eager form is one line in `ConfigFromEnv`: drop the `errors.Is(idsErr, subsystems.ErrNoIDRange)` exception.
-The P10 packaged unit needs `VRX_VPP_ID_RANGE=all` in its EnvironmentFile. The manager decides when to flip it; I recommend doing so
+The P10 packaged unit needs `NGFW_VPP_ID_RANGE=all` in its EnvironmentFile. The manager decides when to flip it; I recommend doing so
 before the first id-allocating family (F-acl, P11) merges.
 
 ## Q4. `SlotIDRange()` changed meaning: unset is now `ErrNoIDRange`, no longer nil ("every id")

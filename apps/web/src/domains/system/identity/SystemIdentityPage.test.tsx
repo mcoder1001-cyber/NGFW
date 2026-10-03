@@ -24,13 +24,13 @@ function app(path: string) {
 }
 
 const RUNNING = {
-  hostname: 'vrx',
+  hostname: 'ngfw',
   timezone: 'UTC',
   banner: {},
   dns: { servers: [], searchDomains: [], vrf: 'default' },
 };
 const CANDIDATE = {
-  hostname: 'vrx-a',
+  hostname: 'ngfw-a',
   timezone: 'Asia/Tehran',
   banner: { login: 'Authorised access only' },
   dns: { servers: ['10.10.53.1'], searchDomains: ['lab.example'], vrf: 'default' },
@@ -78,17 +78,17 @@ describe('System → Identity (F-system-identity)', () => {
     expect(await screen.findByText('Installed hostname: installed-router')).toBeInTheDocument();
     expect(screen.getByText('Some observations are unavailable.')).toBeInTheDocument();
     const host = await screen.findByTestId('sys-hostname');
-    await waitFor(() => expect(within(host).getByText('vrx')).toBeInTheDocument());
-    expect(within(host).getByText('vrx-a')).toBeInTheDocument();
+    await waitFor(() => expect(within(host).getByText('ngfw')).toBeInTheDocument());
+    expect(within(host).getByText('ngfw-a')).toBeInTheDocument();
     expect(within(host).getByText('Not committed')).toBeInTheDocument();
     expect(within(screen.getByTestId('sys-servers')).getByText('10.10.53.1')).toBeInTheDocument();
     const field = await screen.findByLabelText('Hostname');
-    expect(field).toHaveValue('vrx-a');
-    fireEvent.change(field, { target: { value: 'vrx-b' } });
+    expect(field).toHaveValue('ngfw-a');
+    fireEvent.change(field, { target: { value: 'ngfw-b' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
     await waitFor(() => expect(api.calls.some((c) => c.method === 'PATCH')).toBe(true));
     const body = api.calls.find((c) => c.method === 'PATCH')?.body as { hostname?: string };
-    expect(body.hostname).toBe('vrx-b');
+    expect(body.hostname).toBe('ngfw-b');
   });
 
   it('maps a server problem pointer onto the field', async () => {
@@ -99,7 +99,7 @@ describe('System → Identity (F-system-identity)', () => {
     api.on('PATCH /api/v1/config/system', () => ({
       status: 400,
       body: {
-        type: 'https://vrx.dev/problems/validation',
+        type: 'https://ngfw.dev/problems/validation',
         title: 'Validation failed',
         status: 400,
         errors: [
@@ -117,7 +117,7 @@ describe('System → Identity (F-system-identity)', () => {
   });
   it('formats observed uptime with Persian digits when enabled', async () => {
     localStorage.setItem(
-      'vrx.ui.settings',
+      'ngfw.ui.settings',
       JSON.stringify({ mode: 'light', lang: 'fa', persianDigits: true, dense: true }),
     );
     await i18n.changeLanguage('fa');

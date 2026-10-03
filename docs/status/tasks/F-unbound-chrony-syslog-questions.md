@@ -7,7 +7,7 @@ Written while working; none of these blocks the task (defaults applied, listed w
 (details: `F-unbound-chrony-syslog-contract.md`). Numbers used: SyslogTarget 6–9, ActionRequest 7 — nothing else.
 
 ## Q2 (URGENT, incident) My test crashed the shared VPP at 2026-09-25 04:27:21 (NRestarts 1 → 2)
-**What happened:** my slot-10 topology run (`test/topology/unbound-chrony-syslog`, agent owner `w10`, `VRX_GLOBALS_OWNER=0`)
+**What happened:** my slot-10 topology run (`test/topology/unbound-chrony-syslog`, agent owner `w10`, `NGFW_GLOBALS_OWNER=0`)
 called `POST /api/v1/actions/dns-lookup` → agent `ActionRequest.dns_lookup` → DF-8 `dns.ResolveName` → the binary API
 message `dns_resolve_name` on the shared VPP, where the dns plugin was **not** enabled. VPP died with SIGSEGV:
 `#0 ip4_sas + 0x31 (libvnet) ← #1–#4 dns_plugin.so ← vl_msg_api_socket_handler` (journal `vpp[2006833]`, core
@@ -53,7 +53,7 @@ the two implemented-domain assertions are registry-derived (D-129 F5 says the fi
 
 ## Q8 Whose daemons (decision taken, please ratify)
 Only the globals owner renders into /etc/{unbound,chrony,rsyslog.d} and controls the units (RF-4's `systemctl restart
-rsyslog`). Every other agent, including tools/app's main stack on this host (`VRX_GLOBALS_OWNER=0`), renders into
-`/run/vrx-test/<owner>/…` with loopback-only listeners and never starts, restarts or signals a daemon. Without this gate,
+rsyslog`). Every other agent, including tools/app's main stack on this host (`NGFW_GLOBALS_OWNER=0`), renders into
+`/run/ngfw-test/<owner>/…` with loopback-only listeners and never starts, restarts or signals a daemon. Without this gate,
 the main stack would have rewritten the host's syslog export and restarted `rsyslog.service` on the first commit that
 carries `management.syslog`.

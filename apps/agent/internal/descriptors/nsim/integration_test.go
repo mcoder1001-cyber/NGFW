@@ -10,15 +10,15 @@ import (
 	"ngfw/agent/internal/descriptors/nsim"
 )
 
-// Host test, OPT-IN: VRX_INTEGRATION=1 and VRX_NSIM_HOST=1, globals lock exclusive (D-082). nsim_configure2 is
+// Host test, OPT-IN: NGFW_INTEGRATION=1 and NGFW_NSIM_HOST=1, globals lock exclusive (D-082). nsim_configure2 is
 // VPP-global and has no getter, so the previous model cannot be restored (shared-host-rules §7): run it only in a
 // manager VPP window. The default-gate evidence for nsim is the fake client (nsim_test.go, agent-level tests).
 // It configures a small model (1 ms, 10 Mbit/s: a 2-slot wheel), cross-connects two of this slot's loopbacks and
 // enables the output feature on a third, re-applies everything (no stacking), and removes the cross-connect and the
 // output feature again (VPP cannot unconfigure the model itself). No packets are sent.
 func TestNsimOnHost(t *testing.T) {
-	if os.Getenv("VRX_NSIM_HOST") != "1" {
-		t.Skip("nsim_configure2 is a getter-less VPP-global: set VRX_NSIM_HOST=1 in a manager VPP window (D-082)")
+	if os.Getenv("NGFW_NSIM_HOST") != "1" {
+		t.Skip("nsim_configure2 is a getter-less VPP-global: set NGFW_NSIM_HOST=1 in a manager VPP window (D-082)")
 	}
 	h := dfkittest.ConnectHost(t)
 	h.SkipUnlessCompatible(t, "nsim", &nsimapi.NsimConfigure2{}, &nsimapi.NsimConfigure2Reply{},

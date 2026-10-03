@@ -133,7 +133,7 @@ export function MyMfaCard() {
           <Box
             component="code"
             dir="ltr"
-            sx={{ wordBreak: 'break-all', fontFamily: (th) => th.vrx.monoFontFamily }}
+            sx={{ wordBreak: 'break-all', fontFamily: (th) => th.ngfw.monoFontFamily }}
           >
             {setup.data.secret}
           </Box>

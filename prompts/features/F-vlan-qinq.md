@@ -25,7 +25,7 @@ in the UI, and fix whatever gap that proof uncovers. Reference: TNSR "VLAN 802.1
 - `packages/schema/src/domains/interfaces.ts`: `SubinterfaceSchema{vlanId, innerVlanId?, dot1ad (default false), …commonFields}` **exists**.
   `packages/schema/src/semantic/interfaces.ts`: `interfaces.vlan-unique` (tag stack unique per parent, pointer to the second entry) and
   `interfaces.subinterface-mtu` (sub MTU ≤ parent MTU) **exist**. In `primitives.ts`, `vlanId` = 1–4094.
-- `packages/proto/vrx/v1/dataplane.proto`: `Subinterface{vlan_id, inner_vlan_id, dot1ad, …}` exists. `InterfaceState` has no dot1ad flag, so
+- `packages/proto/ngfw/v1/dataplane.proto`: `Subinterface{vlan_id, inner_vlan_id, dot1ad, …}` exists. `InterfaceState` has no dot1ad flag, so
   take the tag type from the row's `actual` / `config` (no contract needed).
 - `docs/agent/descriptors/interface.md` (sub-interface row, alias + logical-name rules D-065/D-069/D-073a)
 - `test/topology/interfaces/` (P08): the topology/restart-safety test pattern you copy (own Go module, rig hand-over, V19 guard, D-101 quiesce)

@@ -21,10 +21,10 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// dialVPP connects to the host VPP (VRX_VPP_API_SOCKET, default /run/vpp/api.sock).
+// dialVPP connects to the host VPP (NGFW_VPP_API_SOCKET, default /run/vpp/api.sock).
 func dialVPP(t *testing.T) *vpp.Conn {
 	t.Helper()
-	path := os.Getenv("VRX_VPP_API_SOCKET")
+	path := os.Getenv("NGFW_VPP_API_SOCKET")
 	if path == "" {
 		path = "/run/vpp/api.sock"
 	}

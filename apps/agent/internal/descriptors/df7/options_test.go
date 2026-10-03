@@ -6,7 +6,7 @@ import "testing"
 // range owns none, any other range is copied.
 func TestWithIDs(t *testing.T) {
 	if o := BuildOptions([]Option{WithIDs(nil)}); o.IDs != nil || !o.IDs.Owns(0) || !o.IDs.Owns(^uint32(0)) {
-		t.Fatalf("nil (VRX_VPP_ID_RANGE=all): %+v, want every id", o.IDs)
+		t.Fatalf("nil (NGFW_VPP_ID_RANGE=all): %+v, want every id", o.IDs)
 	}
 	none := BuildOptions([]Option{WithIDs(&IDRange{Lo: 1, Hi: 0})})
 	for _, id := range []uint32{0, 1, 5000, ^uint32(0)} {

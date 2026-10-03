@@ -1,4 +1,4 @@
-// Package promexport renders VRX data-plane metrics in the Prometheus text exposition format (version
+// Package promexport renders NGFW data-plane metrics in the Prometheus text exposition format (version
 // 0.0.4), stdlib only (like internal/agent/metrics.go — no prometheus/client_golang, D-063). The families
 // here are served through the manager's metrics-collector hook on the agent's existing /metrics endpoint,
 // and, when management.prometheus is enabled, on an external allow-listed listener (listener.go). The

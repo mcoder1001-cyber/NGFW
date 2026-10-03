@@ -14,10 +14,10 @@ Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (p
 
 | path | mode | contents |
 |---|---|---|
-| `/etc/ppp/peers/vrx-<hostif>` | 0644 | pppd options: `plugin rp-pppoe.so`, `nic-<hostif>`, `user`, `remotename vrx-<hostif>`, `mtu`/`mru`, `defaultroute`/`nodefaultroute`, `usepeerdns`, `+ipv6`, `persist`, `holdoff`, `maxfail`, LCP echo keepalives |
-| `/etc/ppp/chap-secrets`, `/etc/ppp/pap-secrets` | 0600 **Secret** | one `"<user>" vrx-<hostif> "<password>" *` line per session |
-| `/etc/ppp/ip-up.d/vrx-<hostif>`, `/etc/ppp/ip-down.d/vrx-<hostif>` | 0755 | hook pppd runs on link up/down; writes `<StateDir>/<hostif>.state` for the state reader |
-| `/etc/systemd/system/vrx-pppoe-<hostif>.service` | 0644 | one unit per session, `ExecStart=pppd call vrx-<hostif> … ipparam vrx-<hostif>`, `Restart=on-failure` |
+| `/etc/ppp/peers/ngfw-<hostif>` | 0644 | pppd options: `plugin rp-pppoe.so`, `nic-<hostif>`, `user`, `remotename ngfw-<hostif>`, `mtu`/`mru`, `defaultroute`/`nodefaultroute`, `usepeerdns`, `+ipv6`, `persist`, `holdoff`, `maxfail`, LCP echo keepalives |
+| `/etc/ppp/chap-secrets`, `/etc/ppp/pap-secrets` | 0600 **Secret** | one `"<user>" ngfw-<hostif> "<password>" *` line per session |
+| `/etc/ppp/ip-up.d/ngfw-<hostif>`, `/etc/ppp/ip-down.d/ngfw-<hostif>` | 0755 | hook pppd runs on link up/down; writes `<StateDir>/<hostif>.state` for the state reader |
+| `/etc/systemd/system/ngfw-pppoe-<hostif>.service` | 0644 | one unit per session, `ExecStart=pppd call ngfw-<hostif> … ipparam ngfw-<hostif>`, `Restart=on-failure` |
 
 Every user-controlled string goes through `ident`/`quoted` in the templates; `Session.validate` rejects a
 host interface that is not a Linux name, a username/service-name with quotes or control characters, a password

@@ -93,7 +93,7 @@ func secret(_ context.Context, id uint32) ([]byte, error) {
 	if id == 13 {
 		return nil, errors.New("vault sealed")
 	}
-	return []byte("VRX_TEST_PSK_7"), nil
+	return []byte("NGFW_TEST_PSK_7"), nil
 }
 
 func TestAuthKey(t *testing.T) {
@@ -108,7 +108,7 @@ func TestAuthKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := df7test.Last[*bfd.BfdAuthSetKey](t, f, "bfd_auth_set_key")
-	if r.ConfKeyID != 7 || r.AuthType != 4 || r.KeyLen != 14 || len(r.Key) != 20 {
+	if r.ConfKeyID != 7 || r.AuthType != 4 || r.KeyLen != 15 || len(r.Key) != 20 {
 		t.Fatalf("%+v", r)
 	}
 	for _, b := range r.Key {

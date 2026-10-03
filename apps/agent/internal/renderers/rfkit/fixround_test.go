@@ -12,13 +12,13 @@ import (
 // Review L1: whole-token redaction only.
 func TestRedactWholeTokensOnly(t *testing.T) {
 	var r Redactor
-	r.Add("public12", "VRX_TEST_PSK_RF4_x")
+	r.Add("public12", "NGFW_TEST_PSK_RF4_x")
 	for in, want := range map[string]string{
-		"community public12 refused":             "community <redacted> refused",
-		"publication public123 xpublic12":        "publication public123 xpublic12",
-		`"public12"`:                             `"<redacted>"`,
-		"key=VRX_TEST_PSK_RF4_x;":                "key=<redacted>;",
-		"VRX_TEST_PSK_RF4_xy VRX_TEST_PSK_RF4_x": "VRX_TEST_PSK_RF4_xy <redacted>",
+		"community public12 refused":               "community <redacted> refused",
+		"publication public123 xpublic12":          "publication public123 xpublic12",
+		`"public12"`:                               `"<redacted>"`,
+		"key=NGFW_TEST_PSK_RF4_x;":                 "key=<redacted>;",
+		"NGFW_TEST_PSK_RF4_xy NGFW_TEST_PSK_RF4_x": "NGFW_TEST_PSK_RF4_xy <redacted>",
 	} {
 		if got := r.Redact(in); got != want {
 			t.Errorf("Redact(%q) = %q, want %q", in, got, want)

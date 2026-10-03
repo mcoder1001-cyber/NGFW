@@ -19,7 +19,7 @@
 
 | مخزن | آدرس | چه می‌دهد | وضعیت |
 |---|---|---|---|
-| **VRX product APT** | مخزن امضاشدهٔ محصول | خروجی تأییدشدهٔ `deploy/vpp/build.sh` | هفت بستهٔ runtime با `ship: true` و نسخهٔ `26.06-release+vrx<N>`؛ FD.io/upstream مصرف نمی‌شود |
+| **NGFW product APT** | مخزن امضاشدهٔ محصول | خروجی تأییدشدهٔ `deploy/vpp/build.sh` | هفت بستهٔ runtime با `ship: true` و نسخهٔ `26.06-release+ngfw<N>`؛ FD.io/upstream مصرف نمی‌شود |
 | **FRRouting** | `deb.frrouting.org/frr` با `$(lsb_release -s -c)` و `frr-stable` | frr، frr-pythontools | resolute خیلی تازه است (فروردین ۱۴۰۵)؛ اگر مخزن هنوز سوییت `resolute` را منتشر نکرده باشد، بستهٔ `frr` خود آرشیو اوبونتو را جایگزین کنید |
 | **NodeSource** | `deb.nodesource.com/node_22.x` | Node.js 22 LTS | resolute خودش Node.js 22.x را دارد (کافی است)؛ NodeSource فقط برای پین دقیق نسخه و بروزرسانی مستقل از چرخهٔ اوبونتو نگه داشته می‌شود |
 | **PostgreSQL PGDG** | `apt.postgresql.org` | postgresql-16/17/18 | اختیاری؛ resolute خودش postgresql-18 دارد |
@@ -61,7 +61,7 @@
 
 | بسته | نقش |
 |---|---|
-| **strongSwan (از سورس)** | نسخهٔ مخزن resolute پلاگین `kernel-vpp` و `socket-vpp` را **ندارد**. باید از بستهٔ اختصاصی بازبینی‌شدهٔ `vrx-strongswan` در P11 استفاده شود؛ گزینه‌های configure به‌تنهایی پلاگین‌های خارجی را ایجاد نمی‌کنند |
+| **strongSwan (از سورس)** | نسخهٔ مخزن resolute پلاگین `kernel-vpp` و `socket-vpp` را **ندارد**. باید از بستهٔ اختصاصی بازبینی‌شدهٔ `ngfw-strongswan` در P11 استفاده شود؛ گزینه‌های configure به‌تنهایی پلاگین‌های خارجی را ایجاد نمی‌کنند |
 | `libstrongswan-extra-plugins` `libcharon-extra-plugins` | در صورت استفاده از strongSwan مخزن (مسیر بدون VPP) |
 | `wireguard-tools` | فقط ابزار `wg`؛ مسیر داده در پلاگین VPP است، نه ماژول کرنل |
 | `openssl` `libssl3` | PKI |
@@ -84,13 +84,13 @@
 
 | بسته | نقش |
 |---|---|
-| `nodejs` (22.x از NodeSource) | `vrx-api` |
+| `nodejs` (22.x از NodeSource) | `ngfw-api` |
 | `postgresql-18` `postgresql-client-18` | مخزن پیکربندی، revision، audit |
 | `valkey-server` | کش، pub/sub، صف (پیش‌فرض توزیع resolute؛ `redis-server` فقط متاپکیج انتقالی است) |
 | `nginx` | TLS، سرو SPA، پراکسی `/api` |
 | `ca-certificates` `openssl` | زنجیرهٔ اعتماد |
 
-`vrx-agent` یک باینری استاتیک Go است و بستهٔ سیستمی نمی‌خواهد.
+`ngfw-agent` یک باینری استاتیک Go است و بستهٔ سیستمی نمی‌خواهد.
 
 ### ۲.۶ رصد، لاگ و ابزار عملیاتی
 
@@ -203,4 +203,4 @@ fs.file-max = 2097152
 `kernel-vpp` محتمل است)، آن تغییرات GPL می‌شوند و باید در اختیار مشتری قرار گیرند —
 پچ‌ها را در یک مخزن عمومی جدا نگه دارید و ترجیحاً upstream بفرستید.
 
-اسکریپت runtime فقط روی appliance تازه اجرا می‌شود و به `VRX_INSTALL_APPLIANCE=1` و `VRX_VPP_ARTIFACTS` (مسیر خروجی تأییدشدهٔ محصول) نیاز دارد. ابتدا install-gate را بررسی می‌کند؛ هیچ بستهٔ unsuffixed یا dev/debug از VPP انتخاب نمی‌شود. این دستور روی میزبان اشتراکی اجرا نشده است.
+اسکریپت runtime فقط روی appliance تازه اجرا می‌شود و به `NGFW_INSTALL_APPLIANCE=1` و `NGFW_VPP_ARTIFACTS` (مسیر خروجی تأییدشدهٔ محصول) نیاز دارد. ابتدا install-gate را بررسی می‌کند؛ هیچ بستهٔ unsuffixed یا dev/debug از VPP انتخاب نمی‌شود. این دستور روی میزبان اشتراکی اجرا نشده است.

@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -27,7 +27,7 @@ func allStaticsToFRR(t *testing.T) {
 	t.Helper()
 	selectorMu.Lock()
 	prev := staticSelector
-	staticSelector = func(int, *vrxv1.StaticRoute, *Extensions) bool { return true }
+	staticSelector = func(int, *ngfwv1.StaticRoute, *Extensions) bool { return true }
 	selectorMu.Unlock()
 	t.Cleanup(func() { selectorMu.Lock(); staticSelector = prev; selectorMu.Unlock() })
 }
@@ -109,12 +109,12 @@ func TestRenderGolden(t *testing.T) {
 		extra   []Section
 	}{
 		{name: "empty", desired: nil},
-		{name: "empty-state", desired: &vrxv1.DesiredState{}},
-		{name: "hostname", desired: &vrxv1.DesiredState{System: &vrxv1.SystemConfig{Hostname: ptr("vrx-a")}}},
-		{name: "vrfs", desired: &vrxv1.DesiredState{Vrfs: map[string]*vrxv1.Vrf{
+		{name: "empty-state", desired: &ngfwv1.DesiredState{}},
+		{name: "hostname", desired: &ngfwv1.DesiredState{System: &ngfwv1.SystemConfig{Hostname: ptr("ngfw-a")}}},
+		{name: "vrfs", desired: &ngfwv1.DesiredState{Vrfs: map[string]*ngfwv1.Vrf{
 			"default": {Id: ptr(uint32(0))}, "w12red": {Id: ptr(uint32(12001))}, "w12blue": {Id: ptr(uint32(12002)), Description: ptr("ignored by FRR")},
 		}}},
-		{name: "descriptions", desired: &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{
+		{name: "descriptions", desired: &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
 			"w12f0":                   {Description: ptr("uplink to ISP-1 (10G), cct #4711")},
 			"w12f1":                   {Description: ptr("lan")},
 			"w12f2":                   {Enabled: ptr(true)}, // no description: no block
@@ -122,20 +122,20 @@ func TestRenderGolden(t *testing.T) {
 		}}},
 		{name: "static", desired: staticDoc(t)},
 		// D-072: proto routes carry no FRR flag → programmed by the agent in VPP, not rendered.
-		{name: "static-proto", desired: &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("0.0.0.0/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("10.12.1.1"), Weight: ptr(uint32(1))}}, Vrf: ptr("default"), Distance: ptr(uint32(1))},
-			{Prefix: ptr("::/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("2001:db8::1")}}, Distance: ptr(uint32(250))},
+		{name: "static-proto", desired: &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("0.0.0.0/0"), NextHops: []*ngfwv1.NextHop{{Address: ptr("10.12.1.1"), Weight: ptr(uint32(1))}}, Vrf: ptr("default"), Distance: ptr(uint32(1))},
+			{Prefix: ptr("::/0"), NextHops: []*ngfwv1.NextHop{{Address: ptr("2001:db8::1")}}, Distance: ptr(uint32(250))},
 		}}}},
 		{name: "full", desired: func() proto.Message {
 			d := staticDoc(t)
-			d.Fields["system"] = structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{"hostname": structpb.NewStringValue("vrx-a")}})
+			d.Fields["system"] = structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{"hostname": structpb.NewStringValue("ngfw-a")}})
 			vrfs, _ := structpb.NewStruct(map[string]any{"default": map[string]any{"id": 0}, "w12red": map[string]any{"id": 12001}})
 			d.Fields["vrfs"] = structpb.NewStructValue(vrfs)
 			ifs, _ := structpb.NewStruct(map[string]any{"w12f0": map[string]any{"description": "uplink"}})
 			d.Fields["interfaces"] = structpb.NewStructValue(ifs)
 			return d
 		}(), extra: []Section{fakeBGP{}}},
-		{name: "hostile-description", desired: &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{
+		{name: "hostile-description", desired: &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
 			"w12f0": {Description: ptr(`"; rm -rf /`)},
 			"w12f1": {Description: ptr(`a ! b # c; exit; end`)},
 		}}},
@@ -157,7 +157,7 @@ func TestRenderVtyshConfAndPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"/run/vrx-test/w12/frr/etc/w12/frr.conf", "/run/vrx-test/w12/frr/etc/w12/vtysh.conf"}
+	want := []string{"/run/ngfw-test/w12/frr/etc/w12/frr.conf", "/run/ngfw-test/w12/frr/etc/w12/vtysh.conf"}
 	if got := files.Paths(); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("paths = %v, want %v", got, want)
 	}
@@ -218,41 +218,41 @@ var hostile = []string{
 func TestHostileStringsRejectedOrEscaped(t *testing.T) {
 	allStaticsToFRR(t)
 	r := testRenderer()
-	render := func(d *vrxv1.DesiredState) (string, error) {
+	render := func(d *ngfwv1.DesiredState) (string, error) {
 		files, err := r.Render(context.Background(), d)
 		if err != nil {
 			return "", err
 		}
 		return string(files[r.Paths().ConfFile()].Content), nil
 	}
-	fields := map[string]func(s string) *vrxv1.DesiredState{
-		"system.hostname": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{System: &vrxv1.SystemConfig{Hostname: ptr(s)}}
+	fields := map[string]func(s string) *ngfwv1.DesiredState{
+		"system.hostname": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{System: &ngfwv1.SystemConfig{Hostname: ptr(s)}}
 		},
-		"vrfs key": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Vrfs: map[string]*vrxv1.Vrf{s: {}}}
+		"vrfs key": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Vrfs: map[string]*ngfwv1.Vrf{s: {}}}
 		},
-		"interfaces key (mapped)": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{s: {Description: ptr("x")}}}
+		"interfaces key (mapped)": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{s: {Description: ptr("x")}}}
 		},
-		"interfaces.description": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"w12f0": {Description: ptr(s)}}}
+		"interfaces.description": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"w12f0": {Description: ptr(s)}}}
 		},
-		"routing.static.vrf": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-				{Prefix: ptr("10.0.0.0/8"), Vrf: ptr(s), NextHops: []*vrxv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}
+		"routing.static.vrf": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+				{Prefix: ptr("10.0.0.0/8"), Vrf: ptr(s), NextHops: []*ngfwv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}
 		},
-		"routing.static.prefix": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-				{Prefix: ptr(s), NextHops: []*vrxv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}
+		"routing.static.prefix": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+				{Prefix: ptr(s), NextHops: []*ngfwv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}
 		},
-		"routing.static.nextHops.address": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-				{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr(s)}}}}}}
+		"routing.static.nextHops.address": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+				{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Address: ptr(s)}}}}}}
 		},
-		"routing.static.nextHops.interface": func(s string) *vrxv1.DesiredState {
-			return &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-				{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Interface: ptr(s)}}}}}}
+		"routing.static.nextHops.interface": func(s string) *ngfwv1.DesiredState {
+			return &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+				{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Interface: ptr(s)}}}}}}
 		},
 	}
 	// validator decides whether a value may be accepted at all; everything else must fail with ErrInput.
@@ -311,7 +311,7 @@ func TestDescriptionRmRfIsConfinedToOneLine(t *testing.T) {
 	// The acceptance criterion: `"; rm -rf /` in a description is rejected or escaped. FRR takes
 	// the rest of the line as one LINE token and nothing reaches a shell, so it is written
 	// verbatim inside `description` (golden: hostile-description.golden) and stays inert data.
-	out := renderConf(t, testRenderer(), &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"w12f0": {Description: ptr(`"; rm -rf /`)}}})
+	out := renderConf(t, testRenderer(), &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"w12f0": {Description: ptr(`"; rm -rf /`)}}})
 	want := "interface w12f0\n description \"; rm -rf /\nexit\n"
 	if !strings.Contains(out, want) {
 		t.Fatalf("want block %q in\n%s", want, out)
@@ -329,36 +329,36 @@ func TestModelErrors(t *testing.T) {
 		d    proto.Message
 		want string
 	}{
-		"family mismatch": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("2001:db8::1")}}}}}}, "address family"},
-		"no next hop": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
+		"family mismatch": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Address: ptr("2001:db8::1")}}}}}}, "address family"},
+		"no next hop": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
 			{Prefix: ptr("10.0.0.0/8")}}}}, "nextHops is empty"},
-		"blackhole with next hops": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), Blackhole: ptr(true), NextHops: []*vrxv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}, "blackhole route has no next hops"},
-		"gateway unspecified": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("0.0.0.0/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("0.0.0.0")}}}}}}, "unspecified, multicast or loopback"},
-		"gateway v6 unspecified": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("::/0"), NextHops: []*vrxv1.NextHop{{Address: ptr("::")}}}}}}, "unspecified, multicast or loopback"},
-		"gateway multicast": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("224.0.0.5")}}}}}}, "unspecified, multicast or loopback"},
-		"gateway loopback": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Address: ptr("127.0.0.1")}}}}}}, "unspecified, multicast or loopback"},
-		"link-local without interface": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("2001:db8::/64"), NextHops: []*vrxv1.NextHop{{Address: ptr("fe80::1")}}}}}}, "needs an interface"},
-		"empty next hop": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Weight: ptr(uint32(1))}}}}}}, "needs an address"},
-		"distance": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), Distance: ptr(uint32(256)), NextHops: []*vrxv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}, "distance 256"},
-		"zone": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("fe80::/64"), NextHops: []*vrxv1.NextHop{{Address: ptr("fe80::1%eth0")}}}}}}, "routing.static[0].nextHops[0].address"},
-		"unmapped next-hop interface": {&vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}}}, "has no Linux interface"},
+		"blackhole with next hops": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), Blackhole: ptr(true), NextHops: []*ngfwv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}, "blackhole route has no next hops"},
+		"gateway unspecified": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("0.0.0.0/0"), NextHops: []*ngfwv1.NextHop{{Address: ptr("0.0.0.0")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway v6 unspecified": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("::/0"), NextHops: []*ngfwv1.NextHop{{Address: ptr("::")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway multicast": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Address: ptr("224.0.0.5")}}}}}}, "unspecified, multicast or loopback"},
+		"gateway loopback": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Address: ptr("127.0.0.1")}}}}}}, "unspecified, multicast or loopback"},
+		"link-local without interface": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("2001:db8::/64"), NextHops: []*ngfwv1.NextHop{{Address: ptr("fe80::1")}}}}}}, "needs an interface"},
+		"empty next hop": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Weight: ptr(uint32(1))}}}}}}, "needs an address"},
+		"distance": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), Distance: ptr(uint32(256)), NextHops: []*ngfwv1.NextHop{{Address: ptr("10.0.0.1")}}}}}}, "distance 256"},
+		"zone": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("fe80::/64"), NextHops: []*ngfwv1.NextHop{{Address: ptr("fe80::1%eth0")}}}}}}, "routing.static[0].nextHops[0].address"},
+		"unmapped next-hop interface": {&ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}}}, "has no Linux interface"},
 		"bad tag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
 			map[string]any{"prefix": "10.0.0.0/8", "tag": -1, "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "field tag"}, // StaticRoute.tag (8, P12) is decoded by protojson now
 		"bad frr flag": {doc(t, map[string]any{"routing": map[string]any{"static": []any{
 			map[string]any{"prefix": "10.0.0.0/8", "frr": "yes", "nextHops": []any{map[string]any{"address": "10.0.0.1"}}}}}}), "frr must be a boolean"},
-		"wrong type": {&vrxv1.Vrf{}, "unsupported input type"},
-		"two names map to one": {&vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{
+		"wrong type": {&ngfwv1.Vrf{}, "unsupported input type"},
+		"two names map to one": {&ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
 			"a": {Description: ptr("x")}, "b": {Description: ptr("y")}}}, "map to Linux name"},
 	}
 	for name, tc := range cases {
@@ -399,10 +399,10 @@ func TestInterfaceMapper(t *testing.T) {
 		}
 		return "", false
 	}))
-	out := renderConf(t, r, &vrxv1.DesiredState{
-		Interfaces: map[string]*vrxv1.Interface{"TenGigabitEthernet0/0/0": {Description: ptr("wan")}, "loop0": {Description: ptr("unmapped")}},
-		Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{
-			{Prefix: ptr("10.0.0.0/8"), NextHops: []*vrxv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}},
+	out := renderConf(t, r, &ngfwv1.DesiredState{
+		Interfaces: map[string]*ngfwv1.Interface{"TenGigabitEthernet0/0/0": {Description: ptr("wan")}, "loop0": {Description: ptr("unmapped")}},
+		Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{
+			{Prefix: ptr("10.0.0.0/8"), NextHops: []*ngfwv1.NextHop{{Interface: ptr("TenGigabitEthernet0/0/0")}}}}},
 	})
 	if !strings.Contains(out, "interface vpp1\n description wan\nexit\n") || !strings.Contains(out, "ip route 10.0.0.0/8 vpp1\n") || strings.Contains(out, "loop0") {
 		t.Fatalf("mapper not applied:\n%s", out)

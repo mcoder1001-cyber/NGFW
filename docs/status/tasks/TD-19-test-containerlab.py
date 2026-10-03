@@ -40,12 +40,12 @@ class Containerlab(unittest.TestCase):
             source = (ROOT / 'scripts/40-install-lab.sh').read_text()
             start = source.index('# BEGIN VERIFIED CONTAINERLAB')
             end = source.index('# END VERIFIED CONTAINERLAB', start)
-            fragment = source[start:end].replace('/tmp/vrx-containerlab.', str(root / 'vrx-containerlab.'))
+            fragment = source[start:end].replace('/tmp/ngfw-containerlab.', str(root / 'ngfw-containerlab.'))
             harness = f'set -euo pipefail\nCONTAINERLAB_VER=0.79.0\nCONTAINERLAB_URL=https://fixture.invalid/containerlab_0.79.0_linux_amd64.deb\nCONTAINERLAB_SHA256={digest}\nVIRT=() TRAFFIC=() ANALYSIS=() BASE=()\n'
             log = root / 'calls'
             result = subprocess.run(['bash', '-c', harness + fragment], capture_output=True, text=True,
                                     env=dict(os.environ, PATH=f'{stubs}:/usr/bin:/bin', FIXTURE_ARCHIVE=str(archive), CALL_LOG=str(log), APT_STATUS=str(apt_status), INSTALLED_VERSION=installed_version))
-            return result, log.read_text() if log.exists() else '', list(root.glob('vrx-containerlab.*'))
+            return result, log.read_text() if log.exists() else '', list(root.glob('ngfw-containerlab.*'))
 
     def test_verified_exact_deb_reaches_apt_then_version_query(self):
         result, calls, work = self.run_fixture()

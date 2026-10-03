@@ -29,7 +29,7 @@ export class ZodPipe<T extends z.ZodType> implements PipeTransform<unknown, z.ou
 
 /**
  * A ZodPipe whose schema depends on the parsed environment, built once per pipe instance through DI:
- * `@Body(EnvZodPipe((env) => bodySchema(env.VRX_…)))`. The OpenAPI decorators keep documenting the product schema.
+ * `@Body(EnvZodPipe((env) => bodySchema(env.NGFW_…)))`. The OpenAPI decorators keep documenting the product schema.
  */
 export function EnvZodPipe<T extends z.ZodType>(build: (env: Env) => T): Type<PipeTransform<unknown, z.output<T>>> {
   @Injectable()

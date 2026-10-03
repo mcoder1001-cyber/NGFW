@@ -44,7 +44,7 @@ func newFakeVPP() *fakeVPP {
 			return []api.Message{&abfapi.AbfPolicyAddDelReply{Retval: -1}}, nil // INVALID_VALUE: acl change
 		}
 		// abf_policy_add_del is additive: is_add appends the given paths, !is_add removes
-		// them and an empty list deletes the policy (verified on vrx-a). Paths are kept in
+		// them and an empty list deletes the policy (verified on ngfw-a). Paths are kept in
 		// reverse order to model VPP's own ordering.
 		cur, exists := v.policies[r.Policy.PolicyID]
 		if !exists {

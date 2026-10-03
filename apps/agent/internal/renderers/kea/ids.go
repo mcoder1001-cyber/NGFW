@@ -11,7 +11,7 @@ import (
 // must never change while its subnet exists. The id of a new subnet is FNV-32a of
 // "<server>/<subnet>" (salted "…#1", "…#2" on a collision); an existing subnet keeps the id it
 // has in the configuration Kea runs. That assignment is persisted in the rendered config
-// itself (user-context.vrx.server/subnet next to "id"): New and every Apply re-read it from the
+// itself (user-context.ngfw.server/subnet next to "id"): New and every Apply re-read it from the
 // files on disk, so an agent restart or a rollback sees exactly what the daemon runs.
 // Collisions are resolved without touching existing subnets: known names are placed first,
 // new names (sorted) probe salted hashes until a free id is found.
@@ -66,8 +66,8 @@ func readIDs(path string) map[string]uint32 {
 	}
 	for _, v := range root {
 		for _, s := range append(v.Subnet4, v.Subnet6...) {
-			if s.UserContext != nil && s.UserContext.VRX.Server != "" && s.UserContext.VRX.Subnet != "" && s.ID != 0 {
-				out[s.UserContext.VRX.Server+"/"+s.UserContext.VRX.Subnet] = s.ID
+			if s.UserContext != nil && s.UserContext.NGFW.Server != "" && s.UserContext.NGFW.Subnet != "" && s.ID != 0 {
+				out[s.UserContext.NGFW.Server+"/"+s.UserContext.NGFW.Subnet] = s.ID
 			}
 		}
 	}

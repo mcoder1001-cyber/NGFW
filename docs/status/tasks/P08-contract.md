@@ -6,7 +6,7 @@
 *from the data plane*, not from the config. `docs/contracts/proto.md` §5 forbids read-only status (link state,
 sw_if_index) in `RetrieveResponse` ("those come from StreamStats/StreamEvents/state RPCs") and no state RPC existed.
 
-**What.** One new unary RPC on `vrx.v1.Dataplane` and three new messages (field numbers fresh, nothing renamed or
+**What.** One new unary RPC on `ngfw.v1.Dataplane` and three new messages (field numbers fresh, nothing renamed or
 renumbered, `buf lint` clean, `buf breaking` FILE-level additive). Go + TS stubs regenerated with `packages/proto/gen.sh`.
 `docs/contracts/proto.md` §8a documents it. Nothing under `DesiredState` changed — the schema⊆proto drift guard is
 untouched.
@@ -22,7 +22,7 @@ the list from Retrieve alone with `state: null`).
 
 `GET /api/v1/state/interfaces` — **correction (fix round 1, D-105).** The first version of this file called the change
 "additive". It was not: P08 had moved `items[].config` from the Retrieve view to the running configuration (and put
-the Retrieve view into a new `actual`), which silently changed what `vrx show interfaces` prints. Fix round 1 restores
+the Retrieve view into a new `actual`), which silently changed what `ngfw show interfaces` prints. Fix round 1 restores
 the pre-P08 meaning and makes the change additive:
 
 | field | before P08 | P08 (round 0) | now |
@@ -37,7 +37,7 @@ the pre-P08 meaning and makes the change additive:
 Every row the old endpoint returned is still returned with the same `name`, `config` and `counters`; the new rows and
 fields are additions. The CLI reads `name/config/counters` (`apps/cli/internal/cli/cmd_op.go`); its operations table is
 regenerated (`State_counters`, new summary). **Fix round 2 (re-review R1, D-118):** the new rows reached the CLI's text
-output — `vrx show interfaces <candidate-only name>` exited 0 with an empty body instead of 5 "not in the data plane".
+output — `ngfw show interfaces <candidate-only name>` exited 0 with an empty body instead of 5 "not in the data plane".
 The CLI now skips items whose `config` is `null` in the table, the name lookup and completion, which restores its
 pre-P08 output exactly (`TestShowInterfacesListsOnlyRetrievedRows`, P08 response shape); `--json` prints the API's
 answer unchanged, as before. The `config` description names candidate-only rows (client regenerated). Consumers updated in the same round: the web screen

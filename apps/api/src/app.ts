@@ -33,11 +33,11 @@ export async function createApp(opts: CreateAppOptions = {}): Promise<NestFastif
   const env = opts.env ?? loadEnv();
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule.forRoot(env),
-    // TD-10b (review 2.3b): X-Forwarded-For/-Proto only from VRX_TRUST_PROXY peers (default loopback) — req.ip and
+    // TD-10b (review 2.3b): X-Forwarded-For/-Proto only from NGFW_TRUST_PROXY peers (default loopback) — req.ip and
     // req.ips are the client behind the product nginx / the vite proxy, not the proxy (principal.ts sourceIp)
     new FastifyAdapter({
       bodyLimit: BODY_LIMIT,
-      trustProxy: env.VRX_TRUST_PROXY.length > 0 ? env.VRX_TRUST_PROXY : false,
+      trustProxy: env.NGFW_TRUST_PROXY.length > 0 ? env.NGFW_TRUST_PROXY : false,
     }),
     { logger: opts.logger ?? ['error', 'warn', 'log'], abortOnError: false },
   );
@@ -148,17 +148,17 @@ function domainSchema(key: (typeof ROOT_KEYS)[number]): unknown {
 export function buildOpenApi(app: NestFastifyApplication): OpenAPIObject {
   const cfg = new DocumentBuilder()
     .setOpenAPIVersion('3.1.0')
-    .setTitle('VRX API')
+    .setTitle('NGFW API')
     .setDescription(
       [
-        'Management API of the VRX secure router. `/config` is transactional (candidate → diff → commit → rollback),',
+        'Management API of the NGFW secure router. `/config` is transactional (candidate → diff → commit → rollback),',
         '`/state` is live read-only, `/actions` are imperative. Errors are RFC 9457 `application/problem+json` with',
-        '`errors[]{pointer,message}`. Telemetry: `WS /api/v1/stream` (subprotocols `vrx.v1, bearer.<token>`), messages',
+        '`errors[]{pointer,message}`. Telemetry: `WS /api/v1/stream` (subprotocols `ngfw.v1, bearer.<token>`), messages',
         '`{subscribe:[topics]}`.',
       ].join(' '),
     )
     .setVersion('0.1.0')
-    .setLicense('Proprietary', 'https://vrx.dev/license')
+    .setLicense('Proprietary', 'https://ngfw.dev/license')
     .addServer('/', 'this device')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
     .addApiKey(
@@ -171,8 +171,8 @@ export function buildOpenApi(app: NestFastifyApplication): OpenAPIObject {
       'apiKey',
     )
     .addCookieAuth(
-      'vrx_refresh',
-      { type: 'apiKey', in: 'cookie', name: 'vrx_refresh' },
+      'ngfw_refresh',
+      { type: 'apiKey', in: 'cookie', name: 'ngfw_refresh' },
       'refreshCookie',
     )
     .build();

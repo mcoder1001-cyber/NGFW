@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"google.golang.org/protobuf/proto"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/promexport"
 	"ngfw/agent/internal/scheduler"
 )
@@ -15,10 +15,10 @@ import (
 const PrometheusDescriptorName = "prometheus.listener"
 
 // PrometheusKey is the listener singleton key.
-var PrometheusKey = scheduler.Join(PrometheusDescriptorName, "vrx")
+var PrometheusKey = scheduler.Join(PrometheusDescriptorName, "ngfw")
 
 // PrometheusAddress validates defaults and direct gRPC input.
-func PrometheusAddress(v *vrxv1.ManagementPrometheus) (string, error) {
+func PrometheusAddress(v *ngfwv1.ManagementPrometheus) (string, error) {
 	if v == nil {
 		return "", fmt.Errorf("ManagementPrometheus required")
 	}
@@ -43,7 +43,7 @@ func PrometheusAddress(v *vrxv1.ManagementPrometheus) (string, error) {
 }
 
 // Prometheus projects the enabled management listener.
-func Prometheus(s Sink, ds *vrxv1.DesiredState) {
+func Prometheus(s Sink, ds *ngfwv1.DesiredState) {
 	v := ds.GetManagement().GetPrometheus()
 	if !v.GetEnabled() {
 		return
@@ -56,16 +56,16 @@ func Prometheus(s Sink, ds *vrxv1.DesiredState) {
 }
 
 // AssemblePrometheus restores the retrieved listener configuration.
-func AssemblePrometheus(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssemblePrometheus(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
 		if kv.Key != PrometheusKey {
 			continue
 		}
-		if v, ok := kv.Value.(*vrxv1.ManagementPrometheus); ok {
+		if v, ok := kv.Value.(*ngfwv1.ManagementPrometheus); ok {
 			if ds.Management == nil {
-				ds.Management = &vrxv1.ManagementConfig{}
+				ds.Management = &ngfwv1.ManagementConfig{}
 			}
-			ds.Management.Prometheus = proto.Clone(v).(*vrxv1.ManagementPrometheus)
+			ds.Management.Prometheus = proto.Clone(v).(*ngfwv1.ManagementPrometheus)
 		}
 	}
 }

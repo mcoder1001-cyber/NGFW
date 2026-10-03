@@ -29,7 +29,7 @@ with main (P08 has not landed). Contract: `F-bridge-l2-contract.md`; questions: 
 | C1 | `packages/schema/src/domains/routing.ts` | **self-seeded anchor (D-122: keep, list it)** `// wave-A: F-bridge-l2` + `l2: routingL2Field` inserted above F-neighbors-ra's anchor in `RoutingSchema`; one import line, marked |
 | C2 | `packages/schema/src/semantic/index.ts` | `import { bridgeL2Validators } …`; `...bridgeL2Validators,` |
 | C3 | `packages/schema/src/index.ts` | `export * from './domains/ext/bridge-l2.js';` |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | service: the two RPCs; `Interface` 14; `Subinterface` 12; **self-seeded anchor** in `RoutingConfig` (above F-neighbors-ra's) + `BridgeL2Config l2 = 20`; messages in `// ----- F-bridge-l2 -----` |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | service: the two RPCs; `Interface` 14; `Subinterface` 12; **self-seeded anchor** in `RoutingConfig` (above F-neighbors-ra's) + `BridgeL2Config l2 = 20`; messages in `// ----- F-bridge-l2 -----` |
 | C6 | `docs/contracts/proto.md` | `### F-bridge-l2: BridgeDomainState, BridgeDomainMacs (…)` |
 | C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go` — `pnpm gen && make -C apps/cli gen docs` (never hand-edited) |
 | P1 | `apps/api/src/app.module.ts` | import `bridgeL2Feature`; `...bridgeL2Feature.controllers,`; `...bridgeL2Feature.providers,` |
@@ -52,7 +52,7 @@ with main (P08 has not landed). Contract: `F-bridge-l2-contract.md`; questions: 
     bridge_l2_test.go:121: rig VPP side handed to the agent: af_packet_delete host_if_name=w7w0 (sw_if_index 2, tag "") → ok
     bridge_l2_test.go:131: commit rev1 (L3 only) → applied revision 1
 === RUN   TestBridgeL2OnHost/validation
-    bridge_l2_test.go:138: commit of host-w7l0 as bridge member AND cross-connect rx → 400 content-type problem+json; body {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/l2/xconnects/host-w7l0","message":"host-w7l0 is already a member of bridge domain 'w7-lan' (/interfaces/host-w7l0/l2/bridgeDomain); an interface is in at most one bridge domain or cross-connect"}]}
+    bridge_l2_test.go:138: commit of host-w7l0 as bridge member AND cross-connect rx → 400 content-type problem+json; body {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/l2/xconnects/host-w7l0","message":"host-w7l0 is already a member of bridge domain 'w7-lan' (/interfaces/host-w7l0/l2/bridgeDomain); an interface is in at most one bridge domain or cross-connect"}]}
 === RUN   TestBridgeL2OnHost/apply
     bridge_l2_test.go:157: commit rev2 (L2) → applied revision 2, 12 results
     bridge_l2_test.go:158: vppctl show bridge-domain 7001 detail:
@@ -95,7 +95,7 @@ with main (P08 has not landed). Contract: `F-bridge-l2-contract.md`; questions: 
     bridge_l2_test.go:158: Retrieve interfaces loop720 l2 = {"bridgeDomain":"w7-lan","bvi":true,"macFilter":false,"shg":0,"uuFwd":false}
     bridge_l2_test.go:158: Retrieve == desired for routing.l2 and the l2 leaves of host-w7l0, host-w7l0.100, host-w7w0.200, loop720
 === RUN   TestBridgeL2OnHost/restart-safety
-    stack_test.go:200: stopped vrx-agent pid 2511814
+    stack_test.go:200: stopped ngfw-agent pid 2511814
     bridge_l2_test.go:170: simulated loss: mactime_enable_disable enable_disable=false host-w7l0 → ok
     bridge_l2_test.go:170: simulated loss: mactime_add_del_range is_add=false w7:w7-kids → ok
     bridge_l2_test.go:170: simulated loss: l2_interface_vlan_tag_rewrite vtr_op=0 host-w7l0.100 → ok
@@ -109,7 +109,7 @@ with main (P08 has not landed). Contract: `F-bridge-l2-contract.md`; questions: 
     bridge_l2_test.go:170: simulated loss: bridge_domain_add_del_v2 is_add=false bd_id=7001 → ok
     bridge_l2_test.go:175: vppctl show bridge-domain (after the loss):
         no bridge-domains in use
-    bridge_l2_test.go:193: agent log: {"time":"2026-09-24T19:20:49.830026676+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":2513200,"owner":"w7",…}
+    bridge_l2_test.go:193: agent log: {"time":"2026-09-24T19:20:49.830026676+03:30","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":2513200,"owner":"w7",…}
     bridge_l2_test.go:198: agent log: {"time":"2026-09-24T19:20:49.85863515+03:30","level":"INFO","msg":"reconcile start","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"]}
     bridge_l2_test.go:198: agent log: {"time":"2026-09-24T19:20:49.929951105+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:20","reapplied":0,"duration":71314659,"err":""}
     bridge_l2_test.go:196: agent log: {"time":"2026-09-24T19:20:49.92998916+03:30","level":"INFO","msg":"resync finished","owner":"w7","status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:20"}
@@ -131,7 +131,7 @@ with main (P08 has not landed). Contract: `F-bridge-l2-contract.md`; questions: 
 === RUN   TestBridgeL2OnHost/cleanup-through-api
     bridge_l2_test.go:269: commit (interfaces deleted) → applied
     stack_test.go:507: pg-test drop w7: <nil>
-        ok     nothing named vrx_w7 / vrx_w7 remains
+        ok     nothing named ngfw_w7 / ngfw_w7 remains
     bridge_l2_test.go:105: systemctl show vpp -p NRestarts (after) = 1
 --- PASS: TestBridgeL2OnHost (16.49s)
     --- PASS: TestBridgeL2OnHost/validation (0.22s)
@@ -155,7 +155,7 @@ interfaces, no l3xc on loop721, no w7 mactime device, the mactime feature off on
 sub-interfaces. `show mactime` "dynamic drop" is the current status in VPP's mactime clock (UTC−5 default: outside the
 16:00–20:00 allow window at that moment).
 
-### Host check of the new descriptor — `VRX_INTEGRATION=1 go test -run TestMactimeOnHost ./internal/descriptors/mactime/`
+### Host check of the new descriptor — `NGFW_INTEGRATION=1 go test -run TestMactimeOnHost ./internal/descriptors/mactime/`
 ```
     integration_test.go:53: feature_is_enabled(device-input, mactime, 1=loop730) on a fresh loopback = false
     integration_test.go:69: mactime.range/it-dev: Retrieve == desired
@@ -167,7 +167,7 @@ sub-interfaces. `show mactime` "dynamic drop" is the current status in VPP's mac
 --- PASS: TestMactimeOnHost (0.35s)
 ```
 
-### API e2e (slot DB `vrx_w7`, fake agent) — `apps/api/test/e2e/bridge-l2.e2e.test.ts`
+### API e2e (slot DB `ngfw_w7`, fake agent) — `apps/api/test/e2e/bridge-l2.e2e.test.ts`
 ```
  ✓ test/e2e/bridge-l2.e2e.test.ts (5 tests) 43408ms
    an agent without the RPCs answers 501
@@ -231,7 +231,7 @@ Run at `93f7934` with this tree's `tools/ci.sh` plus main's D-127 fix only (a sc
 >     if grep -qiE '^contract(\(|:|!)' <<<"$subjects"; then
 ```
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-bridge-l2 @ 93f7934   (base: main)
 == contract guard: HEAD vs main ==
 ok — contract commit(s) on the branch:
@@ -287,7 +287,7 @@ mactime quotas and time zone, packet-level tests (none listed for this task), a 
 
 ## Cleanup
 Every process started by the tests was stopped by PID (agent, API, vite preview); lab lock held only during runs; the rig
-(`tools/lab rig down w7`) removed; `vrx_w7` dropped by `pg-test.sh drop`; `dist/` and `apps/agent/bin` removed. Dump after the runs:
+(`tools/lab rig down w7`) removed; `ngfw_w7` dropped by `pg-test.sh drop`; `dist/` and `apps/agent/bin` removed. Dump after the runs:
 ```
 $ vppctl show bridge-domain
 no bridge-domains in use
@@ -300,7 +300,7 @@ $ vppctl show interface | grep -E 'w7|loop7'
 (none)
 $ ip netns | grep w7; ip link | grep w7
 (none)
-$ psql … "select datname from pg_database where datname='vrx_w7'"
+$ psql … "select datname from pg_database where datname='ngfw_w7'"
 (empty = dropped)
 NRestarts=1   (1 since the 18:41 crash of another slot — Q8; unchanged by every F-bridge-l2 run)
 ```
@@ -334,7 +334,7 @@ apps/web  vitest src/domains/interfaces/bridge-l2:
    ✓ Bridging page > removing a member sends l2: null for that (sub-)interface through the generic route      (+ host-w7l0 with macFilter → membership fields only)
    ✓ Bridging page > removing an L2 cross-connect also drops the tag rewrite of its receive side (review #8)
       Tests  6 passed (6)
-apps/api  e2e (slot DB vrx_w7, fake agent): ✓ test/e2e/bridge-l2.e2e.test.ts (5 tests) — Tests 5 passed (5)   (incl. 7999/macs → 404 on grpcCode)
+apps/api  e2e (slot DB ngfw_w7, fake agent): ✓ test/e2e/bridge-l2.e2e.test.ts (5 tests) — Tests 5 passed (5)   (incl. 7999/macs → 404 on grpcCode)
 apps/agent go test: mactime ok · l2 ok · desired ok · agent ok · subsystems ok   (TestDevice: learned entry ErrNotOurs for a non-owner, replaced by the globals owner)
 ```
 CI with main's `tools/ci.sh` (copied from `main`, run in this worktree):

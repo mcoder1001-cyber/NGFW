@@ -1,4 +1,4 @@
-# زمان‌بندی جامع تولید محصول VRX
+# زمان‌بندی جامع تولید محصول NGFW
 ## پوشش کامل قابلیت‌های TNSR + تمام قابلیت‌های VPP 26.06
 
 سند مرجع: VPP نسخه **26.06** (انتشار ۲۴ ژوئن ۲۰۲۶، ۲۸ قابلیت جدید، ۶۳۲ کامیت) و شاخه در حال توسعه **26.10-rc0**.
@@ -31,8 +31,8 @@
 > (۶٬۴۸۱ نفر-روز بار در برابر ۷٬۶۴۸ نفر-روز ظرفیت) — تا ماه ۳۰ آن را خرج دامنهٔ جدید نکنید.
 
 > **فایل کاری:** جزئیات تک‌تک ۱۰۲ قلم کار با فرمول‌های زنده در
-> [`wbs/VRX-WBS.xlsx`](../wbs/VRX-WBS.xlsx) است (۱۰ شیت، ۶۲۰ فرمول). خروجی‌های
-> [Jira](../wbs/VRX-WBS-jira.csv) و [MS Project](../wbs/VRX-WBS-msproject.csv) هم آماده‌اند.
+> [`wbs/NGFW-WBS.xlsx`](../wbs/NGFW-WBS.xlsx) است (۱۰ شیت، ۶۲۰ فرمول). خروجی‌های
+> [Jira](../wbs/NGFW-WBS-jira.csv) و [MS Project](../wbs/NGFW-WBS-msproject.csv) هم آماده‌اند.
 > نسخهٔ انگلیسی این سند: [`08-master-schedule-en.md`](08-master-schedule-en.md).
 
 > **نکته مهم و صریح:** TNSR خودش تمام قابلیت‌های VPP را در رابط مدیریتی عرضه نمی‌کند.
@@ -77,8 +77,8 @@
 | D0.4 | بسته‌بندی `.deb` + مخزن APT + امضا | T1 | 25 |
 | D0.5 | ارتقای A/B image با rollback خودکار | T1 | 40 |
 | D0.6 | مولد `startup.conf`: hugepages، workers، RSS، NUMA، isolcpus، PCI whitelist | T1 | 30 |
-| D0.7 | هستهٔ `vrx-agent`: اتصال govpp، stats، reconciler/KVScheduler، گراف وابستگی | T1 | 70 |
-| D0.8 | هستهٔ `vrx-api`: NestJS، datastore candidate/running، موتور commit، confirmed-commit، revisions، rollback | T1 | 75 |
+| D0.7 | هستهٔ `ngfw-agent`: اتصال govpp، stats، reconciler/KVScheduler، گراف وابستگی | T1 | 70 |
+| D0.8 | هستهٔ `ngfw-api`: NestJS، datastore candidate/running، موتور commit، confirmed-commit، revisions، rollback | T1 | 75 |
 | D0.9 | Auth/RBAC/audit/API-key/TLS/مدیریت اسرار با TPM | T1 | 55 |
 | D0.10 | پوستهٔ UI: تم، چیدمان، i18n fa/en + RTL، SchemaForm، DataGrid، کلاینت WS، نوار تغییرات معلق + diff | T1 | 80 |
 | D0.11 | CLI تعاملی شبیه clixon (config mode، completion، `show` ها) | T1 | 90 |
@@ -387,8 +387,8 @@
 | اسپرینت | ماه | خروجی مشخص و قابل اثبات |
 |---|---|---|
 | **S01** | 1.0 | monorepo + CI سبز + Vagrant/QEMU با Ubuntu 24.04 و VPP 26.06 و دو اینترفیس virtio متصل به VPP (همه اتوماسیون، نه دستی) |
-| **S02** | 1.5 | `vrx-agent` با govpp وصل می‌شود و `Retrieve` اینترفیس‌ها را برمی‌گرداند؛ یک RPC gRPC روی سوکت یونیکس |
-| **S03** | 2.0 | `vrx-api`: `GET /api/v1/state/interfaces`؛ پکیج `schema` با Zod؛ خط codegen (OpenAPI + client) |
+| **S02** | 1.5 | `ngfw-agent` با govpp وصل می‌شود و `Retrieve` اینترفیس‌ها را برمی‌گرداند؛ یک RPC gRPC روی سوکت یونیکس |
+| **S03** | 2.0 | `ngfw-api`: `GET /api/v1/state/interfaces`؛ پکیج `schema` با Zod؛ خط codegen (OpenAPI + client) |
 | **S04** | 2.5 | صفحهٔ React فهرست اینترفیس‌ها با شمارندهٔ زنده روی WebSocket → **اسلایس عمودی کامل اثبات شد** |
 | **S05** | 3.0 | هستهٔ reconciler: Descriptor + گراف وابستگی + diff/plan/apply؛ datastore candidate/running؛ اولین commit اتمی روی MTU |
 | **S06** | 3.5 | بیلد `.deb` + مخزن APT امضاشده؛ نصب روی سرور فیزیکی؛ **گیت G1** |

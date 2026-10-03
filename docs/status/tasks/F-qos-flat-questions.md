@@ -93,8 +93,8 @@ persisted, `CheckPersistent`) holding names ↔ ids, descriptions, explicit id/b
 uses it only to name and decorate objects VPP returned (it never makes an object appear). Same idea as F-kea's
 `dhcp.relay` record.
 
-## Q12 — no `vrx show qos` CLI command
-apps/cli is not mine; the user guide documents `vrx set/merge services qos …`, the REST state/reset routes and the
+## Q12 — no `ngfw show qos` CLI command
+apps/cli is not mine; the user guide documents `ngfw set/merge services qos …`, the REST state/reset routes and the
 `vppctl show …` equivalents. A `show qos policers` command (→ `QosFlat_policers`) is a small P13 follow-up.
 
 ## Q13 — pending until host runs reopen (TD-25)

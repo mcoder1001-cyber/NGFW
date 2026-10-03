@@ -3,7 +3,7 @@
 > **Review round (APPROVE WITH CHANGES, afb833a) — see "Review fixes" at the end.** Round-1 sections below are kept as
 > history. Important: the round-1 output `out/26.06-release/` was **demo-patched but versioned exactly like the host**
 > (H2); it has been deleted. The default build is now unpatched (`26.06-release`) and the demo series builds only with
-> `--demo` as `26.06-release+vrx1`.
+> `--demo` as `26.06-release+ngfw1`.
 
 Branch `task/F-vpp-debs`, worktree `/root/ngfw-wt/F-vpp-debs`, base main@87f84b2. Worker ran directly on the host.
 
@@ -11,7 +11,7 @@ Branch `task/F-vpp-debs`, worktree `/root/ngfw-wt/F-vpp-debs`, base main@87f84b2
 
 | path | what |
 |---|---|
-| `deploy/vpp/VERSION` | upstream `https://gerrit.fd.io/r/vpp`, `stable/2606`, tag `v26.06` = tag object `29c51fb8…` → commit `c3200b88dc46bd380f00a49ca3392a102cc1980b`; expected version `26.06-release`; expected 11-package set; the 7 installed on vrx-a |
+| `deploy/vpp/VERSION` | upstream `https://gerrit.fd.io/r/vpp`, `stable/2606`, tag `v26.06` = tag object `29c51fb8…` → commit `c3200b88dc46bd380f00a49ca3392a102cc1980b`; expected version `26.06-release`; expected 11-package set; the 7 installed on ngfw-a |
 | `deploy/vpp/patches/series` + `0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch` | quilt-style series, one **demonstration** patch (V16, the two-line `REPLY_MSG_ID_BASE` fix in `flow_api.c`) — marked `Status: demo`, not installed anywhere |
 | `deploy/vpp/patches/optional/trace-plugins-core.patch` | V18 option: moves `tracedump`/`tracenode` CMake components from `vpp-plugin-devtools` to `vpp-plugin-core` (CMake only, no C); applied only with `--trace-plugins core` |
 | `deploy/vpp/build.sh` | verify.sh → clone (`--reference-if-able /root/vpp --dissociate`, fallback read-only clone of /root/vpp) into git-ignored `deploy/vpp/.build/` → verify tag object + commit → pristine checkout → apply series uncommitted → check the tree version is `26.06-release` *before* compiling → build-dep report (upstream `DEB_DEPENDS` via `apt-get -s`, never installs) → `make pkg-deb` (upstream defaults = host flags) with `MAKE_PARALLEL_JOBS=JOBS=8`, `taskset` on 8 CPUs, `nice 10` → `.deb` + `SHA256SUMS` + `manifest.json` → package set/version check → `verify.sh --manifest` |
@@ -25,7 +25,7 @@ i.e. plain upstream `make pkg-deb`; `build.sh` uses exactly that.
 
 **Finding (V18/D-077):** tracedump and tracenode *are* built by 26.06; upstream ships them in `vpp-plugin-devtools`
 (`dpkg-deb -c` shows `tracedump_plugin.so`, `tracenode_plugin.so`, `tracepath_plugin.so`, `unittest_plugin.so`, …),
-which vrx-a does not install. So V18 is a packaging choice, not a missing build flag → Q2.
+which ngfw-a does not install. So V18 is a packaging choice, not a missing build flag → Q2.
 
 ## How it was verified
 
@@ -113,7 +113,7 @@ db3ee4c6bae50442479e0c171ad0f4385e5b6bf1a109bb1051610f16b8c9f36b  vpp-plugin-dpd
 ### manifest.json (`deploy/vpp/.build/out/26.06-release/manifest.json`; `packages[]` shortened to 2 of 11 here)
 ```json
 {
-  "schema": "vrx.vpp-debs.manifest/v1",
+  "schema": "ngfw.vpp-debs.manifest/v1",
   "upstream": {
     "url": "https://gerrit.fd.io/r/vpp",
     "branch": "stable/2606",
@@ -154,7 +154,7 @@ db3ee4c6bae50442479e0c171ad0f4385e5b6bf1a109bb1051610f16b8c9f36b  vpp-plugin-dpd
       "file": "vpp_26.06-release_amd64.deb",
       "size": 4748764,
       "sha256": "06d4015ef23d80ef38190ff7e16eea0c1c67042a3808da5723a8b11e76227d4b",
-      "installed_on_vrx_a": true
+      "installed_on_ngfw_a": true
     },
     {
       "package": "vpp-dbg",
@@ -163,7 +163,7 @@ db3ee4c6bae50442479e0c171ad0f4385e5b6bf1a109bb1051610f16b8c9f36b  vpp-plugin-dpd
       "file": "vpp-dbg_26.06-release_amd64.deb",
       "size": 92169196,
       "sha256": "8ce43edf2afeaa836e09d28609c36c0124179bdb5a088cd7c471dba49f3d28e9",
-      "installed_on_vrx_a": false
+      "installed_on_ngfw_a": false
     }
   ]
 }
@@ -297,15 +297,15 @@ else by `--prepare-only` and `deploy/vpp/tests/run.sh` (64 unit-style tests, no 
 
 | finding | fix |
 |---|---|
-| **H1** unpinned/unverified Python wheels | `deploy/vpp/pydeps.lock`: meson 0.57.2 (sdist), pyelftools 0.33, setuptools 84.0.0, wheel 0.48.0, packaging 26.3 — exact versions + **PyPI-published sha256** + file + URL. `build.sh` builds `.build/pydeps/wheelhouse` holding exactly those files (sha256-checked; missing → https download from the locked URL + hash check; stale/foreign files removed; **never copied from /root/vpp or ~/Downloads**; `--offline-reference` + missing = fatal), proves `pip install --require-hashes --no-index --find-links <wheelhouse> -r pydeps.lock` in a scratch venv under `.build`, and points `DL_CACHE_DIR` at an empty dir under `.build`. `build-patches/0001` (build infrastructure only, `build/` only — enforced by verify.sh) makes upstream's DPDK meson venv install **only** via `pip3 install --require-hashes --no-index --find-links $VRX_PYDEPS_DIR -r $VRX_PYDEPS_LOCK` (no download step; fails closed if unset). The whole make runs with `PIP_NO_INDEX=1 PIP_FIND_LINKS=<wheelhouse> PIP_NO_CACHE_DIR=1` — this also caught a second unpinned input the review did not list: python3-vpp-api's PEP 517 build isolation fetched `setuptools>=61` from PyPI in round 1; it now resolves to the locked setuptools 84.0.0. After the build the DPDK venv's `pip list` must equal the lock; lock and venv are recorded in `manifest.build.inputs`. (Why a build patch and not env vars: pip ignores constraint-file hashes for command-line requirements — tested, questions Q6.) |
-| **H2** demo-patched build versioned like the host | D-089: any build with an applied product/demo/optional patch is `26.06-release+vrx<N>` (`VPP_LOCAL_REV=1` in VERSION; `build.sh` replaces `src/scripts/version` after patching and checks the value before compiling). `Status: demo` patches are applied **only with `--demo`**; output dir and manifest carry `variant: demo`. Default `build.sh` = unpatched = `26.06-release`. Round-1 `out/26.06-release/` (demo-patched, unsuffixed) **deleted**. README install block requires `verify.sh --require-files <out> --install-gate`, which refuses an unsuffixed build, any demo patch and a dirty builder. |
-| **M1** fuzz accepted | `vrx_apply_patch` = `git apply --check` then `git apply` (exact context). Tested with a fuzzed patch (below; tests 39–44). |
-| **M2** `rm -rf` on computed paths | path guards run **first**: `--build-dir` must realpath-resolve inside `deploy/vpp/.build`, `--out` inside the build dir; `/`, `$HOME`, `/root`, `/root/vpp`, `/etc/vpp`, `/usr`, `/var/lib/dpkg`, `/boot`, `/root/ngfw` (and subtrees) always refused. Every `rm -rf` goes through `vrx_rm_rf` (strictly below a root carrying the `.vrx-owned` marker); `--out` is emptied only if it holds nothing but build.sh artefacts. |
-| **M3** apt failure reported as "all satisfied" | `vrx_apt_missing` captures apt's rc; non-zero → message + fatal. |
+| **H1** unpinned/unverified Python wheels | `deploy/vpp/pydeps.lock`: meson 0.57.2 (sdist), pyelftools 0.33, setuptools 84.0.0, wheel 0.48.0, packaging 26.3 — exact versions + **PyPI-published sha256** + file + URL. `build.sh` builds `.build/pydeps/wheelhouse` holding exactly those files (sha256-checked; missing → https download from the locked URL + hash check; stale/foreign files removed; **never copied from /root/vpp or ~/Downloads**; `--offline-reference` + missing = fatal), proves `pip install --require-hashes --no-index --find-links <wheelhouse> -r pydeps.lock` in a scratch venv under `.build`, and points `DL_CACHE_DIR` at an empty dir under `.build`. `build-patches/0001` (build infrastructure only, `build/` only — enforced by verify.sh) makes upstream's DPDK meson venv install **only** via `pip3 install --require-hashes --no-index --find-links $NGFW_PYDEPS_DIR -r $NGFW_PYDEPS_LOCK` (no download step; fails closed if unset). The whole make runs with `PIP_NO_INDEX=1 PIP_FIND_LINKS=<wheelhouse> PIP_NO_CACHE_DIR=1` — this also caught a second unpinned input the review did not list: python3-vpp-api's PEP 517 build isolation fetched `setuptools>=61` from PyPI in round 1; it now resolves to the locked setuptools 84.0.0. After the build the DPDK venv's `pip list` must equal the lock; lock and venv are recorded in `manifest.build.inputs`. (Why a build patch and not env vars: pip ignores constraint-file hashes for command-line requirements — tested, questions Q6.) |
+| **H2** demo-patched build versioned like the host | D-089: any build with an applied product/demo/optional patch is `26.06-release+ngfw<N>` (`VPP_LOCAL_REV=1` in VERSION; `build.sh` replaces `src/scripts/version` after patching and checks the value before compiling). `Status: demo` patches are applied **only with `--demo`**; output dir and manifest carry `variant: demo`. Default `build.sh` = unpatched = `26.06-release`. Round-1 `out/26.06-release/` (demo-patched, unsuffixed) **deleted**. README install block requires `verify.sh --require-files <out> --install-gate`, which refuses an unsuffixed build, any demo patch and a dirty builder. |
+| **M1** fuzz accepted | `ngfw_apply_patch` = `git apply --check` then `git apply` (exact context). Tested with a fuzzed patch (below; tests 39–44). |
+| **M2** `rm -rf` on computed paths | path guards run **first**: `--build-dir` must realpath-resolve inside `deploy/vpp/.build`, `--out` inside the build dir; `/`, `$HOME`, `/root`, `/root/vpp`, `/etc/vpp`, `/usr`, `/var/lib/dpkg`, `/boot`, `/root/ngfw` (and subtrees) always refused. Every `rm -rf` goes through `ngfw_rm_rf` (strictly below a root carrying the `.ngfw-owned` marker); `--out` is emptied only if it holds nothing but build.sh artefacts. |
+| **M3** apt failure reported as "all satisfied" | `ngfw_apt_missing` captures apt's rc; non-zero → message + fatal. |
 | **L1** verify.sh gaps | `verify.sh --require-files <out>`: missing/extra `.deb`, `dpkg-deb -f Package/Version/Architecture` vs each manifest entry, sha256 on disk vs manifest vs SHA256SUMS (set and hashes), `/` in file names, stale patch/lock hashes, the D-089 version rule, `ship` flags. README states SHA256SUMS/manifest are unsigned (integrity only; signing = P10). |
-| **L2** VERSION sourced | `vrx_parse_version`: line by line, a strict regex for every field; unknown or repeated names are rejected; assignment via `printf -v`; used by build.sh and verify.sh; no `source`. |
+| **L2** VERSION sourced | `ngfw_parse_version`: line by line, a strict regex for every field; unknown or repeated names are rejected; assignment via `printf -v`; used by build.sh and verify.sh; no `source`. |
 | **L3** disk budget | build.sh refuses to compile with < 40 GB free under the build dir; prints `du -sh` at the end (3.4 GB). |
-| **L4** D-089 alignment | `VPP_PACKAGES_SHIP` (7 runtime packages; no vpp-dbg/vpp-dev/libvppinfra-dev/devtools) → `ship` per package; README: publish to `/srv/vrx-artifacts/vpp/<version>[-variant]/`; questions Q1–Q4 marked answered. |
+| **L4** D-089 alignment | `VPP_PACKAGES_SHIP` (7 runtime packages; no vpp-dbg/vpp-dev/libvppinfra-dev/devtools) → `ship` per package; README: publish to `/srv/ngfw-artifacts/vpp/<version>[-variant]/`; questions Q1–Q4 marked answered. |
 | **L5** silent fallback to /root/vpp | an unreachable upstream is fatal; `--offline-reference` is the explicit opt-in; `manifest.build.source` = `upstream`/`reference`. |
 
 ### Unit-style tests (`deploy/vpp/tests/run.sh`, also run by `verify.sh`)
@@ -320,8 +320,8 @@ ok 7 - tag/version mismatch is rejected
 ok 8 - short commit hash is rejected
 ok 9 - ship list outside VPP_PACKAGES is rejected
 ok 10 - no patches → upstream version
-ok 11 - patches → +vrx<N>
-ok 12 - +vrx sorts above the unpatched version (dpkg)
+ok 11 - patches → +ngfw<N>
+ok 12 - +ngfw sorts above the unpatched version (dpkg)
 ok 13 - generated src/scripts/version prints the local version
 ok 14 - ... and the upstream lib version prefix is unchanged
 ok 15 - guard: path inside root accepted
@@ -349,7 +349,7 @@ ok 36 - build.sh --out /root/vpp/build-root refuses before doing anything
 ok 37 - build.sh --out /root/ngfw-wt/F-vpp-debs/deploy/vpp refuses before doing anything
 ok 38 - build.sh --out /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/../x refuses before doing anything
 ok 39 - fuzzed patch: GNU patch would accept it (the old behaviour)
-ok 40 - fuzzed patch: vrx_apply_patch refuses it
+ok 40 - fuzzed patch: ngfw_apply_patch refuses it
 ok 41 - ... and the tree is unchanged
 ok 42 - exact patch applies
 ok 43 - ... with the expected result
@@ -370,7 +370,7 @@ ok 57 - missing .deb detected
 ok 58 - extra .deb detected
 ok 59 - manifest package name not matching the .deb control field detected
 ok 60 - demo-patched build with the unsuffixed version rejected (D-089)
-ok 61 - demo-patched build with +vrx passes --require-files
+ok 61 - demo-patched build with +ngfw passes --require-files
 ok 62 - ... but never passes the install gate
 ok 63 - demo patch without demo variant rejected
 ok 64 - SHA256SUMS with an extra entry rejected
@@ -399,13 +399,13 @@ $ deploy/vpp/build.sh --build-dir /tmp/elsewhere --prepare-only
 --build-dir: /tmp/elsewhere is outside /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build — refusing
 [build.sh] ERROR: --build-dir must resolve inside /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build
 rc=1
-$ vrx_apt_missing vrx-nonexistent-pkg-xyz   (M3)
-apt-get install -s failed (rc=100): E: Unable to locate package vrx-nonexistent-pkg-xyz 
+$ ngfw_apt_missing ngfw-nonexistent-pkg-xyz   (M3)
+apt-get install -s failed (rc=100): E: Unable to locate package ngfw-nonexistent-pkg-xyz
 rc=2
 $ VERSION with VPP_TAG=$(touch /tmp/pwned) (L2)
-VERSION:19: VPP_TAG='$(touch /tmp/vrx-pwned)' does not match ^v[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$
+VERSION:19: VPP_TAG='$(touch /tmp/ngfw-pwned)' does not match ^v[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$
 rc=1
-ls: cannot access '/tmp/vrx-pwned': No such file or directory
+ls: cannot access '/tmp/ngfw-pwned': No such file or directory
 ```
 
 ### M1 — a fuzzed copy of the demo patch on the real VPP tree
@@ -419,7 +419,7 @@ $ patch -p1 --forward --batch --dry-run   (old build.sh behaviour)
 checking file src/vnet/ipfix-export/flow_api.c
 Hunk #1 succeeded at 332 with fuzz 1.
 rc=0
-$ vrx_apply_patch = git apply --check && git apply   (new)
+$ ngfw_apply_patch = git apply --check && git apply   (new)
 error: patch failed: src/vnet/ipfix-export/flow_api.c:332
 error: src/vnet/ipfix-export/flow_api.c: patch does not apply
 patch fuzzed-demo.patch does not apply exactly (git apply --check)
@@ -452,8 +452,8 @@ fetch `setuptools>=61` from PyPI (`ERROR: No matching distribution found for set
 above. Fixed in `554a40d` (`PIP_FIND_LINKS=<wheelhouse>`, `PIP_NO_CACHE_DIR=1`); second run (same log file):
 ```
 [build.sh 03:12:04] pinned: https://gerrit.fd.io/r/vpp v26.06 (c3200b88dc46bd380f00a49ca3392a102cc1980b)
-[build.sh 03:12:04] expect: version 26.06-release+vrx1 (1 version-relevant patch(es)); packages: libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-devtools vpp-plugin-dpdk
-[build.sh 03:12:04] build dir: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build  out: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/out/26.06-release+vrx1-demo  jobs: 8  trace-plugins: devtools  reference: /root/vpp  offline: 0
+[build.sh 03:12:04] expect: version 26.06-release+ngfw1 (1 version-relevant patch(es)); packages: libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-devtools vpp-plugin-dpdk
+[build.sh 03:12:04] build dir: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build  out: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/out/26.06-release+ngfw1-demo  jobs: 8  trace-plugins: devtools  reference: /root/vpp  offline: 0
 [build.sh 03:12:05] verified: v26.06 = tag object 29c51fb8b95a92d0d325cff2e502549e652aad9f → commit c3200b88dc46bd380f00a49ca3392a102cc1980b (source: upstream)
 [build.sh 03:12:09] checked out v26.06-0-gc3200b88d (pristine, upstream version 26.06-release)
 [build.sh 03:12:09] applied build-patches/0001-build-dpdk-hash-locked-python-deps.patch (build)
@@ -461,7 +461,7 @@ above. Fixed in `554a40d` (`PIP_FIND_LINKS=<wheelhouse>`, `PIP_NO_CACHE_DIR=1`);
      M build/external/packages/dpdk.mk
      M src/scripts/version
      M src/vnet/ipfix-export/flow_api.c
-[build.sh 03:12:10] tree version: 26.06-release+vrx1
+[build.sh 03:12:10] tree version: 26.06-release+ngfw1
 [build.sh 03:12:12] build dependencies: all 46 DEB_DEPENDS entries satisfied (apt-get -s rc=0)
 [build.sh 03:12:12] pydeps: cached meson-0.57.2.tar.gz
 [build.sh 03:12:12] pydeps: cached pyelftools-0.33-py3-none-any.whl
@@ -471,7 +471,7 @@ above. Fixed in `554a40d` (`PIP_FIND_LINKS=<wheelhouse>`, `PIP_NO_CACHE_DIR=1`);
 [build.sh 03:12:31] pydeps: pip install --require-hashes --no-index --find-links /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/pydeps/wheelhouse OK: meson==0.57.2 packaging==26.3 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0 
 [build.sh 03:12:31] external tarball cache: libcbor-0.13.0.tar.gz rdma-core-62.0.tar.gz xdp-tools-1.5.5.tar.gz quicly_0.1.6-vpp.tar.gz daq-3.0.21.tar.gz dpdk-26.03.tar.xz v2.0.2.tar.gz 
 [build.sh 03:12:31] free disk: 163 GB (>= 40)
-[build.sh 03:12:31] make -C /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/src/vpp pkg-deb MAKE_PARALLEL_JOBS=8 JOBS=8 DL_CACHE_DIR=/root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/pydeps/empty-dl-cache VRX_PYDEPS_LOCK=/root/ngfw-wt/F-vpp-debs/deploy/vpp/pydeps.lock VRX
+[build.sh 03:12:31] make -C /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/src/vpp pkg-deb MAKE_PARALLEL_JOBS=8 JOBS=8 DL_CACHE_DIR=/root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/pydeps/empty-dl-cache NGFW_PYDEPS_LOCK=/root/ngfw-wt/F-vpp-debs/deploy/vpp/pydeps.lock NGFW
 make: Entering directory '/root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/src/vpp'
 make[1]: Entering directory '/root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/src/vpp/build-root'
 @@@@ Arch for platform 'vpp' is native @@@@
@@ -495,40 +495,40 @@ Successfully installed vpp_papi-2.3.2
 ...
 [build.sh 03:23:49] make pkg-deb finished in 11m18s
 [build.sh 03:23:50] DPDK meson venv matches pydeps.lock: meson==0.57.2 packaging==26.3 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0
-[build.sh 03:24:00] OK: 11 packages, version 26.06-release+vrx1, variant demo; 3.4G used under /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build
+[build.sh 03:24:00] OK: 11 packages, version 26.06-release+ngfw1, variant demo; 3.4G used under /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build
 ```
-Packages (`dpkg-deb -f <deb> Package Version`) in `deploy/vpp/.build/out/26.06-release+vrx1-demo/`:
+Packages (`dpkg-deb -f <deb> Package Version`) in `deploy/vpp/.build/out/26.06-release+ngfw1-demo/`:
 ```
-libvppinfra            26.06-release+vrx1
-libvppinfra-dev        26.06-release+vrx1
-python3-vpp-api        26.06-release+vrx1
-vpp                    26.06-release+vrx1
-vpp-crypto-engines     26.06-release+vrx1
-vpp-dbg                26.06-release+vrx1
-vpp-dev                26.06-release+vrx1
-vpp-drivers            26.06-release+vrx1
-vpp-plugin-core        26.06-release+vrx1
-vpp-plugin-devtools    26.06-release+vrx1
-vpp-plugin-dpdk        26.06-release+vrx1
+libvppinfra            26.06-release+ngfw1
+libvppinfra-dev        26.06-release+ngfw1
+python3-vpp-api        26.06-release+ngfw1
+vpp                    26.06-release+ngfw1
+vpp-crypto-engines     26.06-release+ngfw1
+vpp-dbg                26.06-release+ngfw1
+vpp-dev                26.06-release+ngfw1
+vpp-drivers            26.06-release+ngfw1
+vpp-plugin-core        26.06-release+ngfw1
+vpp-plugin-devtools    26.06-release+ngfw1
+vpp-plugin-dpdk        26.06-release+ngfw1
 ```
 SHA256SUMS:
 ```
-2514e32c2e94c7f34538bad5969295566f80e8b61ed3541054fd8fb8130bf4f6  libvppinfra_26.06-release+vrx1_amd64.deb
-6e30e687de0d0819bf0d9d3d1b71baed9f0a8648b1d8e251c99c3a2764681977  libvppinfra-dev_26.06-release+vrx1_amd64.deb
-4a1c616c99dd937d8e0ba9598fa43c2ef02522ae874a124fa96079e2435782b0  python3-vpp-api_26.06-release+vrx1_amd64.deb
-70833ad5ee4447d7c3d78d55a1e14daa63807612a1acda76c93d86edea41d718  vpp_26.06-release+vrx1_amd64.deb
-a623a54d1906baefdf768c2a9b2aef45e327342183f3fb786404f1364087ca3e  vpp-crypto-engines_26.06-release+vrx1_amd64.deb
-501bf93849ed8d5a1760a0acf5032d0bdbe71de769c59e4f1bc56e7daddfe458  vpp-dbg_26.06-release+vrx1_amd64.deb
-1d7979b0a195b6cff7ceec7e5a8b7161a4ccde252e9405ff8522c9de4086000e  vpp-dev_26.06-release+vrx1_amd64.deb
-af1b7a02e3ae550fc149ac32bdf2138aecfa6cab9919c7d2ea558f3f50bb1471  vpp-drivers_26.06-release+vrx1_amd64.deb
-cff15278df4b339e5b9bb605377ecf197e13744830a7b7d5ed67eb3b3af9a5ea  vpp-plugin-core_26.06-release+vrx1_amd64.deb
-505c6be27bfe3fc58e34e30e68c8e70d0a91fb73c8600a21b469023d653a0c58  vpp-plugin-devtools_26.06-release+vrx1_amd64.deb
-4ab3a318271bd19a01c237c976c743e151a538d682ced2c61d8e354c37241727  vpp-plugin-dpdk_26.06-release+vrx1_amd64.deb
+2514e32c2e94c7f34538bad5969295566f80e8b61ed3541054fd8fb8130bf4f6  libvppinfra_26.06-release+ngfw1_amd64.deb
+6e30e687de0d0819bf0d9d3d1b71baed9f0a8648b1d8e251c99c3a2764681977  libvppinfra-dev_26.06-release+ngfw1_amd64.deb
+4a1c616c99dd937d8e0ba9598fa43c2ef02522ae874a124fa96079e2435782b0  python3-vpp-api_26.06-release+ngfw1_amd64.deb
+70833ad5ee4447d7c3d78d55a1e14daa63807612a1acda76c93d86edea41d718  vpp_26.06-release+ngfw1_amd64.deb
+a623a54d1906baefdf768c2a9b2aef45e327342183f3fb786404f1364087ca3e  vpp-crypto-engines_26.06-release+ngfw1_amd64.deb
+501bf93849ed8d5a1760a0acf5032d0bdbe71de769c59e4f1bc56e7daddfe458  vpp-dbg_26.06-release+ngfw1_amd64.deb
+1d7979b0a195b6cff7ceec7e5a8b7161a4ccde252e9405ff8522c9de4086000e  vpp-dev_26.06-release+ngfw1_amd64.deb
+af1b7a02e3ae550fc149ac32bdf2138aecfa6cab9919c7d2ea558f3f50bb1471  vpp-drivers_26.06-release+ngfw1_amd64.deb
+cff15278df4b339e5b9bb605377ecf197e13744830a7b7d5ed67eb3b3af9a5ea  vpp-plugin-core_26.06-release+ngfw1_amd64.deb
+505c6be27bfe3fc58e34e30e68c8e70d0a91fb73c8600a21b469023d653a0c58  vpp-plugin-devtools_26.06-release+ngfw1_amd64.deb
+4ab3a318271bd19a01c237c976c743e151a538d682ced2c61d8e354c37241727  vpp-plugin-dpdk_26.06-release+ngfw1_amd64.deb
 ```
 manifest.json (packages[] shortened to 2 of 11, inputs.python to 1 of 5):
 ```json
 {
-  "schema": "vrx.vpp-debs.manifest/v2",
+  "schema": "ngfw.vpp-debs.manifest/v2",
   "upstream": {
     "url": "https://gerrit.fd.io/r/vpp",
     "branch": "stable/2606",
@@ -537,7 +537,7 @@ manifest.json (packages[] shortened to 2 of 11, inputs.python to 1 of 5):
     "commit": "c3200b88dc46bd380f00a49ca3392a102cc1980b",
     "describe": "v26.06-0-gc3200b88d"
   },
-  "version": "26.06-release+vrx1",
+  "version": "26.06-release+ngfw1",
   "upstream_version": "26.06-release",
   "local_rev": 1,
   "variant": "demo",
@@ -594,39 +594,39 @@ manifest.json (packages[] shortened to 2 of 11, inputs.python to 1 of 5):
   "packages": [
     {
       "package": "vpp-dbg",
-      "version": "26.06-release+vrx1",
+      "version": "26.06-release+ngfw1",
       "architecture": "amd64",
-      "file": "vpp-dbg_26.06-release+vrx1_amd64.deb",
+      "file": "vpp-dbg_26.06-release+ngfw1_amd64.deb",
       "size": 92173594,
       "sha256": "501bf93849ed8d5a1760a0acf5032d0bdbe71de769c59e4f1bc56e7daddfe458",
       "ship": false,
-      "installed_on_vrx_a": false
+      "installed_on_ngfw_a": false
     },
     {
       "package": "vpp",
-      "version": "26.06-release+vrx1",
+      "version": "26.06-release+ngfw1",
       "architecture": "amd64",
-      "file": "vpp_26.06-release+vrx1_amd64.deb",
+      "file": "vpp_26.06-release+ngfw1_amd64.deb",
       "size": 4748308,
       "sha256": "70833ad5ee4447d7c3d78d55a1e14daa63807612a1acda76c93d86edea41d718",
       "ship": true,
-      "installed_on_vrx_a": true
+      "installed_on_ngfw_a": true
     }
   ]
 }
 ```
 Validation:
 ```
-$ deploy/vpp/verify.sh --no-tests --require-files .build/out/26.06-release+vrx1-demo
-ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+vrx1), 11 packages, ship 7
+$ deploy/vpp/verify.sh --no-tests --require-files .build/out/26.06-release+ngfw1-demo
+ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+ngfw1), 11 packages, ship 7
 ok   series: patches 1 · build-patches 1 (build/ only) · optional optional/trace-plugins-core.patch
 ok   pydeps.lock: meson==0.57.2 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0 packaging==26.3 (sha256-pinned)
 ok   scripts parse + shellcheck; no .deb/.whl/.build in git; .gitignore covers deploy/vpp/.build and *.deb
-ok   output .build/out/26.06-release+vrx1-demo: 11 .deb, version 26.06-release+vrx1, variant demo, patches ['patches/0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch']; files/control fields/sha256/SHA256SUMS consistent
+ok   output .build/out/26.06-release+ngfw1-demo: 11 .deb, version 26.06-release+ngfw1, variant demo, patches ['patches/0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch']; files/control fields/sha256/SHA256SUMS consistent
 verify.sh: OK
 rc=0
-$ deploy/vpp/verify.sh --no-tests --require-files .build/out/26.06-release+vrx1-demo --install-gate
-ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+vrx1), 11 packages, ship 7
+$ deploy/vpp/verify.sh --no-tests --require-files .build/out/26.06-release+ngfw1-demo --install-gate
+ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+ngfw1), 11 packages, ship 7
 ok   series: patches 1 · build-patches 1 (build/ only) · optional optional/trace-plugins-core.patch
 ok   pydeps.lock: meson==0.57.2 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0 packaging==26.3 (sha256-pinned)
 ok   scripts parse + shellcheck; no .deb/.whl/.build in git; .gitignore covers deploy/vpp/.build and *.deb
@@ -691,18 +691,18 @@ CI GATE PASSED
   from one hash-locked wheelhouse; the make runs with `PIP_NO_INDEX=1`, `PIP_NO_CACHE_DIR=1`.
 - F-vpp-debs-8: `--build-dir`/`--out` are confined to `deploy/vpp/.build`; build.sh never deletes outside a marked root.
 
-### D-092 follow-up (2026-09-24 03:33) — every build-patched tree is `+vrx<N>`
+### D-092 follow-up (2026-09-24 03:33) — every build-patched tree is `+ngfw<N>`
 Manager decision D-092 on Q6: any change to the source tree, including `build-patches/0001` (dpdk.mk), gets the suffix;
 only a byte-identical upstream tree may be `26.06-release`. Changes: `build.sh` counts every applied patch
-(`n_version_patches=${#PLAN_FILES[@]}`), so **every build.sh output is now `26.06-release+vrx<N>`** (default:
-`.build/out/26.06-release+vrx1/`); `verify.sh --require-files` requires `+vrx<N>` whenever `patches[]` *or*
+(`n_version_patches=${#PLAN_FILES[@]}`), so **every build.sh output is now `26.06-release+ngfw<N>`** (default:
+`.build/out/26.06-release+ngfw1/`); `verify.sh --require-files` requires `+ngfw<N>` whenever `patches[]` *or*
 `build.build_patches[]` is non-empty; `--install-gate` refuses any unsuffixed version (plus demo/dirty as before);
 README version table/install text, VERSION and `build-patches/series` comments updated; Q6 marked answered. The
-existing `26.06-release+vrx1-demo` output still passes `--require-files`. No rebuild (per D-092).
+existing `26.06-release+ngfw1-demo` output still passes `--require-files`. No rebuild (per D-092).
 
 Unit tests (66 now; new/changed ones):
 ```
-ok 55 - default build (build-patches only) as +vrx passes --require-files (D-092)
+ok 55 - default build (build-patches only) as +ngfw passes --require-files (D-092)
 ok 56 - ... and passes the install gate
 ok 57 - build-patches applied but unsuffixed version rejected (D-092)
 ok 58 - unsuffixed build fails the install gate
@@ -711,13 +711,13 @@ ok 58 - unsuffixed build fails the install gate
 
 Dry run — default build, computed version (`build.sh --prepare-only`, log /root/ngfw-wt/logs/F-vpp-debs-d092-prepare.log):
 ```
-[build.sh 03:32:18] expect: version 26.06-release+vrx1 (1 version-relevant patch(es)); packages: libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-d
+[build.sh 03:32:18] expect: version 26.06-release+ngfw1 (1 version-relevant patch(es)); packages: libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-d
 [build.sh 03:32:18] skipped demo patch(es) (use --demo): 0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch
-[build.sh 03:32:18] build dir: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build  out: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/out/26.06-release+vrx1  jobs: 8  trace-plugins: devtools  reference: /root/vpp  offline: 0
+[build.sh 03:32:18] build dir: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build  out: /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build/out/26.06-release+ngfw1  jobs: 8  trace-plugins: devtools  reference: /root/vpp  offline: 0
 [build.sh 03:32:27] applied build-patches/0001-build-dpdk-hash-locked-python-deps.patch (build)
      M build/external/packages/dpdk.mk
      M src/scripts/version
-[build.sh 03:32:28] tree version: 26.06-release+vrx1
+[build.sh 03:32:28] tree version: 26.06-release+ngfw1
 ```
 
 CI gate (D-092 follow-up):

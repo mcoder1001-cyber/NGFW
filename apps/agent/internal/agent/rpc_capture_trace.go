@@ -1,9 +1,9 @@
 package agent
 
 // F-capture-trace: the capture case of Action plus CaptureList / CaptureRead / CaptureDelete. The work is in
-// internal/actions/capture-trace; this file maps it onto gRPC. Paths and caps: VRX_CAPTURE_DIR (default
-// /var/lib/vrx/captures), VRX_CAPTURE_VPP_DIR (where VPP writes, default /tmp), VRX_CAPTURE_MAX_FILES (10),
-// VRX_CAPTURE_MAX_BYTES (500 MiB); the BPF filter needs the globals owner (VRX_GLOBALS_OWNER, D-071).
+// internal/actions/capture-trace; this file maps it onto gRPC. Paths and caps: NGFW_CAPTURE_DIR (default
+// /var/lib/ngfw/captures), NGFW_CAPTURE_VPP_DIR (where VPP writes, default /tmp), NGFW_CAPTURE_MAX_FILES (10),
+// NGFW_CAPTURE_MAX_BYTES (500 MiB); the BPF filter needs the globals owner (NGFW_GLOBALS_OWNER, D-071).
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	capturetrace "ngfw/agent/internal/actions/capture-trace"
 	"ngfw/agent/internal/vpp"
 )
@@ -31,8 +31,8 @@ type captureEntry struct {
 }
 
 func captureGlobalsOwner(owner string) bool {
-	g := owner == "vrx"
-	switch strings.ToLower(os.Getenv("VRX_GLOBALS_OWNER")) {
+	g := owner == "ngfw"
+	switch strings.ToLower(os.Getenv("NGFW_GLOBALS_OWNER")) {
 	case "1", "true", "yes":
 		g = true
 	case "0", "false", "no":
@@ -45,11 +45,11 @@ func (g *server) captures() (*capturetrace.Manager, error) {
 	v, _ := captureManagers.LoadOrStore(g.svc, &captureEntry{})
 	e := v.(*captureEntry)
 	e.once.Do(func() {
-		files, _ := strconv.Atoi(os.Getenv("VRX_CAPTURE_MAX_FILES"))
-		bytes, _ := strconv.ParseInt(os.Getenv("VRX_CAPTURE_MAX_BYTES"), 10, 64)
+		files, _ := strconv.Atoi(os.Getenv("NGFW_CAPTURE_MAX_FILES"))
+		bytes, _ := strconv.ParseInt(os.Getenv("NGFW_CAPTURE_MAX_BYTES"), 10, 64)
 		e.m, e.err = capturetrace.New(capturetrace.Config{
 			Client: g.svc.vpp, Owner: g.svc.owner, GlobalsOwner: captureGlobalsOwner(g.svc.owner),
-			Dir: os.Getenv("VRX_CAPTURE_DIR"), VPPDir: os.Getenv("VRX_CAPTURE_VPP_DIR"),
+			Dir: os.Getenv("NGFW_CAPTURE_DIR"), VPPDir: os.Getenv("NGFW_CAPTURE_VPP_DIR"),
 			MaxFiles: files, MaxBytes: bytes,
 		})
 	})
@@ -60,7 +60,7 @@ func (g *server) captures() (*capturetrace.Manager, error) {
 }
 
 // actionCapture runs one pcap capture (Action, member 3).
-func (g *server) actionCapture(req *vrxv1.CaptureAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) actionCapture(req *ngfwv1.CaptureAction, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	plan, err := capturetrace.Validate(req)
 	if err != nil {
 		return captureStatus(err)
@@ -78,8 +78,8 @@ func (g *server) actionCapture(req *vrxv1.CaptureAction, stream grpc.ServerStrea
 	return captureStatus(m.Run(stream.Context(), plan, stream.Send))
 }
 
-// CaptureList implements vrx.v1.Dataplane/CaptureList.
-func (g *server) CaptureList(ctx context.Context, req *vrxv1.CaptureListRequest) (*vrxv1.CaptureListResponse, error) {
+// CaptureList implements ngfw.v1.Dataplane/CaptureList.
+func (g *server) CaptureList(ctx context.Context, req *ngfwv1.CaptureListRequest) (*ngfwv1.CaptureListResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func (g *server) CaptureList(ctx context.Context, req *vrxv1.CaptureListRequest)
 	return out, captureStatus(err)
 }
 
-// CaptureRead implements vrx.v1.Dataplane/CaptureRead.
-func (g *server) CaptureRead(req *vrxv1.CaptureReadRequest, stream grpc.ServerStreamingServer[vrxv1.CaptureChunk]) error {
+// CaptureRead implements ngfw.v1.Dataplane/CaptureRead.
+func (g *server) CaptureRead(req *ngfwv1.CaptureReadRequest, stream grpc.ServerStreamingServer[ngfwv1.CaptureChunk]) error {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return err
 	}
@@ -103,8 +103,8 @@ func (g *server) CaptureRead(req *vrxv1.CaptureReadRequest, stream grpc.ServerSt
 	return captureStatus(m.Read(req.GetId(), stream.Send))
 }
 
-// CaptureDelete implements vrx.v1.Dataplane/CaptureDelete.
-func (g *server) CaptureDelete(_ context.Context, req *vrxv1.CaptureDeleteRequest) (*vrxv1.CaptureDeleteResponse, error) {
+// CaptureDelete implements ngfw.v1.Dataplane/CaptureDelete.
+func (g *server) CaptureDelete(_ context.Context, req *ngfwv1.CaptureDeleteRequest) (*ngfwv1.CaptureDeleteResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (g *server) CaptureDelete(_ context.Context, req *vrxv1.CaptureDeleteReques
 	if err != nil {
 		return nil, captureStatus(err)
 	}
-	return &vrxv1.CaptureDeleteResponse{Size: n}, nil
+	return &ngfwv1.CaptureDeleteResponse{Size: n}, nil
 }
 
 func captureStatus(err error) error {

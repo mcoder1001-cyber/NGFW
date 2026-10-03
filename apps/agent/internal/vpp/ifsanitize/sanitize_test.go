@@ -27,6 +27,61 @@ func setup() (*fake.Client, *sanitizetest.Model) {
 	return f, m
 }
 
+// VPP's pinned classify API requires one 16-byte mask per match vector.
+// Enforce that boundary in the fake before accepting either creation or deletion.
+func TestPlaceholderPinnedGeometryAndOwnedCleanup(t *testing.T) {
+	f, m := setup()
+	m.Tables[3] = true
+	hs := m.Handlers()
+	var adds, deletes int
+	f.On("classify_add_del_table", func(req api.Message) ([]api.Message, error) {
+		r := req.(*classifyapi.ClassifyAddDelTable)
+		if r.MatchNVectors != 1 || r.SkipNVectors != 0 || r.MaskLen != 16 || len(r.Mask) != 16 {
+			return nil, errors.New("pinned VPP rejects mask geometry: one vector requires 16 bytes")
+		}
+		if !bytes.HasPrefix(r.Mask, []byte("ngfw-")) {
+			t.Fatalf("placeholder signature lacks NGFW namespace: %q", r.Mask)
+		}
+		if r.IsAdd {
+			adds++
+		} else {
+			deletes++
+		}
+		return hs["classify_add_del_table"](req)
+	})
+	if _, err := ifsanitize.Sanitize(context.Background(), f, 7, "loop201"); err != nil {
+		t.Fatal(err)
+	}
+	if adds != 1 || deletes != 1 || len(m.Tables) != 1 || !m.Tables[3] {
+		t.Fatalf("owned cleanup: adds=%d deletes=%d tables=%v", adds, deletes, m.Tables)
+	}
+}
+
+func TestPlaceholderChangedSignatureIsNeverDeleted(t *testing.T) {
+	f, m := setup()
+	m.Tables[3] = true
+	hs := m.Handlers()
+	f.On("classify_table_info", func(req api.Message) ([]api.Message, error) {
+		replies, err := hs["classify_table_info"](req)
+		if err == nil {
+			replies[0].(*classifyapi.ClassifyTableInfoReply).Mask = []byte("foreign-table-00")
+		}
+		return replies, err
+	})
+	_, err := ifsanitize.Sanitize(context.Background(), f, 7, "loop201")
+	if err == nil || !strings.Contains(err.Error(), "not ours any more") {
+		t.Fatalf("changed ownership must refuse cleanup: %v", err)
+	}
+	for _, call := range f.CallsNamed("classify_add_del_table") {
+		if !call.(*classifyapi.ClassifyAddDelTable).IsAdd {
+			t.Fatal("deleted a table after its ownership signature changed")
+		}
+	}
+	if len(m.Tables) != 2 || !m.Tables[3] {
+		t.Fatalf("foreign tables were not retained: %v", m.Tables)
+	}
+}
+
 func TestCleanInterfaceOnlyResets(t *testing.T) {
 	f, m := setup()
 	m.Tables[3] = true
@@ -257,7 +312,7 @@ func TestMetrics(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	for _, want := range []string{`vrx_agent_iface_sanitize_total{phase="create"}`, `vrx_agent_iface_sanitize_cleared_total{phase="create",state="input-acl"}`, `vrx_agent_iface_sanitize_inherited_total{phase="create"}`, "vrx_agent_iface_quarantined "} {
+	for _, want := range []string{`ngfw_agent_iface_sanitize_total{phase="create"}`, `ngfw_agent_iface_sanitize_cleared_total{phase="create",state="input-acl"}`, `ngfw_agent_iface_sanitize_inherited_total{phase="create"}`, "ngfw_agent_iface_quarantined "} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("metrics lack %q:\n%s", want, b.String())
 		}
@@ -482,7 +537,7 @@ func TestCappedFailsClosed(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) || !strings.Contains(b.String(), `vrx_agent_iface_sanitize_placeholders_total{phase="create"}`) {
+	if !strings.Contains(b.String(), `ngfw_agent_iface_sanitize_capped_total{phase="create"}`) || !strings.Contains(b.String(), `ngfw_agent_iface_sanitize_placeholders_total{phase="create"}`) {
 		t.Fatalf("metrics lack the capped / placeholders counters:\n%s", b.String())
 	}
 	t.Logf("capped: %v", err)

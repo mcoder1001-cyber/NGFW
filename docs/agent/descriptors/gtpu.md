@@ -16,9 +16,9 @@ Model `gtpu.Tunnel`: `name`, `src`, `dst`, `mcast_interface`, `encap_vrf_id`, `d
 **V8 — VPP 26.06 segfaults on any failed `gtpu_add_del_tunnel_v2`** (it reads the interface counters of
 sw_if_index `~0`). The descriptor pre-checks with `gtpu_tunnel_v2_dump`: an add whose (dst, teid) key exists fails
 with `gtpu.ErrTunnelExists` without being sent, a delete of a missing tunnel is a no-op, `src == dst` and
-`decap_next > 3` are rejected before sending. The host test is opt-in (`VRX_DF6_GTPU_HOST=1`). See DF-6-questions Q1.
+`decap_next > 3` are rejected before sending. The host test is opt-in (`NGFW_DF6_GTPU_HOST=1`). See DF-6-questions Q1.
 `gtpu_offload_rx` (hardware) is out of scope.
 
 `gtpu.forward` is effectively one global per (forwarding type, address family) in VPP (review M2): only one
 forwarding entry of a type can exist. It stays per-object (tagged interface) but the config must not declare two of
-the same type/family; its host test is opt-in (`VRX_DF6_GTPU_HOST=1`, never run on the shared VPP).
+the same type/family; its host test is opt-in (`NGFW_DF6_GTPU_HOST=1`, never run on the shared VPP).

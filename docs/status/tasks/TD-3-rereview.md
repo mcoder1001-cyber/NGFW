@@ -17,7 +17,7 @@ without changes in `/root/vpp/src` (v26.06). The previous review is `TD-3-review
   or the `af_packet` package: both delete af_packet interfaces while their veth is up, which D-101 forbids.
 - Log lines from these runs: `placeholders=8..10` on every create. The quarantine holder was named **`loop0`** (`dirty 5 held by
   loop0 (tag "quarantine:w2")`).
-- `vrx-vpp-preflight` against the live VPP after the runs: `V19 pre-flight ok … (0 warning(s))`, rc 0.
+- `ngfw-vpp-preflight` against the live VPP after the runs: `V19 pre-flight ok … (0 warning(s))`, rc 0.
 - VPP journal from 07:54:05 to 07:54:33: **3118** lines of `Non-existent intf_idx=… with table_index=… for delete` /
   `…_classify_intfc`. That is about 25 create and 28 delete sanitize runs, so ≈ 59 journal lines per sanitize run with only 1–2 live
   classify tables.
@@ -120,7 +120,7 @@ This is not a crash, but it is plausible on the shared lab VPP, where slots crea
 - Once `consec >= FreshRun` and holes remain, re-read `classify_table_ids`, drop holes that are now live, and add them to `s.ids`
   (they can be probed as live tables).
 - Lower `MaxPlaceholders` (e.g. holes + 2 × FreshRun, capped at 64).
-- Count and log a run that hits the cap (`vrx_agent_iface_sanitize_capped_total`) instead of returning silently at `:290`.
+- Count and log a run that hits the cap (`ngfw_agent_iface_sanitize_capped_total`) instead of returning silently at `:290`.
 - Add a unit test with a foreign pop between snapshot and loop (the scratch test above is ~20 lines).
 
 ### M2: the quarantine holder takes the lowest free loopback instance (`loop0`) and blocks the user's loopback of that name
@@ -206,13 +206,13 @@ tag it with the owner tag and fail, so Retrieve and the next Delete-less plan se
 - The pre-flight's FAIL on an **existing non-agent interface** (the rig's af_packet on an index with a dormant slot) has no repair
   path. `rig down`/`up` gets the same index back (LIFO), so CI stays red until someone resurrects the table by hand. These dormant ip
   and L2 slots are not crash vectors (answer 1), yet the message says "crash vector". **Fix:** add an explicit, manager-only
-  `vrx-vpp-preflight -repair <sw_if_index>` that runs `ifsanitize.Sanitize` on it (the worker's open question), or document the
+  `ngfw-vpp-preflight -repair <sw_if_index>` that runs `ifsanitize.Sanitize` on it (the worker's open question), or document the
   manual procedure.
 - Residual false positive (accept, document): under the shared lock (`after-rig-up`, `after-tests`), a table that another slot
   creates, binds and deletes entirely between the two snapshots is reported FAIL.
 
 ### L6: quarantine observability
-`ifsanitize/metrics.go:20-21` and `:63-67`: `vrx_agent_iface_quarantined` counts only this process. After an agent restart it drops
+`ifsanitize/metrics.go:20-21` and `:63-67`: `ngfw_agent_iface_quarantined` counts only this process. After an agent restart it drops
 to 0 while the holders are still in VPP, so an alert goes quiet. `Release` is not called (Q2 → P08).
 
 **Fix (with P08's wiring):** at start and on full resync, set the gauge from a dump of `quarantine:<owner>` holders, then call

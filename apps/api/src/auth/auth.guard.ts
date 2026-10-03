@@ -2,7 +2,7 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import { AuditService } from '../audit/audit.service.js';
 import { problems } from '../common/problem.js';
-import { atLeast, clientKey, sourceIp, type VrxRequest } from '../common/principal.js';
+import { atLeast, clientKey, sourceIp, type NgfwRequest } from '../common/principal.js';
 import type { Role } from '../db/schema.js';
 import { AuthService } from './auth.service.js';
 import { PUBLIC_KEY, ROLE_KEY } from './decorators.js';
@@ -29,7 +29,7 @@ export class AuthGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const targets = [ctx.getHandler(), ctx.getClass()];
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets)) return true;
-    const req = ctx.switchToHttp().getRequest<VrxRequest>();
+    const req = ctx.switchToHttp().getRequest<NgfwRequest>();
     const principal = await this.auth.authenticate(req.headers.authorization);
     if (principal === null) {
       if (req.method !== 'GET' && req.method !== 'HEAD') {

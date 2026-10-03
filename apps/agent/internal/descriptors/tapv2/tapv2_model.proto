@@ -1,7 +1,7 @@
 // Desired-state model of the tapv2 descriptor (task DF-1). Agent-internal, see interface/model.proto.
 syntax = "proto3";
 
-package vrx.agent.tapv2;
+package ngfw.agent.tapv2;
 
 option go_package = "ngfw/agent/internal/descriptors/tapv2;tapv2";
 

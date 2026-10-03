@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // State is Unbound's actual state, decoded from unbound-control's line output.
@@ -190,9 +190,9 @@ type Event struct {
 func (e Event) String() string { return fmt.Sprintf("unbound %s: %q -> %q", e.Key, e.Old, e.New) }
 
 // ToProto maps the event to the agent's Event message (details in attributes).
-func (e Event) ToProto() *vrxv1.Event {
-	return &vrxv1.Event{
-		Kind:       vrxv1.EventKind_EVENT_KIND_UNSPECIFIED,
+func (e Event) ToProto() *ngfwv1.Event {
+	return &ngfwv1.Event{
+		Kind:       ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED,
 		Message:    e.String(),
 		Attributes: map[string]string{"source": "unbound", "key": e.Key, "old": e.Old, "new": e.New},
 	}

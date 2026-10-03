@@ -1,0 +1,5 @@
+# P11 reviewed stage integration envelope
+
+Root integrationoperator assembles ONLY deploy/strongswan and scopedP11status paths from independently reviewed41c67eb0/tree24838; no productcodeauthorship. Stale P10 exporter/test/docs from originalbranch are deliberately not restored; retain currentmain fixed validDebian archivefixture plus separately reviewedstandalone delivery. ProspectivebaseP10integration9c577511 notyetmerged; actualD112mainparent refreshed beforefinalcandidate.
+
+FreshR1 scopeAPPROVE after11PASS99.019s/23PASS142.255s; original fullcumulativebranchBLOCK staleP10fixture is preserved in externalreviewreport and prevented by this scopedassembly. FreshR7APPROVE/R8APPROVEWITHMINOR independent23PASS140.372s/realVPP66. Rootindependent11/23PASS+66/staticpositive fixedHOMEprerequisite. RootauthoredREADME crash/powerloss/full-disk recovery summary forR8MINOR; freshfocusedR8recheckpending. No realbuilder/pluginABI/identifier/agentwiring/licensing/security/releaseapproval or deviceinstallclaim. Finalintegrationunchangedfullquickpending.

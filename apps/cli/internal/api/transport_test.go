@@ -55,7 +55,7 @@ func TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.HTTP.Transport = api.Client().Transport
-	c.Cred = Key("vrxk_VRX_TEST_KEY_TD10A")
+	c.Cred = Key("ngfwk_NGFW_TEST_KEY_TD10A")
 	_, err = c.Do(context.Background(), Call{Op: "Config_running"})
 	if n := target.requests(); n != 0 {
 		t.Fatalf("redirect followed: the http:// target got %d request(s), Authorization %q", n, target.auth)
@@ -79,7 +79,7 @@ func TestRedirect307And308NeverReplayTheBody(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = c.Do(context.Background(), Call{Op: "Auth_login", NoAuth: true, Body: map[string]string{"username": "admin", "password": "VRX_TEST_PSK_TD10A"}})
+		_, err = c.Do(context.Background(), Call{Op: "Auth_login", NoAuth: true, Body: map[string]string{"username": "admin", "password": "NGFW_TEST_PSK_TD10A"}})
 		if n := target.requests(); n != 0 {
 			t.Errorf("%d: body replayed to %s: %q", code, otherURL, target.bodies)
 		}

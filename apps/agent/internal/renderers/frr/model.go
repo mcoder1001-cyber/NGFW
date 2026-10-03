@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -102,12 +102,12 @@ type Extensions struct {
 
 // StaticSelector decides whether routing.static[i] is programmed by FRR (true) or by the agent
 // directly in VPP (false, the default). D-072: never both.
-type StaticSelector func(i int, sr *vrxv1.StaticRoute, ext *Extensions) bool
+type StaticSelector func(i int, sr *ngfwv1.StaticRoute, ext *Extensions) bool
 
 // FlaggedStatic is the default selector: only routes carrying the explicit flag go to FRR
 // (today the stand-in `routing.static[i].frr: true`; when the schema/proto field lands, the
 // owner of that field registers a selector reading it).
-func FlaggedStatic(i int, _ *vrxv1.StaticRoute, ext *Extensions) bool {
+func FlaggedStatic(i int, _ *ngfwv1.StaticRoute, ext *Extensions) bool {
 	return ext != nil && ext.FRR[i]
 }
 
@@ -134,7 +134,7 @@ func RegisterStaticSelector(fn StaticSelector) {
 // StaticOwnedByFRR reports whether routing.static[i] belongs to FRR. The FRR renderer renders
 // exactly these routes; the P05 static-route descriptor must skip exactly these (D-072). Both
 // call this one function so the two programmers can never disagree.
-func StaticOwnedByFRR(i int, sr *vrxv1.StaticRoute, ext *Extensions) bool {
+func StaticOwnedByFRR(i int, sr *ngfwv1.StaticRoute, ext *Extensions) bool {
 	selectorMu.Lock()
 	fn := staticSelector
 	selectorMu.Unlock()
@@ -161,29 +161,29 @@ func IdentityMapper(name string) (string, bool) {
 	return name, true
 }
 
-// Desired normalises the renderer input: a *vrxv1.DesiredState is used as is; a
+// Desired normalises the renderer input: a *ngfwv1.DesiredState is used as is; a
 // *structpb.Struct holding the JSON configuration document is decoded into a DesiredState
 // (unknown fields ignored) and its stand-in fields returned as Extensions; nil is the empty
 // state. Protocol sections may call it to get the typed state from whatever Render received.
-func Desired(msg proto.Message) (*vrxv1.DesiredState, *Extensions, error) {
+func Desired(msg proto.Message) (*ngfwv1.DesiredState, *Extensions, error) {
 	ext := &Extensions{Tag: map[int]uint32{}, FRR: map[int]bool{}}
 	switch m := msg.(type) {
 	case nil:
-		return &vrxv1.DesiredState{}, ext, nil
-	case *vrxv1.DesiredState:
+		return &ngfwv1.DesiredState{}, ext, nil
+	case *ngfwv1.DesiredState:
 		if m == nil {
-			return &vrxv1.DesiredState{}, ext, nil
+			return &ngfwv1.DesiredState{}, ext, nil
 		}
 		return m, ext, nil
 	case *structpb.Struct:
 		if m == nil {
-			return &vrxv1.DesiredState{}, ext, nil
+			return &ngfwv1.DesiredState{}, ext, nil
 		}
 		raw, err := protojson.Marshal(m)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: encode document: %v", ErrInput, err)
 		}
-		ds := &vrxv1.DesiredState{}
+		ds := &ngfwv1.DesiredState{}
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, ds); err != nil {
 			return nil, nil, fmt.Errorf("%w: decode document: %v", ErrInput, err)
 		}
@@ -192,7 +192,7 @@ func Desired(msg proto.Message) (*vrxv1.DesiredState, *Extensions, error) {
 		}
 		return ds, ext, nil
 	default:
-		return nil, nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState or *structpb.Struct)", ErrInput, msg)
+		return nil, nil, fmt.Errorf("%w: unsupported input type %T (want *ngfwv1.DesiredState or *structpb.Struct)", ErrInput, msg)
 	}
 }
 
@@ -223,9 +223,9 @@ func readExtensions(doc *structpb.Struct, ext *Extensions) error {
 
 // BuildModel validates the framework part of ds (+ stand-in extensions) and returns the
 // model the framework sections render. Every error wraps ErrInput and names the JSON path.
-func BuildModel(ds *vrxv1.DesiredState, ext *Extensions, mapIf InterfaceMapper) (*Model, error) {
+func BuildModel(ds *ngfwv1.DesiredState, ext *Extensions, mapIf InterfaceMapper) (*Model, error) {
 	if ds == nil {
-		ds = &vrxv1.DesiredState{}
+		ds = &ngfwv1.DesiredState{}
 	}
 	if ext == nil {
 		ext = &Extensions{}
@@ -318,7 +318,7 @@ func BuildModel(ds *vrxv1.DesiredState, ext *Extensions, mapIf InterfaceMapper) 
 	return m, nil
 }
 
-func buildRoutes(sr *vrxv1.StaticRoute, idx int, path string, ext *Extensions, mapIf InterfaceMapper) ([]Route, error) {
+func buildRoutes(sr *ngfwv1.StaticRoute, idx int, path string, ext *Extensions, mapIf InterfaceMapper) ([]Route, error) {
 	pfx, err := netip.ParsePrefix(sr.GetPrefix())
 	if err != nil {
 		return nil, inputErr(path+".prefix", fmt.Errorf("%w: prefix %q: %v", renderers.ErrUnsafe, sr.GetPrefix(), err))

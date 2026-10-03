@@ -1,12 +1,12 @@
 {
   "management": {
     "users": [
-      { "username": "ops", "role": "operator", "passwordHash": "$vrx-test$VRX_TEST_HASH_ops" },
+      { "username": "ops", "role": "operator", "passwordHash": "$ngfw-test$NGFW_TEST_HASH_ops" },
       {
         "username": "root",
         "role": "admin",
         "disabled": true,
-        "passwordHash": "$vrx-test$VRX_TEST_HASH_root"
+        "passwordHash": "$ngfw-test$NGFW_TEST_HASH_root"
       }
     ]
   }

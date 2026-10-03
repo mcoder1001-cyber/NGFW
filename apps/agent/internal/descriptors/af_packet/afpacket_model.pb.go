@@ -75,7 +75,7 @@ type HostInterface struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	HostIfName    string                 `protobuf:"bytes,2,opt,name=host_if_name,json=hostIfName,proto3" json:"host_if_name,omitempty"`
-	Mode          Mode                   `protobuf:"varint,3,opt,name=mode,proto3,enum=vrx.agent.afpacket.Mode" json:"mode,omitempty"`
+	Mode          Mode                   `protobuf:"varint,3,opt,name=mode,proto3,enum=ngfw.agent.afpacket.Mode" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,12 +135,12 @@ var File_afpacket_model_proto protoreflect.FileDescriptor
 
 const file_afpacket_model_proto_rawDesc = "" +
 	"\n" +
-	"\x14afpacket_model.proto\x12\x12vrx.agent.afpacket\"s\n" +
+	"\x14afpacket_model.proto\x12\x13ngfw.agent.afpacket\"t\n" +
 	"\rHostInterface\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\fhost_if_name\x18\x02 \x01(\tR\n" +
-	"hostIfName\x12,\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x18.vrx.agent.afpacket.ModeR\x04mode*&\n" +
+	"hostIfName\x12-\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x19.ngfw.agent.afpacket.ModeR\x04mode*&\n" +
 	"\x04Mode\x12\x11\n" +
 	"\rMODE_ETHERNET\x10\x00\x12\v\n" +
 	"\aMODE_IP\x10\x01B4Z2ngfw/agent/internal/descriptors/af_packet;afpacketb\x06proto3"
@@ -160,11 +160,11 @@ func file_afpacket_model_proto_rawDescGZIP() []byte {
 var file_afpacket_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_afpacket_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_afpacket_model_proto_goTypes = []any{
-	(Mode)(0),             // 0: vrx.agent.afpacket.Mode
-	(*HostInterface)(nil), // 1: vrx.agent.afpacket.HostInterface
+	(Mode)(0),             // 0: ngfw.agent.afpacket.Mode
+	(*HostInterface)(nil), // 1: ngfw.agent.afpacket.HostInterface
 }
 var file_afpacket_model_proto_depIdxs = []int32{
-	0, // 0: vrx.agent.afpacket.HostInterface.mode:type_name -> vrx.agent.afpacket.Mode
+	0, // 0: ngfw.agent.afpacket.HostInterface.mode:type_name -> ngfw.agent.afpacket.Mode
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

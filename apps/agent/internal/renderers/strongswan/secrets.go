@@ -10,8 +10,8 @@ import (
 // Secrets (00-CONTEXT rule 10, D-051; P11 "secret handling contract"). The document carries
 // only references "psk/<name>"; Render resolves them through the injected SecretResolver. The
 // plaintext then exists in memory, in the VICI load-shared request (never logged; its String
-// is redacted) and — as base64 — in vrx-secrets.conf (mode 0600, marked Secret so
-// Files.Redacted hides it). It never reaches vrx.conf, strongswan.conf or argv, and Retrieve,
+// is redacted) and — as base64 — in ngfw-secrets.conf (mode 0600, marked Secret so
+// Files.Redacted hides it). It never reaches ngfw.conf, strongswan.conf or argv, and Retrieve,
 // State and events carry no key material by construction (VICI never returns it).
 //
 // Redaction is by field, never by text replacement of the secret value (RF-2 review L2: a

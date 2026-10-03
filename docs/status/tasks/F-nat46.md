@@ -1,10 +1,10 @@
 # F-nat46 — NAT46 (IPv4 clients → IPv6-only servers), stateless
 
 Branch `task/F-nat46`, base `origin/main@5966f618`. Cloud container session: **no VPP host** — fake VPP client only;
-the real-VPP test `TestNat46OnHost` **skips without `VRX_INTEGRATION`** and was not run.
+the real-VPP test `TestNat46OnHost` **skips without `NGFW_INTEGRATION`** and was not run.
 
 ## What
-- `prompts/features/F-nat46.md` generated from `FEATURE-TEMPLATE.md` (board row, WBS D4.5, §3 D4, host-vrx-a plugin list).
+- `prompts/features/F-nat46.md` generated from `FEATURE-TEMPLATE.md` (board row, WBS D4.5, §3 D4, host-ngfw-a plugin list).
 - Design spike (`docs/agent/descriptors/nat46.md`): (a) stateless 1:1 SIIT is a MAP-T domain per mapping
   (`A/32` ↔ `S/128`, `ea_bits_len 0`, `ip6_src` = RFC 6052 /96) + MAP-T on the interfaces; (b) stateful NAT46 has no VPP
   implementation → not built, question Q1.
@@ -14,7 +14,7 @@ the real-VPP test `TestNat46OnHost` **skips without `VRX_INTEGRATION`** and was 
 
 ## Verification (cloud, pasted)
 ```
---- SKIP: TestNat46OnHost (0.00s)      # VRX_INTEGRATION unset
+--- SKIP: TestNat46OnHost (0.00s)      # NGFW_INTEGRATION unset
 --- PASS: TestProject / TestValidate / TestAssembleIgnoresForeignShapes / TestClientAddress
 --- PASS: TestApplyThroughMapnat       # projection through mapnat descriptors on the fake: create, idempotent re-apply, Retrieve+Assemble == desired, rollback empty
 ok  	ngfw/agent/internal/descriptors/nat46
@@ -28,7 +28,7 @@ golangci-lint `./internal/descriptors/nat46/...` 0 issues (subsystems: 2 pre-exi
 ## Not done / remains
 - Wiring (schema `nat.nat46`, `desired/` builder, `Domains["nat"]`, API/UI/user docs): outside `files_owned`
   (`descriptors/nat46/**` + `docs/agent/descriptors/nat46.md`) — Q2.
-- Host: `VRX_INTEGRATION=1 go test -run TestNat46OnHost ./internal/descriptors/nat46` (does 26.06 accept /32↔/128 with
+- Host: `NGFW_INTEGRATION=1 go test -run TestNat46OnHost ./internal/descriptors/nat46` (does 26.06 accept /32↔/128 with
   ea_bits_len 0), then an af_packet packet test IPv4 client → IPv6-only server, restart + rollback evidence.
 
 ## Out of scope
@@ -39,8 +39,8 @@ Stateful NAT46, mapnat edits, nat.map/DS-Lite/464XLAT, DNS46, binapi, startup.co
 # Part B — wiring (branch `task/F-nat46-b`, based on `task/F-det44-b` @ 74864bae)
 
 Cloud container: **no VPP host, no PostgreSQL** — the fake VPP client only; `TestNat46OnHost` skips without
-`VRX_INTEGRATION`; the API e2e (`apps/api/test/e2e/nat46.e2e.test.ts`) is written and typechecked but was **not run**
-(needs the host database and `VRX_TEST_PREFIX`).
+`NGFW_INTEGRATION`; the API e2e (`apps/api/test/e2e/nat46.e2e.test.ts`) is written and typechecked but was **not run**
+(needs the host database and `NGFW_TEST_PREFIX`).
 
 ## What
 1. **Contract** (`contract(schema)`, `F-nat46-contract.md`): `nat.nat46` (`domains/ext/nat46.ts`, refinements mirroring
@@ -73,7 +73,7 @@ tools/ci.sh check: PASSED
 ```
 
 ## Remains (host)
-- `VRX_INTEGRATION=1 go test -run TestNat46OnHost ./internal/descriptors/nat46` (does 26.06 accept /32↔/128 with
+- `NGFW_INTEGRATION=1 go test -run TestNat46OnHost ./internal/descriptors/nat46` (does 26.06 accept /32↔/128 with
   ea_bits_len 0), `vppctl show map domain` after a commit, af_packet packet test IPv4 client → IPv6-only server,
   restart (≤ 30 s) and rollback evidence.
-- API e2e on the host PostgreSQL (`VRX_TEST_PREFIX` set); screenshot of the NAT46 tab against the real endpoint.
+- API e2e on the host PostgreSQL (`NGFW_TEST_PREFIX` set); screenshot of the NAT46 tab against the real endpoint.

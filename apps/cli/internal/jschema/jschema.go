@@ -200,7 +200,7 @@ func (n *Node) Properties() []Property {
 				continue
 			}
 			order := math.MaxFloat64
-			if ui, ok := c.m["x-vrx-ui"].(map[string]any); ok {
+			if ui, ok := c.m["x-ngfw-ui"].(map[string]any); ok {
 				if o, ok := ui["order"].(float64); ok {
 					order = o
 				}
@@ -312,7 +312,7 @@ func (n *Node) Title() string {
 // Help is the UI help text or description.
 func (n *Node) Help() string {
 	for _, b := range n.branches() {
-		if ui, ok := b.m["x-vrx-ui"].(map[string]any); ok {
+		if ui, ok := b.m["x-ngfw-ui"].(map[string]any); ok {
 			if h, ok := ui["help"].(string); ok {
 				return h
 			}

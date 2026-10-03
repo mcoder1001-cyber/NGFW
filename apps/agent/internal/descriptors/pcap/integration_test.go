@@ -15,7 +15,7 @@ import (
 // Integration test against the host VPP. One pcap capture per VPP: when someone else's capture
 // is running, Create reports ErrCaptureBusy and the test skips. The capture runs on this slot's
 // tagged loopback only; the file is /tmp/<prefix>-df8.pcap (VPP forces /tmp) and is removed.
-// The filter function is a getter-less VPP-global: its host check is opt-in (VRX_DF8_GLOBALS=1,
+// The filter function is a getter-less VPP-global: its host check is opt-in (NGFW_DF8_GLOBALS=1,
 // manager window, review M3).
 func TestPcapOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)

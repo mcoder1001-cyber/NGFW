@@ -19,7 +19,7 @@ import { moduleList, REVISION } from '@ngfw/yang';
 import type { FastifyReply } from 'fastify';
 import { getAt } from '../../common/json.js';
 import { problems } from '../../common/problem.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { CommitService } from '../../commit/commit.service.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
 import { RestconfExceptionFilter } from './restconf-errors.js';
@@ -40,7 +40,7 @@ function dataRest(url: string): string {
 
 /**
  * F-restconf-yang: a RESTCONF (RFC 8040) compatibility layer over the existing candidate/commit engine. Reads come
- * from running (default) or candidate (`?datastore=candidate`); writes edit the candidate; `operations/vrx:commit|
+ * from running (default) or candidate (`?datastore=candidate`); writes edit the candidate; `operations/ngfw:commit|
  * confirm|rollback` drive the commit engine — exactly like `/api/v1/config`, with the same auth/RBAC/audit (the global
  * guard blocks a read-only user from every non-GET route). Bodies and responses use `application/yang-data+json` with
  * module-qualified top nodes; errors are `ietf-restconf:errors` (RFC 8040 §7). Secret leaves are never returned.
@@ -90,7 +90,7 @@ export class RestconfController {
       'ietf-yang-library:yang-library': {
         'module-set': [
           {
-            name: 'vrx',
+            name: 'ngfw',
             module: moduleList().map((m) => ({
               name: m.name,
               namespace: m.namespace,
@@ -119,7 +119,7 @@ export class RestconfController {
 
   @Get('restconf/data/*')
   @Header('content-type', YANG_JSON)
-  async dataAt(@Req() req: VrxRequest, @Query('datastore') datastore?: string): Promise<unknown> {
+  async dataAt(@Req() req: NgfwRequest, @Query('datastore') datastore?: string): Promise<unknown> {
     const rest = dataRest(req.url);
     if (rest.replace(/^\/+|\/+$/g, '') === 'ietf-yang-library:yang-library') return this.yangLibrary();
     const target = parseDataPath(rest);
@@ -129,7 +129,7 @@ export class RestconfController {
     return qualify(target, value);
   }
 
-  private requireTarget(req: VrxRequest): RestconfTarget {
+  private requireTarget(req: NgfwRequest): RestconfTarget {
     const target = parseDataPath(dataRest(req.url));
     if (target === null) throw problems.badRequest('a data path is required');
     return target;
@@ -137,49 +137,49 @@ export class RestconfController {
 
   @Put('restconf/data/*')
   @HttpCode(200)
-  async putAt(@Body() body: unknown, @Req() req: VrxRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  async putAt(@Body() body: unknown, @Req() req: NgfwRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const target = this.requireTarget(req);
     const value = unwrapBody(target, body);
     const r = await this.ds.putCandidate(req.principal!, target.pointer, value);
     req.audit = { resource: `restconf${target.pointer}`, after: { pointer: r.pointer } };
     reply.header('content-type', YANG_JSON);
-    return { 'vrx-restconf:result': 'ok' };
+    return { 'ngfw-restconf:result': 'ok' };
   }
 
   @Patch('restconf/data/*')
   @HttpCode(200)
-  async patchAt(@Body() body: unknown, @Req() req: VrxRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  async patchAt(@Body() body: unknown, @Req() req: NgfwRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const target = this.requireTarget(req);
     const value = unwrapBody(target, body);
     const r = await this.ds.patchCandidate(req.principal!, target.pointer, value);
     req.audit = { resource: `restconf${target.pointer}`, after: { pointer: r.pointer } };
     reply.header('content-type', YANG_JSON);
-    return { 'vrx-restconf:result': 'ok' };
+    return { 'ngfw-restconf:result': 'ok' };
   }
 
   @Delete('restconf/data/*')
   @HttpCode(200)
-  async deleteAt(@Req() req: VrxRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  async deleteAt(@Req() req: NgfwRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     const target = this.requireTarget(req);
     const r = await this.ds.deleteCandidate(req.principal!, target.pointer);
     req.audit = { resource: `restconf${target.pointer}`, after: { pointer: r.pointer } };
     reply.header('content-type', YANG_JSON);
-    return { 'vrx-restconf:result': 'ok' };
+    return { 'ngfw-restconf:result': 'ok' };
   }
 
   /**
-   * RFC 8040 RPCs: `POST /restconf/operations/vrx:commit|confirm|rollback`. One wildcard route dispatches on the RPC
+   * RFC 8040 RPCs: `POST /restconf/operations/ngfw:commit|confirm|rollback`. One wildcard route dispatches on the RPC
    * name because Fastify treats the `:` in a path literal as a route parameter, which would collapse the three RPCs
    * into one duplicated route.
    */
   @Post('restconf/operations/*')
   @HttpCode(200)
   @Header('content-type', YANG_JSON)
-  async operation(@Body() body: unknown, @Req() req: VrxRequest) {
+  async operation(@Body() body: unknown, @Req() req: NgfwRequest) {
     const noQuery = req.url.split('?')[0] ?? '';
     const op = decodeURIComponent((noQuery.match(/\/restconf\/operations\/(.+)$/)?.[1] ?? '').replace(/\/+$/, ''));
     const input = (body as { input?: Record<string, unknown> } | undefined)?.input ?? {};
-    if (op === 'vrx:commit') {
+    if (op === 'ngfw:commit') {
       const confirm = typeof input['confirm'] === 'number' ? (input['confirm'] as number) : undefined;
       const comment = typeof input['comment'] === 'string' ? (input['comment'] as string) : undefined;
       const r = await this.commits.commit(req.principal!, {
@@ -187,20 +187,20 @@ export class RestconfController {
         ...(comment !== undefined ? { comment } : {}),
       });
       req.audit = { resource: 'restconf/commit', after: { status: r.status, revision: r.revision?.id } };
-      return { 'vrx-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
+      return { 'ngfw-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
     }
-    if (op === 'vrx:confirm') {
+    if (op === 'ngfw:confirm') {
       const r = await this.commits.confirm(req.principal!);
       req.audit = { resource: 'restconf/confirm', after: { revision: r.revision?.id } };
-      return { 'vrx-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
+      return { 'ngfw-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
     }
-    if (op === 'vrx:rollback') {
+    if (op === 'ngfw:rollback') {
       if (typeof input['revision'] !== 'number') {
         throw problems.badRequest('rollback needs input.revision (the revision to restore)');
       }
       const r = await this.commits.rollback(req.principal!, input['revision'] as number, {});
       req.audit = { resource: 'restconf/rollback', after: { status: r.status, revision: r.revision?.id } };
-      return { 'vrx-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
+      return { 'ngfw-restconf:output': { status: r.status, revision: r.revision?.id ?? null } };
     }
     throw problems.notFound(`unknown RESTCONF operation '${op}'`);
   }

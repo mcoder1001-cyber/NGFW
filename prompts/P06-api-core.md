@@ -1,4 +1,4 @@
-# Task P06 — vrx-api core: datastore + commit engine + auth   (prepend 00-CONTEXT.md)
+# Task P06 — ngfw-api core: datastore + commit engine + auth   (prepend 00-CONTEXT.md)
 
 ## Goal
 The NestJS control plane: candidate/running datastore, transactional commit through
@@ -8,9 +8,9 @@ the agent, revisions/rollback, confirmed commit, auth/RBAC/audit, live telemetry
 `docs/04-api-datamodel.md`, `packages/schema` (P02), `packages/proto/gen/ts` (P03).
 
 ## Build exactly this
-1. **Persistence** (Prisma or Drizzle — pick one, justify; connection from `VRX_DATABASE_URL`): tables from docs/04
+1. **Persistence** (Prisma or Drizzle — pick one, justify; connection from `NGFW_DATABASE_URL`): tables from docs/04
    (`config_revision`, `config_candidate`, `audit_log`, `app_user`, `api_key`, `secret`,
-   `system_event`). Migrations committed. Seed: one admin user from `VRX_BOOTSTRAP_ADMIN_PASSWORD`.
+   `system_event`). Migrations committed. Seed: one admin user from `NGFW_BOOTSTRAP_ADMIN_PASSWORD`.
 2. **Datastore service**: `getRunning()`, `getCandidate(user)`, `patchCandidate(pointer,
    merge-patch)`, `putCandidate(pointer, value)`, `deleteCandidate(pointer)`, `diff()`,
    `discard()`. Single-writer lock with owner + timestamp; `409` with lock owner otherwise.
@@ -35,10 +35,10 @@ the agent, revisions/rollback, confirmed commit, auth/RBAC/audit, live telemetry
    `WS /api/v1/stream` with `{subscribe:[topics]}`; per-connection topic filter; heartbeat.
 9. **OpenAPI** generated from Nest decorators + Zod → `pnpm gen` updates `packages/api-client`.
 10. Tests: unit for datastore/diff/lock; e2e against the **host PostgreSQL** (Ubuntu 26.04's version, ≥ 16 — no testcontainers,
-    no Docker): the test bootstrap runs `deploy/dev/pg-test.sh create vrx_${VRX_TEST_PREFIX}` and drops only that database at the
-    end; Valkey = host `valkey-server` with logical db `VRX_VALKEY_DB` or key prefix `vrx:${VRX_TEST_PREFIX}:` — never `FLUSHALL`.
-    Agent e2e (`VRX_INTEGRATION=1`, shared lab lock, your slot's agent socket) with a P05 agent started by the test under your
-    `VRX_OWNER`: patch a prefixed loopback's IP → diff shows it → commit → `Retrieve` + `vppctl show int addr` reflect it → rollback →
+    no Docker): the test bootstrap runs `deploy/dev/pg-test.sh create ngfw_${NGFW_TEST_PREFIX}` and drops only that database at the
+    end; Valkey = host `valkey-server` with logical db `NGFW_VALKEY_DB` or key prefix `ngfw:${NGFW_TEST_PREFIX}:` — never `FLUSHALL`.
+    Agent e2e (`NGFW_INTEGRATION=1`, shared lab lock, your slot's agent socket) with a P05 agent started by the test under your
+    `NGFW_OWNER`: patch a prefixed loopback's IP → diff shows it → commit → `Retrieve` + `vppctl show int addr` reflect it → rollback →
     reverted; commit with `confirm=5` and no confirm → reverted after 5 s; overlapping IPs → 400 with pointer; readonly PATCH → 403.
 
 ## Acceptance

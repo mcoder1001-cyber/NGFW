@@ -11,15 +11,15 @@ It applies the `system` schema domain on the box: host name, time zone, login/MO
 | `system.timezone` | `/etc/localtime` → `/usr/share/zoneinfo/<zone>` | atomic symlink replace; the zone file must exist (tzdata) |
 | `system.banner.login` | `/etc/issue`, `/etc/issue.net` | text + one trailing newline; empty file when unset |
 | `system.banner.motd` | `/etc/motd` | same |
-| `system.dns.servers`, `.searchDomains` | `/etc/systemd/resolved.conf.d/vrx.conf` (`DNS=`, `Domains=`) | also carries the embedded render input (`# vrx-input: <base64>`) |
+| `system.dns.servers`, `.searchDomains` | `/etc/systemd/resolved.conf.d/ngfw.conf` (`DNS=`, `Domains=`) | also carries the embedded render input (`# ngfw-input: <base64>`) |
 
 Every path comes from `Paths` (`paths.go`). `ProductPaths()` is the Ubuntu 26.04 layout. `PathsUnder(base)` mirrors it
 under `base/etc/…`, keeps the host's zoneinfo (read only) and never sets the kernel name. Tests and test slots use it.
 
-## Descriptor `system.identity/vrx`
+## Descriptor `system.identity/ngfw`
 
 One singleton scheduler descriptor (D-109 d). Its Value is `sysident.Input(system)`: the `SystemConfig` with the schema
-defaults filled in (`vrx`, `UTC`, VRF `default`) and empty banners dropped. The projection (`desired/system_identity.go`)
+defaults filled in (`ngfw`, `UTC`, VRF `default`) and empty banners dropped. The projection (`desired/system_identity.go`)
 always adds it while `system` is authoritative, because every field has a default.
 
 - **Validator** (TD-13, `scheduler.Validator`): `Check`. It verifies an RFC 1123 host name and an IANA zone name (no `..`)
@@ -40,7 +40,7 @@ always adds it while `system` is authoritative, because every field has a defaul
 ## Who renders where
 
 `subsystems/system_identity.go`: the globals owner (D-071, the product agent on a real box) uses `ProductPaths()`.
-Every other agent renders into `<slot dir>/sysident/etc/…` (`/run/vrx-test/<owner>`, or `VRX_HOST_SERVICES_DIR`). It
+Every other agent renders into `<slot dir>/sysident/etc/…` (`/run/ngfw-test/<owner>`, or `NGFW_HOST_SERVICES_DIR`). It
 never touches the host's identity (docs/lab/shared-host-rules.md).
 
 ## Daemons

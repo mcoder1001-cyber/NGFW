@@ -20,7 +20,7 @@ connected subnet of its interface (or its unnumbered source; fe80::/10 when it h
 - `desired/neighbors_ra.go`: projection onto `ip6-nd.ra-config` (only when not VPP's default state — DF-2's Retrieve omits
   those), `ip6-nd.ra-prefix` (`NormalizeRaPrefix`), `arp.proxy-interface`, `arp.proxy-range`, `ip-neighbor.neighbor`,
   `ip-neighbor.config` (globals owner only, both families always, VPP defaults when unset), `ip6-nd.dad` (globals owner
-  only), `ip6-nd.proxy` (only with `VRX_DF2_PROXY_ND=1`). Leaves a slot agent does not apply → `agent.unsupported-field`
+  only), `ip6-nd.proxy` (only with `NGFW_DF2_PROXY_ND=1`). Leaves a slot agent does not apply → `agent.unsupported-field`
   warnings (which also keep them out of `/state/drift`). Assembler adds the retrieved leaves back (sorted lists; the stored
   document's "off" leaves reported in their off state).
 - `subsystems/neighbors_ra.go`: `ipneighbor/ip6nd/arp.Register` with `df2.WithClaims(Wiring.KeyedClaims("acl"))` (persisted,
@@ -55,11 +55,11 @@ polled every 5 s and invalidated by `neighbor.events`), filters, *Flush…* with
 |---|---|
 | A1 `apps/agent/internal/subsystems/subsystems.go` | `Domains`: 4 lines (Interfaces), 1 (VRFs), 3 (Routing); `Register`: `if err := w.registerNeighborsRa(r)…` (3 lines); **`Connected`: 2 lines after `w.dhcpClient.Reconnected()` — no anchor there (Q2)** |
 | A2 `apps/agent/internal/agent/projection.go` | `desired.NeighborsRa(p, ds, in, vrfID)` in `project()`; `desired.AssembleNeighborsRa(ds, kvs, in, stored, nameOf)` in `assemble()` |
-| A4 `apps/agent/internal/agent/server.go` | `case *vrxv1.ActionRequest_ArpFlush:`; the `Action` parameter `_` → `stream` (F-vrf-static-ecmp needs the same) |
+| A4 `apps/agent/internal/agent/server.go` | `case *ngfwv1.ActionRequest_ArpFlush:`; the `Action` parameter `_` → `stream` (F-vrf-static-ecmp needs the same) |
 | A6 `apps/agent/internal/descriptors/core/coretest/fakevpp.go` | **one line in `New()`: `v.installNeighborsRa()`** (existing coretest files are read-only, but without the hook P08's service tests fail on the new families' dumps) |
 | C1 `packages/schema/src/domains/{interfaces,vrfs,routing}.ts` | key lines (3 + 3 in interfaces.ts, 1 in vrfs.ts, 1 in routing.ts); **one import line per file after the last import — no import anchors (Q4)** |
 | C2/C3 `packages/schema/src/{semantic/index.ts,index.ts}` | import + spread; `export * from './domains/ext/neighbors-ra.js'` |
-| C5 `packages/proto/vrx/v1/dataplane.proto` | RPC, EventKind 10, oneof 4, Interface 15–17, Subinterface 13–15, Vrf 4, RoutingConfig 10; messages in the `// ----- F-neighbors-ra -----` section |
+| C5 `packages/proto/ngfw/v1/dataplane.proto` | RPC, EventKind 10, oneof 4, Interface 15–17, Subinterface 13–15, Vrf 4, RoutingConfig 10; messages in the `// ----- F-neighbors-ra -----` section |
 | C6 `docs/contracts/proto.md` | `### F-neighbors-ra: ListNeighbors`, `…: ActionRequest.arp_flush (4)`, `…: EventKind.EVENT_KIND_NEIGHBOR_CHANGED (10)` |
 | C4 | `packages/proto/test/fixtures/neighbors-ra-full.json` (new); **`packages/proto/test/desired-state.test.ts`: one expectation lists `proxyArpRanges: []` (Q6)** |
 | C7 generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go` (regenerated; `docs/user/cli/reference.md` unchanged) |
@@ -82,7 +82,7 @@ Prefixed loopbacks `loop901` (VRF `w9red` = table 9001) and `loop902`, no rig, *
 ```
     neighbors_ra_test.go:99: systemctl show vpp -p NRestarts (before) = 1
     neighbors_ra_test.go:122: base revision 1
-    neighbors_ra_test.go:129: commit with a static neighbour outside every connected subnet → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/neighbors/static/0/ip","message":"10.9.200.5 is outside every connected subne…
+    neighbors_ra_test.go:129: commit with a static neighbour outside every connected subnet → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/neighbors/static/0/ip","message":"10.9.200.5 is outside every connected subne…
     neighbors_ra_test.go:154: commit nra-feature: revision 2, warnings [… {"message":"duplicate address detection is VPP-wide: only the globals owner applies it (D-071); not applied by this agent","pointer":"/routing/neighbors/dad","rule":"agent.unsupported-field"} …]
     neighbors_ra_test.go:161: agent Retrieve (our objects):
         { "interfaces": {
@@ -124,14 +124,14 @@ Live table, flush, audit (same run):
                .5487            2001:db8:9:2::50              SN    02:00:00:00:92:50 loop902
                .1391                10.9.2.30                  D    02:00:00:00:92:30 loop902
     neighbors_ra_test.go:217: POST /api/v1/actions/arp-flush {} (every configured interface) → {"deleted":1,"interfaces":2,…}
-    neighbors_ra_test.go:222: POST /api/v1/actions/arp-flush {interface:local0} → 400 {"type":"https://vrx.dev/problems/bad-request",…,"errors":[{"pointer":"/interface","message":"agent: invalid request: interface \"local0\": iface: no owned interface with this id: \"local0\" (owner \"w9\")"}]}
+    neighbors_ra_test.go:222: POST /api/v1/actions/arp-flush {interface:local0} → 400 {"type":"https://ngfw.dev/problems/bad-request",…,"errors":[{"pointer":"/interface","message":"agent: invalid request: interface \"local0\": iface: no owned interface with this id: \"local0\" (owner \"w9\")"}]}
     neighbors_ra_test.go:230: audit (newest first): {"items":[{"id":11,…,"action":"POST /api/v1/actions/arp-flush","resource":"arp-flush/local0","before":{"family":"","interface":"local0"},"after":null,"result":"failure","status":400},{"id":10,…,"resource":"arp-flush/*","before":{"family":"","interface":""},"after":{"deleted":1,"exitCode":0,"interfaces":2},"result":"success","status":200},…
 ```
 Restart safety (agent stopped; static neighbours, RA prefix + RA config, proxy-ARP interface and range deleted via binapi,
 dependents only — the interfaces stay; agent started; no config API call):
 ```
     neighbors_ra_test.go:245: simulated loss: static neighbours, RA prefix + RA config, proxy-ARP interface and range deleted via binapi (agent stopped)
-    neighbors_ra_test.go:260: agent log: {"time":"2026-09-24T19:24:59.764754699+03:30","level":"INFO","msg":"vrx-agent listening","owner":"w9",…}
+    neighbors_ra_test.go:260: agent log: {"time":"2026-09-24T19:24:59.764754699+03:30","level":"INFO","msg":"ngfw-agent listening","owner":"w9",…}
     neighbors_ra_test.go:260: agent log: {"time":"2026-09-24T19:24:59.766366671+03:30","level":"INFO","msg":"reconcile start","owner":"w9","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"]}
     neighbors_ra_test.go:260: agent log: {"time":"2026-09-24T19:24:59.818260287+03:30","level":"INFO","msg":"reconcile done","owner":"w9","txn_id":"","mode":"resync",…,"status":"APPLY_STATUS_APPLIED","summary":"created:6  unchanged:12","reapplied":1,"duration":51951645,"err":""}
     neighbors_ra_test.go:266: restart safety: everything back 0.25 s after the agent start (no config API call)
@@ -149,14 +149,14 @@ Rollback to the base revision:
     neighbors_ra_test.go:283: after the rollback — show ip6 interface loop901:  … Advertised Prefixes: (none) …
     neighbors_ra_test.go:320: cleanup commit → 200 {"status":"applied",…,"comment":"nra-cleanup",…}
     neighbors_ra_test.go:323: cleanup: loop901/loop902 in VPP: false; show interface lines: []; show ip neighbors (ours): []
-    harness_test.go:59: pg-test drop w9: <nil>   drop database vrx_w9 · drop role vrx_w9 · ok nothing named vrx_w9 / vrx_w9 remains
+    harness_test.go:59: pg-test drop w9: <nil>   drop database ngfw_w9 · drop role ngfw_w9 · ok nothing named ngfw_w9 / ngfw_w9 remains
     neighbors_ra_test.go:102: systemctl show vpp -p NRestarts (after) = 1
 --- PASS: TestNeighborsRaHost (17.33s)
 ok  	ngfw/test/topology/neighbors-ra	17.383s
 ```
 (NRestarts was already 1 from the 18:41 crash, before this task's first host call — Q7.)
 
-### Neighbour events on the real VPP — `VRX_INTEGRATION=1 go test -run TestNeighborWatchOnHost ./internal/subsystems/`
+### Neighbour events on the real VPP — `NGFW_INTEGRATION=1 go test -run TestNeighborWatchOnHost ./internal/subsystems/`
 The product agent publishes these only once TD-8 wires `Env.Publish` (Q3); this drives the same `RunNeighborWatch`:
 ```
 === RUN   TestNeighborWatchOnHost
@@ -234,11 +234,11 @@ worktree's own `tools/ci.sh` with exactly main's D-127 hunk (`7edac8c`) applied 
 (`patch -p2 < <(git show 7edac8c -- tools/ci.sh)`, `ROOT` from `git rev-parse`, every step unmodified; `tools/ci.sh` itself
 is not edited):
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-neighbors-ra @ c9858d8   (base: main)
 == contract guard: HEAD vs main ==
 ok — contract commit(s) on the branch:
-  65fbe25 contract(schema): per-interface neighbour fields ordered proxy ARP, proxy ND, then the RA block (x-vrx-ui order only)
+  65fbe25 contract(schema): per-interface neighbour fields ordered proxy ARP, proxy ND, then the RA block (x-ngfw-ui order only)
   744392e contract(proto): EVENT_KIND_NEIGHBOR_CHANGED comment lists the updated/interfaces attributes (comment only)
   f1fccf2 contract(schema): ipv6Ra prefix lifetimes are at least 1 s
   61412e5 contract(proto): ListNeighbors, arp_flush, neighbour event
@@ -270,15 +270,15 @@ CI GATE PASSED
 
 ## Out of scope (not built)
 Proxy ND by default (V12: opt-in only); DAD auto-remove (plugin not loaded); DHCPv6/PD; static routes / FIB / ping; ARP
-termination in bridge domains; linux-cp neighbour sync; ND-based uRPF; a `vrx show ip neighbors` CLI command (apps/cli is
+termination in bridge domains; linux-cp neighbour sync; ND-based uRPF; a `ngfw show ip neighbors` CLI command (apps/cli is
 not this task's; the operations are in the generated table). Live events in the product agent need TD-8 (Q3).
 
 ## Cleanup
-Every process stopped by PID by the tests (agent, API, vite preview); lab lock held only during runs; `vrx_w9` dropped by
+Every process stopped by PID by the tests (agent, API, vite preview); lab lock held only during runs; `ngfw_w9` dropped by
 the harness; no `loop9xx` / w9 neighbour, RA or proxy object left (cleanup lines above); no VPP-wide setting was changed
-(slot agent, D-071); `apps/agent/bin`, every `dist/` and `/run/vrx-test/w9/nra` removed after the CI run (below, final check:
+(slot agent, D-071); `apps/agent/bin`, every `dist/` and `/run/ngfw-test/w9/nra` removed after the CI run (below, final check:
 `vppctl show interface | grep -c loop9xx` = 0, `show ip neighbors` = 0, `show arp proxy` empty, no watcher on loop9xx,
-no listener on 3900/5900/9191, `/run/vrx-test/w9/pg.env` gone).
+no listener on 3900/5900/9191, `/run/ngfw-test/w9/pg.env` gone).
 
 ## Fix round 1 (review `a7c9543`, APPROVE WITH CHANGES)
 Unit/e2e only, no VPP run, no `show trace`. No rebase: the merger squashes `git diff df67a8e task/F-neighbors-ra` onto
@@ -298,7 +298,7 @@ E2E (host PostgreSQL + Valkey + the in-process fake agent; no VPP):
 ```
  ✓ test/e2e/neighbors-ra.e2e.test.ts (4 tests) 4406ms          (was 8.4 s: the flush case no longer waits for the 5 s deadline)
       Tests  4 passed (4)
-drop   database vrx_w9 · drop role vrx_w9 · ok nothing named vrx_w9 / vrx_w9 remains
+drop   database ngfw_w9 · drop role ngfw_w9 · ok nothing named ngfw_w9 / ngfw_w9 remains
 ```
 Unit: `go test -race` on `actions/neighbors-ra`, `agent`, `subsystems`, `desired`, `descriptors/ip_neighbor` ok;
 golangci-lint 0 issues on the touched packages; API `src/features` 7 tests ok; API typecheck/eslint clean.
@@ -317,7 +317,7 @@ golangci-lint 0 issues on the touched packages; API `src/features` 7 tests ok; A
 Main's `tools/ci.sh` (blob `b14e19f`, D-127 included) copied to `/tmp/g-w9/ci-main.sh`, run in this worktree on `1236448`
 (this commit only adds this section):
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-neighbors-ra @ 1236448   (base: main)
 == contract guard: HEAD vs main ==            ok — contract commit(s) on the branch (19935ee 61412e5 f1fccf2 744392e 65fbe25 + W-seed/P08's)
 == generate + generated-output gate ==        clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated

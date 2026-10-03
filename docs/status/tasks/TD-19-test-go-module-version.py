@@ -29,7 +29,7 @@ class ModuleVersion(unittest.TestCase):
             cwd=root/'elsewhere';(cwd/'apps/agent').mkdir(parents=True)
             (cwd/'apps/agent/go.mod').write_text('go 9.99.9\n')
             env=dict(os.environ,PATH=f'{fake}:/usr/bin:/bin',CALL_LOG=str(log),GO_MODULE=str(cwd/'apps/agent/go.mod'),GO_VER='9.99.9')
-            env.pop('VRX_GO_SHA256',None)
+            env.pop('NGFW_GO_SHA256',None)
             result=subprocess.run(['bash',str(target),*args],cwd=cwd if foreign_cwd else repo,env=env,text=True,capture_output=True)
             return result,log.read_text() if log.exists() else ''
 

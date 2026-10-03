@@ -4,13 +4,13 @@ Reviewed frozen product `db721ff49a747f8e7453ad1b4f4e11d085237d95` plus evidence
 
 ## Findings
 
-**MAJOR — deploy/systemd/vrx-agent.service:12–13: clean appliance agent cannot start.** Unit sets globals ownership but neither `VRX_VPP_ID_RANGE` nor `VRX_VPP_TABLE_BASE`. Optional `/etc/vrx/agent.env` is neither provisioned nor documented by P10. `agent.ConfigFromEnv` calls `ResolveIDScope`; `Config.Validate` returns its ErrNoIDRange, and main exits before connecting to VPP. This is a deterministic configuration defect, not laboratory uncertainty. Fix the appliance-only unit to supply `VRX_VPP_ID_RANGE=all` as already specified by shared-host-rules §12, with regression coverage and a never-shared-host warning. This existing authorized appliance ID contract does not authorize changing CAP_CHOWN or `/etc` write boundaries.
+**MAJOR — deploy/systemd/ngfw-agent.service:12–13: clean appliance agent cannot start.** Unit sets globals ownership but neither `NGFW_VPP_ID_RANGE` nor `NGFW_VPP_TABLE_BASE`. Optional `/etc/ngfw/agent.env` is neither provisioned nor documented by P10. `agent.ConfigFromEnv` calls `ResolveIDScope`; `Config.Validate` returns its ErrNoIDRange, and main exits before connecting to VPP. This is a deterministic configuration defect, not laboratory uncertainty. Fix the appliance-only unit to supply `NGFW_VPP_ID_RANGE=all` as already specified by shared-host-rules §12, with regression coverage and a never-shared-host warning. This existing authorized appliance ID contract does not authorize changing CAP_CHOWN or `/etc` write boundaries.
 
 Independent source inspection at frozen head:
 
 ```text
-Environment=VRX_GLOBALS_OWNER=1 VRX_SOCKET_GROUP=vrx VRX_AGENT_STATE_DIR=/var/lib/vrx/agent
-EnvironmentFile=-/etc/vrx/agent.env
+Environment=NGFW_GLOBALS_OWNER=1 NGFW_SOCKET_GROUP=ngfw NGFW_AGENT_STATE_DIR=/var/lib/ngfw/agent
+EnvironmentFile=-/etc/ngfw/agent.env
 packaged ID scope present: False
 provisioning/docs ID scope references: 0
 ```
@@ -25,12 +25,12 @@ CAP_CHOWN/daemon-file ownership and atomic system-identity parent writes remain 
 
 ## Bounded verification — d31af805376609c7587f862067caa4296d6dde58
 
-Original MAJOR resolved. Appliance unit now explicitly supplies `VRX_VPP_ID_RANGE=all`; no TABLE_BASE is added. Unit comment and installation guide explicitly forbid starting this appliance unit on the shared lab host and warn against contradictory variables. This implements the pre-existing shared-host-rules §12 appliance contract, not a new privilege grant. CapabilityBoundingSet and filesystem restrictions remain unchanged. Offline packaging regression now checks explicit all-ID scope and absence of a conflicting table base.
+Original MAJOR resolved. Appliance unit now explicitly supplies `NGFW_VPP_ID_RANGE=all`; no TABLE_BASE is added. Unit comment and installation guide explicitly forbid starting this appliance unit on the shared lab host and warn against contradictory variables. This implements the pre-existing shared-host-rules §12 appliance contract, not a new privilege grant. CapabilityBoundingSet and filesystem restrictions remain unchanged. Offline packaging regression now checks explicit all-ID scope and absence of a conflicting table base.
 
 Independent execution in own detached verification worktree at exactly `d31af805`:
 
 ```text
-python3 deploy/debian/vrx/tests/test_packaging.py
+python3 deploy/debian/ngfw/tests/test_packaging.py
 Ran 9 tests in 2.018s
 OK
 git diff --check ee8c7ef9 HEAD

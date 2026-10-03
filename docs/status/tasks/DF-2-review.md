@@ -1,8 +1,8 @@
 # DF-2 — independent review
 
 Reviewer: review agent (did not write this code). Branch `task/DF-2` @ 45c3da6, base `main` (now at 3a2cf8e: DF-4 and P02b merged).
-Ran directly on the host with the slot-3 env (`eval "$(tools/lab env 3)"`, `VRX_INTEGRATION=1`), one package at a time.
-`systemctl show vpp -p NRestarts` was `2` before and after every run, so VPP did not restart. `VRX_DF2_PROXY_ND` was not set.
+Ran directly on the host with the slot-3 env (`eval "$(tools/lab env 3)"`, `NGFW_INTEGRATION=1`), one package at a time.
+`systemctl show vpp -p NRestarts` was `2` before and after every run, so VPP did not restart. `NGFW_DF2_PROXY_ND` was not set.
 
 ## Checklist
 

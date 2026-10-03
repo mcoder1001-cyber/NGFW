@@ -8,18 +8,18 @@ merged deps you can rely on: P08, DF-1, DF-7, F-bridge-l2 (a wave-A follow-on: s
   - DF-1: interface/<name> alias, interface.mtu (jumbo)
   - DF-7: lldp.global/lldp.interface, lldp.Neighbours, span.mirror, df7test.AlignedLoopback
   - F-bridge-l2: L2 model + BVI member support; consume it, do not edit it
-  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight; loopback Create sanitizes) and TD-2 (API auth/users follow-ups)
+  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/ngfw-vpp-preflight; loopback Create sanitizes) and TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-loopback-bvi-gso-lldp-span.md · docs/status/vertical-slice.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers; your ids: A1, A2, A6, A7, C1–C7, P1, P4, P5, W1, W2, W3, D1) · docs/agent/descriptors/{lldp,span,interface}.md · docs/status/tasks/F-bridge-l2.md · docs/vpp-code-track.md V19–V21 · docs/decisions/LOG.md D-063, D-064, D-071, D-076, D-080, D-082, D-090, D-095, D-101, D-104
-slot: 7 → VRX_SLOT=7 VRX_TEST_PREFIX=w7 VRX_HTTP_PORT=3000+100·7 VRX_WEB_PORT=5000+100·7 VRX_METRICS_PORT=9100+10·7+1 VRX_AGENT_SOCKET=/run/vrx-test/w7/agent.sock VRX_PG_DATABASE=vrx_w7 VRX_VALKEY_DB=7 VRX_VPP_TABLE_BASE=7000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 7 → NGFW_SLOT=7 NGFW_TEST_PREFIX=w7 NGFW_HTTP_PORT=3000+100·7 NGFW_WEB_PORT=5000+100·7 NGFW_METRICS_PORT=9100+10·7+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w7/agent.sock NGFW_PG_DATABASE=ngfw_w7 NGFW_VALKEY_DB=7 NGFW_VPP_TABLE_BASE=7000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 7)"`
   - rig prefix w7 → 10.7.{1,2}.0/24
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
   - D-071 globals: lldp.global (via RegisterGlobals) and nsim.config are applied only when Env.GlobalsOwner is true. Slot agents skip them with a warning.
-  - D-082: any host test that changes a global holds `flock -x /run/lock/vrx-globals.lock` behind its opt-in env var
-  - nsim has no getter, so a test cannot restore the previous value: the nsim host test is opt-in (VRX_NSIM_HOST=1) and runs only in a manager VPP window. Default-gate nsim evidence is the fake client.
+  - D-082: any host test that changes a global holds `flock -x /run/lock/ngfw-globals.lock` behind its opt-in env var
+  - nsim has no getter, so a test cannot restore the previous value: the nsim host test is opt-in (NGFW_NSIM_HOST=1) and runs only in a manager VPP window. Default-gate nsim evidence is the fake client.
   - D-063/D-076/D-080: gso.interface, lldp.interface and nsim.* are write-only. Keep applied-once records keyed by boot identity + sw_if_index + logical name, in a store from subsystems.Wiring (no in-memory stores).
   - V20: LLDP host tests use df7test.AlignedLoopback or skip with the reason
   - V19/V21: disable GSO/SPAN/nsim before an interface is deleted. Inherited-state findings go to docs/vpp-code-track.md + the questions file (ifsanitize is manager-owned).
@@ -50,7 +50,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge). Inser
   - C1 packages/schema/src/domains/{interfaces,services}.ts: one key line per field
   - C3 packages/schema/src/index.ts: one export
   - C2 packages/schema/src/semantic/index.ts: one spread
-  - C5 packages/proto/vrx/v1/dataplane.proto: your numbers + the RPC under the service anchor + a `// ----- F-loopback-bvi-gso-lldp-span -----` message section
+  - C5 packages/proto/ngfw/v1/dataplane.proto: your numbers + the RPC under the service anchor + a `// ----- F-loopback-bvi-gso-lldp-span -----` message section
   - C6 docs/contracts/proto.md
   - P1 apps/api/src/app.module.ts
   - P4 apps/api/src/agent/agent.client.ts
@@ -77,20 +77,20 @@ files you must not touch:
   - sibling dirs: apps/agent/internal/descriptors/bond/**, apps/web/src/domains/interfaces/{subinterfaces,bonding,bridge-l2}/**
 host rules:
   - mirror/LLDP/GSO only on w7 loopbacks, taps, rig interfaces, and a fixture ERSPAN GRE tunnel named w7…
-  - V19 SAFETY: send no packets through the rig until TD-3's pre-flight (`go -C apps/agent run ./cmd/vrx-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces' sw_if_index
+  - V19 SAFETY: send no packets through the rig until TD-3's pre-flight (`go -C apps/agent run ./cmd/ngfw-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces' sw_if_index
   - D-101: bring the veth down before any af_packet delete
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises
-  - with VRX_INTEGRATION=1, run one Go package at a time
+  - with NGFW_INTEGRATION=1, run one Go package at a time
   - hold `flock -s` on the lab lock only during a run (D-094)
 evidence: Playwright is not installed. Take the UI screenshots with the headless Chrome approach of P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`), kept outside the product code, and say so. nsim in the default gate is fake-client only; say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-loopback-bvi-gso-lldp-span.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-loopback-bvi-gso-lldp-span-wip.md current
-CI: `TMPDIR=/tmp/g-w7 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w7 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-loopback-bvi-gso-lldp-span.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup:
   - stop every process you started (API/agent/vite), by PID
   - lab lock released
-  - vrx_w7 dropped
+  - ngfw_w7 dropped
   - your rig removed
   - no w7 loopbacks, mirrors or GRE fixtures left (dump pasted)
   - GSO/LLDP disabled on everything you enabled

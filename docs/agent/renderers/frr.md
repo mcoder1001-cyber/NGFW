@@ -45,7 +45,7 @@ output (Retrieve, DryRun, errors) masks them, frr-reload.py logs at `critical` o
 ## vtysh.conf
 
 ```
-! vtysh.conf — rendered by vrx-agent (RF-1); frr-reload.py requires the integrated config.
+! vtysh.conf — rendered by ngfw-agent (RF-1); frr-reload.py requires the integrated config.
 service integrated-vtysh-config
 ```
 
@@ -82,6 +82,6 @@ CLI equivalent: `vtysh -c "show running-config"`, `vtysh -c "show ip route json"
 - **`StaticRoute.tag`** (proto 8) is read from the typed state; the D-055 stand-in `routing.static[i].tag` only fills
   documents without it.
 - **frrtest `Options.Instance`**: more FRR instances of one slot (pathspace `<prefix><instance>`, base
-  `/run/vrx-test/<prefix>/frr-<instance>`, lock `…/frr-<instance>.lock`, default netns `ns-<prefix>-<instance>`,
+  `/run/ngfw-test/<prefix>/frr-<instance>`, lock `…/frr-<instance>.lock`, default netns `ns-<prefix>-<instance>`,
   symlink `/run/frr/<pathspace>`), e.g. topology peers; `frr.TestInstancePaths`.
-- The agent drives the renderer through one singleton scheduler object `frr.config/vrx` (docs/agent/renderers/frr-bgp.md).
+- The agent drives the renderer through one singleton scheduler object `frr.config/ngfw` (docs/agent/renderers/frr-bgp.md).

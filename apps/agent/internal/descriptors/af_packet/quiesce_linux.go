@@ -14,7 +14,7 @@ import (
 
 // netlinkLinks is the product Links: rtnetlink over golang.org/x/sys/unix (no new module, and no
 // exec of ip — host_if_name is config input, 00-CONTEXT rule 9). Setting a link down needs
-// CAP_NET_ADMIN (the vrx-agent unit, P10); without it SetDown fails with EPERM and the delete
+// CAP_NET_ADMIN (the ngfw-agent unit, P10); without it SetDown fails with EPERM and the delete
 // fails closed.
 type netlinkLinks struct {
 	timeout time.Duration // per request (SO_RCVTIMEO / SO_SNDTIMEO)

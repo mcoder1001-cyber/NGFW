@@ -20,7 +20,7 @@ addresses, MTU, VRF and bridge membership reuse the interface paths. Reference: 
   `apps/agent/internal/subsystems/subsystems.go` (`Wiring.IfaceClaims()` = df6's claim store, `Wiring.BootStore()`), the hook in
   `apps/agent/internal/agent/projection.go`; tunnels already appear in `/state/interfaces`. `docs/status/vertical-slice.md`
 - `docs/vpp-code-track.md`: **V8** gtpu crashes VPP on any failed add/delete (fallback: dump-first guard, host test opt-in
-  `VRX_DF6_GTPU_HOST=1`); **V14** L2TPv3 has no delete message (fallback: `df6.ErrNoDelete`, create only with `VRX_DF6_L2TP_CREATE=1`);
+  `NGFW_DF6_GTPU_HOST=1`); **V14** L2TPv3 has no delete message (fallback: `df6.ErrNoDelete`, create only with `NGFW_DF6_L2TP_CREATE=1`);
   **V21** vxlan bypass flag survives interface delete (fallback: disable before enable); V19 (per-interface state inherited by index reuse)
 - `docs/decisions/LOG.md` D-064 (crashing tests opt-in, check `NRestarts`), D-065/D-069 (logical names, `interface/<name>`), D-071
   (`l2tp.lookup-key`, `pppoe.cp` are globals → globals owner only), D-074 (check existence before every delete), D-076/D-080, D-082
@@ -34,7 +34,7 @@ addresses, MTU, VRF and bridge membership reuse the interface paths. Reference: 
 2. **Agent**: projection per kind → the DF-6 descriptors + `interface/<name>` alias + address/MTU descriptors; TEB/VXLAN bridging only via
    DF-1's `l2.bridge-domain-member` in F-bridge-l2's bridge domains (`tunnels.*.bridgeDomain` = the numeric BD id; F-bridge-l2 is merged —
    do not build BDs). Retrieve covers every kind; write-only kinds follow D-063/D-076.
-   ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects) for gre + ipip + vxlan + vxlan-gpe;
+   ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, prefixed objects) for gre + ipip + vxlan + vxlan-gpe;
    gtpu/l2tp/pppoe host steps stay opt-in (V8/V14/pppoe needs a learnt client MAC — unit tests with the fake cover them).
 3. **API**: config via pointer routes; `/api/v1/state/interfaces` already lists tunnels (P08) — add `GET /api/v1/state/tunnels` (kind,
    endpoints, VRF, oper state, counters). OpenAPI; regenerate `packages/api-client`.

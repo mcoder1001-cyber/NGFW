@@ -1,7 +1,7 @@
 package subsystems
 
 // F-vrrp-config-sync: the keepalived renderer stage (D-109 (d), as F-snmp's snmpd.config) — one singleton
-// scheduler descriptor `keepalived.config` (key keepalived.config/vrx, domain `ha`) wrapping RF-4's renderer
+// scheduler descriptor `keepalived.config` (key keepalived.config/ngfw, domain `ha`) wrapping RF-4's renderer
 // with P12's linux-cp mapping as its InterfaceMapper (the mapping comes from the stage's own value, which
 // carries the lcp leaf of every interface a keepalived instance uses — desired/vrrp.go).
 //
@@ -10,8 +10,8 @@ package subsystems
 //	Retrieve       the applied value while the live keepalived.conf is exactly its rendering (else nothing:
 //	               drift → the next resync re-applies)
 //
-// Paths: the product paths, or with VRX_TEST_PREFIX the slot's TestPaths (bin dir VRX_KEEPALIVED_BIN_DIR,
-// namespace VRX_KEEPALIVED_NETNS) with a pidfile controller — a slot agent never touches /etc/keepalived or
+// Paths: the product paths, or with NGFW_TEST_PREFIX the slot's TestPaths (bin dir NGFW_KEEPALIVED_BIN_DIR,
+// namespace NGFW_KEEPALIVED_NETNS) with a pidfile controller — a slot agent never touches /etc/keepalived or
 // keepalived.service. No secret resolver (no API→agent secret channel, PENDING-secret-channel); the contract
 // has no VRRP auth leaf yet (D-086 stand-ins not built), so nothing needs one.
 
@@ -27,7 +27,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/renderers"
@@ -38,8 +38,8 @@ import (
 
 // Environment of the keepalived stage (slot test agents).
 const (
-	EnvKeepalivedBinDir = "VRX_KEEPALIVED_BIN_DIR"
-	EnvKeepalivedNetNS  = "VRX_KEEPALIVED_NETNS"
+	EnvKeepalivedBinDir = "NGFW_KEEPALIVED_BIN_DIR"
+	EnvKeepalivedNetNS  = "NGFW_KEEPALIVED_NETNS"
 )
 
 // KeepalivedStage is the keepalived renderer stage.
@@ -69,12 +69,12 @@ func (*KeepalivedStage) KeyOf(proto.Message) scheduler.Key { return desired.Keep
 // Dependencies implements scheduler.Descriptor.
 func (*KeepalivedStage) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
-func (s *KeepalivedStage) render(ctx context.Context, v *vrxv1.DesiredState) (renderers.Files, error) {
+func (s *KeepalivedStage) render(ctx context.Context, v *ngfwv1.DesiredState) (renderers.Files, error) {
 	s.mapper.Set(lcpmap.FromDesired(v))
 	return s.r.Render(ctx, v)
 }
 
-func (s *KeepalivedStage) apply(ctx context.Context, v *vrxv1.DesiredState) error {
+func (s *KeepalivedStage) apply(ctx context.Context, v *ngfwv1.DesiredState) error {
 	files, err := s.render(ctx, v)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (s *KeepalivedStage) apply(ctx context.Context, v *vrxv1.DesiredState) erro
 
 // Create implements scheduler.Descriptor.
 func (s *KeepalivedStage) Create(ctx context.Context, obj proto.Message) (any, error) {
-	v, ok := obj.(*vrxv1.DesiredState)
+	v, ok := obj.(*ngfwv1.DesiredState)
 	if !ok {
 		return nil, fmt.Errorf("%s: unexpected value %T", desired.KeepalivedConfigName, obj)
 	}
@@ -104,7 +104,7 @@ func (s *KeepalivedStage) Update(ctx context.Context, _, newObj proto.Message, _
 
 // Delete implements scheduler.Descriptor: the empty rendering.
 func (s *KeepalivedStage) Delete(ctx context.Context, _ proto.Message, _ any) error {
-	if err := s.apply(ctx, &vrxv1.DesiredState{}); err != nil {
+	if err := s.apply(ctx, &ngfwv1.DesiredState{}); err != nil {
 		return err
 	}
 	if err := os.Remove(s.record); err != nil && !errors.Is(err, fs.ErrNotExist) {
@@ -122,7 +122,7 @@ func (s *KeepalivedStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	if err != nil {
 		return nil, err
 	}
-	v := &vrxv1.DesiredState{}
+	v := &ngfwv1.DesiredState{}
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, v); err != nil {
 		return nil, fmt.Errorf("keepalived record %s: %w", s.record, err)
 	}
@@ -137,7 +137,7 @@ func (s *KeepalivedStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 	return []scheduler.KV{{Key: desired.KeepalivedKey, Value: v}}, nil
 }
 
-func (s *KeepalivedStage) saveRecord(v *vrxv1.DesiredState) error {
+func (s *KeepalivedStage) saveRecord(v *ngfwv1.DesiredState) error {
 	raw, err := protojson.Marshal(v)
 	if err != nil {
 		return err

@@ -1,6 +1,6 @@
-# Kernel command line defaults of a VRX appliance (P14; F-images reuses this file read-only).
+# Kernel command line defaults of a NGFW appliance (P14; F-images reuses this file read-only).
 # Source: scripts/30-tune-dataplane.sh and docs/09-os-packages.md §4, reduced to what is safe on ANY machine the image
-# may boot on. vrx-image-setup writes them to /etc/default/grub.d/90-vrx-dataplane.cfg (appended to
+# may boot on. ngfw-image-setup writes them to /etc/default/grub.d/90-ngfw-dataplane.cfg (appended to
 # GRUB_CMDLINE_LINUX_DEFAULT) and the installer runs update-grub in the target.
 #
 # Deliberately NOT here — hardware dependent, chosen later by the startup.conf generator / hardware wizard (D0.6):

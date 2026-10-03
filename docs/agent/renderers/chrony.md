@@ -1,7 +1,7 @@
 # chrony renderer — desired state ↔ rendered config
 
 Package `apps/agent/internal/renderers/chrony` (RF-3; NTP lives only in `services.ntp`, D-050). chrony 4.8.
-Files: `/etc/chrony/chrony.conf`, `/etc/chrony/sources.d/vrx.sources`, `/etc/chrony/chrony.keys` (secret).
+Files: `/etc/chrony/chrony.conf`, `/etc/chrony/sources.d/ngfw.sources`, `/etc/chrony/chrony.keys` (secret).
 
 | `services.ntp` | chrony |
 |---|---|
@@ -14,9 +14,9 @@ Files: `/etc/chrony/chrony.conf`, `/etc/chrony/sources.d/vrx.sources`, `/etc/chr
 | `localStratum`, `orphan` | `local stratum <n> [orphan]` |
 | `rtcSync` | `rtcsync` (product only; never on test instances) |
 | `makestep {thresholdSec, limit}` | `makestep <threshold> <limit>` |
-| `servers[] {address, iburst, prefer, minPoll, maxPoll, nts, keyRef}` | `vrx.sources`: `server <host> [iburst] [prefer] [minpoll n] [maxpoll n] [key <id>] [nts]` |
+| `servers[] {address, iburst, prefer, minPoll, maxPoll, nts, keyRef}` | `ngfw.sources`: `server <host> [iburst] [prefer] [minpoll n] [maxpoll n] [key <id>] [nts]` |
 | `servers[].keyRef` (`key/<name>`) | `chrony.keys`: `<id> SHA256 HEX:<hex of secret>` (id = FNV-32a of the reference, stable) |
-| `pools[]` | `vrx.sources`: `pool <host> iburst` |
+| `pools[]` | `ngfw.sources`: `pool <host> iburst` |
 | `ntsServer` | refused (NTS-KE server certificates are F-ntp) |
 | — (agent) | `bindcmdaddress <run>/chronyd.sock`, `cmdport 0`, `driftfile`, `pidfile`, `keyfile`, `ntsdumpdir` (with NTS sources), `sourcedir`, `logdir`, `log tracking` |
 
@@ -25,14 +25,14 @@ Apply: `chronyc reload sources` / `chronyc rekey`; any chrony.conf change → ty
 
 ## In the agent (F-unbound-chrony-syslog)
 
-Singleton descriptor `chrony.config/vrx` (`renderers/chrony/descriptor.go`), domain `services`:
+Singleton descriptor `chrony.config/ngfw` (`renderers/chrony/descriptor.go`), domain `services`:
 
 | | |
 |---|---|
 | Value | `chrony.Input(services.ntp)` — the NTP service while `enabled`; no object when disabled (DryRun notes the disabled defaults) |
 | Create / Update | Render → Validate (`chronyd -p`) → Apply; a chrony.conf change is a persisted restart request (not a failure) |
 | Delete | the disabled rendering (no sources, no server) |
-| Retrieve | the input embedded in `sources.d/vrx.sources` (the reloadable file, so an input change alone never costs a restart) → re-rendered → chrony.conf, vrx.sources, chrony.keys byte-equal |
+| Retrieve | the input embedded in `sources.d/ngfw.sources` (the reloadable file, so an input change alone never costs a restart) → re-rendered → chrony.conf, ngfw.sources, chrony.keys byte-equal |
 | Refused at DryRun | `servers[].keyRef` (`agent.secret-channel-pending`: no API→agent secret channel yet), `ntsServer` (F-ntp) |
 | Ownership | `RecordsNoOwnership()` (TD-11b) |
 

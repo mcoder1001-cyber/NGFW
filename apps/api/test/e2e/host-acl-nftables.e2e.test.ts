@@ -85,7 +85,7 @@ describe('host ACL e2e (PostgreSQL + fake agent)', () => {
     const s = await h.call(ro, 'GET', '/api/v1/state/host-acl');
     expect(s.status).toBe(200);
     expect(s.body).toMatchObject({
-      table: `vrx_${h.fake.owner}`,
+      table: `ngfw_${h.fake.owner}`,
       mode: 'check',
       present: false,
       inSync: true,

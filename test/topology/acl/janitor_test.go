@@ -10,10 +10,10 @@ import (
 // "<prefix>-…:…", e.g. after an aborted run): every binding that lists one is rewritten without it (other owners'
 // entries kept, D-066) BEFORE the ACL is deleted (D-095c); a MACIP ACL is unbound first. Nothing else is touched.
 //
-//	VRX_ACL_JANITOR=1 run.sh -run TestACLJanitor
+//	NGFW_ACL_JANITOR=1 run.sh -run TestACLJanitor
 func TestACLJanitor(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" || os.Getenv("VRX_ACL_JANITOR") != "1" {
-		t.Skip("janitor: set VRX_INTEGRATION=1 and VRX_ACL_JANITOR=1")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_ACL_JANITOR") != "1" {
+		t.Skip("janitor: set NGFW_INTEGRATION=1 and NGFW_ACL_JANITOR=1")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)

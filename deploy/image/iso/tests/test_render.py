@@ -31,8 +31,8 @@ class RenderTests(unittest.TestCase):
         cfg = '# menuentry rescue\nmenuentry "Ubuntu" {\nlinux /casper/vmlinuz ---\ninitrd /casper/initrd\n}\n'
         result = render.grub(cfg, '1.0', '')
         self.assertTrue(result.startswith('set timeout=5\n# menuentry rescue\n'))
-        self.assertIn('set default=0\nmenuentry "Install VRX', result)
-        self.assertIn('submenu "Ubuntu Server installer (interactive, no VRX)" {\nmenuentry "Ubuntu"', result)
+        self.assertIn('set default=0\nmenuentry "Install NGFW', result)
+        self.assertIn('submenu "Ubuntu Server installer (interactive, no NGFW)" {\nmenuentry "Ubuntu"', result)
 
     def test_kernel_argument_injection(self):
         with self.assertRaises(SystemExit):
@@ -41,11 +41,11 @@ class RenderTests(unittest.TestCase):
     def test_destructive_menu_labels_match_largest_disk_selection(self):
         cfg = 'menuentry "Ubuntu" {\nlinux /casper/vmlinuz ---\ninitrd /casper/initrd\n}\n'
         result = render.grub(cfg, '1.0', '')
-        self.assertIn('menuentry "Install VRX 1.0 (unattended: ERASES the largest disk)"', result)
-        self.assertIn('menuentry "Reinstall VRX 1.0 (ERASES the largest disk)"', result)
-        self.assertNotIn('ERASES an existing VRX installation', result)
-        self.assertEqual(result.count(' vrx.reinstall=1'), 1)
-        self.assertIn('set default=0\nmenuentry "Install VRX', result)
+        self.assertIn('menuentry "Install NGFW 1.0 (unattended: ERASES the largest disk)"', result)
+        self.assertIn('menuentry "Reinstall NGFW 1.0 (ERASES the largest disk)"', result)
+        self.assertNotIn('ERASES an existing NGFW installation', result)
+        self.assertEqual(result.count(' ngfw.reinstall=1'), 1)
+        self.assertIn('set default=0\nmenuentry "Install NGFW', result)
 
 
 if __name__ == '__main__':

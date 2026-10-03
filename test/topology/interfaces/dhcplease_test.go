@@ -1,7 +1,7 @@
 package interfaces
 
 // TD-24 host proof (F-kea review Q5, rated H): the agent's interface-ip reconcile must not delete the address VPP's
-// DHCPv4 client leased. The real vrx-agent of this tree (owner = prefix, no API/DB needed) against the REAL host VPP:
+// DHCPv4 client leased. The real ngfw-agent of this tree (owner = prefix, no API/DB needed) against the REAL host VPP:
 //
 //	netns ns-<p>-dhcp: veth <p>d1 (+ VLAN <p>d1.100, 10.<N>.100.1/24) and a slot-local dnsmasq on <p>d1.100 (never the
 //	                   host's dnsmasq/kea units; no router option, so VPP's client installs no default route)
@@ -9,7 +9,7 @@ package interfaces
 //	                   host-<p>d0.100 in the slot VRF <p>-td24 (table <N>024) with `dhcpClient` and a static IPv6
 //
 //	TestDHCPLeaseSurvivesResync
-//	  bind     apply the document (vrx-agentctl) → VPP's client reaches BOUND (dhcp_client_dump) → the lease is on the
+//	  bind     apply the document (ngfw-agentctl) → VPP's client reaches BOUND (dhcp_client_dump) → the lease is on the
 //	           sub-interface (ip_address_dump, vppctl show interface address)
 //	  proof    the same document applied again (a commit's reconcile) → the agent restarted twice (each start is a full
 //	           resync from its stored desired state): after every step the lease is still installed, the client still
@@ -19,11 +19,11 @@ package interfaces
 //	           the prefix is left in VPP; dnsmasq and the agent stopped by PID; netns and veth deleted
 //
 // The names do not collide with the P08 rig (ns-<p>-lan|wan, <p>l*/<p>w*), so the test also runs beside it in
-// `tools/ci.sh full`. Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab
+// `tools/ci.sh full`. Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab
 // lock; NRestarts of vpp is checked before and after. Never a packet trace (D-128), no classify writes at all.
 //
 //	eval "$(tools/lab env <slot>)"; cd test/topology/interfaces
-//	VRX_INTEGRATION=1 ../../../tools/lab lock shared go test -count=1 -v -run TestDHCPLeaseSurvivesResync .
+//	NGFW_INTEGRATION=1 ../../../tools/lab lock shared go test -count=1 -v -run TestDHCPLeaseSurvivesResync .
 
 import (
 	"context"
@@ -59,8 +59,8 @@ type leaseTopo struct {
 	poolLo, poolHi string
 	subnet         netip.Prefix
 	v6             string
-	work           string // /run/vrx-test/<p>/td24 (0700)
-	bin, ctl       string // vrx-agent, vrx-agentctl
+	work           string // /run/ngfw-test/<p>/td24 (0700)
+	bin, ctl       string // ngfw-agent, ngfw-agentctl
 	agentEnv       []string
 	agentLog       string
 	agent          *proc
@@ -85,18 +85,18 @@ func newLeaseTopo(t *testing.T, s slot) *leaseTopo {
 		t.Fatal(err)
 	}
 	bins := t.TempDir() // /run is noexec
-	for _, b := range [][2]string{{"vrx-agent", "./cmd/vrx-agent"}, {"vrx-agentctl", "./cmd/vrx-agentctl"}} {
+	for _, b := range [][2]string{{"ngfw-agent", "./cmd/ngfw-agent"}, {"ngfw-agentctl", "./cmd/ngfw-agentctl"}} {
 		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", filepath.Join(bins, b[0]), b[1])
 		if err != nil {
 			t.Fatalf("go build %s: %v\n%s", b[0], err, out)
 		}
 	}
-	tp.bin, tp.ctl = filepath.Join(bins, "vrx-agent"), filepath.Join(bins, "vrx-agentctl")
+	tp.bin, tp.ctl = filepath.Join(bins, "ngfw-agent"), filepath.Join(bins, "ngfw-agentctl")
 	tp.agentLog = filepath.Join(tp.work, "agent.log")
 	tp.agentEnv = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"),
-		"VRX_AGENT_SOCKET=" + s.socket, "VRX_OWNER=" + p, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
-		"VRX_AGENT_STATE_DIR=" + filepath.Join(tp.work, "agent-state"), "VRX_METRICS_PORT=" + s.metricsPort,
-		"VRX_VPP_TABLE_BASE=" + strconv.Itoa(s.num*1000), "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info"}
+		"NGFW_AGENT_SOCKET=" + s.socket, "NGFW_OWNER=" + p, "NGFW_GLOBALS_OWNER=0", // D-071: test slots never own globals
+		"NGFW_AGENT_STATE_DIR=" + filepath.Join(tp.work, "agent-state"), "NGFW_METRICS_PORT=" + s.metricsPort,
+		"NGFW_VPP_TABLE_BASE=" + strconv.Itoa(s.num*1000), "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info"}
 	return tp
 }
 
@@ -112,16 +112,16 @@ func (tp *leaseTopo) doc(withDHCP bool) map[string]any {
 	}
 }
 
-// ctlJSON runs vrx-agentctl (fixed argv) and decodes its protobuf-JSON output.
+// ctlJSON runs ngfw-agentctl (fixed argv) and decodes its protobuf-JSON output.
 func (tp *leaseTopo) ctlJSON(t *testing.T, args ...string) map[string]any {
 	t.Helper()
 	out, err := run(t, tp.ctl, append([]string{"-s", tp.s.socket}, args...)...)
 	if err != nil {
-		t.Fatalf("vrx-agentctl %s: %v\n%s", strings.Join(args, " "), err, out)
+		t.Fatalf("ngfw-agentctl %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
 	var m map[string]any
 	if err := json.Unmarshal([]byte(out), &m); err != nil {
-		t.Fatalf("vrx-agentctl %s: %v\n%s", strings.Join(args, " "), err, out)
+		t.Fatalf("ngfw-agentctl %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
 	return m
 }
@@ -149,7 +149,7 @@ func (tp *leaseTopo) apply(t *testing.T, name string, doc map[string]any, subsys
 func (tp *leaseTopo) startAgent(t *testing.T) {
 	t.Helper()
 	from := fileSize(tp.agentLog)
-	tp.agent = start(t, "vrx-agent", tp.agentLog, tp.agentEnv, tp.bin)
+	tp.agent = start(t, "ngfw-agent", tp.agentLog, tp.agentEnv, tp.bin)
 	if !waitFor(60*time.Second, func() bool {
 		if tp.agent.exited() {
 			return true
@@ -163,7 +163,7 @@ func (tp *leaseTopo) startAgent(t *testing.T) {
 		return false
 	}) || tp.agent.exited() {
 		raw, _ := os.ReadFile(tp.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not finish its start-up resync:\n%s", raw)
+		t.Fatalf("ngfw-agent did not finish its start-up resync:\n%s", raw)
 	}
 	lines, raw := readAgentLog(t, tp.agentLog, from)
 	for i, l := range lines {
@@ -188,10 +188,10 @@ func (tp *leaseTopo) retrievedSub(t *testing.T) string {
 	}
 	out, err := run(t, tp.ctl, "-s", tp.s.socket, "retrieve", "-subsystems", "interfaces")
 	if err != nil {
-		t.Fatalf("vrx-agentctl retrieve: %v\n%s", err, out)
+		t.Fatalf("ngfw-agentctl retrieve: %v\n%s", err, out)
 	}
 	if err := json.Unmarshal([]byte(out), &r); err != nil {
-		t.Fatalf("vrx-agentctl retrieve: %v\n%s", err, out)
+		t.Fatalf("ngfw-agentctl retrieve: %v\n%s", err, out)
 	}
 	return string(r.DesiredState.Interfaces[tp.parent].Subinterfaces["100"])
 }
@@ -343,8 +343,8 @@ func addrsOf(t *testing.T, conn vppapi.Connection, idx uint32) []string {
 }
 
 func TestDHCPLeaseSurvivesResync(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("TD-24 host proof: set VRX_INTEGRATION=1 (host VPP, netns, dnsmasq)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("TD-24 host proof: set NGFW_INTEGRATION=1 (host VPP, netns, dnsmasq)")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")

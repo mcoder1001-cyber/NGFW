@@ -2,8 +2,8 @@
 //
 // These are the values the descriptors under apps/agent/internal/descriptors/{ipsec,ikev2,wireguard}
 // take as desired state and return from Retrieve. They are agent-internal for now: packages/proto
-// (the vrx-api ↔ vrx-agent contract, P03/P03b) carries no VPN domain messages yet. The messages are
-// written so they can be moved into packages/proto/vrx/v1 verbatim as an additive contract change
+// (the ngfw-api ↔ ngfw-agent contract, P03/P03b) carries no VPN domain messages yet. The messages are
+// written so they can be moved into packages/proto/ngfw/v1 verbatim as an additive contract change
 // (D-034 style: strings for enums, JSON-compatible, no VPP handles).
 //
 // Secrets never appear here. Every key/PSK field is a *reference* the descriptor resolves through
@@ -1811,7 +1811,7 @@ var File_vpn_proto protoreflect.FileDescriptor
 
 const file_vpn_proto_rawDesc = "" +
 	"\n" +
-	"\tvpn.proto\x12\x10vrx.agent.vpn.v1\"!\n" +
+	"\tvpn.proto\x12\x11ngfw.agent.vpn.v1\"!\n" +
 	"\bIpsecSpd\x12\x15\n" +
 	"\x06spd_id\x18\x01 \x01(\rR\x05spdId\"H\n" +
 	"\x11IpsecSpdInterface\x12\x1c\n" +
@@ -1842,7 +1842,7 @@ const file_vpn_proto_rawDesc = "" +
 	"\btable_id\x18\x03 \x01(\rR\atableId\x12\x12\n" +
 	"\x04dscp\x18\x04 \x01(\rR\x04dscp\x12\x1b\n" +
 	"\thop_limit\x18\x05 \x01(\rR\bhopLimit\x12*\n" +
-	"\x11encap_decap_flags\x18\x06 \x03(\tR\x0fencapDecapFlags\"\x9a\x04\n" +
+	"\x11encap_decap_flags\x18\x06 \x03(\tR\x0fencapDecapFlags\"\x9b\x04\n" +
 	"\aIpsecSa\x12\x15\n" +
 	"\x06sad_id\x18\x01 \x01(\rR\x05sadId\x12\x10\n" +
 	"\x03spi\x18\x02 \x01(\rR\x03spi\x12\x1a\n" +
@@ -1858,8 +1858,8 @@ const file_vpn_proto_rawDesc = "" +
 	"\tudp_encap\x18\n" +
 	" \x01(\bR\budpEncap\x12\x18\n" +
 	"\ainbound\x18\v \x01(\bR\ainbound\x12\x14\n" +
-	"\x05async\x18\f \x01(\bR\x05async\x125\n" +
-	"\x06tunnel\x18\r \x01(\v2\x1d.vrx.agent.vpn.v1.IpsecTunnelR\x06tunnel\x12\x12\n" +
+	"\x05async\x18\f \x01(\bR\x05async\x126\n" +
+	"\x06tunnel\x18\r \x01(\v2\x1e.ngfw.agent.vpn.v1.IpsecTunnelR\x06tunnel\x12\x12\n" +
 	"\x04salt\x18\x0e \x01(\rR\x04salt\x12 \n" +
 	"\fudp_src_port\x18\x0f \x01(\rR\n" +
 	"udpSrcPort\x12 \n" +
@@ -1913,19 +1913,19 @@ const file_vpn_proto_rawDesc = "" +
 	"\aseconds\x18\x01 \x01(\x04R\aseconds\x12\x16\n" +
 	"\x06jitter\x18\x02 \x01(\rR\x06jitter\x12\x1a\n" +
 	"\bhandover\x18\x03 \x01(\rR\bhandover\x12\x19\n" +
-	"\bmax_data\x18\x04 \x01(\x04R\amaxData\"\xb8\x05\n" +
+	"\bmax_data\x18\x04 \x01(\x04R\amaxData\"\xc1\x05\n" +
 	"\fIkev2Profile\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x04auth\x18\x02 \x01(\v2\x1b.vrx.agent.vpn.v1.Ikev2AuthR\x04auth\x124\n" +
-	"\blocal_id\x18\x03 \x01(\v2\x19.vrx.agent.vpn.v1.Ikev2IdR\alocalId\x126\n" +
-	"\tremote_id\x18\x04 \x01(\v2\x19.vrx.agent.vpn.v1.Ikev2IdR\bremoteId\x124\n" +
-	"\blocal_ts\x18\x05 \x01(\v2\x19.vrx.agent.vpn.v1.Ikev2TsR\alocalTs\x126\n" +
-	"\tremote_ts\x18\x06 \x01(\v2\x19.vrx.agent.vpn.v1.Ikev2TsR\bremoteTs\x12>\n" +
-	"\tresponder\x18\a \x01(\v2 .vrx.agent.vpn.v1.Ikev2ResponderR\tresponder\x126\n" +
-	"\x03ike\x18\b \x01(\v2$.vrx.agent.vpn.v1.Ikev2IkeTransformsR\x03ike\x126\n" +
-	"\x03esp\x18\t \x01(\v2$.vrx.agent.vpn.v1.Ikev2EspTransformsR\x03esp\x12;\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\x04auth\x18\x02 \x01(\v2\x1c.ngfw.agent.vpn.v1.Ikev2AuthR\x04auth\x125\n" +
+	"\blocal_id\x18\x03 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2IdR\alocalId\x127\n" +
+	"\tremote_id\x18\x04 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2IdR\bremoteId\x125\n" +
+	"\blocal_ts\x18\x05 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2TsR\alocalTs\x127\n" +
+	"\tremote_ts\x18\x06 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2TsR\bremoteTs\x12?\n" +
+	"\tresponder\x18\a \x01(\v2!.ngfw.agent.vpn.v1.Ikev2ResponderR\tresponder\x127\n" +
+	"\x03ike\x18\b \x01(\v2%.ngfw.agent.vpn.v1.Ikev2IkeTransformsR\x03ike\x127\n" +
+	"\x03esp\x18\t \x01(\v2%.ngfw.agent.vpn.v1.Ikev2EspTransformsR\x03esp\x12<\n" +
 	"\blifetime\x18\n" +
-	" \x01(\v2\x1f.vrx.agent.vpn.v1.Ikev2LifetimeR\blifetime\x12\x1b\n" +
+	" \x01(\v2 .ngfw.agent.vpn.v1.Ikev2LifetimeR\blifetime\x12\x1b\n" +
 	"\tudp_encap\x18\v \x01(\bR\budpEncap\x12-\n" +
 	"\x13ipsec_over_udp_port\x18\f \x01(\rR\x10ipsecOverUdpPort\x12)\n" +
 	"\x10tunnel_interface\x18\r \x01(\tR\x0ftunnelInterface\x12#\n" +
@@ -1976,42 +1976,42 @@ func file_vpn_proto_rawDescGZIP() []byte {
 
 var file_vpn_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_vpn_proto_goTypes = []any{
-	(*IpsecSpd)(nil),               // 0: vrx.agent.vpn.v1.IpsecSpd
-	(*IpsecSpdInterface)(nil),      // 1: vrx.agent.vpn.v1.IpsecSpdInterface
-	(*IpsecSpdEntry)(nil),          // 2: vrx.agent.vpn.v1.IpsecSpdEntry
-	(*IpsecTunnel)(nil),            // 3: vrx.agent.vpn.v1.IpsecTunnel
-	(*IpsecSa)(nil),                // 4: vrx.agent.vpn.v1.IpsecSa
-	(*IpsecTunnelProtect)(nil),     // 5: vrx.agent.vpn.v1.IpsecTunnelProtect
-	(*IpsecItf)(nil),               // 6: vrx.agent.vpn.v1.IpsecItf
-	(*IpsecBackend)(nil),           // 7: vrx.agent.vpn.v1.IpsecBackend
-	(*IpsecAsyncMode)(nil),         // 8: vrx.agent.vpn.v1.IpsecAsyncMode
-	(*Ikev2Auth)(nil),              // 9: vrx.agent.vpn.v1.Ikev2Auth
-	(*Ikev2Id)(nil),                // 10: vrx.agent.vpn.v1.Ikev2Id
-	(*Ikev2Ts)(nil),                // 11: vrx.agent.vpn.v1.Ikev2Ts
-	(*Ikev2Responder)(nil),         // 12: vrx.agent.vpn.v1.Ikev2Responder
-	(*Ikev2IkeTransforms)(nil),     // 13: vrx.agent.vpn.v1.Ikev2IkeTransforms
-	(*Ikev2EspTransforms)(nil),     // 14: vrx.agent.vpn.v1.Ikev2EspTransforms
-	(*Ikev2Lifetime)(nil),          // 15: vrx.agent.vpn.v1.Ikev2Lifetime
-	(*Ikev2Profile)(nil),           // 16: vrx.agent.vpn.v1.Ikev2Profile
-	(*Ikev2ResponderHostname)(nil), // 17: vrx.agent.vpn.v1.Ikev2ResponderHostname
-	(*Ikev2LocalKey)(nil),          // 18: vrx.agent.vpn.v1.Ikev2LocalKey
-	(*Ikev2SleepInterval)(nil),     // 19: vrx.agent.vpn.v1.Ikev2SleepInterval
-	(*Ikev2Liveness)(nil),          // 20: vrx.agent.vpn.v1.Ikev2Liveness
-	(*WireguardInterface)(nil),     // 21: vrx.agent.vpn.v1.WireguardInterface
-	(*WireguardPeer)(nil),          // 22: vrx.agent.vpn.v1.WireguardPeer
-	(*WireguardAsyncMode)(nil),     // 23: vrx.agent.vpn.v1.WireguardAsyncMode
+	(*IpsecSpd)(nil),               // 0: ngfw.agent.vpn.v1.IpsecSpd
+	(*IpsecSpdInterface)(nil),      // 1: ngfw.agent.vpn.v1.IpsecSpdInterface
+	(*IpsecSpdEntry)(nil),          // 2: ngfw.agent.vpn.v1.IpsecSpdEntry
+	(*IpsecTunnel)(nil),            // 3: ngfw.agent.vpn.v1.IpsecTunnel
+	(*IpsecSa)(nil),                // 4: ngfw.agent.vpn.v1.IpsecSa
+	(*IpsecTunnelProtect)(nil),     // 5: ngfw.agent.vpn.v1.IpsecTunnelProtect
+	(*IpsecItf)(nil),               // 6: ngfw.agent.vpn.v1.IpsecItf
+	(*IpsecBackend)(nil),           // 7: ngfw.agent.vpn.v1.IpsecBackend
+	(*IpsecAsyncMode)(nil),         // 8: ngfw.agent.vpn.v1.IpsecAsyncMode
+	(*Ikev2Auth)(nil),              // 9: ngfw.agent.vpn.v1.Ikev2Auth
+	(*Ikev2Id)(nil),                // 10: ngfw.agent.vpn.v1.Ikev2Id
+	(*Ikev2Ts)(nil),                // 11: ngfw.agent.vpn.v1.Ikev2Ts
+	(*Ikev2Responder)(nil),         // 12: ngfw.agent.vpn.v1.Ikev2Responder
+	(*Ikev2IkeTransforms)(nil),     // 13: ngfw.agent.vpn.v1.Ikev2IkeTransforms
+	(*Ikev2EspTransforms)(nil),     // 14: ngfw.agent.vpn.v1.Ikev2EspTransforms
+	(*Ikev2Lifetime)(nil),          // 15: ngfw.agent.vpn.v1.Ikev2Lifetime
+	(*Ikev2Profile)(nil),           // 16: ngfw.agent.vpn.v1.Ikev2Profile
+	(*Ikev2ResponderHostname)(nil), // 17: ngfw.agent.vpn.v1.Ikev2ResponderHostname
+	(*Ikev2LocalKey)(nil),          // 18: ngfw.agent.vpn.v1.Ikev2LocalKey
+	(*Ikev2SleepInterval)(nil),     // 19: ngfw.agent.vpn.v1.Ikev2SleepInterval
+	(*Ikev2Liveness)(nil),          // 20: ngfw.agent.vpn.v1.Ikev2Liveness
+	(*WireguardInterface)(nil),     // 21: ngfw.agent.vpn.v1.WireguardInterface
+	(*WireguardPeer)(nil),          // 22: ngfw.agent.vpn.v1.WireguardPeer
+	(*WireguardAsyncMode)(nil),     // 23: ngfw.agent.vpn.v1.WireguardAsyncMode
 }
 var file_vpn_proto_depIdxs = []int32{
-	3,  // 0: vrx.agent.vpn.v1.IpsecSa.tunnel:type_name -> vrx.agent.vpn.v1.IpsecTunnel
-	9,  // 1: vrx.agent.vpn.v1.Ikev2Profile.auth:type_name -> vrx.agent.vpn.v1.Ikev2Auth
-	10, // 2: vrx.agent.vpn.v1.Ikev2Profile.local_id:type_name -> vrx.agent.vpn.v1.Ikev2Id
-	10, // 3: vrx.agent.vpn.v1.Ikev2Profile.remote_id:type_name -> vrx.agent.vpn.v1.Ikev2Id
-	11, // 4: vrx.agent.vpn.v1.Ikev2Profile.local_ts:type_name -> vrx.agent.vpn.v1.Ikev2Ts
-	11, // 5: vrx.agent.vpn.v1.Ikev2Profile.remote_ts:type_name -> vrx.agent.vpn.v1.Ikev2Ts
-	12, // 6: vrx.agent.vpn.v1.Ikev2Profile.responder:type_name -> vrx.agent.vpn.v1.Ikev2Responder
-	13, // 7: vrx.agent.vpn.v1.Ikev2Profile.ike:type_name -> vrx.agent.vpn.v1.Ikev2IkeTransforms
-	14, // 8: vrx.agent.vpn.v1.Ikev2Profile.esp:type_name -> vrx.agent.vpn.v1.Ikev2EspTransforms
-	15, // 9: vrx.agent.vpn.v1.Ikev2Profile.lifetime:type_name -> vrx.agent.vpn.v1.Ikev2Lifetime
+	3,  // 0: ngfw.agent.vpn.v1.IpsecSa.tunnel:type_name -> ngfw.agent.vpn.v1.IpsecTunnel
+	9,  // 1: ngfw.agent.vpn.v1.Ikev2Profile.auth:type_name -> ngfw.agent.vpn.v1.Ikev2Auth
+	10, // 2: ngfw.agent.vpn.v1.Ikev2Profile.local_id:type_name -> ngfw.agent.vpn.v1.Ikev2Id
+	10, // 3: ngfw.agent.vpn.v1.Ikev2Profile.remote_id:type_name -> ngfw.agent.vpn.v1.Ikev2Id
+	11, // 4: ngfw.agent.vpn.v1.Ikev2Profile.local_ts:type_name -> ngfw.agent.vpn.v1.Ikev2Ts
+	11, // 5: ngfw.agent.vpn.v1.Ikev2Profile.remote_ts:type_name -> ngfw.agent.vpn.v1.Ikev2Ts
+	12, // 6: ngfw.agent.vpn.v1.Ikev2Profile.responder:type_name -> ngfw.agent.vpn.v1.Ikev2Responder
+	13, // 7: ngfw.agent.vpn.v1.Ikev2Profile.ike:type_name -> ngfw.agent.vpn.v1.Ikev2IkeTransforms
+	14, // 8: ngfw.agent.vpn.v1.Ikev2Profile.esp:type_name -> ngfw.agent.vpn.v1.Ikev2EspTransforms
+	15, // 9: ngfw.agent.vpn.v1.Ikev2Profile.lifetime:type_name -> ngfw.agent.vpn.v1.Ikev2Lifetime
 	10, // [10:10] is the sub-list for method output_type
 	10, // [10:10] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name

@@ -6,12 +6,12 @@ scope: source-VRF select (new `svs` descriptors), next hop in another VRF, the D
 merged deps you can rely on: P08
   - P08: desired/ (Sink, `interface/<name>` aliases), subsystems.Register/Domains + Wiring stores, projection.go already mapping `vrfs` and `routing.static` (weights, blackhole, distance, `frr.StaticOwnedByFRR` skip), InterfaceState state-RPC pattern, test/topology/interfaces
   - through P08: P05 core `vrf/<id>` + `ip.route/<table>/<prefix>` (weighted multipath, DROP path for blackhole, best-source claim rule, owner table), P06 API (actions controller = 501 stub, `/state/routes` paging a full Retrieve), P07a/b UI, RF-1 `frr.RegisterStaticSelector`
-  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight), TD-2 (API auth/users follow-ups)
+  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/ngfw-vpp-preflight), TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-vrf-static-ecmp.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 A4 A6 A7 C1–C7 P1–P5 W1–W3) · apps/agent/internal/descriptors/core/README.md · docs/status/vertical-slice.md · docs/vpp-code-track.md V15, V22 · docs/decisions/LOG.md D-063, D-065, D-069, D-071, D-072, D-073, D-076, D-080, D-087, D-094, D-095, D-101
-slot: 2 → VRX_SLOT=2 VRX_TEST_PREFIX=w2 VRX_HTTP_PORT=3000+100·2 VRX_WEB_PORT=5000+100·2 VRX_METRICS_PORT=9100+10·2+1 VRX_AGENT_SOCKET=/run/vrx-test/w2/agent.sock VRX_PG_DATABASE=vrx_w2 VRX_VALKEY_DB=2 VRX_VPP_TABLE_BASE=2000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 2 → NGFW_SLOT=2 NGFW_TEST_PREFIX=w2 NGFW_HTTP_PORT=3000+100·2 NGFW_WEB_PORT=5000+100·2 NGFW_METRICS_PORT=9100+10·2+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w2/agent.sock NGFW_PG_DATABASE=ngfw_w2 NGFW_VALKEY_DB=2 NGFW_VPP_TABLE_BASE=2000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 2)"`
   - rig prefix w2 → 10.2.{1,2}.0/24; every VRF, SVS table and FIB-browser table id in 2000–2999; route prefixes inside 10.2.0.0/16 (+ one slot-unique IPv6 /48)
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none (FRR rendering of `viaFrr` routes is P12 / F-bfd-redistribution; you only add the flag and register the selector)
 obligations:
@@ -40,7 +40,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A4 apps/agent/internal/agent/server.go: you are the first expected toucher — turn `Action` into a type switch with a default Unimplemented and a case anchor each for F-neighbors-ra and F-nat44-ed-sessions (unless the manager's anchor commit already did); your ping case
   - A7 docs/vpp-code-track.md: append `### V-new (F-vrf-static-ecmp)`; the manager numbers it
   - C1 packages/schema/src/domains/{vrfs,routing}.ts: one key line each for `VrfSchema.sourceSelect`, `NextHopSchema.vrf`, `StaticRouteSchema.viaFrr` (sub-schemas in your ext file) · C2 packages/schema/src/semantic/index.ts: one spread line · C3 packages/schema/src/index.ts if you export anything · C4 new fixture files only
-  - C5 packages/proto/vrx/v1/dataplane.proto: `ListRoutes` under the service anchor; new messages in a `// ----- F-vrf-static-ecmp -----` section at the end
+  - C5 packages/proto/ngfw/v1/dataplane.proto: `ListRoutes` under the service anchor; new messages in a `// ----- F-vrf-static-ecmp -----` section at the end
   - allocated numbers (wave-A-hotspots §2, a merge blocker if reused): **Vrf 3 `source_select`**, **StaticRoute 7 `via_frr`**, **NextHop 4 `vrf`** (not yet in §2 — NextHop is touched only by you; the manager adds it), ActionRequest 6 spare (not needed: ping = 1 exists); nothing else
   - C6 docs/contracts/proto.md: `### F-vrf-static-ecmp: ListRoutes` · C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
   - P1 apps/api/src/app.module.ts · P2 apps/api/src/state/state.controller.ts: move the `GET /state/routes` handler into your controller and delete the old block in one hunk (Fastify rejects duplicate routes; keep the blank separator) · P4 apps/api/src/agent/agent.client.ts (`listRoutes` + a generic Action stream method the others reuse) · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub under the anchor on the contract commit)
@@ -54,18 +54,18 @@ files you must not touch:
   - apps/agent/internal/renderers/** (RF-1/P12 — call the selector, never edit); every other descriptor package (DF-2 ip_neighbor/ip6_nd/arp are F-neighbors-ra's, urpf/adl/abf/classify F-rpf-adl-pbr's, acl F-acl's, nat* the NAT tasks', bond/l2/l3xc/mactime/lldp/span/gso/nsim F-bonding/F-bridge-l2/F-loopback's, af_packet TD-5's); core/{loopback,ifaddr,core}.go (P05/P08)
   - apps/api/src/{auth,users}/** (TD-4); apps/api/src/state/** beyond the P2 hunk
 host rules:
-  - plugins `ping`, `svs` and core `ip` are loaded on vrx-a (confirm once with `vppctl show plugins`); no data NICs, no linux-cp needed
-  - V19 SAFETY (D-095, crash on first packet): before ANY packet through the rig, `go -C apps/agent run ./cmd/vrx-vpp-preflight` must exit 0 (TD-3). Stop if it does not
+  - plugins `ping`, `svs` and core `ip` are loaded on ngfw-a (confirm once with `vppctl show plugins`); no data NICs, no linux-cp needed
+  - V19 SAFETY (D-095, crash on first packet): before ANY packet through the rig, `go -C apps/agent run ./cmd/ngfw-vpp-preflight` must exit 0 (TD-3). Stop if it does not
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises (D-064)
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
   - 100k-prefix FIB-browser test: one slot table, removed in t.Cleanup (routes first, then the table); paste its timing, no tuning (FAST MODE: no performance work)
-  - with VRX_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
+  - with NGFW_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
 coordination: F-neighbors-ra and F-nat44-ed-sessions share the A4 Action switch and reuse your API Action stream method once you merge · F-neighbors-ra also appends to `Vrf` (4) and `RoutingConfig` (10); F-rpf-adl-pbr to `RoutingConfig` (11) · P12 (FRR) consumes the `viaFrr` flag through the selector you register
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: VRF list, ECMP route editor, FIB browser page, ping result) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-vrf-static-ecmp.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-vrf-static-ecmp-wip.md current
-CI: `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w2 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-vrf-static-ecmp.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w2 dropped · no w2 tables/routes/SVS objects left in VPP (Retrieve + `show ip fib table <id>` pasted) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · ngfw_w2 dropped · no w2 tables/routes/SVS objects left in VPP (Retrieve + `show ip fib table <id>` pasted) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-vrf-static-ecmp-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

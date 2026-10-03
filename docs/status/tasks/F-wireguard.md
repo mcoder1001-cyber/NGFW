@@ -87,8 +87,8 @@ Contract: `docs/status/tasks/F-wireguard-contract.md`. Questions: `docs/status/t
                  [@2]: ipv4 via 10.6.70.2 tap670: mtu:9000 next:6 flags:[] …
   ```
 - [x] **Handshake evidence — ran both:** a kernel WireGuard peer (wireguard-tools v1.0.20250521) in the netns
-  `ns-w6wh` / `ns-w6wg`, reached through a tap (no af_packet: V24; TD-3's `vrx-vpp-preflight` passed before any packet),
-  and the event reaching the UI. `TestWireguardHandshakeOnHost` (`VRX_WG_HANDSHAKE=1`):
+  `ns-w6wh` / `ns-w6wg`, reached through a tap (no af_packet: V24; TD-3's `ngfw-vpp-preflight` passed before any packet),
+  and the event reaching the UI. `TestWireguardHandshakeOnHost` (`NGFW_WG_HANDSHAKE=1`):
   ```
       rpc_wireguard_integration_test.go:359: VPP NRestarts=1 before
       rpc_wireguard_integration_test.go:445: event: kind=EVENT_KIND_WIREGUARD_PEER_CHANGED interface=wg6060 message="WireGuard peer Ke7vNra/… on wg6060: established" attributes=map[dead:false established:true peer_index:1 public_key:Ke7vNra/Py10C0qoV1bbZyRUABY…]
@@ -108,7 +108,7 @@ Contract: `docs/status/tasks/F-wireguard-contract.md`. Questions: `docs/status/t
   ```
   04:50:16 simulated loss: wg6070 present? 0
   04:50:17 restart: interface and 2 peers back after 0.85 s (agent pid 3780022)
-  {"time":"2026-09-25T04:50:16.862226476+03:30","level":"WARN","msg":"TEST BUILD: WireGuard secret fixture loaded (never in a product build)","owner":"w6wg","component":"subsystems","file":"/run/vrx-test/w6/wg/secrets.json","secrets":2}
+  {"time":"2026-09-25T04:50:16.862226476+03:30","level":"WARN","msg":"TEST BUILD: WireGuard secret fixture loaded (never in a product build)","owner":"w6wg","component":"subsystems","file":"/run/ngfw-test/w6/wg/secrets.json","secrets":2}
   {"time":"2026-09-25T04:50:16.900292533+03:30","level":"INFO","msg":"reconcile start","owner":"w6wg","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","vpn"]}
   {"time":"2026-09-25T04:50:17.188068511+03:30","level":"INFO","msg":"reconcile done","owner":"w6wg","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","vpn"],"status":"APPLY_STATUS_APPLIED","summary":"created:6  updated:2  unchanged:7","reapplied":0,"duration":287763551,"err":""}
   04:50:17 after restart: kernel peer {"status":"established","lastHandshake":"2026-09-25T01:20:17.467Z","endpoint":"10.6.70.2"}
@@ -125,7 +125,7 @@ Contract: `docs/status/tasks/F-wireguard-contract.md`. Questions: `docs/status/t
   ✓ F-wireguard e2e (PostgreSQL + fake agent) > duplicate public key on two interfaces → 400 problem+json pointing at the second peer
   ```
   (`/vpn/wireguard/interfaces/b/peers/dup/publicKey`, "public key is already used by peer 'p1' of WireGuard interface 'a' (VPP
-  keys peers by public key across all interfaces)"). Full stack: `{"status":400,"type":"https://vrx.dev/problems/validation",
+  keys peers by public key across all interfaces)"). Full stack: `{"status":400,"type":"https://ngfw.dev/problems/validation",
   "errors":[{"pointer":"/vpn/wireguard/interfaces/site/peers/kernel/publicKey","message":"public key is already used by peer
   'again' of WireGuard interface 'dup' …"}]}` (the stored document orders `dup` before `site`).
 - [x] **No private key or PSK in logs, GET, fixtures, status files.** Keys are references everywhere (D-051); the agent's
@@ -133,8 +133,8 @@ Contract: `docs/status/tasks/F-wireguard-contract.md`. Questions: `docs/status/t
   JSON contains no material); `show_private_key` is never set and the v1 peer dump (no PSK) is used for state and events
   (unit assertions); `WireguardSecrets`, `Keyer` format as `…(n secrets)` (unit: `%v`, `%+v`, `%#v`, slog); the key-pair
   route returns `{ref, publicKey, version}` only (e2e asserts the body keys and that the private key is in neither the
-  response nor `GET /secrets`); test vectors are SHA-256 of `VRX_TEST_PSK_F-wireguard_*` labels, the stack run's fixture
-  file lives in `/run/vrx-test/w6/wg` (0600) and is removed by the run; every pasted `vppctl` output went through the filter.
+  response nor `GET /secrets`); test vectors are SHA-256 of `NGFW_TEST_PSK_F-wireguard_*` labels, the stack run's fixture
+  file lives in `/run/ngfw-test/w6/wg` (0600) and is removed by the run; every pasted `vppctl` output went through the filter.
 - [x] **`tools/ci.sh --base main` green** — on the D-112 squash of the branch (see "CI" below).
 
 ### Screenshot (real endpoint: test-build agent + API + `vite preview` of the production web build, host VPP)
@@ -149,7 +149,7 @@ playwright-core 1.63 from the npx cache, script in scratch (not committed), as P
 | D-051 references only | schema refs; agent maps `key/`→`x25519:`, `psk/`→`hmac:`; nothing else crosses the boundary (see above) |
 | D-063 async mode write-only | DF-5 unchanged; the global is in no domain (no configuration leaf) |
 | D-065/D-069 `interface/wg<N>` alias, logical names | wg interface provides `interface/wg<N>`; DF-1/core objects reference it; logical name = `wg<N>`, configuration names via `wireguard.meta` |
-| D-071 globals owner | `WithGlobalsOwner(env.GlobalsOwner)`; slot agents `VRX_GLOBALS_OWNER=0` (stack script); non-owner requirement declared via `wgRegistry` |
+| D-071 globals owner | `WithGlobalsOwner(env.GlobalsOwner)`; slot agents `NGFW_GLOBALS_OWNER=0` (stack script); non-owner requirement declared via `wgRegistry` |
 | D-082 globals lock | no test reads or changes a VPP-wide setting (async mode untouched) |
 | D-096 keyed PSK fingerprints | `hmac:` via `Wiring.VPNKeyer()`; unit test compares with the keyer |
 | DF-5 Q3 default (a) | no src_ip dependency; ordering never failed (questions Q3) |
@@ -159,7 +159,7 @@ playwright-core 1.63 from the npx cache, script in scratch (not committed), as P
 | TD-11b guard | every registered descriptor declares `RecordsNoOwnership`/`CheckPersistent`; agent tests pass with the guard |
 | D-128 no trace | none used (FIB counters, interface counters, `wg show`, ping) |
 | D-132 no fast polling | state 30 s + Refresh; one walk at a time in the agent |
-| V19/V24 | no af_packet; taps; `vrx-vpp-preflight` before packets in the stack run; NRestarts logged (1→1 host checks; 2→2 stack runs; the 04:27 restart was another branch's dns crash) |
+| V19/V24 | no af_packet; taps; `ngfw-vpp-preflight` before packets in the stack run; NRestarts logged (1→1 host checks; 2→2 stack runs; the 04:27 restart was another branch's dns crash) |
 
 ## Shared hunks (registration lines only)
 - `apps/agent/internal/subsystems/subsystems.go`: `VPN = "vpn"` (const anchor), `VPN: wireguardDescriptors()` (new-domain
@@ -168,11 +168,11 @@ playwright-core 1.63 from the npx cache, script in scratch (not committed), as P
 - `apps/agent/internal/agent/service_test.go`: the two implemented-domains assertions made registry-derived (identical to F-object-model's lines, D-129 F5)
 - `apps/agent/internal/descriptors/core/coretest/fakevpp.go`: the `extensions` seam (identical lines to F-nat44-ed-sessions', D-129); the model is in the owned-by-pattern new file `coretest/wireguard.go` (A6)
 - `packages/schema/src/domains/vpn.ts`: one key line `routeAllowedIps`; `packages/schema/src/semantic/index.ts`: import + spread
-- `packages/proto/vrx/v1/dataplane.proto`: rpc under the anchor, EventKind 13 under the anchor, field 12 in `WireguardInterface`, messages in the F-wireguard section; `docs/contracts/proto.md` §11 section
+- `packages/proto/ngfw/v1/dataplane.proto`: rpc under the anchor, EventKind 13 under the anchor, field 12 in `WireguardInterface`, messages in the F-wireguard section; `docs/contracts/proto.md` §11 section
 - `apps/api/src/app.module.ts` (import + 2 spreads), `agent/agent.client.ts` (type import + method), `testing/fake-agent.ts` (one handler line + **one import line at the end of the import block**), `infra/bus.ts` (topic), `telemetry/relay.service.ts` (case), `auth/route-guard.test.ts` (ADMIN_ONLY line at the end of the block: no F-wireguard anchor there)
 - `apps/web/src/domains/vpn/tabs.ts` (tab entry + `import { lazy }`), `nav/nav.ts` + `nav.test.ts` (`'vpn'`), `i18n.ts` (imports, namespace, en, fa)
 - `docs/vpp-code-track.md`: `### V-new (F-wireguard)`
-- generated: `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go`, `sdk/python/vrx/_generated/*`
+- generated: `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go`, `sdk/python/ngfw/_generated/*`
 
 ## Decisions taken (options in the questions file)
 - `routeAllowedIps` default false (TNSR parity), documented with the NBMA next-hop rule (Q2).
@@ -180,15 +180,15 @@ playwright-core 1.63 from the npx cache, script in scratch (not committed), as P
 - Missing secret material = WARNING at validation + loud failure at apply (marker), not a validation ERROR (P08's example
   test requires examples to project cleanly; a peer is never created without its PSK) (Q1).
 - Peer-event watcher started from `Wiring.Connected` (Q4); TD-8's `Env.Publish` as the sink.
-- Test-only secret fixture behind `-tags vrxtestsecrets` (never in a product build) for the full-stack run (Q1).
+- Test-only secret fixture behind `-tags ngfwtestsecrets` (never in a product build) for the full-stack run (Q1).
 
 ## Out of scope (not built)
 IPsec (P11 etc.), PKI, dynamic routing over wg, VPP-generated keys, async crypto tuning, HA key sync, tunnel dashboards, QR
-provisioning; the API→agent secret channel itself (PENDING-secret-channel); a dedicated `vrx show wireguard` CLI command
+provisioning; the API→agent secret channel itself (PENDING-secret-channel); a dedicated `ngfw show wireguard` CLI command
 (apps/cli is not this row's; REST operations `Wireguard_state` / `Wireguard_keypair` exist); hostname endpoints.
 
 ## CI
-`TMPDIR=/tmp/g-w6 VRX_CI_HEAD_REF=<squash> tools/ci.sh --base main`, where `<squash>` = `git commit-tree HEAD^{tree} -p
+`TMPDIR=/tmp/g-w6 NGFW_CI_HEAD_REF=<squash> tools/ci.sh --base main`, where `<squash>` = `git commit-tree HEAD^{tree} -p
 $(git merge-base main HEAD)` with a `contract(schema,proto): …` subject: a commit object only (no ref, no history
 rewrite) with exactly the tree and the single commit the D-112 merge produces. Every step checks the working tree (= that
 tree); the contract guard and gitleaks read the squash commit. Why not over the branch history: gitleaks flags the
@@ -224,7 +224,7 @@ interface creates fail closed on the shared VPP); the real-agent rollback step o
 | id | fix | test (fails on the old code) |
 |---|---|---|
 | F1 | **Refuse** (not "require a more specific route"): new rule `vpn.wireguard-route-loop` in `packages/schema/src/semantic/wireguard.ts` — with `routeAllowedIps`, an allowed IP that contains a peer endpoint (IP literal) of any WireGuard interface whose `underlayVrf` is this interface's `vrf` is a 400 at `/vpn/wireguard/interfaces/<if>/peers/<peer>/allowedIps/<i>`. Twin in the Go builder (`desired/wireguard.go`): ERROR at the same pointer, the route is not projected. User guide: "Routing loop — refused" paragraph (full tunnel = own overlay VRF, narrower allowed IP, or switch off + a more specific route to the endpoint; a same-prefix static route is `agent.duplicate-object`) | `semantic/wireguard.test.ts` "vpn.wireguard-route-loop …" (old rule file: `1 failed`); `desired/wireguard_test.go` `TestWireguardRouteLoopRefused` (old builder: `no route-loop error: []`) |
-| F2 | Guards: `subsystems/wireguard_fixture_guard_test.go` (untagged, static: only the tagged `wireguard_fixture.go` may set `wireguardFixture`) and `wireguard_fixture_nil_test.go` (every build without the tag: the hook is nil). `tools/ci.sh` forbidden patterns: `vrxtestsecrets` only in its tagged file, `*_test.go`, `test/`, docs (the one ci.sh line; product comments no longer spell the tag) | guards, not a fix: both fail when the tag line is dropped from `wireguard_fixture.go` ("sets wireguardFixture without the … constraint", "set in a build without the test-secrets tag"); the ci.sh grep catches an untracked `zz_probe.go` carrying the tag |
+| F2 | Guards: `subsystems/wireguard_fixture_guard_test.go` (untagged, static: only the tagged `wireguard_fixture.go` may set `wireguardFixture`) and `wireguard_fixture_nil_test.go` (every build without the tag: the hook is nil). `tools/ci.sh` forbidden patterns: `ngfwtestsecrets` only in its tagged file, `*_test.go`, `test/`, docs (the one ci.sh line; product comments no longer spell the tag) | guards, not a fix: both fail when the tag line is dropped from `wireguard_fixture.go` ("sets wireguardFixture without the … constraint", "set in a build without the test-secrets tag"); the ci.sh grep catches an untracked `zz_probe.go` carrying the tag |
 | F9 | `wireguardStateQuery`: `staleTime` = `refetchInterval` = 30 s, `refetchOnWindowFocus: false`; Refresh kept | `WireguardPage.test.tsx` "F9 (D-132) …" (old: `Cannot read properties of undefined (reading 'staleTime')`) |
 | UI default | New interfaces open with `routeAllowedIps: true` (`newInterfaceDefaults()`) and an NBMA info line (en + fa); the schema default stays false | "new interfaces open with routeAllowedIps on …" (old: `newInterfaceDefaults is not a function`); the render test opens **Add interface** and finds the hint and the switch checked (old: fails) |
 | F3 | Manager: PENDING-secret-channel. Mine: Q1 corrected (the store is a stand-in; without material a resync would delete working tunnels → material before the first resync) | doc |
@@ -238,7 +238,7 @@ proto.md), F14 (projection env seam). No host runs this round (af_packet/interfa
 
 ### Fix round 1 — CI
 Plain `TMPDIR=/tmp/g-w6 tools/ci.sh --base main` (`logs/ci/F-wireguard-20260925-095440-658311`): every step up to the
-history scan passes (generated output clean, `ok: vrxtestsecrets only in test code`, `ok: no secret-shaped strings`); gitleaks
+history scan passes (generated output clean, `ok: ngfwtestsecrets only in test code`, `ok: no secret-shaped strings`); gitleaks
 then reports the one known history hit — `efcf783a apps/api/test/e2e/wireguard.e2e.test.ts:22 generic-api-key`, the public
 example key (review §1 / Q12: false positive, the D-112 squash drops it). On the squash of `f8a61e19` (`1d4d4159`, `git
 commit-tree`, no ref) the full gate is green:
@@ -251,6 +251,6 @@ commit-tree`, no ref) the full gate is green:
   apps/cli: make lint test build                     0m10s
   mode quick · wall time 7m21s · logs /root/ngfw-wt/logs/ci/F-wireguard-20260925-095645-675710
 CI GATE PASSED
-ok: vrxtestsecrets only in test code
+ok: ngfwtestsecrets only in test code
 ok: gitleaks — scanned ~390972 bytes (390.97 KB) in 1.19s no leaks found
 ```

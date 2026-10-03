@@ -88,7 +88,7 @@ anywhere in the diff (checked the full `ifaddr.go` diff). Compliant.
 ## 4. Host proof design (test/topology/interfaces/dhcplease_test.go)
 
 - dnsmasq is started via `ip netns exec <ns> dnsmasq --keep-in-foreground ...` with its own
-  lease/pid/log files under `/run/vrx-test/<p>/td24` and stopped by PID (`t.Cleanup(func(){p.stop(t)})`,
+  lease/pid/log files under `/run/ngfw-test/<p>/td24` and stopped by PID (`t.Cleanup(func(){p.stop(t)})`,
   dhcplease_test.go:263-282). No `systemctl`/host dnsmasq unit anywhere in the file — confirmed
   slot-local only.
 - Sequence matches the envelope and TD-24.md: bind (`rev1`), one re-apply (`rev1-again`, asserts zero

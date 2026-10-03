@@ -15,7 +15,7 @@ describe('F-snmp state', () => {
       services: {
         snmp: {
           enabled: true,
-          sysName: 'vrx-a',
+          sysName: 'ngfw-a',
           communities: { ro: { secretRef: 'password/snmp-ro' } },
           v3Users: { noc: { authRef: 'password/noc-auth', privRef: 'password/noc-priv' } },
         },
@@ -25,7 +25,7 @@ describe('F-snmp state', () => {
     expect(SnmpStateOut.parse(out)).toEqual(out);
     expect(out).toMatchObject({
       configured: true,
-      daemon: { reachable: true, sysName: 'vrx-a', credential: 'v3 user noc' },
+      daemon: { reachable: true, sysName: 'ngfw-a', credential: 'v3 user noc' },
       subagent: { registered: true },
     });
     expect(JSON.stringify(out)).not.toContain('password/');

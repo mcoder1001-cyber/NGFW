@@ -1,14 +1,14 @@
 package ipfixsflow
 
 // TestExporterZeroToSlotCollector — opt-in exporter evidence on the shared host (D-082): points VPP's IPFIX exporter 0
-// at this slot's Go UDP collector and checks that IPFIX template sets (and, with VRX_IPFIX_TRAFFIC=1, data sets)
+// at this slot's Go UDP collector and checks that IPFIX template sets (and, with NGFW_IPFIX_TRAFFIC=1, data sets)
 // arrive. Exporter 0, flowprobe.params and sflow.global are VPP globals: the test holds flock -x on
-// /run/lock/vrx-globals.lock, saves exactly the previous values and restores exactly those (never VPP's defaults).
+// /run/lock/ngfw-globals.lock, saves exactly the previous values and restores exactly those (never VPP's defaults).
 //
-// Needs: VRX_INTEGRATION=1, VRX_IPFIX_GLOBALS=1 (a manager window), root, VRX_TEST_PREFIX=w<N>, the slot rig up with
+// Needs: NGFW_INTEGRATION=1, NGFW_IPFIX_GLOBALS=1 (a manager window), root, NGFW_TEST_PREFIX=w<N>, the slot rig up with
 // its lan interface configured (tools/lab rig up + P08 interfaces: host-w<N>l0 = 10.<N>.1.1/24 in VPP, the collector
-// side 10.<N>.1.2 in ns-w<N>-lan). Overrides: VRX_IPFIX_IFACE, VRX_IPFIX_SRC, VRX_IPFIX_COLLECTOR, VRX_IPFIX_NETNS.
-// Traffic (data sets) only with VRX_IPFIX_TRAFFIC=1 and after TD-3's V19 preflight on the rig interface (D-095).
+// side 10.<N>.1.2 in ns-w<N>-lan). Overrides: NGFW_IPFIX_IFACE, NGFW_IPFIX_SRC, NGFW_IPFIX_COLLECTOR, NGFW_IPFIX_NETNS.
+// Traffic (data sets) only with NGFW_IPFIX_TRAFFIC=1 and after TD-3's V19 preflight on the rig interface (D-095).
 // A flowprobe interface of ANY owner blocks flowprobe_set_params (DF-8): then the test skips, it does not fail.
 
 import (
@@ -40,7 +40,7 @@ import (
 
 const (
 	apiSocket   = "/run/vpp/api.sock"
-	globalsLock = "/run/lock/vrx-globals.lock"
+	globalsLock = "/run/lock/ngfw-globals.lock"
 )
 
 type saved struct {
@@ -89,21 +89,21 @@ func listenIn(netns, addr string) (*Collector, error) {
 }
 
 func TestExporterZeroToSlotCollector(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" || os.Getenv("VRX_IPFIX_GLOBALS") != "1" {
-		t.Skip("exporter-0 evidence changes VPP globals (D-082): set VRX_INTEGRATION=1 and VRX_IPFIX_GLOBALS=1 in a manager window")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_IPFIX_GLOBALS") != "1" {
+		t.Skip("exporter-0 evidence changes VPP globals (D-082): set NGFW_INTEGRATION=1 and NGFW_IPFIX_GLOBALS=1 in a manager window")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (VPP API socket, netns)")
 	}
-	m := regexp.MustCompile(`^w([1-9]|1[01])$`).FindStringSubmatch(os.Getenv("VRX_TEST_PREFIX"))
+	m := regexp.MustCompile(`^w([1-9]|1[01])$`).FindStringSubmatch(os.Getenv("NGFW_TEST_PREFIX"))
 	if m == nil {
-		t.Fatal("VRX_TEST_PREFIX must be the slot prefix w1..w11")
+		t.Fatal("NGFW_TEST_PREFIX must be the slot prefix w1..w11")
 	}
 	n := m[1]
-	iface := env("VRX_IPFIX_IFACE", "host-w"+n+"l0")
-	src := netip.MustParseAddr(env("VRX_IPFIX_SRC", "10."+n+".1.1"))
-	coll := netip.MustParseAddr(env("VRX_IPFIX_COLLECTOR", "10."+n+".1.2"))
-	netns := env("VRX_IPFIX_NETNS", "ns-w"+n+"-lan")
+	iface := env("NGFW_IPFIX_IFACE", "host-w"+n+"l0")
+	src := netip.MustParseAddr(env("NGFW_IPFIX_SRC", "10."+n+".1.1"))
+	coll := netip.MustParseAddr(env("NGFW_IPFIX_COLLECTOR", "10."+n+".1.2"))
+	netns := env("NGFW_IPFIX_NETNS", "ns-w"+n+"-lan")
 	port, _ := strconv.Atoi("3" + n + "71")
 
 	lock, err := os.OpenFile(globalsLock, os.O_CREATE|os.O_RDWR, 0o644)
@@ -186,7 +186,7 @@ func TestExporterZeroToSlotCollector(t *testing.T) {
 	if !ok {
 		t.Fatal("no IPFIX template set from exporter 0 within 30 s")
 	}
-	if os.Getenv("VRX_IPFIX_TRAFFIC") == "1" {
+	if os.Getenv("NGFW_IPFIX_TRAFFIC") == "1" {
 		out, err := exec.Command("ip", "netns", "exec", netns, "ping", "-c", "5", "-i", "0.2", src.String()).CombinedOutput()
 		t.Logf("ping %s from %s: %v\n%s", src, netns, err, out)
 		st, ok = c.WaitFor(30*time.Second, func(s Stats) bool { return s.DataSets > 0 })

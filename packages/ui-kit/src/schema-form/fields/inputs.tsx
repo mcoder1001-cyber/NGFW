@@ -26,7 +26,7 @@ import { ColorInput, DateTimeInput, RANGE_KIND, RangeInput, SuggestInput, TimeIn
 
 /**
  * Presentational, fully controlled inputs. `PrimitiveInput` picks the control from the schema type and the
- * `x-vrx-ui.widget` hint; the react-hook-form binding lives in `SchemaField.tsx` (and array rows reuse these
+ * `x-ngfw-ui.widget` hint; the react-hook-form binding lives in `SchemaField.tsx` (and array rows reuse these
  * directly so a primitive list needs only one registered field).
  */
 export interface PrimitiveInputProps {
@@ -146,7 +146,7 @@ function TextInput(props: PrimitiveInputProps) {
       slotProps={{
         input: {
           readOnly,
-          ...(mono ? { sx: { fontFamily: theme.vrx.monoFontFamily } } : {}),
+          ...(mono ? { sx: { fontFamily: theme.ngfw.monoFontFamily } } : {}),
           ...(isPassword
             ? {
                 endAdornment: (
@@ -394,7 +394,7 @@ function JsonInput(props: PrimitiveInputProps) {
       error={shown !== undefined}
       helperText={prose(shown ?? helperText ?? t('form.jsonValue'))}
       slotProps={{
-        input: { readOnly, sx: { fontFamily: theme.vrx.monoFontFamily } },
+        input: { readOnly, sx: { fontFamily: theme.ngfw.monoFontFamily } },
         htmlInput: { spellCheck: false, ...LTR, 'aria-readonly': readOnly || undefined },
       }}
     />
@@ -434,7 +434,7 @@ export function ChipsInput(props: PrimitiveInputProps & { ltr?: boolean | undefi
           error={error !== undefined}
           helperText={prose(error ?? helperText)}
           slotProps={{
-            input: { ...params.InputProps, sx: { fontFamily: theme.vrx.monoFontFamily } },
+            input: { ...params.InputProps, sx: { fontFamily: theme.ngfw.monoFontFamily } },
             htmlInput: { ...params.inputProps, spellCheck: false, ...(ltr ? LTR : {}) },
           }}
         />

@@ -1,5 +1,5 @@
 // Package df2test holds the shared-host integration fixtures of the DF-2 descriptor tests:
-// a govpp connection to the host VPP (behind vpptest's VRX_INTEGRATION gate and the shared
+// a govpp connection to the host VPP (behind vpptest's NGFW_INTEGRATION gate and the shared
 // lab lock) and slot-prefixed fixtures — tagged loopbacks, VRFs, addresses and a permit-all
 // ACL — that delete themselves in t.Cleanup. Every fixture message comes from
 // apps/agent/binapi; nothing here shells out.
@@ -39,7 +39,7 @@ func (Client) Connected() bool { return true }
 
 var _ vpp.Client = Client{}
 
-// Connect skips unless VRX_INTEGRATION=1, takes the shared lab lock and connects to
+// Connect skips unless NGFW_INTEGRATION=1, takes the shared lab lock and connects to
 // /run/vpp/api.sock; the connection closes in t.Cleanup.
 func Connect(t testing.TB) vpp.Client {
 	t.Helper()
@@ -221,19 +221,19 @@ func SkipIfNotLoaded(t testing.TB, plugin string, err error) {
 // Slot exposes the numeric slot for table ids and addresses ("10.<slot>.x.y", "2001:db8:<slot>::").
 func Slot(t testing.TB) int { return vpptest.Slot(t) }
 
-// Hold pauses the test for VRX_DF2_HOLD (a Go duration, e.g. "20s") while the objects it
+// Hold pauses the test for NGFW_DF2_HOLD (a Go duration, e.g. "20s") while the objects it
 // created exist, so an operator can capture `vppctl show …` evidence from a shell. Unset in
 // CI, it returns immediately.
 func Hold(t testing.TB) {
 	t.Helper()
-	v := os.Getenv("VRX_DF2_HOLD")
+	v := os.Getenv("NGFW_DF2_HOLD")
 	if v == "" {
 		return
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		t.Fatalf("VRX_DF2_HOLD=%q: %v", v, err)
+		t.Fatalf("NGFW_DF2_HOLD=%q: %v", v, err)
 	}
-	t.Logf("holding objects for %s (VRX_DF2_HOLD)", d)
+	t.Logf("holding objects for %s (NGFW_DF2_HOLD)", d)
 	time.Sleep(d)
 }

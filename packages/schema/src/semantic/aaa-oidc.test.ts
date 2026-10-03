@@ -3,7 +3,7 @@ import { AaaSchema } from '../index.js';
 
 const oidc = (over: Record<string, unknown> = {}) => ({
   issuer: 'https://idp.example.net/realms/x',
-  clientId: 'vrx',
+  clientId: 'ngfw',
   clientSecretRef: 'token/oidc',
   redirectUri: 'https://fw.example.net/api/v1/auth/oidc/callback',
   ...over,

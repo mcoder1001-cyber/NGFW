@@ -10,14 +10,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
 // The Kea renderer inside the agent (F-kea-dhcp-relay, D-109 d): no renderer stage exists in the agent core
 // (service.go runs only the scheduler), so each Kea daemon is one singleton scheduler descriptor —
 //
-//	kea.dhcp4/vrx, kea.dhcp6/vrx   Value = Input(document, family) (*vrxv1.DesiredState: that family's servers
+//	kea.dhcp4/ngfw, kea.dhcp6/ngfw   Value = Input(document, family) (*ngfwv1.DesiredState: that family's servers
 //	                                plus the interface addresses of the DHCPv4 bindings)
 //	Create / Update                 RenderFamily → Validate (kea-dhcp<N> -t) → Apply (atomic write + config-set)
 //	Delete                          the idle configuration of the family (no interfaces, no subnets)
@@ -35,7 +35,7 @@ import (
 const (
 	NameDhcp4 = "kea.dhcp4"
 	NameDhcp6 = "kea.dhcp6"
-	ObjectID  = "vrx"
+	ObjectID  = "ngfw"
 )
 
 // DescriptorName returns the descriptor name of family 4 or 6.
@@ -106,7 +106,7 @@ func (d *Descriptor) KeyOf(proto.Message) scheduler.Key { return Key(d.family) }
 
 // Dependencies implements scheduler.Descriptor: the interfaces the servers name (optional).
 func (d *Descriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
-	in, ok := obj.(*vrxv1.DesiredState)
+	in, ok := obj.(*ngfwv1.DesiredState)
 	if !ok {
 		return nil
 	}
@@ -126,9 +126,9 @@ func (d *Descriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*vrxv1.DesiredState)
+	in, ok := obj.(*ngfwv1.DesiredState)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *vrx.v1.DesiredState", ErrInvalid, d.Name(), obj)
+		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.DesiredState", ErrInvalid, d.Name(), obj)
 	}
 	return nil, d.apply(ctx, in)
 }
@@ -143,7 +143,7 @@ func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	return d.apply(ctx, nil)
 }
 
-func (d *Descriptor) apply(ctx context.Context, in *vrxv1.DesiredState) error {
+func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.DesiredState) error {
 	files, err := d.r.RenderFamily(in, d.family)
 	if err != nil {
 		return err

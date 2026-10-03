@@ -27,7 +27,7 @@ def verify(manifest, repo, version, contract):
     shipped = set(values['VPP_PACKAGES_SHIP'])
     require('vpp' in shipped and shipped <= expected, 'invalid shipped package contract')
     m = json.loads(Path(manifest).read_text())
-    require(m['schema'] == 'vrx.vpp-debs.manifest/v2', 'unsupported manifest schema')
+    require(m['schema'] == 'ngfw.vpp-debs.manifest/v2', 'unsupported manifest schema')
     require(m['version'] == version, 'manifest/repository version mismatch')
     packages = m['packages']
     require(isinstance(packages, list), 'packages must be an array')

@@ -19,13 +19,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
 // Defaults of the `system` schema domain (packages/schema/src/domains/system.ts).
 const (
-	DefaultHostname = "vrx"
+	DefaultHostname = "ngfw"
 	DefaultTimezone = "UTC"
 	DefaultVRF      = "default"
 	maxBanner       = 4096
@@ -52,10 +52,10 @@ func bad(ptr, format string, a ...any) error {
 // Input is the normalised render input of sys: defaults filled in, empty banners dropped, Banner and Dns always
 // present. The scheduler Value is exactly this message, so Retrieve (which decodes it from the rendered drop-in)
 // compares equal to a projection of the same document.
-func Input(sys *vrxv1.SystemConfig) *vrxv1.SystemConfig {
-	in := &vrxv1.SystemConfig{}
+func Input(sys *ngfwv1.SystemConfig) *ngfwv1.SystemConfig {
+	in := &ngfwv1.SystemConfig{}
 	if sys != nil {
-		in = proto.Clone(sys).(*vrxv1.SystemConfig)
+		in = proto.Clone(sys).(*ngfwv1.SystemConfig)
 	}
 	if in.GetHostname() == "" {
 		in.Hostname = proto.String(DefaultHostname)
@@ -64,7 +64,7 @@ func Input(sys *vrxv1.SystemConfig) *vrxv1.SystemConfig {
 		in.Timezone = proto.String(DefaultTimezone)
 	}
 	if in.Banner == nil {
-		in.Banner = &vrxv1.SystemBanner{}
+		in.Banner = &ngfwv1.SystemBanner{}
 	}
 	if in.Banner.GetLogin() == "" {
 		in.Banner.Login = nil
@@ -73,7 +73,7 @@ func Input(sys *vrxv1.SystemConfig) *vrxv1.SystemConfig {
 		in.Banner.Motd = nil
 	}
 	if in.Dns == nil {
-		in.Dns = &vrxv1.SystemDns{}
+		in.Dns = &ngfwv1.SystemDns{}
 	}
 	if in.Dns.GetVrf() == "" {
 		in.Dns.Vrf = proto.String(DefaultVRF)
@@ -108,7 +108,7 @@ func BannerOK(s string) error {
 
 // Check validates in (normalised by Input) against the schema's rules and the host: the zone file must exist
 // under zoneinfoDir. Errors are *FieldError.
-func Check(in *vrxv1.SystemConfig, zoneinfoDir string) error {
+func Check(in *ngfwv1.SystemConfig, zoneinfoDir string) error {
 	if err := CheckStructure(in); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func Check(in *vrxv1.SystemConfig, zoneinfoDir string) error {
 }
 
 // CheckStructure is Check without the host lookup (the zone file): the projection's DryRun check.
-func CheckStructure(in *vrxv1.SystemConfig) error {
+func CheckStructure(in *ngfwv1.SystemConfig) error {
 	h := in.GetHostname()
 	if len(h) > 253 || !hostnameRe.MatchString(h) {
 		return bad("/system/hostname", "%q is not an RFC 1123 host name", h)
@@ -160,9 +160,9 @@ func CheckStructure(in *vrxv1.SystemConfig) error {
 	return nil
 }
 
-const inputPrefix = "# vrx-input: "
+const inputPrefix = "# ngfw-input: "
 
-var inputLineRe = regexp.MustCompile(`(?m)^# vrx-input: ([A-Za-z0-9+/]*={0,2})$`)
+var inputLineRe = regexp.MustCompile(`(?m)^# ngfw-input: ([A-Za-z0-9+/]*={0,2})$`)
 
 // Rendering is the output of Render: the files plus the /etc/localtime symlink target.
 type Rendering struct {
@@ -171,13 +171,13 @@ type Rendering struct {
 }
 
 // Render renders in (normalised, checked) for p. Pure: no I/O.
-func Render(in *vrxv1.SystemConfig, p Paths) (Rendering, error) {
+func Render(in *ngfwv1.SystemConfig, p Paths) (Rendering, error) {
 	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(in)
 	if err != nil {
 		return Rendering{}, fmt.Errorf("%w: encode render input: %w", ErrInvalid, err)
 	}
 	var rc bytes.Buffer
-	rc.WriteString("# Rendered by vrx-agent from the `system.dns` configuration (F-system-identity). Do not edit.\n")
+	rc.WriteString("# Rendered by ngfw-agent from the `system.dns` configuration (F-system-identity). Do not edit.\n")
 	rc.WriteString(inputPrefix + base64.StdEncoding.EncodeToString(raw) + "\n")
 	rc.WriteString("[Resolve]\n")
 	if s := in.GetDns().GetServers(); len(s) > 0 {
@@ -207,7 +207,7 @@ func banner(s string) []byte {
 }
 
 // EmbeddedInput reads the render input back from a rendered drop-in. ok is false for a file without one.
-func EmbeddedInput(dropIn []byte) (*vrxv1.SystemConfig, bool, error) {
+func EmbeddedInput(dropIn []byte) (*ngfwv1.SystemConfig, bool, error) {
 	m := inputLineRe.FindAllSubmatch(dropIn, 2)
 	switch len(m) {
 	case 0:
@@ -220,7 +220,7 @@ func EmbeddedInput(dropIn []byte) (*vrxv1.SystemConfig, bool, error) {
 	if err != nil {
 		return nil, false, fmt.Errorf("sysident: render input: %w", err)
 	}
-	in := &vrxv1.SystemConfig{}
+	in := &ngfwv1.SystemConfig{}
 	if err := proto.Unmarshal(raw, in); err != nil {
 		return nil, false, fmt.Errorf("sysident: render input: %w", err)
 	}

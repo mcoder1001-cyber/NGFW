@@ -9,18 +9,18 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/acl_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
-func info(seq, first, count uint32, st vrxv1.AclRuleStatus) RuleInfo {
+func info(seq, first, count uint32, st ngfwv1.AclRuleStatus) RuleInfo {
 	return RuleInfo{Sequence: seq, First: first, Count: count, Status: st}
 }
 
 const (
-	applied  = vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED
-	disabled = vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED
+	applied  = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED
+	disabled = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED
 )
 
 // Counters of VPP rules map back to configuration rules through the expansion blocks; paging,
@@ -34,15 +34,15 @@ func TestRulePageMapsCounters(t *testing.T) {
 	if total != 4 || len(page) != 4 || page[0].GetPackets() != 3 || page[0].GetBytes() != 30 || page[2].GetPackets() != 4 || page[3].GetPackets() != 0 {
 		t.Fatalf("page %v total %d", page, total)
 	}
-	page, total = RulePage(exp, c, &vrxv1.AclStateFilter{HitsOnly: true}, 1, 1)
+	page, total = RulePage(exp, c, &ngfwv1.AclStateFilter{HitsOnly: true}, 1, 1)
 	if total != 2 || len(page) != 1 || page[0].GetSequence() != 30 {
 		t.Fatalf("hits only %v %d", page, total)
 	}
-	page, total = RulePage(exp, nil, &vrxv1.AclStateFilter{Sequences: []uint32{40, 20}}, 0, 10)
+	page, total = RulePage(exp, nil, &ngfwv1.AclStateFilter{Sequences: []uint32{40, 20}}, 0, 10)
 	if total != 2 || page[0].GetSequence() != 20 || page[1].GetSequence() != 40 || page[1].GetPackets() != 0 {
 		t.Fatalf("filter %v", page)
 	}
-	if _, total := RulePage(exp, nil, &vrxv1.AclStateFilter{HitsOnly: true}, 0, 10); total != 0 {
+	if _, total := RulePage(exp, nil, &ngfwv1.AclStateFilter{HitsOnly: true}, 0, 10); total != 0 {
 		t.Fatal("hits only without counters must select nothing")
 	}
 	if p, b := Sum(c, 6); p != 7 || b != 70 {
@@ -112,9 +112,9 @@ func TestTrackerAndStateOnFake(t *testing.T) {
 		t.Fatalf("tracked %+v", got)
 	}
 	// State without a recorded expansion: the summary is there, the mapping is not
-	cfg := &vrxv1.AclList{Description: proto.String("web")}
+	cfg := &ngfwv1.AclList{Description: proto.String("web")}
 	rec.PutACL(&Expansion{Name: "web", Fingerprint: Fingerprint(a.Rules), ConfigHash: ConfigHash(cfg), VPPRules: 2, Rules: []RuleInfo{info(5, 0, 1, applied), info(7, 1, 1, applied)}})
-	if st, _ := rt.State(ctx, &vrxv1.AclStateRequest{List: "web"}); st.GetLists()[0].GetMappingKnown() {
+	if st, _ := rt.State(ctx, &ngfwv1.AclStateRequest{List: "web"}); st.GetLists()[0].GetMappingKnown() {
 		t.Fatal("a recorded projection that was never applied (acl.config) must not explain VPP's content")
 	}
 	if _, err := rt.ConfigDescriptor().Create(ctx, ConfigList("web", cfg)); err != nil { // what Apply does
@@ -124,7 +124,7 @@ func TestTrackerAndStateOnFake(t *testing.T) {
 	v.ACL().SetHits(got.Index, 1, 9, 900)
 	foreign := v.ACL().AddACL("w9:other", acl_types.ACLRule{})
 	v.ACL().Bind(lo, 1, foreign, got.Index)
-	st, err := rt.State(ctx, &vrxv1.AclStateRequest{List: "web", IncludeInterfaces: true})
+	st, err := rt.State(ctx, &ngfwv1.AclStateRequest{List: "web", IncludeInterfaces: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestTrackerAndStateOnFake(t *testing.T) {
 	if got2, _ := rt.Tracker().ACL("web"); got2.Index != got.Index || got2.VPPRules != 1 {
 		t.Fatalf("after update %+v", got2)
 	}
-	if st, _ := rt.State(ctx, &vrxv1.AclStateRequest{List: "web"}); st.GetLists()[0].GetMappingKnown() || len(st.GetRules()) != 0 {
+	if st, _ := rt.State(ctx, &ngfwv1.AclStateRequest{List: "web"}); st.GetLists()[0].GetMappingKnown() || len(st.GetRules()) != 0 {
 		t.Fatalf("mapping must be unknown for content no projection produced: %v", st)
 	}
 	v.ACL().Bind(lo, 1, foreign)
@@ -165,10 +165,10 @@ func TestTrackerAndStateOnFake(t *testing.T) {
 	// counters off → unavailable with a reason, no numbers; a broken stats segment is a reason, not an error
 	v.ACL().SetCountersEnabled(false)
 	rt.ForgetCountersFlag()
-	if st, err := rt.State(ctx, &vrxv1.AclStateRequest{}); err != nil || st.GetCountersAvailable() || st.GetCountersReason() == "" {
+	if st, err := rt.State(ctx, &ngfwv1.AclStateRequest{}); err != nil || st.GetCountersAvailable() || st.GetCountersReason() == "" {
 		t.Fatalf("counters off: %v %v", st, err)
 	}
-	if _, err := rt.State(ctx, &vrxv1.AclStateRequest{List: "nope"}); err == nil {
+	if _, err := rt.State(ctx, &ngfwv1.AclStateRequest{List: "nope"}); err == nil {
 		t.Fatal("unknown list must fail")
 	}
 	if ok, err := ReadCountersFlag(ctx, v); err != nil || ok {

@@ -21,7 +21,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // ErrInput is wrapped by every error about the desired state (as opposed to host facts or I/O),
@@ -59,7 +59,7 @@ const DefaultBuffersPerNuma = 16384
 // of default data size + vlib_buffer_t metadata + headroom + mempool overhead, rounded up.
 const BufferFootprint = 2560
 
-// D060Plugins are the plugins D-060 enabled on vrx-a (P12/FRR, NPTv6); an authoritative
+// D060Plugins are the plugins D-060 enabled on ngfw-a (P12/FRR, NPTv6); an authoritative
 // `dataplane.plugins` that does not list them gets a warning.
 var D060Plugins = []string{"linux_cp_plugin.so", "linux_nl_plugin.so", "npt66_plugin.so"}
 
@@ -167,28 +167,28 @@ type Plugin struct {
 	Enable bool
 }
 
-// Desired normalises the renderer input to the dataplane message: a *vrxv1.DesiredState or
-// *vrxv1.DataplaneConfig is used as is; a *structpb.Struct holding the JSON configuration
+// Desired normalises the renderer input to the dataplane message: a *ngfwv1.DesiredState or
+// *ngfwv1.DataplaneConfig is used as is; a *structpb.Struct holding the JSON configuration
 // document is decoded strictly — only its `dataplane` member is read (other domains are ignored),
 // and unknown keys inside it are an error (the schema is a strictObject); nil is the empty domain.
-func Desired(msg proto.Message) (*vrxv1.DataplaneConfig, error) {
+func Desired(msg proto.Message) (*ngfwv1.DataplaneConfig, error) {
 	switch m := msg.(type) {
 	case nil:
-		return &vrxv1.DataplaneConfig{}, nil
-	case *vrxv1.DesiredState:
+		return &ngfwv1.DataplaneConfig{}, nil
+	case *ngfwv1.DesiredState:
 		if m.GetDataplane() == nil {
-			return &vrxv1.DataplaneConfig{}, nil
+			return &ngfwv1.DataplaneConfig{}, nil
 		}
 		return m.GetDataplane(), nil
-	case *vrxv1.DataplaneConfig:
+	case *ngfwv1.DataplaneConfig:
 		if m == nil {
-			return &vrxv1.DataplaneConfig{}, nil
+			return &ngfwv1.DataplaneConfig{}, nil
 		}
 		return m, nil
 	case *structpb.Struct:
 		dpv, ok := m.GetFields()["dataplane"]
 		if !ok || dpv == nil {
-			return &vrxv1.DataplaneConfig{}, nil
+			return &ngfwv1.DataplaneConfig{}, nil
 		}
 		dp := dpv.GetStructValue()
 		if dp == nil {
@@ -198,13 +198,13 @@ func Desired(msg proto.Message) (*vrxv1.DataplaneConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%w: encode dataplane: %s", ErrInput, oneLine(err.Error()))
 		}
-		cfg := &vrxv1.DataplaneConfig{}
+		cfg := &ngfwv1.DataplaneConfig{}
 		if err := protojson.Unmarshal(raw, cfg); err != nil {
 			return nil, fmt.Errorf("%w: dataplane: %s", ErrInput, oneLine(err.Error()))
 		}
 		return cfg, nil
 	default:
-		return nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState, *vrxv1.DataplaneConfig or *structpb.Struct)", ErrInput, msg)
+		return nil, fmt.Errorf("%w: unsupported input type %T (want *ngfwv1.DesiredState, *ngfwv1.DataplaneConfig or *structpb.Struct)", ErrInput, msg)
 	}
 }
 
@@ -238,12 +238,12 @@ func inputErr(path string, format string, args ...any) error {
 
 // BuildModel validates the dataplane domain against host and returns the model to render. Every
 // error wraps ErrInput (document) or ErrHost (host facts).
-func BuildModel(dp *vrxv1.DataplaneConfig, host Host) (*Model, error) {
+func BuildModel(dp *ngfwv1.DataplaneConfig, host Host) (*Model, error) {
 	if err := host.Check(); err != nil {
 		return nil, err
 	}
 	if dp == nil {
-		dp = &vrxv1.DataplaneConfig{}
+		dp = &ngfwv1.DataplaneConfig{}
 	}
 	if err := checkBounds(dp); err != nil {
 		return nil, err
@@ -286,7 +286,7 @@ func corelistOf(m *Model) []uint32 {
 }
 
 // checkBounds re-applies the schema's numeric and size bounds (and so rejects VPP's ~0 sentinel).
-func checkBounds(dp *vrxv1.DataplaneConfig) error {
+func checkBounds(dp *ngfwv1.DataplaneConfig) error {
 	rng := func(path string, v, lo, hi uint32) error {
 		if v < lo || v > hi {
 			return inputErr(path, "%d not in %d..%d", v, lo, hi)
@@ -337,7 +337,7 @@ func checkBounds(dp *vrxv1.DataplaneConfig) error {
 // buildPlugins (D-084): `dataplane.plugins` present → exactly its switches (warnings for missing
 // D-060 plugins and for switches of the current file that disappear); absent → the current file's
 // switches are kept. Every rendered name must be a plugin file on disk.
-func buildPlugins(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+func buildPlugins(dp *ngfwv1.DataplaneConfig, host Host, m *Model) error {
 	onDisk := map[string]bool{}
 	for _, p := range host.Plugins {
 		onDisk[p] = true
@@ -402,7 +402,7 @@ func enableWord(b bool) string {
 // buildCPU turns the document into explicit `main-core` + `corelist-workers`, so VPP's pinning is
 // exactly the validated one (VPP would otherwise use the CPU it happened to start on as main core
 // and pick worker CPUs itself — vlib/threads.c).
-func buildCPU(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+func buildCPU(dp *ngfwv1.DataplaneConfig, host Host, m *Model) error {
 	online := map[uint32]bool{}
 	for _, c := range host.OnlineCPUs {
 		online[c] = true
@@ -505,7 +505,7 @@ func buildCPU(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
 	return nil
 }
 
-func buildDevices(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+func buildDevices(dp *ngfwv1.DataplaneConfig, host Host, m *Model) error {
 	hostMgmt := map[string]bool{}
 	for _, p := range host.ManagementPCI {
 		pci, _ := PCIAddress(p) // checked by Host.Check
@@ -616,7 +616,7 @@ func buildDevices(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
 
 // checkHugepages: the buffer memory must fit in what the host actually reserves, and in
 // hugepagesGb when the document sets it (the smaller of the two).
-func checkHugepages(dp *vrxv1.DataplaneConfig, host Host, m *Model) error {
+func checkHugepages(dp *ngfwv1.DataplaneConfig, host Host, m *Model) error {
 	perNuma := uint64(dp.GetBuffersPerNuma())
 	if perNuma == 0 {
 		perNuma = DefaultBuffersPerNuma

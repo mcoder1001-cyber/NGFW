@@ -8,31 +8,31 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/scheduler"
 )
 
-func gbList(dir string, ifs []string, entries ...string) *vrxv1.GlobalBlockingList {
-	return &vrxv1.GlobalBlockingList{
-		Enabled: proto.Bool(true), Source: &vrxv1.GlobalBlockingSource{Kind: proto.String("upload")}, AllInterfaces: proto.Bool(false),
+func gbList(dir string, ifs []string, entries ...string) *ngfwv1.GlobalBlockingList {
+	return &ngfwv1.GlobalBlockingList{
+		Enabled: proto.Bool(true), Source: &ngfwv1.GlobalBlockingSource{Kind: proto.String("upload")}, AllInterfaces: proto.Bool(false),
 		Interfaces: ifs, Direction: proto.String(dir), ProtectHost: proto.Bool(true), Log: proto.Bool(false), Entries: entries,
 	}
 }
 
-func gbDoc(lists map[string]*vrxv1.GlobalBlockingList, att ...*vrxv1.AclAttachment) *vrxv1.DesiredState {
-	return &vrxv1.DesiredState{
-		Interfaces: map[string]*vrxv1.Interface{"loop1": {}, "loop2": {}, "loop3": {}},
-		Acl: &vrxv1.AclConfig{
-			Lists:          map[string]*vrxv1.AclList{"a": {Rules: []*vrxv1.AclRule{rule(10, "permit", nil)}}},
+func gbDoc(lists map[string]*ngfwv1.GlobalBlockingList, att ...*ngfwv1.AclAttachment) *ngfwv1.DesiredState {
+	return &ngfwv1.DesiredState{
+		Interfaces: map[string]*ngfwv1.Interface{"loop1": {}, "loop2": {}, "loop3": {}},
+		Acl: &ngfwv1.AclConfig{
+			Lists:          map[string]*ngfwv1.AclList{"a": {Rules: []*ngfwv1.AclRule{rule(10, "permit", nil)}}},
 			Attachments:    att,
-			GlobalBlocking: &vrxv1.GlobalBlocking{Lists: lists},
+			GlobalBlocking: &ngfwv1.GlobalBlocking{Lists: lists},
 		},
 	}
 }
 
-func attachIn(list, ifn string) *vrxv1.AclAttachment {
-	return &vrxv1.AclAttachment{List: proto.String(list), Target: &vrxv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String(ifn)}, Direction: proto.String("in"), Sequence: proto.Uint32(10), Enabled: proto.Bool(true)}
+func attachIn(list, ifn string) *ngfwv1.AclAttachment {
+	return &ngfwv1.AclAttachment{List: proto.String(list), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String(ifn)}, Direction: proto.String("in"), Sequence: proto.Uint32(10), Enabled: proto.Bool(true)}
 }
 
 func binding(t *testing.T, s *aclRecSink, ifn string) descacl.InterfaceBinding {
@@ -49,7 +49,7 @@ func binding(t *testing.T, s *aclRecSink, ifn string) descacl.InterfaceBinding {
 // destination; the retrieved objects assemble back to the configuration.
 func TestGlobalBlockingProjection(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	ds := gbDoc(map[string]*vrxv1.GlobalBlockingList{
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{
 		"bad": gbList("both", []string{"loop1", "loop2"}, "192.0.2.7/32", "2001:db8::/48"),
 	}, attachIn("a", "loop1"))
 	s := newRecSink()
@@ -94,7 +94,7 @@ func TestGlobalBlockingProjection(t *testing.T) {
 // VPP (the drift view shows it); user lists and attachments are still attributed to the configuration.
 func TestGlobalBlockingDriftReconstructs(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	ds := gbDoc(map[string]*vrxv1.GlobalBlockingList{
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{
 		"bad": gbList("inbound", []string{"loop1"}, "192.0.2.7/32", "198.51.100.0/24"),
 	}, attachIn("a", "loop1"))
 	s := newRecSink()
@@ -126,7 +126,7 @@ func TestGlobalBlockingAllInterfacesAndDisabled(t *testing.T) {
 	all.AllInterfaces = proto.Bool(true)
 	off := gbList("both", []string{"loop1"}, "198.51.100.1/32")
 	off.Enabled = proto.Bool(false)
-	ds := gbDoc(map[string]*vrxv1.GlobalBlockingList{"all": all, "off": off, "empty": gbList("both", []string{"loop2"})})
+	ds := gbDoc(map[string]*ngfwv1.GlobalBlockingList{"all": all, "off": off, "empty": gbList("both", []string{"loop2"})})
 	s := newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true})
 	if len(s.issues) != 0 {
@@ -162,7 +162,7 @@ func TestGlobalBlockingBucketsAndScale(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	project := func(entries []string) map[scheduler.Key]proto.Message {
 		s := newRecSink()
-		ACL(s, gbDoc(map[string]*vrxv1.GlobalBlockingList{"big": gbList("both", []string{"loop1"}, entries...)}), map[string]bool{"acl": true})
+		ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{"big": gbList("both", []string{"loop1"}, entries...)}), map[string]bool{"acl": true})
 		if len(s.issues) != 0 {
 			t.Fatalf("issues: %v", s.issues)
 		}
@@ -203,11 +203,11 @@ func TestGlobalBlockingBucketsAndScale(t *testing.T) {
 func TestGlobalBlockingLimits(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	s := newRecSink()
-	ACL(s, gbDoc(map[string]*vrxv1.GlobalBlockingList{strings.Repeat("n", 53): gbList("both", []string{"loop1"}, "192.0.2.7/32")}), map[string]bool{"acl": true})
+	ACL(s, gbDoc(map[string]*ngfwv1.GlobalBlockingList{strings.Repeat("n", 53): gbList("both", []string{"loop1"}, "192.0.2.7/32")}), map[string]bool{"acl": true})
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "acl.name") {
 		t.Fatalf("issues %v", s.issues)
 	}
-	lists := map[string]*vrxv1.GlobalBlockingList{}
+	lists := map[string]*ngfwv1.GlobalBlockingList{}
 	for i := range 128 { // 128 lists × 2 directions + the pass ACL
 		lists[fmt.Sprintf("l%d", i)] = gbList("both", []string{"loop1"}, "192.0.2.7/32")
 	}

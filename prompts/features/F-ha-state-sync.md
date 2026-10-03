@@ -38,7 +38,7 @@ F-vrrp-config-sync gets a "State sync" panel through the panel registry it creat
 2. **Failover automation** `test/topology/ha-state-sync/`: the NAT44-EI HA listener/failover are VPP-wide globals, so one host VPP cannot
    be both nodes. On this host: verify config round-trip, the resync action against a peer address on the veth rig (packets seen with
    `tcpdump`), and a VRRP-driven failover (F-vrrp-config-sync) with convergence timings. Write the full two-node script (session created
-   on A present on B, `--kill-vpp` mode for the manager after handover, D-012) against the `test/topology/vrx-b.yml` inventory and mark
+   on A present on B, `--kill-vpp` mode for the manager after handover, D-012) against the `test/topology/ngfw-b.yml` inventory and mark
    the two-node run **deferred** until a second VPP box exists.
 3. **API**: `GET /api/v1/state/ha/sync` (per-kind: supported/active/last resync/counters), `POST /api/v1/actions/ha/sync/resync`.
 4. **UI**: State-sync panel (per kind: supported / unsupported-by-VPP badge with the V2 reason, last resync, counters); en + fa.
@@ -48,7 +48,7 @@ F-vrrp-config-sync gets a "State sync" panel through the panel registry it creat
 ## Acceptance (paste the evidence)
 - [ ] `vppctl show nat44 ei ha` (or the `_get_listener/_get_failover` replies) reflects the committed config (pasted)
 - [ ] Rig run (path: af_packet rig): resync/HA packets towards the peer address seen in `tcpdump`; VRRP failover timings pasted; for ED the
-      documented behaviour (sessions lost) shown; two-node session-continuity script committed and recorded as deferred (needs vrx-b)
+      documented behaviour (sessions lost) shown; two-node session-continuity script committed and recorded as deferred (needs ngfw-b)
 - [ ] Agent-restart simulation → listener/failover back within 30 s (log excerpt)
 - [ ] Rollback resets HA globals (globals owner) / leaves them untouched (slot) — Retrieve shown
 - [ ] `stateSync.nat: true` with `cluster.enabled: false` → 400 with `pointer`; `tools/ci.sh --base main` green; UI screenshot

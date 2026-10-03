@@ -15,13 +15,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // Integration: real kea-dhcp4 / kea-dhcp6 as child processes of the test (no kea-ctrl-agent, D-079),
-// with test-scoped paths under /run/vrx-test/<prefix>/kea, the DHCP servers inside the
+// with test-scoped paths under /run/ngfw-test/<prefix>/kea, the DHCP servers inside the
 // test's own network namespace ns-<prefix>-a (veth <prefix>-a/<prefix>-b, 10.<slot>.10.1/24)
 // and control over their own unix sockets only. Never the system units, never /etc/kea.
 
@@ -118,54 +118,54 @@ func waitFor(t *testing.T, what string, fn func() error) {
 	}
 }
 
-func (rg *rig) desired(extraSubnet bool) *vrxv1.DesiredState {
+func (rg *rig) desired(extraSubnet bool) *ngfwv1.DesiredState {
 	s := func(n int) string { return fmt.Sprintf("10.%d.10.%d", rg.slot, n) }
-	v4 := &vrxv1.DhcpServer{
+	v4 := &ngfwv1.DhcpServer{
 		Description: proto.String(`rig "; rm -rf / ☃`),
 		Interfaces:  []string{rg.ifA},
-		Subnets: map[string]*vrxv1.DhcpSubnet{
+		Subnets: map[string]*ngfwv1.DhcpSubnet{
 			"lan": {
 				Description:  proto.String(`"}]} {"Dhcp4": 1}`),
 				Subnet:       proto.String(fmt.Sprintf("10.%d.10.0/24", rg.slot)),
-				Pools:        []*vrxv1.DhcpPool{{Start: proto.String(s(100)), End: proto.String(s(150))}},
+				Pools:        []*ngfwv1.DhcpPool{{Start: proto.String(s(100)), End: proto.String(s(150))}},
 				Gateway:      proto.String(s(1)),
 				DnsServers:   []string{s(1)},
 				DomainName:   proto.String("rig.example.test"),
 				DomainSearch: []string{"rig.example.test"},
-				Options: []*vrxv1.DhcpOption{
-					{Code: proto.Uint32(224), Data: proto.String("vrx text")},
+				Options: []*ngfwv1.DhcpOption{
+					{Code: proto.Uint32(224), Data: proto.String("ngfw text")},
 					{Code: proto.Uint32(225), Data: proto.String("0x0102")},
 				},
-				Reservations: map[string]*vrxv1.DhcpReservation{
+				Reservations: map[string]*ngfwv1.DhcpReservation{
 					"printer": {Mac: proto.String("02:00:00:00:00:01"), Ip: proto.String(s(20)), Hostname: proto.String("printer")},
 				},
 			},
 		},
 	}
 	if extraSubnet {
-		v4.Subnets["extra"] = &vrxv1.DhcpSubnet{
+		v4.Subnets["extra"] = &ngfwv1.DhcpSubnet{
 			Subnet: proto.String(fmt.Sprintf("10.%d.11.0/24", rg.slot)),
-			Pools:  []*vrxv1.DhcpPool{{Start: proto.String(fmt.Sprintf("10.%d.11.10", rg.slot)), End: proto.String(fmt.Sprintf("10.%d.11.20", rg.slot))}},
+			Pools:  []*ngfwv1.DhcpPool{{Start: proto.String(fmt.Sprintf("10.%d.11.10", rg.slot)), End: proto.String(fmt.Sprintf("10.%d.11.20", rg.slot))}},
 		}
 	}
-	v6 := &vrxv1.DhcpServer{
+	v6 := &ngfwv1.DhcpServer{
 		Family:     proto.String("ipv6"),
 		Interfaces: []string{rg.ifA},
-		Subnets: map[string]*vrxv1.DhcpSubnet{
+		Subnets: map[string]*ngfwv1.DhcpSubnet{
 			"lan6": {
 				Subnet:     proto.String(fmt.Sprintf("fd00:%d:10::/64", rg.slot)),
-				Pools:      []*vrxv1.DhcpPool{{Start: proto.String(fmt.Sprintf("fd00:%d:10::1000", rg.slot)), End: proto.String(fmt.Sprintf("fd00:%d:10::1fff", rg.slot))}},
+				Pools:      []*ngfwv1.DhcpPool{{Start: proto.String(fmt.Sprintf("fd00:%d:10::1000", rg.slot)), End: proto.String(fmt.Sprintf("fd00:%d:10::1fff", rg.slot))}},
 				DnsServers: []string{fmt.Sprintf("fd00:%d:10::1", rg.slot)},
-				Options:    []*vrxv1.DhcpOption{{Code: proto.Uint32(1000), Data: proto.String("hello v6")}},
-				Reservations: map[string]*vrxv1.DhcpReservation{
+				Options:    []*ngfwv1.DhcpOption{{Code: proto.Uint32(1000), Data: proto.String("hello v6")}},
+				Reservations: map[string]*ngfwv1.DhcpReservation{
 					"nas": {Duid: proto.String("00:01:00:01:aa:bb:cc:dd:ee:ff"), Ip: proto.String(fmt.Sprintf("fd00:%d:10::20", rg.slot))},
 				},
 			},
 		},
 	}
-	return &vrxv1.DesiredState{
-		Interfaces: map[string]*vrxv1.Interface{rg.ifA: {Ipv4: []string{fmt.Sprintf("10.%d.10.1/24", rg.slot)}}},
-		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"rig4": v4, "rig6": v6}}},
+	return &ngfwv1.DesiredState{
+		Interfaces: map[string]*ngfwv1.Interface{rg.ifA: {Ipv4: []string{fmt.Sprintf("10.%d.10.1/24", rg.slot)}}},
+		Services:   &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{Servers: map[string]*ngfwv1.DhcpServer{"rig4": v4, "rig6": v6}}},
 	}
 }
 
@@ -217,7 +217,7 @@ func TestKeaIntegration(t *testing.T) {
 		bad[p] = f
 	}
 	f := bad[rg.paths.Dhcp4Conf()]
-	f.Content = []byte(strings.Replace(string(f.Content), `"data": "vrx text"`, `"data": "vrx text", "csv-format": 7`, 1))
+	f.Content = []byte(strings.Replace(string(f.Content), `"data": "ngfw text"`, `"data": "ngfw text", "csv-format": 7`, 1))
 	bad[rg.paths.Dhcp4Conf()] = f
 	err = r.Validate(ctx, bad)
 	if !errors.Is(err, ErrDaemon) {

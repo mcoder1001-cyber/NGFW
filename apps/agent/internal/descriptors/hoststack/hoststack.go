@@ -10,7 +10,7 @@
 //	hoststack.namespace     no dump              write-only; idempotent re-add (VPP updates in place)
 //	hoststack.session-rule  session_rules_v2_dump Retrieve, filtered to this owner's tag prefix
 //	hoststack.tcp-src       no dump, no delete   write-only; D-076 applied-once record, irreversible per fib
-//	hoststack.http-static   no dump, no disable  write-only; globals owner + VRX_HOSTSTACK_HTTP_STATIC=1 only
+//	hoststack.http-static   no dump, no disable  write-only; globals owner + NGFW_HOSTSTACK_HTTP_STATIC=1 only
 //
 // The session layer is never disabled or re-engined by this package: Delete is a no-op and Create
 // is a no-op when the layer already answers (the host VPP's layer is whatever startup.conf set,
@@ -49,10 +49,10 @@ const (
 const GlobalID = "global"
 
 // EnvHTTPStatic is the opt-in of the http_static descriptor (D-064/D-077 Q3: it cannot be undone).
-const EnvHTTPStatic = "VRX_HOSTSTACK_HTTP_STATIC"
+const EnvHTTPStatic = "NGFW_HOSTSTACK_HTTP_STATIC"
 
 // WWWRoot is the only directory tree http_static may serve (D-049, DF-8 review M5).
-const WWWRoot = "/var/lib/vrx/www/"
+const WWWRoot = "/var/lib/ngfw/www/"
 
 // Session is the hoststack.session singleton: the session layer must be on (rule-table engine).
 type Session struct {
@@ -232,7 +232,7 @@ func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Opt
 }
 
 // RegisterGlobals registers the VPP-global descriptors as the globals owner (D-071): the session
-// layer and, only with VRX_HOSTSTACK_HTTP_STATIC=1 (D-064: http_static cannot be disabled), the
+// layer and, only with NGFW_HOSTSTACK_HTTP_STATIC=1 (D-064: http_static cannot be disabled), the
 // http_static server. Call it only in the globals owner's agent, together with Register(…,
 // WithGlobalsOwner(true)).
 func RegisterGlobals(r scheduler.Registry, client vpp.Client, opts ...Option) {

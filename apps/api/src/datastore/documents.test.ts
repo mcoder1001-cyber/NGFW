@@ -41,17 +41,17 @@ describe('replaceUserHash (TD-2 #1)', () => {
   const doc = {
     management: {
       users: [
-        { username: 'a', role: 'admin', passwordHash: '$vrx-test$old-a' },
+        { username: 'a', role: 'admin', passwordHash: '$ngfw-test$old-a' },
         { username: 'b', role: 'operator' },
       ],
     },
   };
   it('replaces the hash a stored document carries for the user, leaves the input untouched', () => {
-    const out = replaceUserHash(doc, 'a', '$vrx-test$new');
+    const out = replaceUserHash(doc, 'a', '$ngfw-test$new');
     expect(out).toMatchObject({
-      management: { users: [{ username: 'a', passwordHash: '$vrx-test$new' }, { username: 'b' }] },
+      management: { users: [{ username: 'a', passwordHash: '$ngfw-test$new' }, { username: 'b' }] },
     });
-    expect(doc.management.users[0]!.passwordHash).toBe('$vrx-test$old-a');
+    expect(doc.management.users[0]!.passwordHash).toBe('$ngfw-test$old-a');
   });
   it('null when there is nothing to replace (no hash, unknown user, no users)', () => {
     expect(replaceUserHash(doc, 'b', 'h')).toBeNull();

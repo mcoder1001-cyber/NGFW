@@ -9,6 +9,6 @@ out of scope: F3–F9 (docs/tech-debt.md), any real --apply, /etc/vpp, vpp.servi
 slot: 6 → eval "$(tools/lab env 6)"; daemon-owner: none. Fake-host harness only.
 files you own: deploy/vpp/** docs/agent/renderers/vppstartup.md docs/status/tasks/TD-7*
 time box: 2 h. WIP commit every 45 min; docs/status/tasks/TD-7-wip.md
-CI: `TMPDIR=/tmp/g-td7 VRX_CI_CACHE_DIR=/tmp/g-td7/cache tools/ci.sh --base main` (fresh cache dir so the harness really runs). Ports 3000/8080/9101 belong to tools/app.
+CI: `TMPDIR=/tmp/g-td7 NGFW_CI_CACHE_DIR=/tmp/g-td7/cache tools/ci.sh --base main` (fresh cache dir so the harness really runs). Ports 3000/8080/9101 belong to tools/app.
 finish: docs/status/tasks/TD-7.md with pasted output (new scenarios failing on TD-6's script, passing on yours; full harness; CI), all committed, final message = 6-line summary.
 never: merge · a real --apply · restart/kill VPP · pkill · edit /etc/vpp

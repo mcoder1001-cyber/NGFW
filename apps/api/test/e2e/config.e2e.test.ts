@@ -20,7 +20,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   const IF = 'loop101';
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOCK_TTL_SEC: '3' });
+    h = await startHarness({ NGFW_LOCK_TTL_SEC: '3' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op1', role: 'operator', password: PW.op },
@@ -34,7 +34,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   it('GET running is redacted: no password hash anywhere', async () => {
     const r = await h.call(admin, 'GET', '/api/v1/config');
     expect(r.status).toBe(200);
-    expect(r.headers['x-vrx-revision']).toBe('1');
+    expect(r.headers['x-ngfw-revision']).toBe('1');
     expect(r.body.management.users.map((u: { username: string }) => u.username)).toEqual([
       'admin',
       'op1',
@@ -146,7 +146,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     expect(c.body).toMatchObject({
       status: 400,
       tier: 'semantic',
-      type: 'https://vrx.dev/problems/validation',
+      type: 'https://ngfw.dev/problems/validation',
     });
     expect(c.body.errors).toContainEqual(
       expect.objectContaining({
@@ -192,7 +192,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   });
 
   it('single writer: 409 with the owner; admin can break the lock', async () => {
-    await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'vrx-w1' });
+    await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'ngfw-w1' });
     const other = await h.call(admin, 'PATCH', '/api/v1/config/system', { hostname: 'other' });
     expect(other.status).toBe(409);
     expect(other.body.lock).toMatchObject({ owner: 'op1', locked: true });
@@ -204,13 +204,13 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
 
   it('export → import → diff round trip', async () => {
     const ex = await h.call(ro, 'GET', '/api/v1/config/export');
-    expect(ex.headers['content-disposition']).toContain('vrx-config.json');
+    expect(ex.headers['content-disposition']).toContain('ngfw-config.json');
     ex.body.system.hostname = 'imported-w1';
     const im = await h.call(admin, 'POST', '/api/v1/config/import', ex.body);
     expect(im.status).toBe(200);
     const d = await h.call(admin, 'GET', '/api/v1/config/diff');
     expect(d.body.changes).toEqual([
-      { op: 'replace', pointer: '/system/hostname', from: 'vrx', to: 'imported-w1' },
+      { op: 'replace', pointer: '/system/hostname', from: 'ngfw', to: 'imported-w1' },
     ]);
     // the redacted users came back without hashes: nobody lost a password (D-046)
     await h.call(admin, 'POST', '/api/v1/config/commit');
@@ -218,7 +218,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
   });
 
   it('secrets: value in, never out; referenced ones cannot be deleted', async () => {
-    const value = `VRX_TEST_PSK_P06_${Date.now()}`;
+    const value = `NGFW_TEST_PSK_P06_${Date.now()}`;
     const s = await h.call(admin, 'POST', '/api/v1/secrets', {
       kind: 'psk',
       name: 'tacacs-w1',
@@ -292,7 +292,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     expect(
       (await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'op-edit' })).status,
     ).toBe(409);
-    await new Promise((r) => setTimeout(r, 3300)); // VRX_LOCK_TTL_SEC=3 in this file
+    await new Promise((r) => setTimeout(r, 3300)); // NGFW_LOCK_TTL_SEC=3 in this file
     const take = await h.call(op, 'PATCH', '/api/v1/config/system', { hostname: 'op-edit' });
     expect(take.status).toBe(200);
     expect(take.body.discardedStaleCandidateOf).toBe('admin');
@@ -390,7 +390,7 @@ describe('config e2e (PostgreSQL + fake agent)', () => {
     h.fake.failAllWith = 14; // UNAVAILABLE
     const c = await h.call(op, 'POST', '/api/v1/config/commit');
     expect(c.status).toBe(503);
-    expect(c.body.type).toBe('https://vrx.dev/problems/agent-unavailable');
+    expect(c.body.type).toBe('https://ngfw.dev/problems/agent-unavailable');
     h.fake.failAllWith = undefined;
     expect((await h.call(op, 'POST', '/api/v1/config/commit')).status).toBe(200);
   });

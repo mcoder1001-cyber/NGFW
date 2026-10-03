@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# VRX appliance runtime packages. Nothing here is a compiler or a header file.
+# NGFW appliance runtime packages. Nothing here is a compiler or a header file.
 set -euo pipefail
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
-[[ ${VRX_INSTALL_APPLIANCE:-} == 1 ]] || { echo "explicit VRX_INSTALL_APPLIANCE=1 required; never run on shared development host" >&2; exit 1; }
-[[ -n ${VRX_VPP_ARTIFACTS:-} ]] || { echo "VRX_VPP_ARTIFACTS must name verified product build output" >&2; exit 1; }
+[[ ${NGFW_INSTALL_APPLIANCE:-} == 1 ]] || { echo "explicit NGFW_INSTALL_APPLIANCE=1 required; never run on shared development host" >&2; exit 1; }
+[[ -n ${NGFW_VPP_ARTIFACTS:-} ]] || { echo "NGFW_VPP_ARTIFACTS must name verified product build output" >&2; exit 1; }
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-VPP_OUTPUT=$(realpath -e -- "$VRX_VPP_ARTIFACTS")
+VPP_OUTPUT=$(realpath -e -- "$NGFW_VPP_ARTIFACTS")
 "$ROOT/deploy/vpp/verify.sh" --require-files "$VPP_OUTPUT" --install-gate
 mapfile -t DATAPLANE < <(python3 - "$VPP_OUTPUT" <<'PYVPP'
 import json, pathlib, sys
@@ -33,12 +33,12 @@ TOOLS=(jq curl gnupg unzip rsync)
 
 # Package maintainer scripts must not start distro-default VPP or management
 # services before the complete product firstboot configuration is installed.
-exec 9>/run/lock/vrx-runtime-install.lock
+exec 9>/run/lock/ngfw-runtime-install.lock
 flock -x 9
 POLICY=/usr/sbin/policy-rc.d
 # Same-filesystem persistent recovery state makes guard publication/restoration
 # atomic. A stale record requires operator recovery before another installation.
-POLICY_BACKUP=/usr/sbin/.vrx-runtime-policy-recovery
+POLICY_BACKUP=/usr/sbin/.ngfw-runtime-policy-recovery
 [[ ! -e $POLICY_BACKUP && ! -L $POLICY_BACKUP ]] || {
   echo "runtime policy recovery pending at $POLICY_BACKUP; refusing installation" >&2
   exit 1
@@ -97,12 +97,12 @@ apt-get install -y --no-install-recommends \
 
 # Management-network/package removals and IRQ policy belong to the separate
 # hardening task. A runtime dependency installer must not reconfigure them.
-# Daemons are driven by vrx-agent, which renders their configs. Do not let them
+# Daemons are driven by ngfw-agent, which renders their configs. Do not let them
 # start with distro defaults on first boot.
 systemctl disable vpp frr strongswan-starter kea-dhcp4-server kea-dhcp6-server \
   unbound snmpd keepalived 2>/dev/null || true
 
 echo
 echo "Runtime packages installed."
-echo "strongSwan VPP integration is supplied by the reviewed P11 vrx-strongswan package."
+echo "strongSwan VPP integration is supplied by the reviewed P11 ngfw-strongswan package."
 echo "Do not install upstream strongSwan in place of that package."

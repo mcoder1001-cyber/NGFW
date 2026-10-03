@@ -3,7 +3,7 @@
 Branch `task/F-startup-apply` @ 7d81982 (fix commit b0a2a90, evidence 7d81982, merge of main 8adfa86); findings of
 `F-startup-apply-review.md` (edd93a5). Run on the host, read-only: `apply-startup.sh` was **never** run with `--apply`
 against real paths, VPP not restarted, no NIC bound/unbound, nothing written under `/etc`. Break attempts used a scratch
-copy of the fake-host harness (outside the repo, deleted). Real-host actions: `vrx-vppcheck bootid`, `systemctl show vpp`,
+copy of the fake-host harness (outside the repo, deleted). Real-host actions: `ngfw-vppcheck bootid`, `systemctl show vpp`,
 `ss -Htn state established dst <peer>`, `ip -j route`, one `ping` to the gateway.
 
 ## What I ran
@@ -13,17 +13,17 @@ copy of the fake-host harness (outside the repo, deleted). Real-host actions: `v
 | `tools/ci.sh --base main` | **CI GATE PASSED** (quick, wall 3m26s, logs `/root/ngfw-wt/logs/ci/F-startup-apply-20260924-045747-2839043`) — matches the pasted run (only warning: the manager's `review(...)` subject) |
 | `shellcheck deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh` | clean, exit 0 |
 | `deploy/vpp/test-apply-startup.sh <gen>` | see "Fake-host test" at the end |
-| `vrx-vppcheck bootid` (branch build) on vrx-a | `b7712a53-…/2808617/5808198`, exit 0; `systemctl show vpp` → `MainPID=2808617` (identity PID = MainPID, as claimed), `Type=simple`, `Restart=always`, `RestartUSec=100ms`, `NRestarts=5` |
-| mgmt facts on vrx-a | `SSH_CONNECTION` peer 172.30.126.196 (on-link via ens192, `ss` shows the ESTABLISHED :22 session); default route `via 172.30.126.1 dev ens192 onlink`; gateway ping → exit 1 (still drops ICMP) |
+| `ngfw-vppcheck bootid` (branch build) on ngfw-a | `b7712a53-…/2808617/5808198`, exit 0; `systemctl show vpp` → `MainPID=2808617` (identity PID = MainPID, as claimed), `Type=simple`, `Restart=always`, `RestartUSec=100ms`, `NRestarts=5` |
+| mgmt facts on ngfw-a | `SSH_CONNECTION` peer 172.30.126.196 (on-link via ens192, `ss` shows the ESTABLISHED :22 session); default route `via 172.30.126.1 dev ens192 onlink`; gateway ping → exit 1 (still drops ICMP) |
 | contract / binapi | branch diff vs main touches none of `packages/schema`, `packages/proto`, generated code, `apps/agent/binapi`, `tools/binapi-gen.sh`; `bootid` uses the existing `internal/vpp/bootid` (control_ping from generated `memclnt`) |
-| scope | vrx-vppcheck, the two scripts, the renderer doc, status files — all owned |
+| scope | ngfw-vppcheck, the two scripts, the renderer doc, status files — all owned |
 
 ## Original findings
 
 | # | verdict | evidence |
 |---|---|---|
 | H1 NRestarts reset by `systemctl restart` | **FIXED** (one gap → N3) | NRestarts no longer used. `vpp_restarted_ok` (`apply-startup.sh:443-453`) requires a new D-080 identity whose PID equals `MainPID`; `check_health` (`:455-460`) requires `MainPID`+`ActiveEnterTimestampMonotonic` and the identity unchanged. PID reuse: harmless — the triple carries the `/proc` start time, so an equal PID with a new start time is a new identity. MainPID vs VPP: control_ping `vpe_pid` = 2808617 = `MainPID` on the real host (Type=simple, `/usr/bin/vpp` is the main process). Crash + systemd auto-restart **inside the window**: both the unit tuple and the identity change → rollback (scenario 10 passes). Not covered: a crash **between `systemctl restart` and the first identity read** (N3) |
-| H2 gateway drops ICMP | **FIXED for the happy path; the session-close path is unsafe-noisy** (→ N1) | `auto` on vrx-a picks `ssh-peer` (verified: the real `ss` query returns the manager's session) and otherwise refuses with exit 3 before anything changes (gateway-ping only when it answers now) — viable. Exact address/route comparison added (`mgmt_state_ok :423-431`). But if the manager's SSH session closes during the window the apply rolls back, the rollback is judged INCOMPLETE by the same probe, and the dead-man restarts VPP again N times and ends with "console access needed" — reproduced (N1). The doc says only "keep it open" (`vppstartup.md:114`) |
+| H2 gateway drops ICMP | **FIXED for the happy path; the session-close path is unsafe-noisy** (→ N1) | `auto` on ngfw-a picks `ssh-peer` (verified: the real `ss` query returns the manager's session) and otherwise refuses with exit 3 before anything changes (gateway-ping only when it answers now) — viable. Exact address/route comparison added (`mgmt_state_ok :423-431`). But if the manager's SSH session closes during the window the apply rolls back, the rollback is judged INCOMPLETE by the same probe, and the dead-man restarts VPP again N times and ends with "console access needed" — reproduced (N1). The doc says only "keep it open" (`vppstartup.md:114`) |
 | M1 locks free between run and dead-man | **FIXED in the systemd path, NOT in the setsid fallback** (→ N2) | Separate holder unit (`start_holder :378-391`, `stage_hold :401-412`); dead-man kills the run but not the holder; holder gone → dead-man takes the locks first; FORCED only with a foreign holder, `lslocks` logged. Scenario 26 and my rerun: a queued `flock -s` waiter got the lab lock only after `systemctl start vpp`. When `systemd-run` is unavailable the holder is a setsid **child of the run**; `kill_run` SIGKILLs its `sleep` child, the holder dies under `set -e`, the locks go free mid-rollback (N2). A holder killed from outside while the run is still going is not noticed (N5) |
 | M2 approval / gate | **PARTIAL** (→ N4) | `approval_ref :306-315` requires `PENDING-<slug>.md` on main and a LOG row mentioning it; gate record sealed; `--stage run` recomputes the gate and must equal the sealed record (`:635-637`). Forged gate file → refused (scenario 5 + mine). But: (a) **an old, already-executed approval is reusable forever** — `PENDING-handover` (the one-off plugin enable of D-060, already done) authorises any future startup.conf apply; (b) any row that merely **mentions** the slug counts: the real gate record resolves to `LOG D-058 D-060`, and D-058 is not an answer, it only cites "PENDING-handover option 1" in its rationale; (c) the seal is a checksum in the same directory — rewriting `settings` (e.g. `WINDOW=0`) and recomputing it is accepted (`COMMITTED: healthy for 0s`); (d) a rolled-back work dir can be replayed with `--stage run` (seal and gate still valid) → another VPP restart. (c)/(d) need root and a deliberate act; (a)/(b) are the real gap |
 | M3 budget / retries | **FIXED (arithmetic optimistic)** (→ N6) | Explicit `budgets :565-571`; defaults: ITER 129 s, RB_BUDGET 760 s, RUN_BUDGET 397 s, DEADMAN_AFTER 1346 s, HOLD_MAX 4466 s. Run makes one attempt, the dead-man loops `RB_RETRIES` with doubling backoff, then releases — bounded (scenario 31, my run A). The "worst case" is not one: RB_BUDGET counts 3 svc calls (rollback_once makes 4: stop, kill, reset-failed, start, each `SVC_TIMEOUT+5`) and has no per-PCI term (6 data NICs × 4 sysfs/driverctl calls × 12 s) nor per-management-interface term; ITER does not scale with interfaces/gateways. Worst case ≈ 1.2 ks vs 760 s. Consequence only: the dead-man interrupts a very slow rollback and restarts it (the holder keeps the locks) |
@@ -33,7 +33,7 @@ copy of the fake-host harness (outside the repo, deleted). Real-host actions: `v
 
 ## New findings (by severity)
 
-### N1 — MEDIUM: with `ssh-peer` (what `auto` picks on vrx-a) a closed SSH session turns a healthy apply into a rollback loop and a false "console needed"
+### N1 — MEDIUM: with `ssh-peer` (what `auto` picks on ngfw-a) a closed SSH session turns a healthy apply into a rollback loop and a false "console needed"
 `apply-startup.sh:259-263` (`probe_ok ssh-peer`), `:441` (`check_mgmt`), `:546` (rollback verdict), `:758-766` (dead-man)
 
 The probe proves only that a TCP session with the manager's IP is in the kernel table. Detaching is advertised as
@@ -48,7 +48,7 @@ dead-man (attempt 1/2) … INCOMPLETE … (attempt 2/2) … INCOMPLETE
 dead-man: ROLLBACK INCOMPLETE after 2 attempts — console access needed; releasing the locks
 vpp restarts/starts total: 4
 ```
-On vrx-a with defaults that is: rollback, then both locks held ~22 min until the dead-man, then 3 more VPP stop/starts
+On ngfw-a with defaults that is: rollback, then both locks held ~22 min until the dead-man, then 3 more VPP stop/starts
 with backoff (lab lock exclusive for up to ~1 h, CI blocked), ending in a false console alarm — the same class as the
 original H2, now triggered by a normal event. Conversely, a session stays ESTABLISHED for up to `tcp_retries2` (~15 min)
 after the path dies, so `ssh-peer` cannot detect a dead path within a 60 s window (mitigated by the exact address/route +
@@ -79,7 +79,7 @@ Add the fallback + dead-man scenario.
 ### N3 — LOW/MEDIUM: a crash between `systemctl restart` and the first identity read is accepted
 `apply-startup.sh:688-693`, `vpp_restarted_ok :443-453`
 
-vrx-a has `Restart=always`, `RestartUSec=100ms`. If the new VPP crashes once during `wait_api` (up to `API_WAIT`), systemd
+ngfw-a has `Restart=always`, `RestartUSec=100ms`. If the new VPP crashes once during `wait_api` (up to `API_WAIT`), systemd
 brings it back and `vpp_restarted_ok` records the **second** instance as the baseline. Reproduced (crash at the first
 `vppcheck` after the restart): `rc=0 committed=yes nrestarts-now=1`. A config that crashes VPP once on startup (or on the
 first packet — D-095 class) commits. Fix: read `NRestarts` right after `svc restart vpp` returns (it is 0 then — H1's
@@ -108,7 +108,7 @@ real worst case or the holder can expire during its last attempt. `parse_args :1
 ### N7 — LOW: small items
 - `--mgmt-probe tcp:127.0.0.1:22` (or any host not routed through a management interface) is accepted and always passes;
   check `ip route get HOST` → a protected interface.
-- `vrx-vppcheck bootid` exits 0 with an incomplete identity (unreadable `/proc` → start time 0); check
+- `ngfw-vppcheck bootid` exits 0 with an incomplete identity (unreadable `/proc` → start time 0); check
   `Identity.Complete()` and exit 1.
 - The fake-host test depends on the live `/root/ngfw` main (`PENDING-handover.md`, `LOG.md` D-060, host flag `pending`);
   a later LOG/handover change breaks scenarios 4/5/8+ — use a fixture repo via a test-only root.
@@ -117,7 +117,7 @@ real worst case or the holder can expire during its last attempt. `parse_args :1
 ## Answers to the focus questions
 - **H1 identity after restart:** PID reuse — safe (start time). MainPID vs main thread — equal on the real host. Crash +
   auto-restart inside the window — caught. Crash before the first identity read — missed (N3).
-- **H2 on vrx-a:** `auto` → `ssh-peer`, viable while the session lives; without a peer → refused, exit 3, nothing changed.
+- **H2 on ngfw-a:** `auto` → `ssh-peer`, viable while the session lives; without a peer → refused, exit 3, nothing changed.
   Session closing during the window: documented only as "keep it open"; outcome is safe for the config (backup restored)
   but produces a false INCOMPLETE, repeated VPP restarts and ~1 h of exclusive lab lock (N1).
 - **M1 interleave with a queued `flock -s`:** correct with the holder unit; broken in the setsid fallback (N2); a holder
@@ -128,12 +128,12 @@ real worst case or the holder can expire during its last attempt. `parse_args :1
   restarted rollback under held locks, not a lost lock (N6).
 
 ## Fake-host test
-`deploy/vpp/test-apply-startup.sh <branch-built vrx-startupgen>` → `apply-startup tests: 91 passed, 0 failed` (7m16s,
+`deploy/vpp/test-apply-startup.sh <branch-built ngfw-startupgen>` → `apply-startup tests: 91 passed, 0 failed` (7m16s,
 run concurrently with ci.sh) — matches the pasted 91. My extra scenarios (A: session closes → N1; B/rr2: setsid holder
 + dead-man → N2; C: early crash → N3; D: holder killed → N5; E: replay of a rolled-back work dir; F: re-sealed settings)
 ran from a scratch copy of the harness, removed afterwards.
 
-Two MEDIUM findings remain (N1 is on the path vrx-a will actually use; N2 on the fallback path). Neither leaves a bad
+Two MEDIUM findings remain (N1 is on the path ngfw-a will actually use; N2 on the fallback path). Neither leaves a bad
 config installed, but N1 turns a routine event into repeated VPP restarts plus a false console alarm, and N2 reopens the
 M1 lock race. Both are small fixes; no third full review round needed — the manager can verify N1–N3 with added scenarios.
 

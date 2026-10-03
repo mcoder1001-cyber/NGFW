@@ -20,7 +20,7 @@ which guess was right (H1, reproduced below).
 - **Oracle.** A wrong guess that ran argon2 after the lock answers `"the current password is wrong; the account is now locked"` (`:375`). The
   right guess answers `"the account is locked after too many failed password checks"` (`:325`, the transaction re-check). A right guess that
   finishes before the lock simply gets 201.
-- **Reproduced.** Reviewer probe on slot 8, `VRX_LOGIN_MAX_FAILURES=3`, default rate limits, 30 parallel step-ups from one JWT with the right
+- **Reproduced.** Reviewer probe on slot 8, `NGFW_LOGIN_MAX_FAILURES=3`, default rate limits, 30 parallel step-ups from one JWT with the right
   password at #20. The file was temporary, deleted after the run, and never committed.
   ```
   PROBE step-up burst (right guess at #20, MAX_FAILURES 3):
@@ -39,13 +39,13 @@ which guess was right (H1, reproduced below).
   host load.
 - **Fix** (owned file, a few lines, no new env var):
   1. In `createApiKey`, when `stepUp.current !== undefined`, after the transport and 400 checks and **before** `checkCurrent`, add
-     ``if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) throw problems.tooMany(…)``.
+     ``if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) throw problems.tooMany(…)``.
      Share the per-account `pwset:` budget or use a sibling `keystep:${user.id}`, keyed by **user id**, not by key or session. It is Valkey INCR,
      so it holds under concurrency. The existing e2e are not affected: td2-verify sets 10000, td2-review 1000, td2 30, td4 1000, and auth.e2e
      mints 2 keys.
   2. Give one body to every `locked` answer. Throw plain `accountLocked()` at `:375` as well, or let the transaction re-check reuse the `:375`
      text. Either way no `locked` answer may tell a checked guess from an unchecked one.
-  3. Add an e2e in `td4-*`: N parallel step-ups with one right guess. Expect at most `VRX_PASSWORD_RATE_PER_MIN` argon2 checks and 429 for the
+  3. Add an e2e in `td4-*`: N parallel step-ups with one right guess. Expect at most `NGFW_PASSWORD_RATE_PER_MIN` argon2 checks and 429 for the
      rest, no `api_key` row if the right one was throttled, and byte-identical bodies for every `locked` answer. Paste its negative control on
      the current code.
 
@@ -123,7 +123,7 @@ This is the manager's call. It is acceptable as is once H1 is fixed.
 2. **Real verification.** The e2e runs on the host PostgreSQL and Valkey (auth only, no VPP object). There is a negative control for (3).
    There is none for concurrency (H1).
 3. **Restart safety and VPP provenance.** N/A: no VPP object type and no binapi use. NRestarts was 0 → 0 in the worker's REPL run.
-4. **Shared host.** Slot 8 only. After my runs: `nothing named vrx_w8 … remains`, Valkey `vrx:w8:*` = 0, and my `dist/` outputs were removed.
+4. **Shared host.** Slot 8 only. After my runs: `nothing named ngfw_w8 … remains`, Valkey `ngfw:w8:*` = 0, and my `dist/` outputs were removed.
 5. **Security greps.** No `exec.Command`, `child_process` or new shell use. No secrets in files: gitleaks is clean in the worker's CI log.
 6. **Transactions.** The disable bump runs in the promote transaction. A hash change plus a disable bumps once. `configResets` runs after the
    commit and never throws.
@@ -142,7 +142,7 @@ This is the manager's call. It is acceptable as is once H1 is fixed.
    secrets: 17 passwords checked against {"audit":54,"events":6} rows and 1 API log lines → found in: []
     Test Files  7 passed | 1 skipped (8)
          Tests  71 passed | 3 skipped (74)
-   ok     nothing named vrx_w8 / vrx_w8 remains
+   ok     nothing named ngfw_w8 / ngfw_w8 remains
    ```
    These match TD-4.md. I did not re-run `tools/ci.sh` (outside my permitted runs). The worker's 17:37 log directory
    (`/root/ngfw-wt/logs/ci/TD-4-20260924-173747-1495299`) exists and shows `Tasks: 30 successful, 30 total`. The CLI REPL e2e was not

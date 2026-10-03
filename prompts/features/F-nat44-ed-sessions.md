@@ -20,9 +20,9 @@ session browser with session kill. Reference: TNSR "NAT: outbound, 1:1, port for
   insideVrf, outsideVrf, forwarding, sessionLimit ≥ 1024, pools[] (range | interface), staticMappings[], identityMappings[],
   loadBalancedMappings[], timeouts`) and `semantic/nat.ts` (`nat.interfaces-exist`, `nat.inside-outside-disjoint`, `nat.pools-valid`
   = names unique + ranges non-overlapping, `nat.static-mappings` = external port requires protocol, …, `nat.mode-ed-features`,
-  `nat.vrfs-exist`). D-062: use `isNat44Enabled()`, never read `nat.enabled` raw. Proto `NatConfig` in `packages/proto/vrx/v1/dataplane.proto`.
+  `nat.vrfs-exist`). D-062: use `isNat44Enabled()`, never read `nat.enabled` raw. Proto `NatConfig` in `packages/proto/ngfw/v1/dataplane.proto`.
 - **P08** (vertical slice): the patterns you extend. Registry + domain map in `apps/agent/internal/subsystems/subsystems.go` (`Domains`,
-  `Wiring.KeyedClaims("nat")` = the persisted NAT claim store, `Env.GlobalsOwner` = D-071 flag, `VRX_GLOBALS_OWNER=0` on slots). The builder
+  `Wiring.KeyedClaims("nat")` = the persisted NAT claim store, `Env.GlobalsOwner` = D-071 flag, `NGFW_GLOBALS_OWNER=0` on slots). The builder
   package is `apps/agent/internal/desired/` (pointer-carrying `Sink`, `interface/<name>` alias references). The projection hook is
   `apps/agent/internal/agent/projection.go`. The live-state pattern is a read-only agent RPC merged in the API (`InterfaceState`). For the
   topology test pattern, see `test/topology/interfaces/`. Read `docs/status/vertical-slice.md`. If P08 is not merged yet, read it with
@@ -121,7 +121,7 @@ questions file).
 - [ ] Sessions page with ≥ 2 000 sessions: `pageSize=100` never returns more than 100, and the gRPC message is bounded (pasted)
 - [ ] `tools/ci.sh --base main` green in your worktree
 
-**Globals on the shared host:** your slot agent runs with `VRX_GLOBALS_OWNER=0`, so enable/timeouts are *required*, not set. The test fixture
+**Globals on the shared host:** your slot agent runs with `NGFW_GLOBALS_OWNER=0`, so enable/timeouts are *required*, not set. The test fixture
 enables the plugin with `nattest.EnsurePlugin` exactly as `nat44ed_integration_test.go` does (D-082 globals lock), and disables it only if it
 enabled it and it is empty. Serialise on `nattest.SlotLock(t, "nat44")` against the EI task.
 

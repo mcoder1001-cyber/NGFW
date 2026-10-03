@@ -34,7 +34,7 @@ initiator = one explicit action. Reference: TNSR "IPsec (native IKE)"; VPP plugi
    through `Wiring.IKEv2Options()` and the agent secret resolver, never the plaintext into Value/logs.
    Globals (`ikev2.liveness`, `ikev2.local-key`, sleep interval) only when the agent is the globals owner (D-071). State: `SAs()` →
    IKE/child SAs with SPIs, transforms, bytes, uptime (derived keys are zeroed by DF-5 — keep it so). Actions: initiate, rekey child,
-   delete IKE SA. ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects).
+   delete IKE SA. ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, prefixed objects).
 3. **API**: config via pointer routes; `GET /api/v1/state/ipsec/ikev2/sas`; `POST /api/v1/actions/ipsec/ikev2/{tunnel}/{initiate|rekey|delete-sa}`.
    OpenAPI; regenerate `packages/api-client`.
 4. **UI**: the IPsec tunnel form shows an engine selector; native tunnels get a status column + SA drawer (SPI, transforms, counters,
@@ -50,7 +50,7 @@ Shared files: one-line appends only (app.module.ts, router/nav, agent registry);
 
 ## Acceptance (paste the evidence)
 - [ ] Packet-level (path recorded: `af_packet` rig): a stock strongSwan initiator in `ns-<p>-wan` (debs unpacked under
-      `/run/vrx-test/<p>/`, D-083 — never installed) negotiates with VPP's responder;
+      `/run/ngfw-test/<p>/`, D-083 — never installed) negotiates with VPP's responder;
       ping from the peer's inner network to a host behind `ns-<p>-lan`; `tcpdump` on the inter-namespace veth shows **ESP only**;
       `vppctl show ikev2 sa` + `show ipsec sa` show the SA with counters increasing (PSK redacted from the pasted output)
 - [ ] `Retrieve()` == desired for `ikev2.profile`; write-only objects re-applied once per VPP boot identity (D-076/D-080), not per resync

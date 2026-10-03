@@ -20,7 +20,7 @@ ikev2_sa, remote_access_disconnect, ha_sync, capture, upgrade/support_bundle), S
 |---|---|---|
 | `apps/web/src/i18n.ts` | W3: en/fa imports, `NAMESPACES`, `en{}`, `fa{}` (4 × 31 tasks) | 124 |
 | `apps/api/src/app.module.ts` | P1: feature-module import, `controllers`, `providers` (3 × 31) | 93 |
-| `packages/proto/vrx/v1/dataplane.proto` | C5: `service Dataplane` (22) + per-message fields (~40) + 21 end-of-file `// ----- <id> -----` stubs (comment-only, no anchor keyword needed there) | 85 |
+| `packages/proto/ngfw/v1/dataplane.proto` | C5: `service Dataplane` (22) + per-message fields (~40) + 21 end-of-file `// ----- <id> -----` stubs (comment-only, no anchor keyword needed there) | 85 |
 | `apps/api/src/agent/agent.client.ts` | P4: RPC type imports + methods (2 × 22) | 44 |
 | `apps/agent/internal/subsystems/subsystems.go` | A1: domain const (1), `Domains[Routing]` (4), new domain entries (12), end of `Register()` (14) | 31 |
 | `packages/schema/src/semantic/index.ts` | C2: imports + spreads (2 × 15) | 30 |
@@ -47,8 +47,8 @@ ikev2_sa, remote_access_disconnect, ha_sync, capture, upgrade/support_bundle), S
 | **total (27 code files)** | | **585** |
 
 Not anchor-comment sites but required SY5 rows (`apps/agent/internal/renderers/ALLOWLIST.md`, "Active" table, one row per
-binary, fixed argv documented): `F-lb` (VPP `cli_inband` LB-cleanup call, D-090), `F-backup-restore` (`vrx-upgrade`,
-`vrx-support-collect`) — 3 rows.
+binary, fixed argv documented): `F-lb` (VPP `cli_inband` LB-cleanup call, D-090), `F-backup-restore` (`ngfw-upgrade`,
+`ngfw-support-collect`) — 3 rows.
 
 Deliberately untouched (owned by other tasks / not yet a site): `apps/agent/internal/desired/nat.go` + its natTabs
 registry (F-nat44-ed-sessions' own EI+CGNAT groups); `apps/agent/internal/agent/metrics.go` (no existing anchor block —
@@ -94,7 +94,7 @@ shape and count to base (no package gained or lost a test file).
 
 ### 4. `TMPDIR=/tmp/g-wsbc tools/ci.sh --base main`: green
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/W-seed-BC @ 50b2cce   (base: main)
 ok — contract commit(s) on the branch (5 pre-existing contract commits from the P08/W-seed history satisfy the guard)
 WARN commit subject(s) not in Conventional Commits form: review(W-seed): verify   (pre-existing, not from this task)
@@ -106,7 +106,7 @@ WARN commit subject(s) not in Conventional Commits form: review(W-seed): verify 
 == lint · typecheck · unit tests · build (turbo) ==   Tasks: 30 successful, 30 total   Cached: 4 cached, 30 total   Time: 4m42.818s
 == apps/agent: make lint test build ==           ok (89 packages, 0 FAIL)
 == apps/cli: make lint test build ==             ok (7 packages, 0 FAIL)
-== test/ Go modules, unit mode ==                test/integration/smoke ok · test/topology/interfaces ok (VRX_INTEGRATION unset: integration skipped)
+== test/ Go modules, unit mode ==                test/integration/smoke ok · test/topology/interfaces ok (NGFW_INTEGRATION unset: integration skipped)
 
 mode quick · wall time 8m28s · logs /root/ngfw-wt/logs/ci/W-seed-BC-20260924-224527-3286617
 CI GATE PASSED

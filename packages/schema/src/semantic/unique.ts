@@ -2,7 +2,7 @@ import { jsonPointer } from '../pointer.js';
 import type { SemanticIssue } from './registry.js';
 
 /**
- * Uniqueness of the natural key of list items (the `x-vrx-ui.itemKey` of the list, review M2). Every occurrence
+ * Uniqueness of the natural key of list items (the `x-ngfw-ui.itemKey` of the list, review M2). Every occurrence
  * after the first is reported at `path(item, index)` with `message(item)` plus the pointer of the first one.
  * `key` must normalise spellings that mean the same thing (`canonicalIp`, `canonicalPrefix`, lower-cased host
  * names) so that `2001:DB8::1` and `2001:db8::1` collide (D-049).

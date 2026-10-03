@@ -12,8 +12,8 @@ import { SecretsPage, validRef } from './SecretsPage';
 const STREAM = 'ws://127.0.0.1:1/api/v1/stream';
 const LONG = { timeout: 60_000 };
 const WAIT = { timeout: 15_000 };
-// the fixture value (00-CONTEXT: test fixtures use the literal VRX_TEST_PSK_<id>)
-const VALUE = 'VRX_TEST_PSK_WEB2';
+// the fixture value (00-CONTEXT: test fixtures use the literal NGFW_TEST_PSK_<id>)
+const VALUE = 'NGFW_TEST_PSK_WEB2';
 
 const LIST = [
   { ref: 'cert/web', kind: 'cert', name: 'web', createdAt: '2026-09-24T09:00:00.000Z' },
@@ -129,7 +129,7 @@ describe('secrets page', () => {
     const { api, queryClient, ui } = setup();
     api.on('POST /api/v1/secrets', {
       status: 409,
-      body: { type: 'https://vrx.dev/problems/secret-exists', title: 'Conflict', status: 409, detail: "secret 'psk/branch-1' exists; send ?replace=true to store a new version" },
+      body: { type: 'https://ngfw.dev/problems/secret-exists', title: 'Conflict', status: 409, detail: "secret 'psk/branch-1' exists; send ?replace=true to store a new version" },
     });
     await signIn();
     render(ui);
@@ -164,7 +164,7 @@ describe('secrets page', () => {
     api.on('DELETE /api/v1/secrets/psk/branch-1', {
       status: 409,
       body: {
-        type: 'https://vrx.dev/problems/secret-in-use',
+        type: 'https://ngfw.dev/problems/secret-in-use',
         title: 'Conflict',
         status: 409,
         detail: "secret 'psk/branch-1' is referenced by the configuration",

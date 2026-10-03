@@ -40,9 +40,9 @@ const STATE = {
   certificateRef: 'cert/old',
   minVersion: '1.2',
   active: {
-    subject: 'CN=vrx.example.test',
-    issuer: 'CN=vrx.example.test',
-    subjectAltNames: ['DNS:vrx.example.test', 'IP Address:192.0.2.1'],
+    subject: 'CN=ngfw.example.test',
+    issuer: 'CN=ngfw.example.test',
+    subjectAltNames: ['DNS:ngfw.example.test', 'IP Address:192.0.2.1'],
     serialNumber: '01',
     notBefore: '2026-01-01T00:00:00.000Z',
     notAfter: '2027-01-01T00:00:00.000Z',
@@ -115,12 +115,12 @@ describe('System → Management (F-management-ui)', () => {
     mock(api);
     api.on('PATCH /api/v1/config/management', () => ({ body: CANDIDATE }));
     render(app('/system/management?tab=tls'));
-    expect(await screen.findByTestId('tls-subject')).toHaveTextContent('CN=vrx.example.test');
+    expect(await screen.findByTestId('tls-subject')).toHaveTextContent('CN=ngfw.example.test');
     expect(screen.getByTestId('tls-sans')).toHaveTextContent(
-      'DNS:vrx.example.test, IP Address:192.0.2.1',
+      'DNS:ngfw.example.test, IP Address:192.0.2.1',
     );
     expect(screen.getByTestId('tls-revision')).toHaveTextContent('12');
-    expect(screen.getByText(/VRX_HTTPS_PORT is not set/)).toBeInTheDocument();
+    expect(screen.getByText(/NGFW_HTTPS_PORT is not set/)).toBeInTheDocument();
     expect(await screen.findByText('uncommitted')).toBeInTheDocument();
     const cert = await screen.findByLabelText('Certificate');
     expect(cert).toHaveValue('cert/api');
@@ -145,7 +145,7 @@ describe('System → Management (F-management-ui)', () => {
     api.on('PATCH /api/v1/config/management', () => ({
       status: 400,
       body: {
-        type: 'https://vrx.dev/problems/validation',
+        type: 'https://ngfw.dev/problems/validation',
         title: 'Validation failed',
         status: 400,
         errors: [

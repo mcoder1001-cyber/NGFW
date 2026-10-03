@@ -17,4 +17,4 @@ so every shared-file line sits directly below the F-det44-map-dslite-cnat line a
 
 ## Proto (`contract(proto)`)
 - `NatConfig.nat46 = 28` → `Nat46Config{client_prefix, interfaces, mappings}`, `Nat46Mapping{name, ipv4, ipv6, mtu}`.
-- Regenerated Go, TS (`timestamp.ts` unchanged), `vrx-nat.yang`, api-client `schema.d.ts`; `vrx-opgen` output unchanged.
+- Regenerated Go, TS (`timestamp.ts` unchanged), `ngfw-nat.yang`, api-client `schema.d.ts`; `ngfw-opgen` output unchanged.

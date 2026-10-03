@@ -76,7 +76,7 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
         <Box component="ul" sx={{ m: 0, paddingInlineStart: 2.5 }}>
           {b.errors.map((e, i) => (
             <li key={`${e.pointer}:${i}`} dir="auto">
-              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                 {diffPointerLabel(e.pointer || '/')}
               </Box>
               {' — '}
@@ -89,7 +89,7 @@ export function ProblemAlert({ error, sx }: { error: unknown; sx?: SxProps<Theme
         <Box component="ul" sx={{ m: 0, paddingInlineStart: 2.5 }} aria-label={t('problem.results')}>
           {results.map((r, i) => (
             <li key={`${r.key ?? ''}:${i}`} dir="auto">
-              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                 {r.key !== undefined ? resultKeyText(r.key) : diffPointerLabel(r.pointer ?? '')}
               </Box>
               {` ${serviceText(r.code ?? '')}: ${serviceText(r.message ?? '')}`}

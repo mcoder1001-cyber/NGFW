@@ -1,0 +1,29 @@
+# P14 deploy/image common (F-images reuses it): the console banner — management address, HTTPS URL and, until the
+# first admin login, the bootstrap password — written to /etc/issue.d before the login prompts start, and printed once
+# to the active consoles. Installed by ngfw-image-setup as /etc/systemd/system/ngfw-console-banner.service.
+[Unit]
+Description=NGFW console banner (management URL; bootstrap password until the first login)
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=getty.target getty@tty1.service serial-getty@ttyS0.service systemd-user-sessions.service
+ConditionPathExists=/usr/lib/ngfw-image/ngfw-console-banner
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/ngfw-image/ngfw-console-banner render
+# the script writes the password only into the 0600 issue file and straight to the console devices, never to stdout
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/issue.d
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+# root-owned files and console devices only: no capability is needed
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

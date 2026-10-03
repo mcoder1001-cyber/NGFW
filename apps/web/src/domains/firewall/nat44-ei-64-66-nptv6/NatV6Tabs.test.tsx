@@ -171,13 +171,13 @@ describe('nat44-ei-64-66-nptv6 model', () => {
         'fieldIn.nat64.inside.title': 'IN6',
         'fieldIn.nat64.inside.help': 'V6 ONLY',
       })[k] ?? String(o?.['defaultValue'] ?? k);
-    type Props = { properties: Record<string, { title: string; 'x-vrx-ui'?: { help?: string } }> };
+    type Props = { properties: Record<string, { title: string; 'x-ngfw-ui'?: { help?: string } }> };
     const n64 = localizeDeep(subtreeSchema('nat64'), tr, 'nat64') as unknown as Props;
     expect(n64.properties['inside']?.title).toBe('IN6');
-    expect(n64.properties['inside']?.['x-vrx-ui']?.help).toBe('V6 ONLY');
+    expect(n64.properties['inside']?.['x-ngfw-ui']?.help).toBe('V6 ONLY');
     const n66 = localizeDeep(subtreeSchema('nat66'), tr, 'nat66') as unknown as Props;
     expect(n66.properties['inside']?.title).toBe('IN');
-    expect(n66.properties['inside']?.['x-vrx-ui']?.help).not.toBe('V6 ONLY');
+    expect(n66.properties['inside']?.['x-ngfw-ui']?.help).not.toBe('V6 ONLY');
     expect(
       driftUnder(
         {

@@ -241,7 +241,7 @@ func TestConfigRefusesWorkerThreads(t *testing.T) {
 	if f.configures != 0 || len(f.CallsNamed("nsim_configure2")) != 0 {
 		t.Fatal("nsim_configure2 sent on a worker box")
 	}
-	// the operator asserts `nsim { poll-main-thread }` (VRX_NSIM_POLL_MAIN_THREAD=1)
+	// the operator asserts `nsim { poll-main-thread }` (NGFW_NSIM_POLL_MAIN_THREAD=1)
 	if _, err := nsim.NewConfig(f, dfkit.NewMemoryBootStore(), nsim.WithPollMainThread(true)).Create(ctx, model); err != nil || f.configures != 1 {
 		t.Fatalf("with poll-main-thread: %v configures %d", err, f.configures)
 	}

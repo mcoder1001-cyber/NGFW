@@ -101,9 +101,9 @@ func (*Descriptor) Stage() scheduler.Stage { return scheduler.StageDaemon }
 
 // Validate implements scheduler.Validator (TD-13): kea-dhcp<N> -t on a staged copy — nothing written or reloaded.
 func (d *Descriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.Message, _ scheduler.ReadOnlyView) error {
-	in, ok := value.(*vrxv1.DesiredState)
+	in, ok := value.(*ngfwv1.DesiredState)
 	if !ok {
-		return fmt.Errorf("%w: %s value is %T, want *vrx.v1.DesiredState", ErrInvalid, d.Name(), value)
+		return fmt.Errorf("%w: %s value is %T, want *ngfw.v1.DesiredState", ErrInvalid, d.Name(), value)
 	}
 	files, err := d.r.RenderFamily(in, d.family)
 	if err != nil {
@@ -115,9 +115,9 @@ func (d *Descriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.
 
 | feature | descriptor | `Validate` = | notes |
 |---|---|---|---|
-| F-kea-dhcp-relay | `kea.dhcp4/vrx`, `kea.dhcp6/vrx` | `RenderFamily(in, family)` → `r.Validate` (`kea-dhcp<N> -t <staged>`, `ip netns exec` on a slot) | Render is pure (subnet ids from the loaded assignment). |
-| F-unbound-chrony-syslog | `unbound.config/vrx` (+ chrony, rsyslog alike) | `r.Render(ctx, in)` → `r.Validate` (`unbound-checkconf <staged>`; chrony `chronyd -p -f <staged>`, rsyslog `rsyslogd -N1 -f <staged>`) | Never call the `prepare` hook, because it creates directories. |
-| F-host-acl-nftables | `host-acl.nftables/vrx` | `r.Render(ctx, v)` → `r.Validate` (`nft -c -f <staged>`) | Do not take the descriptor's apply mutex for longer than the render. Never touch the store. |
+| F-kea-dhcp-relay | `kea.dhcp4/ngfw`, `kea.dhcp6/ngfw` | `RenderFamily(in, family)` → `r.Validate` (`kea-dhcp<N> -t <staged>`, `ip netns exec` on a slot) | Render is pure (subnet ids from the loaded assignment). |
+| F-unbound-chrony-syslog | `unbound.config/ngfw` (+ chrony, rsyslog alike) | `r.Render(ctx, in)` → `r.Validate` (`unbound-checkconf <staged>`; chrony `chronyd -p -f <staged>`, rsyslog `rsyslogd -N1 -f <staged>`) | Never call the `prepare` hook, because it creates directories. |
+| F-host-acl-nftables | `host-acl.nftables/ngfw` | `r.Render(ctx, v)` → `r.Validate` (`nft -c -f <staged>`) | Do not take the descriptor's apply mutex for longer than the render. Never touch the store. |
 | P12 (FRR) | its frr descriptor(s) | `r.Render(ctx, doc)` → `r.Validate` (`vtysh -C -f <staged>`); `frr-reload.py --test` only for a diff | If several objects build one `frr.conf`, render it from `view.List(...)`. Password references are resolved and redacted by the renderer. |
 | P11 (strongSwan) | its swanctl descriptor(s) | `r.Render(ctx, doc)` → `r.Validate` (`swanctl --load-all --noprompt --file <staged> --uri <scratch charon>`) | Only the scratch charon is loaded (start_action rewritten to none), never the live one. PSKs are redacted by the renderer. |
 | F-snmp | `snmpd` descriptor | `r.Render` → `r.Validate` (`snmpd -C -c <staged check copy>`) | The check instance runs inside the staging dir and is stopped by its PID, never the live snmpd. The community plaintext is resolved from `Community.secret_ref` and masked by the renderer (`r.red`); the scheduler masks the reference. |

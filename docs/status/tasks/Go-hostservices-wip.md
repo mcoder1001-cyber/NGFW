@@ -45,7 +45,7 @@ mode quick · wall time 10m23s
 CI GATE PASSED
 ```
 
-Raw quick log `/tmp/go-hostservices-quick.log`; detailed logs `/root/ngfw-wt/logs/ci/NGFW-go-hostservices-20261003-133014-396580`. The VPP counters belong to fake-host fixtures; no host VPP/service restart occurred. VRX_INTEGRATION remained unset, so real lab integration is NOT claimed. All spawned test/gate processes ended; worktree clean before this documentation-only checkpoint.
+Raw quick log `/tmp/go-hostservices-quick.log`; detailed logs `/root/ngfw-wt/logs/ci/NGFW-go-hostservices-20261003-133014-396580`. The VPP counters belong to fake-host fixtures; no host VPP/service restart occurred. NGFW_INTEGRATION remained unset, so real lab integration is NOT claimed. All spawned test/gate processes ended; worktree clean before this documentation-only checkpoint.
 
 Current code failure: none. Remaining: exact-tree remote publication/PR acknowledgement, unchanged hosted gate results and independent review. If main changes, root must validate the final integration tree; developer does not self-review or merge. No production/test-helper redesign, new skip, relaxed nonempty configuration acceptance or CI change was introduced.
 Next command: `git rev-parse HEAD && git rev-parse HEAD^{tree}` after final documentation commit; root connector-publishes that exact tree and creates the reviewable PR from Go-hostservices-pr.md, then checks final published-head CI and independent review before guarded integration.

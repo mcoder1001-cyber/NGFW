@@ -1,7 +1,7 @@
 $ systemctl show vpp -p NRestarts
 NRestarts=2
 
-$ vrx-agentctl apply doc.json -txn w7-r1 | grep status/summary
+$ ngfw-agentctl apply doc.json -txn w7-r1 | grep status/summary
   "status": "APPLY_STATUS_APPLIED",
   "results": [
     {
@@ -9,7 +9,7 @@ $ vrx-agentctl apply doc.json -txn w7-r1 | grep status/summary
   "summary": {
     "created": 10
   },
-$ vrx-agentctl retrieve | vrfs/vrf/blackhole lines
+$ ngfw-agentctl retrieve | vrfs/vrf/blackhole lines
         "vrf": "w7-red"
         "vrf": "w7-red"
         "id": 7001
@@ -76,12 +76,12 @@ $ vppctl show interface loop701
 loop701                           18    down         9000/0/0/0     
 
 === M1/H3: pending apply, agent killed, restarted after the deadline ===
-$ vrx-agentctl apply doc-pending.json -txn w7-r-pending -confirm 3 | grep status
+$ ngfw-agentctl apply doc-pending.json -txn w7-r-pending -confirm 3 | grep status
   "status": "APPLY_STATUS_APPLIED",
 $ kill -9 1270833
 
-$ /root/ngfw-wt/P05/apps/agent/bin/vrx-agentctl confirm w7-r-pending
-vrx-agentctl: rpc error: code = FailedPrecondition desc = transaction "w7-r-pending" is not pending confirmation
+$ /root/ngfw-wt/P05/apps/agent/bin/ngfw-agentctl confirm w7-r-pending
+ngfw-agentctl: rpc error: code = FailedPrecondition desc = transaction "w7-r-pending" is not pending confirmation
 
 $ grep -E 'reverting|reconcile done' r4.log
 {"time":"2026-09-24T01:20:48.192786589+03:30","level":"WARN","msg":"confirm timeout: reverting to the last confirmed state","owner":"w7","txn_id":"w7-r-pending"}
@@ -98,7 +98,7 @@ loop702 (dn):
   L3 10.7.2.1/24 ip4 table-id 7001 fib-idx 2
 
 === cleanup ===
-$ vrx-agentctl apply empty.json -subsystems interfaces,vrfs,routing | grep summary
+$ ngfw-agentctl apply empty.json -subsystems interfaces,vrfs,routing | grep summary
   "summary": {
     "deleted": 10
   },

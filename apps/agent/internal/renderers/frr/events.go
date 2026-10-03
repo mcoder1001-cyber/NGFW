@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // FRR has no push channel the agent can subscribe to without linking FRR code (the
@@ -53,9 +53,9 @@ func (e Event) String() string {
 // ToProto maps the event to the agent's Event message: interface link changes become
 // LINK_UP / LINK_DOWN; everything else is EVENT_KIND_UNSPECIFIED with the details in
 // attributes (no FRR-specific EventKind exists yet: RF-1-questions.md Q3).
-func (e Event) ToProto() *vrxv1.Event {
-	ev := &vrxv1.Event{
-		Kind:    vrxv1.EventKind_EVENT_KIND_UNSPECIFIED,
+func (e Event) ToProto() *ngfwv1.Event {
+	ev := &ngfwv1.Event{
+		Kind:    ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED,
 		Message: fmt.Sprintf("frr %s %s: %q -> %q", e.Poller, e.Key, e.Old, e.New),
 		Attributes: map[string]string{
 			"source": "frr", "poller": e.Poller, "key": e.Key, "old": e.Old, "new": e.New,
@@ -64,11 +64,11 @@ func (e Event) ToProto() *vrxv1.Event {
 	if e.Poller == PollerInterfaces {
 		switch e.New {
 		case "up":
-			ev.Kind = vrxv1.EventKind_EVENT_KIND_LINK_UP
+			ev.Kind = ngfwv1.EventKind_EVENT_KIND_LINK_UP
 		case "down":
-			ev.Kind = vrxv1.EventKind_EVENT_KIND_LINK_DOWN
+			ev.Kind = ngfwv1.EventKind_EVENT_KIND_LINK_DOWN
 		}
-		if ev.Kind != vrxv1.EventKind_EVENT_KIND_UNSPECIFIED {
+		if ev.Kind != ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED {
 			name := e.Key
 			ev.Interface = &name
 		}

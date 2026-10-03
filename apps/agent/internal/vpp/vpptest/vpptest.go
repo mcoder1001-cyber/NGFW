@@ -1,11 +1,11 @@
 // Package vpptest holds the shared-host test helpers every descriptor and renderer
-// integration test uses (docs/lab/shared-host-rules.md): the VRX_INTEGRATION gate, the
+// integration test uses (docs/lab/shared-host-rules.md): the NGFW_INTEGRATION gate, the
 // slot-derived names and ranges, and the shared lab lock. It deliberately does not open a VPP
 // connection — that is P05's client; until then integration tests connect with govpp directly.
 //
 //	func TestLoopbackIntegration(t *testing.T) {
 //		vpptest.SkipUnlessIntegration(t)
-//		vpptest.LockLab(t)                       // flock -s /run/lock/vrx-lab.lock, released in Cleanup
+//		vpptest.LockLab(t)                       // flock -s /run/lock/ngfw-lab.lock, released in Cleanup
 //		name := vpptest.Name(t, "loop")          // "w2-loop"
 //		inst := vpptest.LoopbackInstance(t, 1)   // 201 → VPP names it loop201
 //		vrf := vpptest.TableBase(t) + 1          // 2001
@@ -25,30 +25,30 @@ import (
 
 // Environment variables set by the task envelope / tools/lab env <N>.
 const (
-	EnvIntegration = "VRX_INTEGRATION"
-	EnvPrefix      = "VRX_TEST_PREFIX"
-	EnvSlot        = "VRX_SLOT"
-	EnvTableBase   = "VRX_VPP_TABLE_BASE"
-	EnvLabLock     = "VRX_LAB_LOCK"
+	EnvIntegration = "NGFW_INTEGRATION"
+	EnvPrefix      = "NGFW_TEST_PREFIX"
+	EnvSlot        = "NGFW_SLOT"
+	EnvTableBase   = "NGFW_VPP_TABLE_BASE"
+	EnvLabLock     = "NGFW_LAB_LOCK"
 )
 
 // DefaultLabLock is the shared lab lock file; integration harnesses take it shared, the
 // manager's full CI and (after handover) VPP restarts take it exclusive.
-const DefaultLabLock = "/run/lock/vrx-lab.lock"
+const DefaultLabLock = "/run/lock/ngfw-lab.lock"
 
-// Integration reports whether integration tests are enabled (VRX_INTEGRATION=1).
+// Integration reports whether integration tests are enabled (NGFW_INTEGRATION=1).
 func Integration() bool { return os.Getenv(EnvIntegration) == "1" }
 
-// SkipUnlessIntegration skips t unless VRX_INTEGRATION=1. Unit-only runs (make test,
+// SkipUnlessIntegration skips t unless NGFW_INTEGRATION=1. Unit-only runs (make test,
 // tools/ci.sh) must never touch VPP, daemons or the database.
 func SkipUnlessIntegration(t testing.TB) {
 	t.Helper()
 	if !Integration() {
-		t.Skip("integration test: set VRX_INTEGRATION=1 (and run under the shared lab lock)")
+		t.Skip("integration test: set NGFW_INTEGRATION=1 (and run under the shared lab lock)")
 	}
 }
 
-// Prefix returns the worker's VRX_TEST_PREFIX ("w2"). Every object a test creates on the
+// Prefix returns the worker's NGFW_TEST_PREFIX ("w2"). Every object a test creates on the
 // shared VPP, in the database or as a process carries it. The test fails when it is unset in
 // integration mode; unit tests get "w0".
 func Prefix(t testing.TB) string {
@@ -65,7 +65,7 @@ func Prefix(t testing.TB) string {
 	return p
 }
 
-// Slot returns the numeric slot N: VRX_SLOT when set, otherwise parsed from the prefix "w<N>".
+// Slot returns the numeric slot N: NGFW_SLOT when set, otherwise parsed from the prefix "w<N>".
 func Slot(t testing.TB) int {
 	t.Helper()
 	if s := os.Getenv(EnvSlot); s != "" {
@@ -95,7 +95,7 @@ func Name(t testing.TB, suffix string) string {
 }
 
 // SubPort returns this slot's test port with offset off (1-99). Slots 1-12 keep the port their test always used
-// (legacy, e.g. 3000+100*N+53 or the string-built "3<N>61"); slots 14-32 (D-156) take VRX_HTTP_PORT's block,
+// (legacy, e.g. 3000+100*N+53 or the string-built "3<N>61"); slots 14-32 (D-156) take NGFW_HTTP_PORT's block,
 // 10000+100*N+off, because the legacy formulas collide with slots 1-12 there (tools/slot-check.py).
 func SubPort(slot, off, legacy int) int {
 	if slot <= 12 {
@@ -114,7 +114,7 @@ func LoopbackInstance(t testing.TB, i int) uint32 {
 	return uint32(Slot(t)*100 + i) //nolint:gosec // bounded above
 }
 
-// TableBase returns the first VRF/table id this slot may allocate (VRX_VPP_TABLE_BASE,
+// TableBase returns the first VRF/table id this slot may allocate (NGFW_VPP_TABLE_BASE,
 // default slot*1000). A worker may use TableBase()..TableBase()+999.
 func TableBase(t testing.TB) uint32 {
 	t.Helper()
@@ -134,7 +134,7 @@ func NATPool(t testing.TB) string {
 	return fmt.Sprintf("10.%d.0.0/16", Slot(t))
 }
 
-// LockLab takes the shared lab lock (flock -s on VRX_LAB_LOCK or DefaultLabLock) for the
+// LockLab takes the shared lab lock (flock -s on NGFW_LAB_LOCK or DefaultLabLock) for the
 // rest of the test and releases it in t.Cleanup. It blocks while the manager holds the
 // exclusive lock (full CI, VPP restart). Call it right after SkipUnlessIntegration.
 func LockLab(t testing.TB) {

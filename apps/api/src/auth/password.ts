@@ -19,7 +19,7 @@ export async function verifyPassword(
   password: string,
 ): Promise<boolean> {
   if (stored === null || stored === undefined || !stored.startsWith('$argon2id$')) {
-    dummy ??= hashPassword('vrx-timing-equaliser');
+    dummy ??= hashPassword('ngfw-timing-equaliser');
     await verify(await dummy, password).catch(() => false);
     return false;
   }

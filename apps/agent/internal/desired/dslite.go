@@ -15,13 +15,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dslite"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
 )
 
-func dsliteEndpoint(s Sink, e *vrxv1.DsliteConfig_Endpoint, name, key string) {
+func dsliteEndpoint(s Sink, e *ngfwv1.DsliteConfig_Endpoint, name, key string) {
 	if e == nil {
 		return
 	}
@@ -44,7 +44,7 @@ func dsliteEndpoint(s Sink, e *vrxv1.DsliteConfig_Endpoint, name, key string) {
 	natAdd(s, name, dslite.Singleton, &spec, pt)
 }
 
-func dsliteBuild(s Sink, d *vrxv1.DsliteConfig) {
+func dsliteBuild(s Sink, d *ngfwv1.DsliteConfig) {
 	if d == nil || !d.GetEnabled() {
 		return
 	}
@@ -69,7 +69,7 @@ func dsliteBuild(s Sink, d *vrxv1.DsliteConfig) {
 
 // assembleDslite builds `nat.dslite` from retrieved objects: AFTR/B4 only where retrieved (globals owner), pools
 // merged back into ranges by the descriptor.
-func assembleDslite(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleDslite(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var (
 		anyDS    bool
 		aftr, b4 *dslite.EndpointSpec
@@ -97,12 +97,12 @@ func assembleDslite(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 	if !anyDS {
 		return
 	}
-	d := &vrxv1.DsliteConfig{Enabled: proto.Bool(true)}
-	ep := func(e *dslite.EndpointSpec) *vrxv1.DsliteConfig_Endpoint {
+	d := &ngfwv1.DsliteConfig{Enabled: proto.Bool(true)}
+	ep := func(e *dslite.EndpointSpec) *ngfwv1.DsliteConfig_Endpoint {
 		if e == nil {
 			return nil
 		}
-		r := &vrxv1.DsliteConfig_Endpoint{Ipv6: proto.String(e.IPv6)}
+		r := &ngfwv1.DsliteConfig_Endpoint{Ipv6: proto.String(e.IPv6)}
 		if e.IPv4 != "" {
 			r.Ipv4 = proto.String(e.IPv4)
 		}
@@ -115,7 +115,7 @@ func assembleDslite(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		if p.Last != p.First {
 			r += "-" + p.Last
 		}
-		d.Pools = append(d.Pools, &vrxv1.DsliteConfig_Pool{Range: proto.String(r)})
+		d.Pools = append(d.Pools, &ngfwv1.DsliteConfig_Pool{Range: proto.String(r)})
 	}
 	out.Dslite = d
 }

@@ -36,7 +36,7 @@ VPP quirks handled
 - **V14 (leak)**: deleting a remote mapping leaves its auto-created `<remote-N>` locator set (`show lisp locator-set`).
 - Disabling LISP leaves the down `lisp_gpe0` / `lisp_gpe<vni>` interfaces VPP created (reused, not deletable by API).
 
-Host test: opt-in `VRX_DF6_LISP_HOST=1` (turns the global LISP switch on only if it was off and restores it), with
-`VRX_DF6_LISP_UPTO=<n>` for stepwise bring-up. Per the manager rule after the review it is **not run on the shared
+Host test: opt-in `NGFW_DF6_LISP_HOST=1` (turns the global LISP switch on only if it was off and restores it), with
+`NGFW_DF6_LISP_UPTO=<n>` for stepwise bring-up. Per the manager rule after the review it is **not run on the shared
 VPP** any more (LISP is a global only the globals owner may switch); the evidence from the first round stands, the
 fix-round behaviour is covered by the unit tests (claims, resync without re-add, require variants, emptiness check).

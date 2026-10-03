@@ -8,11 +8,11 @@ Nothing was ever run with `--apply` against real paths; VPP was not restarted; n
 
 | finding | fix |
 |---|---|
-| N1 hung VPP | every VPP/kernel/systemd call through `timeout` (`--cmd-timeout` 10 s, `--svc-timeout` 120 s; lock fds 8/9 closed in the child); `vrx-vppcheck` has a context deadline + hard `os.Exit` backstop; the run has a time budget; the dead-man **kills the run** (process group / `systemctl kill --kill-whom=all` on its unit, verified by cmdline), takes the locks with a bounded wait (`--deadman-lock-timeout` 60 s) and rolls back **even when they stay busy** (FORCED, logged). An incomplete rollback leaves the dead-man armed to retry. `systemctl stop vpp` hanging → SIGKILL via `systemctl kill` |
+| N1 hung VPP | every VPP/kernel/systemd call through `timeout` (`--cmd-timeout` 10 s, `--svc-timeout` 120 s; lock fds 8/9 closed in the child); `ngfw-vppcheck` has a context deadline + hard `os.Exit` backstop; the run has a time budget; the dead-man **kills the run** (process group / `systemctl kill --kill-whom=all` on its unit, verified by cmdline), takes the locks with a bounded wait (`--deadman-lock-timeout` 60 s) and rolls back **even when they stay busy** (FORCED, logged). An incomplete rollback leaves the dead-man armed to retry. `systemctl stop vpp` hanging → SIGKILL via `systemctl kill` |
 | N2 mgmt restore | per management interface (all v4/v6 default routes, the route to `$SSH_CONNECTION`'s client / `--mgmt-peer`, `--mgmt-if`): `ip -j addr` + `ip -j -4/-6 route show table main dev X` snapshot → exact `ip addr replace …` / `ip -4|-6 route replace …` plan (link-local and kernel routes skipped, tokens validated). After rebind: link up, plan re-applied verbatim; only if still broken the detected manager: ifupdown `ifup --force`, systemd-networkd `networkctl reconfigure`, netplan `netplan apply`; then the plan again. Manager detection: ifupdown stanza for the interface → netplan yaml + binary → networkd active → none |
-| N3 checker | `apps/agent/cmd/vrx-vppcheck` (version / plugins by `show plugins` content via cli_inband / ifaces via `sw_interface_dump` name filter + exact match), agent's `internal/vpp` client + generated binapi; preflight `ifaces local0` in dry run and inside the lock before anything is installed (refuse 3). `vpp-iface-check.py` and its `.pyc` deleted |
-| N5/N6 env + pinning | document, generator, vrx-vppcheck and the script copied into `<work>/bin`; every setting recorded in `<work>/settings` (authoritative) **and** passed as `systemd-run --setenv` (+ PATH); the stage warns if its environment differs. Dry run prints the rendered sha256; `--apply` requires `--expect-new-sha256`, compared inside the lock |
-| N8 gate | `--apply` refused (exit 3) unless the canonical `/root/ngfw/docs/lab/host-<vm>.md` **and** the script's tree say `handover: done` (tools/lab rule; `VRX_HANDOVER_EXTRA` can only add sources), or `--i-have-product-owner-approval <PENDING-slug|D-nnn>` — recorded in the run log, `<work>/gate` and syslog |
+| N3 checker | `apps/agent/cmd/ngfw-vppcheck` (version / plugins by `show plugins` content via cli_inband / ifaces via `sw_interface_dump` name filter + exact match), agent's `internal/vpp` client + generated binapi; preflight `ifaces local0` in dry run and inside the lock before anything is installed (refuse 3). `vpp-iface-check.py` and its `.pyc` deleted |
+| N5/N6 env + pinning | document, generator, ngfw-vppcheck and the script copied into `<work>/bin`; every setting recorded in `<work>/settings` (authoritative) **and** passed as `systemd-run --setenv` (+ PATH); the stage warns if its environment differs. Dry run prints the rendered sha256; `--apply` requires `--expect-new-sha256`, compared inside the lock |
+| N8 gate | `--apply` refused (exit 3) unless the canonical `/root/ngfw/docs/lab/host-<vm>.md` **and** the script's tree say `handover: done` (tools/lab rule; `NGFW_HANDOVER_EXTRA` can only add sources), or `--i-have-product-owner-approval <PENDING-slug|D-nnn>` — recorded in the run log, `<work>/gate` and syslog |
 | re-review N6 | a plugin the old file enabled and the new file does not mention may vanish (D-084 omission) |
 | N9 / N11 | setsid dead-man started with `8>&- 9>&-` and killed on commit; `systemctl reset-failed vpp` before start |
 | N4 (script side) | every protected interface watched, tap without a device skipped. Generator side of N4/N7/N12 is not in this task's files |
@@ -37,7 +37,7 @@ CI GATE PASSED
 (no output) exit 0
 ```
 
-### go test -v ./cmd/vrx-vppcheck
+### go test -v ./cmd/ngfw-vppcheck
 ```
 --- PASS: TestVersion (0.00s)
 --- PASS: TestPluginsByContent (0.00s)
@@ -45,24 +45,24 @@ CI GATE PASSED
 --- PASS: TestDisconnectedIsExit2 (0.00s)
 --- PASS: TestUsage (0.00s)
 --- PASS: TestNoSocket (0.00s)
-    main_test.go:154: hung VPP: exit 2 after 700ms: vrx-vppcheck: cannot reach VPP at /tmp/TestHungVPPTimesOut542581545/001/api.sock: waiting for VPP at /tmp/TestHungVPPTimesOut542581545/001/api.sock: context deadline exceeded
+    main_test.go:154: hung VPP: exit 2 after 700ms: ngfw-vppcheck: cannot reach VPP at /tmp/TestHungVPPTimesOut542581545/001/api.sock: waiting for VPP at /tmp/TestHungVPPTimesOut542581545/001/api.sock: context deadline exceeded
 --- PASS: TestHungVPPTimesOut (0.70s)
 PASS
-ok  	ngfw/agent/cmd/vrx-vppcheck	0.731s
+ok  	ngfw/agent/cmd/ngfw-vppcheck	0.731s
 ```
 
-### vrx-vppcheck against the real VPP on vrx-a (read-only: show_version, cli_inband "show plugins", sw_interface_dump)
+### ngfw-vppcheck against the real VPP on ngfw-a (read-only: show_version, cli_inband "show plugins", sw_interface_dump)
 ```
-$ vrx-vppcheck version
+$ ngfw-vppcheck version
 vpp 26.06-release
 exit=0
-$ vrx-vppcheck ifaces local0
+$ ngfw-vppcheck ifaces local0
 present: local0
 exit=0
-$ vrx-vppcheck ifaces local0 wan
+$ ngfw-vppcheck ifaces local0 wan
 missing: wan
 exit=1
-$ vrx-vppcheck plugins | wc -l ; grep -E 'dpdk|linux_cp|linux_nl|npt66'
+$ ngfw-vppcheck plugins | wc -l ; grep -E 'dpdk|linux_cp|linux_nl|npt66'
 87
 dpdk_plugin.so
 linux_cp_plugin.so
@@ -103,7 +103,7 @@ exit=0
   ok   new file installed
   ok   backup kept (work dir + next to the file)
   ok   VPP restarted
-  ok   logical interfaces + plugins verified through vrx-vppcheck
+  ok   logical interfaces + plugins verified through ngfw-vppcheck
   ok   drivers recorded before the restart
   ok   management snapshot: ens192, ifupdown, gateway
   ok   gateway pinged through the management interface
@@ -115,7 +115,7 @@ exit=0
   ok   exit 1, rolled back, original file restored
   ok   reason logged
   ok   VPP stopped, reset-failed (N11), started on the old file
-== 8. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+== 8. ifupdown host (ngfw-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
   ok   exit 1, loss detected
   ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
   ok   recorded addresses (v4+v6) and default route re-applied verbatim
@@ -183,10 +183,10 @@ holder → FORCED rollback, bounded), 23 (apply refused), 24 (N9 fallback releas
 
 ## Cannot be proven without a real apply (out of scope here)
 - That vmxnet3 re-creates `ens192` under the same name after a vfio-pci steal and that `ip addr/route replace` then
-  restores SSH on vrx-a (fake sysfs/ip model only).
+  restores SSH on ngfw-a (fake sysfs/ip model only).
 - Real systemd behaviour: `systemd-run --setenv`, `--on-active` timer firing, `systemctl kill --kill-whom=all` on the
   run unit, `KillMode=process`; real `ifup --force` / `networkctl reconfigure` / `netplan apply` semantics.
-- vrx-vppcheck against a VPP that hangs *after* connecting (tested: socket accepts but never answers → exit 2 in 0.7 s).
+- ngfw-vppcheck against a VPP that hangs *after* connecting (tested: socket accepts but never answers → exit 2 in 0.7 s).
 - Multipath (`nexthops`) routes and policy-routing tables on the management interface are not restored (logged plan skips them).
 
 ## Decisions (for the LOG)
@@ -195,7 +195,7 @@ holder → FORCED rollback, bounded), 23 (apply refused), 24 (N9 fallback releas
 - `jq` is required on the target host (snapshot); the script refuses otherwise.
 
 ## Open questions
-None blocking. Merge order: independent of other branches (owns only deploy/vpp/*, cmd/vrx-vppcheck, the vppstartup doc).
+None blocking. Merge order: independent of other branches (owns only deploy/vpp/*, cmd/ngfw-vppcheck, the vppstartup doc).
 
 ## Review fixes (round 1 — review BLOCK at edd93a5)
 
@@ -203,7 +203,7 @@ None blocking. Merge order: independent of other branches (owns only deploy/vpp/
 
 | finding | fix |
 |---|---|
-| H1 NRestarts reset by a manual restart | NRestarts dropped. `vrx-vppcheck bootid` (D-080 triple via `internal/vpp/bootid`: boot_id / control_ping vpe_pid / /proc start time). Before the restart the identity is recorded; after it the run requires a **new** identity whose PID equals vpp.service's `MainPID`; during the window `MainPID` + `ActiveEnterTimestampMonotonic` and the identity must stay unchanged (a crash + systemd auto-restart changes both). Fake `systemctl` now resets NRestarts to 0 on restart and gives a new MainPID/start time; scenarios 8 (NRestarts 4 → 0 commits), 9 (no real restart → rollback), 10 (crash in the window → rollback) |
+| H1 NRestarts reset by a manual restart | NRestarts dropped. `ngfw-vppcheck bootid` (D-080 triple via `internal/vpp/bootid`: boot_id / control_ping vpe_pid / /proc start time). Before the restart the identity is recorded; after it the run requires a **new** identity whose PID equals vpp.service's `MainPID`; during the window `MainPID` + `ActiveEnterTimestampMonotonic` and the identity must stay unchanged (a crash + systemd auto-restart changes both). Fake `systemctl` now resets NRestarts to 0 on restart and gives a new MainPID/start time; scenarios 8 (NRestarts 4 → 0 commits), 9 (no real restart → rollback), 10 (crash in the window → rollback) |
 | H2 gateway drops ICMP | `--mgmt-probe auto\|ssh-peer\|gateway-ping\|tcp:HOST:PORT`. auto = ssh-peer (the manager's session from `$SSH_CONNECTION`/`--mgmt-peer` ESTABLISHED in `ss`), else gateway-ping only if the gateway answers ICMP now, else **refuse** (dry run exit 3, "NONE VIABLE"). The dry run prints which check will be used; the run takes a baseline before installing (refuse 3 if it fails). In addition every management interface must keep its addresses and routes **exactly** as snapshotted (restore plan regenerated and compared). Fake gateway can drop ICMP; fake `ss` / TCP prober; scenarios 2, 11, 12, 13 |
 | M1 locks free between run and dead-man | a separate **lock holder** (`--stage hold`, own unit/session) takes both locks and keeps them until commit or the end of the rollback; the dead-man kills the run's process tree but never the holder, rolls back, then releases. Holder gone → the dead-man takes both locks exclusively (bounded) **before** touching the run; only a foreign holder → FORCED, holder from `lslocks` logged. Scenario 26: a queued `flock -s` waiter gets the lab lock only after the rollback restarted VPP; 27, 28, 29 |
 | M2 approval / gate | approval must be `PENDING-<slug>`: `docs/decisions/PENDING-<slug>.md` must exist on main of /root/ngfw and a LOG.md D-row on main must reference it; the gate record carries the file blob + D ids. The planner seals `plan.sha256` (settings, document, gen args, pinned binaries, gate); `--stage run` refuses on a seal mismatch and re-evaluates the gate, which must equal the sealed record. Scenarios 3, 4, 5 |
@@ -228,7 +228,7 @@ CI GATE PASSED
 (no output) exit 0
 ```
 
-### go test -v ./cmd/vrx-vppcheck
+### go test -v ./cmd/ngfw-vppcheck
 ```
 --- PASS: TestVersion (0.00s)
 --- PASS: TestBootID (0.00s)
@@ -239,12 +239,12 @@ CI GATE PASSED
 --- PASS: TestNoSocket (0.00s)
 --- PASS: TestHungVPPTimesOut (0.70s)
 PASS
-ok  	ngfw/agent/cmd/vrx-vppcheck	0.728s
+ok  	ngfw/agent/cmd/ngfw-vppcheck	0.728s
 ```
 
-### read-only on vrx-a: boot identity vs vpp.service (the PID matches MainPID)
+### read-only on ngfw-a: boot identity vs vpp.service (the PID matches MainPID)
 ```
-$ vrx-vppcheck bootid ; systemctl show vpp -p MainPID -p ActiveEnterTimestampMonotonic -p NRestarts
+$ ngfw-vppcheck bootid ; systemctl show vpp -p MainPID -p ActiveEnterTimestampMonotonic -p NRestarts
 b7712a53-c1e7-45e2-98b8-bdb21f3904f9/2808617/5808198
 exit=0
 ActiveEnterTimestampMonotonic=58081985783
@@ -297,7 +297,7 @@ NRestarts=5
   ok   new boot identity, PID = vpp.service MainPID
   ok   new file installed
   ok   backup kept (work dir + next to the file)
-  ok   logical interfaces + plugins verified through vrx-vppcheck
+  ok   logical interfaces + plugins verified through ngfw-vppcheck
   ok   drivers recorded before the restart
   ok   management snapshot: ens192, ifupdown; check gateway-ping
   ok   locks taken (holder) before backup and diff
@@ -308,7 +308,7 @@ NRestarts=5
   ok   exit 1, detected
 == 10. VPP crashes during the window (systemd brings it back) → rollback
   ok   exit 1, crash detected by MainPID/ActiveEnter/boot identity
-== 11. gateway drops ICMP (vrx-a): auto check = the manager's SSH session → commits (review H2)
+== 11. gateway drops ICMP (ngfw-a): auto check = the manager's SSH session → commits (review H2)
   ok   exit 0, committed with ssh-peer
 == 12. gateway drops ICMP, --mgmt-probe tcp:… → commits; path lost → rollback verified by the same probe
   ok   exit 0, committed with a TCP probe
@@ -319,7 +319,7 @@ NRestarts=5
   ok   exit 1, rolled back, original file restored, locks released
   ok   reason logged
   ok   VPP stopped, reset-failed (N11), started on the old file
-== 15. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+== 15. ifupdown host (ngfw-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
   ok   exit 1, loss detected (addresses/routes compared exactly)
   ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
   ok   recorded addresses (v4+v6) and default route re-applied verbatim
@@ -395,10 +395,10 @@ and one **dry run** (read-only) of the branch script.
 
 | finding | fix | verified by |
 |---|---|---|
-| N1 ssh-peer: closed session → rollback loop + false "console needed" | `ssh-peer` removed as a verdict. `auto` = `neigh`: every default gateway of a protected interface (from the snapshot) must become REACHABLE in the neighbour table after a nudge (ARP/ND — vrx-a's gateway drops ICMP but answers ARP; on the host: `172.30.126.1 REACHABLE`). The SSH session is logged as an informational signal only (`session_signal`), never a failure. On top: exact addresses/routes and NIC driver. The rollback is **one** attempt, verified by the same checks; not healthy → `console-needed` marker, timer cancelled, locks released — VPP is never restarted in a loop; the dead-man does at most one rollback and only if none finished. `--rollback-retries`/`--retry-backoff` removed | scenario 11 (gateway drops ICMP, session closes in the window → commits, one restart), 13 (path stays dead → one rollback, console-needed, 2 restarts total, late dead-man no-op), 2/14 (no viable check → exit 3), 12 (tcp probe) |
+| N1 ssh-peer: closed session → rollback loop + false "console needed" | `ssh-peer` removed as a verdict. `auto` = `neigh`: every default gateway of a protected interface (from the snapshot) must become REACHABLE in the neighbour table after a nudge (ARP/ND — ngfw-a's gateway drops ICMP but answers ARP; on the host: `172.30.126.1 REACHABLE`). The SSH session is logged as an informational signal only (`session_signal`), never a failure. On top: exact addresses/routes and NIC driver. The rollback is **one** attempt, verified by the same checks; not healthy → `console-needed` marker, timer cancelled, locks released — VPP is never restarted in a loop; the dead-man does at most one rollback and only if none finished. `--rollback-retries`/`--retry-backoff` removed | scenario 11 (gateway drops ICMP, session closes in the window → commits, one restart), 13 (path stays dead → one rollback, console-needed, 2 restarts total, late dead-man no-op), 2/14 (no viable check → exit 3), 12 (tcp probe) |
 | N2 setsid fallback frees the locks | **No fallback**: run unit, lock-holder unit and dead-man timer all need `systemd-run`; if any cannot be started, `--apply` is refused before anything changes (exit 3; the dry run reports a missing `systemd-run`). The holder is therefore never a descendant of the run; `stage_hold`'s wait is `sleep 1 … \|\| true` (a killed sleep cannot end the hold). N5 folded in: `holder_alive` checked before install, in every health round and before commit | scenario 25 (systemd-run fails for run unit / holder unit / timer → exit 3, unchanged, locks free), 26 (hung run, queued `flock -s` waiter gets the lab lock only after the single rollback), 27 (holder killed → rollback) |
-| N3 crash between restart and first identity read | `unit_ident` = MainPID + ActiveEnterTimestampMonotonic + **NRestarts**, read right after the `systemctl restart` job returns (NRestarts is 0 then) into `unit.restart`; after the API is up and `--settle` (10 s) the identity must be new, complete, = MainPID, and the unit tuple unchanged; every window round compares against the same tuple; window ≥ interval > 0, ≥ 2 identity reads. `vrx-vppcheck bootid` exits 1 on an incomplete identity (N7) | scenario 10a (crash at the first API probe after the restart → "vpp.service restarted during the settle time", rolled back), 10b (crash in the window), 8 (NRestarts 0 right after restart, ≥2 reads), `TestBootID` |
-| N4 approval not bound to the change | The D-row must have `PENDING-<slug>` as the **subject** of its decision column (a mention does not count) **and name the sha256 of the rendering** (`--expect-new-sha256`); the gate record carries that sum. An approval already executed for that rendering (committed work dir whose gate names PENDING + sum) is refused as spent. A work dir that was already installed from cannot be replayed with `--stage run`. The dry run evaluates the gate against its own rendering. Test fixture repo via `VRX_TEST_ROOT` (honoured only when startup.conf, sysfs, systemctl and systemd-run are all under it) — the harness no longer depends on /root/ngfw main | scenario 4 (no-such / other change / mention-only refused; accepted with sum; replay after commit → spent; same PENDING + different rendering → not covered), 15 (replaying a rolled-back work dir refused, no restart), 3 (real startup.conf with a test root refused); real host: `PENDING-handover` → refused (below) |
+| N3 crash between restart and first identity read | `unit_ident` = MainPID + ActiveEnterTimestampMonotonic + **NRestarts**, read right after the `systemctl restart` job returns (NRestarts is 0 then) into `unit.restart`; after the API is up and `--settle` (10 s) the identity must be new, complete, = MainPID, and the unit tuple unchanged; every window round compares against the same tuple; window ≥ interval > 0, ≥ 2 identity reads. `ngfw-vppcheck bootid` exits 1 on an incomplete identity (N7) | scenario 10a (crash at the first API probe after the restart → "vpp.service restarted during the settle time", rolled back), 10b (crash in the window), 8 (NRestarts 0 right after restart, ≥2 reads), `TestBootID` |
+| N4 approval not bound to the change | The D-row must have `PENDING-<slug>` as the **subject** of its decision column (a mention does not count) **and name the sha256 of the rendering** (`--expect-new-sha256`); the gate record carries that sum. An approval already executed for that rendering (committed work dir whose gate names PENDING + sum) is refused as spent. A work dir that was already installed from cannot be replayed with `--stage run`. The dry run evaluates the gate against its own rendering. Test fixture repo via `NGFW_TEST_ROOT` (honoured only when startup.conf, sysfs, systemctl and systemd-run are all under it) — the harness no longer depends on /root/ngfw main | scenario 4 (no-such / other change / mention-only refused; accepted with sum; replay after commit → spent; same PENDING + different rendering → not covered), 15 (replaying a rolled-back work dir refused, no restart), 3 (real startup.conf with a test root refused); real host: `PENDING-handover` → refused (below) |
 | N6/N7 lows | budgets scale with PCI devices, management interfaces, restore lines and gateways; HOLD_MAX covers the dead-man's lock wait + one rollback; `--window 0` refused; TCP probe target must route through a management interface (loopback refused) | scenarios 2, 3, 8 |
 
 L1 (harness + shellcheck in `tools/ci.sh`) remains a manager item (`tools/ci.sh` not owned).
@@ -428,15 +428,15 @@ CI GATE PASSED
 shellcheck exit 0
 ```
 
-### go test -run TestBootID -v ./cmd/vrx-vppcheck
+### go test -run TestBootID -v ./cmd/ngfw-vppcheck
 ```
 === RUN   TestBootID
 --- PASS: TestBootID (0.00s)
 PASS
-ok  	ngfw/agent/cmd/vrx-vppcheck	0.025s
+ok  	ngfw/agent/cmd/ngfw-vppcheck	0.025s
 ```
 
-### read-only on vrx-a: the neigh probe and the gate (dry run of the branch script, no --apply)
+### read-only on ngfw-a: the neigh probe and the gate (dry run of the branch script, no --apply)
 ```
 $ ip -j route show default; ip -j neigh show 172.30.126.1 dev ens192
 [{"dst":"default","gateway":"172.30.126.1","dev":"ens192","flags":["onlink"]}]
@@ -448,7 +448,7 @@ $ deploy/vpp/apply-startup.sh --doc apps/agent/internal/renderers/vppstartup/tes
     ip -4 route replace default via 172.30.126.1 dev ens192 onlink
 == management reachability check (--mgmt-probe auto)
   will use: neigh (passes now); manager session with 172.30.126.196: established
-== VPP preflight (read-only: vrx-vppcheck ifaces local0, bootid)
+== VPP preflight (read-only: ngfw-vppcheck ifaces local0, bootid)
   present: local0
   boot identity: b7712a53-c1e7-45e2-98b8-bdb21f3904f9/2808617/5808198
 $ … same dry run with --i-have-product-owner-approval PENDING-handover
@@ -470,7 +470,7 @@ $ … same dry run with --i-have-product-owner-approval PENDING-handover
   ok   sha256 of the live file and of the rendering printed
   ok   live file untouched, VPP not restarted, no ip change
   ok   dry run removed its temp dir
-== 2. dry run: reachability — gateway drops ICMP (vrx-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected
+== 2. dry run: reachability — gateway drops ICMP (ngfw-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected
   ok   exit 0; peer shown; neigh chosen although ICMP is dropped
   ok   next hop does not answer ARP: exit 3, refused early
   ok   --mgmt-probe tcp:10.0.0.1:22 viable (exit 0)
@@ -510,7 +510,7 @@ $ … same dry run with --i-have-product-owner-approval PENDING-handover
   ok   new boot identity = the unit's MainPID, NRestarts 0 right after the restart
   ok   identity stable across 2 reads in the window
   ok   new file installed, backup kept
-  ok   logical interfaces + plugins verified through vrx-vppcheck
+  ok   logical interfaces + plugins verified through ngfw-vppcheck
   ok   management snapshot: ens192, ifupdown; check neigh (ARP of the next hop)
   ok   locks taken (holder unit) before backup and diff
   ok   dead-man timer and lock holder units started with the settings as --setenv
@@ -537,7 +537,7 @@ $ … same dry run with --i-have-product-owner-approval PENDING-handover
   ok   reason logged
   ok   VPP stopped, reset-failed, started on the old file
   ok   replaying the rolled-back work dir with --stage run: refused (exit 3), no restart
-== 16. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+== 16. ifupdown host (ngfw-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
   ok   exit 1, loss detected (addresses/routes compared exactly)
   ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
   ok   recorded addresses (v4+v6) and default route re-applied verbatim

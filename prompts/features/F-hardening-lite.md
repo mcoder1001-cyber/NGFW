@@ -2,16 +2,16 @@
 
 ## Goal
 A pragmatic hardening layer for the appliance (WBS D12.1 in `plan/wbs.csv`, reduced to "lite"): a CIS-inspired baseline for Ubuntu 26.04,
-systemd sandboxing drop-ins for every VRX and daemon unit, and verified package signing end to end. The nftables host policy is **consumed**,
+systemd sandboxing drop-ins for every NGFW and daemon unit, and verified package signing end to end. The nftables host policy is **consumed**,
 not written: F-host-acl-nftables owns the nftables renderer (D-057). Secure boot, pentest and certification are D-059 have-nots.
 
 ## Inputs to read first
-- `prompts/P10-packaging-deb.md` — units (`vrx-agent` caps `CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK`; `vrx-api` none, `ProtectSystem=strict`),
+- `prompts/P10-packaging-deb.md` — units (`ngfw-agent` caps `CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK`; `ngfw-api` none, `ProtectSystem=strict`),
   `deploy/apt/` reprepro + Release signing (key in `~/.config/ngfw/apt-signing/`, never committed), `systemd-analyze security` targets (api ≤ 3.0, agent ≤ 5.0)
 - `prompts/P14-iso-installer.md` (what the image purges/installs), `docs/09-os-packages.md` §3 (what must not be on the box) and §4 (kernel/boot)
 - `prompts/features/F-host-acl-nftables.md` + `apps/agent/internal/renderers/nftables/` (after it merges) — the host policy you rely on
 - `docs/decisions/LOG.md` D-001, D-002, D-012 (never restart VPP/daemons on this host), D-057, D-059, D-079 (Kea control sockets, no
-  kea-ctrl-agent), D-086 (rsyslog TLS driver), D-100 (nginx :80 redirect only); daemons: FRR, strongSwan (`vrx-strongswan` from P11 — if P11
+  kea-ctrl-agent), D-086 (rsyslog TLS driver), D-100 (nginx :80 redirect only); daemons: FRR, strongSwan (`ngfw-strongswan` from P11 — if P11
   has not merged, write proposals only), Kea, Unbound, chrony, snmpd, keepalived, rsyslog
 - P10's merged units: the agent needs `AF_NETLINK` (rtnetlink/nft) and `ReadWritePaths` for the daemon configs its renderers write — a
   drop-in that removes them breaks the product; verify every tightening against the unit's real needs in the container
@@ -26,7 +26,7 @@ not written: F-host-acl-nftables owns the nftables renderer (D-057). Secure boot
    for the management side only — never on linux-cp taps, `kernel.unprivileged_bpf_disabled`, …), sshd drop-in (no root password login, no
    password auth when keys exist, ciphers/KEX list), `login.defs`/PAM password quality, `auditd` rules (if the package is in P10's set), cron/at
    restrictions, disabled unused services and kernel modules (`install cramfs /bin/false` style); each item mapped to its CIS control id in a table.
-2. **systemd drop-ins** `deploy/hardening/systemd/<unit>.d/10-vrx-hardening.conf` for vrx-agent, vrx-api, nginx, postgresql, valkey and each
+2. **systemd drop-ins** `deploy/hardening/systemd/<unit>.d/10-ngfw-hardening.conf` for ngfw-agent, ngfw-api, nginx, postgresql, valkey and each
    daemon: `NoNewPrivileges`, `ProtectSystem`, `ProtectHome`, `PrivateTmp`, `RestrictAddressFamilies`, `SystemCallFilter=@system-service`,
    `CapabilityBoundingSet` minimal per daemon (FRR needs `CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN` for netns — verify each against its real needs).
    Never tighten VPP's unit in this task (D-012; list proposals only).
@@ -40,13 +40,13 @@ not written: F-host-acl-nftables owns the nftables renderer (D-057). Secure boot
 6. **Docs**: `docs/install/hardening.md` — controls table, exceptions with reasons, how the nftables host policy (F-host-acl-nftables) fits in.
 
 Files you own: `deploy/hardening/**`, `docs/install/hardening.md`, `test/topology/hardening-lite/**`. Shared files: packaging hooks in P10's
-`deploy/debian/vrx/**` — one-line additions to install the drop-ins (`vrx-meta` install list, under your anchor), resolved at merge;
-`renderers/nftables/**` is F-host-acl-nftables' (read only); P10's `deploy/systemd/vrx-*` base units are read-only (you add drop-ins).
+`deploy/debian/ngfw/**` — one-line additions to install the drop-ins (`ngfw-meta` install list, under your anchor), resolved at merge;
+`renderers/nftables/**` is F-host-acl-nftables' (read only); P10's `deploy/systemd/ngfw-*` base units are read-only (you add drop-ins).
 The signing key lives in `~/.config/ngfw/apt-signing/` (P10) — never copy it into the worktree, never print it; rotation is documented and
 tested with a throwaway key under `.scratch/`.
 
 ## Acceptance (paste the evidence)
-- [ ] `systemd-analyze security --offline=yes` scores before/after for every hardened unit, vrx-api ≤ 3.0 and vrx-agent ≤ 5.0 (pasted)
+- [ ] `systemd-analyze security --offline=yes` scores before/after for every hardened unit, ngfw-api ≤ 3.0 and ngfw-agent ≤ 5.0 (pasted)
 - [ ] `check.sh` in the chroot: all controls pass or are listed exceptions (pasted)
 - [ ] APT from the local repo: signed → install OK; tampered `Release` / unknown key → refused (pasted)
 - [ ] This host untouched: no changes under `/etc/sysctl.d`, `/etc/ssh`, `/etc/systemd/system` (listing/hashes before/after)

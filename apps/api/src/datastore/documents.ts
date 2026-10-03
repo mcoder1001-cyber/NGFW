@@ -260,7 +260,7 @@ type SchemaNode = Record<string, unknown>;
 /**
  * ARCH-05 (TD-15): the member names that hold secret references, read from the root schema — every property whose
  * schema (through `$ref`, `anyOf`/`oneOf`/`allOf`, `.optional()`, array `items`) is a `secretRefOf(…)` field
- * (`x-vrx-ui.widget: 'secret-ref'`, D-051). No naming convention involved: a ref field named anything is found, and
+ * (`x-ngfw-ui.widget: 'secret-ref'`, D-051). No naming convention involved: a ref field named anything is found, and
  * a `…Ref`-named field that is not a secret reference is not.
  *
  * Pinned: a secret-ref schema reachable only as a record value (`additionalProperties`) or a bare array item has no
@@ -280,7 +280,7 @@ export function secretRefMembers(): ReadonlySet<string> {
     const x = resolve(n);
     if (!isPlainObject(x) || seen.has(x)) return false;
     seen.add(x);
-    if ((x['x-vrx-ui'] as { widget?: unknown } | undefined)?.widget === 'secret-ref') return true;
+    if ((x['x-ngfw-ui'] as { widget?: unknown } | undefined)?.widget === 'secret-ref') return true;
     for (const k of ['anyOf', 'oneOf', 'allOf'] as const) {
       const list = x[k];
       if (Array.isArray(list) && list.some((b) => isRef(b, seen))) return true;

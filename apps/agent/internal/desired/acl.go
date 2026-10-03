@@ -32,7 +32,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
@@ -89,7 +89,7 @@ func CurrentACLEnv() ACLEnv {
 }
 
 // ACL emits the acl.* objects of ds.acl; in says which domains the transaction carries.
-func ACL(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
+func ACL(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
 	env := CurrentACLEnv()
 	if env.GlobalsOwner {
 		s.Add(descacl.KeyStatsEnable, descacl.StatsEnable{Enabled: true}.Proto(), Ptr("acl"))
@@ -117,7 +117,7 @@ func ACL(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 type aclExpander struct {
 	env         ACLEnv
 	s           Sink
-	objs        *vrxv1.ObjectsConfig
+	objs        *ngfwv1.ObjectsConfig
 	haveObjects bool
 	addrs       map[string]addrSide
 	addrErr     map[string]error
@@ -182,7 +182,7 @@ func (x *aclExpander) fqdnRefs(ref string) []string {
 	return out
 }
 
-func (x *aclExpander) side(m *vrxv1.AddressMatch, pt string) (addrSide, bool) {
+func (x *aclExpander) side(m *ngfwv1.AddressMatch, pt string) (addrSide, bool) {
 	switch m.GetKind() {
 	case "", "any":
 		return anySide, true
@@ -240,7 +240,7 @@ func (x *aclExpander) reportObjectErr(pt string, err error) {
 	x.s.Errorf(pt, "acl.object", "%v", err)
 }
 
-func (x *aclExpander) service(m *vrxv1.ServiceMatch, pt string) ([]objects.PortSpec, bool) {
+func (x *aclExpander) service(m *ngfwv1.ServiceMatch, pt string) ([]objects.PortSpec, bool) {
 	switch m.GetKind() {
 	case "", "any":
 		return anyService, true
@@ -296,10 +296,10 @@ var aclActions = map[string]descacl.Action{"permit": descacl.ActionPermit, "deny
 
 type indexedRule struct {
 	i int
-	r *vrxv1.AclRule
+	r *ngfwv1.AclRule
 }
 
-func (x *aclExpander) list(name string, l *vrxv1.AclList) {
+func (x *aclExpander) list(name string, l *ngfwv1.AclList) {
 	lp := Ptr("acl", "lists", name)
 	if _, err := vpp.OwnerTag(x.env.Owner, name); x.env.Owner != "" && err != nil {
 		x.s.Errorf(lp, "acl.name", "list name %q: %v", name, err)
@@ -326,7 +326,7 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 		}
 		info := aclstate.RuleInfo{Sequence: r.GetSequence(), Schedule: r.GetSchedule(), First: uint32(min(len(out), MaxListRules))} //nolint:gosec // bounded
 		if r.Enabled != nil && !r.GetEnabled() {
-			info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED
+			info.Status = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED
 			exp.Rules = append(exp.Rules, info)
 			continue
 		}
@@ -350,7 +350,7 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 			continue
 		} else if expired {
 			x.s.Warnf(rp, RuleExpired, "rule %d expired at %s: not rendered (extend or delete it)", r.GetSequence(), r.GetExpiresAt())
-			info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED
+			info.Status = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED
 			exp.Rules = append(exp.Rules, info)
 			continue
 		} else if !at.IsZero() {
@@ -368,7 +368,7 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 				continue
 			}
 			if exp.Schedules == nil {
-				exp.Schedules = map[string]*vrxv1.Schedule{}
+				exp.Schedules = map[string]*ngfwv1.Schedule{}
 			}
 			exp.Schedules[sname] = def
 			on, err := objects.Active(def, x.env.Now(), x.env.Location)
@@ -378,7 +378,7 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 				continue
 			}
 			if !on {
-				info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE
+				info.Status = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE
 				exp.Rules = append(exp.Rules, info)
 				continue
 			}
@@ -437,9 +437,9 @@ func (x *aclExpander) list(name string, l *vrxv1.AclList) {
 			}
 		}
 		info.Count = uint32(n) //nolint:gosec // ≤ objects.MaxEntries
-		info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED
+		info.Status = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED
 		if n == 0 {
-			info.Status = vrxv1.AclRuleStatus_ACL_RULE_STATUS_EMPTY
+			info.Status = ngfwv1.AclRuleStatus_ACL_RULE_STATUS_EMPTY
 			info.Count = 0
 		}
 		info.FQDN = unionSorted(src.fqdn, dst.fqdn)
@@ -499,7 +499,7 @@ func canonMAC(s string) (string, error) {
 	return hw.String(), nil
 }
 
-func (x *aclExpander) macip(name string, l *vrxv1.MacipList) {
+func (x *aclExpander) macip(name string, l *ngfwv1.MacipList) {
 	lp := Ptr("acl", "macip", name)
 	if _, err := vpp.OwnerTag(x.env.Owner, name); x.env.Owner != "" && err != nil {
 		x.s.Errorf(lp, "acl.name", "MACIP list name %q: %v", name, err)
@@ -575,7 +575,7 @@ type ifBinding struct {
 	in, out []bindEntry
 }
 
-func (x *aclExpander) bindings(cfg *vrxv1.AclConfig, gb *gbPlan) {
+func (x *aclExpander) bindings(cfg *ngfwv1.AclConfig, gb *gbPlan) {
 	binds := map[string]*ifBinding{}
 	for i, a := range cfg.GetAttachments() {
 		ap := Ptr("acl", "attachments", strconv.Itoa(i))
@@ -724,13 +724,13 @@ func (x *aclExpander) ordered(es []bindEntry, ifn, dir string, ok bool) ([]strin
 // record entry of its fingerprint and configuration hash) is reported as that configuration;
 // anything else is reconstructed from the VPP rules (one rule per VPP rule, sequences 10, 20, …), so a
 // difference shows as drift. A DryRun never changes the result (review H1).
-func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
+func AssembleACL(kvs []scheduler.KV) *ngfwv1.AclConfig {
 	env := CurrentACLEnv()
-	out := &vrxv1.AclConfig{}
-	applied := map[scheduler.Key]*vrxv1.AclConfig{}
+	out := &ngfwv1.AclConfig{}
+	applied := map[scheduler.Key]*ngfwv1.AclConfig{}
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() == aclstate.NameConfig {
-			if c, ok := kv.Value.(*vrxv1.AclConfig); ok {
+			if c, ok := kv.Value.(*ngfwv1.AclConfig); ok {
 				applied[kv.Key] = c
 			}
 		}
@@ -750,12 +750,12 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 				continue
 			}
 			if out.Lists == nil {
-				out.Lists = map[string]*vrxv1.AclList{}
+				out.Lists = map[string]*ngfwv1.AclList{}
 			}
 			cfg := applied[aclstate.KeyConfigList(a.Name)].GetLists()[a.Name]
 			if cfg != nil {
 				if _, ok := env.Record.ACL(a.Name, aclstate.Fingerprint(a.Rules), aclstate.ConfigHash(cfg)); ok {
-					out.Lists[a.Name] = proto.Clone(cfg).(*vrxv1.AclList)
+					out.Lists[a.Name] = proto.Clone(cfg).(*ngfwv1.AclList)
 					continue
 				}
 			}
@@ -766,12 +766,12 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 				continue
 			}
 			if out.Macip == nil {
-				out.Macip = map[string]*vrxv1.MacipList{}
+				out.Macip = map[string]*ngfwv1.MacipList{}
 			}
 			cfg := applied[aclstate.KeyConfigMacip(a.Name)].GetMacip()[a.Name]
 			if cfg != nil {
 				if _, ok := env.Record.Macip(a.Name, aclstate.MacipFingerprint(a.Rules), aclstate.ConfigHash(cfg)); ok {
-					out.Macip[a.Name] = proto.Clone(cfg).(*vrxv1.MacipList)
+					out.Macip[a.Name] = proto.Clone(cfg).(*ngfwv1.MacipList)
 					continue
 				}
 			}
@@ -795,17 +795,17 @@ func AssembleACL(kvs []scheduler.KV) *vrxv1.AclConfig {
 	att := applied[aclstate.KeyConfigAttachments]
 	if att != nil && env.Record.Attachments(aclstate.BindingsFingerprint(binds, macips), aclstate.ConfigHash(att)) {
 		for _, a := range att.GetAttachments() {
-			out.Attachments = append(out.Attachments, proto.Clone(a).(*vrxv1.AclAttachment))
+			out.Attachments = append(out.Attachments, proto.Clone(a).(*ngfwv1.AclAttachment))
 		}
 		for _, a := range att.GetMacipAttachments() {
-			out.MacipAttachments = append(out.MacipAttachments, proto.Clone(a).(*vrxv1.MacipAttachment))
+			out.MacipAttachments = append(out.MacipAttachments, proto.Clone(a).(*ngfwv1.MacipAttachment))
 		}
 	} else {
 		out.Attachments, out.MacipAttachments = reconstructAttachments(binds, macips)
 	}
 	gb := applied[aclstate.KeyConfigGlobalBlocking].GetGlobalBlocking()
 	if gb != nil && env.Record.GlobalBlocking(aclstate.GlobalBlockingFingerprint(gbACLs, gbParts), aclstate.ConfigHash(gb)) {
-		out.GlobalBlocking = proto.Clone(gb).(*vrxv1.GlobalBlocking)
+		out.GlobalBlocking = proto.Clone(gb).(*ngfwv1.GlobalBlocking)
 	} else {
 		out.GlobalBlocking = reconstructGlobalBlocking(gbACLs, gbParts)
 	}
@@ -824,11 +824,11 @@ func isDupName(name string) bool {
 	return false
 }
 
-func addressMatch(prefix string) *vrxv1.AddressMatch {
+func addressMatch(prefix string) *ngfwv1.AddressMatch {
 	if prefix == descacl.AnyV4 || prefix == descacl.AnyV6 {
-		return &vrxv1.AddressMatch{Kind: proto.String("any")}
+		return &ngfwv1.AddressMatch{Kind: proto.String("any")}
 	}
-	return &vrxv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String(prefix)}
+	return &ngfwv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String(prefix)}
 }
 
 func portRange(first, last uint16) []string {
@@ -841,11 +841,11 @@ func portRange(first, last uint16) []string {
 	return []string{fmt.Sprintf("%d-%d", first, last)}
 }
 
-func serviceMatch(r descacl.Rule) *vrxv1.ServiceMatch {
-	spec := &vrxv1.ServiceSpec{}
+func serviceMatch(r descacl.Rule) *ngfwv1.ServiceMatch {
+	spec := &ngfwv1.ServiceSpec{}
 	switch r.Proto {
 	case objects.ProtoAny:
-		return &vrxv1.ServiceMatch{Kind: proto.String("any")}
+		return &ngfwv1.ServiceMatch{Kind: proto.String("any")}
 	case objects.ProtoICMP, objects.ProtoICMP6:
 		spec.Protocol = proto.String("icmp")
 		if r.Proto == objects.ProtoICMP6 {
@@ -862,25 +862,25 @@ func serviceMatch(r descacl.Rule) *vrxv1.ServiceMatch {
 		spec.DestinationPorts = portRange(r.DstPortFirst, r.DstPortLast)
 		spec.SourcePorts = portRange(r.SrcPortFirst, r.SrcPortLast)
 		if r.TCPFlagsMask != 0 {
-			spec.TcpFlags = &vrxv1.TcpFlags{Mask: proto.Uint32(uint32(r.TCPFlagsMask)), Value: proto.Uint32(uint32(r.TCPFlagsValue))}
+			spec.TcpFlags = &ngfwv1.TcpFlags{Mask: proto.Uint32(uint32(r.TCPFlagsMask)), Value: proto.Uint32(uint32(r.TCPFlagsValue))}
 		}
 	default:
 		spec.Protocol = proto.String("other")
 		spec.Number = proto.Uint32(uint32(r.Proto))
 	}
-	return &vrxv1.ServiceMatch{Kind: proto.String("inline"), Spec: spec}
+	return &ngfwv1.ServiceMatch{Kind: proto.String("inline"), Spec: spec}
 }
 
 // reconstructList turns VPP rules into configuration rules (one each), for an ACL no recorded
 // projection explains.
-func reconstructList(a descacl.ACL) *vrxv1.AclList {
-	l := &vrxv1.AclList{}
+func reconstructList(a descacl.ACL) *ngfwv1.AclList {
+	l := &ngfwv1.AclList{}
 	for i, r := range a.Rules {
 		ver := "ipv4"
 		if p, err := netip.ParsePrefix(r.Src); err == nil && p.Addr().Is6() {
 			ver = "ipv6"
 		}
-		l.Rules = append(l.Rules, &vrxv1.AclRule{
+		l.Rules = append(l.Rules, &ngfwv1.AclRule{
 			Sequence: proto.Uint32(uint32(min(i+1, 214748364)) * 10), //nolint:gosec // bounded
 			Enabled:  proto.Bool(true), Action: proto.String(string(r.Action)), IpVersion: proto.String(ver),
 			Source: addressMatch(r.Src), Destination: addressMatch(r.Dst), Service: serviceMatch(r), Log: proto.Bool(false),
@@ -889,10 +889,10 @@ func reconstructList(a descacl.ACL) *vrxv1.AclList {
 	return l
 }
 
-func reconstructMacip(a descacl.MacipACL) *vrxv1.MacipList {
-	l := &vrxv1.MacipList{}
+func reconstructMacip(a descacl.MacipACL) *ngfwv1.MacipList {
+	l := &ngfwv1.MacipList{}
 	for i, r := range a.Rules {
-		mr := &vrxv1.MacipRule{
+		mr := &ngfwv1.MacipRule{
 			Sequence: proto.Uint32(uint32(min(i+1, 214748364)) * 10), //nolint:gosec // bounded
 			Action:   proto.String(string(r.Action)), SourceMac: proto.String(r.SrcMac), SourceMacMask: proto.String(r.SrcMacMask),
 		}
@@ -904,27 +904,27 @@ func reconstructMacip(a descacl.MacipACL) *vrxv1.MacipList {
 	return l
 }
 
-func reconstructAttachments(binds []descacl.InterfaceBinding, macips []descacl.MacipBinding) ([]*vrxv1.AclAttachment, []*vrxv1.MacipAttachment) {
+func reconstructAttachments(binds []descacl.InterfaceBinding, macips []descacl.MacipBinding) ([]*ngfwv1.AclAttachment, []*ngfwv1.MacipAttachment) {
 	sort.Slice(binds, func(i, j int) bool { return binds[i].Interface < binds[j].Interface })
-	var out []*vrxv1.AclAttachment
+	var out []*ngfwv1.AclAttachment
 	for _, b := range binds {
 		for _, d := range []struct {
 			dir   string
 			lists []string
 		}{{"in", b.Input}, {"out", b.Output}} {
 			for i, name := range d.lists {
-				out = append(out, &vrxv1.AclAttachment{
+				out = append(out, &ngfwv1.AclAttachment{
 					List:      proto.String(name),
-					Target:    &vrxv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String(b.Interface)},
+					Target:    &ngfwv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String(b.Interface)},
 					Direction: proto.String(d.dir), Sequence: proto.Uint32(uint32(i+1) * 10), Enabled: proto.Bool(true), //nolint:gosec // ≤ 255 entries
 				})
 			}
 		}
 	}
 	sort.Slice(macips, func(i, j int) bool { return macips[i].Interface < macips[j].Interface })
-	var mout []*vrxv1.MacipAttachment
+	var mout []*ngfwv1.MacipAttachment
 	for _, m := range macips {
-		mout = append(mout, &vrxv1.MacipAttachment{List: proto.String(m.ACL), Interface: proto.String(m.Interface), Enabled: proto.Bool(true)})
+		mout = append(mout, &ngfwv1.MacipAttachment{List: proto.String(m.ACL), Interface: proto.String(m.Interface), Enabled: proto.Bool(true)})
 	}
 	return out, mout
 }

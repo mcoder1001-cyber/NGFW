@@ -81,7 +81,7 @@ describe('F-aaa-login web', () => {
     api.on('POST /api/v1/auth/refresh', { status: 401, body: { detail: 'no refresh token' } });
     api.on('GET /api/v1/auth/methods', { body: { oidc: false } });
     api.on('POST /api/v1/auth/login', { body: { mfaRequired: true, challenge: CH, enrolled: false, expiresIn: 300 } });
-    api.on('POST /api/v1/auth/mfa/enroll', { body: { secret: 'JBSWY3DPEHPK3PXP', otpauthUri: 'otpauth://totp/vrx:admin' } });
+    api.on('POST /api/v1/auth/mfa/enroll', { body: { secret: 'JBSWY3DPEHPK3PXP', otpauthUri: 'otpauth://totp/ngfw:admin' } });
     render(app('/login'));
     fireEvent.change(await screen.findByLabelText(/user name|username/i, {}, { timeout: 15_000 }), { target: { value: 'admin' } });
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pw' } });

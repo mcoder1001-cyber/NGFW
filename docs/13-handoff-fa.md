@@ -25,7 +25,7 @@ cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude
 - `docs/12-execution-stages.md` — نمودار مراحل و گیت‌ها
 - `prompts/` — پرامت ۱۴ کار اصلی + قالب قابلیت، کارخانهٔ descriptor، کارخانهٔ renderer، بازبین، یکپارچه‌ساز، **مدیر**
 - `docs/decisions/` — قاعدهٔ تصمیم‌گیری، لاگ تصمیم‌ها (۱۱ مورد تا الان)، VDOM موکول، OS تصمیم‌شده
-- `docs/lab/host-vrx-a.md` — واقعیت VPP روی این سرور (تأییدشده)
+- `docs/lab/host-ngfw-a.md` — واقعیت VPP روی این سرور (تأییدشده)
 
 ## قاعدهٔ تصمیم‌گیری (همان که گفتید)
 ایجنت‌ها تصمیم می‌گیرند و کار جلو می‌رود؛ هر تصمیم یک خط در `docs/decisions/LOG.md`. فقط اگر
@@ -50,7 +50,7 @@ cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude
 
 ## دو چیز که فقط شما می‌توانید بدهید (کار را متوقف نمی‌کند، ولی مسیر DPDK و FRR را باز می‌کند)
 1. **کارت شبکهٔ دیتاپلین برای همین VM**: ۲ تا ۳ vmxnet3 روی port group های جدا. تا آن موقع تست‌ها روی `af_packet`/veth انجام می‌شود (تصمیم D-010).
-2. **پرچم تحویل VPP**: وقتی راه‌اندازی VPP تمام شد، در `docs/lab/host-vrx-a.md` مقدار `handover: pending` را به `done` تغییر دهید (یا در چت بگویید). P12 (FRR/linux-cp) و NPTv6 به فعال‌شدن پلاگین در `startup.conf` نیاز دارند و تا آن موقع `parked` هستند.
+2. **پرچم تحویل VPP**: وقتی راه‌اندازی VPP تمام شد، در `docs/lab/host-ngfw-a.md` مقدار `handover: pending` را به `done` تغییر دهید (یا در چت بگویید). P12 (FRR/linux-cp) و NPTv6 به فعال‌شدن پلاگین در `startup.conf` نیاز دارند و تا آن موقع `parked` هستند.
 
 ## VDOM
 موکول شد (تصمیم D-003). پنج ریل در `docs/decisions/vdom.md` نوشته شده که بعداً اضافه‌کردنش را ~۱.۵× نگه می‌دارد، نه ۳×.

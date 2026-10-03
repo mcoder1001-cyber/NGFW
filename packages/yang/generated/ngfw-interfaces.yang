@@ -1,0 +1,743 @@
+module ngfw-interfaces {
+  yang-version 1.1;
+  namespace "urn:ngfw:interfaces";
+  prefix ngfw-interfaces;
+
+  organization "NGFW";
+  contact "https://ngfw.dev";
+  description "Configuration of the 'interfaces' domain, generated from the NGFW Zod schema (F-restconf-yang).";
+
+  revision 2026-01-01 {
+    description "Generated from the NGFW schema.";
+  }
+
+  list interfaces {
+    key "name";
+    leaf name {
+      type string;
+      description "The map key.";
+    }
+    description "Physical, virtual and sub-interfaces keyed by engine interface name.";
+    leaf enabled {
+      type boolean;
+      default "false";
+      description "admin state; interfaces stay down until enabled";
+    }
+    leaf description {
+      type string {
+        // pattern dropped: not XSD-expressible
+        length "0..255";
+      }
+    }
+    leaf mtu {
+      type uint32 {
+        range "68..9216";
+      }
+      description "L3 MTU in bytes (68–9216); absent = keep the driver default";
+    }
+    leaf-list ipv4 {
+      type string {
+        pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+      }
+      description "addresses with prefix length, e.g. 10.0.0.1/24";
+    }
+    leaf-list ipv6 {
+      type string {
+        pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+      }
+      description "addresses with prefix length, e.g. 2001:db8::1/64";
+    }
+    leaf vrf {
+      type string {
+        pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+        length "1..63";
+      }
+      default "default";
+      description "routing table this interface belongs to";
+    }
+    leaf unnumbered {
+      type string {
+        pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+        length "1..63";
+      }
+      description "borrow the addresses of this interface (e.g. loop0); ipv4/ipv6 must then be empty";
+    }
+    container dhcpClient {
+      description "obtain an IPv4 address by DHCP; cannot be combined with unnumbered";
+      leaf hostname {
+        type string {
+          pattern "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+          length "1..253";
+        }
+        description "sent in option 12; absent = the system hostname";
+      }
+      leaf clientId {
+        type string {
+          pattern "[\\x21-\\x7e]+";
+          length "1..64";
+        }
+        description "option 61; absent = the interface MAC address";
+      }
+      leaf setBroadcastFlag {
+        type boolean;
+        default "false";
+        description "ask the server to broadcast its replies";
+      }
+    }
+    leaf mac {
+      type string {
+        pattern "[0-9a-fA-F]{2}([:-])([0-9a-fA-F]{2}\\1){4}[0-9a-fA-F]{2}";
+      }
+      description "override the hardware address; absent = keep the burned-in MAC";
+    }
+    leaf promiscuous {
+      type boolean;
+      default "false";
+      description "accept frames for any destination MAC";
+    }
+    leaf rxMode {
+      type enumeration {
+        enum "polling";
+        enum "interrupt";
+        enum "adaptive";
+      }
+      description "polling (default for DPDK), interrupt or adaptive";
+    }
+    list subinterfaces {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      description "802.1Q / QinQ sub-interfaces keyed by sub-interface id (usually the VLAN id)";
+      leaf vlanId {
+        type uint32 {
+          range "1..4094";
+        }
+        mandatory true;
+        description "outer 802.1Q (or 802.1ad) tag";
+      }
+      leaf innerVlanId {
+        type uint32 {
+          range "1..4094";
+        }
+        description "inner tag for QinQ (two-tag) sub-interfaces";
+      }
+      leaf dot1ad {
+        type boolean;
+        default "false";
+        description "use an 802.1ad (0x88a8) outer tag instead of 802.1Q (0x8100)";
+      }
+      leaf enabled {
+        type boolean;
+        default "false";
+        description "admin state; interfaces stay down until enabled";
+      }
+      leaf description {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..255";
+        }
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
+        description "L3 MTU in bytes (68–9216); absent = keep the driver default";
+      }
+      leaf-list ipv4 {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+        }
+        description "addresses with prefix length, e.g. 10.0.0.1/24";
+      }
+      leaf-list ipv6 {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+        }
+        description "addresses with prefix length, e.g. 2001:db8::1/64";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "routing table this interface belongs to";
+      }
+      leaf unnumbered {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "borrow the addresses of this interface (e.g. loop0); ipv4/ipv6 must then be empty";
+      }
+      container dhcpClient {
+        description "obtain an IPv4 address by DHCP; cannot be combined with unnumbered";
+        leaf hostname {
+          type string {
+            pattern "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+            length "1..253";
+          }
+          description "sent in option 12; absent = the system hostname";
+        }
+        leaf clientId {
+          type string {
+            pattern "[\\x21-\\x7e]+";
+            length "1..64";
+          }
+          description "option 61; absent = the interface MAC address";
+        }
+        leaf setBroadcastFlag {
+          type boolean;
+          default "false";
+          description "ask the server to broadcast its replies";
+        }
+      }
+      container l2 {
+        description "bridge-domain membership and VLAN tag rewrite of this sub-interface";
+        leaf bridgeDomain {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..32";
+          }
+          description "name of the bridge domain (routing.l2.bridgeDomains) this interface is a member of; absent = not bridged";
+        }
+        leaf shg {
+          type uint32 {
+            range "0..255";
+          }
+          default "0";
+          description "0 = none; members of the same group never forward to each other";
+        }
+        leaf bvi {
+          type boolean;
+          default "false";
+          description "bridge virtual interface: the routed (L3) port of the bridge domain; a loopback, one per domain";
+        }
+        leaf uuFwd {
+          type boolean;
+          default "false";
+          description "send unknown-unicast frames to this member only (uu-fwd port)";
+        }
+        container tagRewrite {
+          description "on a bridge member or an L2 cross-connect rx";
+          leaf op {
+            type enumeration {
+              enum "push-1";
+              enum "push-2";
+              enum "pop-1";
+              enum "pop-2";
+              enum "translate-1-1";
+              enum "translate-1-2";
+              enum "translate-2-1";
+              enum "translate-2-2";
+            }
+            mandatory true;
+            description "push-1/2 add tags, pop-1/2 remove tags, translate-N-M replace N tags by M tags";
+          }
+          leaf tag1 {
+            type uint32 {
+              range "1..4094";
+            }
+            description "outer VLAN id written by push / translate";
+          }
+          leaf tag2 {
+            type uint32 {
+              range "1..4094";
+            }
+            description "inner VLAN id written by push-2 / translate-1-2 / translate-2-2";
+          }
+          leaf dot1ad {
+            type boolean;
+            default "false";
+            description "pushed outer tag uses 0x88a8 instead of 0x8100 (push and translate only)";
+          }
+        }
+        leaf macFilter {
+          type boolean;
+          default "false";
+          description "run the mactime filter (routing.l2.macFilters) on frames received here; parent interfaces only";
+        }
+      }
+      container ipv6Ra {
+        description "absent = engine defaults (RAs suppressed); the interface needs an IPv6 address";
+        leaf suppress {
+          type boolean;
+          default "true";
+          description "untick to send RAs on this interface (the engine suppresses them by default)";
+        }
+        leaf managed {
+          type boolean;
+          default "false";
+          description "hosts obtain addresses by DHCPv6";
+        }
+        leaf other {
+          type boolean;
+          default "false";
+          description "hosts obtain other settings (DNS …) by DHCPv6";
+        }
+        leaf lifetimeSec {
+          type uint32 {
+            range "0..9000";
+          }
+          default "600";
+          description "0 = not a default router; otherwise greater than the maximum interval, at most 9000";
+        }
+        leaf maxIntervalSec {
+          type uint32 {
+            range "4..1800";
+          }
+          default "200";
+          description "between unsolicited RAs, 4–1800";
+        }
+        leaf minIntervalSec {
+          type uint32 {
+            range "3..1800";
+          }
+          default "150";
+          description "at least 3 and at most 0.75 × the maximum interval";
+        }
+        list prefixes {
+          key "name";
+          leaf name {
+            type string;
+            description "The map key.";
+          }
+          description "prefix-information options keyed by prefix, e.g. 2001:db8:1::/64 (SLAAC needs a /64)";
+          leaf validSec {
+            type uint32 {
+              range "1..4294967295";
+            }
+            default "2592000";
+            description "valid lifetime advertised for the prefix, at least 1; 4294967295 = infinite";
+          }
+          leaf preferredSec {
+            type uint32 {
+              range "1..4294967295";
+            }
+            default "604800";
+            description "preferred lifetime, at least 1; must not exceed the valid lifetime";
+          }
+          leaf offLink {
+            type boolean;
+            default "false";
+            description "clear the on-link (L) flag";
+          }
+          leaf noAutoconfig {
+            type boolean;
+            default "false";
+            description "clear the autonomous (A) flag: hosts do not form SLAAC addresses from this prefix";
+          }
+        }
+      }
+      leaf proxyArp {
+        type boolean;
+        description "answer ARP for the proxy-ARP ranges of this interface’s VRF; absent = off";
+      }
+      leaf-list proxyNd {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+        }
+        description "experimental and off by default: applied only by an agent started with NGFW_DF2_PROXY_ND=1 (V12)";
+      }
+    }
+    container bond {
+      description "make this interface (BondEthernet<id>) a link aggregation of the member interfaces";
+      leaf mode {
+        type enumeration {
+          enum "lacp";
+          enum "xor";
+          enum "round-robin";
+          enum "active-backup";
+        }
+        mandatory true;
+        description "lacp (802.3ad), xor, round-robin or active-backup; changing it re-creates the bond";
+      }
+      leaf loadBalance {
+        type enumeration {
+          enum "l2";
+          enum "l23";
+          enum "l34";
+        }
+        description "xor and lacp only: transmit hash over l2 (MAC), l23 (MAC+IP) or l34 (IP+port); absent = l2";
+      }
+      list members {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        description "member interfaces keyed by name; each needs its own entry in interfaces (enabled, no addresses)";
+        leaf passive {
+          type boolean;
+          default "false";
+          description "LACP only: do not initiate LACP; the partner must be active";
+        }
+        leaf longTimeout {
+          type boolean;
+          default "false";
+          description "LACP only: 90 s partner timeout (slow LACPDUs) instead of 3 s";
+        }
+        leaf weight {
+          type uint32 {
+            range "1..255";
+          }
+          description "active-backup only: the up member with the highest weight is the active one (1–255); absent = engine default";
+        }
+      }
+      leaf numaOnly {
+        type boolean;
+        default "false";
+        description "transmit only on members attached to the bond’s NUMA node";
+      }
+      leaf id {
+        type uint32 {
+          range "0..4294967294";
+        }
+        description "Engine bond id; absent = the number in the interface name (BondEthernet<id>)";
+      }
+    }
+    container l2 {
+      description "bridge-domain membership, VLAN tag rewrite and MAC filter of this interface";
+      leaf bridgeDomain {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..32";
+        }
+        description "name of the bridge domain (routing.l2.bridgeDomains) this interface is a member of; absent = not bridged";
+      }
+      leaf shg {
+        type uint32 {
+          range "0..255";
+        }
+        default "0";
+        description "0 = none; members of the same group never forward to each other";
+      }
+      leaf bvi {
+        type boolean;
+        default "false";
+        description "bridge virtual interface: the routed (L3) port of the bridge domain; a loopback, one per domain";
+      }
+      leaf uuFwd {
+        type boolean;
+        default "false";
+        description "send unknown-unicast frames to this member only (uu-fwd port)";
+      }
+      container tagRewrite {
+        description "on a bridge member or an L2 cross-connect rx";
+        leaf op {
+          type enumeration {
+            enum "push-1";
+            enum "push-2";
+            enum "pop-1";
+            enum "pop-2";
+            enum "translate-1-1";
+            enum "translate-1-2";
+            enum "translate-2-1";
+            enum "translate-2-2";
+          }
+          mandatory true;
+          description "push-1/2 add tags, pop-1/2 remove tags, translate-N-M replace N tags by M tags";
+        }
+        leaf tag1 {
+          type uint32 {
+            range "1..4094";
+          }
+          description "outer VLAN id written by push / translate";
+        }
+        leaf tag2 {
+          type uint32 {
+            range "1..4094";
+          }
+          description "inner VLAN id written by push-2 / translate-1-2 / translate-2-2";
+        }
+        leaf dot1ad {
+          type boolean;
+          default "false";
+          description "pushed outer tag uses 0x88a8 instead of 0x8100 (push and translate only)";
+        }
+      }
+      leaf macFilter {
+        type boolean;
+        default "false";
+        description "run the mactime filter (routing.l2.macFilters) on frames received here; parent interfaces only";
+      }
+    }
+    leaf gso {
+      type boolean;
+      description "software generic segmentation offload on output (engine gso feature); absent = off";
+    }
+    list mirror {
+      // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+      ordered-by user;
+      description "mirror sessions with this interface as the source (SPAN; ERSPAN through a GRE erspan tunnel)";
+      leaf destination {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        mandatory true;
+        description "interface that transmits the copies — a monitor port, or a GRE tunnel of type erspan for ERSPAN";
+      }
+      leaf direction {
+        type enumeration {
+          enum "rx";
+          enum "tx";
+          enum "both";
+        }
+        default "both";
+        description "received (rx), transmitted (tx) or both";
+      }
+      leaf level {
+        type enumeration {
+          enum "device";
+          enum "l2";
+        }
+        default "device";
+        description "device: every frame of the interface; l2: only frames in the L2 path (bridge member or cross-connect)";
+      }
+    }
+    container ipv6Ra {
+      description "absent = engine defaults (RAs suppressed); the interface needs an IPv6 address";
+      leaf suppress {
+        type boolean;
+        default "true";
+        description "untick to send RAs on this interface (the engine suppresses them by default)";
+      }
+      leaf managed {
+        type boolean;
+        default "false";
+        description "hosts obtain addresses by DHCPv6";
+      }
+      leaf other {
+        type boolean;
+        default "false";
+        description "hosts obtain other settings (DNS …) by DHCPv6";
+      }
+      leaf lifetimeSec {
+        type uint32 {
+          range "0..9000";
+        }
+        default "600";
+        description "0 = not a default router; otherwise greater than the maximum interval, at most 9000";
+      }
+      leaf maxIntervalSec {
+        type uint32 {
+          range "4..1800";
+        }
+        default "200";
+        description "between unsolicited RAs, 4–1800";
+      }
+      leaf minIntervalSec {
+        type uint32 {
+          range "3..1800";
+        }
+        default "150";
+        description "at least 3 and at most 0.75 × the maximum interval";
+      }
+      list prefixes {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        description "prefix-information options keyed by prefix, e.g. 2001:db8:1::/64 (SLAAC needs a /64)";
+        leaf validSec {
+          type uint32 {
+            range "1..4294967295";
+          }
+          default "2592000";
+          description "valid lifetime advertised for the prefix, at least 1; 4294967295 = infinite";
+        }
+        leaf preferredSec {
+          type uint32 {
+            range "1..4294967295";
+          }
+          default "604800";
+          description "preferred lifetime, at least 1; must not exceed the valid lifetime";
+        }
+        leaf offLink {
+          type boolean;
+          default "false";
+          description "clear the on-link (L) flag";
+        }
+        leaf noAutoconfig {
+          type boolean;
+          default "false";
+          description "clear the autonomous (A) flag: hosts do not form SLAAC addresses from this prefix";
+        }
+      }
+    }
+    leaf proxyArp {
+      type boolean;
+      description "answer ARP for the proxy-ARP ranges of this interface’s VRF; absent = off";
+    }
+    leaf-list proxyNd {
+      type string {
+        pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+      }
+      description "experimental and off by default: applied only by an agent started with NGFW_DF2_PROXY_ND=1 (V12)";
+    }
+    container urpf {
+      description "reverse-path check of the source address; absent = off";
+      leaf ipv4 {
+        type enumeration {
+          enum "loose";
+          enum "strict";
+        }
+        description "loose: the source must be routable; strict: routable through this interface; absent = no check";
+      }
+      leaf ipv6 {
+        type enumeration {
+          enum "loose";
+          enum "strict";
+        }
+        description "loose: the source must be routable; strict: routable through this interface; absent = no check";
+      }
+      leaf direction {
+        type enumeration {
+          enum "rx";
+          enum "tx";
+        }
+        default "rx";
+        description "rx checks packets received on the interface, tx packets sent out of it";
+      }
+    }
+    container adl {
+      description "source allow-list on the device input path (physical ports); off unless ipv4 or ipv6 is checked";
+      leaf ipv4 {
+        type boolean;
+        default "false";
+        description "drop IPv4 packets whose source is not in the allow-list VRF";
+      }
+      leaf ipv6 {
+        type boolean;
+        default "false";
+        description "drop IPv6 packets whose source is not in the allow-list VRF";
+      }
+      leaf allowVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        description "VRF whose table holds the allowed source prefixes as local (receive) entries; required when a family is checked";
+      }
+      leaf defaultAllow {
+        type boolean;
+        default "true";
+        description "ARP and other non-IP frames are not checked (the engine cannot filter them)";
+      }
+    }
+    container lcp {
+      description "mirror the interface into Linux so FRR can run routing protocols on it";
+      leaf hostIfName {
+        type string {
+          pattern "[A-Za-z0-9_.-]+";
+          length "1..15";
+        }
+        description "name of the host tap; default: the engine name when it is a valid Linux name (max 15 characters)";
+      }
+      leaf hostIfType {
+        type enumeration {
+          enum "tap";
+          enum "tun";
+        }
+        default "tap";
+        description "tap (Ethernet, default) or tun (L3 only, point-to-point links)";
+      }
+      leaf netns {
+        type string {
+          pattern "[A-Za-z0-9_.-]+";
+          length "1..31";
+        }
+        description "namespace of the host tap; default: the linux-cp default namespace (where FRR runs)";
+      }
+    }
+    container pppoe {
+      description "dial an ISP over PPPoE and use the assigned address on this interface; absent = off";
+      leaf enabled {
+        type boolean;
+        default "true";
+        description "dial the session; disable to keep the settings but stay offline";
+      }
+      leaf parent {
+        type string {
+          length "1..63";
+        }
+        description "engine interface the session runs over; default = this interface (set for a VLAN sub-interface WAN)";
+      }
+      leaf username {
+        type string {
+          pattern "[\\x21-\\x7e]+";
+          length "1..255";
+        }
+        mandatory true;
+        description "PPP username (PAP/CHAP) from the ISP";
+      }
+      leaf passwordRef {
+        type string {
+          pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+          length "0..127";
+        }
+        mandatory true;
+        description "reference to a stored password secret (password/<name>); never the password itself";
+      }
+      leaf serviceName {
+        type string {
+          pattern "[\\x20-\\x7e]+";
+          length "1..255";
+        }
+        description "RFC 2516 Service-Name to request; leave empty to accept any AC";
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
+        default "1492";
+        description "PPPoE payload MTU; 1492 is the Ethernet default (1500 − 8 for the PPPoE/PPP headers)";
+      }
+      leaf mssClamp {
+        type boolean;
+        default "true";
+        description "rewrite the TCP MSS of forwarded SYNs to fit the PPPoE MTU (avoids black-holed large packets)";
+      }
+      leaf defaultRoute {
+        type boolean;
+        default "true";
+        description "install a default route via the session (the ISP is the gateway)";
+      }
+      leaf dnsFromPeer {
+        type boolean;
+        default "false";
+        description "use the DNS servers the ISP sends (IPCP) as the system resolvers";
+      }
+      leaf ipv6 {
+        type enumeration {
+          enum "off";
+          enum "slaac";
+          enum "dhcpv6";
+        }
+        default "off";
+        description "off; slaac (accept a /64 via RA over the link); dhcpv6 (request a prefix via DHCPv6-PD)";
+      }
+      container reconnect {
+        description "what to do when the session drops";
+        leaf holdoffSec {
+          type uint32 {
+            range "0..3600";
+          }
+          default "5";
+          description "wait this long before redialling after the session goes down";
+        }
+        leaf maxFail {
+          type uint32 {
+            range "0..1000";
+          }
+          default "0";
+          description "give up after this many failed dials in a row; 0 = keep trying forever";
+        }
+      }
+    }
+  }
+}

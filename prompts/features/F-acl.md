@@ -23,7 +23,7 @@ counters and a rule editor that stays usable at 100 000 rules. Reference: TNSR "
 - **P08** (vertical slice) — the patterns you extend, do not rebuild: builders in `apps/agent/internal/desired/` (`Sink`,
   `interface/<name>` alias references), registration + `Domains` in `apps/agent/internal/subsystems/subsystems.go`
   (`Wiring.KeyedClaims("acl")` = the persisted claim store for `acl.WithEtypeClaims`; `Env.GlobalsOwner` = the D-071 flag,
-  `VRX_GLOBALS_OWNER=0` on slots), the hook in `apps/agent/internal/agent/projection.go`, and the read-only state RPC pattern
+  `NGFW_GLOBALS_OWNER=0` on slots), the hook in `apps/agent/internal/agent/projection.go`, and the read-only state RPC pattern
   (`InterfaceState`: `agent/ifstate.go` + `apps/api/src/state/state.controller.ts`). Read `docs/status/vertical-slice.md`.
 - **Restart-safety trap:** the agent persists only *implemented* domains (`agent/state.go` `mergeDomains`, `service.go` `Resync`).
   Your projection reads `objects` (groups, zones, schedules). Check that F-object-model registered `objects` in `subsystems.Domains`

@@ -35,7 +35,7 @@ Dependencies: route → `mpls-table/<table>` + next-hop `interface/<if>` (option
 VPP creates no MPLS table by default. Enabling MPLS on an interface requires table 0 and locks it; a label binding
 creates/locks it. Table 0 is therefore VPP-global: the product's globals owner declares `mpls-table/0`; on the
 shared host (no table 0) the host test shows `mpls-interface` Create → `NO_SUCH_FIB` and runs the enable and the
-binding only with `VRX_DF7_GLOBALS=1`.
+binding only with `NGFW_DF7_GLOBALS=1`.
 
 ## FIB entries
 

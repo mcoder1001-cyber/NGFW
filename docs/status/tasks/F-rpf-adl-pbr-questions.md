@@ -84,7 +84,7 @@ would make the merge unnecessary.
   belongs to a sibling group"), so the valid document went to `packages/proto/test/fixtures/rpf-adl-pbr-full.json` and the
   schema cases into `semantic/rpf-adl-pbr.test.ts`. Adding `rpf-adl-pbr` to that test's SIBLING regex would allow them.
 - Sub-interfaces: urpf/adl are not mirrored on `Subinterface` (16–17 unused); ADL cannot work on sub-interfaces anyway.
-- Auto-SDL host test runs only in a manager window with the session layer's SDL backend (`VRX_AUTOSDL_GLOBALS=1`).
+- Auto-SDL host test runs only in a manager window with the session layer's SDL backend (`NGFW_AUTOSDL_GLOBALS=1`).
 
 ## Fix round 1 (review 9da6a2f) — status of the items above
 - Q2: kept (review: sound). The harness no longer registers `acl.acl` when the name is taken, the product skips the bridge

@@ -20,7 +20,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/vpe"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -74,8 +74,8 @@ func (r *statsReader) close() {
 }
 
 // statsBatch builds one StatsBatch from a snapshot, filtered and sorted by name.
-func statsBatch(snap []api.InterfaceCounters, want map[string]bool, seq uint64, interval uint32, ts time.Time) *vrxv1.StatsBatch {
-	b := &vrxv1.StatsBatch{Ts: timestamppb.New(ts), Seq: seq, IntervalMs: interval}
+func statsBatch(snap []api.InterfaceCounters, want map[string]bool, seq uint64, interval uint32, ts time.Time) *ngfwv1.StatsBatch {
+	b := &ngfwv1.StatsBatch{Ts: timestamppb.New(ts), Seq: seq, IntervalMs: interval}
 	for _, c := range snap {
 		name := c.InterfaceName
 		if name == "" {
@@ -84,7 +84,7 @@ func statsBatch(snap []api.InterfaceCounters, want map[string]bool, seq uint64, 
 		if len(want) > 0 && !want[name] {
 			continue
 		}
-		b.InterfaceCounters = append(b.InterfaceCounters, &vrxv1.InterfaceCounters{
+		b.InterfaceCounters = append(b.InterfaceCounters, &ngfwv1.InterfaceCounters{
 			Name: name, SwIfIndex: c.InterfaceIndex,
 			RxPackets: c.Rx.Packets, RxBytes: c.Rx.Bytes, TxPackets: c.Tx.Packets, TxBytes: c.Tx.Bytes,
 			Drops: c.Drops, Errors: c.RxErrors + c.TxErrors, Punts: c.Punts, RxMisses: c.RxNoBuf + c.RxMiss,
@@ -96,7 +96,7 @@ func statsBatch(snap []api.InterfaceCounters, want map[string]bool, seq uint64, 
 
 // streamStats runs one StreamStats subscription: a sampler at the requested interval feeding a
 // small drop-oldest buffer, drained by send (the gRPC stream). Returns when ctx ends or send fails.
-func streamStats(ctx context.Context, src statsSource, req *vrxv1.StreamStatsRequest, send func(*vrxv1.StatsBatch) error, log *slog.Logger) error {
+func streamStats(ctx context.Context, src statsSource, req *ngfwv1.StreamStatsRequest, send func(*ngfwv1.StatsBatch) error, log *slog.Logger) error {
 	interval := req.GetIntervalMs()
 	if interval == 0 {
 		interval = 1000
@@ -106,7 +106,7 @@ func streamStats(ctx context.Context, src statsSource, req *vrxv1.StreamStatsReq
 		want[n] = true
 	}
 	const depth = 4
-	buf := make(chan *vrxv1.StatsBatch, depth)
+	buf := make(chan *ngfwv1.StatsBatch, depth)
 	go func() {
 		defer close(buf)
 		t := time.NewTicker(time.Duration(interval) * time.Millisecond)
@@ -203,9 +203,9 @@ func watchLinks(ctx context.Context, c vpp.Client, b *bus, log *slog.Logger) err
 			}
 			idx := uint32(ev.SwIfIndex)
 			name := lookup(idx)
-			kind := vrxv1.EventKind_EVENT_KIND_LINK_DOWN
+			kind := ngfwv1.EventKind_EVENT_KIND_LINK_DOWN
 			if ev.Flags&interface_types.IF_STATUS_API_FLAG_LINK_UP != 0 {
-				kind = vrxv1.EventKind_EVENT_KIND_LINK_UP
+				kind = ngfwv1.EventKind_EVENT_KIND_LINK_UP
 			}
 			admin := "down"
 			if ev.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0 {
@@ -214,11 +214,11 @@ func watchLinks(ctx context.Context, c vpp.Client, b *bus, log *slog.Logger) err
 			attrs := map[string]string{"sw_if_index": strconv.FormatUint(uint64(idx), 10), "admin": admin}
 			if ev.Deleted {
 				attrs["deleted"] = "true"
-				kind = vrxv1.EventKind_EVENT_KIND_LINK_DOWN
+				kind = ngfwv1.EventKind_EVENT_KIND_LINK_DOWN
 				delete(names, idx)
 			}
 			n := name
-			b.publish(&vrxv1.Event{Kind: kind, Interface: &n, Attributes: attrs, Message: fmt.Sprintf("%s link %s admin %s", name, map[bool]string{true: "up", false: "down"}[kind == vrxv1.EventKind_EVENT_KIND_LINK_UP], admin)})
+			b.publish(&ngfwv1.Event{Kind: kind, Interface: &n, Attributes: attrs, Message: fmt.Sprintf("%s link %s admin %s", name, map[bool]string{true: "up", false: "down"}[kind == ngfwv1.EventKind_EVENT_KIND_LINK_UP], admin)})
 		}
 	}
 }

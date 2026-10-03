@@ -49,10 +49,10 @@ update not recreate, `ErrRecreate` on identity change, delete, Retrieve decoding
 lists, VPP retval / `ErrDisconnected` / wrong-meta errors, in-use deletes; stats-enable with both reply types VPP can
 send; stats reader (worker summation, spare-slot truncation, zero-fill, missing vector); `Register` order and routing.
 
-### Integration on the host VPP (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10`, shared lock, tagged loopbacks loop1040/1041)
+### Integration on the host VPP (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w10`, shared lock, tagged loopbacks loop1040/1041)
 
 ```
-$ VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10 VRX_ACL_STATS_RESTORE_DISABLED=1 VRX_ACL_EVIDENCE_HOLD=1200ms \
+$ NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w10 NGFW_ACL_STATS_RESTORE_DISABLED=1 NGFW_ACL_EVIDENCE_HOLD=1200ms \
     go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/
 === RUN   TestACLPluginOnHost
     integration_test.go:171: host: acl plugin v1.4, conn table max 500000 entries
@@ -92,7 +92,7 @@ $ VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10 VRX_ACL_STATS_RESTORE_DISABLED=1 VRX_ACL
     integration_test.go:384: after delete: Retrieve shows nothing of ours for acl, macip-acl, interface-binding, macip-interface-binding, etype-whitelist
 === RUN   TestACLPluginOnHost/macip-del-unbinds
     integration_test.go:400/401: acl.macip-interface-binding / acl.macip-acl: Retrieve == desired for 0 object(s)
-    integration_test.go:187: restored acl stats counters flag to disabled (VRX_ACL_STATS_RESTORE_DISABLED=1)
+    integration_test.go:187: restored acl stats counters flag to disabled (NGFW_ACL_STATS_RESTORE_DISABLED=1)
 --- PASS: TestACLPluginOnHost (2.79s)
     --- PASS: TestACLPluginOnHost/acl (0.02s)
     --- PASS: TestACLPluginOnHost/acl-50-rules (0.04s)
@@ -176,12 +176,12 @@ CI GATE PASSED
 |---|---|---|---|
 | D-DF4-1 | Desired-state values are `*structpb.Struct` built from typed Go specs (`spec.go`) | (a) private `.proto` + protoc in the package (b) structpb + typed specs, as the P05a example (c) wait for P03 | (c) stalls; (a) duplicates a contract P03 owns; (b) is one-file-swappable |
 | D-DF4-2 | **Key spelling**: descriptor names `acl.acl`, `acl.macip-acl`, `acl.interface-binding`, `acl.etype-whitelist`, `acl.macip-interface-binding`, `acl.stats-enable` → keys `acl.acl/<name>`, `acl.macip-acl/<name>`, …, `acl.stats-enable/global`; helpers `acl.KeyACL`/`KeyMacipACL`/…; DF-2 uses `acl.KeyACL` + `acl.LookupIndex`, never a literal | (a) `acl/<name>` literal from DF-4.md (b) README `<plugin>.<object>` = `acl.acl/<name>` | (b): the frozen scheduler contract routes a key by its first segment = descriptor name, and the README names the descriptor `acl.acl`; (a) would need a descriptor called `acl` for ACLs only |
-| D-DF4-3 | **Tag spelling**: VPP `tag` = `<owner>:<name>` via `vpp.OwnerTag` (owner = `VRX_OWNER`, tests `VRX_TEST_PREFIX`, e.g. `w10:t-lan-in`); duplicates reported as `<name>#<index>` (D-DF4-12) | (a) `w<N>-<name>` (DF-4.md / shared-host-rules wording) (b) the shared `vpp.OwnerTag` helper | (b): one ownership mechanism for interfaces and ACLs (D-030); `ParseOwnerTag` is unambiguous (`:` is not allowed in owners), `-` would be ambiguous with names containing `-` |
+| D-DF4-3 | **Tag spelling**: VPP `tag` = `<owner>:<name>` via `vpp.OwnerTag` (owner = `NGFW_OWNER`, tests `NGFW_TEST_PREFIX`, e.g. `w10:t-lan-in`); duplicates reported as `<name>#<index>` (D-DF4-12) | (a) `w<N>-<name>` (DF-4.md / shared-host-rules wording) (b) the shared `vpp.OwnerTag` helper | (b): one ownership mechanism for interfaces and ACLs (D-030); `ParseOwnerTag` is unambiguous (`:` is not allowed in owners), `-` would be ambiguous with names containing `-` |
 | D-DF4-4 | Interface dependency Optional with pluggable key (`WithInterfaceKey`, default `interface/<name>`); ACL deps mandatory | (a) hard-code `interface.loopback/<name>` mandatory (b) optional + pluggable | DF-1 not merged; a wrong mandatory key would fail every transaction with bindings |
 | D-DF4-5 | *(revised in the review round)* Binding ownership = our entries in the interface list; other owners' entries are preserved (kept first per direction); MACIP binding refuses an interface with a foreign MACIP ACL; whitelist ownership = interface tagged ours **or** untagged + claimed in a `ClaimStore` (in-memory default, `WithEtypeClaims` for a persisted one); foreign-tagged interfaces refused | ACL list: (a) refuse when foreign entries exist (b) preserve them. Whitelist: (a) require the owner tag on the interface (Create errors on untagged ports; DF-1/P05 must tag physical ports) (b) owner registry (claim store) (c) claim every untagged interface | ACL list (b): two owners can share a port and nothing foreign is ever removed. Whitelist (b): works on untagged physical ports today without a DF-1 dependency, never claims a whitelist it did not apply; (c) would delete an operator's whitelist on a shared VPP |
 | D-DF4-6 | Codec is faithful (no masking/normalising); `Validate` requires canonical prefixes/MACs, sorted ethertypes, no duplicate ACL per direction | (a) canonicalise silently in the encoder (b) reject non-canonical | (a) makes desired ≠ retrieved → perpetual Update; VPP stores rules as sent |
 | D-DF4-7 | `acl.stats-enable`: raw-stream send accepting `acl_del_reply` (VPP 26.06 handler bug); Retrieve = last value applied by this process **to the current VPP** (identity = main-thread PID from `show_threads`, read before the request; a changed identity → Retrieve reports nothing → re-enable); `Reset()` for a reconnect hook; never disables; Delete no-op; `enabled:false` = "not managed" | identity: (a) stats `/sys/boottime` (b) `show_threads` main PID (c) `show_vpe_system_time` (d) only a `Reset()` hook for P05 | (c) is wall-clock (`unix_time_now`), useless; (a) needs the stats client in a descriptor that only has `vpp.Client`; (b) works through the binary API and changes on every restart; (d) kept as an extra, but alone depends on P05 wiring |
-| D-DF4-8 | *(reversed in the review round)* Integration test restores the counters flag to **disabled** in Cleanup by default; `VRX_ACL_STATS_KEEP=1` keeps it on | (a) always disable in Cleanup (b) never (c) opt-in restore (d) restore by default, opt-out | (d): the flag is 0 on the host and nothing on main enables it; leaving it on changes global data-plane cost for every slot and `tools/ci.sh full` would never opt in |
+| D-DF4-8 | *(reversed in the review round)* Integration test restores the counters flag to **disabled** in Cleanup by default; `NGFW_ACL_STATS_KEEP=1` keeps it on | (a) always disable in Cleanup (b) never (c) opt-in restore (d) restore by default, opt-out | (d): the flag is 0 on the host and nothing on main enables it; leaving it on changes global data-plane cost for every slot and `tools/ci.sh full` would never opt in |
 | D-DF4-11 | Empty binding / whitelist (both lists empty) rejected by `Validate` ("omit the object to unbind"); Delete uses a bounds-only check | (a) accept and treat as "unbound" (b) reject | (a) never converges: Retrieve cannot report an empty binding, so every reconcile re-creates it and verify-after-apply fails |
 | D-DF4-12 | Duplicate owner tags: lowest index is the object; others reported as `acl.acl/<name>#<index>` / `acl.macip-acl/<name>#<index>` (never desired → scheduler deletes them; `#` rejected in names); `LookupIndex`/bindings resolve the lowest | (a) delete extras inside Retrieve (b) report under distinct keys (c) keep last (old behaviour, random) | Retrieve must not mutate VPP; (b) lets the normal plan remove the orphan (bindings referencing it are updated first by the dependency order) |
 | D-DF4-9 | `MacipBinding.Update` to another ACL = one `macip_acl_interface_add_del` add (VPP unapplies the old one) | (a) ErrRecreate (b) in place | acl.c does the swap; fewer operations, same result |
@@ -208,7 +208,7 @@ Main merged first (`4d2839d`, clean). Every finding fixed; none rejected.
 | M2 | etype whitelist on untagged interfaces invisible → perpetual Create, never deleted | `ClaimStore` (in-memory default, `WithEtypeClaims` for a persisted one): Create claims an untagged interface, Retrieve reports whitelists on interfaces tagged ours or untagged+claimed, Delete/failed Create release; interfaces tagged by another owner refused (`ErrForeignInterface`) (D-DF4-5) | `f1d47cf` | unit `TestEtypeWhitelistUntaggedInterface`; host subtest `etype-whitelist-untagged` on untagged `loop1043` (regression) |
 | L3 | empty binding / whitelist passes Validate | `Validate` rejects both-lists-empty ("omit the object to unbind"); Delete uses bounds-only `validateLists`; doc line fixed (D-DF4-11) | `f1d47cf` | `TestSpecValidation` (+5 cases), `TestInterfaceBindingErrors` |
 | L4 | duplicate owner tags → duplicate keys, orphan never deleted | lowest index = object; extras reported as `acl.acl/<name>#<index>` / `acl.macip-acl/<name>#<index>` (never desired → deleted); `#` rejected in names; `LookupIndex`, bindings and the stats reader use the same rule (D-DF4-12) | `f1d47cf` | `TestDuplicateTagACL` (incl. a binding on the extra → Update then Delete, empty plan after), `TestDuplicateTagMacipACL` |
-| L5 | integration test leaves the global counters flag on | restore to disabled in Cleanup by default; `VRX_ACL_STATS_KEEP=1` opts out (D-DF4-8 reversed, Q6 resolved) | `cc9b01a` | host run log "restored acl stats counters flag to disabled"; `show acl-plugin tables` = 0 after |
+| L5 | integration test leaves the global counters flag on | restore to disabled in Cleanup by default; `NGFW_ACL_STATS_KEEP=1` opts out (D-DF4-8 reversed, Q6 resolved) | `cc9b01a` | host run log "restored acl stats counters flag to disabled"; `show acl-plugin tables` = 0 after |
 | L6 | binding Create removes another owner's ACLs | `setList` dumps the interface's list first and keeps foreign entries (first in their direction, current order), our desired entries after; Retrieve reports only our entries; Delete leaves only the foreign ones. Same spirit for MACIP (one per interface): Create refuses an interface with a foreign MACIP ACL (`ErrForeignMacipBinding`; VPP's `~0` "removed" entries are ignored — found on the host) | `f1d47cf`, `cc9b01a` | unit `TestInterfaceBindingPreservesForeignACLs`, `TestMacipBindingRefusesForeign`; host subtest `foreign-acl-preserved` (owner `w10f` ACL on `loop1041`) |
 | I7 | `acl.md:29` wording; key/tag decisions | "no *leaf* ACL messages yet (P03b, D-055)"; new "Ownership of untagged objects" section, duplicate-tag rule, stats identity; D-DF4-2 (key spelling) and D-DF4-3 (tag spelling) rewritten with options for the LOG | `d4173f3` | — |
 | I7 (extra) | no host test of a bound-ACL update | `interface-binding` subtest updates the bound `t-lan-in` in place and re-checks ACL + binding Retrieve | `cc9b01a` | host log below |
@@ -249,7 +249,7 @@ $ go test -count=1 -v ./internal/descriptors/acl/ | grep -E '^(--- |ok|FAIL)'
 ok  	ngfw/agent/internal/descriptors/acl	0.043s
 ```
 
-### Host integration (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10 go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/`)
+### Host integration (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w10 go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/`)
 
 The manager restarted VPP (D-060) during this round (sw_if_index values differ between my runs: 2 → 16 → 2). The first host run failed in `macip-del-unbinds` (VPP reports `~0` for an interface whose MACIP ACL was removed; fixed in `cc9b01a`); every run after that passed. Final run:
 
@@ -260,7 +260,7 @@ The manager restarted VPP (D-060) during this round (sw_if_index values differ b
     untagged loop1043: whitelist created, retrieved, deleted
     foreign ACL 2 (owner w10f) kept on loop1041 across our Create and Delete
     acl.stats-enable applied to VPP identity (main-thread PID from show_threads) 668679
-    restored acl stats counters flag to disabled (set VRX_ACL_STATS_KEEP=1 to keep it on)
+    restored acl stats counters flag to disabled (set NGFW_ACL_STATS_KEEP=1 to keep it on)
 --- PASS: TestACLPluginOnHost (0.64s)
     --- PASS: TestACLPluginOnHost/acl (0.04s)
     --- PASS: TestACLPluginOnHost/acl-50-rules (0.09s)
@@ -288,7 +288,7 @@ $ vppctl show interface | grep -c loop104              → 0
 ### CI gate after the fixes (code at `4b40b0d`)
 
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /root/ngfw-wt/DF-4
 branch    task/DF-4 @ 4b40b0d   (base: main)
 ...

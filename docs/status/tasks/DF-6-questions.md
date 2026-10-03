@@ -31,7 +31,7 @@
   The 00:26:0x crash is most likely govpp re-sending after reconnect from the same hung test process (it was bound to
   the old VPP; nothing of DF-6 was started at that time). NRestarts=2 since then; no crash after the guard (the one
   guarded host run at ~00:30 left VPP up, `ActiveEnterTimestamp` unchanged).
-- Per the manager's rule the gtpu host test is now **opt-in** (`VRX_DF6_GTPU_HOST=1`, default skip); unit tests on
+- Per the manager's rule the gtpu host test is now **opt-in** (`NGFW_DF6_GTPU_HOST=1`, default skip); unit tests on
   the fake model the crash (`crashes` counter) and assert the descriptor never sends such a request.
 - Ask: record as **V8** in `docs/vpp-code-track.md` (I do not own that file): upstream patch = only read counters when
   `rv == 0`.
@@ -39,7 +39,7 @@
 ## Q2 — l2tpv3 tunnels have no delete message
 binapi `l2tp` has `l2tpv3_create_tunnel`, `l2tpv3_set_tunnel_cookies`, `l2tpv3_interface_enable_disable`,
 `l2tpv3_set_lookup_key`, `sw_if_l2tpv3_tunnel_dump` — no delete (VPP source confirms). `l2tp.tunnel` Delete returns
-`df6.ErrNoDelete`; the host integration test creates a tunnel only with `VRX_DF6_L2TP_CREATE=1` (it would outlive the
+`df6.ErrNoDelete`; the host integration test creates a tunnel only with `NGFW_DF6_L2TP_CREATE=1` (it would outlive the
 test). The lookup key is a write-only global (no getter): Retrieve → `ErrRetrieveUnsupported`, Delete = no-op.
 
 ## Q3 — pppoe.session cannot be created on the host without PPPoE discovery traffic

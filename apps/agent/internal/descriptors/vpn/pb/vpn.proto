@@ -2,8 +2,8 @@
 //
 // These are the values the descriptors under apps/agent/internal/descriptors/{ipsec,ikev2,wireguard}
 // take as desired state and return from Retrieve. They are agent-internal for now: packages/proto
-// (the vrx-api ↔ vrx-agent contract, P03/P03b) carries no VPN domain messages yet. The messages are
-// written so they can be moved into packages/proto/vrx/v1 verbatim as an additive contract change
+// (the ngfw-api ↔ ngfw-agent contract, P03/P03b) carries no VPN domain messages yet. The messages are
+// written so they can be moved into packages/proto/ngfw/v1 verbatim as an additive contract change
 // (D-034 style: strings for enums, JSON-compatible, no VPP handles).
 //
 // Secrets never appear here. Every key/PSK field is a *reference* the descriptor resolves through
@@ -19,7 +19,7 @@
 // Regenerate with pb/gen.sh (protoc + protoc-gen-go, versions pinned in the generated header).
 syntax = "proto3";
 
-package vrx.agent.vpn.v1;
+package ngfw.agent.vpn.v1;
 
 option go_package = "ngfw/agent/internal/descriptors/vpn/pb;vpnpb";
 

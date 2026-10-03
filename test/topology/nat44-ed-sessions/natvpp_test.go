@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	fixtureLock = "/run/lock/vrx-nat-fixture-nat44-ed.lock" // nattest.EnsurePlugin's lock for "nat44-ed"
-	globalsLock = "/run/lock/vrx-globals.lock"              // D-082: tests that read VPP-wide settings hold it shared
+	fixtureLock = "/run/lock/ngfw-nat-fixture-nat44-ed.lock" // nattest.EnsurePlugin's lock for "nat44-ed"
+	globalsLock = "/run/lock/ngfw-globals.lock"              // D-082: tests that read VPP-wide settings hold it shared
 )
 
 func flock(t *testing.T, path string, how int) *os.File {

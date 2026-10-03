@@ -20,7 +20,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/descriptors/wireguard"
 	"ngfw/agent/internal/desired"
@@ -179,7 +179,7 @@ func (w *Wiring) wireguardConnected(ctx context.Context) {
 
 // watch subscribes to peer.Events and publishes every event; it re-subscribes with backoff when the
 // subscription fails or ends before ctx.
-func (f *wgFamily) watch(ctx context.Context, publish func(*vrxv1.Event), log *slog.Logger) {
+func (f *wgFamily) watch(ctx context.Context, publish func(*ngfwv1.Event), log *slog.Logger) {
 	backoff, warned := time.Second, false
 	for ctx.Err() == nil {
 		events, err := f.peer.Events(ctx)
@@ -216,7 +216,7 @@ func (f *wgFamily) watch(ctx context.Context, publish func(*vrxv1.Event), log *s
 
 // WireguardEvent is the StreamEvents form of a peer event (EVENT_KIND_WIREGUARD_PEER_CHANGED,
 // docs/contracts/proto.md §11): no key material, the public key is the peer's identity.
-func WireguardEvent(ev wireguard.PeerEvent) *vrxv1.Event {
+func WireguardEvent(ev wireguard.PeerEvent) *ngfwv1.Event {
 	state := "down"
 	switch {
 	case ev.Established:
@@ -228,8 +228,8 @@ func WireguardEvent(ev wireguard.PeerEvent) *vrxv1.Event {
 	if len(short) > 8 {
 		short = short[:8] + "…"
 	}
-	return &vrxv1.Event{
-		Kind: vrxv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED, Interface: proto.String(ev.Interface),
+	return &ngfwv1.Event{
+		Kind: ngfwv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED, Interface: proto.String(ev.Interface),
 		Message: fmt.Sprintf("WireGuard peer %s on %s: %s", short, ev.Interface, state),
 		Attributes: map[string]string{
 			"public_key": ev.PublicKey, "peer_index": strconv.FormatUint(uint64(ev.PeerIndex), 10),

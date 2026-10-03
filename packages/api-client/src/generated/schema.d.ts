@@ -1044,7 +1044,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** SNMP agent state: daemon read-back, pending daemon action, VRX-MIB subagent */
+    /** SNMP agent state: daemon read-back, pending daemon action, NGFW-MIB subagent */
     get: operations['SnmpState_snmp'];
     put?: never;
     post?: never;
@@ -1368,7 +1368,7 @@ export interface paths {
       cookie?: never;
     };
     get?: never;
-    /** Upload a .vrxlic licence file (verified before it is stored) */
+    /** Upload a .ngfwlic licence file (verified before it is stored) */
     put: operations['Licensing_put'];
     post?: never;
     delete?: never;
@@ -2085,7 +2085,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Host firewall (nftables table inet vrx): sets, chains and rules with packet/byte counters, mode and in-sync flag */
+    /** Host firewall (nftables table inet ngfw): sets, chains and rules with packet/byte counters, mode and in-sync flag */
     get: operations['HostAclNftables_hostAcl'];
     put?: never;
     post?: never;
@@ -2413,7 +2413,7 @@ export interface components {
     SystemConfig: {
       /**
        * Hostname
-       * @default vrx
+       * @default ngfw
        */
       hostname: string;
       /**
@@ -8101,10 +8101,10 @@ export interface components {
             max15: number;
           };
         };
-        /** Private MIB (VRX-MIB) */
+        /** Private MIB (NGFW-MIB) */
         subagent?: {
           /**
-           * VRX-MIB subagent
+           * NGFW-MIB subagent
            * @default true
            */
           enabled: boolean;
@@ -9222,7 +9222,7 @@ export interface components {
           required: 'none' | 'admins' | 'all';
           /**
            * Issuer
-           * @default vrx
+           * @default ngfw
            */
           issuer: string;
         };
@@ -9761,7 +9761,7 @@ export interface operations {
             /** @constant */
             status: 'ok';
             /** @constant */
-            service: 'vrx-api';
+            service: 'ngfw-api';
             version: string;
             /** @description RFC 3339 timestamp of the answer */
             time: string;
@@ -10150,7 +10150,7 @@ export interface operations {
           'application/problem+json': components['schemas']['Problem'];
         };
       };
-      /** @description `rate-limited`: the account’s per-minute budget of current-password checks (VRX_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked */
+      /** @description `rate-limited`: the account’s per-minute budget of current-password checks (NGFW_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked */
       429: {
         headers: {
           [name: string]: unknown;
@@ -15495,7 +15495,7 @@ export interface operations {
               daysLeft: number;
             } | null;
             listener: {
-              /** @description VRX_HTTPS_PORT is set: the API serves HTTPS with this certificate */
+              /** @description NGFW_HTTPS_PORT is set: the API serves HTTPS with this certificate */
               enabled: boolean;
               port: number | null;
             };
@@ -16672,7 +16672,7 @@ export interface operations {
       content: {
         'application/json': {
           /** @constant */
-          format: 'vrxlic/1';
+          format: 'ngfwlic/1';
           license: {
             [key: string]: unknown;
           };
@@ -19761,7 +19761,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
-        /** @description module name, e.g. vrx-interfaces */
+        /** @description module name, e.g. ngfw-interfaces */
         name: string;
       };
       cookie?: never;
@@ -19824,7 +19824,7 @@ export interface operations {
         content: {
           'application/json': {
             retrievedAt?: string;
-            /** @description nftables table in family inet: vrx (product) or vrx_<owner> (test slots) */
+            /** @description nftables table in family inet: ngfw (product) or ngfw_<owner> (test slots) */
             table: string;
             /**
              * @description apply = root netns; netns = a test slot namespace; check = validated with nft -c only, never loaded
@@ -19870,7 +19870,7 @@ export interface operations {
                 text: string;
                 /** @description accept | drop | reject */
                 verdict: string;
-                /** @description nftables comment, the rule identity vrx:<list>:<sequence>/<n>:<hash> */
+                /** @description nftables comment, the rule identity ngfw:<list>:<sequence>/<n>:<hash> */
                 comment: string;
                 /** @description uint64 counter as a decimal string */
                 packets: string;

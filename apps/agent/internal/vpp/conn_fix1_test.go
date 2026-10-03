@@ -23,7 +23,7 @@ func TestInvokeHonoursAReplyTimeoutAboveGovppsGlobal(t *testing.T) {
 	old := core.DefaultReplyTimeout
 	core.DefaultReplyTimeout = 200 * time.Millisecond // the 30 s global, scaled down
 	t.Cleanup(func() { core.DefaultReplyTimeout = old })
-	const timeout = time.Second // VRX_AGENT_VPP_REPLY_TIMEOUT above the global, scaled down
+	const timeout = time.Second // NGFW_AGENT_VPP_REPLY_TIMEOUT above the global, scaled down
 	c := neverReplying(t, timeout)
 	took, err := within(t, 10*time.Second, func() error {
 		return c.Invoke(context.Background(), &vpe.ShowVersion{}, &vpe.ShowVersionReply{})

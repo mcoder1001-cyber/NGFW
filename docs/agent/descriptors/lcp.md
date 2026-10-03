@@ -15,7 +15,7 @@ netns (≤ 31)}`; `DefaultNetns{netns}`. Meta: `PairMeta{PhySwIfIndex, HostSwIfI
 fill it identically).
 
 ## Notes and limitations
-- Plugin state: `linux_cp` and `linux_nl` are loaded on vrx-a since D-060 and the host test creates a **real pair**
+- Plugin state: `linux_cp` and `linux_nl` are loaded on ngfw-a since D-060 and the host test creates a **real pair**
   (loopback `loop586` ↔ tap `w5-lcp0`). Where the plugin is not loaded every call fails with `dfkit.ErrPluginNotLoaded`
   (govpp unknown message) and the host test skips via `CheckCompatiblity` ("plugin not loaded: linux_cp …").
 - `linux_nl` has **no binary API** (netlink listener, configured in startup.conf only) — nothing to describe.
@@ -60,8 +60,8 @@ fill it identically).
   descriptor treat it as an owned, undesired tap and delete it.
 - VPP 26.06 bug: `lcp_default_ns_get` returns uninitialised bytes while no default netns is set (`REPLY_MACRO_DETAILS2`
   does not zero `netns`; host run returned `"\xfd\x11"`); `Current` treats an invalid name as unset.
-- Host tests: `default-netns` is opt-in (`VRX_DF8_GLOBALS=1`: a nonexistent default netns would break other slots'
-  pairs meanwhile), `replace helpers` is opt-in (`VRX_DF8_LCP_REPLACE=1`: `replace_end` deletes pairs other slots create
+- Host tests: `default-netns` is opt-in (`NGFW_DF8_GLOBALS=1`: a nonexistent default netns would break other slots'
+  pairs meanwhile), `replace helpers` is opt-in (`NGFW_DF8_LCP_REPLACE=1`: `replace_end` deletes pairs other slots create
   meanwhile); both are unit-tested with the fake.
 
 ## P12 wiring (`interfaces.<n>.lcp`)

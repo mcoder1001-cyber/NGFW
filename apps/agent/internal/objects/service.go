@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // IP protocol numbers of the service protocols.
@@ -88,7 +88,7 @@ func portSpans(list []string) ([]span, error) {
 // ExpandServiceSpec turns one protocol/port specification (an ACL rule's inline service, or a
 // service object's fields) into PortSpecs: one per protocol × source range × destination range;
 // tcp-udp yields TCP and UDP entries (TCP flags only on the TCP ones). Sorted, deduplicated.
-func ExpandServiceSpec(spec *vrxv1.ServiceSpec) ([]PortSpec, error) {
+func ExpandServiceSpec(spec *ngfwv1.ServiceSpec) ([]PortSpec, error) {
 	var out []PortSpec
 	ports := func(proto uint8, flags bool) error {
 		src, err := portSpans(spec.GetSourcePorts())
@@ -164,8 +164,8 @@ func ExpandServiceSpec(spec *vrxv1.ServiceSpec) ([]PortSpec, error) {
 }
 
 // ServiceSpecOf is the protocol/port part of a service object.
-func ServiceSpecOf(o *vrxv1.ServiceObject) *vrxv1.ServiceSpec {
-	return &vrxv1.ServiceSpec{
+func ServiceSpecOf(o *ngfwv1.ServiceObject) *ngfwv1.ServiceSpec {
+	return &ngfwv1.ServiceSpec{
 		Protocol: o.Protocol, DestinationPorts: o.GetDestinationPorts(), SourcePorts: o.GetSourcePorts(),
 		TcpFlags: o.GetTcpFlags(), Type: o.Type, Code: o.Code, Number: o.Number,
 	}
@@ -173,13 +173,13 @@ func ServiceSpecOf(o *vrxv1.ServiceObject) *vrxv1.ServiceSpec {
 
 // ExpandService turns the service object or service group ref of doc into PortSpecs (the union of
 // a group's members, recursively; sorted, deduplicated). Errors as for Expand.
-func ExpandService(doc *vrxv1.ObjectsConfig, ref string, opts ...Option) ([]PortSpec, error) {
+func ExpandService(doc *ngfwv1.ObjectsConfig, ref string, opts ...Option) ([]PortSpec, error) {
 	e := &svcExpander{doc: doc, o: optionsOf(opts), memo: map[string][]PortSpec{}, visiting: map[string]bool{}}
 	return e.expand(ref)
 }
 
 type svcExpander struct {
-	doc      *vrxv1.ObjectsConfig
+	doc      *ngfwv1.ObjectsConfig
 	o        options
 	memo     map[string][]PortSpec
 	visiting map[string]bool

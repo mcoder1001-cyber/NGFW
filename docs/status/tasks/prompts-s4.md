@@ -104,7 +104,7 @@ The 7 remaining hits are S5 rows (F-aaa, F-licensing, F-restconf-yang, F-backup-
 | F-host-stack | F-startup-gen | TCP/UDP buffer tuning exists only in startup.conf |
 | F-capture-trace | F-vpp-debs | tracedump/tracenode not built (V18); binapi regen by manager afterwards |
 | F-dashboard-prom-alarms | F-startup-gen (soft) | only if the VPP prom plugin path is chosen over the agent exporter |
-| F-backup-restore | F-ab-upgrade, P08 | upgrade UI (D8.7) drives `vrx-upgrade`; overlap check |
+| F-backup-restore | F-ab-upgrade, P08 | upgrade UI (D8.7) drives `ngfw-upgrade`; overlap check |
 | F-aaa, F-licensing, F-restconf-yang | P07b, P08 | overlap check (web frame / `apps/**`) |
 | F-ab-upgrade, F-images | P14 | rootB partition layout / autoinstall + offline pool |
 | F-ipfix-sflow | (soft) hsflowd packaging in P10 or a follow-up | VPP sflow samples but does not export to collectors |
@@ -122,13 +122,13 @@ API (no seq/replay in `ipsec_sad_entry_update`), SRv6-mobile (D-074), traceroute
 | F-mpls-srmpls | no MPLS schema (big contract), new LDP→VPP sync (V5), MPLS table 0 global, ldpd needs kernel MPLS modules not loadable on the shared host | suggest split: static MPLS/SR-MPLS vs LDP sync; LDP evidence fake-client only |
 | F-vrrp-config-sync | two VRRP engines + API↔API config sync + cluster UI with two instances | 14–16 h, or split D9.2/D9.5 into their own task |
 | F-det44-map-dslite-cnat | five families, new dslite descriptor, `nat.pnat` contract, V9/V10/V11 guards | ~14–16 h; suggest splitting CNAT+PNAT |
-| F-ha-state-sync | NAT HA is VPP-global (one host cannot be both nodes); IPsec SA sync impossible via API | partial: listener/failover config + re-key-on-failover fallback; two-node test written, deferred until vrx-b |
+| F-ha-state-sync | NAT HA is VPP-global (one host cannot be both nodes); IPsec SA sync impossible via API | partial: listener/failover config + re-key-on-failover fallback; two-node test written, deferred until ngfw-b |
 | F-srv6 | SRv6-mobile not built (D-074); proxies need manager binapi | mobile out, End.AD only |
 | F-lisp | V14 leaks → host test opt-in only | mostly fake-client evidence unless a manager VPP window |
 | F-capture-trace | classic trace and PG have no binary API (only `cli_inband`); Trace Path no API | pcap + BPF filter; `cli_inband` use is a manager decision |
 | F-restconf-yang | NETCONF | RESTCONF + generated YANG only; NETCONF have-not |
 | F-aaa | 6 methods + MFA | order RADIUS → TOTP → LDAP → OIDC → TACACS+ → SAML, stop at time box |
-| F-sdk-terraform-ansible | three SDKs | Python SDK → Terraform (generic `vrx_config` + `vrx_interface`) → Ansible likely left over |
+| F-sdk-terraform-ansible | three SDKs | Python SDK → Terraform (generic `ngfw_config` + `ngfw_interface`) → Ansible likely left over |
 | F-backup-restore | five sub-features | bulk provisioning fenced as have-not |
 | F-ab-upgrade, F-images | no KVM/cloud on this host (D-002) | loop-device / build-only evidence; boots deferred |
 | F-igmp-mfib | PIM→mFIB sync (V5) new code, no multicast schema, BIER T3 | BIER optional last step; expect partial |

@@ -20,12 +20,12 @@ import { IpfixSflowController, IpfixStateOut } from './ipfix-sflow.controller.js
 
 /** F-ipfix-sflow: services.ipfix through the commit engine (semantic 400s) and GET /state/ipfix over the fake agent. */
 describe('ipfix-sflow (fake agent over gRPC)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-ipfix-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-ipfix-'));
   const socket = join(dir, 'agent.sock');
   const env = testEnv({
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: 'w1',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: 'w1',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;

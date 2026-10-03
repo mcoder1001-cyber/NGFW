@@ -17,7 +17,7 @@ $ golangci-lint run ./...       # 2 issues, both pre-existing and untouched:
   internal/agent/service.go:550 revive time-naming (revertRetryMin)
   internal/descriptors/core/coretest/lisp.go:20 staticcheck QF1008
 ```
-No VPP host needed: all tests use the fake client. Integration tests skip without VRX_INTEGRATION.
+No VPP host needed: all tests use the fake client. Integration tests skip without NGFW_INTEGRATION.
 
 ## Out of scope
 - Item 5, moving family `Register` onto `kit.Register(r, Env)`: not cheap. It touches the register.go of every family and the subsystems wiring, and families take different option types (df2.Options, df6.Option, globals-owner flags). It needs its own row.

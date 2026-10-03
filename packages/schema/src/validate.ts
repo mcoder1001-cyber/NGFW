@@ -6,7 +6,7 @@ import { sortIssues, type SemanticIssue } from './semantic/registry.js';
 
 /**
  * Tiers (a) + (b) of the three-tier validation (docs/00-MASTER-PROMPT.md §4) as one call for the API and the commit
- * engine. Tier (c), the renderer dry-run, lives in vrx-agent.
+ * engine. Tier (c), the renderer dry-run, lives in ngfw-agent.
  */
 export type ValidationResult =
   | { ok: true; config: RootConfig }

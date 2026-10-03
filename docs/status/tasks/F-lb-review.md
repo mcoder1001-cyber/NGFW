@@ -11,7 +11,7 @@ merge commit. Checklist: prompts/REVIEW-PROMPT.md.
 ### H1 — no host proof yet (checklist 2, 8)
 Only fake-VPP tests, the API e2e against the slot database and jsdom web tests ran. `docs/status/tasks/F-lb.md`
 "Pending host steps" lists `TestLbOnHost` on slot 2, the globals-owner GC run and the UI screenshot; none of them ran
-(they waited for TD-25, and a cloud session has no VPP). The host tests exist and are opt-in (`VRX_LB_HOST=1`).
+(they waited for TD-25, and a cloud session has no VPP). The host tests exist and are opt-in (`NGFW_LB_HOST=1`).
 **Resolution:** merged with a follow-up row `F-lb-host` (ready, deps F-lb) that runs steps 1–3 and pastes NRestarts
 before/after. Not a code finding.
 

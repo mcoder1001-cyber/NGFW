@@ -47,7 +47,7 @@ export function pageOf<R extends object>(rows: R[], req: ServerPageRequest, text
 /** Addresses, prefixes and interface names stay left-to-right inside RTL text. */
 export function Mono({ children }: { children: ReactNode }) {
   return (
-    <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 13 }}>
+    <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 13 }}>
       {children}
     </Box>
   );

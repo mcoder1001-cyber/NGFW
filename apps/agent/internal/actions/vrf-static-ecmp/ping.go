@@ -13,7 +13,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ping"
 	"ngfw/agent/binapi/vlib"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -55,7 +55,7 @@ type PingPlan struct {
 
 // ValidatePing checks a PingAction against what VPP's ping API can do: the default table only (no VRF), no source
 // address, no payload size, count × interval ≤ MaxPingDuration.
-func ValidatePing(p *vrxv1.PingAction) (PingPlan, error) {
+func ValidatePing(p *ngfwv1.PingAction) (PingPlan, error) {
 	var out PingPlan
 	a, err := netip.ParseAddr(strings.TrimSpace(p.GetTarget()))
 	if err != nil || a.Zone() != "" {
@@ -93,7 +93,7 @@ func ValidatePing(p *vrxv1.PingAction) (PingPlan, error) {
 
 // Ping runs one validated ping through VPP's ping plugin (want_ping_finished_events → ping_finished_event) and sends
 // one summary line and the terminal done.
-func Ping(ctx context.Context, c vpp.Client, p PingPlan, send func(*vrxv1.ActionOutput) error) error {
+func Ping(ctx context.Context, c vpp.Client, p PingPlan, send func(*ngfwv1.ActionOutput) error) error {
 	if !pingMu.TryLock() {
 		return ErrBusy
 	}
@@ -132,14 +132,14 @@ func Ping(ctx context.Context, c vpp.Client, p PingPlan, send func(*vrxv1.Action
 		loss = 100 * float64(ev.RequestCount-min(ev.ReplyCount, ev.RequestCount)) / float64(ev.RequestCount)
 	}
 	summary := fmt.Sprintf("PING %s (default VRF): %d packets transmitted, %d received, %.0f%% packet loss", p.Target, ev.RequestCount, ev.ReplyCount, loss)
-	if err := send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: summary}}); err != nil {
+	if err := send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: summary}}); err != nil {
 		return err
 	}
 	exit := int32(0)
 	if ev.ReplyCount == 0 {
 		exit = 1
 	}
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 		Summary:  summary,
 		ExitCode: exit,
 		Stats: map[string]string{
@@ -167,6 +167,6 @@ func refuseWithWorkers(ctx context.Context, c vpp.Client) error {
 
 // Traceroute is not available: VPP has no traceroute API and there is no Linux path into the data plane before
 // linux-cp (P12).
-func Traceroute(*vrxv1.TracerouteAction) error {
+func Traceroute(*ngfwv1.TracerouteAction) error {
 	return fmt.Errorf("%w: traceroute: VPP has no traceroute API; it needs a linux-cp host path (P12) or a VPP change (%s)", ErrUnimplemented, VItem)
 }

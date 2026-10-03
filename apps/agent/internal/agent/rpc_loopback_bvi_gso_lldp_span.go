@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	lldpapi "ngfw/agent/binapi/lldp"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/lldp"
 	"ngfw/agent/internal/vpp/bootid"
@@ -36,7 +36,7 @@ const (
 var lldpWalk sync.Mutex
 
 // LldpNeighbors implements the LldpNeighbors RPC.
-func (g *server) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsRequest) (*vrxv1.LldpNeighborsResponse, error) {
+func (g *server) LldpNeighbors(ctx context.Context, req *ngfwv1.LldpNeighborsRequest) (*ngfwv1.LldpNeighborsResponse, error) {
 	return g.svc.LldpNeighbors(ctx, req)
 }
 
@@ -126,7 +126,7 @@ func ago(now float64, known bool, t float64) float64 {
 
 // LldpNeighbors implements the RPC: one entry per LLDP-enabled interface this agent can name, ordered
 // by interface name, paged.
-func (s *Service) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsRequest) (*vrxv1.LldpNeighborsResponse, error) {
+func (s *Service) LldpNeighbors(ctx context.Context, req *ngfwv1.LldpNeighborsRequest) (*ngfwv1.LldpNeighborsResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -151,13 +151,13 @@ func (s *Service) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsReq
 		return nil, grpcVPPError(err, "lldp neighbours")
 	}
 	now, known := vppClock(ctx, s)
-	all := make([]*vrxv1.LldpNeighbor, 0, len(table))
+	all := make([]*ngfwv1.LldpNeighbor, 0, len(table))
 	for idx, n := range table {
 		name, ok := t.Logical(idx)
 		if !ok {
 			continue // another owner's interface (or one VPP no longer lists): never reported
 		}
-		e := &vrxv1.LldpNeighbor{
+		e := &ngfwv1.LldpNeighbor{
 			Interface: name, SwIfIndex: idx, Heard: n.LastHeard > 0, Ttl: uint32(n.TTL),
 			LastHeardSecAgo: ago(now, known, n.LastHeard), LastSentSecAgo: ago(now, known, n.LastSent),
 		}
@@ -175,7 +175,7 @@ func (s *Service) LldpNeighbors(ctx context.Context, req *vrxv1.LldpNeighborsReq
 		}
 		return all[i].GetSwIfIndex() < all[j].GetSwIfIndex()
 	})
-	resp := &vrxv1.LldpNeighborsResponse{Total: uint32(len(all)), Owner: s.owner, RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // one entry per interface
+	resp := &ngfwv1.LldpNeighborsResponse{Total: uint32(len(all)), Owner: s.owner, RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // one entry per interface
 	start := int(req.GetOffset())
 	if start >= len(all) {
 		return resp, nil

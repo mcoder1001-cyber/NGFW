@@ -32,12 +32,12 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
 )
 
-// Reasons of vrx_agent_dynamic_source_errors_total.
+// Reasons of ngfw_agent_dynamic_source_errors_total.
 const (
 	srcInvalid  = "invalid"  // Desired returned a key outside its descriptors, or a duplicate
 	srcPanic    = "panic"    // Desired, a sync or Run panicked
@@ -418,9 +418,9 @@ type releaseFunc func(ds *dynSource, kvs []scheduler.KV) map[scheduler.Key]bool
 // transaction; each source gets its own copy) to base, with each source's quarantine applied except
 // for the keys release picks. A source whose Desired panics, returns a key outside its descriptors
 // or a duplicate is left out as a whole; dynamic objects have no JSON pointer.
-func (s *Service) mergeSources(base []scheduler.KV, view *vrxv1.DesiredState, srcs []*dynSource, release releaseFunc) *srcMerge {
+func (s *Service) mergeSources(base []scheduler.KV, view *ngfwv1.DesiredState, srcs []*dynSource, release releaseFunc) *srcMerge {
 	if view == nil {
-		view = &vrxv1.DesiredState{}
+		view = &ngfwv1.DesiredState{}
 	}
 	mg := &srcMerge{kvs: append([]scheduler.KV(nil), base...), owner: map[string]*dynSource{}, want: map[scheduler.Key]proto.Message{}}
 	have := make(map[scheduler.Key]bool, len(base))
@@ -481,7 +481,7 @@ func checkKVs(ds *dynSource, kvs []scheduler.KV, have map[scheduler.Key]bool) *l
 // desiredOf calls ds.Desired for a copy of view (never the stored state) and turns a panic into an
 // error (review R3): a buggy source must not crash the agent, nor crash-loop it through the first
 // resync.
-func (s *Service) desiredOf(ds *dynSource, view *vrxv1.DesiredState) (kvs []scheduler.KV, err error) {
+func (s *Service) desiredOf(ds *dynSource, view *ngfwv1.DesiredState) (kvs []scheduler.KV, err error) {
 	g := goid()
 	s.inDesired.Store(g, true) // the re-entrancy guard of sync (DryRun calls Desired without the lock)
 	defer s.inDesired.Delete(g)
@@ -491,7 +491,7 @@ func (s *Service) desiredOf(ds *dynSource, view *vrxv1.DesiredState) (kvs []sche
 			kvs, err = nil, fmt.Errorf("its Desired panicked: %v", r)
 		}
 	}()
-	return ds.Desired(proto.Clone(view).(*vrxv1.DesiredState)), nil
+	return ds.Desired(proto.Clone(view).(*ngfwv1.DesiredState)), nil
 }
 
 // culprit finds what of the merged sources made res fail (review R2, V1, V4), or ok false when the
@@ -687,7 +687,7 @@ func (s *Service) runQuarantining(ctx context.Context, mg *srcMerge, scope sched
 // cannot settle it, it runs once more without the sources (review R2). left lists every source and
 // every key left out. twoPhase (the resync) applies the configuration first and the sources after it
 // (TD-8c, applyTwoPhase).
-func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope scheduler.Scope, domains []string, view *vrxv1.DesiredState, opts scheduler.ApplyOptions, twoPhase bool) (res *scheduler.TxnResult, left []leftOut) {
+func (s *Service) applySources(ctx context.Context, kvs []scheduler.KV, scope scheduler.Scope, domains []string, view *ngfwv1.DesiredState, opts scheduler.ApplyOptions, twoPhase bool) (res *scheduler.TxnResult, left []leftOut) {
 	active := s.activeSources()
 	if len(active) == 0 {
 		return s.sched.ApplyWith(ctx, kvs, scope, opts), nil
@@ -811,7 +811,7 @@ func joinResults(first, second *scheduler.TxnResult) *scheduler.TxnResult {
 // "agent.dynamic-object-quarantined" and is planned without its change; a source Apply would leave
 // out (a panic, a key outside its descriptors, another plan issue on one of its keys) becomes a
 // WARNING issue "agent.dynamic-source-skipped", and the plan is the configuration's alone.
-func (s *Service) planSources(ctx context.Context, pj *projected, domains []string, update *vrxv1.DesiredState) (*scheduler.TxnPlan, error) {
+func (s *Service) planSources(ctx context.Context, pj *projected, domains []string, update *ngfwv1.DesiredState) (*scheduler.TxnPlan, error) {
 	scope := scopeOf(domains)
 	active := s.activeSources()
 	if len(active) == 0 {
@@ -857,7 +857,7 @@ func (s *Service) planSources(ctx context.Context, pj *projected, domains []stri
 // (V1) is quarantined, and its source stays in sync; a source is out of sync until its next
 // successful sync. The agent retries both with backoff. Each culprit gets a SKIPPED result in resp
 // (when one object caused it), an ERROR event, the error counter and a log line.
-func (s *Service) leaveOutLocked(resp *vrxv1.ApplyResponse, txnID string, left []leftOut, log *slog.Logger) {
+func (s *Service) leaveOutLocked(resp *ngfwv1.ApplyResponse, txnID string, left []leftOut, log *slog.Logger) {
 	for _, lo := range left {
 		var msg string
 		if lo.quarantine {
@@ -873,7 +873,7 @@ func (s *Service) leaveOutLocked(resp *vrxv1.ApplyResponse, txnID string, left [
 			msg = fmt.Sprintf("dynamic source %s left out of this transaction (%s): %s", lo.src.Name, lo.reason, lo.cause)
 		}
 		if lo.key != "" && resp != nil {
-			resp.Results = append(resp.Results, &vrxv1.ObjectResult{Key: string(lo.key), Op: opPB[lo.op], Code: vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED, Message: msg})
+			resp.Results = append(resp.Results, &ngfwv1.ObjectResult{Key: string(lo.key), Op: opPB[lo.op], Code: ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED, Message: msg})
 		}
 		s.sourceError(lo.src, lo.reason, txnID, lo.key, msg)
 	}
@@ -886,7 +886,7 @@ func (s *Service) sourceError(ds *dynSource, reason, txnID string, key scheduler
 	if key != "" {
 		attrs["key"] = string(key)
 	}
-	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ERROR, TxnId: txnID, Message: msg, Attributes: attrs})
+	s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_ERROR, TxnId: txnID, Message: msg, Attributes: attrs})
 	s.log.Warn(msg, "source", ds.Name, "reason", reason, "key", key, "txn_id", txnID)
 }
 
@@ -958,14 +958,14 @@ func (s *Service) syncLocked(parent context.Context, ds *dynSource, retryDue boo
 	}
 	flushClaims, endClaims := s.claimsBatch() // TD-11c (review F5): a source's transaction is one claim batch too
 	defer endClaims()
-	resp := &vrxv1.ApplyResponse{}
+	resp := &ngfwv1.ApplyResponse{}
 	mg := s.mergeSources(nil, s.st.desired, []*dynSource{ds}, s.releaseFor(retryDue))
 	reason := srcRejected
 	if len(mg.left) > 0 {
 		reason = mg.left[0].reason
-		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
+		resp.Status = ngfwv1.ApplyStatus_APPLY_STATUS_FAILED
 		resp.Message = mg.left[0].cause
-		resp.Summary = &vrxv1.ApplySummary{}
+		resp.Summary = &ngfwv1.ApplySummary{}
 	} else {
 		res, held, _ := s.runQuarantining(ctx, mg, scheduler.Only(mg.names...), scheduler.ApplyOptions{}, log)
 		fillResponse(resp, res, &projected{pointers: map[scheduler.Key]string{}})
@@ -977,8 +977,8 @@ func (s *Service) syncLocked(parent context.Context, ds *dynSource, retryDue boo
 		claimsNotPersisted(resp, err)
 		s.setDegraded(true, "dynamic source "+ds.Name+": "+resp.GetMessage())
 	}
-	applied := resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED {
+	applied := resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED {
 		s.setDegraded(true, "dynamic source "+ds.Name+": "+resp.GetMessage())
 	}
 	d := s.now().Sub(start)
@@ -990,8 +990,8 @@ func (s *Service) syncLocked(parent context.Context, ds *dynSource, retryDue boo
 		s.lastReconcileAt = s.now()
 		s.mu.Unlock()
 		attrs := map[string]string{"source": ds.Name}
-		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, Message: "sync " + ds.Name, Attributes: attrs})
-		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE, Summary: resp.GetSummary(), Message: resp.GetStatus().String(), Attributes: attrs})
+		s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_RECONCILE_START, Message: "sync " + ds.Name, Attributes: attrs})
+		s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE, Summary: resp.GetSummary(), Message: resp.GetStatus().String(), Attributes: attrs})
 		log.Info("reconcile done", "status", resp.GetStatus().String(), "summary", resp.GetSummary().String(), "duration", d, "err", resp.GetMessage())
 	}
 	if applied {

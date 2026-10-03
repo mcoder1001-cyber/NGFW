@@ -28,9 +28,9 @@ TD-25 merges (manager addendum); the opt-in host tests are written and listed un
 | D-063/D-076/D-080 write-only, records in the persisted DF-7 BootStore, `DumpVIPs` never Retrieve | descriptors unchanged in that respect; `CheckPersistent` requires the persisted BootStore (+ claims for intf-nat); `LbState` is a separate RPC | `TestOwnershipDeclared`, `TestRegisterGuardsEveryDescriptor` (product wiring passes its own guard), `TestLbApplyStateFlushRemove` (Retrieve has no `services.lb`) |
 | D-071 `lb.conf` only in the globals owner | `registerLb`; projection gates `settings` | `TestLbSlotAgentNeverCollects` (no lb.conf registered), `TestLbProjection` (owner=false: no `lb.conf/global`, `agent.unsupported-field`), `TestLbApplyStateFlushRemove` (0 `lb_conf` calls) |
 | D-090 (2) GC once, globals owner, constant `cli_inband` + ALLOWLIST row; slot never | `subsystems/lb.go` + `lb.GarbageCollect`; ALLOWLIST row moved to *Active* | `TestLbGlobalsOwnerCollectsOnce` (two delete bursts → exactly one `lb vip 0.0.0.0/32 del`), `TestLbSlotAgentNeverCollects`, `TestGarbageCollect*` |
-| D-082 VPP-global test: `VRX_LB_GLOBALS=1`, `flock -x /run/lock/vrx-globals.lock`, restore | `TestLbGarbageCollectOnHost` (changes no lb_conf value — asserts `show lb` source lines unchanged) | not run (host runs closed) |
+| D-082 VPP-global test: `NGFW_LB_GLOBALS=1`, `flock -x /run/lock/ngfw-globals.lock`, restore | `TestLbGarbageCollectOnHost` (changes no lb_conf value — asserts `show lb` source lines unchanged) | not run (host runs closed) |
 | D-064 crash → opt-in + V-item | NAT SNAT-key hazard found by source reading: never reproduced; `GCSafe` guard; V20 follow-up | `docs/vpp-code-track.md` |
-| DF-7 precedent: host test opt-in `VRX_LB_HOST=1` | `TestLbOnHost` | SKIP without the variable (below) |
+| DF-7 precedent: host test opt-in `NGFW_LB_HOST=1` | `TestLbOnHost` | SKIP without the variable (below) |
 | TD-11b / TD-11c / TD-8 / TD-23 / D-132 / WEB-1 (addendum) | declarations + claim first; no interface creator; no seams forked; fake handler via one line; 30 s poll + Refresh, one walk at a time; no `dropPhantomOptionals` | tests above; `LB_POLL_MS` asserted ≥ 30 000 in `LbPage.test.tsx` |
 
 ## Verification (pasted output)
@@ -114,16 +114,16 @@ Acceptance "GRE4 VIP with an IPv6 AS → 400 problem+json with pointer": schema 
 API e2e below (status 400, `application/problem+json`, the same pointer). Drift guard: `drift guard: 894 scalar leaves and
 198 messages compared, 4 accepted difference(s), 0 finding(s)`.
 
-### API e2e (slot 2 PostgreSQL `vrx_w2`, fake agent)
+### API e2e (slot 2 PostgreSQL `ngfw_w2`, fake agent)
 ```
 $ eval "$(tools/lab env 2)"; npx vitest run -c vitest.e2e.config.ts test/e2e/lb.e2e.test.ts
-create role vrx_w2
-create database vrx_w2 (owner vrx_w2)
+create role ngfw_w2
+create database ngfw_w2 (owner ngfw_w2)
  ✓ test/e2e/lb.e2e.test.ts (2 tests) 3332ms
  Test Files  1 passed (1)   Tests  2 passed (2)
-drop   database vrx_w2
-drop   role vrx_w2
-ok     nothing named vrx_w2 / vrx_w2 remains
+drop   database ngfw_w2
+drop   role ngfw_w2
+ok     nothing named ngfw_w2 / ngfw_w2 remains
 ```
 Covers: 400 pointer, commit, `GET /state/lb/vips` (status, removed server, removed copies), flush 200 / 403 readonly /
 404 unknown / 409 agent precondition, the audit row (`POST /api/v1/actions/lb/vips/:name/flush`,
@@ -191,17 +191,17 @@ Health checks, L7, weights; NAT44-ED LB static mappings; CNAT VIPs; VRRP of VIPs
 (write-only). No curated CLI command for the live state/flush (REST operations only).
 
 ## Pending host steps (after TD-25; slot 2, one host package at a time, `systemctl show vpp -p NRestarts` before/after)
-1. `eval "$(tools/lab env 2)"; systemctl show vpp -p NRestarts; VRX_INTEGRATION=1 VRX_LB_HOST=1 go test -count=1 -v -run TestLbOnHost ./internal/agent/; systemctl show vpp -p NRestarts`
+1. `eval "$(tools/lab env 2)"; systemctl show vpp -p NRestarts; NGFW_INTEGRATION=1 NGFW_LB_HOST=1 go test -count=1 -v -run TestLbOnHost ./internal/agent/; systemctl show vpp -p NRestarts`
    — pastes `show lb vips verbose` after commit, LbState, flush, restart (no duplicate entries, `lb-nat4-in2out` count
    unchanged), loss → re-created, removal (`show lb vips verbose` with the removed entries). Loopback only, no af_packet.
    Leftovers it creates: removed VIPs 10.2.250.1/.2/.3 (and the re-created 10.2.250.1) with their ASes
    10.2.2.10–13, the ASes' recursive `/32`s in table 0 — until a GC or a VPP restart (V20).
-2. Manager window only: `VRX_INTEGRATION=1 VRX_LB_HOST=1 VRX_LB_GLOBALS=1 go test -run TestLbGarbageCollectOnHost …`
-   (exclusive `/run/lock/vrx-globals.lock`; waits 65 s; proves the constant command collects; lb_conf untouched).
+2. Manager window only: `NGFW_INTEGRATION=1 NGFW_LB_HOST=1 NGFW_LB_GLOBALS=1 go test -run TestLbGarbageCollectOnHost …`
+   (exclusive `/run/lock/ngfw-globals.lock`; waits 65 s; proves the constant command collects; lb_conf untouched).
 3. UI screenshot against the real endpoint (headless Chrome, production build, real API + agent on slot 2).
 4. Optional: GRE evidence (`tcpdump` in ns-w2-wan) after TD-3's preflight on the rig interfaces.
 
 ## Cleanup
-No process left running (the e2e harness created and dropped `vrx_w2`); no VPP object created (no host run); no
+No process left running (the e2e harness created and dropped `ngfw_w2`); no VPP object created (no host run); no
 `dist/` or `apps/agent/bin` committed. A 14 MB scratch copy of the agent module used for the base-failure run is left in
 `/tmp/g-w2/base-lb` (deleting it was refused by the session's permission policy; safe to remove).

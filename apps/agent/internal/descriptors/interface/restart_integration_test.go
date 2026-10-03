@@ -206,7 +206,7 @@ func TestRestartSimulationOnHost(t *testing.T) {
 	vpptest.LockLab(t)
 	prefix := vpptest.Prefix(t)
 	owner := prefix + "r"
-	memifDir := filepath.Join("/run/vrx-test", prefix, "memif-restart")
+	memifDir := filepath.Join("/run/ngfw-test", prefix, "memif-restart")
 	ctx := context.Background()
 	c1 := ifacetest.Connect(t)
 	r1 := scheduler.NewRegistry()

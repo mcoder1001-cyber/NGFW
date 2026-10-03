@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"sync"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/vpn"
@@ -30,19 +30,19 @@ import (
 
 // EnvTableBase is the environment variable of a test slot's first VRF/table id
 // (docs/lab/shared-host-rules.md §1: slot N owns N000–N999; §12: reserved ranges).
-const EnvTableBase = "VRX_VPP_TABLE_BASE"
+const EnvTableBase = "NGFW_VPP_TABLE_BASE"
 
-// EnvIDRange is the explicit opt-in to own every id: VRX_VPP_ID_RANGE=all (the product agent on a box
-// of its own). No other value is accepted; a numbered range is VRX_VPP_TABLE_BASE.
-const EnvIDRange = "VRX_VPP_ID_RANGE"
+// EnvIDRange is the explicit opt-in to own every id: NGFW_VPP_ID_RANGE=all (the product agent on a box
+// of its own). No other value is accepted; a numbered range is NGFW_VPP_TABLE_BASE.
+const EnvIDRange = "NGFW_VPP_ID_RANGE"
 
-// IDRangeAll is the only accepted value of VRX_VPP_ID_RANGE.
+// IDRangeAll is the only accepted value of NGFW_VPP_ID_RANGE.
 const IDRangeAll = "all"
 
 // SlotIDRangeSize is the number of table/numeric ids a slot owns.
 const SlotIDRangeSize = 1000
 
-// ErrNoIDRange means that neither VRX_VPP_TABLE_BASE nor VRX_VPP_ID_RANGE=all is set: the agent
+// ErrNoIDRange means that neither NGFW_VPP_TABLE_BASE nor NGFW_VPP_ID_RANGE=all is set: the agent
 // refuses to start (TD-8b, D-129 Q3), and a Config built in code without a range owns no numeric id
 // (fail closed), never "every id" by default.
 var ErrNoIDRange = errors.New("no VPP id range: set " + EnvTableBase + " (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or " + EnvIDRange + "=" + IDRangeAll + " (the product agent on a box of its own)")
@@ -60,7 +60,7 @@ func NoIDs() *IDRange { return &IDRange{Lo: 1, Hi: 0} }
 // Empty reports whether the range owns no id.
 func (r IDRange) Empty() bool { return r.Lo > r.Hi }
 
-// DF2 converts the range for a DF-2 family. A nil receiver (VRX_VPP_ID_RANGE=all) becomes df2's nil,
+// DF2 converts the range for a DF-2 family. A nil receiver (NGFW_VPP_ID_RANGE=all) becomes df2's nil,
 // every id; any other range, the empty one included, is copied as it is.
 func (r *IDRange) DF2() *df2.IDRange {
 	if r == nil {
@@ -93,9 +93,9 @@ func (r *IDRange) VPN() vpn.IDRange {
 // IDScope is the agent's resolved id range, handed to the wiring through Env.IDs and read by the
 // families through Wiring.IDRange. The zero value owns no id (fail closed).
 type IDScope struct {
-	// Range is the ids this agent may allocate (VRX_VPP_TABLE_BASE: base..base+999).
+	// Range is the ids this agent may allocate (NGFW_VPP_TABLE_BASE: base..base+999).
 	Range *IDRange
-	// All is VRX_VPP_ID_RANGE=all: every id (what a nil df2/df7 range and the zero vpn.IDRange mean).
+	// All is NGFW_VPP_ID_RANGE=all: every id (what a nil df2/df7 range and the zero vpn.IDRange mean).
 	All bool
 }
 
@@ -113,10 +113,10 @@ func (s IDScope) String() string {
 // ResolveIDScope reads the agent's id range from the environment and fails closed (the agent refuses
 // to start on any error, ErrNoIDRange included; docs/lab/shared-host-rules.md §12):
 //
-//	VRX_VPP_TABLE_BASE=<base>   → base..base+999 (a test slot, or a reserved range on a shared host)
-//	VRX_VPP_ID_RANGE=all        → every id (the product agent on a box of its own)
+//	NGFW_VPP_TABLE_BASE=<base>   → base..base+999 (a test slot, or a reserved range on a shared host)
+//	NGFW_VPP_ID_RANGE=all        → every id (the product agent on a box of its own)
 //	neither                     → the zero IDScope (no id) and ErrNoIDRange
-//	both, a malformed base, or another VRX_VPP_ID_RANGE value → an error (never "every id")
+//	both, a malformed base, or another NGFW_VPP_ID_RANGE value → an error (never "every id")
 func ResolveIDScope() (IDScope, error) {
 	base, hasBase := os.LookupEnv(EnvTableBase)
 	all, hasAll := os.LookupEnv(EnvIDRange)
@@ -142,7 +142,7 @@ func ResolveIDScope() (IDScope, error) {
 	return IDScope{Range: &IDRange{Lo: uint32(n), Hi: uint32(n) + SlotIDRangeSize - 1}}, nil
 }
 
-// SlotIDRange is ResolveIDScope as a range: base..base+999, nil only with VRX_VPP_ID_RANGE=all
+// SlotIDRange is ResolveIDScope as a range: base..base+999, nil only with NGFW_VPP_ID_RANGE=all
 // (every id), and on any error (ErrNoIDRange, a malformed or contradictory setting) the empty range
 // NoIDs with the error.
 //
@@ -156,7 +156,7 @@ func SlotIDRange() (*IDRange, error) {
 }
 
 // IDRange returns the id range of this agent (Env.IDs): a copy of the slot's or reserved range, nil =
-// every id (only with VRX_VPP_ID_RANGE=all), or the empty range NoIDs with ErrNoIDRange (a Config
+// every id (only with NGFW_VPP_ID_RANGE=all), or the empty range NoIDs with ErrNoIDRange (a Config
 // built in code without a range; the agent process refuses to start without one). It fails closed: a
 // family that ignores the error still owns nothing. A family that allocates numeric ids takes its
 // range only from here — never nil, never a missing option — on its Register line, fails the
@@ -184,7 +184,7 @@ func (w *Wiring) IDRange() (*IDRange, error) {
 // Publish hands ev to the agent's event bus (Env.Publish): every StreamEvents subscriber gets a copy
 // (the caller may reuse ev), numbered by its stream, with ts set by the bus when unset. The agent drops
 // an EVENT_KIND_UNSPECIFIED event. Without a sink, and for a nil event, it does nothing.
-func (w *Wiring) Publish(ev *vrxv1.Event) {
+func (w *Wiring) Publish(ev *ngfwv1.Event) {
 	if ev != nil && w.env.Publish != nil {
 		w.env.Publish(ev)
 	}
@@ -266,7 +266,7 @@ var ErrQuarantined = errors.New("dynamic objects quarantined")
 //     Every source left out is out of sync until its next successful sync.
 //   - Reporting, the same for a key and a source: the response lists the dynamic key as SKIPPED with
 //     the source and the cause, an ERROR event carries the attributes source, reason and key, and
-//     vrx_agent_dynamic_source_errors_total{source,reason} counts it (reason invalid, panic, rejected,
+//     ngfw_agent_dynamic_source_errors_total{source,reason} counts it (reason invalid, panic, rejected,
 //     stopped). DryRun plans the same: a key Apply would quarantine is a WARNING issue
 //     "agent.dynamic-object-quarantined", a source it would leave out "agent.dynamic-source-skipped".
 //   - A source out of sync whose sync failed, or that a transaction left out, is retried by the
@@ -297,7 +297,7 @@ type DynamicSource struct {
 	// cached (FRR's labels, PIM's routes) with doc, and leaves out objects whose configuration
 	// dependencies doc no longer has. DryRun calls it without the lock: it must be safe to call
 	// concurrently with itself and with Run.
-	Desired func(doc *vrxv1.DesiredState) []scheduler.KV
+	Desired func(doc *ngfwv1.DesiredState) []scheduler.KV
 	// Run is the feature's loop (poll or subscribe to the daemon), optional. The agent starts it once,
 	// after its first resync, and cancels ctx when it stops; Run must return then, and not before (a
 	// Run that returns early stops the source like a panic). It calls sync after its cached state
@@ -367,10 +367,10 @@ func (w *Wiring) DynamicSources() []DynamicSource {
 // MetricsCollector adds a feature's metric families to the agent's Prometheus endpoint (P05
 // /metrics; F-dashboard-prom-alarms and any feature with counters of its own).
 type MetricsCollector struct {
-	// Name identifies the collector (the collector label of vrx_agent_metrics_collector_errors_total).
+	// Name identifies the collector (the collector label of ngfw_agent_metrics_collector_errors_total).
 	Name string
 	// Collect writes complete families in the text exposition format 0.0.4 (# HELP, # TYPE, samples;
-	// names "vrx_<feature>_…", never "vrx_agent_…", no secrets in label values). It runs on every
+	// names "ngfw_<feature>_…", never "ngfw_agent_…", no secrets in label values). It runs on every
 	// scrape, concurrently with transactions and outside every agent lock, with a deadline on ctx:
 	// read cached values or the stats segment, never block on the VPP binary API. When it returns an
 	// error, nothing it wrote is served and the error counter goes up.

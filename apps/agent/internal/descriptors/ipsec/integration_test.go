@@ -1,10 +1,10 @@
 package ipsec_test
 
-// Host checks against the shared VPP (VRX_INTEGRATION=1, shared lab lock, slot prefix). Every
-// object carries the slot: SPD/SA ids in VRX_VPP_TABLE_BASE..+499 (descriptors) and +500..+599
+// Host checks against the shared VPP (NGFW_INTEGRATION=1, shared lab lock, slot prefix). Every
+// object carries the slot: SPD/SA ids in NGFW_VPP_TABLE_BASE..+499 (descriptors) and +500..+599
 // (simulated charon SAs), loopback/ipip fixtures in the slot's instance range, addresses in
 // 10.<slot>.0.0/16, UDP port 20000+100*slot (docs/agent/descriptors/ipsec.md). No peer exists:
-// configuration is asserted, not traffic. VRX_DF5_PAUSE=<seconds> holds the objects before the
+// configuration is asserted, not traffic. NGFW_DF5_PAUSE=<seconds> holds the objects before the
 // final delete so CLI show evidence can be captured from a shell (docs/status/tasks/DF-5.md).
 //
 // Flow: agent 1 (P05 reconciler + DF-1 alias + the ipsec descriptors, persisted record store)
@@ -41,9 +41,9 @@ import (
 
 func pauseForEvidence(t *testing.T) {
 	t.Helper()
-	if s := os.Getenv("VRX_DF5_PAUSE"); s != "" {
+	if s := os.Getenv("NGFW_DF5_PAUSE"); s != "" {
 		n, _ := strconv.Atoi(s)
-		t.Logf("VRX_DF5_PAUSE: holding objects for %ds", n)
+		t.Logf("NGFW_DF5_PAUSE: holding objects for %ds", n)
 		time.Sleep(time.Duration(n) * time.Second)
 	}
 }

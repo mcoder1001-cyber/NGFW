@@ -23,7 +23,7 @@ pnpm --filter @ngfw/api exec vitest run src/features/notifications --maxWorkers=
 pnpm --filter @ngfw/web exec vitest run src/domains/system/management/NotificationsTab.test.tsx src/domains/system/management/ManagementPage.test.tsx --maxWorkers=1
 pnpm --filter @ngfw/api typecheck
 pnpm --filter @ngfw/web typecheck
-env -u VRX_INTEGRATION go -C apps/agent test ./internal/contracttest
+env -u NGFW_INTEGRATION go -C apps/agent test ./internal/contracttest
 ```
 
-Expected tracked generated outputs: packages/proto/gen/ts, apps/agent/gen/vrx/v1, packages/api-client/src/generated/schema.d.ts, packages/yang/generated/vrx-management.yang, apps/cli/internal/api/operations_gen.go. Regeneration may report other baseline dirt; assess separately and do not copy unrelated historical outputs. Mandatory quick CI and independent review of the complete resulting tree are still pending.
+Expected tracked generated outputs: packages/proto/gen/ts, apps/agent/gen/ngfw/v1, packages/api-client/src/generated/schema.d.ts, packages/yang/generated/ngfw-management.yang, apps/cli/internal/api/operations_gen.go. Regeneration may report other baseline dirt; assess separately and do not copy unrelated historical outputs. Mandatory quick CI and independent review of the complete resulting tree are still pending.

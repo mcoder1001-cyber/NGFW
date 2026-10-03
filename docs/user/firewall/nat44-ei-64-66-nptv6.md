@@ -1,8 +1,8 @@
 # NAT44-EI, NAT64, NAT66 and NPTv6
 
-Next to NAT44-ED ([nat44.md](nat44.md)), VRX drives four more VPP translators, all under `nat` in the configuration
+Next to NAT44-ED ([nat44.md](nat44.md)), NGFW drives four more VPP translators, all under `nat` in the configuration
 document and through the usual candidate → diff → commit → rollback cycle. **UI:** *Firewall → NAT*, tabs **NAT44-EI**,
-**NAT64**, **NAT66**, **NPTv6** (after the NAT44-ED tabs). **CLI:** `vrx set nat …` / `vrx merge nat …` (below).
+**NAT64**, **NAT66**, **NPTv6** (after the NAT44-ED tabs). **CLI:** `ngfw set nat …` / `ngfw merge nat …` (below).
 
 | translator | configuration | VPP plugin | what it is for |
 |---|---|---|---|
@@ -61,12 +61,12 @@ prefix from your own space if the clients must reach private IPv4 addresses (RFC
 
 **DNS64.** Clients learn the synthesized addresses from a DNS64 resolver (RFC 6147) that answers AAAA queries for
 IPv4-only names with the NAT64 prefix + the A record. Configure the resolver the clients use (for example Unbound's
-`dns64` module) with the same prefix; NAT64 itself does not touch DNS, and DNS64 in VRX's own resolver is a separate
+`dns64` module) with the same prefix; NAT64 itself does not touch DNS, and DNS64 in NGFW's own resolver is a separate
 feature of the DNS service.
 
 **464XLAT.** NAT64 is the provider-side translator (PLAT) of 464XLAT (RFC 6877): a customer CLAT translates the host's
-IPv4 to IPv6 towards the NAT64 prefix, and this NAT64 translates it back to IPv4. Nothing extra is configured on VRX; the
-CLAT side on a VRX is a MAP-T domain (*NAT → MAP*).
+IPv4 to IPv6 towards the NAT64 prefix, and this NAT64 translates it back to IPv4. Nothing extra is configured on NGFW; the
+CLAT side on a NGFW is a MAP-T domain (*NAT → MAP*).
 
 **VRFs.** VPP's NAT64 is multi-tenant on the inside only: the prefix is chosen by the inside interface's IPv6 VRF, the
 outside is always the default VRF, and the translated IPv4 packet is routed in the inside interface's IPv4 VRF (add a
@@ -137,23 +137,23 @@ data-plane loss. The configuration comes back on its own within seconds after an
 ```sh
 curl -s -X PATCH -H "Authorization: Bearer $TOKEN" -H 'content-type: application/merge-patch+json' \
   -d '{"nptv6":{"bindings":[{"interface":"wan0","internal":"fd00:4:10::/48","external":"2001:db8:20::/48"}]}}' \
-  https://vrx/api/v1/config/nat
-curl -s -X POST -H "Authorization: Bearer $TOKEN" 'https://vrx/api/v1/config/commit?comment=nptv6'
-curl -s -H "Authorization: Bearer $TOKEN" 'https://vrx/api/v1/state/nat/nat64/sessions?pageSize=100'
+  https://ngfw/api/v1/config/nat
+curl -s -X POST -H "Authorization: Bearer $TOKEN" 'https://ngfw/api/v1/config/commit?comment=nptv6'
+curl -s -H "Authorization: Bearer $TOKEN" 'https://ngfw/api/v1/state/nat/nat64/sessions?pageSize=100'
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
-  -d '{"protocol":"tcp","insideAddress":"10.4.1.2","insidePort":40001}' https://vrx/api/v1/actions/nat/ei/sessions/kill
+  -d '{"protocol":"tcp","insideAddress":"10.4.1.2","insidePort":40001}' https://ngfw/api/v1/actions/nat/ei/sessions/kill
 ```
 
 ## CLI
 
 ```text
-vrx set nat mode ei
-vrx merge nat '{"nat64":{"enabled":true,"inside":["lan0"],"outside":["wan0"],"prefixes":[{"prefix":"64:ff9b::/96"}],"pools":[{"range":"198.51.100.1-198.51.100.14"}]}}'
-vrx merge nat '{"nat66":{"enabled":true,"inside":["lan0"],"outside":["wan0"],"staticMappings":[{"local":"fd00:1::66","external":"2001:db8:66::66"}]}}'
-vrx merge nat '{"nptv6":{"bindings":[{"interface":"wan0","internal":"fd00:4:10::/48","external":"2001:db8:20::/48"}]}}'
-vrx show configuration diff
-vrx commit comment "nat64 nat66 nptv6"
-vrx show configuration nat
+ngfw set nat mode ei
+ngfw merge nat '{"nat64":{"enabled":true,"inside":["lan0"],"outside":["wan0"],"prefixes":[{"prefix":"64:ff9b::/96"}],"pools":[{"range":"198.51.100.1-198.51.100.14"}]}}'
+ngfw merge nat '{"nat66":{"enabled":true,"inside":["lan0"],"outside":["wan0"],"staticMappings":[{"local":"fd00:1::66","external":"2001:db8:66::66"}]}}'
+ngfw merge nat '{"nptv6":{"bindings":[{"interface":"wan0","internal":"fd00:4:10::/48","external":"2001:db8:20::/48"}]}}'
+ngfw show configuration diff
+ngfw commit comment "nat64 nat66 nptv6"
+ngfw show configuration nat
 ```
 
 The CLI has no session commands yet; use the REST routes above or the UI.

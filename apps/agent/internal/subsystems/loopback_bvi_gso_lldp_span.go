@@ -58,12 +58,12 @@ var loopbackState struct{ globalsOwner, nsim atomic.Bool }
 
 // The nsim lab gate (review M2): nsim is a lab tool with VPP-side hazards (a worker box without poll-main-thread
 // crashes on main-thread traffic; configuring it keeps the main thread polling until VPP restarts), so the agent applies
-// it only as the globals owner AND with VRX_NSIM=lab (off by default); VRX_NSIM_POLL_MAIN_THREAD=1 asserts that
+// it only as the globals owner AND with NGFW_NSIM=lab (off by default); NGFW_NSIM_POLL_MAIN_THREAD=1 asserts that
 // startup.conf carries `nsim { poll-main-thread }` (needed when VPP has worker threads).
 const (
-	EnvNsim               = "VRX_NSIM"
+	EnvNsim               = "NGFW_NSIM"
 	EnvNsimLab            = "lab"
-	EnvNsimPollMainThread = "VRX_NSIM_POLL_MAIN_THREAD"
+	EnvNsimPollMainThread = "NGFW_NSIM_POLL_MAIN_THREAD"
 )
 
 // getenv is os.Getenv (a variable for tests).

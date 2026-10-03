@@ -51,11 +51,11 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
     nat_test.go:144: rig VPP side handed to the agent: af_packet_delete host_if_name=w4l0 (tag "") → ok
     nat_test.go:144: rig VPP side handed to the agent: sw_interface_add_del_address sw_if_index=2 (host-w4w0) del_all=true → ok
     nat_test.go:144: rig VPP side handed to the agent: af_packet_delete host_if_name=w4w0 (tag "") → ok
-    nat_test.go:146: create role vrx_w4
+    nat_test.go:146: create role ngfw_w4
 === RUN   TestNat44EdSessions/config
     nat_test.go:174: commit interfaces → applied revision 1
-    nat_test.go:183: commit with pools pat=10.4.2.100-10.4.2.103 more=10.4.2.102-10.4.2.110 → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/nat/pools/1/range…
-    nat_test.go:183: commit with pools pat=10.4.2.100-10.4.2.103 more=10.4.2.104-10.4.2.110 → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/nat/pools/1/range…
+    nat_test.go:183: commit with pools pat=10.4.2.100-10.4.2.103 more=10.4.2.102-10.4.2.110 → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/nat/pools/1/range…
+    nat_test.go:183: commit with pools pat=10.4.2.100-10.4.2.103 more=10.4.2.104-10.4.2.110 → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/nat/pools/1/range…
     nat_test.go:206: candidate diff: {"baseRevision":1,"changes":[{"op":"replace","pointer":"/nat/inside","from":[],"to":["host-w4l0"]},{"op":"replace","pointer":"/nat/outside","from":[],"to":["host-w4w0"]},{"op":"replace","pointer":"/nat/pools","from":[],"to":[{"name":"pat","range":"10.4.2.100-10.4.2.103","twiceNat":false,"desc…
     nat_test.go:208: commit NAT → applied revision 2 results [{"code":"ok","key":"nat44-ed.enable/global","message":"","op":"create","pointer":"/nat","subsystem":"nat"},{"code":"ok","key":"nat44-ed.interface-feature/host-w4l0/inside","message":"","op":"create","pointer":"/nat/inside/0","subsystem":"nat"},{"code":"ok","key":"nat4…
     nat_test.go:220: Retrieve(nat) = {
@@ -114,7 +114,7 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
          local 10.4.1.3 external 10.4.2.111 vrf 0  
          TCP local 10.4.1.2:80 external 10.4.2.110:8080 vrf 0  
     nat_test.go:233: V19 guard: classify_table_by_interface host-w4l0 sw_if_index=2 l2=~0 ip4=~0 ip6=~0
-    nat_test.go:237: vrx-vpp-preflight: <nil>
+    nat_test.go:237: ngfw-vpp-preflight: <nil>
         V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
 === RUN   TestNat44EdSessions/packets
     nat_test.go:378: tcpdump -i w4w1 (netns ns-w4-wan) tcp port 8000:
@@ -139,7 +139,7 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
                dynamic translation
         Showed: 1, Filtered: 1 of total 2 sessions of thread 0
     nat_test.go:400: GET /state/nat/sessions?inside=10.4.1.2&port=40001&protocol=tcp → {"bytes":287,"externalAddress":"10.4.2.2","externalNatAddress":"0.0.0.0","externalNatPort":0,"externalPort":8000,"idleSeconds":1,"insideAddress":"10.4.1.2","insidePort":40001,"outsideAddress":"10.4.2.100","outsidePort":40001,"packets":5,"proto…
-    nat_test.go:411: wan 10.4.2.2:41001 → 10.4.2.110:8080: <nil> vrx-nat-ok
+    nat_test.go:411: wan 10.4.2.2:41001 → 10.4.2.110:8080: <nil> ngfw-nat-ok
     nat_test.go:416: tcpdump -i w4l1 (netns ns-w4-lan) tcp port 80:
         19:40:07.976684 IP 10.4.2.2.41001 > 10.4.1.2.80: Flags [S], seq 1904765615, win 64240, options [mss 1460,sackOK,TS val 3540768769 ecr 0,nop,wscale 10], length 0
         19:40:07.976788 IP 10.4.1.2.80 > 10.4.2.2.41001: Flags [S.], seq 1242479299, ack 1904765616, win 65160, options [mss 1460,sackOK,TS val 3803641645 ecr 3540768769,nop,wscale 10], length 0
@@ -169,7 +169,7 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
         19:40:10.232750 IP 10.4.2.111.42001 > 10.4.2.2.8000: Flags [.], ack 3065150811, win 63, options [nop,nop,TS val 1451759797 ecr 1223823856], length 0
         19:40:10.233753 IP 10.4.2.111.42001 > 10.4.2.2.8000: Flags [.], ack 12, win 63, options [nop,nop,TS val 1451759798 ecr 1223823857], length 0
         19:40:10.234773 IP 10.4.2.111.42001 > 10.4.2.2.8000: Flags [F.], seq 0, ack 12, win 63, options [nop,nop,TS val 1451759798 ecr 1223823857], length 0
-    nat_test.go:447: 1:1 inbound 10.4.2.2:43001 → 10.4.2.111:9000 (lan 10.4.1.3:9000): <nil> vrx-nat-ok
+    nat_test.go:447: 1:1 inbound 10.4.2.2:43001 → 10.4.2.111:9000 (lan 10.4.1.3:9000): <nil> ngfw-nat-ok
     nat_test.go:458: udp flows: <nil> sent 2100
     nat_test.go:466: GET /state/nat/sessions?pageSize=100 → 100 items, total 2105, totalUsers 2, truncated false (32938 bytes)
     nat_test.go:473: GET /state/nat/sessions?pageSize=100&page=2 → 100 items (32922 bytes)
@@ -185,7 +185,7 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
         NAT44 ED sessions:
         -------- thread 0 vpp_main: 2104 sessions --------
         Showed: 0, Filtered: 2104 of total 2104 sessions of thread 0
-    nat_test.go:518: second kill → 404 {"type":"https://vrx.dev/problems/not-found","title":"Not found","status":404,"detail":"agent: no such session: tcp 10.4.1.2:40001 -> 10.4.2.2:8000 (table 0)","instance":"/api/v1/actions/nat/sessions/kill"}
+    nat_test.go:518: second kill → 404 {"type":"https://ngfw.dev/problems/not-found","title":"Not found","status":404,"detail":"agent: no such session: tcp 10.4.1.2:40001 -> 10.4.2.2:8000 (table 0)","instance":"/api/v1/actions/nat/sessions/kill"}
     nat_test.go:528: audit entry: action=POST /api/v1/actions/nat/sessions/kill resource=nat/sessions/tcp/10.4.1.2:40001/10.4.2.2:8000/default result=failure status=404 user=admin
     nat_test.go:528: audit entry: action=POST /api/v1/actions/nat/sessions/kill resource=nat/sessions/tcp/10.4.1.2:40001/10.4.2.2:8000/default result=success status=200 user=admin
 === RUN   TestNat44EdSessions/restart-safety
@@ -198,7 +198,7 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
     nat_test.go:541: simulated loss: nat44_interface_add_del_feature is_add=0 host-w4l0 flags=32 → ok
     nat_test.go:541: simulated loss: nat44_interface_add_del_feature is_add=0 host-w4w0 flags=16 → ok
     nat_test.go:546: nat44-ed dumps after the loss: no feature, pool address or mapping of the slot
-    nat_test.go:567: agent log: {"time":"2026-09-24T19:40:15.299308994+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":2852069,"owner":"w4","socket":"/run/vrx-test/w4/agent.sock","vpp_api":"/run/vpp/api.sock"}
+    nat_test.go:567: agent log: {"time":"2026-09-24T19:40:15.299308994+03:30","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":2852069,"owner":"w4","socket":"/run/ngfw-test/w4/agent.sock","vpp_api":"/run/vpp/api.sock"}
     nat_test.go:572: agent log: {"time":"2026-09-24T19:40:15.330120602+03:30","level":"INFO","msg":"reconcile start","owner":"w4","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","nat"]}
     nat_test.go:572: agent log: {"time":"2026-09-24T19:40:15.380474569+03:30","level":"INFO","msg":"created","owner":"w4","component":"scheduler","key":"nat44-ed.enable/global"}
     nat_test.go:572: agent log: {"time":"2026-09-24T19:40:15.382884291+03:30","level":"INFO","msg":"created","owner":"w4","component":"scheduler","key":"nat44-ed.interface-feature/host-w4l0/inside"}
@@ -226,9 +226,9 @@ V19 pre-flight ok: no classify binding or classify DPO points at a missing table
     nat_test.go:287: commit (interfaces deleted) → applied revision 4
 === NAME  TestNat44EdSessions
     rig_test.go:129: pg-test drop w4: <nil>
-        drop   database vrx_w4
-        drop   role vrx_w4
-        ok     nothing named vrx_w4 / vrx_w4 remains
+        drop   database ngfw_w4
+        drop   role ngfw_w4
+        ok     nothing named ngfw_w4 / ngfw_w4 remains
     nat_test.go:140: rig down: <nil>
     natvpp_test.go:216: fixture: nat44-ed disabled again under the exclusive fixture lock (previous state restored)
     nat_test.go:118: systemctl show vpp -p NRestarts (after) = 1
@@ -332,7 +332,7 @@ removal): `gofmt -l` empty, `go vet` ok, `go test` ok, and the host run 6 above 
 | A6 | `apps/agent/internal/descriptors/core/coretest/fakevpp.go` | **outside any anchor:** the `extensions` seam in `New()` (Q2.2) |
 | — | `apps/agent/internal/agent/service_test.go` | **not a hotspot:** 4 assertion lines adapted to a build that implements `nat` (Q2.1) |
 | C2 | `packages/schema/src/semantic/index.ts` | one import + one spread |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | the two RPCs (framed), `nat_session_kill = 5`, the messages in my section |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | the two RPCs (framed), `nat_session_kill = 5`, the messages in my section |
 | C6 | `docs/contracts/proto.md` | `### F-nat44-ed-sessions: NatSessions` |
 | C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/**`, `apps/cli/internal/api/operations_gen.go` (regenerated, never hand-edited) |
 | P1 | `apps/api/src/app.module.ts` | import + controllers spread + providers spread |
@@ -363,7 +363,7 @@ removal): `gofmt -l` empty, `go vet` ok, `go test` ok, and the host run 6 above 
 8. **Summary pools come from the agent's own Retrieve** (the persisted claims decide what is owned), not from a second
    plugin instance; the API joins them with the running pool names by identity (Q3: drift of NAT lists stays as is).
 9. **Test side:** tx checksum offload off in the rig namespaces (Q7); the plugin fixture enables with VPP's default
-   session limit; a slot NAT gc test (`VRX_NAT_GC=1`).
+   session limit; a slot NAT gc test (`NGFW_NAT_GC=1`).
 
 ## Out of scope / not done
 
@@ -371,7 +371,7 @@ removal): `gofmt -l` empty, `go vet` ok, `go test` ok, and the host run 6 above 
   ALGs, ACL/object-model integration — DryRun warns `agent.unsupported-field` for the present subtrees.
 - `/state/drift` for NAT lists (Q3), the interface-pool key gap (Q4), the fake agent's per-feature Action dispatch (Q5),
   the rig offload fix in `tools/lab` (Q7), the ci.sh guard fix (Q9): manager items.
-- CLI `show nat sessions`: `apps/cli` is not in this task; the user page gives REST + `vrx set/merge nat`.
+- CLI `show nat sessions`: `apps/cli` is not in this task; the user page gives REST + `ngfw set/merge nat`.
 - The ServerDataGrid pager's "of" label is not localised in fa (packages/ui-kit, read-only).
 
 ## Cleanup
@@ -385,7 +385,7 @@ After the last run (19:45):
 (no listener on 3400/5400/9141)
 == rig
 rig: down
-== database vrx_w4
+== database ngfw_w4
 0
 == nat44-ed objects of w4 (dumps)
 NAT44 interfaces:
@@ -395,7 +395,7 @@ NAT44 interfaces:
 == locks
 slot nat44 lock free
 NRestarts=1
-$ VRX_INTEGRATION=1 VRX_NAT_GC=1 VRX_NAT_GC_DISABLE_IF_EMPTY=1 … go test -run TestNat44EdGC .
+$ NGFW_INTEGRATION=1 NGFW_NAT_GC=1 NGFW_NAT_GC_DISABLE_IF_EMPTY=1 … go test -run TestNat44EdGC .
     nat_test.go:313: before: []
     nat_test.go:320: no NAT44-ED object of the slot is left
     nat_test.go:329: plugin left as is: enabled=false empty=true vrf tables=""
@@ -426,7 +426,7 @@ docs · `e2a95dc` status/questions · `88de9a5` fix(agent,web) D-132/WEB-1 (part
 | **L6** pasted evidence = run 5 | the topology block above is now run 6's output (19:40), acceptance numbers aligned | above |
 
 Not re-run on the host this round: the topology test (none of its files changed; its API page size 100 is within the
-new bound, its gRPC `limit=1000` call is still accepted by the agent) and the API e2e (Q11: the e2e harness drops the slot database, and `vrx_w4` is F-nat44-ei's now).
+new bound, its gRPC `limit=1000` call is still accepted by the agent) and the API e2e (Q11: the e2e harness drops the slot database, and `ngfw_w4` is F-nat44-ei's now).
 
 ### Unit tests (fix round 1)
 ```
@@ -455,12 +455,12 @@ $ vitest run src/features                               (apps/api)
 Two runs of `TMPDIR=/tmp/g-rev4b /tmp/g-rev4b/ci.sh --base main` (head `e2a95dc`, load average 30–45). Every step is
 green except the last one, the deploy/vpp apply-startup fake-host harness. That harness is **not this task's code**.
 The branch still carries the pre-D-103 copy of `deploy/vpp/test-apply-startup.sh`: it came in with the old W-seed base,
-and main hardened the harness at 16:21 (6a1b3fc7). The old copy has no `VRX_TEST_SHARD` support (0 hits; main's copy
+and main hardened the harness at 16:21 (6a1b3fc7). The old copy has no `NGFW_TEST_SHARD` support (0 hits; main's copy
 has 3). So main's ci.sh starts four FULL copies of it in parallel, and they collide on the timing-sensitive scenarios
 24 and 26 (`sleep 0.5; W="$(work)"` → `/log`, `/run-pid`). Run serially, the same copy passes 101/101. The L5 rebase
 brings main's harness.
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-nat44-ed-sessions @ e2a95dc9   (base: main)
 == contract guard: HEAD vs main ==
 ok — contract commit(s) on the branch:
@@ -483,15 +483,15 @@ apply-startup shard 2 died (exit 1, result: none)
 apply-startup shard 3 died (exit 1, result: none)
 apply-startup shard 4 died (exit 1, result: none)
 CI GATE FAILED — apply-startup fake-host harness failed (0 passed; …) — logs /root/ngfw-wt/logs/ci/F-nat44-ed-sessions-20260924-235423-1378529
-$ grep -c VRX_TEST_SHARD deploy/vpp/test-apply-startup.sh          → 0      (main's copy: 3)
-$ deploy/vpp/test-apply-startup.sh <the gate's vrx-startupgen>      (serial, the same tree, load 45)
+$ grep -c NGFW_TEST_SHARD deploy/vpp/test-apply-startup.sh          → 0      (main's copy: 3)
+$ deploy/vpp/test-apply-startup.sh <the gate's ngfw-startupgen>      (serial, the same tree, load 45)
 apply-startup tests: 101 passed, 0 failed
 ```
 Logs: `/root/ngfw-wt/logs/F-nat44-ed-sessions-ci-fix1-run{1,2}.log`, `…-apply-startup-serial.log`.
 
 **Run 3, the final code (`88de9a56`, after part 2 below): CI GATE PASSED** (load average 42–46):
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-nat44-ed-sessions @ 88de9a56   (base: main)
 == contract guard: HEAD vs main ==
 ok — contract commit(s) on the branch:
@@ -515,7 +515,7 @@ CI GATE PASSED
 ```
 (The only WARN is two commit subjects that are not mine: the reviewer's `review(…)` commits.) Scenario 24 of the
 branch's old harness copy is timing-sensitive under four unsharded parallel copies (Q13). Main's `deploy/vpp`, run
-sharded against this tree's `vrx-startupgen` (the gate's binary, byte-identical), passes 33+29+26+50 = 138/138 at load
+sharded against this tree's `ngfw-startupgen` (the gate's binary, byte-identical), passes 33+29+26+50 = 138/138 at load
 59 (`/root/ngfw-wt/logs/F-nat44-ed-sessions-mainharness-shard{1..4}.log`). The L5 rebase brings that copy.
 
 ### Fix round 1, part 2 (after the 03:40 reset: CONTINUE-quota "Also new")

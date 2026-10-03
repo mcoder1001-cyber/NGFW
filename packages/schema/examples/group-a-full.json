@@ -1,10 +1,10 @@
 {
   "system": {
-    "hostname": "vrx-a",
+    "hostname": "ngfw-a",
     "timezone": "Asia/Tehran",
     "banner": {
       "login": "Authorised access only.\nAll sessions are logged.",
-      "motd": "vrx-a lab router"
+      "motd": "ngfw-a lab router"
     },
     "dns": { "servers": ["10.0.0.53", "2001:db8::53"], "searchDomains": ["lab.example"] }
   },
@@ -51,7 +51,7 @@
       "enabled": true,
       "description": "management",
       "vrf": "mgmt",
-      "dhcpClient": { "hostname": "vrx-a-mgmt" }
+      "dhcpClient": { "hostname": "ngfw-a-mgmt" }
     },
     "loop0": { "enabled": true, "ipv4": ["10.255.0.1/32"] }
   },

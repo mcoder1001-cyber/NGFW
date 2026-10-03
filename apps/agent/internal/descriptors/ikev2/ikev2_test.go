@@ -25,7 +25,7 @@ import (
 
 // Test vector: the documented placeholder, never real material (00-CONTEXT "Never do these").
 var (
-	psk     = []byte("VRX_TEST_PSK_DF5_ikev2")
+	psk     = []byte("NGFW_TEST_PSK_DF5_ikev2")
 	secrets = vpn.NewMapResolver(keys, psk)
 	pskRef  = keys.Ref(psk)
 	owner   = "w4"
@@ -41,7 +41,7 @@ func fullProfile() *vpnpb.Ikev2Profile {
 	return &vpnpb.Ikev2Profile{
 		Name:      "site-a",
 		Auth:      &vpnpb.Ikev2Auth{Method: "psk", Psk: pskRef},
-		LocalId:   &vpnpb.Ikev2Id{Type: "fqdn", Value: "a.vrx.test"},
+		LocalId:   &vpnpb.Ikev2Id{Type: "fqdn", Value: "a.ngfw.test"},
 		RemoteId:  &vpnpb.Ikev2Id{Type: "ip4", Value: "10.4.5.2"},
 		LocalTs:   &vpnpb.Ikev2Ts{EndPort: 65535, StartAddr: "10.4.6.0", EndAddr: "10.4.6.255"},
 		RemoteTs:  &vpnpb.Ikev2Ts{Protocol: 17, StartPort: 1, EndPort: 2, StartAddr: "fd00::", EndAddr: "fd00::ffff"},
@@ -172,7 +172,7 @@ func TestProfileUpdate(t *testing.T) {
 	mustRetrieve(t, d, n)
 
 	// a new PSK re-issues set_auth in place
-	other := []byte("VRX_TEST_PSK_DF5_ikev2_b")
+	other := []byte("NGFW_TEST_PSK_DF5_ikev2_b")
 	secrets.Add(other)
 	n2 := proto.Clone(n).(*vpnpb.Ikev2Profile)
 	n2.Auth.Psk = keys.Ref(other)
@@ -225,7 +225,7 @@ func TestProfileCreateRollsBack(t *testing.T) {
 	// unknown secret, unknown interface: same
 	v.failAuth = false
 	p := fullProfile()
-	p.Auth.Psk = keys.Ref([]byte("VRX_TEST_PSK_unknown"))
+	p.Auth.Psk = keys.Ref([]byte("NGFW_TEST_PSK_unknown"))
 	if _, err := d.Create(ctx, p); !errors.Is(err, vpn.ErrSecretNotFound) || len(v.profiles) != 0 {
 		t.Fatalf("unknown psk: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestResponderHostname(t *testing.T) {
 	if _, err := d.Create(ctx, p); err != nil {
 		t.Fatal(err)
 	}
-	hn := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer.vrx.test"}
+	hn := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer.ngfw.test"}
 	if h.KeyOf(hn) != "ikev2.responder-hostname/h" {
 		t.Fatalf("key %s", h.KeyOf(hn))
 	}
@@ -342,11 +342,11 @@ func TestResponderHostname(t *testing.T) {
 		t.Fatalf("VPP's setter leaks and resets resolution on every call: %d calls, want 1", len(calls))
 	}
 	r := calls[0].(*ikev2.Ikev2SetResponderHostname)
-	if r.Name != "w4-h" || r.Hostname != "peer.vrx.test" || r.SwIfIndex != 1 {
+	if r.Name != "w4-h" || r.Hostname != "peer.ngfw.test" || r.SwIfIndex != 1 {
 		t.Fatalf("set_responder_hostname %+v", r)
 	}
 	// a changed value is applied; after a VPP restart the record has expired → applied once more
-	hn2 := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer2.vrx.test"}
+	hn2 := &vpnpb.Ikev2ResponderHostname{Profile: "h", Interface: "loop401", Hostname: "peer2.ngfw.test"}
 	if _, err := h.Update(ctx, hn, hn2, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -399,7 +399,7 @@ func TestResponderHostname(t *testing.T) {
 func TestProfileRSASigAndDependencies(t *testing.T) {
 	v := newFakeVPP()
 	d := ikev2d.NewProfile(newCfg(v))
-	p := &vpnpb.Ikev2Profile{Name: "rsa", Auth: &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: "/run/vrx-test/w4/c.pem"},
+	p := &vpnpb.Ikev2Profile{Name: "rsa", Auth: &vpnpb.Ikev2Auth{Method: "rsa-sig", CertFile: "/run/ngfw-test/w4/c.pem"},
 		Responder: &vpnpb.Ikev2Responder{Interface: "loop401", Address: "10.4.0.9"}, TunnelInterface: "ipsec4001"}
 	if _, err := d.Create(ctx, p); err != nil {
 		t.Fatal(err)
@@ -487,10 +487,10 @@ func TestSingletons(t *testing.T) {
 	if _, err := live.Create(ctx, &vpnpb.Ikev2Liveness{Period: 10}); err == nil {
 		t.Fatal("max_retries 0 must be refused")
 	}
-	if _, err := lk.Create(ctx, &vpnpb.Ikev2LocalKey{KeyFile: "/run/vrx-test/w4/k.pem"}); err != nil {
+	if _, err := lk.Create(ctx, &vpnpb.Ikev2LocalKey{KeyFile: "/run/ngfw-test/w4/k.pem"}); err != nil {
 		t.Fatal(err)
 	}
-	if v.localKey != "/run/vrx-test/w4/k.pem" {
+	if v.localKey != "/run/ngfw-test/w4/k.pem" {
 		t.Fatalf("local key %q", v.localKey)
 	}
 	if _, err := lk.Create(ctx, &vpnpb.Ikev2LocalKey{}); err == nil {
@@ -539,7 +539,7 @@ func TestSAState(t *testing.T) {
 	v.sas = []ikev2_types.Ikev2SaV3{
 		{SaIndex: 7, ProfileName: "w4-site-a", State: ikev2_types.AUTHENTICATED, Ispi: 1, Rspi: 2,
 			Iaddr: ip_types.NewAddress([]byte{10, 4, 5, 1}), Raddr: ip_types.NewAddress([]byte{10, 4, 5, 2}), Keys: keys,
-			IID:        ikev2_types.Ikev2ID{Type: 2, DataLen: 10, Data: "a.vrx.test"},
+			IID:        ikev2_types.Ikev2ID{Type: 2, DataLen: 11, Data: "a.ngfw.test"},
 			Encryption: ikev2_types.Ikev2SaTransform{TransformType: 1, TransformID: 12, KeyLen: 32},
 			Integrity:  ikev2_types.Ikev2SaTransform{TransformType: 3, TransformID: 12},
 			Prf:        ikev2_types.Ikev2SaTransform{TransformType: 2, TransformID: 5},
@@ -557,7 +557,7 @@ func TestSAState(t *testing.T) {
 		t.Fatalf("owner filter: %d SAs", len(sas))
 	}
 	s := sas[0]
-	if s.Profile != "site-a" || s.State != "AUTHENTICATED" || s.IAddr != "10.4.5.1" || s.IID.Value != "a.vrx.test" ||
+	if s.Profile != "site-a" || s.State != "AUTHENTICATED" || s.IAddr != "10.4.5.1" || s.IID.Value != "a.ngfw.test" ||
 		s.Encryption != "aes-cbc/256" || s.Integrity != "hmac-sha2-256-128" || s.PRF != "hmac-sha2-256" || s.DH != "modp-2048" {
 		t.Fatalf("decoded %+v", s)
 	}

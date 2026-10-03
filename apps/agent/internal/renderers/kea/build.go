@@ -12,13 +12,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // input is what the renderer needs from the desired state.
 type input struct {
-	dhcp       *vrxv1.DhcpService
-	interfaces map[string]*vrxv1.Interface // nil unless a DesiredState was given
+	dhcp       *ngfwv1.DhcpService
+	interfaces map[string]*ngfwv1.Interface // nil unless a DesiredState was given
 }
 
 // extract accepts the whole DesiredState, the services domain or the dhcp sub-tree.
@@ -26,11 +26,11 @@ func extract(desired proto.Message) (input, error) {
 	switch d := desired.(type) {
 	case nil:
 		return input{}, nil
-	case *vrxv1.DesiredState:
+	case *ngfwv1.DesiredState:
 		return input{dhcp: d.GetServices().GetDhcp(), interfaces: d.GetInterfaces()}, nil
-	case *vrxv1.ServicesConfig:
+	case *ngfwv1.ServicesConfig:
 		return input{dhcp: d.GetDhcp()}, nil
-	case *vrxv1.DhcpService:
+	case *ngfwv1.DhcpService:
 		return input{dhcp: d}, nil
 	default:
 		return input{}, fmt.Errorf("%w: unsupported desired type %T", ErrInvalid, desired)
@@ -171,7 +171,7 @@ func (r *Renderer) buildFamily(in input, family int) (serverConfig, error) {
 	return cfg, nil
 }
 
-func (r *Renderer) addServer(fb *famBuild, name string, s *vrxv1.DhcpServer) error {
+func (r *Renderer) addServer(fb *famBuild, name string, s *ngfwv1.DhcpServer) error {
 	path := "servers/" + name
 	if err := checkName(path, name); err != nil {
 		return err
@@ -246,7 +246,7 @@ func (r *Renderer) addServer(fb *famBuild, name string, s *vrxv1.DhcpServer) err
 			sub.Authoritative = &auth
 		}
 		sub.OptionData = mergeOptions(sub.OptionData, globalOpts)
-		sub.UserContext.VRX.ServerDescription = desc
+		sub.UserContext.NGFW.ServerDescription = desc
 		fb.subnets = append(fb.subnets, sub)
 	}
 	fb.interfaces = append(fb.interfaces, linux...)
@@ -278,7 +278,7 @@ func (fb *famBuild) subnetID(server, subnetName string) uint32 {
 	return fb.ids[server+"/"+subnetName]
 }
 
-func (r *Renderer) buildSubnet(fb *famBuild, server, name string, s *vrxv1.DhcpSubnet, linux []string) (subnet, error) {
+func (r *Renderer) buildSubnet(fb *famBuild, server, name string, s *ngfwv1.DhcpSubnet, linux []string) (subnet, error) {
 	path := "servers/" + server + "/subnets/" + name
 	if err := checkName(path, name); err != nil {
 		return subnet{}, err
@@ -298,7 +298,7 @@ func (r *Renderer) buildSubnet(fb *famBuild, server, name string, s *vrxv1.DhcpS
 	sub := subnet{
 		ID:          fb.subnetID(server, name),
 		Subnet:      pfx.String(),
-		UserContext: &userContext{VRX: vrxContext{Server: server, Subnet: name, Description: desc}},
+		UserContext: &userContext{NGFW: ngfwContext{Server: server, Subnet: name, Description: desc}},
 	}
 	if s.LeaseTimeSec != nil {
 		if s.GetLeaseTimeSec() < 60 {
@@ -359,7 +359,7 @@ func (r *Renderer) buildSubnet(fb *famBuild, server, name string, s *vrxv1.DhcpS
 	return sub, nil
 }
 
-func (fb *famBuild) typedOptions(path string, s *vrxv1.DhcpSubnet) ([]optionData, error) {
+func (fb *famBuild) typedOptions(path string, s *ngfwv1.DhcpSubnet) ([]optionData, error) {
 	var out []optionData
 	addrList := func(field string, list []string) (string, error) {
 		parts := make([]string, 0, len(list))
@@ -440,8 +440,8 @@ func (fb *famBuild) typedOptions(path string, s *vrxv1.DhcpSubnet) ([]optionData
 
 // options renders free option data. Standard codes use Kea's definition (csv-format text);
 // other codes carry either 0x… hex (csv-format false, no definition needed) or text, for which
-// a string option-def "vrx-<code>" is added.
-func (fb *famBuild) options(path string, in []*vrxv1.DhcpOption) ([]optionData, error) {
+// a string option-def "ngfw-<code>" is added.
+func (fb *famBuild) options(path string, in []*ngfwv1.DhcpOption) ([]optionData, error) {
 	std, maxCode := std4, uint32(254)
 	if fb.family == 6 {
 		std, maxCode = std6, 65535
@@ -470,7 +470,7 @@ func (fb *famBuild) options(path string, in []*vrxv1.DhcpOption) ([]optionData, 
 			od.CSVFormat = &f
 			od.Data = strings.ToLower(data[2:]) // Kea stores hex without the 0x prefix
 		default:
-			name := fmt.Sprintf("vrx-%d", code)
+			name := fmt.Sprintf("ngfw-%d", code)
 			fb.optionDefs[code] = optionDef{Name: name, Code: code, Type: "string", Space: fb.space}
 			od.Name = name
 		}
@@ -479,11 +479,11 @@ func (fb *famBuild) options(path string, in []*vrxv1.DhcpOption) ([]optionData, 
 	return out, nil
 }
 
-func (fb *famBuild) reservation(path, name string, rs *vrxv1.DhcpReservation, pfx netip.Prefix) (reservation, error) {
+func (fb *famBuild) reservation(path, name string, rs *ngfwv1.DhcpReservation, pfx netip.Prefix) (reservation, error) {
 	if err := checkName(path, name); err != nil {
 		return reservation{}, err
 	}
-	res := reservation{UserContext: &userContext{VRX: vrxContext{Reservation: name}}}
+	res := reservation{UserContext: &userContext{NGFW: ngfwContext{Reservation: name}}}
 	switch {
 	case rs.Mac != nil && rs.Duid != nil, rs.Mac == nil && rs.Duid == nil:
 		return reservation{}, invalid(path, "a reservation identifies the client by exactly one of mac or duid")

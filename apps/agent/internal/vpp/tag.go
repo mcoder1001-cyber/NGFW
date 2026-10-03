@@ -14,7 +14,7 @@ const MaxTagLen = 63
 var ErrTagTooLong = errors.New("vpp: owner tag too long")
 
 // OwnerTag builds the interface tag that marks an object as owned by this agent:
-// "<owner>:<id>", where owner is the agent's VRX_OWNER (tests: their VRX_TEST_PREFIX) and id
+// "<owner>:<id>", where owner is the agent's NGFW_OWNER (tests: their NGFW_TEST_PREFIX) and id
 // is the object id part of the scheduler key (Key.ID()). Retrieve filters dumps with
 // ParseOwnerTag so two agents on one VPP never touch each other's objects. Neither owner nor
 // id may be empty or contain ":" (owner), NUL or newlines.

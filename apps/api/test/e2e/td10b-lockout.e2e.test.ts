@@ -13,7 +13,7 @@ import { auditReasons, via } from '../support/proxy.js';
  * TD-10b review 2.3a on the host PostgreSQL + Valkey: the login lockout is keyed by (user, client address) behind the
  * trusted proxy; the last admin who could still log in from an address is throttled, never locked; the account-wide
  * lock of a session-held password check never hits the last admin; a root-only break-glass clears every lock.
- * VRX_LOGIN_MAX_FAILURES = 3 to keep it short. Client addresses are TEST-NET (RFC 5737).
+ * NGFW_LOGIN_MAX_FAILURES = 3 to keep it short. Client addresses are TEST-NET (RFC 5737).
  */
 const MAX = 3;
 const PW: Record<string, string> = {
@@ -44,9 +44,9 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
 
   beforeAll(async () => {
     h = await startHarness({
-      VRX_LOGIN_MAX_FAILURES: String(MAX),
-      VRX_LOGIN_RATE_PER_MIN: '1000',
-      VRX_PASSWORD_RATE_PER_MIN: '1000',
+      NGFW_LOGIN_MAX_FAILURES: String(MAX),
+      NGFW_LOGIN_RATE_PER_MIN: '1000',
+      NGFW_PASSWORD_RATE_PER_MIN: '1000',
     });
     PW['admin'] = h.adminPassword;
     kv = h.app.get<Valkey>(VALKEY);
@@ -206,7 +206,7 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
     expect(Math.max(...lockedPerTrial)).toBe(1);
   });
 
-  it('break-glass (root-only vrx-authctl): lists and clears every lock of a user — per-address and account-wide — audited', async () => {
+  it('break-glass (root-only ngfw-authctl): lists and clears every lock of a user — per-address and account-wide — audited', async () => {
     const { listLocks, unlockUser } = await import('../../src/auth/break-glass.js');
     const { main } = await import('../../src/auth/break-glass-cli.js');
     const { AuditService } = await import('../../src/audit/audit.service.js');
@@ -214,7 +214,7 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
     const deps = {
       db: h.db,
       kv,
-      prefix: h.env.VRX_VALKEY_PREFIX,
+      prefix: h.env.NGFW_VALKEY_PREFIX,
       audit: h.app.get(AuditService),
       events: h.app.get(SystemEventsService),
     };
@@ -236,9 +236,9 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
     const code = await main(['unlock', 'victim'], {
       getuid: () => 0,
       env: {
-        VRX_DATABASE_URL: h.env.VRX_DATABASE_URL,
-        VRX_VALKEY_DB: String(h.env.VRX_VALKEY_DB),
-        VRX_VALKEY_PREFIX: h.env.VRX_VALKEY_PREFIX,
+        NGFW_DATABASE_URL: h.env.NGFW_DATABASE_URL,
+        NGFW_VALKEY_DB: String(h.env.NGFW_VALKEY_DB),
+        NGFW_VALKEY_PREFIX: h.env.NGFW_VALKEY_PREFIX,
       },
       out: (l) => out.push(l),
       err: (l) => err.push(l),
@@ -278,9 +278,9 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
     expect(ev.rows[0]!['n']).toBe(2);
   });
 
-  it('review L5: `vrx-authctl rotate-jwt-key` is audited like an unlock (audit row + system_event, the kid only — never a key)', async () => {
+  it('review L5: `ngfw-authctl rotate-jwt-key` is audited like an unlock (audit row + system_event, the kid only — never a key)', async () => {
     const { main } = await import('../../src/auth/break-glass-cli.js');
-    const dir = mkdtempSync(join(tmpdir(), 'vrx-td10b-rot-'));
+    const dir = mkdtempSync(join(tmpdir(), 'ngfw-td10b-rot-'));
     const file = join(dir, 'jwt.keys');
     const out: string[] = [];
     const err: string[] = [];
@@ -288,10 +288,10 @@ describe('TD-10b 2.3a lockout per (user, client address), last admin throttled, 
       const code = await main(['rotate-jwt-key', file], {
         getuid: () => 0,
         env: {
-          VRX_DATABASE_URL: h.env.VRX_DATABASE_URL,
-          VRX_VALKEY_DB: String(h.env.VRX_VALKEY_DB),
-          VRX_VALKEY_PREFIX: h.env.VRX_VALKEY_PREFIX,
-          VRX_API_USER: 'nobody',
+          NGFW_DATABASE_URL: h.env.NGFW_DATABASE_URL,
+          NGFW_VALKEY_DB: String(h.env.NGFW_VALKEY_DB),
+          NGFW_VALKEY_PREFIX: h.env.NGFW_VALKEY_PREFIX,
+          NGFW_API_USER: 'nobody',
         },
         out: (l) => out.push(l),
         err: (l) => err.push(l),

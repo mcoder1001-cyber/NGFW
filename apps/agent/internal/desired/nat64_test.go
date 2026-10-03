@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
@@ -169,7 +169,7 @@ func TestNat64Nat66RoundTripNonOwner(t *testing.T) {
 	}
 	// the canonical document (+ the write-only NPTv6 binding, the requirement timeouts) projects to the same objects
 	canon := natDoc(t, v6CanonicalSlot)
-	canon.Nat64.Timeouts = &vrxv1.NatTimeouts{TcpEstablished: proto.Uint32(3600)}
+	canon.Nat64.Timeouts = &ngfwv1.NatTimeouts{TcpEstablished: proto.Uint32(3600)}
 	canon.Nptv6 = natDoc(t, v6Doc).GetNptv6()
 	s2 := newSink()
 	desired.Nat(s2, canon, vrfID)
@@ -186,7 +186,7 @@ func TestNat64Nat66RoundTripGlobalsOwner(t *testing.T) {
 	applyOrdered(t, reg, s.kvs)
 	got := desired.AssembleNat(retrieveAll(t, reg), tableName)
 	want := natDoc(t, v6CanonicalSlot)
-	want.Nat64.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(300), TcpEstablished: proto.Uint32(3600), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
+	want.Nat64.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(300), TcpEstablished: proto.Uint32(3600), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
 	if !proto.Equal(got, want) {
 		t.Fatalf("Retrieve != canonical desired:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}

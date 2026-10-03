@@ -17,7 +17,7 @@ Message names come only from `apps/agent/binapi/acl` (+ `acl_types`, `ip_types`,
 | counters switch | `acl.stats-enable` | `acl.stats-enable/global` | `acl.KeyStatsEnable` | none |
 
 - `<name>` is the object id a human uses (`lan-in`), never an index. The VPP tag is `"<owner>:<name>"`
-  (`vpp.OwnerTag`; owner = `VRX_OWNER`, tests: `VRX_TEST_PREFIX`), ≤ 63 bytes; it is how Retrieve attributes ACLs.
+  (`vpp.OwnerTag`; owner = `NGFW_OWNER`, tests: `NGFW_TEST_PREFIX`), ≤ 63 bytes; it is how Retrieve attributes ACLs.
 - Another plugin that needs the **acl_index** of `acl.acl/<name>` (DF-2 `abf.policy`) depends on `acl.KeyACL(name)`
   (mandatory) and resolves the index with `acl.LookupIndex(ctx, client, owner, name)` (acl_dump + tag match) —
   Meta is private to the owning descriptor. Update never changes the index (`acl_add_replace` on the same index).
@@ -115,7 +115,7 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   means **"not managed by this agent"**, not "off": it is recorded but not sent, and Retrieve then reports `false`
   whatever the flag is on VPP.
 - The integration test switches the flag on for its stats subtest and **restores it to disabled** in Cleanup
-  (the host default; nothing on main enables it); `VRX_ACL_STATS_KEEP=1` leaves it on.
+  (the host default; nothing on main enables it); `NGFW_ACL_STATS_KEEP=1` leaves it on.
 - **Reflect / stateful ACLs**: `reflect` permits and creates a 5-tuple session so the return flow is permitted on
   the *same* interface in the *other* direction; sessions live in the plugin's connection table whose size is a
   `startup.conf` knob (`acl-plugin { connection count max N }`, read via `GetPluginInfo`) — out of scope here.
@@ -147,7 +147,7 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   owner are refused. The default store is in memory: after an **agent** restart a still-desired whitelist is simply
   re-applied (same value, idempotent on VPP) and re-claimed; a whitelist that was removed from the desired state
   *while the agent was down* stays on VPP until P05 passes a persisted store (`WithEtypeClaims`, e.g. in
-  `VRX_AGENT_STATE_DIR`) — see DF-4-questions Q8. `local0` is never used.
+  `NGFW_AGENT_STATE_DIR`) — see DF-4-questions Q8. `local0` is never used.
 
 ## F-acl: the product wiring of this family
 
@@ -178,5 +178,5 @@ There is no per-interface or per-MACIP-ACL hit counter in the stats segment.
   configuration hash, and Retrieve, AclState and the watcher use the entry of the APPLIED configuration, so a DryRun
   (validate, drift) never changes what they report.
 - **Re-projection**: a watcher asks for a resync of the stored desired state (`Wiring.RequestResync`, TD-8) when an
-  applied rule's schedule turned on or off (checked every 60 s, `VRX_ACL_REPROJECT_SEC`) or an FQDN object it uses
+  applied rule's schedule turned on or off (checked every 60 s, `NGFW_ACL_REPROJECT_SEC`) or an FQDN object it uses
   changed addresses; requests are coalesced (≥ 30 s apart, D-132).

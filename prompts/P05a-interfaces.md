@@ -31,7 +31,7 @@ start in parallel while P05 implements the real scheduler. Keep it small and sta
 3. `apps/agent/internal/renderers/renderer.go`: `type Renderer interface { Name() string; Render(ctx, desired proto.Message) (Files, error);
    Validate(ctx, Files) error; Apply(ctx, Files) error; Retrieve(ctx) (proto.Message, error) }` + `Files map[string]File{Mode, Owner, Content}` +
    helpers: atomic write (temp+rename), fixed-argv runner with an allowlist (`ALLOWLIST.md` skeleton), strict template escaping helper.
-4. `apps/agent/internal/descriptors/README.md` and `internal/renderers/README.md`: how to write one, naming (`VRX_TEST_PREFIX`), Retrieve rules,
+4. `apps/agent/internal/descriptors/README.md` and `internal/renderers/README.md`: how to write one, naming (`NGFW_TEST_PREFIX`), Retrieve rules,
    test isolation on the shared host.
 5. `make lint test` green; one example descriptor unit test using the fake.
 

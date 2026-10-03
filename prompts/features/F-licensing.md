@@ -18,7 +18,7 @@ never degraded at runtime by licensing.
 
 ## Scope — build exactly this
 1. **Format** `tools/license/`: licence = canonical JSON `{version, licenseId, customer, issuedAt, notBefore, expiresAt, binding{machineIdHash?|serial?},
-   entitlements{features[], limits{…}}}` + detached Ed25519 signature (base64), packed as one `.vrxlic` file. `tools/license/vrx-license` CLI
+   entitlements{features[], limits{…}}}` + detached Ed25519 signature (base64), packed as one `.ngfwlic` file. `tools/license/ngfw-license` CLI
    (Node or Go): `keygen` (writes the private key **outside the repo**, prints path), `issue`, `verify`, `inspect`. Test keys are generated at test
    time, never committed. `tools/` is not a pnpm workspace member and has no Go module: keep the CLI dependency-free (a plain ESM script on
    `node:crypto` that shares the canonical-JSON/verify code with the API feature, or a Go `main` with stdlib only) — a new workspace package,
@@ -43,7 +43,7 @@ Files you own and shared hotspots: your TASK ENVELOPE is authoritative. Main pie
 DB schema/migrations if you store the licence in PostgreSQL, web router/nav/i18n) — the manager resolves at merge.
 
 ## Acceptance (paste the evidence)
-- [ ] `vrx-license issue` → upload → `GET /state/license` shows valid + entitlements; tampered file → 400 (pasted)
+- [ ] `ngfw-license issue` → upload → `GET /state/license` shows valid + entitlements; tampered file → 400 (pasted)
 - [ ] Commit adding an unlicensed feature → rejected with `pointer`; within grace → accepted with a warning; expired past grace → rejected for new
       features but the running config stays applied (agent Retrieve unchanged — pasted)
 - [ ] `git grep -n "PRIVATE KEY"` and fixtures contain no private key; logs contain no licence signature

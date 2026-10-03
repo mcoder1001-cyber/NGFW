@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/nat44ed`, binapi `apps/agent/binapi/nat44_ed` (plugin `nat_plugin.so`,
-loaded on vrx-a). Entry point `nat44ed.Register(registry, client, owner)`; `nat44ed.New` returns the typed
+loaded on ngfw-a). Entry point `nat44ed.Register(registry, client, owner)`; `nat44ed.New` returns the typed
 descriptors for consumers that page state (`Users`, `UserSessions`, `DeleteSession`).
 
 Desired state is carried as `*structpb.Struct` built from the typed specs below with `natcommon.Encode`
@@ -37,16 +37,16 @@ Not used: `nat44_add_del_static_mapping` (v1), `nat44_set_session_limit`, `nat_s
 ## Ownership on the shared VPP (docs/lab/shared-host-rules.md)
 
 `natcommon.ScopeFor(owner)`: owner `w<N>` owns addresses in `10.<N>.0.0/16`, tables `N000–N999`, interfaces tagged
-`w<N>:*` and mappings tagged `w<N>:<name>`; every owner — including production `vrx` — owns other untagged objects only
+`w<N>:*` and mappings tagged `w<N>:<name>`; every owner — including production `ngfw` — owns other untagged objects only
 through a ClaimStore record and never touches foreign-tagged ones (D-071, nat-common.md). Singletons (enable, timeouts,
 forwarding) are VPP globals managed only by the globals owner; slot tests require them and use the plugin as a fixture. ED and EI are mutually exclusive;
-this slot's nat44ed and nat44ei packages serialise on `/run/vrx-test/w<N>/nat44.lock` (`nattest.SlotLock`) and skip
+this slot's nat44ed and nat44ei packages serialise on `/run/ngfw-test/w<N>/nat44.lock` (`nattest.SlotLock`) and skip
 when the other mode is enabled by a foreign owner.
 
 ## Tests
 
 - Unit: `nat44ed_test.go` — stateful fake VPP shared with owner `w3`; create, idempotent re-apply (empty plan),
   update in place, `ErrRecreate`, delete with Meta, Retrieve filtering, dependency ordering, VPP errors.
-- Integration: `nat44ed_integration_test.go` (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w9`): loopbacks `loop901/902`,
+- Integration: `nat44ed_integration_test.go` (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w9`): loopbacks `loop901/902`,
   table `9001`, pool `10.9.1.1–10.9.1.4`, twice-NAT pool `10.9.2.1`, mappings tagged `w9:*`; every object
   Retrieve == desired, then deleted, Retrieve empty; plugin is a test fixture: disabled again only if this test enabled it and it is empty.

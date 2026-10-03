@@ -16,7 +16,7 @@ below ran against the fake VPP (coretest) / fake agent. Host evidence is **not d
 - **UI**: Services → Flow export tab (Exporters / Flowprobe / sFlow, interface picker, hsflowd banner, non-owner warning), en + fa.
 - **Docs**: `docs/user/services/ipfix-sflow.md`; notes appended to `docs/agent/descriptors/{ipfix,flowprobe,sflow}.md`.
 - **Topology**: `test/topology/ipfix-sflow` — Go UDP IPFIX collector (unit tested) + opt-in `TestExporterZeroToSlotCollector`
-  (VRX_INTEGRATION=1 + VRX_IPFIX_GLOBALS=1, flock -x /run/lock/vrx-globals.lock, exact save/restore of exporter 0 + flowprobe params).
+  (NGFW_INTEGRATION=1 + NGFW_IPFIX_GLOBALS=1, flock -x /run/lock/ngfw-globals.lock, exact save/restore of exporter 0 + flowprobe params).
 
 ## Obligations
 - D-104: descriptors used, only gap changes. D-071: `RegisterGlobals` only when `Env.GlobalsOwner`; otherwise

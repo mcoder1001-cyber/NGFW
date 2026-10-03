@@ -8,9 +8,9 @@ import { Bus } from '../infra/bus.js';
 import { VALKEY, type Valkey } from '../infra/valkey.js';
 import { checkKeyFile, KeyFileError, readKeyFile } from './key-file.js';
 
-const ISSUER = 'vrx-api';
-const AUDIENCE = 'vrx';
-/** How often a VRX_JWT_KEY_FILE is checked for a change (stat only; re-read when it changed). */
+const ISSUER = 'ngfw-api';
+const AUDIENCE = 'ngfw';
+/** How often a NGFW_JWT_KEY_FILE is checked for a change (stat only; re-read when it changed). */
 const RING_CHECK_MS = 5_000;
 const REFRESH_TOKEN = /^[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{43}$/;
 
@@ -32,7 +32,7 @@ export interface IssuedRefresh {
   gen: number;
   /** Seconds this refresh token (and its cookie) lives: the idle TTL, capped by the session's end. */
   maxAge: number;
-  /** TD-10b (review 2.3d): the session's absolute end (epoch seconds) = login + VRX_SESSION_MAX_SEC. */
+  /** TD-10b (review 2.3d): the session's absolute end (epoch seconds) = login + NGFW_SESSION_MAX_SEC. */
   notAfter: number;
 }
 
@@ -62,18 +62,18 @@ function b64url(bytes: number): string {
 function ringKey(secret: string | Uint8Array): RingKey {
   const key = typeof secret === 'string' ? new TextEncoder().encode(secret) : secret;
   return {
-    kid: createHash('sha256').update('vrx-jwt-kid:').update(key).digest('hex').slice(0, 16),
+    kid: createHash('sha256').update('ngfw-jwt-kid:').update(key).digest('hex').slice(0, 16),
     key,
   };
 }
 
-/** The `kid` a key of the ring signs with (vrx-authctl reports it after a rotation). */
+/** The `kid` a key of the ring signs with (ngfw-authctl reports it after a rotation). */
 export function keyId(secret: string): string {
   return ringKey(secret).kid;
 }
 
 /**
- * VRX_JWT_KEY_FILE content → keys, newest (the signing key) first. One key per line (≥ 32 characters), `#` comments
+ * NGFW_JWT_KEY_FILE content → keys, newest (the signing key) first. One key per line (≥ 32 characters), `#` comments
  * and blank lines ignored. Errors name the line, never its content.
  */
 export function parseKeyRing(text: string, path: string): string[] {
@@ -90,11 +90,11 @@ export function parseKeyRing(text: string, path: string): string[] {
 }
 
 /**
- * Access tokens: HS256 JWT, 15 min by default (VRX_ACCESS_TTL_SEC), signed with the newest key of a key ring (`kid`
- * header; TD-10b: VRX_JWT_KEY_FILE rotates without ending sessions). Refresh tokens: opaque `<family>.<secret>`,
+ * Access tokens: HS256 JWT, 15 min by default (NGFW_ACCESS_TTL_SEC), signed with the newest key of a key ring (`kid`
+ * header; TD-10b: NGFW_JWT_KEY_FILE rotates without ending sessions). Refresh tokens: opaque `<family>.<secret>`,
  * stored hashed in Valkey, single use and rotated on every refresh; presenting a used token again revokes the whole
  * family (theft detection). They travel only in the httpOnly SameSite=Strict cookie. A login session (family) lives
- * at most VRX_SESSION_MAX_SEC from its login (TD-10b), and a logout ends it at once — refresh chain AND access tokens.
+ * at most NGFW_SESSION_MAX_SEC from its login (TD-10b), and a logout ends it at once — refresh chain AND access tokens.
  */
 @Injectable()
 export class TokensService {
@@ -125,27 +125,27 @@ export class TokensService {
     @Inject(VALKEY) private readonly kv: Valkey,
     private readonly bus: Bus,
   ) {
-    if (env.VRX_JWT_KEY_FILE !== undefined) {
+    if (env.NGFW_JWT_KEY_FILE !== undefined) {
       // a bad key file stops the API at boot (owner, mode, content) — never a silent fallback to a weaker key
-      this.ring = this.readRing(env.VRX_JWT_KEY_FILE);
-    } else if (env.VRX_JWT_SECRET !== undefined) {
-      this.ring = [ringKey(env.VRX_JWT_SECRET)];
+      this.ring = this.readRing(env.NGFW_JWT_KEY_FILE);
+    } else if (env.NGFW_JWT_SECRET !== undefined) {
+      this.ring = [ringKey(env.NGFW_JWT_SECRET)];
     } else {
       this.log.warn(
-        'neither VRX_JWT_KEY_FILE nor VRX_JWT_SECRET is set: using a random per-process key (sessions end when the API restarts)',
+        'neither NGFW_JWT_KEY_FILE nor NGFW_JWT_SECRET is set: using a random per-process key (sessions end when the API restarts)',
       );
       this.ring = [ringKey(randomBytes(32))];
     }
   }
 
   get accessTtl(): number {
-    return this.env.VRX_ACCESS_TTL_SEC;
+    return this.env.NGFW_ACCESS_TTL_SEC;
   }
   get refreshTtl(): number {
-    return this.env.VRX_REFRESH_TTL_SEC;
+    return this.env.NGFW_REFRESH_TTL_SEC;
   }
   get sessionMax(): number {
-    return this.env.VRX_SESSION_MAX_SEC;
+    return this.env.NGFW_SESSION_MAX_SEC;
   }
 
   private readRing(path: string): RingKey[] {
@@ -156,9 +156,9 @@ export class TokensService {
     return ring;
   }
 
-  /** Re-read VRX_JWT_KEY_FILE when it changed (checked at most every 5 s); a bad file keeps the current ring. */
+  /** Re-read NGFW_JWT_KEY_FILE when it changed (checked at most every 5 s); a bad file keeps the current ring. */
   private refreshRing(): void {
-    const path = this.env.VRX_JWT_KEY_FILE;
+    const path = this.env.NGFW_JWT_KEY_FILE;
     if (path === undefined || Date.now() - this.ringCheckedAt < RING_CHECK_MS) return;
     this.ringCheckedAt = Date.now();
     try {
@@ -177,8 +177,8 @@ export class TokensService {
   }
 
   /**
-   * An access token for `c`, valid VRX_ACCESS_TTL_SEC — never beyond `notAfter` (epoch seconds; TD-10b: the end of
-   * the login session, VRX_SESSION_MAX_SEC).
+   * An access token for `c`, valid NGFW_ACCESS_TTL_SEC — never beyond `notAfter` (epoch seconds; TD-10b: the end of
+   * the login session, NGFW_SESSION_MAX_SEC).
    */
   signAccess(c: AccessClaims, notAfter?: number): Promise<string> {
     this.refreshRing();
@@ -265,7 +265,7 @@ export class TokensService {
    * - `family` given: continues that chain only while `rtfam:<family>` still says `<uid>:<gen>` — a chain of an older
    *   generation, or one deleted by a reset/logout/reuse, is refused and never re-created;
    * - no `family`: starts a new chain (login) and records the login time.
-   * TD-10b (review 2.3d): a chain older than VRX_SESSION_MAX_SEC is not continued (and deleted); the token's lifetime
+   * TD-10b (review 2.3d): a chain older than NGFW_SESSION_MAX_SEC is not continued (and deleted); the token's lifetime
    * is the idle TTL capped by the time the session has left.
    * Returns null when the chain was revoked, `expired` when the session reached its maximum age.
    */
@@ -474,7 +474,7 @@ export class TokensService {
 
   /** Keys matching `pattern`, WITHOUT the client's prefix (SCAN is not prefixed by the client). */
   private async scanKeys(pattern: string): Promise<string[]> {
-    const prefix = this.env.VRX_VALKEY_PREFIX;
+    const prefix = this.env.NGFW_VALKEY_PREFIX;
     const out: string[] = [];
     let cursor = '0';
     do {
@@ -589,5 +589,5 @@ export function apiKeyHash(token: string): string {
 }
 
 export function newApiKeyToken(): string {
-  return `vrxk_${b64url(32)}`;
+  return `ngfwk_${b64url(32)}`;
 }

@@ -13,10 +13,10 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// testSecret is the fixture secret of a conf key: the literal VRX_TEST_PSK_<id> (00-CONTEXT:
+// testSecret is the fixture secret of a conf key: the literal NGFW_TEST_PSK_<id> (00-CONTEXT:
 // test fixtures never carry real secrets).
 func testSecret(_ context.Context, id uint32) ([]byte, error) {
-	return []byte(fmt.Sprintf("VRX_TEST_PSK_%d", id)), nil
+	return []byte(fmt.Sprintf("NGFW_TEST_PSK_%d", id)), nil
 }
 
 // Host test: sessions on this slot's loopback (loop<slot>60, 10.<slot>.60.1/24) towards peers

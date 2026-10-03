@@ -8,7 +8,7 @@ Reviewed: `apps/agent/internal/descriptors/acl/**`, `docs/agent/descriptors/acl.
 | Check | Result |
 |---|---|
 | `tools/ci.sh --base main` in the worktree | **CI GATE PASSED** (1m20s). Matches the output pasted in `DF-4.md`. |
-| `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w10 VRX_ACL_STATS_RESTORE_DISABLED=1 go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/` | **PASS**, all 8 subtests (acl, acl-50-rules, interface-binding, etype-whitelist, macip, stats, delete, macip-del-unbinds). Every Retrieve check is followed by an empty re-apply plan. |
+| `NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w10 NGFW_ACL_STATS_RESTORE_DISABLED=1 go test -race -count=1 -run TestACLPluginOnHost -v ./internal/descriptors/acl/` | **PASS**, all 8 subtests (acl, acl-50-rules, interface-binding, etype-whitelist, macip, stats, delete, macip-del-unbinds). Every Retrieve check is followed by an empty re-apply plan. |
 | Host state before/after | `show acl-plugin tables`: "Stats counters enabled for interface ACLs: 0" before and after; 0 `w10` ACLs, 0 `w10` MACIP ACLs, 0 `loop104x` after. |
 | Extra probe (my own temporary test, run and then deleted; not committed): update a **bound** ACL in place, update a **bound** MACIP ACL in place, simulate an agent restart with **fresh descriptor instances**, delete a binding directly through binapi, then re-Create it | All PASS. Fresh-instance Retrieve gives back the same Meta that Create returned, for all 5 VPP object types: `{ACLIndex}`, `{ACLIndex}`, `{SwIfIndex}`, `{SwIfIndex}`, `{SwIfIndex, ACLIndex}`. Bound ACL/MACIP updates keep their bindings, and Retrieve == desired. The binding lost from VPP disappears from Retrieve and is re-created. Findings 2 and 4 below come from this probe. |
 | VPP bug V7 | Confirmed in `/root/vpp` (tag v26.06), `src/plugins/acl/acl.c:1826`: `REPLY_MACRO (VL_API_ACL_DEL_REPLY)` in `vl_api_acl_stats_intf_counters_enable_t_handler`. The raw-stream workaround is justified. |
@@ -31,7 +31,7 @@ Reviewed: `apps/agent/internal/descriptors/acl/**`, `docs/agent/descriptors/acl.
 ### 1. MEDIUM — `acl.stats-enable` Retrieve goes stale after a VPP restart, so the counters stay off silently
 `apps/agent/internal/descriptors/acl/stats_enable.go:99` and `:124-131`.
 Retrieve returns `d.applied`, a value kept in process memory. Nothing clears it when VPP restarts.
-- **Failure scenario:** the agent enables the counters. Later `tools/lab restart-vpp vrx-a` or a `kill -9 vpp` happens after handover. The agent reconnects, but Retrieve still reports `{enabled:true}`. The diff is empty, so the counters are never re-enabled. `StatsReader` then returns zeros forever. This breaks DoD #2 ("survives restart-vpp, agent reconciles") for this object.
+- **Failure scenario:** the agent enables the counters. Later `tools/lab restart-vpp ngfw-a` or a `kill -9 vpp` happens after handover. The agent reconnects, but Retrieve still reports `{enabled:true}`. The diff is empty, so the counters are never re-enabled. `StatsReader` then returns zeros forever. This breaks DoD #2 ("survives restart-vpp, agent reconciles") for this object.
 - **Fix:** tie `applied` to a VPP identity. Options:
   - Store the VPP boot time (stats `/sys/boottime`) or the client's connection generation next to `applied`, and return nothing from Retrieve when it changed.
   - Or expose a `Reset()` hook that P05 calls on reconnect.
@@ -67,8 +67,8 @@ Two VPP ACLs can carry the same `w<N>:<name>` tag, for example when the `acl_add
 
 ### 5. LOW — the integration test leaves the global counters flag on by default
 `integration_test.go:182`.
-The factory prompt says "global singleton; read-modify-restore in tests". By default the test enables the flag and leaves it on. It is restored only when `VRX_ACL_STATS_RESTORE_DISABLED=1` is set, and `tools/ci.sh full` will not set that. On the shared host this changes global VPP state for every other slot (the data plane costs more once counters are on).
-- **Fix:** reverse the default. Restore to disabled unless `VRX_ACL_STATS_KEEP=1` is set. The flag was 0 before every run so far, and nothing on main enables it. Alternatively, get a manager decision recorded in `shared-host-rules.md`. (Question 6 is open, so the manager should settle it before merge.)
+The factory prompt says "global singleton; read-modify-restore in tests". By default the test enables the flag and leaves it on. It is restored only when `NGFW_ACL_STATS_RESTORE_DISABLED=1` is set, and `tools/ci.sh full` will not set that. On the shared host this changes global VPP state for every other slot (the data plane costs more once counters are on).
+- **Fix:** reverse the default. Restore to disabled unless `NGFW_ACL_STATS_KEEP=1` is set. The flag was 0 before every run so far, and nothing on main enables it. Alternatively, get a manager decision recorded in `shared-host-rules.md`. (Question 6 is open, so the manager should settle it before merge.)
 
 ### 6. LOW — interface-binding ownership: a foreign ACL in the list makes the whole binding invisible, and Create then overwrites it
 `binding.go:197`.

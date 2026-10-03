@@ -18,17 +18,17 @@
 - `docs/agent/README.md`: the §S1 headline, the id-range row, and rule 2 (V3). The envelope names "README §S1".
 
 ## Q2. `test/topology/interfaces`: one env override beyond the passthrough (manager: keep or revert?)
-- The envelope has the run use slot 5 but forbids `vrx_w5`, Valkey 5 and port 3500 (they belong to TD-10b).
-- The harness creates **and drops** its database with `deploy/dev/pg-test.sh create|drop <VRX_TEST_PREFIX>`, which is
-  `vrx_w5` on slot 5. Its final `drop` would have killed TD-10b's sessions and database. There was no env knob for it.
-- I added `VRX_P08_PG_NAME`, which defaults to the prefix, so the default behaviour is unchanged (`stack_test.go` +2
+- The envelope has the run use slot 5 but forbids `ngfw_w5`, Valkey 5 and port 3500 (they belong to TD-10b).
+- The harness creates **and drops** its database with `deploy/dev/pg-test.sh create|drop <NGFW_TEST_PREFIX>`, which is
+  `ngfw_w5` on slot 5. Its final `drop` would have killed TD-10b's sessions and database. There was no env knob for it.
+- I added `NGFW_P08_PG_NAME`, which defaults to the prefix, so the default behaviour is unchanged (`stack_test.go` +2
   lines, `interfaces_test.go` 3 lines).
 - The run used:
-  - `VRX_P08_PG_NAME=w5_td8b` (database `vrx_w5_td8b`, created and dropped by the run);
-  - `VRX_HTTP_PORT=3590`;
-  - `VRX_VALKEY_DB=15` (empty before the run);
-  - `VRX_AGENT_SOCKET=/run/vrx-test/w5/td8b-agent.sock`;
-  - `VRX_METRICS_PORT=9159`.
+  - `NGFW_P08_PG_NAME=w5_td8b` (database `ngfw_w5_td8b`, created and dropped by the run);
+  - `NGFW_HTTP_PORT=3590`;
+  - `NGFW_VALKEY_DB=15` (empty before the run);
+  - `NGFW_AGENT_SOCKET=/run/ngfw-test/w5/td8b-agent.sock`;
+  - `NGFW_METRICS_PORT=9159`.
   All five were free when I checked them. The VPP side stayed slot 5's: prefix `w5`, table base 5000.
 - If you prefer strict passthrough only, revert that hunk. A shared slot then needs its own database name some other
   way.
@@ -54,8 +54,8 @@ now pins it: the refusal must cite `shared-host-rules.md §12` and not §11. On 
 not because of V5.
 
 ## Q6. Small follow-ups (TD-22?)
-- `cmd/vrx-agent/main.go`: the environment list in its doc comment lacks `VRX_VPP_TABLE_BASE` / `VRX_VPP_ID_RANGE`,
+- `cmd/ngfw-agent/main.go`: the environment list in its doc comment lacks `NGFW_VPP_TABLE_BASE` / `NGFW_VPP_ID_RANGE`,
   which are now mandatory (not my file).
-- P10: the packaged unit needs `VRX_VPP_ID_RANGE=all`, with a packaging test. The row is in `docs/tech-debt.md`.
+- P10: the packaged unit needs `NGFW_VPP_ID_RANGE=all`, with a packaging test. The row is in `docs/tech-debt.md`.
 - DryRun has a new WARNING rule, `agent.dynamic-object-quarantined`, next to `agent.dynamic-source-skipped`. Neither is
   mapped in the API or UI (`grep` finds no TS use). It is additive and needs no contract change.

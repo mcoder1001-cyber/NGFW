@@ -39,12 +39,12 @@ export interface JsonSchema {
   readOnly?: boolean;
   writeOnly?: boolean;
   deprecated?: boolean;
-  'x-vrx-ui'?: UiHints;
+  'x-ngfw-ui'?: UiHints;
   [keyword: string]: unknown;
 }
 
 /** Name of the JSON Schema extension keyword carrying form-renderer hints (packages/schema `withUi()`, D-019). */
-export const X_VRX_UI = 'x-vrx-ui' as const;
+export const X_NGFW_UI = 'x-ngfw-ui' as const;
 
 /** `dependsOn`: show the field only while a sibling (or absolute `/path`) has a matching value. */
 export interface UiDependsOn {
@@ -79,7 +79,7 @@ export interface UiHints {
   [hint: string]: unknown;
 }
 
-/** RFC 9457 problem details as vrx-api returns them; `pointer` is the RFC 6901 path of the offending value. */
+/** RFC 9457 problem details as ngfw-api returns them; `pointer` is the RFC 6901 path of the offending value. */
 export interface ProblemDetails {
   type?: string;
   title?: string;

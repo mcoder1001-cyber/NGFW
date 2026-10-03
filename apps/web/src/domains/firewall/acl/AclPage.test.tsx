@@ -474,7 +474,7 @@ describe('ACL screen', () => {
     { timeout: 60_000 },
     async () => {
       localStorage.setItem(
-        'vrx.ui.settings',
+        'ngfw.ui.settings',
         JSON.stringify({ mode: 'light', lang: 'fa', persianDigits: true, dense: true }),
       );
       const api = installFakeApi();

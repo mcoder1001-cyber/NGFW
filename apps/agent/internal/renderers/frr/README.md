@@ -9,9 +9,9 @@ the files here. Mapping table desired state ↔ directives: `docs/agent/renderer
 
 | file | what |
 |---|---|
-| `paths.go` | `Paths` (ConfDir, RunDir, Namespace = FRR pathspace `-N`, BinDir, ReloadLog, FileOwner, FileMode); `ProductPaths()` = `/etc/frr`, `/var/run/frr`, `frr:frr 0640`; `TestPaths("w12")` = `/run/vrx-test/w12/frr/{etc,run}`, pathspace `w12`, owner root |
+| `paths.go` | `Paths` (ConfDir, RunDir, Namespace = FRR pathspace `-N`, BinDir, ReloadLog, FileOwner, FileMode); `ProductPaths()` = `/etc/frr`, `/var/run/frr`, `frr:frr 0640`; `TestPaths("w12")` = `/run/ngfw-test/w12/frr/{etc,run}`, pathspace `w12`, owner root |
 | `escape.go` | strict validators `Hostname`, `IfName`, `VRFName`, `Description` (+ template funcs `hostname ifname vrfname desc`) |
-| `model.go` | `Desired(msg)` input normalisation (`*vrxv1.DesiredState` or D-055 `*structpb.Struct` document + stand-in fields), `BuildModel` (validated typed model), D-072 static ownership (`StaticOwnedByFRR`, `RegisterStaticSelector`), `NoMapper`/`IdentityMapper` |
+| `model.go` | `Desired(msg)` input normalisation (`*ngfwv1.DesiredState` or D-055 `*structpb.Struct` document + stand-in fields), `BuildModel` (validated typed model), D-072 static ownership (`StaticOwnedByFRR`, `RegisterStaticSelector`), `NoMapper`/`IdentityMapper` |
 | `section.go` | `Section` interface, `RegisterSection`, order constants, framework sections, `assemble` (+ per-line backstop) |
 | `secrets.go` | `RenderContext` (typed state, `MapInterface`, `Secret(ref)`), `SecretResolver`, redaction (`RegisterRedaction`, built-in FRR secret patterns) |
 | `templates/framework.tmpl` | `globals`, `vrfs`, `interfaces`, `static`, `route`, `vtysh.conf` |
@@ -114,14 +114,14 @@ json`) and stream-decodes the RIB (`StreamRIB`); the poller reads only the summa
 
 `frrtest.Start(t, frrtest.Options{Prefix: "w12", Links: …, Daemons: …})` (integration only):
 
-- takes an exclusive `flock` on `/run/vrx-test/<prefix>/frr.lock` for its lifetime (review M4): a second harness on
+- takes an exclusive `flock` on `/run/ngfw-test/<prefix>/frr.lock` for its lifetime (review M4): a second harness on
   the same slot (another package in the same `go test ./...`) waits instead of killing the first one's daemons;
   daemons are identified by `/proc/<pid>/exe` = the daemon binary **and** argv `-i <this harness's pidfile>`;
 - creates namespace `ns-<prefix>-frr` (or reuses `Options.NetNS`, e.g. the rig's `ns-<prefix>-lan`, not deleted)
   with the requested dummy/vrf links (names must carry the prefix); refuses a namespace containing `ens192`;
-- dirs `/run/vrx-test/<prefix>/frr/{etc/<prefix>,run/<prefix>}`; the socket dir belongs to `frr` (the daemons drop
+- dirs `/run/ngfw-test/<prefix>/frr/{etc/<prefix>,run/<prefix>}`; the socket dir belongs to `frr` (the daemons drop
   privileges and refuse `-u root`);
-- **symlink `/run/frr/<prefix>` → `/run/vrx-test/<prefix>/frr/run/<prefix>`**: mgmtd binds `mgmtd_fe.sock` /
+- **symlink `/run/frr/<prefix>` → `/run/ngfw-test/<prefix>/frr/run/<prefix>`**: mgmtd binds `mgmtd_fe.sock` /
   `mgmtd_be.sock` in `/var/run/frr/<pathspace>` regardless of `--vty_socket`. Only a missing path or the harness's
   own symlink is accepted; removed on Stop;
 - starts `ip netns exec <ns> /usr/lib/frr/<d> -d -N <prefix> --vty_socket <sock> -i <sock>/<d>.pid -A 127.0.0.1 -P 0
@@ -134,7 +134,7 @@ json`) and stream-decodes the RIB (`StreamRIB`); the poller reads only the summa
 - mgmtd still *tries to read* legacy `/etc/frr/<daemon>.conf` files at start (none exist; nothing under `/etc/frr` is
   written — the integration test fingerprints `/etc/frr` before/after).
 
-Run: `eval "$(tools/lab env 12)"; cd apps/agent && VRX_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/frr/`
+Run: `eval "$(tools/lab env 12)"; cd apps/agent && NGFW_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/frr/`
 
 ## Limitations / not here
 

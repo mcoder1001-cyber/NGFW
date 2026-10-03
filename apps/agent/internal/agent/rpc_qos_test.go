@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	binqos "ngfw/agent/binapi/qos"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/ownertable"
@@ -131,16 +131,16 @@ func features(t *testing.T, v *coretest.VPP, want int) {
 	}
 }
 
-func retrieveQoS(t *testing.T, s *Service) *vrxv1.QosService {
+func retrieveQoS(t *testing.T, s *Service) *ngfwv1.QosService {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"services"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"services"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got.GetDesiredState().GetServices().GetQos()
 }
 
-func sameQoS(t *testing.T, got *vrxv1.QosService, want string) {
+func sameQoS(t *testing.T, got *ngfwv1.QosService, want string) {
 	t.Helper()
 	if w := doc(t, want).GetServices().GetQos(); !proto.Equal(got, w) {
 		t.Fatalf("services.qos\n got %s\nwant %s", protojson.Format(got), protojson.Format(w))
@@ -156,7 +156,7 @@ func TestQoSApplyRetrieveRollback(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newQoSSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "q1", DesiredState: doc(t, qosAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "q1", DesiredState: doc(t, qosAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	pols := v.QoSPolicers()
 	for _, n := range []string{"w7:gold", "w7:pps", "w7:shaper:up"} {
 		if _, ok := pols[n]; !ok {
@@ -179,15 +179,15 @@ func TestQoSApplyRetrieveRollback(t *testing.T) {
 	sameQoS(t, retrieveQoS(t, s), qosRetrieved)
 
 	// idempotent and applied once: a repeat and two resyncs change nothing in VPP
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "q2", DesiredState: doc(t, qosAgentDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "q2", DesiredState: doc(t, qosAgentDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for i := 0; i < 2; i++ {
-		mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	}
 	features(t, v, 1)
 
 	// rollback to "no QoS": everything goes, marks before maps, attachments un-applied (applied in this lifetime)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "q3", DesiredState: doc(t, `{"interfaces": {"loop7101": {}, "loop7102": {}, "loop7103": {}}, "services": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "q3", DesiredState: doc(t, `{"interfaces": {"loop7101": {}, "loop7102": {}, "loop7103": {}}, "services": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(v.QoSPolicers()) != 0 || len(v.QoSMaps()) != 0 || len(v.QoSMarks(binqos.QOS_API_SOURCE_IP)) != 0 {
 		t.Fatalf("rollback left policers %v maps %v", v.QoSPolicers(), v.QoSMaps())
 	}
@@ -206,7 +206,7 @@ func TestQoSAgentRestartRecreates(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newQoSSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, qosAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, qosAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close()
 	if !v.DeleteQoSPolicer("w7:gold") {
 		t.Fatal("no gold to delete")
@@ -214,7 +214,7 @@ func TestQoSAgentRestartRecreates(t *testing.T) {
 	v.DeleteQoSMap(7000)
 	s2 := newQoSSvc(t, v, dir)
 	resp := s2.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if resp.GetSummary().GetCreated() < 2 {
 		t.Fatalf("resync recreated %d objects", resp.GetSummary().GetCreated())
 	}
@@ -236,15 +236,15 @@ func TestQoSVPPRestart(t *testing.T) {
 	restart := vppBoot(t)
 	v := coretest.New()
 	s := newQoSSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, qosAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, qosAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	restart()
 	v.QoSRestart()
-	mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	features(t, v, 1)
 	sameQoS(t, retrieveQoS(t, s), qosRetrieved)
 	restart()
 	v.QoSRestart()
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, `{"interfaces": {"loop7101": {}, "loop7102": {}, "loop7103": {}}, "services": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, `{"interfaces": {"loop7101": {}, "loop7102": {}, "loop7103": {}}, "services": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	features(t, v, 0) // includes UnseenUnapplies == 0
 }
 
@@ -253,7 +253,7 @@ func TestQoSVPPRestart(t *testing.T) {
 func TestQoSDryRun(t *testing.T) {
 	v := coretest.New()
 	s := newQoSSvc(t, v, t.TempDir())
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
 	  "interfaces": {"loop7101": {}},
 	  "services": {"qos": {"policers": {"p": {"cir": 10, "cb": "1500"}}, "shapers": {"s": {"rateKbps": 10}},
 	    "interfaces": {"loop7101": {"store": {"source": "vlan", "value": 1}, "shaper": "s", "policer": {"output": "p"}}}}}}`)})
@@ -262,7 +262,7 @@ func TestQoSDryRun(t *testing.T) {
 	}
 	var got []string
 	for _, is := range rep.GetErrors() {
-		if is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			got = append(got, is.GetSeverity().String()+" "+is.GetPointer()+" "+is.GetRule())
 		}
 	}
@@ -273,7 +273,7 @@ func TestQoSDryRun(t *testing.T) {
 	if rep.GetOk() || strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("dry run %v", got)
 	}
-	rep, err = s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d2", DesiredState: doc(t, qosAgentDoc)})
+	rep, err = s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d2", DesiredState: doc(t, qosAgentDoc)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run %v %v", rep, err)
 	}
@@ -302,7 +302,7 @@ func TestQoSPolicerRPCs(t *testing.T) {
 	vppBoot(t)
 	v := coretest.New()
 	s := newQoSSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, qosAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, qosAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.QoSPolicers() // indexes: gold 0, pps 1, shaper:up 2 (creation order of the plan)
 	idx := map[string]uint32{}
 	for n, p := range v.QoSPolicers() {
@@ -310,7 +310,7 @@ func TestQoSPolicerRPCs(t *testing.T) {
 	}
 	counters := fakeCounters{m: map[uint32][3]qosCounter{idx["gold"]: {{10, 1000}, {2, 200}, {1, 100}}}}
 	ctx := context.Background()
-	resp, err := s.qosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{}, counters)
+	resp, err := s.qosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{}, counters)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,27 +329,27 @@ func TestQoSPolicerRPCs(t *testing.T) {
 	if sh := resp.GetPolicers()[2]; sh.GetCir() != 50000 || sh.GetCb() != 62500 || sh.GetType() != "1r2c" || sh.GetConform().GetPackets() != 0 {
 		t.Fatalf("shaper %v", sh)
 	}
-	resp, err = s.qosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{Names: []string{"pps"}}, fakeCounters{err: errors.New("stats segment gone")})
+	resp, err = s.qosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{Names: []string{"pps"}}, fakeCounters{err: errors.New("stats segment gone")})
 	if err != nil || len(resp.GetPolicers()) != 1 || resp.GetCountersError() != "stats segment gone" {
 		t.Fatalf("filtered %v %v", resp, err)
 	}
 	// through the gRPC adapter: no stats segment in a unit test → counters_error, the rest valid
 	g := &server{svc: s}
-	if r, err := g.QosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{Owner: testOwner}); err != nil || len(r.GetPolicers()) != 3 || r.GetCountersError() == "" {
+	if r, err := g.QosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{Owner: testOwner}); err != nil || len(r.GetPolicers()) != 3 || r.GetCountersError() == "" {
 		t.Fatalf("grpc state %v %v", r, err)
 	}
-	if _, err := g.QosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.QosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner: %v", err)
 	}
 
-	rr, err := g.QosPolicerReset(ctx, &vrxv1.QosPolicerResetRequest{Name: "shaper:up"})
+	rr, err := g.QosPolicerReset(ctx, &ngfwv1.QosPolicerResetRequest{Name: "shaper:up"})
 	if err != nil || rr.GetIndex() != idx["shaper:up"] || v.QoSPolicers()["w7:shaper:up"].Resets != 1 {
 		t.Fatalf("reset %v %v", rr, err)
 	}
-	if _, err := g.QosPolicerReset(ctx, &vrxv1.QosPolicerResetRequest{Name: "nope"}); grpcCode(err) != codes.NotFound {
+	if _, err := g.QosPolicerReset(ctx, &ngfwv1.QosPolicerResetRequest{Name: "nope"}); grpcCode(err) != codes.NotFound {
 		t.Fatalf("unknown: %v", err)
 	}
-	if _, err := g.QosPolicerReset(ctx, &vrxv1.QosPolicerResetRequest{Name: "a b"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.QosPolicerReset(ctx, &ngfwv1.QosPolicerResetRequest{Name: "a b"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("bad name: %v", err)
 	}
 
@@ -361,11 +361,11 @@ func TestQoSPolicerRPCs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := g.QosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{}); grpcCode(err) != codes.Unavailable {
+	if _, err := g.QosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{}); grpcCode(err) != codes.Unavailable {
 		t.Fatalf("busy walk: %v", err)
 	}
 	release()
-	if _, err := g.QosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{}); err != nil {
+	if _, err := g.QosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{}); err != nil {
 		t.Fatalf("after release: %v", err)
 	}
 }

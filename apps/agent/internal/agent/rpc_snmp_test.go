@@ -12,10 +12,10 @@ import (
 func TestSnmpStateResponse(t *testing.T) {
 	got := snmpStateResponse(&subsystems.SnmpStateView{
 		Configured: true, EngineID: "8000", PendingAction: "snmpd needs restart",
-		Daemon:   &snmpd.State{Reachable: true, Endpoint: "127.0.0.1:161", Credential: "v3 user noc", SysName: "vrx-a", SysUpTime: 42}, //nolint:gosec // fixture, no credential
+		Daemon:   &snmpd.State{Reachable: true, Endpoint: "127.0.0.1:161", Credential: "v3 user noc", SysName: "ngfw-a", SysUpTime: 42}, //nolint:gosec // fixture, no credential
 		Subagent: &snmpagent.Status{Registered: true, Registrations: 2},
 	})
-	if !got.GetConfigured() || !got.GetReachable() || got.GetCredential() != "v3 user noc" || got.GetSysName() != "vrx-a" ||
+	if !got.GetConfigured() || !got.GetReachable() || got.GetCredential() != "v3 user noc" || got.GetSysName() != "ngfw-a" ||
 		got.GetSysUpTime() != 42 || !got.GetSubagentRegistered() || got.GetSubagentRegistrations() != 2 || got.GetPendingAction() == "" {
 		t.Fatalf("%v", got)
 	}

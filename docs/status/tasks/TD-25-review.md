@@ -138,7 +138,7 @@ applies to HEAD.
 
 ## 5. Metrics and docs
 
-- **Metrics.** `vrx_agent_iface_sanitize_placeholders_total{phase}` is new, and the help text of `capped_total` is
+- **Metrics.** `ngfw_agent_iface_sanitize_placeholders_total{phase}` is new, and the help text of `capped_total` is
   updated (`metrics.go:120-121`). The names follow the convention.
 - **`sanitize.go` header** (`:1-76`). It is accurate for every kind, the resurrection, the exceptions and the cap.
 - **V19 and V23 rows.** Their fix columns are correct, and V23(b) documents the sw_if_index-0 quirk and why the pool is
@@ -192,7 +192,7 @@ section and the metrics list. Q1's replacement text is correct but incomplete. W
 - **(c)** Qualify "the pool ends exactly as it was". There are two exceptions: one fresh index per VPP when the free list
   is empty (the probe table, reused afterwards), and one fresh pop when another client takes the awaited index.
   Concurrent sanitizers may reorder the free list.
-- **(d)** Add `vrx_agent_iface_sanitize_placeholders_total{phase}` to the metrics list, and update the `capped_total`
+- **(d)** Add `ngfw_agent_iface_sanitize_placeholders_total{phase}` to the metrics list, and update the `capped_total`
   gloss to "the binding is unclearable; create: the index is quarantined and the create retried".
 
 Also close the tech-debt rows "TD-3 re-review M3" and "L1" (Q4).

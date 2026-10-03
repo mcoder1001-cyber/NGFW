@@ -35,7 +35,7 @@ export interface SchemaFormProps {
   /** Hide Save/Reset (submit through `id` + an external `<Button form={id} type="submit">`). */
   hideActions?: boolean | undefined;
   id?: string | undefined;
-  /** Custom widgets by `x-vrx-ui.widget` name. */
+  /** Custom widgets by `x-ngfw-ui.widget` name. */
   widgets?: Readonly<Record<string, WidgetComponent>> | undefined;
   /** Choices for `interface-picker`. */
   interfaceOptions?: readonly string[] | undefined;
@@ -69,7 +69,7 @@ function problemEntries(problem: ProblemDetails): ProblemFieldError[] {
 }
 
 /**
- * Renders MUI fields from a JSON Schema + `x-vrx-ui` hints, validates with Zod derived from the same
+ * Renders MUI fields from a JSON Schema + `x-ngfw-ui` hints, validates with Zod derived from the same
  * schema, and maps RFC 9457 `pointer` errors back onto fields. See docs/05-ui-spec.md "Schema-driven forms".
  */
 export function SchemaForm({

@@ -51,7 +51,7 @@ export function Mono({ children, muted = false }: { children: ReactNode; muted?:
       component="span"
       dir="ltr"
       sx={{
-        fontFamily: (th) => th.vrx.monoFontFamily,
+        fontFamily: (th) => th.ngfw.monoFontFamily,
         fontSize: 12,
         textAlign: 'start',
         color: muted ? 'text.secondary' : undefined,

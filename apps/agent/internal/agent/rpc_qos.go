@@ -22,7 +22,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/policer"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/vpp"
@@ -46,7 +46,7 @@ type policerCounterSource interface {
 }
 
 // qosCountersOf returns the counter source of a server (tests replace it): the stats segment the agent's
-// interface counters come from (VRX_AGENT_VPP_STATS_SOCKET), nil when the server has none.
+// interface counters come from (NGFW_AGENT_VPP_STATS_SOCKET), nil when the server has none.
 var qosCountersOf = func(g *server) policerCounterSource {
 	if r, ok := g.stats.(*statsReader); ok && r.path != "" {
 		return segmentPolicerCounters{path: r.path}
@@ -147,20 +147,20 @@ func qosErr(what string, err error) error {
 	return status.Errorf(codes.Internal, "%s: %v", what, err)
 }
 
-func (g *server) QosPolicerState(ctx context.Context, req *vrxv1.QosPolicerStateRequest) (*vrxv1.QosPolicerStateResponse, error) {
+func (g *server) QosPolicerState(ctx context.Context, req *ngfwv1.QosPolicerStateRequest) (*ngfwv1.QosPolicerStateResponse, error) {
 	return g.svc.qosPolicerState(ctx, req, qosCountersOf(g))
 }
 
-func (g *server) QosPolicerReset(ctx context.Context, req *vrxv1.QosPolicerResetRequest) (*vrxv1.QosPolicerResetResponse, error) {
+func (g *server) QosPolicerReset(ctx context.Context, req *ngfwv1.QosPolicerResetRequest) (*ngfwv1.QosPolicerResetResponse, error) {
 	return g.svc.qosPolicerReset(ctx, req)
 }
 
-func qosCounterOut(c qosCounter) *vrxv1.QosPolicerCounter {
-	return &vrxv1.QosPolicerCounter{Packets: c.packets, Bytes: c.bytes}
+func qosCounterOut(c qosCounter) *ngfwv1.QosPolicerCounter {
+	return &ngfwv1.QosPolicerCounter{Packets: c.packets, Bytes: c.bytes}
 }
 
 // qosPolicerState implements QosPolicerState; counters nil = no stats segment.
-func (s *Service) qosPolicerState(ctx context.Context, req *vrxv1.QosPolicerStateRequest, counters policerCounterSource) (*vrxv1.QosPolicerStateResponse, error) {
+func (s *Service) qosPolicerState(ctx context.Context, req *ngfwv1.QosPolicerStateRequest, counters policerCounterSource) (*ngfwv1.QosPolicerStateResponse, error) {
 	if err := s.qosReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -173,10 +173,10 @@ func (s *Service) qosPolicerState(ctx context.Context, req *vrxv1.QosPolicerStat
 	if err != nil {
 		return nil, qosErr("policer walk", err)
 	}
-	resp := &vrxv1.QosPolicerStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.QosPolicerStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
 	var byIndex map[uint32][3]qosCounter
 	if counters == nil {
-		resp.CountersError = "no stats segment configured (VRX_AGENT_VPP_STATS_SOCKET)"
+		resp.CountersError = "no stats segment configured (NGFW_AGENT_VPP_STATS_SOCKET)"
 	} else if byIndex, err = counters.PolicerCounters(); err != nil {
 		resp.CountersError = err.Error()
 	}
@@ -193,7 +193,7 @@ func (s *Service) qosPolicerState(ctx context.Context, req *vrxv1.QosPolicerStat
 			kind = "shaper"
 		}
 		c := byIndex[st.Index]
-		resp.Policers = append(resp.Policers, &vrxv1.QosPolicerStatus{
+		resp.Policers = append(resp.Policers, &ngfwv1.QosPolicerStatus{
 			Name: st.Spec.Name, Kind: kind, Index: st.Index,
 			Type: desired.QosPolicerTypeName(st.Spec.Type), RateUnit: st.Spec.RateType,
 			Cir: st.Spec.CIR, Eir: st.Spec.EIR, Cb: st.Spec.CB, Eb: st.Spec.EB,
@@ -205,7 +205,7 @@ func (s *Service) qosPolicerState(ctx context.Context, req *vrxv1.QosPolicerStat
 }
 
 // qosPolicerReset implements QosPolicerReset.
-func (s *Service) qosPolicerReset(ctx context.Context, req *vrxv1.QosPolicerResetRequest) (*vrxv1.QosPolicerResetResponse, error) {
+func (s *Service) qosPolicerReset(ctx context.Context, req *ngfwv1.QosPolicerResetRequest) (*ngfwv1.QosPolicerResetResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -225,5 +225,5 @@ func (s *Service) qosPolicerReset(ctx context.Context, req *vrxv1.QosPolicerRese
 		return nil, qosErr("policer reset", err)
 	}
 	s.log.Info("policer reset (token buckets refilled)", "policer", req.GetName(), "index", idx)
-	return &vrxv1.QosPolicerResetResponse{Owner: s.owner, Name: req.GetName(), Index: idx, ResetAt: timestamppb.New(s.now())}, nil
+	return &ngfwv1.QosPolicerResetResponse{Owner: s.owner, Name: req.GetName(), Index: idx, ResetAt: timestamppb.New(s.now())}, nil
 }

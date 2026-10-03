@@ -4,7 +4,7 @@ package desired
 // the later feature keys are agent.unsupported-field until their feature projects them — F-dashboard-prom-alarms
 // registers its keys in ManagementImplemented from its own file).
 //
-//	management.syslog (non-empty) → rsyslog.config/vrx   Value = rsyslog.Input(document) (*vrxv1.ManagementConfig)
+//	management.syslog (non-empty) → rsyslog.config/ngfw   Value = rsyslog.Input(document) (*ngfwv1.ManagementConfig)
 //
 // Without targets there is no object: the reconciler deletes a previous one (rsyslog gets the empty export). TLS
 // targets need the API→agent secret channel for their certificate and key references (PENDING-secret-channel):
@@ -13,7 +13,7 @@ package desired
 import (
 	"strconv"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rsyslog"
 	"ngfw/agent/internal/scheduler"
 )
@@ -22,12 +22,12 @@ import (
 var ManagementImplemented = map[string]bool{"syslog": true}
 
 // ManagementUnsupported warns agent.unsupported-field for every non-empty `management` sub-key no builder projects.
-func ManagementUnsupported(s Sink, m *vrxv1.ManagementConfig) {
+func ManagementUnsupported(s Sink, m *ngfwv1.ManagementConfig) {
 	unsupported(s, "management", m, ManagementImplemented)
 }
 
 // Syslog projects management.syslog (see the file comment).
-func Syslog(s Sink, ds *vrxv1.DesiredState) {
+func Syslog(s Sink, ds *ngfwv1.DesiredState) {
 	in := rsyslog.Input(ds)
 	if in == nil {
 		return
@@ -53,14 +53,14 @@ func Syslog(s Sink, ds *vrxv1.DesiredState) {
 }
 
 // AssembleSyslog adds the targets of a retrieved rsyslog object to ds.
-func AssembleSyslog(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleSyslog(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
-		in, ok := kv.Value.(*vrxv1.ManagementConfig)
+		in, ok := kv.Value.(*ngfwv1.ManagementConfig)
 		if kv.Key != rsyslog.Key || !ok {
 			continue
 		}
 		if ds.Management == nil {
-			ds.Management = &vrxv1.ManagementConfig{}
+			ds.Management = &ngfwv1.ManagementConfig{}
 		}
 		ds.Management.Syslog = in.GetSyslog()
 	}
@@ -69,7 +69,7 @@ func AssembleSyslog(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 // HostServices is the projection of F-unbound-chrony-syslog, one call in agent.project(): services.dns and
 // services.ntp when `services` is authoritative (the agent.unsupported-field notes for the services sub-keys are
 // emitted once by ServicesUnsupported in agent.project), management.syslog when `management` is (notes for its other leaves).
-func HostServices(s Sink, ds *vrxv1.DesiredState, services, management bool) {
+func HostServices(s Sink, ds *ngfwv1.DesiredState, services, management bool) {
 	if services {
 		DNS(s, ds)
 		NTP(s, ds) // services.ServicesUnsupported runs once per projection in agent.project (F-qos-flat block)
@@ -81,7 +81,7 @@ func HostServices(s Sink, ds *vrxv1.DesiredState, services, management bool) {
 }
 
 // AssembleHostServices is the assembler of F-unbound-chrony-syslog, one call in agent.assemble().
-func AssembleHostServices(ds *vrxv1.DesiredState, kvs []scheduler.KV, services, management bool) {
+func AssembleHostServices(ds *ngfwv1.DesiredState, kvs []scheduler.KV, services, management bool) {
 	if services {
 		AssembleDNS(ds, kvs)
 		AssembleNTP(ds, kvs)

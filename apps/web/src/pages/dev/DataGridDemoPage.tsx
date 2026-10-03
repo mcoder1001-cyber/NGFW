@@ -2,7 +2,7 @@ import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { StatusChip, useFormatters, type VrxStatus, VRX_STATUSES } from '@ngfw/ui-kit';
+import { StatusChip, useFormatters, type NgfwStatus, NGFW_STATUSES } from '@ngfw/ui-kit';
 import { ServerDataGrid, type GridColDef, type ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import { PageHeader } from '../../shell/PageHeader';
 interface DemoRow {
   id: number;
   name: string;
-  state: VrxStatus;
+  state: NgfwStatus;
   mtu: number;
   rx: number;
   updated: number;
@@ -25,7 +25,7 @@ function makeRows(): DemoRow[] {
   return Array.from({ length: TOTAL }, (_x, i) => ({
     id: i + 1,
     name: `demo-${String(i + 1).padStart(5, '0')}`,
-    state: VRX_STATUSES[(i * 7) % VRX_STATUSES.length]!,
+    state: NGFW_STATUSES[(i * 7) % NGFW_STATUSES.length]!,
     mtu: [1500, 9000, 1400, 9216][i % 4]!,
     rx: ((i * 7919) % 1000) * 1_000_000,
     updated: BASE_TIME - (i % 3600) * 1000,
@@ -117,7 +117,7 @@ export function DataGridDemoPage() {
         headerName: t('dev:dataGrid.columns.state'),
         width: 150,
         type: 'singleSelect',
-        valueOptions: [...VRX_STATUSES],
+        valueOptions: [...NGFW_STATUSES],
         renderCell: (p) => <StatusChip status={p.row.state} size="small" />,
       },
       { field: 'mtu', headerName: t('dev:dataGrid.columns.mtu'), type: 'number', width: 100, valueFormatter: (v: number) => fmt.integer(v) },

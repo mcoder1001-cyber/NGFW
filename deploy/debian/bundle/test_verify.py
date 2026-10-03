@@ -37,14 +37,14 @@ class BundleTests(unittest.TestCase):
         return artifact
 
     def test_real_deb_metadata_hash_and_architecture(self):
-        path = self.archive('vrx-agent')
+        path = self.archive('ngfw-agent')
         package = VERIFY.metadata(path)
-        self.assertEqual(package['fields']['Package'], 'vrx-agent')
+        self.assertEqual(package['fields']['Package'], 'ngfw-agent')
         self.assertEqual(len(package['sha256']), 64)
         # Rebuild a valid archive with the same control metadata and new payload.
         # Appending an odd-length trailer is malformed ar on newer dpkg-deb.
-        (self.root / 'vrx-agent-source' / 'payload').write_bytes(b'changed')
-        rebuilt = VERIFY.metadata(self.archive('vrx-agent'))
+        (self.root / 'ngfw-agent-source' / 'payload').write_bytes(b'changed')
+        rebuilt = VERIFY.metadata(self.archive('ngfw-agent'))
         self.assertEqual(rebuilt['fields'], package['fields'])
         self.assertNotEqual(rebuilt['sha256'], package['sha256'])
         with self.assertRaises(VERIFY.InvalidBundle):
@@ -57,7 +57,7 @@ class BundleTests(unittest.TestCase):
             VERIFY.metadata(path)
 
     def test_symlink_rejected(self):
-        original = self.archive('vrx-api')
+        original = self.archive('ngfw-api')
         link = self.root / 'alias.deb'
         link.symlink_to(original)
         with self.assertRaises(VERIFY.InvalidBundle):
@@ -81,7 +81,7 @@ class BundleTests(unittest.TestCase):
         one = VERIFY.metadata(self.archive('one', extra='Conflicts: virtual\n'))
         two = VERIFY.metadata(self.archive('two', extra='Provides: virtual\n'))
         with self.assertRaises(VERIFY.InvalidBundle):
-            VERIFY.validate_set({'one': one}, {'vrx-meta'})
+            VERIFY.validate_set({'one': one}, {'ngfw-meta'})
         with self.assertRaises(VERIFY.InvalidBundle):
             VERIFY.validate_set({'one': one, 'two': two}, {'one'})
         consumer = VERIFY.metadata(self.archive('consumer', extra='Depends: virtual (>= 1)\n'))
@@ -112,16 +112,16 @@ class BundleTests(unittest.TestCase):
         # cannot establish genuine VPP build, release trust or install acceptance.
         vpp_root = self.root / 'vpp'
         vpp_root.mkdir()
-        vpp = self.archive('vpp', version='26.06-release+vrx1')
+        vpp = self.archive('vpp', version='26.06-release+ngfw1')
         vpp.rename(vpp_root / vpp.name)
         vpp_metadata = VERIFY.metadata(vpp_root / 'vpp.deb')
         (vpp_root / 'manifest.json').write_text(json.dumps({'packages': [
             {'package': 'vpp', 'file': 'vpp.deb', 'ship': True,
-             'version': '26.06-release+vrx1', 'architecture': 'amd64',
+             'version': '26.06-release+ngfw1', 'architecture': 'amd64',
              'sha256': vpp_metadata['sha256'], 'size': vpp_metadata['size']}]}))
         for name in VERIFY.runtime_roots():
             self.archive(name, extra='Depends: fixture-interpreter:any (>= 2)\n'
-                         if name == 'vrx-agent' else '')
+                         if name == 'ngfw-agent' else '')
         self.archive('fixture-interpreter', version='2', extra='Multi-Arch: allowed\n')
         original_run = VERIFY.run
         gate_calls = []

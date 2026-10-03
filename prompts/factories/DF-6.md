@@ -15,7 +15,7 @@ questions rather than polish).
   `binapi/one/` (LISP "one" API, if generated), `binapi/tunnel_types/`, `binapi/mpls/` (fixture only) — **the only source of message names and
   fields**; verify every name below in the package, never guess
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (gre, ipip, vxlan, vxlan-gpe, gtpu, l2tp, pppoe, srv6, sr-mpls, lisp)
-- `docs/lab/host-vrx-a.md` — every plugin above is loaded (all tunnel objects are created over prefixed loopbacks; no traffic leaves the host)
+- `docs/lab/host-ngfw-a.md` — every plugin above is loaded (all tunnel objects are created over prefixed loopbacks; no traffic leaves the host)
 - `docs/lab/shared-host-rules.md` — prefix `w<N>`, tunnel endpoints in `10.<N>.0.0/16`, VNIs/TEIDs/session ids/BSIDs/labels from your slot range
   (document the numbering scheme in your status file), tables `<N>000–<N>999`
 
@@ -72,8 +72,8 @@ lisp-locator-set + lisp-enable · lisp-remote-mapping → lisp-enable · lisp-ad
    `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index / policy index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your prefix / address range (other workers' tunnels exist on the same VPP). Endpoints on prefixed loopbacks in `10.<N>…`; never touch
    `local0` or anything unprefixed; clean up in `t.Cleanup`. Globals (encap source, lisp enable, l2tp lookup key) are read, not changed.
 5. `docs/agent/descriptors/<plugin>.md`: table object type ↔ VPP messages ↔ notes/limitations (no-delete, no-dump cases explicit).

@@ -18,7 +18,7 @@ import { AuthService } from '../../auth/auth.service.js';
 import { setSessionCookies } from '../../auth/cookies.js';
 import { MinRole, NoAudit, Public } from '../../auth/decorators.js';
 import { secureTransport } from '../../auth/transport.js';
-import { sourceIp, type VrxRequest } from '../../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../../common/principal.js';
 import { ApiOut, Protected, PublicDoc } from '../../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../../common/zod.js';
 import { ENV, type Env } from '../../config.js';
@@ -96,7 +96,7 @@ export class MfaController {
   @PublicDoc(400, 401, 429)
   async verify(
     @Body(new ZodPipe(VerifyBody)) body: z.output<typeof VerifyBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const r = await this.auth.mfaVerify(
@@ -113,7 +113,7 @@ export class MfaController {
         refreshMaxAge: r.refreshMaxAge,
         accessMaxAge: r.expiresIn,
       },
-      { secure: this.env.VRX_COOKIE_SECURE },
+      { secure: this.env.NGFW_COOKIE_SECURE },
     );
     return {
       accessToken: r.accessToken,
@@ -135,7 +135,7 @@ export class MfaController {
   @ApiBody({ schema: openapi(EnrollBody) })
   @ApiOut(EnrolmentOut)
   @PublicDoc(400, 401)
-  enroll(@Body(new ZodPipe(EnrollBody)) body: z.output<typeof EnrollBody>, @Req() req: VrxRequest) {
+  enroll(@Body(new ZodPipe(EnrollBody)) body: z.output<typeof EnrollBody>, @Req() req: NgfwRequest) {
     return this.auth.mfaEnrollWithChallenge(
       body.challenge,
       body.token,
@@ -148,7 +148,7 @@ export class MfaController {
   @Protected()
   @ApiOperation({ summary: 'The caller’s second-factor state' })
   @ApiOut(StatusOut)
-  status(@Req() req: VrxRequest) {
+  status(@Req() req: NgfwRequest) {
     return this.auth.mfaStatus(req.principal!);
   }
 
@@ -164,7 +164,7 @@ export class MfaController {
   @ApiOut(EnrolmentOut)
   async setup(
     @Body(new ZodPipe(SetupBody)) body: z.output<typeof SetupBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `user/${req.principal!.username}`, after: { step: 'setup' } };
     return this.auth.mfaSetup(req.principal!, body.current, body.token, secureTransport(req));
@@ -182,7 +182,7 @@ export class MfaController {
   @ApiOut(z.object({ recoveryCodes: z.array(z.string()) }))
   async activate(
     @Body(new ZodPipe(ActivateBody)) body: z.output<typeof ActivateBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `user/${req.principal!.username}`, after: { step: 'activate' } };
     return this.auth.mfaActivate(req.principal!, body.code);
@@ -199,7 +199,7 @@ export class MfaController {
   @ApiOut(z.object({ token: z.string(), expiresIn: z.number().int() }))
   async issueToken(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `user/${name}`, after: { mfaEnrolmentToken: 'issued' } };
     return this.auth.issueEnrolmentToken(name);
@@ -213,7 +213,7 @@ export class MfaController {
   @ApiNoContentResponse({ description: 'Revoked' })
   async revokeToken(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<void> {
     req.audit = { resource: `user/${name}`, after: { mfaEnrolmentToken: 'revoked' } };
     await this.auth.revokeEnrolmentToken(name);
@@ -229,7 +229,7 @@ export class MfaController {
   @ApiNoContentResponse({ description: 'Removed' })
   async reset(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<void> {
     req.audit = { resource: `user/${name}`, after: { mfaReset: true } };
     const r = await this.auth.mfaReset(name);

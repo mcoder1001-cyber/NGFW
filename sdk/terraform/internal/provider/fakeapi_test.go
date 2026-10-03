@@ -15,9 +15,9 @@ import (
 )
 
 // fakeKey is a stand-in credential: the literal marker the repository's secret scanner allows in fixtures.
-const fakeKey = "VRX_TEST_PSK_tf"
+const fakeKey = "NGFW_TEST_PSK_tf"
 
-// fakeAPI is an in-memory VRX API: running + candidate documents, diff, commit (?confirm) / confirm / discard,
+// fakeAPI is an in-memory NGFW API: running + candidate documents, diff, commit (?confirm) / confirm / discard,
 // schema defaults for /interfaces/<name> (like the real API), one validation rule (ipv4 must be a CIDR) and
 // `passwordHash` redaction on reads (write-only, D-046).
 type fakeAPI struct {

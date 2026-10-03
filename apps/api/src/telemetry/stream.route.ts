@@ -2,15 +2,15 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { WebSocket } from 'ws';
 import type { AuthService } from '../auth/auth.service.js';
 import { problems, toProblem } from '../common/problem.js';
-import type { VrxRequest } from '../common/principal.js';
+import type { NgfwRequest } from '../common/principal.js';
 import type { RelayService } from './relay.service.js';
 
 export const STREAM_PATH = '/api/v1/stream';
-export const STREAM_PROTOCOL = 'vrx.v1';
+export const STREAM_PROTOCOL = 'ngfw.v1';
 const BEARER_PROTOCOL = /^bearer\.([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/;
 
 /**
- * Browsers cannot set headers on a WebSocket: they offer the subprotocols `vrx.v1, bearer.<access-token>`. Other
+ * Browsers cannot set headers on a WebSocket: they offer the subprotocols `ngfw.v1, bearer.<access-token>`. Other
  * clients may send `Authorization: Bearer …` / `ApiKey …`. The token never goes into the URL (URLs end up in logs).
  */
 export function streamCredential(req: FastifyRequest): string | undefined {
@@ -41,7 +41,7 @@ export async function registerStreamRoute(
           try {
             const principal = await auth.authenticate(streamCredential(req));
             if (principal === null) throw problems.unauthorized();
-            (req as VrxRequest).principal = principal;
+            (req as NgfwRequest).principal = principal;
           } catch (e) {
             const body = toProblem(e, STREAM_PATH);
             await reply
@@ -53,7 +53,7 @@ export async function registerStreamRoute(
         },
       },
       (socket: WebSocket, req: FastifyRequest) => {
-        relay.attach(socket, (req as VrxRequest).principal!);
+        relay.attach(socket, (req as NgfwRequest).principal!);
       },
     );
   });

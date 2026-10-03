@@ -15,10 +15,10 @@ Otherwise → **decide, log one line, proceed.**
 1. Changing the *shape* of `packages/schema` or `packages/proto` in a way that deviates from `docs/04-api-datamodel.md` (adding fields/domains as designed there is fine; renaming/reshaping is not)
 2. Cross-cutting data-model changes (multi-tenancy is already decided: deferred, see `vdom.md`)
 3. Replacing the OS, the VPP version, or a base framework (NestJS, React, MUI, Go, govpp, PostgreSQL)
-4. Security boundary: agent privileges, socket permissions, auth/session model, secret storage — *implementing what the task prompt, `docs/04-api-datamodel.md` or `docs/lab/host-vrx-a.md` already specifies is not a decision; only deviating from it is*
+4. Security boundary: agent privileges, socket permissions, auth/session model, secret storage — *implementing what the task prompt, `docs/04-api-datamodel.md` or `docs/lab/host-ngfw-a.md` already specifies is not a decision; only deviating from it is*
 5. Licensing exposure: linking GPL code, copyleft dependencies, commercial licences (e.g. MUI X Pro)
 6. Anything that costs money or needs the product owner's hands (hardware, vSphere VMs, NICs, accounts)
-7. Destroying data or git history; touching `/root/vpp`, `/etc/vpp`, `vpp.service` **or restarting/killing the VPP process** while `docs/lab/host-vrx-a.md` says `handover: pending`
+7. Destroying data or git history; touching `/root/vpp`, `/etc/vpp`, `vpp.service` **or restarting/killing the VPP process** while `docs/lab/host-ngfw-a.md` says `handover: pending`
 8. Adding or removing whole WBS items from the 21-day plan (`docs/11-compressed-plan-fa.md` §3)
 
 ## Procedure

@@ -3,7 +3,7 @@ import { refineChanges } from './refine';
 
 const u = (username: string, extra: Record<string, unknown> = {}) => ({ username, role: 'readonly', scope: '*', sshKeys: [], disabled: false, ...extra });
 
-describe('refineChanges (per-item view of whole-list replaces, on x-vrx-ui.itemKey)', () => {
+describe('refineChanges (per-item view of whole-list replaces, on x-ngfw-ui.itemKey)', () => {
   it('pairs management.users on username: field change, add and remove', () => {
     const from = [u('admin', { role: 'admin' }), u('bob'), u('carol')];
     const to = [u('admin', { role: 'admin' }), u('bob', { fullName: 'Bob' }), u('dave')];

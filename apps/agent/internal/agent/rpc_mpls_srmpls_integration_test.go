@@ -1,6 +1,6 @@
 package agent
 
-// F-mpls-srmpls host check (VRX_INTEGRATION=1, shared lab lock, slot prefix): the in-process agent with the product
+// F-mpls-srmpls host check (NGFW_INTEGRATION=1, shared lab lock, slot prefix): the in-process agent with the product
 // wiring against the VPP on this host — the ONE integration check of the feature.
 //
 //	always:            a slot MPLS table (<base>+1), label routes in it (swap/push on a loopback next hop, pop and
@@ -8,7 +8,7 @@ package agent
 //	                   table <t>` / `show mpls tunnel`; idempotent re-apply; restart simulation (stop the agent, delete
 //	                   the label routes and the tunnel behind its back — routes before tables, V15 —, start: back within
 //	                   30 s); MplsState pages; rollback: routes, then tunnel, then table removed, no stray entry.
-//	VRX_DF7_GLOBALS=1  (a manager window: D-071/D-082, `flock -x /run/lock/vrx-globals.lock`) additionally needs MPLS
+//	NGFW_DF7_GLOBALS=1  (a manager window: D-071/D-082, `flock -x /run/lock/ngfw-globals.lock`) additionally needs MPLS
 //	                   table 0: it is created for the test only if VPP has none (and deleted again), and the check adds
 //	                   MPLS on the loopback, a label binding, a table-0 label route, an SR-MPLS policy + steering, and
 //	                   the SR policy in the restart simulation (`show sr mpls policies`).
@@ -34,7 +34,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	mplsapi "ngfw/agent/binapi/mpls"
 	srmplsapi "ngfw/agent/binapi/sr_mpls"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -173,10 +173,10 @@ func deleteOwnedMpls(t *testing.T, c vpp.Client, owner string, zeroLabels []uint
 	return n
 }
 
-// globalsWindow takes `flock -x /run/lock/vrx-globals.lock` (D-082) for the rest of the test.
+// globalsWindow takes `flock -x /run/lock/ngfw-globals.lock` (D-082) for the rest of the test.
 func globalsWindow(t *testing.T) {
 	t.Helper()
-	f, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // lock file
+	f, err := os.OpenFile("/run/lock/ngfw-globals.lock", os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // lock file
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestMplsOnHost(t *testing.T) {
 	owner := vpptest.Prefix(t)
 	slot := vpptest.Slot(t)
 	base := vpptest.TableBase(t)
-	globals := os.Getenv("VRX_DF7_GLOBALS") == "1"
+	globals := os.Getenv("NGFW_DF7_GLOBALS") == "1"
 	t.Logf("systemctl show vpp -p NRestarts (before): %s", vppRestarts(t))
 	before := vppRestarts(t)
 	t.Cleanup(func() {
@@ -229,7 +229,7 @@ func TestMplsOnHost(t *testing.T) {
 				t.Fatal(err)
 			}
 			createdZero = true
-			t.Log("VRX_DF7_GLOBALS=1: created MPLS table 0 for the window (deleted at the end)")
+			t.Log("NGFW_DF7_GLOBALS=1: created MPLS table 0 for the window (deleted at the end)")
 		}
 		t.Cleanup(func() {
 			if !createdZero {
@@ -279,7 +279,7 @@ func TestMplsOnHost(t *testing.T) {
 	  "tunnels": {"t1": {"paths": [{"nextHop": "10.%[3]d.31.2", "interface": %[4]q, "outLabels": [%[9]d], "weight": 1}], "l2Only": false}}%[10]s
 	}`, mplsTable, labels(16), slot, loop, labels(17), labels(18), zeroCanon, labels(30), labels(50), extraCanon)
 	desired := doc(t, js)
-	want := &vrxv1.MplsConfig{}
+	want := &ngfwv1.MplsConfig{}
 	if err := protojson.Unmarshal([]byte(canon), want); err != nil {
 		t.Fatal(err)
 	}
@@ -294,8 +294,8 @@ func TestMplsOnHost(t *testing.T) {
 	c := dialAgent(t, cfg.Socket)
 	waitReady(t, c)
 	ctx := context.Background()
-	retrieved := func() *vrxv1.MplsConfig {
-		got, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	retrieved := func() *ngfwv1.MplsConfig {
+		got, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -313,8 +313,8 @@ func TestMplsOnHost(t *testing.T) {
 	}
 
 	// 1. apply → Retrieve == canonical; VPP shows it
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-mpls-1", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-mpls-1", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %s", err, protojson.Format(resp))
 	}
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
@@ -329,24 +329,24 @@ func TestMplsOnHost(t *testing.T) {
 		t.Logf("vppctl show mpls interface:\n%s", mplsHostLog(t, "show", "mpls", "interface"))
 		t.Logf("vppctl show mpls fib table 0 (our labels %v):\n%s", zeroLabels, mplsHostLog(t, "show", "mpls", "fib", "table", "0"))
 	}
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-mpls-2", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-mpls-2", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("idempotent apply: %v %v", err, resp)
 	}
 	for _, r := range resp.GetResults() {
-		if r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_CREATE || (!strings.HasPrefix(r.GetKey(), "mpls-ip-bind") && !strings.HasPrefix(r.GetKey(), "sr-mpls")) {
+		if r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE || (!strings.HasPrefix(r.GetKey(), "mpls-ip-bind") && !strings.HasPrefix(r.GetKey(), "sr-mpls")) {
 			t.Errorf("idempotent apply changed %s (%s)", r.GetKey(), r.GetOp())
 		}
 	}
 	t.Logf("idempotent apply: %s (write-only objects are re-applied, D-063)", protojson.Format(resp.GetSummary()))
 
 	// 2. MplsState: one page of our table, our tunnel
-	st, err := c.MplsState(ctx, &vrxv1.MplsStateRequest{View: "fib", TableId: mplsTable, Limit: 10})
+	st, err := c.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "fib", TableId: mplsTable, Limit: 10})
 	if err != nil || st.GetTotal() < 2 {
 		t.Fatalf("MplsState fib: %v %v", err, st)
 	}
 	t.Logf("MplsState fib table %d: total %d, tables %v", mplsTable, st.GetTotal(), st.GetTables())
-	tn, err := c.MplsState(ctx, &vrxv1.MplsStateRequest{View: "tunnels"})
+	tn, err := c.MplsState(ctx, &ngfwv1.MplsStateRequest{View: "tunnels"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,8 +385,8 @@ func TestMplsOnHost(t *testing.T) {
 	}
 
 	// 4. rollback: an empty routing domain removes the label routes before their table, the tunnel, (the SR objects)
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-mpls-3", DesiredState: doc(t, `{"routing": {}}`), Subsystems: []string{"routing"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-mpls-3", DesiredState: doc(t, `{"routing": {}}`), Subsystems: []string{"routing"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("rollback: %v %s", err, protojson.Format(resp))
 	}
 	t.Logf("rollback: %s", protojson.Format(resp.GetSummary()))

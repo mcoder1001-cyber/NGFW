@@ -3,7 +3,7 @@
 ## Goal
 Let administrators log in to the API/UI with external identity sources and a second factor (WBS D10.2 in `plan/wbs.csv`),
 on top of P06's local users (argon2id, JWT + rotating refresh cookie, API keys, roles admin/operator/readonly, lockout).
-Reference: TNSR "RADIUS / TACACS+ / LDAP authentication". **Everything lives in vrx-api** — authentication material never
+Reference: TNSR "RADIUS / TACACS+ / LDAP authentication". **Everything lives in ngfw-api** — authentication material never
 crosses the API↔agent boundary (D-040); the agent is not touched. Priority order inside the 10 h box:
 **RADIUS → TOTP MFA → LDAP → OIDC → TACACS+ → SAML** — stop at the time box and list what is left.
 

@@ -18,10 +18,10 @@ Branch `task/F-object-model` (slot 3, worktree `/root/ngfw-wt/F-object-model`), 
   `ObjectsConfig`; Retrieve reads the store (D-063), so Apply/rollback/confirm-revert/resync/restart work through the
   scheduler with no agent-core edit. DryRun defence in depth: group expansion errors (ERROR) and groups above the cap (WARNING).
 - **FQDN resolver:** Go resolver (PreferGo, `/etc/resolv.conf`, no exec), A+AAAA, fixed refresh 60 s clamped [30 s, 1 h]
-  (`VRX_OBJECTS_FQDN_REFRESH_SEC`; TTL-capable `Lookup` interface, Q2), last-good kept per family, retry 30 s doubling,
+  (`NGFW_OBJECTS_FQDN_REFRESH_SEC`; TTL-capable `Lookup` interface, Q2), last-good kept per family, retry 30 s doubling,
   state persisted (`objects-fqdn-<owner>.json`), restart reloads and spreads due names over 30 s, unreferenced answers stay
   dormant for 1 h (a rollback or a resync after a lost store gets them back without a query). Lifecycle in the owned
-  `subsystems/object_model.go` (Q4). Test slots point it at their own responder (`VRX_OBJECTS_DNS_SERVERS`).
+  `subsystems/object_model.go` (Q4). Test slots point it at their own responder (`NGFW_OBJECTS_DNS_SERVERS`).
 - **API:** `ObjectModelController` (`features/object-model`): `GET /api/v1/state/objects/fqdn[?name=]` (agent RPC; 501 from an
   older agent), `GET /api/v1/state/objects/usage?name=&source=running|candidate` (where-used: group members, tags, ACL rule
   source/destination/service/schedule, ACL attachments to zones, zone interfaces; computed from the document). Config goes
@@ -30,7 +30,7 @@ Branch `task/F-object-model` (slot 3, worktree `/root/ngfw-wt/F-object-model`), 
 - **Web:** `/firewall/objects` — tabs per kind (`?tab=`), pending marks vs running, tag chips in their colours, FQDN resolution
   column (addresses, "resolved … ago", "last good answer kept"/"resolution failed" with the error), where-used drawer
   (candidate/running), schema-driven add/edit dialog through merge patches; **exported `ObjectPicker` / `TagPicker` /
-  `objectModelWidgets`** for `<SchemaForm widgets>` (kinds from the field's schema help, `x-vrx-ui.objectKinds` or its name);
+  `objectModelWidgets`** for `<SchemaForm widgets>` (kinds from the field's schema help, `x-ngfw-ui.objectKinds` or its name);
   en + fa (`object-model` namespace), RTL.
 - **Docs:** `docs/user/firewall/object-model.md` (web servers group, FQDN object, office hours, LAN zone; REST + CLI),
   `docs/agent/objects.md`.
@@ -42,7 +42,7 @@ Branch `task/F-object-model` (slot 3, worktree `/root/ngfw-wt/F-object-model`), 
 | # | decision | options | why |
 |---|---|---|---|
 | 1 | FQDN refresh = fixed interval (60 s, env, clamped 30 s–1 h) | (a) `dnsmessage` query with TTLs (b) `net.Resolver` + fixed interval | (a) changes `apps/agent/go.mod` (x/net indirect → direct, D4, not mine); the `Lookup` interface already takes a TTL (Q2) |
-| 2 | Value of the objects.* descriptors = single-entry `vrx.v1.ObjectsConfig` | (a) new `vrx.model.objects.v1` messages (b) structpb (c) the configuration message itself | no contract change, Retrieve returns the document byte-for-byte, `proto.Equal` diff is exact |
+| 2 | Value of the objects.* descriptors = single-entry `ngfw.v1.ObjectsConfig` | (a) new `ngfw.model.objects.v1` messages (b) structpb (c) the configuration message itself | no contract change, Retrieve returns the document byte-for-byte, `proto.Equal` diff is exact |
 | 3 | FQDN changes are state only (no EventKind 11) | (a) publish via `Wiring.Publish` (b) state RPC only | the A5 sink is not wired in `agent.go`; an event would be dropped (Q1); UI polls every 5 s |
 | 4 | Where-used from the document (running or candidate), not the agent | (a) agent RPC (b) API over the document | references are configuration; works without an agent |
 | 5 | Unreferenced FQDN answers dormant 1 h | (a) drop at once (b) keep dormant | a resync after a lost store / a rollback would otherwise re-query everything |
@@ -56,7 +56,7 @@ Branch `task/F-object-model` (slot 3, worktree `/root/ngfw-wt/F-object-model`), 
 |---|---|
 | `apps/agent/internal/subsystems/subsystems.go` (A1) | `Objects = "objects"` (const) · `Objects: objectModelDescriptors(),` (Domains) · `if err := w.registerObjectModel(r); err != nil { return nil, err }` (end of Register) |
 | `apps/agent/internal/agent/projection.go` (A2) | `if in["objects"] { desired.ObjectModel(p, ds.GetObjects()) }` in `project()` · `if in["objects"] { ds.Objects = desired.AssembleObjectModel(kvs) }` in `assemble()` |
-| `packages/proto/vrx/v1/dataplane.proto` (C5) | `rpc FqdnObjectState(...)` under the service anchor · 3 messages in `// ----- F-object-model -----` |
+| `packages/proto/ngfw/v1/dataplane.proto` (C5) | `rpc FqdnObjectState(...)` under the service anchor · 3 messages in `// ----- F-object-model -----` |
 | `docs/contracts/proto.md` (C6) | `### F-object-model: FqdnObjectState` |
 | `apps/api/src/app.module.ts` (P1) | import · `...objectModelFeature.controllers,` · `...objectModelFeature.providers,` |
 | `apps/api/src/agent/agent.client.ts` (P4) | `type FqdnObjectStateResponse,` · `fqdnObjectState(names)` |
@@ -122,7 +122,7 @@ ok  	ngfw/agent/internal/agent	0.166s
    ✓ … rollback restores the previous object set (running document and where-used)  392ms
    ✓ … validates the query; an agent without the RPC answers 501
  Test Files  1 passed (1) · Tests  4 passed (4)
-drop   database vrx_w3 · drop role vrx_w3 · ok nothing named vrx_w3 / vrx_w3 remains
+drop   database ngfw_w3 · drop role ngfw_w3 · ok nothing named ngfw_w3 / ngfw_w3 remains
 ```
 
 ### Web
@@ -142,19 +142,19 @@ drop   database vrx_w3 · drop role vrx_w3 · ok nothing named vrx_w3 / vrx_w3 r
 objects_test.go:29: systemctl show vpp -p NRestarts (before) = 1
 objects_test.go:43: DNS responder 127.0.0.1:37801 serving w3.test
 objects_test.go:58: commit: status=partially-applied revision=1 notApplied=[acl] summary=map[created:18 deleted:0 failed:0 reverted:0 unchanged:0 updated:0]
-objects_test.go:64: vrx-agentctl retrieve -subsystems objects == running objects (7 kinds, 8 address objects)
+objects_test.go:64: ngfw-agentctl retrieve -subsystems objects == running objects (7 kinds, 8 address objects)
 objects_test.go:71: /state/drift: subsystems=[interfaces vrfs routing objects] changes=0 (none under /objects)
 objects_test.go:84: resolved: {"addresses":["192.0.2.53","2001:db8::53"],"error":"","failures":0,"fqdn":"cdn.w3.test","lastResolved":"2026-09-24T15:37:16.324Z","name":"cdn","nextRefresh":"2026-09-24T15:37:46.324Z"}
 objects_test.go:98: refresh observed: lastResolved 2026-09-24T15:37:16.324Z → 2026-09-24T15:37:46.327Z (30.0 s), addresses [192.0.2.54 2001:db8::53]
-objects_test.go:116: agent stopped; /run/vrx-test/w3/object-model/agent-state/objects-w3.json deleted (simulated loss of the applied object set); FQDN state kept
+objects_test.go:116: agent stopped; /run/ngfw-test/w3/object-model/agent-state/objects-w3.json deleted (simulated loss of the applied object set); FQDN state kept
 objects_test.go:127: objects back after 0.28 s (Retrieve == before the restart)
 objects_test.go:136: FQDN state reloaded from the state dir: cdn lastResolved 2026-09-24T15:37:46.327Z unchanged, 0 DNS queries in the first 3.3 s after start
 agent: {"time":"2026-09-24T19:07:48.702113013+03:30","level":"INFO","msg":"fqdn state reloaded",…,"hosts":0,"fresh":0,"due":0,"dormant":2,"due_spread_over":"30s"}
 agent: {"time":"2026-09-24T19:07:48.774233074+03:30","level":"INFO","msg":"reconcile done",…,"mode":"resync","domains":["interfaces","vrfs","routing","objects"],"status":"APPLY_STATUS_APPLIED","summary":"created:18",…}
 objects_test.go:156: resolver down: {"addresses":["192.0.2.54","2001:db8::53"],"error":"lookup cdn.w3.test. on 127.0.0.1:37801: read udp …: connection refused","failures":1,…,"lastResolved":"2026-09-24T15:37:46.327Z",…}
 agent: {"time":"2026-09-24T19:08:16.330639501+03:30","level":"WARN","msg":"fqdn resolution failed; last-good addresses kept",…,"host":"cdn.w3.test","kept":["192.0.2.54","2001:db8::53"],"failures":1,"retry_at":"2026-09-24T15:38:46Z"}
-objects_test.go:171: validate after deleting web-servers: 400 {"type":"https://vrx.dev/problems/validation",…,"errors":[{"pointer":"/acl/lists/web-in/rules/0/destination/name","message":"'web-servers' is not an entry of objects.addresses or objects.addressGroups"},{"pointer":"/objects/addressGroups/dmz/members/0",…}]}
-objects_test.go:182: commit: 400 type=https://vrx.dev/problems/validation
+objects_test.go:171: validate after deleting web-servers: 400 {"type":"https://ngfw.dev/problems/validation",…,"errors":[{"pointer":"/acl/lists/web-in/rules/0/destination/name","message":"'web-servers' is not an entry of objects.addresses or objects.addressGroups"},{"pointer":"/objects/addressGroups/dmz/members/0",…}]}
+objects_test.go:182: commit: 400 type=https://ngfw.dev/problems/validation
 objects_test.go:205: rollback to revision 1: status=partially-applied revision=3
 objects_test.go:214: after rollback: Retrieve has web2 again (map[address:192.0.2.11 tags:[prod] type:host]), where-used web-servers = [{…"kind":"acl-rule-destination","pointer":"/acl/lists/web-in/rules/0/destination/name"},{…"kind":"address-group-member","pointer":"/objects/addressGroups/dmz/members/0"}]
 objects_test.go:228: cleanup: objects and acl deleted; Retrieve empty; no FQDN state
@@ -196,7 +196,7 @@ Files: `docs/status/tasks/F-object-model-screens/*.png` (18), four of them in `d
 The contract guard is racy (Q8: `pipefail` + `grep -q`, 173/200 failures of the bare pipeline on this branch); the run was
 repeated until the guard was not hit — attempts 1–4 stopped at the guard after 1 s, attempt 5 ran the whole gate:
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-object-model @ 48962f2   (base: main)
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main: (dataplane.proto, generated Go/TS, api-client schema.d.ts; the schema files are W-seed's anchors)
@@ -242,8 +242,8 @@ configuration, zone policy beyond "set of interfaces", GeoIP/threat feeds, VDOM 
 
 ## Cleanup
 Every process started by the tests (agent, API, vite preview, the in-process DNS responder) was stopped by PID (logged);
-`vrx_w3` dropped by every run ("ok nothing named vrx_w3 / vrx_w3 remains"); the slot's agent state dir
-(`/run/vrx-test/w3/object-model`) removed by the test cleanup; the lab lock is taken only by `run.sh` for the run;
+`ngfw_w3` dropped by every run ("ok nothing named ngfw_w3 / ngfw_w3 remains"); the slot's agent state dir
+(`/run/ngfw-test/w3/object-model`) removed by the test cleanup; the lab lock is taken only by `run.sh` for the run;
 `apps/{web,api}/dist`, `packages/*/dist` and `apps/agent/bin` removed; nothing listens on 3300/5300/9131.
 No test of this task runs `vppctl` (no `show trace`/`trace add`, D-128) or touches classify bindings (D-126).
 
@@ -256,10 +256,10 @@ W-seed-BC `7279831`), and this status commit. Branch HEAD at CI: `68d4c5d`.
 | item | done |
 |---|---|
 | **F1** (must) | `Store` changes the document in place (O(1) per object) and writes it **once per transaction**. The scheduler's verification Retrieve flushes it; otherwise it is written 200 ms after the last change (debounced) and at `Close`. A write error is logged and counted, and the changes stay in memory. The resolver hears only about FQDN objects (`track`/`untrack`, O(1)) and writes its state coalesced (when idle, at most every 5 s while busy). `single()` is O(1), because the scheduler calls KeyOf/Dependencies O(N²) times. Tests: `TestStoreScale5000` (5 000 objects in 0.19 s), `TestStoreWritesCoalescedAndFQDNOnlyOnChange` |
-| **F2** (must) | a corrupt store is moved to `objects-<owner>.json.corrupt-<unix>`, logged as ERROR and counted (`vrx_agent_objects_store_corrupt_total`); the store starts empty and the resync rebuilds it (`TestStoreCorruptMovedAside`) |
+| **F2** (must) | a corrupt store is moved to `objects-<owner>.json.corrupt-<unix>`, logged as ERROR and counted (`ngfw_agent_objects_store_corrupt_total`); the store starts empty and the resync rebuilds it (`TestStoreCorruptMovedAside`) |
 | **F3** | `docs/agent/objects.md`: consumers expand the request's `ds.GetObjects()`, and when a transaction manages `acl` without `objects` they report an error. Out-of-band re-projection goes through a resync of the stored desired state. `Snapshot` is out of the stable API; the example checks `in["objects"]` |
 | **F4** (must) | `pickerKinds` returns no kinds for an unclassified field, and `ObjectPicker` then renders the plain field. `ObjectPicker.test.tsx` uses the real `acl.attachments[]` item schema: `list` stays a text field, `target.zone` is a select of zones, and no address object is offered. The same check covers `macipAttachments`/`hostAttachments` `list` |
-| **F7 / D-129** | a failing address family keeps its last good answers for at most **24 h** after it last answered (`VRX_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN, counted (`vrx_agent_objects_fqdn_stale_expired_total`) and subscribers are notified (`TestFQDNLastGoodExpiresAfterMaxStale`) |
+| **F7 / D-129** | a failing address family keeps its last good answers for at most **24 h** after it last answered (`NGFW_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN, counted (`ngfw_agent_objects_fqdn_stale_expired_total`) and subscribers are notified (`TestFQDNLastGoodExpiresAfterMaxStale`) |
 | F6 | a persisted next refresh more than one interval ahead is pulled in at start; at run time, more than 1 h ahead counts as due (`TestFQDNNextRefreshBoundedAgainstClockSteps`) |
 | F8 | the fake agent's handler calls back with the error when the import or the handler fails |
 | Q1–Q3 | reviewer's recommendations taken (questions file) |
@@ -335,4 +335,4 @@ ok  	ngfw/test/topology/object-model	71.405s
   mode quick · wall time 13m40s · logs /root/ngfw-wt/logs/ci/F-object-model-20260924-233226-647487
 CI GATE PASSED
 ```
-Cleanup: every process was stopped by PID and `vrx_w3` was dropped (by the test). `.scale-tmp`, `packages/*/dist` and `apps/*/dist` were removed. No `vppctl`/trace command was used (D-128).
+Cleanup: every process was stopped by PID and `ngfw_w3` was dropped (by the test). `.scale-tmp`, `packages/*/dist` and `apps/*/dist` were removed. No `vppctl`/trace command was used (D-128).

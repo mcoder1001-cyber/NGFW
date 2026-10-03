@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { componentName, generateSchemas } from './generate.js';
 import { ROOT_KEYS } from './index.js';
-import { X_VRX_UI } from './ui.js';
+import { X_NGFW_UI } from './ui.js';
 
 describe('generateSchemas', () => {
   const g = generateSchemas();
@@ -19,7 +19,7 @@ describe('generateSchemas', () => {
       const s = g.domains[key];
       expect(s.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
       expect(s.default).toEqual({});
-      expect(s[X_VRX_UI]).toBeDefined();
+      expect(s[X_NGFW_UI]).toBeDefined();
       expect(s.title).toBeTruthy();
     }
   });

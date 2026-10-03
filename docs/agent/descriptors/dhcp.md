@@ -43,7 +43,7 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
 - DHCPv4 client: VPP copies hostname and client id with `strlen`; an empty hostname is rejected by `Validate`. A second,
   different client on the same interface fails (`INVALID_VALUE`); an identical re-apply succeeds (compared with the dump).
   The lease is status (`Leases`), never part of the Value. `pid` = agent PID (event demux).
-- The DUID is VPP-global without getter or reset: the host test runs only with `VRX_DF8_DUID=1`.
+- The DUID is VPP-global without getter or reset: the host test runs only with `NGFW_DF8_DUID=1`.
 - Evidence: `docs/status/tasks/DF-8.md` (`show dhcp proxy`, `show dhcpv6 proxy`, `show dhcp vss`, `show dhcp client`,
   `show dhcp6 clients` during the host run, empty after).
 
@@ -73,7 +73,7 @@ Status / actions (not desired state): `ClientDescriptor.Leases` (lease per owned
   plus the `dhcp.relay` record: VPP has no relay object, so the name, description, client interfaces and the enabled flag
   live in the record (the document relay is carried as deterministic protobuf, base64), reported only as far as VPP has
   the proxies. The agent's Retrieve therefore returns the configured relay; a lost proxy shows as drift.
-- Registered in `Domains["services"]` with `WithVRFScope` = the slot's table range (`VRX_VPP_TABLE_BASE`; product: every
+- Registered in `Domains["services"]` with `WithVRFScope` = the slot's table range (`NGFW_VPP_TABLE_BASE`; product: every
   VRF): `dhcp.proxy`, `dhcp.proxy-vss`, `dhcp.relay` (not `dhcp.Register`: `dhcp.client` is P08's registration).
 - **TD-11b Q3 (claim first):** `dhcp.client` Create resolves the target, records the claim on an untagged interface
   **before** `dhcp_client_config` and releases a claim it made when the add fails; an existing client is adopted only

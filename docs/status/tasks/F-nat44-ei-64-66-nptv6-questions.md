@@ -87,7 +87,7 @@ trace; the D-112 rebase onto main replaces the file. The branch's own `tools/ci.
 
 ## Q10 (fix round 1, 2026-09-25): manager notes — slot-4 quarantine, M3 follow-up, the race run
 - **Slot 4 quarantine (review H2 / R2).** The tenant-VRF NAT64 host phases (topology `nat64` / `restart-nat64`, the
-  NAT64 screenshot) are now opt-in: `VRX_NAT64_TENANT_VRF_HOST=1`, off by default (rev 1 then has no slot VRF either).
+  NAT64 screenshot) are now opt-in: `NGFW_NAT64_TENANT_VRF_HOST=1`, off by default (rev 1 then has no slot VRF either).
   **Any run with it quarantines slot 4's table 4064 (`w4:w4-n64`) until a VPP restart:** VPP keeps the IPv6 table with
   `nat64-hi` locks, the name parses as owned by `w4`, and every later slot-4 agent transaction that covers `vrfs`
   (start-up resync included) plans `delete vrf/4064`, fails verify and rolls back. Please put this in the next slot-4

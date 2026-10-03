@@ -32,7 +32,7 @@ the product agent refuses a server interface (RF-3 review L7, `NoMapper`) — so
 product only after P12. The product agent on this dev host reads `/etc/kea/kea-dhcp4.conf` (the packaged, commented file):
 Retrieve treats it as foreign (no embedded input) — never reported, deleted or rewritten.
 
-**Q7 — test mode in the product binary.** `VRX_KEA_MODE=test` makes the agent's Kea runner allow `/usr/bin/ip` (the
+**Q7 — test mode in the product binary.** `NGFW_KEA_MODE=test` makes the agent's Kea runner allow `/usr/bin/ip` (the
 `ip netns exec <validated ns> kea-dhcp4 -t <staged file>` trampoline, fixed argv) — RF-3 kept that trampoline out of
 `NewRunner`. It is reachable only through the agent's own environment (root). Alternative if you prefer: a `//go:build
 labtest` file for the test mode.

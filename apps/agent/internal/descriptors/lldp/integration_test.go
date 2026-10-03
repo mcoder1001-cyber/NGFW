@@ -9,7 +9,7 @@ import (
 )
 
 // Host test. lldp.global is a VPP-wide singleton with no getter: only the globals owner may set
-// it (D-071), so that subtest runs with VRX_DF7_GLOBALS=1 only; it then applies VPP's own
+// it (D-071), so that subtest runs with NGFW_DF7_GLOBALS=1 only; it then applies VPP's own
 // start-up timers (tx hold 4, interval 30) and leaves the system name unchanged.
 //
 // lldp.interface needs a loopback whose sw_if_index equals its hw_if_index (VPP uses one as the

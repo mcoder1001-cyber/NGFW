@@ -1,7 +1,7 @@
 import type { FastifyReply } from 'fastify';
 
 /** The rotating refresh token (P06 §6): httpOnly, SameSite=Strict, only ever sent to the auth routes. */
-export const REFRESH_COOKIE = 'vrx_refresh';
+export const REFRESH_COOKIE = 'ngfw_refresh';
 export const REFRESH_COOKIE_PATH = '/api/v1/auth';
 
 /**
@@ -9,11 +9,11 @@ export const REFRESH_COOKIE_PATH = '/api/v1/auth';
  * of the session, set next to the refresh cookie by login and refresh, cleared by logout. httpOnly, SameSite=Strict,
  * path `/api/docs`: the browser sends it only to the Swagger UI (its page, assets and the spec inlined in
  * `swagger-ui-init.js`), and only the docs hook accepts it (GET/HEAD) — every other route reads the Authorization
- * header only. It dies with the session: per-sid logout, revocation, the access TTL and VRX_SESSION_MAX_SEC.
+ * header only. It dies with the session: per-sid logout, revocation, the access TTL and NGFW_SESSION_MAX_SEC.
  * The refresh cookie itself cannot serve: it is scoped to /api/v1/auth, and presenting it rotates the chain (a second
  * tab refreshing in parallel would trip reuse detection and end the web UI's session).
  */
-export const DOCS_COOKIE = 'vrx_docs';
+export const DOCS_COOKIE = 'ngfw_docs';
 export const DOCS_COOKIE_PATH = '/api/docs';
 
 export interface CookieOpts {

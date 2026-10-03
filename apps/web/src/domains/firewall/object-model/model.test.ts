@@ -18,8 +18,8 @@ describe('object model helpers', () => {
 
   it('item schemas come from the one schema; group members and tags carry the picker widgets', () => {
     const g = itemSchema('addressGroups') as JsonSchema & { properties: Record<string, JsonSchema> };
-    expect(g.properties['members']?.['x-vrx-ui']).toMatchObject({ widget: 'object-picker' });
-    expect(g.properties['tags']?.['x-vrx-ui']).toMatchObject({ widget: 'tag-picker' });
+    expect(g.properties['members']?.['x-ngfw-ui']).toMatchObject({ widget: 'object-picker' });
+    expect(g.properties['tags']?.['x-ngfw-ui']).toMatchObject({ widget: 'tag-picker' });
     expect(itemSchema('addresses').oneOf).toHaveLength(4);
   });
 
@@ -40,7 +40,7 @@ describe('object model helpers', () => {
     expect(localizeSchema(itemSchema('schedules'), t, 'schedules').oneOf?.[0]?.properties?.['start']?.title).toBe('Start');
     expect(localizeSchema(itemSchema('services'), t, 'services').oneOf?.[0]?.title).toBe('TCP / TCP and UDP');
     const g = localizeSchema(itemSchema('addressGroups'), t, 'addressGroups');
-    expect(g.properties?.['members']?.['x-vrx-ui']).toMatchObject({ help: 'translated help without the object kinds', objectKinds: ['addresses', 'addressGroups'] });
+    expect(g.properties?.['members']?.['x-ngfw-ui']).toMatchObject({ help: 'translated help without the object kinds', objectKinds: ['addresses', 'addressGroups'] });
   });
 
   it('pickerSchema: choices of the allowed kinds with labels; arrays become a multi-select, strings a select', () => {

@@ -1,4 +1,4 @@
-# VRX Master Schedule
+# NGFW Master Schedule
 ## Full TNSR feature parity + complete VPP 26.06 feature surface
 
 Reference baseline: **VPP 26.06** (released 24 June 2026 — 28 new features including the
@@ -6,7 +6,7 @@ Marvell scalable mGig NIC driver, CNAT SNAT/DNAT policy, HTTP/3 CONNECT and UDP 
 IKEv2 crypto enhancements, the Trace Path plugin and IPv6 DAD) plus the development branch
 **26.10-rc0**. TNSR scope taken from Netgate's published feature documentation.
 
-> **Per-feature detail lives in [`wbs/VRX-WBS.xlsx`](../wbs/VRX-WBS.xlsx)** — 102 work items
+> **Per-feature detail lives in [`wbs/NGFW-WBS.xlsx`](../wbs/NGFW-WBS.xlsx)** — 102 work items
 > with person-day estimates, tier, squad, dependencies, start/end quarter, and live formulas.
 > This document is the narrative; the workbook is the authoritative plan.
 > A Persian version of this document is at [`08-master-schedule-fa.md`](08-master-schedule-fa.md).

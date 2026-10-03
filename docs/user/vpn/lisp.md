@@ -1,6 +1,6 @@
 # LISP and LISP-GPE (advanced)
 
-VRX exposes a minimal LISP / LISP-GPE set: the global switches, local locator sets, local EIDs, EID-table maps
+NGFW exposes a minimal LISP / LISP-GPE set: the global switches, local locator sets, local EIDs, EID-table maps
 (VNI → VRF or bridge domain), static remote mappings, adjacencies, static LISP-GPE forwarding entries, map-resolvers,
 map-servers and the proxy-ITR locator set. Configuration lives at `tunnels.lisp`; the UI is **VPN → LISP (advanced)**
 with the sub-tabs Locators, EIDs, Mappings and Resolvers, each showing whether VPP has the configured objects.

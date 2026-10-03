@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { ProblemError } from '../../common/problem.js';
 import { PkiController } from './pki.controller.js';
 import { PkiService } from './pki.service.js';
@@ -20,7 +20,7 @@ describe('PKI action security boundaries', () => {
       createCsr: vi.fn().mockRejectedValue(new PkiError('invalid subject', '/subject')),
     };
     const controller = new PkiController(service as unknown as PkiService);
-    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as VrxRequest;
+    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as NgfwRequest;
     const error = await controller
       .csr({ name: 'server', subject: 'bad', san: [], replace: false }, req)
       .catch((e: unknown) => e);
@@ -42,14 +42,14 @@ describe('PKI action security boundaries', () => {
       }),
     };
     const controller = new PkiController(service as unknown as PkiService);
-    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as VrxRequest;
+    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as NgfwRequest;
     await controller.import(
       {
         format: 'pkcs12',
         as: 'certificate',
         name: 'server',
         pkcs12: 'dGVzdA==',
-        passphrase: 'VRX_TEST_PSK_pki',
+        passphrase: 'NGFW_TEST_PSK_pki',
         stage: true,
         replace: false,
       },
@@ -65,7 +65,7 @@ describe('PKI action security boundaries', () => {
         staged: true,
       },
     });
-    expect(JSON.stringify(req.audit)).not.toContain('VRX_TEST_PSK_pki');
+    expect(JSON.stringify(req.audit)).not.toContain('NGFW_TEST_PSK_pki');
     expect(JSON.stringify(req.audit)).not.toContain('dGVzdA==');
   });
 

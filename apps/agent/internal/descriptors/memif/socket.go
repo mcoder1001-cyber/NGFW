@@ -26,13 +26,13 @@ const (
 var ErrEmptyValue = errors.New("memif: nil or wrong desired value type")
 
 // DefaultSocketDir is where an agent with owner keeps its memif sockets: the production agent
-// ("vrx") under /run/vrx/memif, every other owner (a worker's VRX_TEST_PREFIX) under
-// /run/vrx-test/<owner>/memif (docs/lab/shared-host-rules.md).
+// ("ngfw") under /run/ngfw/memif, every other owner (a worker's NGFW_TEST_PREFIX) under
+// /run/ngfw-test/<owner>/memif (docs/lab/shared-host-rules.md).
 func DefaultSocketDir(owner string) string {
-	if owner == "vrx" {
-		return "/run/vrx/memif"
+	if owner == "ngfw" {
+		return "/run/ngfw/memif"
 	}
-	return filepath.Join("/run/vrx-test", owner, "memif")
+	return filepath.Join("/run/ngfw-test", owner, "memif")
 }
 
 type base struct {

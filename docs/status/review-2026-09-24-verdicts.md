@@ -27,7 +27,7 @@ Verdicts: **correct** = the report is right; **partially** = the facts are right
 | 1.4 | cancelled caller ctx → ROLLED_BACK cached under the txn_id | correct | TD-9 | D-entry amends proto.md §2 item 3 |
 | 1.5a | ownertable.WriteAtomic: no directory fsync | correct | TD-9 | shared dir-fsync helper; TD-16 reuses it |
 | 1.5b | confirm deadline from txn start, not applied_at | correct | TD-9 | |
-| 1.5c | invalid VRX_LOG_LEVEL silently ignored | correct | TD-9 | |
+| 1.5c | invalid NGFW_LOG_LEVEL silently ignored | correct | TD-9 | |
 | 1.5d | mpls checkPaths / l3xc update: no 255-path bound | correct | F-bridge-l2 (l3xc), F-mpls-srmpls (mpls) | envelope amendments |
 | 1.5e | metrics :9101 unauthenticated | partially | TD-9 | defaults to 127.0.0.1 and exposes no secrets; TD-9 refuses a non-loopback address unless opted in |
 
@@ -37,9 +37,9 @@ Verdicts: **correct** = the report is right; **partially** = the facts are right
 | 2.1 | checkPending treats "no longer pending" as reverted | correct | TD-10a | read Health.last_txn_id |
 | 2.2 | rollback restoreSecrets not persisted in config_pending | correct | TD-10a | migration 0004 |
 | 2.3a | lockout can lock the last admin; no break-glass | correct | TD-10b | (user, IP) key; last admin throttled only; root-only unlock tool |
-| 2.3b | per-IP limit uses req.ip without trustProxy | correct | TD-10b | VRX_TRUST_PROXY |
+| 2.3b | per-IP limit uses req.ip without trustProxy | correct | TD-10b | NGFW_TRUST_PROXY |
 | 2.3c | access tokens not revoked on logout, demotion, deletion | partially (part already fixed) | TD-10b + PENDING-session-revocation | disable is fixed on TD-4 (c299859); logout, demotion and deletion are still open |
-| 2.3d | refresh sessions never hard-expire | correct | TD-10b | VRX_SESSION_MAX_SEC |
+| 2.3d | refresh sessions never hard-expire | correct | TD-10b | NGFW_SESSION_MAX_SEC |
 | 2.3e | audit gaps (logout/refresh, 401 mutations, swallowed write failures) | correct | TD-10b | |
 | 2.3f | secret deletion race vs commits | correct | TD-10a | inside commits.exclusive |
 | 2.3g | /api/docs unusable in a browser | correct | TD-10b | option (a) or (b) via LOG |
@@ -94,7 +94,7 @@ The report's §2 line numbers predate the TD-2 merge; the substance was re-verif
 | 6.1b | every wave-A task depends on the agent-core and reachability rows | partially | "merge after TD-11a" on the 12 wave-A rows (row notes); TD-9 is a release gate (P10, INTEGRATE-E2E, SECURITY-REVIEW) | no start deps on wave A |
 | 6.2 | UI-domain-editor | correct | UI-domain-editor | merges after ui-nav-collapse |
 | 6.3a | F-ansible: Ansible collection cut | partially | board retitle of F-sdk-terraform-ansible; docs/11 D8.9 → 🟡; have-not register (tech-debt) | deliberately cut by D-085: a have-not, not missing work |
-| 6.3b | missing API pieces answer 501 | partially | F-dashboard-prom-alarms (clear-counters), F-backup-restore (reboot/shutdown), P10 (vrx-power@), P12 (bgp/neighbors) | user CRUD lives in management.users by design; most 501s already had F-* owners |
+| 6.3b | missing API pieces answer 501 | partially | F-dashboard-prom-alarms (clear-counters), F-backup-restore (reboot/shutdown), P10 (ngfw-power@), P12 (bgp/neighbors) | user CRUD lives in management.users by design; most 501s already had F-* owners |
 | 6.4 | P10 underestimated | correct | P10 (10 → 20 h, headers), TD-17 | |
 | 6.5 | LAB-vpp-per-slot | correct | LAB-vpp-per-slot (parked on PENDING-vpp-host-hardening) | |
 | 6.6a | TEST-traffic per wave | correct | TEST-traffic-A/B/C; docs/12 S4 gate, docs/11 §5 | the docs/11 line waits for the product owner's confirmation |

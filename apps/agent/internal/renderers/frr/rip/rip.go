@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strconv"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/policy"
 )
@@ -53,7 +53,7 @@ func (Section) Render(rc *frr.RenderContext) ([]string, error) {
 var base = policy.P("routing", "rip")
 
 // Render returns the `router rip` block for r (nil = RIP not configured).
-func Render(r *vrxv1.RipConfig, mapIf frr.InterfaceMapper) ([]string, error) {
+func Render(r *ngfwv1.RipConfig, mapIf frr.InterfaceMapper) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
@@ -118,7 +118,7 @@ func Render(r *vrxv1.RipConfig, mapIf frr.InterfaceMapper) ([]string, error) {
 	return append(out, "exit"), nil
 }
 
-func redistribute(r *vrxv1.Redistribute) ([]string, error) {
+func redistribute(r *ngfwv1.Redistribute) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
@@ -128,7 +128,7 @@ func redistribute(r *vrxv1.Redistribute) ([]string, error) {
 	var out []string
 	for _, src := range []struct {
 		name string
-		opt  *vrxv1.RedistributeOptions
+		opt  *ngfwv1.RedistributeOptions
 	}{
 		{"connected", r.GetConnected()}, {"static", r.GetStatic()}, {"ospf", r.GetOspf()},
 		{"isis", r.GetIsis()}, {"bgp", r.GetBgp()},

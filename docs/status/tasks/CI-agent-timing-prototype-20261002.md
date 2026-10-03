@@ -5,7 +5,7 @@ base actualmaincb5cf4c1e21ffbc60a8129692c02437eebe715bb. Prior measured report
 corrected4e9ff90c independently corroborated: combined agent5m55–6m06 cannot be
 split among vet/lint/race/build because its artifact has no command timestamps.
 
-Draft scope only apps/agent/Makefile: constant VRX_TIMING BEGIN/END labels plus
+Draft scope only apps/agent/Makefile: constant NGFW_TIMING BEGIN/END labels plus
 UTC timestamps immediately before/after existing vet, lint dispatch, race test
 and build commands. Each original recipe/flags/order remains byte-identical;
 markers are separate recipes, so failure aborts before its END marker and cannot

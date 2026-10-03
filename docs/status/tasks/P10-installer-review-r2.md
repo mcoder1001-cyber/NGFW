@@ -11,7 +11,7 @@ R1/R2/R7/R8: APPROVE reviewed installer checkpoint with stated MINOR. Whole P10 
 Actual independent checks:
 
 ```text
-python3 deploy/debian/vrx/tests/test_runtime_profile.py
+python3 deploy/debian/ngfw/tests/test_runtime_profile.py
 Ran 2 tests in 1.689s
 OK
 bash -n scripts/10-install-runtime.sh

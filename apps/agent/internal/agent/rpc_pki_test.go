@@ -14,14 +14,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 var pkiStateTime = time.Date(2026, time.October, 3, 12, 34, 56, 123000000, time.UTC)
 
-func assertPkiUnavailable(t *testing.T, got *vrxv1.PkiFileStateResponse) {
+func assertPkiUnavailable(t *testing.T, got *ngfwv1.PkiFileStateResponse) {
 	t.Helper()
-	want := &vrxv1.PkiFileStateResponse{
+	want := &ngfwv1.PkiFileStateResponse{
 		Owner: "pki-owner", RetrievedAt: timestamppb.New(pkiStateTime),
 		Unavailable: "PKI file materializer is not wired in this agent build",
 	}
@@ -41,14 +41,14 @@ func TestPkiFileStateOwnerAndUnavailable(t *testing.T) {
 		clockCalls++
 		return pkiStateTime
 	}}}
-	if got, err := g.PkiFileState(context.Background(), &vrxv1.PkiFileStateRequest{Owner: "foreign"}); got != nil || status.Code(err) != codes.InvalidArgument {
+	if got, err := g.PkiFileState(context.Background(), &ngfwv1.PkiFileStateRequest{Owner: "foreign"}); got != nil || status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner response %v, error %v", got, err)
 	}
 	if clockCalls != 0 {
 		t.Fatal("foreign owner reached observation before authorization")
 	}
 	for _, owner := range []string{"pki-owner", ""} {
-		got, err := g.PkiFileState(context.Background(), &vrxv1.PkiFileStateRequest{Owner: owner})
+		got, err := g.PkiFileState(context.Background(), &ngfwv1.PkiFileStateRequest{Owner: owner})
 		if err != nil {
 			t.Fatalf("owner %q: %v", owner, err)
 		}
@@ -63,7 +63,7 @@ func TestPkiFileStateRegisteredRPC(t *testing.T) {
 	listener := bufconn.Listen(1024 * 1024)
 	t.Cleanup(func() { _ = listener.Close() })
 	g := grpc.NewServer()
-	vrxv1.RegisterDataplaneServer(g, &server{svc: &Service{
+	ngfwv1.RegisterDataplaneServer(g, &server{svc: &Service{
 		owner: "pki-owner", now: func() time.Time { return pkiStateTime },
 	}})
 	go func() { _ = g.Serve(listener) }()
@@ -78,17 +78,17 @@ func TestPkiFileStateRegisteredRPC(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
-	client := vrxv1.NewDataplaneClient(conn)
+	client := ngfwv1.NewDataplaneClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, owner := range []string{"pki-owner", ""} {
-		got, err := client.PkiFileState(ctx, &vrxv1.PkiFileStateRequest{Owner: owner})
+		got, err := client.PkiFileState(ctx, &ngfwv1.PkiFileStateRequest{Owner: owner})
 		if err != nil {
 			t.Fatalf("registered RPC owner %q returned %v (must override inherited UNIMPLEMENTED)", owner, err)
 		}
 		assertPkiUnavailable(t, got)
 	}
-	got, err := client.PkiFileState(ctx, &vrxv1.PkiFileStateRequest{Owner: "foreign"})
+	got, err := client.PkiFileState(ctx, &ngfwv1.PkiFileStateRequest{Owner: "foreign"})
 	if got != nil || status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("registered RPC foreign owner response %v, error %v", got, err)
 	}

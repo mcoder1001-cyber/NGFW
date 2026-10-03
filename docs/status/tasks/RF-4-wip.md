@@ -13,7 +13,7 @@ Updated: 2026-09-24 02:30 (+03:30) — DONE, see RF-4.md
   daemon understands (lower-case). `sysLocation "x"` keeps the quotes → rest-of-line, no quoting. Privacy: DES|AES only
   (no AES-256 in this build).
 - keepalived 2.3.4: `-t` checks interface existence in the current netns → `-t -s <ns>` works (no `ip netns exec`
-  trampoline). `/run` is `noexec`: notify/check executables cannot live under /run/vrx-test (tests put them in a
+  trampoline). `/run` is `noexec`: notify/check executables cannot live under /run/ngfw-test (tests put them in a
   root-owned 0755 dir under /tmp). VRRPv3 has no authentication ("does not support authentication. Ignoring." rc 5) →
   auth needs `version 2` per instance and `auth_pass` ≤ 8 chars. SIGJSON (`--signum=JSON` = 36) writes
   `$TMPDIR/keepalived.json` (mode 0600) **including `auth_data` in plaintext** → Retrieve redacts and deletes it.
@@ -24,7 +24,7 @@ Updated: 2026-09-24 02:30 (+03:30) — DONE, see RF-4.md
 
 ## Plan / status
 - [x] experiments, go.mod: github.com/gosnmp/gosnmp v1.43.1 (task-mandated; secrets never in argv)
-- [x] keepalived notify helper `internal/renderers/keepalived/cmd/vrx-keepalived-notify`
+- [x] keepalived notify helper `internal/renderers/keepalived/cmd/ngfw-keepalived-notify`
 - [x] rfkit shared helpers (Controller systemd/process, secrets+redactor, apply/rollback, bounded read, poller)
 - [x] snmpd renderer + goldens + hostile + integration (parse-run Validate, gosnmp Retrieve, SIGHUP same PID)
 - [x] keepalived renderer + goldens + hostile + integration (netns ns-w8-a, veth w8-a/w8-b; MASTER in 1.8 s)

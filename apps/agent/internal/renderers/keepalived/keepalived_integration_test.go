@@ -25,7 +25,7 @@ const ipBin = "/usr/bin/ip" // test-only (never in a renderer allowlist)
 // TestKeepalivedIntegration runs keepalived as a child of the test inside the slot's own
 // network namespace ns-<prefix>-a, on a veth pair whose both ends live in that namespace, so no
 // VRRP advertisement can ever reach a host link (ens192). Config and state under
-// /run/vrx-test/<prefix>/keepalived; the notify helper and the check executable in a root-owned
+// /run/ngfw-test/<prefix>/keepalived; the notify helper and the check executable in a root-owned
 // temp dir (/run is noexec). Killed by the PID the test spawned.
 func TestKeepalivedIntegration(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
@@ -33,7 +33,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 	prefix, slot := vpptest.Prefix(t), vpptest.Slot(t)
 	ctx := context.Background()
 	ns, ifA, ifB := "ns-"+prefix+"-a", prefix+"-a", prefix+"-b"
-	base := filepath.Join("/run/vrx-test", prefix, "keepalived")
+	base := filepath.Join("/run/ngfw-test", prefix, "keepalived")
 	lockSlotDir(t, base)
 	binDir := buildHelpers(t, prefix)
 	paths := TestPaths(prefix, binDir, ns)
@@ -53,7 +53,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 	}}
 	runner := renderers.NewSystemRunner(renderers.NewAllowlist(Binaries()...))
 	r := New(runner, WithPaths(paths), WithController(ctl), WithInterfaceMapper(PrefixMapper(prefix+"-")),
-		WithChecks("vrx-check-ok"), WithSecretResolver(rfkit.SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
+		WithChecks("ngfw-check-ok"), WithSecretResolver(rfkit.SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
 			if ref == "psk/vrrp-vi2" {
 				return planted, nil
 			}
@@ -68,7 +68,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 				"advertisementIntervalMs": 500, "addresses": []any{vip1},
 				"keepalived": map[string]any{"prefixLength": 24, "trackScripts": []any{"ok"}},
 			}},
-			"keepalived": map[string]any{"routerId": prefix + "-ka", "scripts": map[string]any{"ok": map[string]any{"check": "vrx-check-ok", "interval": 1, "rise": 1, "fall": 2}}},
+			"keepalived": map[string]any{"routerId": prefix + "-ka", "scripts": map[string]any{"ok": map[string]any{"check": "ngfw-check-ok", "interval": 1, "rise": 1, "fall": 2}}},
 		},
 	})
 	files, err := r.Render(ctx, d1)
@@ -137,7 +137,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 					"addresses": []any{vip2}, "keepalived": map[string]any{"prefixLength": 24, "authRef": "psk/vrrp-vi2"},
 				},
 			},
-			"keepalived": map[string]any{"routerId": prefix + "-ka", "scripts": map[string]any{"ok": map[string]any{"check": "vrx-check-ok", "interval": 1, "rise": 1, "fall": 2}},
+			"keepalived": map[string]any{"routerId": prefix + "-ka", "scripts": map[string]any{"ok": map[string]any{"check": "ngfw-check-ok", "interval": 1, "rise": 1, "fall": 2}},
 				"syncGroups": map[string]any{"g1": []any{"vi1", "vi2"}}},
 		},
 	})
@@ -163,7 +163,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 
 	// A reload keepalived never sees is not reported as success: rolled back.
 	lost := New(runner, WithPaths(paths), WithController(&noReload{ctl}), WithInterfaceMapper(PrefixMapper(prefix+"-")),
-		WithChecks("vrx-check-ok"), WithVerifyTimeout(2*time.Second), WithSecretResolver(rfkit.SecretResolverFunc(func(context.Context, string) (string, error) { return planted, nil })))
+		WithChecks("ngfw-check-ok"), WithVerifyTimeout(2*time.Second), WithSecretResolver(rfkit.SecretResolverFunc(func(context.Context, string) (string, error) { return planted, nil })))
 	files3, err := lost.Render(ctx, doc(t, map[string]any{"ha": map[string]any{"vrrp": map[string]any{"vi1": map[string]any{
 		"engine": "keepalived", "interface": ifA, "vrId": slot*10 + 1, "priority": 170, "addresses": []any{vip1}}}}}))
 	if err != nil {
@@ -221,7 +221,7 @@ func TestKeepalivedIntegration(t *testing.T) {
 	}
 }
 
-// planted is the VRRPv2 PASS key used by the test (8 characters max: the VRX_TEST_PSK_<id>
+// planted is the VRRPv2 PASS key used by the test (8 characters max: the NGFW_TEST_PSK_<id>
 // fixture literal does not fit; see RF-4-questions.md).
 const planted = "RF4tpsk8"
 
@@ -231,7 +231,7 @@ func (noReload) Reload(context.Context) error { return nil }
 
 func buildHelpers(t *testing.T, prefix string) string {
 	t.Helper()
-	dir, err := os.MkdirTemp("/tmp", "vrx-"+prefix+"-keepalived-")
+	dir, err := os.MkdirTemp("/tmp", "ngfw-"+prefix+"-keepalived-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func buildHelpers(t *testing.T, prefix string) string {
 	if err := os.Chmod(dir, 0o755); err != nil { //nolint:gosec // keepalived script security: root-owned, not writable by others
 		t.Fatal(err)
 	}
-	build := exec.Command("go", "build", "-o", filepath.Join(dir, "vrx-keepalived-notify"), "./cmd/vrx-keepalived-notify") //nolint:gosec // test harness: fixed argv of an allow-listed binary
+	build := exec.Command("go", "build", "-o", filepath.Join(dir, "ngfw-keepalived-notify"), "./cmd/ngfw-keepalived-notify") //nolint:gosec // test harness: fixed argv of an allow-listed binary
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build notify helper: %v\n%s", err, out)
 	}
@@ -250,7 +250,7 @@ func buildHelpers(t *testing.T, prefix string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "checks", "vrx-check-ok"), b, 0o755); err != nil { //nolint:gosec // executable
+	if err := os.WriteFile(filepath.Join(dir, "checks", "ngfw-check-ok"), b, 0o755); err != nil { //nolint:gosec // executable
 		t.Fatal(err)
 	}
 	return dir
@@ -341,7 +341,7 @@ func alive(pid int) bool { return syscall.Kill(pid, 0) == nil }
 
 func lockSlotDir(t *testing.T, base string) {
 	t.Helper()
-	if !strings.HasPrefix(base, "/run/vrx-test/") {
+	if !strings.HasPrefix(base, "/run/ngfw-test/") {
 		t.Fatalf("refusing to use %s", base)
 	}
 	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {

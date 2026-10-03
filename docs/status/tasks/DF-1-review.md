@@ -6,7 +6,7 @@ Reviewer: independent review agent (did not write this code). Run directly on th
 
 - `tools/ci.sh --base main` in `/root/ngfw-wt/DF-1` → **CI GATE PASSED** (wall 0m46s, logs
   `/root/ngfw-wt/logs/ci/DF-1-20260924-004435-892741`); agent packages all `ok`, golangci-lint clean. Matches the pasted output.
-- Host integration, one package at a time, `eval "$(tools/lab env 2)"; VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v ./internal/descriptors/<pkg>/`
+- Host integration, one package at a time, `eval "$(tools/lab env 2)"; NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v ./internal/descriptors/<pkg>/`
   for interface, tapv2, af_packet, bond, l2, l3xc, memif → all PASS; rx-placement skips with
   `skip: no workers on host …`; `TestRestartSimulationOnHost`: "plan is empty (38 objects)", "Retrieve rebuilt 36 objects
   with equal Meta; plan = [create interface.mac-address/loop260, create interface.promisc/w2-tap63]", "second apply: plan is empty",
@@ -27,7 +27,7 @@ Reviewer: independent review agent (did not write this code). Run directly on th
    fib_types,ip_types,ethernet_types,vlib,memclnt}`); the code compiles against them; `apps/agent/binapi/` and `tools/binapi-gen.sh`
    untouched. OK.
 5. Shared host — slot prefix `w2` on every tag, loopback `loop2xx`, tap ids `2xx`, taps/veths `w2-*`, BD / memif socket ids from
-   `VRX_VPP_TABLE_BASE=2000`; memif sockets under `/run/vrx-test/w2/`; cleanup in `t.Cleanup`; no pkill/killall; no daemons. OK.
+   `NGFW_VPP_TABLE_BASE=2000`; memif sockets under `/run/ngfw-test/w2/`; cleanup in `t.Cleanup`; no pkill/killall; no daemons. OK.
 6. Security — `exec.Command` only in two test files, fixed argv `/usr/sbin/ip link add|set|del w2-…`; no secrets. Host-side inputs
    are not restricted (L3).
 7. Transaction semantics — Tag failure after create leaves an untaggable orphan (M3); dependency gaps around l2 mode (M5).

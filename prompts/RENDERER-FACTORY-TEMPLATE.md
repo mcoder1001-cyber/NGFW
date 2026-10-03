@@ -7,7 +7,7 @@ JSON/show output → events. Same pattern for every GPL daemon; P11 (strongSwan)
 
 ## Inputs to read first
 - `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
-- Daemon docs: <links>. Installed on this host (disabled): frr, strongswan (stock; vrx build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog
+- Daemon docs: <links>. Installed on this host (disabled): frr, strongswan (stock; ngfw build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog
 - `packages/proto` messages for the domain (P03) — the input type
 
 ## Scope — build exactly this, per daemon

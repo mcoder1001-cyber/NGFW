@@ -16,7 +16,7 @@ import { mplsLdpField } from './mpls-ldp.js'; // wave-BC: F-mpls-ldp
  * labels (VPP `fib_path.label_stack[16]`).
  */
 
-/** `x-vrx-ui` group of every field this feature adds (group = task slug, C1). */
+/** `x-ngfw-ui` group of every field this feature adds (group = task slug, C1). */
 const GROUP = 'mpls-srmpls';
 
 /** Smallest unreserved MPLS label (RFC 3032: 0–15 are reserved). */

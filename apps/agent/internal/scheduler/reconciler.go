@@ -100,7 +100,7 @@ type ApplyOptions struct {
 	skipValidators bool
 }
 
-// ResultCode classifies the outcome of one operation (mirrors vrx.v1.ObjectResultCode).
+// ResultCode classifies the outcome of one operation (mirrors ngfw.v1.ObjectResultCode).
 type ResultCode int
 
 // Result codes.
@@ -136,7 +136,7 @@ func (c ResultCode) String() string {
 	}
 }
 
-// Outcome of a transaction (mirrors vrx.v1.ApplyStatus).
+// Outcome of a transaction (mirrors ngfw.v1.ApplyStatus).
 type Outcome int
 
 // Outcomes.
@@ -224,7 +224,7 @@ func (p *TxnPlan) Summary() Summary {
 	return s
 }
 
-// Summary counts the operations of a transaction (mirrors vrx.v1.ApplySummary).
+// Summary counts the operations of a transaction (mirrors ngfw.v1.ApplySummary).
 type Summary struct {
 	Created, Updated, Deleted, Unchanged, Failed, Reverted int
 }

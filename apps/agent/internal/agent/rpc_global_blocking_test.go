@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/acl_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -44,7 +44,7 @@ func TestGlobalBlockingOnFake(t *testing.T) {
 	v := coretest.New()
 	s, _ := newACLSvc(t, v, t.TempDir(), false)
 	want := doc(t, gbJSON)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: want}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: want}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	n1, b1 := v.ACL().Binding(loopIndex(t, v, "loop711"))
 	n2, b2 := v.ACL().Binding(loopIndex(t, v, "loop712"))
@@ -62,16 +62,16 @@ func TestGlobalBlockingOnFake(t *testing.T) {
 	if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
 		t.Fatalf("Retrieve != desired:\n%s\nwant\n%s", protojson.Format(got), protojson.Format(want.GetAcl()))
 	}
-	if sm := apply(t, s, &vrxv1.ApplyRequest{TxnId: "g2", DesiredState: want}).GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
+	if sm := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g2", DesiredState: want}).GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
 		t.Fatalf("second apply not empty: %v", sm)
 	}
 
 	// one more entry: the two bucket ACLs and the applied configuration change, nothing is rebound
-	next := proto.Clone(want).(*vrxv1.DesiredState)
+	next := proto.Clone(want).(*ngfwv1.DesiredState)
 	l := next.GetAcl().GetGlobalBlocking().GetLists()["bad"]
 	l.Entries = append(l.Entries, "203.0.113.5/32")
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "g3", DesiredState: next})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g3", DesiredState: next})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if sm := resp.GetSummary(); sm.GetCreated()+sm.GetDeleted() != 0 || sm.GetUpdated() != 3 {
 		t.Fatalf("entry change: %v", sm)
 	}
@@ -82,7 +82,7 @@ func TestGlobalBlockingOnFake(t *testing.T) {
 	}
 
 	// AclState lists the bucket ACLs (per-list hit counters come from their sums)
-	st, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{})
+	st, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,9 +95,9 @@ func TestGlobalBlockingOnFake(t *testing.T) {
 	}
 
 	// block lists removed: their ACLs are deleted and the user's binding is back as it was
-	plain := proto.Clone(next).(*vrxv1.DesiredState)
+	plain := proto.Clone(next).(*ngfwv1.DesiredState)
 	plain.GetAcl().GlobalBlocking = nil
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "g4", DesiredState: plain}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g4", DesiredState: plain}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	n1, b1 = v.ACL().Binding(loopIndex(t, v, "loop711"))
 	_, b2 = v.ACL().Binding(loopIndex(t, v, "loop712"))
 	if n1 != 1 || aclNames(t, v, b1) != "user-in" || len(b2) != 0 || len(v.ACL().ACLs()) != 1 {

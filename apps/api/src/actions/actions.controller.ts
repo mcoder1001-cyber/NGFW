@@ -4,7 +4,7 @@ import type { ActionRequest } from '@ngfw/proto';
 import { ipAddress, pointerIssues } from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
-import type { VrxRequest } from '../common/principal.js';
+import type { NgfwRequest } from '../common/principal.js';
 import { ProblemError, problems } from '../common/problem.js';
 import { Protected } from '../common/responses.js';
 import { safeText } from '../common/text.js';
@@ -20,7 +20,7 @@ export const ACTIONS = [
   'upgrade',
 ] as const;
 
-/** `POST /api/v1/actions/ping` body (vrx.v1.PingAction; the agent enforces what VPP's ping API can do). */
+/** `POST /api/v1/actions/ping` body (ngfw.v1.PingAction; the agent enforces what VPP's ping API can do). */
 export const PingBody = z.strictObject({
   target: ipAddress.describe('IPv4 or IPv6 address (no name resolution)'),
   vrf: safeText(63).min(1).optional().describe('VRF; the data plane pings from `default` only'),
@@ -31,7 +31,7 @@ export const PingBody = z.strictObject({
   source: ipAddress.optional().describe('not supported by VPP’s ping API'),
 });
 
-/** `POST /api/v1/actions/traceroute` body (vrx.v1.TracerouteAction). */
+/** `POST /api/v1/actions/traceroute` body (ngfw.v1.TracerouteAction). */
 export const TracerouteBody = z.strictObject({
   target: ipAddress,
   vrf: safeText(63).min(1).optional(),
@@ -107,7 +107,7 @@ export class ActionsController {
   async run(
     @Param('action', new SafeParamPipe('action', 64)) action: string,
     @Body() body: unknown,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     if (!(ACTIONS as readonly string[]).includes(action))
       throw problems.notFound(`unknown action '${action}'`);

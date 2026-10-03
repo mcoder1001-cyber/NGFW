@@ -3,7 +3,7 @@
 Rule conflicts are resolved with the higher-precedence rule and listed here (00-CONTEXT: never stop on a conflict).
 
 ## Q1. The A5 hooks are declared but not wired in `agent.go` (the manager decides)
-`subsystems.Env` now has `Publish func(*vrxv1.Event)` and `Resync func()`. Features call them through `Wiring.Publish(ev)` and
+`subsystems.Env` now has `Publish func(*ngfwv1.Event)` and `Resync func()`. Features call them through `Wiring.Publish(ev)` and
 `Wiring.RequestResync()` (`apps/agent/internal/subsystems/seams.go`). Both are no-ops until `agent.go` sets them. The envelope does
 not give me `agent.go` (A5 is read-only, and "files you must not touch: everything else"), so the live wiring is not in this branch.
 Features can build and unit-test against the hooks now. The wiring is a small change in `agent.Start`. `Env` is built before
@@ -11,7 +11,7 @@ Features can build and unit-test against the hooks now. The wiring is a small ch
 ```go
 var svc *Service
 wiring, err := subsystems.Register(reg, subsystems.Env{ /* as today */,
-	Publish: func(ev *vrxv1.Event) { if svc != nil { svc.events().publish(ev) } },
+	Publish: func(ev *ngfwv1.Event) { if svc != nil { svc.events().publish(ev) } },
 	Resync:  func() { if svc != nil { go svc.Resync(context.Background()) } },
 })
 ...

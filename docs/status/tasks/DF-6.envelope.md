@@ -4,7 +4,7 @@ title: Descriptors: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + m
 prompt: prompts/factories/DF-6.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D6.6, D6.7, D6.8, D2.8
 scope: gre, ipip, vxlan, vxlan_gpe, gtpu, l2tp, pppoe, sr (srv6 + mpls), lisp
 merged deps you can rely on: P05a, P04
-slot: 11 → VRX_TEST_PREFIX=w11  VRX_HTTP_PORT=31100  VRX_WEB_PORT=51100  VRX_METRICS_PORT=91111  VRX_AGENT_SOCKET=/run/vrx-test/w11/agent.sock  VRX_PG_DATABASE=vrx_w11  VRX_VPP_TABLE_BASE=11000
+slot: 11 → NGFW_TEST_PREFIX=w11  NGFW_HTTP_PORT=31100  NGFW_WEB_PORT=51100  NGFW_METRICS_PORT=91111  NGFW_AGENT_SOCKET=/run/ngfw-test/w11/agent.sock  NGFW_PG_DATABASE=ngfw_w11  NGFW_VPP_TABLE_BASE=11000
 daemon-owner: none
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-6>/** docs/agent/descriptors/<plugins>.md
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

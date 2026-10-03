@@ -34,7 +34,7 @@ const (
 // Config is what every descriptor of the package is constructed with.
 type Config struct {
 	Client  vpp.Client
-	Owner   string       // VRX_OWNER; tests pass their VRX_TEST_PREFIX
+	Owner   string       // NGFW_OWNER; tests pass their NGFW_TEST_PREFIX
 	Secrets vpn.Resolver // resolves private/preshared key references; nil = every reference fails
 	// Keys computes the keyed secret fingerprints (D-096; vpn.LoadOrCreateKeyFile in the agent
 	// state dir). Required: without it every secret reference fails with vpn.ErrNoKeyer.

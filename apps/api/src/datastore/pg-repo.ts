@@ -274,7 +274,7 @@ class PgConfigTx implements ConfigTx {
     // TD-10b — PENDING-session-revocation option 1 (the manager's recommendation; this block follows the product
     // owner's answer): demotion and deletion end the user's sessions like a disable. The JWT carries the role and is
     // not checked against app_user, so without this a demoted admin kept admin rights, and a deleted user their
-    // access, until the token expired (≤ VRX_ACCESS_TTL_SEC). A deleted user is returned with the generation it
+    // access, until the token expired (≤ NGFW_ACCESS_TTL_SEC). A deleted user is returned with the generation it
     // would have had next: `configResets` → `revokeUser` refuses every token below it (the row itself is gone).
     // A demoted user's generation is bumped (refresh refused; they log in again with the new role). Promotions need
     // nothing: a refresh reads the role from app_user. API keys follow the role per request already.

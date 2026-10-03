@@ -39,7 +39,7 @@ Shared helpers: `internal/descriptors/df2` (keys, address/MAC/FIB-path codecs, i
 
 ## Verification (real output)
 
-### Integration on the host VPP (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w3 VRX_SLOT=3 VRX_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v ./internal/descriptors/...`)
+### Integration on the host VPP (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w3 NGFW_SLOT=3 NGFW_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v ./internal/descriptors/...`)
 Unit tests run in the same invocation (all PASS; full log `/root/ngfw-wt/logs/DF-2-integration.log`). Excerpt:
 ```
     integration_test.go:54: abf policy Retrieve = policy_id:3001 acl:"abf-test" paths:{next_hop:"10.3.8.254" interface:"loop308" weight:1}
@@ -83,7 +83,7 @@ ok  	ngfw/agent/internal/descriptors/df2/idempotency	0.094s
     integration_test.go:46: ra-config Retrieve = interface:"loop303" managed:true other:true suppress_link_layer_option:true router_lifetime:1800 max_interval:300 min_interval:225 initial_count:2 initial_interval:16
     integration_test.go:69: ra-prefix Retrieve = interface:"loop303" prefix:"2001:db8:3:3::/64" valid_lifetime:7200 preferred_lifetime:3600 off_link:true
 --- PASS: TestRaOnHost (0.03s)
-    integration_test.go:109: skip: ip6nd_proxy_add_del crashed VPP 26.06 on vrx-a (2026-09-23 15:52:38); set VRX_DF2_PROXY_ND=1 to run
+    integration_test.go:109: skip: ip6nd_proxy_add_del crashed VPP 26.06 on ngfw-a (2026-09-23 15:52:38); set NGFW_DF2_PROXY_ND=1 to run
 --- SKIP: TestProxyNdOnHost (0.00s)
     integration_test.go:150: dad before (global, restored in Cleanup): []
     integration_test.go:173: dad: enabled (transmits 2) → retrieved → disabled → absent; ip6_dad.api is a core API on this host
@@ -104,7 +104,7 @@ ok  	ngfw/agent/internal/descriptors/ip_session_redirect	0.041s
 --- PASS: TestURPFOnHost (0.02s)
 ok  	ngfw/agent/internal/descriptors/urpf	0.046s
 ```
-`TestDadOnHost` is `skip-unless-plugin-loaded` (skips on `df2.ErrPluginNotLoaded`); on vrx-a the ip6_dad messages are core API,
+`TestDadOnHost` is `skip-unless-plugin-loaded` (skips on `df2.ErrPluginNotLoaded`); on ngfw-a the ip6_dad messages are core API,
 so it ran and passed. The skip path is unit-tested (`ip6nd_test.go`, UnknownMsgError → ErrPluginNotLoaded).
 `TestProxyNdOnHost` is skipped on purpose (questions #1).
 
@@ -116,7 +116,7 @@ excluded (write-only, no VPP dump): classify.interface-ip-table
 excluded (write-only, no VPP dump): classify.output-acl
 ```
 
-### vppctl while the idempotency test held its objects (`VRX_DF2_HOLD=20s`, evidence only — no vppctl in code)
+### vppctl while the idempotency test held its objects (`NGFW_DF2_HOLD=20s`, evidence only — no vppctl in code)
 ```
 vpp# show ip neighbors loop350
      Age                       IP                    Flags      Ethernet              Interface       
@@ -303,7 +303,7 @@ ok  	ngfw/agent/internal/descriptors/adl	0.025s
 ok  	ngfw/agent/internal/descriptors/ip6_nd	0.020s
 ```
 
-### Host run (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w3 VRX_SLOT=3 VRX_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
+### Host run (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w3 NGFW_SLOT=3 NGFW_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
 ```
 before: NRestarts=2
 ok  	ngfw/agent/internal/descriptors/ip_neighbor	0.047s
@@ -380,7 +380,7 @@ ok  	ngfw/agent/internal/descriptors/abf	0.024s
 ok  	ngfw/agent/internal/descriptors/df2	0.025s
 ```
 
-### Host run (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w3 VRX_SLOT=3 VRX_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
+### Host run (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w3 NGFW_SLOT=3 NGFW_VPP_TABLE_BASE=3000 go test -p 1 -count=1 -v …`), NRestarts before/after
 ```
 before: NRestarts=2
 ok  	ngfw/agent/internal/descriptors/ip_neighbor	0.048s

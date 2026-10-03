@@ -18,7 +18,7 @@ import (
 
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/agent"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
@@ -57,9 +57,9 @@ const canonicalQinqDoc = `{
   }
 }`
 
-func qinqParse(t *testing.T, js string) *vrxv1.DesiredState {
+func qinqParse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("doc: %v", err)
 	}
@@ -207,21 +207,21 @@ func newQinqSvc(t *testing.T, v *coretest.VPP, dir string) *agent.Service {
 	return svc
 }
 
-func applyDoc(t *testing.T, s *agent.Service, txn string, ds *vrxv1.DesiredState) *vrxv1.ApplyResponse {
+func applyDoc(t *testing.T, s *agent.Service, txn string, ds *ngfwv1.DesiredState) *ngfwv1.ApplyResponse {
 	t.Helper()
-	resp, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: txn, DesiredState: ds})
+	resp, err := s.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: ds})
 	if err != nil {
 		t.Fatalf("apply %s: %v", txn, err)
 	}
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply %s: %s %s results=%v validation=%v", txn, resp.GetStatus(), resp.GetMessage(), resp.GetResults(), resp.GetValidation())
 	}
 	return resp
 }
 
-func retrieved(t *testing.T, s *agent.Service) *vrxv1.DesiredState {
+func retrieved(t *testing.T, s *agent.Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,8 +251,8 @@ func vppSub(t *testing.T, v *coretest.VPP, name string, outer, inner uint16, fla
 	return i
 }
 
-func byKey(resp *vrxv1.ApplyResponse) map[string]*vrxv1.ObjectResult {
-	out := map[string]*vrxv1.ObjectResult{}
+func byKey(resp *ngfwv1.ApplyResponse) map[string]*ngfwv1.ObjectResult {
+	out := map[string]*ngfwv1.ObjectResult{}
 	for _, r := range resp.GetResults() {
 		out[r.GetKey()] = r
 	}
@@ -278,7 +278,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 		"interface-ip/host-w5w0.200/10.5.200.1/24": "/interfaces/host-w5w0/subinterfaces/200/ipv4/0",
 		"interface.subinterface/host-w5w0.300":     "/interfaces/host-w5w0/subinterfaces/300",
 	} {
-		if r := res[k]; r == nil || r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_CREATE || r.GetPointer() != ptr || r.GetSubsystem() != "interfaces" {
+		if r := res[k]; r == nil || r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE || r.GetPointer() != ptr || r.GetSubsystem() != "interfaces" {
 			t.Fatalf("result %s = %v, want a create at %s", k, r, ptr)
 		}
 	}
@@ -299,11 +299,11 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	}
 
 	// InterfaceState reports the tag stack of every sub-interface with its parent
-	st, err := s.InterfaceState(context.Background(), &vrxv1.InterfaceStateRequest{})
+	st, err := s.InterfaceState(context.Background(), &ngfwv1.InterfaceStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	live := map[string]*vrxv1.InterfaceState{}
+	live := map[string]*ngfwv1.InterfaceState{}
 	for _, i := range st.GetInterfaces() {
 		live[i.GetName()] = i
 	}
@@ -323,7 +323,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	changed.Interfaces["host-w5w0"].Subinterfaces["200"].InnerVlanId = proto.Uint32(101)
 	resp = applyDoc(t, s, "q4", changed)
 	res = byKey(resp)
-	if r := res["interface.subinterface/host-w5w0.200"]; r == nil || r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_RECREATE {
+	if r := res["interface.subinterface/host-w5w0.200"]; r == nil || r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_RECREATE {
 		t.Fatalf("inner tag change: %v", resp.GetResults())
 	}
 	for k := range res {
@@ -341,14 +341,14 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	// dot1q ↔ dot1ad is a tag change too (dot1q-in-dot1q .300 becomes dot1ad 300 + dot1q 30)
 	changed.Interfaces["host-w5w0"].Subinterfaces["300"].Dot1Ad = proto.Bool(true)
 	resp = applyDoc(t, s, "q5", changed)
-	if r := byKey(resp)["interface.subinterface/host-w5w0.300"]; r == nil || r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_RECREATE {
+	if r := byKey(resp)["interface.subinterface/host-w5w0.300"]; r == nil || r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_RECREATE {
 		t.Fatalf("dot1ad toggle: %v", resp.GetResults())
 	}
 	vppSub(t, v, "host-w5w0.300", 300, 30, two|ad|exact)
 	// QinQ → single tag (inner tag removed)
 	changed.Interfaces["host-w5w0"].Subinterfaces["300"].InnerVlanId = nil
 	resp = applyDoc(t, s, "q6", changed)
-	if r := byKey(resp)["interface.subinterface/host-w5w0.300"]; r == nil || r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_RECREATE {
+	if r := byKey(resp)["interface.subinterface/host-w5w0.300"]; r == nil || r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_RECREATE {
 		t.Fatalf("inner tag removed: %v", resp.GetResults())
 	}
 	vppSub(t, v, "host-w5w0.300", 300, 0, one|ad|exact)
@@ -361,7 +361,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 			t.Fatalf("loss of %s", n)
 		}
 	}
-	if r := s.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
+	if r := s.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync after loss %v", r)
 	}
 	vppSub(t, v, "host-w5w0.200", 200, 100, two|ad|exact)
@@ -372,7 +372,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	s.Close()
 	s2 := newQinqSvc(t, v, dir)
 	v.Reset()
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("restart resync %v", r)
 	}
 	for _, c := range v.Calls() {
@@ -416,7 +416,7 @@ func TestQinQDeleteWhileParentStays(t *testing.T) {
 	resp := applyDoc(t, s, "d2", one)
 	pos := map[string]int{}
 	for i, r := range resp.GetResults() {
-		if r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_DELETE || r.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
+		if r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_DELETE || r.GetCode() != ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
 			t.Fatalf("result %v", r)
 		}
 		pos[r.GetKey()] = i
@@ -453,7 +453,7 @@ func TestQinQDeleteWhileParentStays(t *testing.T) {
 }
 
 // attributesFirst: every object of a deleted sub-interface <parent>.<id> is deleted before the sub-interface itself.
-func attributesFirst(t *testing.T, resp *vrxv1.ApplyResponse) {
+func attributesFirst(t *testing.T, resp *ngfwv1.ApplyResponse) {
 	t.Helper()
 	pos := map[string]int{}
 	for i, r := range resp.GetResults() {

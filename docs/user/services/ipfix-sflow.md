@@ -2,8 +2,8 @@
 
 **Screen:** *Services → Flow export* (`/services?tab=flow-export`), with three sections: **Exporters**, **Flowprobe**
 and **sFlow**. **REST:** `GET /api/v1/state/ipfix` (live) and the generic configuration routes under
-`/api/v1/config/services` (`services.ipfix`). **CLI:** `vrx show configuration services ipfix`, `vrx merge services ipfix …`,
-`vrx commit` (`docs/user/cli/reference.md`).
+`/api/v1/config/services` (`services.ipfix`). **CLI:** `ngfw show configuration services ipfix`, `ngfw merge services ipfix …`,
+`ngfw commit` (`docs/user/cli/reference.md`).
 
 Two independent mechanisms of the data plane (VPP) are configured here:
 
@@ -58,15 +58,15 @@ from the statistics segment.
 LAN interface `lan0` (10.1.1.1/24), collector 10.1.1.9 (IPFIX on port 4739, sFlow on 6343):
 
 ```
-vrx merge services ipfix '{
+ngfw merge services ipfix '{
   "exporters": {"lan": {"collector": {"address": "10.1.1.9", "port": 4739}, "sourceAddress": "10.1.1.1", "vrf": "default"}},
   "flowprobe": {"activeTimerSec": 15, "passiveTimerSec": 120,
                 "interfaces": [{"interface": "lan0", "direction": "both", "ip4": true, "ip6": false}]},
   "sflow": {"enabled": true, "samplingN": 1000, "headerBytes": 128,
             "collectors": [{"address": "10.1.1.9", "port": 6343}], "interfaces": ["lan0"]}}'
-vrx commit confirm 120 comment "flow export for the LAN"
-vrx confirm
-vrx show configuration services ipfix
+ngfw commit confirm 120 comment "flow export for the LAN"
+ngfw confirm
+ngfw show configuration services ipfix
 ```
 
 On the data plane (for support): `vppctl show flowprobe params`, `vppctl show flowprobe interface`, `vppctl show sflow`.

@@ -13,7 +13,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/ipfix_export"
 	sflowapi "ngfw/agent/binapi/sflow"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
@@ -83,9 +83,9 @@ const ipfixCanonical = `{"ipfix": {
   "sflow": {"enabled": true, "samplingN": 1000, "pollingIntervalSec": 20, "headerBytes": 128, "interfaces": ["loop712"]}
 }}`
 
-func services(t *testing.T, js string) *vrxv1.ServicesConfig {
+func services(t *testing.T, js string) *ngfwv1.ServicesConfig {
 	t.Helper()
-	s := &vrxv1.ServicesConfig{}
+	s := &ngfwv1.ServicesConfig{}
 	if err := protojson.Unmarshal([]byte(js), s); err != nil {
 		t.Fatal(err)
 	}
@@ -93,15 +93,15 @@ func services(t *testing.T, js string) *vrxv1.ServicesConfig {
 }
 
 // warnings are DryRun's warning pointers for ds (Apply reports only errors).
-func warnings(t *testing.T, s *Service, ds *vrxv1.DesiredState) map[string]bool {
+func warnings(t *testing.T, s *Service, ds *ngfwv1.DesiredState) map[string]bool {
 	t.Helper()
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "w", DesiredState: ds, Subsystems: []string{"services"}})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "w", DesiredState: ds, Subsystems: []string{"services"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := map[string]bool{}
 	for _, i := range rep.GetErrors() {
-		if i.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+		if i.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 			out[i.GetPointer()] = true
 		}
 	}
@@ -113,8 +113,8 @@ func TestIpfixSflowGlobalsOwnerLifecycle(t *testing.T) {
 	dir := t.TempDir()
 	s := newIpfixSvc(t, v, dir, true)
 	all := []string{"interfaces", "vrfs", "routing", "services"}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "i1", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "i1", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	w := warnings(t, s, doc(t, ipfixDoc))
 	for _, p := range []string{"/services/ipfix/exporters/off", "/services/ipfix/exporters/lan/description",
 		"/services/ipfix/sflow/collectors", "/services/ipfix/sflow/agentAddress", "/services/ipfix/sflow/vrf"} {
@@ -138,19 +138,19 @@ func TestIpfixSflowGlobalsOwnerLifecycle(t *testing.T) {
 		t.Fatalf("sflow %+v", f)
 	}
 
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"services"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"services"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := services(t, ipfixCanonical)
-	want.Qos = &vrxv1.QosService{}   // F-qos-flat: the services Retrieve always carries the (here empty) qos family
-	want.Dhcp = &vrxv1.DhcpService{} // F-kea-dhcp-relay: … and the (here empty) dhcp family
+	want.Qos = &ngfwv1.QosService{}   // F-qos-flat: the services Retrieve always carries the (here empty) qos family
+	want.Dhcp = &ngfwv1.DhcpService{} // F-kea-dhcp-relay: … and the (here empty) dhcp family
 	if !proto.Equal(got.GetDesiredState().GetServices(), want) {
 		t.Fatalf("retrieve:\n got %s\nwant %s", protojson.Format(got.GetDesiredState().GetServices()), protojson.Format(want))
 	}
 
-	st, err := s.IpfixState(context.Background(), &vrxv1.IpfixStateRequest{}, func(string) ([]*vrxv1.IpfixCounter, error) {
-		return []*vrxv1.IpfixCounter{{Name: "/err/sflow/sflow packets processed", Value: 42}}, nil
+	st, err := s.IpfixState(context.Background(), &ngfwv1.IpfixStateRequest{}, func(string) ([]*ngfwv1.IpfixCounter, error) {
+		return []*ngfwv1.IpfixCounter{{Name: "/err/sflow/sflow packets processed", Value: 42}}, nil
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func TestIpfixSflowGlobalsOwnerLifecycle(t *testing.T) {
 	s.Close()
 	s2 := newIpfixSvc(t, v, dir, true)
 	r1 := s2.Resync(context.Background())
-	mustStatus(t, r1, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, r1, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var recreated []string
 	for _, r := range r1.GetResults() {
 		recreated = append(recreated, r.GetKey()+":"+r.GetOp().String())
@@ -186,8 +186,8 @@ func TestIpfixSflowGlobalsOwnerLifecycle(t *testing.T) {
 	}
 
 	// rollback to a document without services: interfaces gone, globals reset (globals owner)
-	resp = apply(t, s2, &vrxv1.ApplyRequest{TxnId: "i2", Subsystems: []string{"services"}, DesiredState: &vrxv1.DesiredState{}})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "i2", Subsystems: []string{"services"}, DesiredState: &ngfwv1.DesiredState{}})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	f = v.Flow()
 	if len(f.Flowprobe) != 0 || len(f.Sflow) != 0 || len(f.Exporters) != 1 || f.Params.RecordFlags != 0 ||
 		!f.Exporters[0].CollectorAddress.ToIP().IsUnspecified() || f.SflowG.Rate != 10000 {
@@ -200,8 +200,8 @@ func TestIpfixSflowNonOwnerOnlyRequires(t *testing.T) {
 	s := newIpfixSvc(t, v, t.TempDir(), false)
 	all := []string{"interfaces", "vrfs", "routing", "services"}
 	// VPP's exporter 0 differs from the required one: the non-owner refuses, never sets it
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("applied without the required globals: %v", resp)
 	}
 	if !strings.Contains(resp.GetMessage()+protojson.Format(resp), "globals owner") {
@@ -226,8 +226,8 @@ func TestIpfixSflowNonOwnerOnlyRequires(t *testing.T) {
 		RecordFlags: flowprobe.FLOWPROBE_RECORD_FLAG_L3 | flowprobe.FLOWPROBE_RECORD_FLAG_L4, ActiveTimer: 5, PassiveTimer: 10})
 	must(err)
 	sflowRate(t, v, 1000)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", Subsystems: all, DesiredState: doc(t, ipfixDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	w := warnings(t, s, doc(t, ipfixDoc))
 	for _, p := range []string{"/services/ipfix/exporters/lan", "/services/ipfix/flowprobe/activeTimerSec", "/services/ipfix/sflow/samplingN"} {
 		if !w[p] {
@@ -235,8 +235,8 @@ func TestIpfixSflowNonOwnerOnlyRequires(t *testing.T) {
 		}
 	}
 	// rollback: the owner's interfaces go, the globals stay (Delete of a required global is a no-op)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n3", Subsystems: []string{"services"}, DesiredState: &vrxv1.DesiredState{}})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n3", Subsystems: []string{"services"}, DesiredState: &ngfwv1.DesiredState{}})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	f := v.Flow()
 	if len(f.Flowprobe) != 0 || len(f.Sflow) != 0 || len(f.Exporters) != 1 {
 		t.Fatalf("owner objects left %+v", f)
@@ -257,7 +257,7 @@ func TestIpfixSflowProjection(t *testing.T) {
 		desired.ServicesUnsupported(p, svc) // the one services reporter, called next to it by project()
 		return p
 	}
-	find := func(p *projected, ptr string, sev vrxv1.IssueSeverity) bool {
+	find := func(p *projected, ptr string, sev ngfwv1.IssueSeverity) bool {
 		for _, i := range p.issues {
 			if i.pointer == ptr && i.severity == sev {
 				return true
@@ -267,13 +267,13 @@ func TestIpfixSflowProjection(t *testing.T) {
 	}
 	// flowprobe without an IPv4 exporter: error at the interface list (the API's semantic rule too)
 	p := run(`{"ipfix": {"flowprobe": {"interfaces": [{"interface": "loop1", "ip4": true, "ip6": false}]}}}`)
-	if !find(p, "/services/ipfix/flowprobe/interfaces", vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR) {
+	if !find(p, "/services/ipfix/flowprobe/interfaces", ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR) {
 		t.Fatalf("issues %v", p.issues)
 	}
 	// schema default ip4+ip6: realised as ip4, ip6 reported
 	p = run(`{"ipfix": {"exporters": {"a": {"collector": {"address": "10.1.1.9"}, "sourceAddress": "10.1.1.1"}},
 	  "flowprobe": {"interfaces": [{"interface": "loop1"}]}}}`)
-	if p.hasErrors() || !find(p, "/services/ipfix/flowprobe/interfaces/0/ip6", vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING) {
+	if p.hasErrors() || !find(p, "/services/ipfix/flowprobe/interfaces/0/ip6", ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING) {
 		t.Fatalf("issues %v", p.issues)
 	}
 	if len(p.kvs) != 3 || p.kvs[2].Key != "flowprobe.interface/loop1" {
@@ -281,13 +281,13 @@ func TestIpfixSflowProjection(t *testing.T) {
 	}
 	// sFlow header not a multiple of 32: error (VPP would round it)
 	p = run(`{"ipfix": {"sflow": {"enabled": true, "headerBytes": 100, "collectors": [{"address": "10.1.1.9"}]}}}`)
-	if !find(p, "/services/ipfix/sflow/headerBytes", vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR) {
+	if !find(p, "/services/ipfix/sflow/headerBytes", ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR) {
 		t.Fatalf("issues %v", p.issues)
 	}
 	// another services sub-tree is not this feature's: nothing applied, and no unsupported note since
 	// F-unbound-chrony-syslog projects services.ntp
 	p = run(`{"ntp": {"enabled": true}}`)
-	if find(p, "/services/ntp", vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING) || len(p.kvs) != 0 {
+	if find(p, "/services/ntp", ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING) || len(p.kvs) != 0 {
 		t.Fatalf("issues %v", p.issues)
 	}
 }
@@ -314,9 +314,9 @@ func TestIpfixExporterNamesOnlyFromAppliedState(t *testing.T) {
 	v := coretest.New()
 	s := newIpfixSvc(t, v, t.TempDir(), true)
 	all := []string{"interfaces", "vrfs", "routing", "services"}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", Subsystems: all, DesiredState: doc(t, ipfixDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", Subsystems: all, DesiredState: doc(t, ipfixDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	renamed := doc(t, strings.Replace(ipfixDoc, `"lan":`, `"renamed":`, 1))
-	if _, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: renamed, Subsystems: all}); err != nil {
+	if _, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: renamed, Subsystems: all}); err != nil {
 		t.Fatal(err)
 	}
 	if n := desired.IpfixExporterName("10.7.11.9"); n != "lan" {
@@ -324,13 +324,13 @@ func TestIpfixExporterNamesOnlyFromAppliedState(t *testing.T) {
 	}
 	// a transaction that fails (unknown interface for flowprobe) and is rolled back
 	bad := doc(t, strings.Replace(strings.Replace(ipfixDoc, `"lan":`, `"renamed":`, 1), `{"interface": "loop711"`, `{"interface": "loop799"`, 1))
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", Subsystems: all, DesiredState: bad}); r.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a2", Subsystems: all, DesiredState: bad}); r.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("applied %v", r)
 	}
 	if n := desired.IpfixExporterName("10.7.11.9"); n != "lan" {
 		t.Fatalf("failed apply renamed the exporter: %q", n)
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a3", Subsystems: all, DesiredState: renamed}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a3", Subsystems: all, DesiredState: renamed}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := desired.IpfixExporterName("10.7.11.9"); n != "renamed" {
 		t.Fatalf("applied rename not seen: %q", n)
 	}

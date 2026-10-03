@@ -42,7 +42,7 @@ func registerTunnels(r scheduler.Registry, w *Wiring) error {
 }
 
 // TunnelsIDSpan is the id range tunnel instances must lie in (TD-8b, fail closed): the slot's range
-// with VRX_VPP_TABLE_BASE, every id with VRX_VPP_ID_RANGE=all, and the empty range when neither is set
+// with NGFW_VPP_TABLE_BASE, every id with NGFW_VPP_ID_RANGE=all, and the empty range when neither is set
 // or the setting is malformed — the projection then refuses every tunnel with a pointer at its
 // instance. Resolved from the same environment as Env.IDs (the projection holds no Wiring; see SvsRange).
 func TunnelsIDSpan() desired.TunnelIDSpan {

@@ -71,7 +71,7 @@ function useSummaryText(): SummaryText {
 
 // ─── object ────────────────────────────────────────────────────────────────
 
-/** Properties in `x-vrx-ui.order`, grouped by `x-vrx-ui.group` into fieldsets (ungrouped first). */
+/** Properties in `x-ngfw-ui.order`, grouped by `x-ngfw-ui.group` into fieldsets (ungrouped first). */
 export function ObjectField({ schema, name, propPath }: BoundFieldProps) {
   const ctx = useSchemaFormContext();
   const { t } = useTranslation(UI_KIT_NS);
@@ -431,7 +431,7 @@ function rowJson(items: JsonSchema, rows: unknown, index: number, root: JsonSche
 }
 
 /**
- * Array of objects: react-hook-form field array with a nested object form per row. With `x-vrx-ui.itemKey` every row
+ * Array of objects: react-hook-form field array with a nested object form per row. With `x-ngfw-ui.itemKey` every row
  * shows its key summary (`admin`, `10.0.0.0/24 · red`) in its heading and can be collapsed; rows that already have a
  * summary start collapsed, new rows and rows with errors are open.
  */

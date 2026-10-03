@@ -2,7 +2,7 @@ package df2
 
 // IDRange is the closed range of numeric ids (FIB table ids, ABF policy ids) this agent owns
 // on a shared VPP. Untagged objects are attributed by their id: on the shared lab host a
-// worker owns its slot's range (VRX_VPP_TABLE_BASE..+999); in production the agent owns
+// worker owns its slot's range (NGFW_VPP_TABLE_BASE..+999); in production the agent owns
 // every id, which the nil range expresses.
 type IDRange struct{ Lo, Hi uint32 }
 

@@ -1,8 +1,8 @@
-# SNMP (v2c / v3) and the VRX private MIB
+# SNMP (v2c / v3) and the NGFW private MIB
 
-VRX runs net-snmp's `snmpd` as its SNMP agent. The agent renders `/etc/snmp/snmpd.conf` from
+NGFW runs net-snmp's `snmpd` as its SNMP agent. The agent renders `/etc/snmp/snmpd.conf` from
 `services.snmp`, checks it with the daemon itself before anything is applied, and reloads snmpd. VPP
-interface counters and agent health are served by the VRX-MIB subagent (AgentX) of `vrx-agent`.
+interface counters and agent health are served by the NGFW-MIB subagent (AgentX) of `ngfw-agent`.
 
 - **UI**: Services → SNMP (general, communities, SNMPv3 users, trap receivers, live state).
 - **API**: the configuration is `services.snmp` (generic pointer routes, e.g.
@@ -25,19 +25,19 @@ interface counters and agent health are served by the VRX-MIB subagent (AgentX) 
 
 ```sh
 # 1. the community string (admin only; the value never comes back)
-curl -sS -X POST https://vrx/api/v1/secrets -H "authorization: Bearer $TOKEN" \
+curl -sS -X POST https://ngfw/api/v1/secrets -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' \
   -d '{"kind":"password","name":"snmp-noc","value":"<community, 8-64 of A-Z a-z 0-9 _ . ->"}'
 
 # 2. the agent
-curl -sS -X PATCH https://vrx/api/v1/config/services/snmp -H "authorization: Bearer $TOKEN" \
+curl -sS -X PATCH https://ngfw/api/v1/config/services/snmp -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' -d '{
     "enabled": true,
     "listen": [{"address": "192.0.2.10"}],
-    "sysName": "vrx-a", "sysLocation": "rack 12", "sysContact": "noc@example.net",
+    "sysName": "ngfw-a", "sysLocation": "rack 12", "sysContact": "noc@example.net",
     "communities": {"noc": {"secretRef": "password/snmp-noc", "access": "ro", "sources": ["192.0.2.0/24"]}}
   }'
-curl -sS -X POST 'https://vrx/api/v1/config/commit?comment=snmp' -H "authorization: Bearer $TOKEN"
+curl -sS -X POST 'https://ngfw/api/v1/config/commit?comment=snmp' -H "authorization: Bearer $TOKEN"
 ```
 
 `192.0.2.10` must be an address of an interface in the VRF (validated at commit). Requests from outside
@@ -87,30 +87,30 @@ snmpd sends a `coldStart` trap when it starts.
 snmpwalk -v2c -c "$COMMUNITY" 192.0.2.10 system
 # v3 authPriv
 snmpwalk -v3 -l authPriv -u monitor -a SHA-256 -A "$AUTH" -x AES -X "$PRIV" 192.0.2.10 system
-# the VRX-MIB interface table (numeric, or with the MIB file below: VRX-MIB::vrxIfTable)
+# the NGFW-MIB interface table (numeric, or with the MIB file below: NGFW-MIB::ngfwIfTable)
 snmpwalk -v3 -l authPriv -u monitor -a SHA-256 -A "$AUTH" -x AES -X "$PRIV" 192.0.2.10 .1.3.6.1.4.1.8072.9999.9999.7853
 ```
 
-## The private MIB (VRX-MIB)
+## The private MIB (NGFW-MIB)
 
-File: `deploy/snmp/VRX-MIB.txt` in the source tree (copy it to your NMS's MIB directory; it imports
+File: `deploy/snmp/NGFW-MIB.txt` in the source tree (copy it to your NMS's MIB directory; it imports
 `NET-SNMP-MIB`). Placeholder OID `1.3.6.1.4.1.8072.9999.9999.7853` (net-snmp's `netSnmpPlaypen`) until an
 enterprise number is registered — expect it to change once.
 
 | object | OID suffix | meaning |
 |---|---|---|
-| `vrxAgentVersion.0` | `.1.1.0` | agent version |
-| `vrxVppConnected.0` | `.1.2.0` | true(1) while the agent is connected to VPP |
-| `vrxRunningRevision.0` | `.1.3.0` | last applied transaction id |
-| `vrxCommitCounter.0` | `.1.4.0` | applied transactions observed |
-| `vrxIfTable` | `.2.1.<col>.<sw_if_index+1>` | VPP interfaces: name (2), admin (3), oper (4), in/out octets (5/6), in/out packets (7/8), in/out errors (9/10) — Counter64 |
+| `ngfwAgentVersion.0` | `.1.1.0` | agent version |
+| `ngfwVppConnected.0` | `.1.2.0` | true(1) while the agent is connected to VPP |
+| `ngfwRunningRevision.0` | `.1.3.0` | last applied transaction id |
+| `ngfwCommitCounter.0` | `.1.4.0` | applied transactions observed |
+| `ngfwIfTable` | `.2.1.<col>.<sw_if_index+1>` | VPP interfaces: name (2), admin (3), oper (4), in/out octets (5/6), in/out packets (7/8), in/out errors (9/10) — Counter64 |
 
 The standard IF-MIB (`.1.3.6.1.2.1.2`) is net-snmp's own and shows the **Linux** interfaces (taps), not
-VPP's; use `vrxIfTable` for the data plane. Switch the subagent off with `"subagent": {"enabled": false}`.
+VPP's; use `ngfwIfTable` for the data plane. Switch the subagent off with `"subagent": {"enabled": false}`.
 
 ## State
 
 `GET /api/v1/state/snmp` shows whether the configuration is applied, whether snmpd answers (read back over
 SNMP by the agent, credential named only), `pendingAction` — e.g. a changed `listen` address or engine id is
 applied by snmpd only at a restart; the agent writes the file and reports the needed restart instead of
-restarting snmpd itself — and whether the VRX-MIB subagent is registered.
+restarting snmpd itself — and whether the NGFW-MIB subagent is registered.

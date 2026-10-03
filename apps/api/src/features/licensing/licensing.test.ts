@@ -70,7 +70,7 @@ describe('licence format: signature and time window', () => {
       parseAndVerify(signFile(sampleLicense(NOW), other.privateKey), [k.publicKey]),
     ).toThrow(/signature/);
     expect(() => parseAndVerify('nope', [k.publicKey])).toThrow(/JSON/);
-    expect(() => parseAndVerify('{"format":"x"}', [k.publicKey])).toThrow(/vrxlic/);
+    expect(() => parseAndVerify('{"format":"x"}', [k.publicKey])).toThrow(/ngfwlic/);
   });
 
   it('not-yet-valid, grace and expired', () => {
@@ -148,13 +148,13 @@ describe('entitlement predicates on sample documents', () => {
 
 describe('LicensingService + commit validation stage', () => {
   const k = testKeys();
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-lic-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-lic-'));
   const pubFile = join(dir, 'pub.pem');
   writeFileSync(pubFile, k.publicPem);
   let now = NOW;
   let running: Doc | undefined;
   const opts: LicensingOptions = {
-    file: join(dir, 'store', 'license.vrxlic'),
+    file: join(dir, 'store', 'license.ngfwlic'),
     extraPublicKeyFile: pubFile,
     serial: 'SER-1',
     machineIdFile: join(dir, 'machine-id'),
@@ -233,7 +233,7 @@ describe('LicensingService + commit validation stage', () => {
     const e = await reject(validation.validate(doc, 't1'));
     expect(e.getStatus()).toBe(403);
     expect(e.body()).toMatchObject({
-      type: 'https://vrx.dev/problems/license-required',
+      type: 'https://ngfw.dev/problems/license-required',
       tier: 'license',
       errors: [expect.objectContaining({ pointer: '/ha/vrrp/lan-v4' })],
     });
@@ -296,10 +296,10 @@ describe('LicensingService + commit validation stage', () => {
     expect(entitlementIssues(parsed('minimal.json'), {}, COMMUNITY)).toEqual([]);
   });
 
-  it('VRX_LICENSE_PUBLIC_KEYS replaces the embedded key list', async () => {
+  it('NGFW_LICENSE_PUBLIC_KEYS replaces the embedded key list', async () => {
     const other = testKeys();
     const env = {
-      VRX_LICENSE_PUBLIC_KEYS: `${other.publicPem.trim().replace(/\n/g, '\\n')},${k.publicPem}`,
+      NGFW_LICENSE_PUBLIC_KEYS: `${other.publicPem.trim().replace(/\n/g, '\\n')},${k.publicPem}`,
     } as NodeJS.ProcessEnv;
     const keys = licensingOptionsFromEnv(env).publicKeys;
     expect(keys).toHaveLength(2);

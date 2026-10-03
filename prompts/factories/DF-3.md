@@ -13,7 +13,7 @@ agent-side building blocks that `F-nat44-ed-sessions` and the other NAT F-* task
 - `prompts/features/F-nat44-ed-sessions.md` — the consumer; its descriptor names (`nat44-enable`, `nat44-interface-feature`, `nat44-address-pool`,
   `nat44-static-mapping`, `nat44-timeouts`) are the ones you deliver
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (nat44-ed, nat44-ei, nat64, nat66, npt66, det44, map, dslite, cnat, pnat)
-- `docs/lab/host-vrx-a.md` — `npt66_plugin.so` is **not loaded** → its descriptor gets an integration test marked `skip-unless-plugin-loaded`
+- `docs/lab/host-ngfw-a.md` — `npt66_plugin.so` is **not loaded** → its descriptor gets an integration test marked `skip-unless-plugin-loaded`
   (skip predicate: govpp `CheckCompatiblity` on the npt66 messages returns unknown-message). All other NAT plugins are loaded.
 - `docs/lab/shared-host-rules.md` — NAT pools only in `10.<N>.0.0/16`, tables `<N>000–<N>999`, tags `w<N>-*`
 
@@ -79,8 +79,8 @@ you did not enable**; never switch nat44 ED↔EI (mutually exclusive) while fore
    `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index / indices).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your prefix (other workers' objects exist on the same VPP). Use loopbacks/tables/dummy objects; never touch `local0` or anything
    unprefixed; clean up in `t.Cleanup`. Session dumps are asserted only for shape (they may be empty — no traffic here).
 5. `docs/agent/descriptors/<plugin>.md`: table object type ↔ VPP messages ↔ notes/limitations.

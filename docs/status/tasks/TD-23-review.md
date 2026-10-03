@@ -30,7 +30,7 @@ new `.../coretest/extensions_test.go`, and `docs/status/tasks/TD-23*`. No featur
   `fake-agent-action.test.ts`'s four tests, which pass (see Tests below).
 - **F2 (medium, non-blocking): no explicit deadline on the hang-detecting tests.**
   `fake-agent-action.test.ts`'s `client.action({...})` calls (lines 63, 84, 100) pass no `CallOptions`, even
-  though the generated client supports one (`packages/proto/gen/ts/vrx/v1/dataplane.ts:42868`,
+  though the generated client supports one (`packages/proto/gen/ts/ngfw/v1/dataplane.ts:42868`,
   `action(request, options?: Partial<CallOptions>)`). A regression to `call.destroy()` would not hang forever —
   `apps/api/vitest.config.ts:11` sets a global `testTimeout: 30_000` — but it would fail slowly (up to 30 s)
   with a generic Vitest timeout instead of a fast, specific `DEADLINE_EXCEEDED`. The file's own docstring says

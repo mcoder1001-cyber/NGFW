@@ -1,10 +1,10 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { createFormatters, type Formatters, type VrxCalendar } from './formatters.js';
+import { createFormatters, type Formatters, type NgfwCalendar } from './formatters.js';
 
 export interface FormatterSettings {
   persianDigits: boolean;
-  calendar?: VrxCalendar;
+  calendar?: NgfwCalendar;
   timeZone?: string;
 }
 

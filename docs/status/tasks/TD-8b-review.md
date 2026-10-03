@@ -14,7 +14,7 @@ Merges were simulated with `git merge-tree`. No host runs, no `tools/ci.sh`, not
 ## Evidence
 
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/... ./internal/descriptors/df7/...
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/... ./internal/descriptors/df7/...
 ok  	ngfw/agent/internal/agent	14.716s
 ok  	ngfw/agent/internal/subsystems	6.712s
 ok  	ngfw/agent/internal/descriptors/df7	1.170s
@@ -90,7 +90,7 @@ ok  	ngfw/agent/internal/descriptors/df7/registry	1.129s
 - `ConfigFromEnv` keeps `ErrNoIDRange` (`agent.go:81`), and `Validate` refuses start-up.
 - The message cites §12 (`seams.go` `ErrNoIDRange`), pinned by `TestConfigFromEnvIDRange`.
 - The `Start` warning (`agent.go:167`) is now reachable only for a code-built `Config`. It is harmless.
-- Every other launcher inherits `VRX_VPP_TABLE_BASE` from `tools/lab env` or from `ci.sh slot_env` (checked):
+- Every other launcher inherits `NGFW_VPP_TABLE_BASE` from `tools/lab env` or from `ci.sh slot_env` (checked):
   - `devstack.sh`, `live.sh`, `agent.int.test.ts`;
   - the two Go host tests (`os.Environ()`).
 
@@ -99,19 +99,19 @@ ok  	ngfw/agent/internal/descriptors/df7/registry	1.129s
 - The FEATURE-TEMPLATE rule is present, and so is the §12 family rule.
 
 **tools/app:** the product agent still starts. Only the file changed.
-- `cmd_up` always stops the agent and starts it again with the new `VRX_VPP_TABLE_BASE=13000` (`tools/app:108-109`);
+- `cmd_up` always stops the agent and starts it again with the new `NGFW_VPP_TABLE_BASE=13000` (`tools/app:108-109`);
   `up` is the only path that starts the agent.
 - `env VAR=…` overrides a table base inherited from a `tools/lab env` shell.
-- The two files `cmd_up` sources with `set -a` do not set `VRX_VPP_ID_RANGE`:
-  - `/var/lib/vrx-app/secrets.env` contains no `VRX_VPP_*` key (count 0; I read no values);
-  - `pg.env` holds only `VRX_PG_*`.
+- The two files `cmd_up` sources with `set -a` do not set `NGFW_VPP_ID_RANGE`:
+  - `/var/lib/ngfw-app/secrets.env` contains no `NGFW_VPP_*` key (count 0; I read no values);
+  - `pg.env` holds only `NGFW_PG_*`.
   So no "both set" refusal.
 - The running product agent (pid 2502639, started without the variable) keeps running. The binary and the env line
   land together on main.
 
 **Note for the manager, restarts after the merge:**
 - Restart the product agent only with `tools/app up` from main.
-- A hand-started `apps/agent/bin/vrx-agent` without `VRX_VPP_TABLE_BASE` now exits with `ErrNoIDRange`. That is
+- A hand-started `apps/agent/bin/ngfw-agent` without `NGFW_VPP_TABLE_BASE` now exits with `ErrNoIDRange`. That is
   intended.
 
 **Topology passthrough, §12, P10 note:** done.
@@ -121,13 +121,13 @@ ok  	ngfw/agent/internal/descriptors/df7/registry	1.129s
 - §12 is TD-8's §11 text with "refuses to start".
 - The `tech-debt.md` P10 row is there.
 
-**Q2 (`VRX_P08_PG_NAME`): keep it.**
+**Q2 (`NGFW_P08_PG_NAME`): keep it.**
 - The default is the prefix, so behaviour is unchanged (`stack_test.go:67`, `interfaces_test.go:150-155`).
-- It prevented a real hazard: the harness's final `pg-test.sh drop vrx_w5` would have dropped TD-10b's database on the
+- It prevented a real hazard: the harness's final `pg-test.sh drop ngfw_w5` would have dropped TD-10b's database on the
   shared slot.
 - The name reaches `pg-test.sh` through argv, not a shell, and `pg-test.sh` validates it against `^[a-z][a-z0-9_]{0,15}$`.
 - Follow-up: one line in `shared-host-rules.md` §1 or the harness README saying that a slot shared by an API/DB task
-  and a VPP-side run sets it. A generic name, e.g. `VRX_TOPO_PG_NAME`, would be cleaner, but not worth a round.
+  and a VPP-side run sets it. A generic name, e.g. `NGFW_TOPO_PG_NAME`, would be cleaner, but not worth a round.
 
 ## Merge fit with TD-9
 
@@ -150,7 +150,7 @@ I resolved it in a scratch copy and ran the tests there.
 - **M3, semantic, depends on the environment: TD-9's config tests are not hermetic under the flip.** They are
   `TestReplyTimeoutBelowTheHealthCheckWindowRefused` (`td9_fix1_test.go:~168`) and `TestConfigReplyTimeoutAndMetricsOptIn`
   (`td9_helpers_test.go:~55`), which call `ConfigFromEnv().Validate()` without an id range.
-  - After the merge they fail in a shell without `VRX_VPP_TABLE_BASE`: 15 `no VPP id range` failures in my scratch run.
+  - After the merge they fail in a shell without `NGFW_VPP_TABLE_BASE`: 15 `no VPP id range` failures in my scratch run.
   - They pass in a `tools/lab env` shell, so a gate run from a worker shell hides the failure, and the merger's shell
     decides.
   - Fix: `t.Setenv(subsystems.EnvTableBase, "7000")` at the top of both tests (TD-9's files; or TD-8b's rebase if TD-9
@@ -194,7 +194,7 @@ I resolved it in a scratch copy and ran the tests there.
 - Merge TD-8b.
 - Whoever merges second of TD-8b and TD-9 applies M1 (a one-block resolve), M2 (rename one test helper) and M3 (two
   `t.Setenv` lines).
-- Keep `VRX_P08_PG_NAME`.
+- Keep `NGFW_P08_PG_NAME`.
 - Board C1 as a gate of F-mpls-ldp and F-igmp-mfib, next to the TD-9 `s.txnTimeout` swap and the `AfterResync`
   deadline (Q3).
 

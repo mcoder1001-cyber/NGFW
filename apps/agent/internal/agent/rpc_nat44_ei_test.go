@@ -13,7 +13,7 @@ import (
 
 	"ngfw/agent/binapi/nat44_ei"
 	"ngfw/agent/binapi/nat_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -78,8 +78,8 @@ func TestNatEI6466DomainOnFake(t *testing.T) {
 	fixtures(v)
 	s := newSvc(t, v, t.TempDir())
 	withNat := doc(t, strings.Replace(natIfDoc, "%s", eiPart, 1))
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "e1", DesiredState: withNat})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e1", DesiredState: withNat})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got, want := natNat(t, s), doc(t, `{"nat":`+canonicalEI+`}`).GetNat(); !proto.Equal(got, want) {
 		t.Fatalf("Retrieve nat != canonical desired:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
@@ -87,10 +87,10 @@ func TestNatEI6466DomainOnFake(t *testing.T) {
 		t.Fatalf("npt66 after commit: %d bindings, features %d", b, f)
 	}
 	// idempotent: an empty plan (the write-only enables and the binding were applied by this process)
-	if resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "e2", DesiredState: withNat}); len(resp.GetResults()) != 0 {
+	if resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e2", DesiredState: withNat}); len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: withNat})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: withNat})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run %v %v", err, rep)
 	}
@@ -123,8 +123,8 @@ func TestNatEI6466DomainOnFake(t *testing.T) {
 
 	// rollback to a document without nat and without the interfaces: every object leaves VPP (Retrieve and the
 	// models), the npt66 binding before its interface; the plugins stay enabled (a slot never disables, D-071)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "e3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := natNat(t, s); proto.Size(got) != 0 {
 		t.Fatalf("Retrieve after rollback: %s", protojson.Format(got))
 	}
@@ -140,7 +140,7 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 	v := coretest.New()
 	fixtures(v)
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "k1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", eiPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "k1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", eiPart, 1))}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	ei := v.Nat44EI()
 	for u := 0; u < 21; u++ { // 2 100 EI sessions of w7's users, 1 in VRF cust, 1 of another slot's
 		for i := 0; i < 100; i++ {
@@ -157,10 +157,10 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 	n64.AddSession(9001, 6, "fd00:9::1", 1, "10.9.64.1", 2, "fd00:9:64::a09:202", "10.9.2.2", 80) // another slot's
 	c := natServer(t, s)
 	ctx := context.Background()
-	eiV, n64V := vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum(), vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64.Enum()
+	eiV, n64V := ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum(), ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64.Enum()
 
 	// EI: the ED pager semantics (bounded, owner-scoped, filters), the variant echoed
-	r, err := c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: eiV, Limit: 100, Offset: 200})
+	r, err := c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: eiV, Limit: 100, Offset: 200})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,18 +171,18 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 	if first.GetInsideAddress() != "10.7.1.12" || first.GetExternalNatAddress() != "0.0.0.0" || first.GetTwiceNat() || first.GetVrf() != "default" {
 		t.Fatalf("EI session %v", first)
 	}
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: eiV, Filter: &vrxv1.NatSessionFilter{Vrf: proto.String("cust")}})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: eiV, Filter: &ngfwv1.NatSessionFilter{Vrf: proto.String("cust")}})
 	if err != nil || r.GetTotalSessions() != 1 || r.GetSessions()[0].GetProtocol() != "udp" {
 		t.Fatalf("EI vrf filter %v %v", r, err)
 	}
 	// an unset variant is still NAT44-ED (nat44-ed is off in this fake: no session, no variant echoed)
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{})
 	if err != nil || r.GetTotalSessions() != 0 || r.Variant != nil {
 		t.Fatalf("ED page %v %v", r, err)
 	}
 
 	// NAT64: owner-scoped, paged, protocol filter only; the field mapping of proto.md §11
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: n64V, Limit: 4})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: n64V, Limit: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,15 +195,15 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 		s0.GetExternalNatAddress() != "fd00:7:64::a07:202" || s0.GetExternalPort() != 80 || s0.GetProtocol() != "tcp" {
 		t.Fatalf("NAT64 session %v", s0)
 	}
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: n64V, Filter: &vrxv1.NatSessionFilter{Protocol: proto.String("udp")}})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: n64V, Filter: &ngfwv1.NatSessionFilter{Protocol: proto.String("udp")}})
 	if err != nil || r.GetTotalSessions() != 1 || r.GetSessions()[0].GetOutsidePort() != 2000 {
 		t.Fatalf("NAT64 protocol filter %v %v", r, err)
 	}
-	for name, req := range map[string]*vrxv1.NatSessionsRequest{
-		"nat64 inside filter": {Variant: n64V, Filter: &vrxv1.NatSessionFilter{InsideAddress: proto.String("10.7.1.1")}},
+	for name, req := range map[string]*ngfwv1.NatSessionsRequest{
+		"nat64 inside filter": {Variant: n64V, Filter: &ngfwv1.NatSessionFilter{InsideAddress: proto.String("10.7.1.1")}},
 		"nat64 limit":         {Variant: n64V, Limit: 1001},
 		"ei owner":            {Variant: eiV, Owner: "w3"},
-		"ei vrf":              {Variant: eiV, Filter: &vrxv1.NatSessionFilter{Vrf: proto.String("nope")}},
+		"ei vrf":              {Variant: eiV, Filter: &ngfwv1.NatSessionFilter{Vrf: proto.String("nope")}},
 	} {
 		if _, err := c.NatSessions(ctx, req); grpcCode(err) != codes.InvalidArgument {
 			t.Errorf("%s: %v", name, err)
@@ -211,7 +211,7 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 	}
 
 	// EI kill by the inside endpoint (no external endpoint needed): exit 0, then 1; foreign / NAT64: INVALID_ARGUMENT
-	k := &vrxv1.NatSessionKillAction{Variant: eiV, Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 10005}
+	k := &ngfwv1.NatSessionKillAction{Variant: eiV, Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 10005}
 	out, err := kill(t, c, k)
 	if err != nil || len(out) != 1 || out[0].GetDone().GetExitCode() != 0 || out[0].GetDone().GetStats()["variant"] != "ei" {
 		t.Fatalf("EI kill: %v %v", out, err)
@@ -223,7 +223,7 @@ func TestNatEIAndNat64SessionsOverGRPC(t *testing.T) {
 	if err != nil || len(out) != 1 || out[0].GetDone().GetExitCode() != 1 || !strings.Contains(out[0].GetDone().GetSummary(), "no such NAT44-EI session") {
 		t.Fatalf("second EI kill: %v %v", out, err)
 	}
-	for name, a := range map[string]*vrxv1.NatSessionKillAction{
+	for name, a := range map[string]*ngfwv1.NatSessionKillAction{
 		"foreign": {Variant: eiV, Protocol: "tcp", InsideAddress: "10.9.1.5", InsidePort: 1},
 		"nat64":   {Variant: n64V, Protocol: "tcp", InsideAddress: "fd00:7::10", InsidePort: 40000},
 		"proto":   {Variant: eiV, Protocol: "xx", InsideAddress: "10.7.1.10", InsidePort: 1},
@@ -241,12 +241,12 @@ func TestNptv6BindingDeletedBeforeItsInterface(t *testing.T) {
 	s := newSvc(t, v, t.TempDir())
 	withBinding := doc(t, `{"interfaces": {"loop703": {"enabled": true, "ipv6": ["fd00:7:30::1/64"]}},
 	  "nat": {"nptv6": {"bindings": [{"interface": "loop703", "internal": "fd00:7:10::/48", "external": "fd00:7:20::/48"}]}}}`)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b1", DesiredState: withBinding}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b1", DesiredState: withBinding}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if b, ok := v.NPT66().Binding("loop703"); !ok || b.External.String() != "fd00:7:20::/48" {
 		t.Fatalf("binding %v %+v", ok, b)
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, `{"nat": {}}`), Subsystems: []string{"interfaces", "nat"}})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, `{"nat": {}}`), Subsystems: []string{"interfaces", "nat"}})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	bi, ii := -1, -1
 	var order []string
 	for i, r := range resp.GetResults() {
@@ -283,9 +283,9 @@ func TestNatVariantWalksShareTheEDWalkSlot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, variant := range []vrxv1.NatSessionVariant{vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64} {
+	for _, variant := range []ngfwv1.NatSessionVariant{ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64} {
 		short, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
-		_, err := s.NatSessions(short, &vrxv1.NatSessionsRequest{Variant: variant.Enum()})
+		_, err := s.NatSessions(short, &ngfwv1.NatSessionsRequest{Variant: variant.Enum()})
 		cancel()
 		if grpcCode(err) != codes.DeadlineExceeded {
 			t.Fatalf("%v walk while the ED walk runs: %v (want DeadlineExceeded)", variant, err)
@@ -293,7 +293,7 @@ func TestNatVariantWalksShareTheEDWalkSlot(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() {
-		_, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum()})
+		_, err := s.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum()})
 		done <- err
 	}()
 	select {
@@ -305,11 +305,11 @@ func TestNatVariantWalksShareTheEDWalkSlot(t *testing.T) {
 	if err := <-done; err != nil {
 		t.Fatalf("EI walk after the ED walk: %v", err)
 	}
-	if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Variant: vrxv1.NatSessionVariant(9).Enum()}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Variant: ngfwv1.NatSessionVariant(9).Enum()}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("unknown variant: %v", err)
 	}
 	c := natServer(t, s)
-	if _, err := kill(t, c, &vrxv1.NatSessionKillAction{Variant: vrxv1.NatSessionVariant(9).Enum(), Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 1}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := kill(t, c, &ngfwv1.NatSessionKillAction{Variant: ngfwv1.NatSessionVariant(9).Enum(), Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 1}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("unknown kill variant: %v", err)
 	}
 }

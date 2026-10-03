@@ -1,7 +1,7 @@
 import type { paths } from '@ngfw/api-client';
 import { bondIdOf, type BondConfig, type BondMemberConfig } from '@ngfw/schema';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import { interfaceItemSchema, type InterfaceItem, type InterfacesConfig } from '../model';
 
 type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } } ? T : never;
@@ -82,7 +82,7 @@ export function eligibleMembers(bond: string, candidate: InterfacesConfig, live:
 }
 
 /** Semantic status of a bond: admin down, up with members transmitting, or up without any active member. */
-export function bondStatus(s: LiveBond | null | undefined): VrxStatus | undefined {
+export function bondStatus(s: LiveBond | null | undefined): NgfwStatus | undefined {
   if (!s) return undefined;
   if (!s.adminUp) return 'adminDown';
   if (s.activeMemberCount > 0) return 'up';
@@ -90,7 +90,7 @@ export function bondStatus(s: LiveBond | null | undefined): VrxStatus | undefine
 }
 
 /** Semantic status of one member: its link, or for LACP members whether it is collecting/distributing. */
-export function memberStatus(m: LiveMember): VrxStatus {
+export function memberStatus(m: LiveMember): NgfwStatus {
   if (!m.adminUp) return 'adminDown';
   if (!m.linkUp) return 'down';
   if (m.lacp && m.lacp.muxState !== 'collecting-distributing') return 'degraded';

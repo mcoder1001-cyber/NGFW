@@ -19,7 +19,7 @@ max_bytes_per_packet 32..9000, filter, error ("node/error", optional), file}`; `
   `pcap_trace_off` answers `NO_SUCH_ENTRY` when no packet was captured (the capture is stopped, no file written) and
   `VALUE_EXIST` when nothing ran; both count as deleted.
 - **Capture file under /tmp:** VPP takes a bare file name and writes `/tmp/<file>` (`unformat_vlib_tmpfile` rejects
-  "/" and ".."), so files cannot live under `/run/vrx-test/<prefix>/` as the prompt asked; Validate rejects paths,
+  "/" and ".."), so files cannot live under `/run/ngfw-test/<prefix>/` as the prompt asked; Validate rejects paths,
   the file name must start with `<owner>-` (review L1; tests use `/tmp/<prefix>-df8.pcap` and remove
   it). VPP creates the file world-readable (0664, `vppinfra/pcap.c`): F-capture-trace must move/chmod it to 0600 into an
   agent directory after `pcap_trace_off` and apply a retention policy.
@@ -54,4 +54,4 @@ max_bytes_per_packet 32..9000, filter, error ("node/error", optional), file}`; `
 - Restart simulation (fresh connection + fresh descriptors → empty plan; objects deleted via binapi → exactly their
   re-creation planned → empty plan again): `internal/descriptors/dfkit/restarttest`, output in `DF-8.md`.
 
-- The filter-function host test is opt-in (`VRX_DF8_GLOBALS=1`, getter-less VPP-global, review M3).
+- The filter-function host test is opt-in (`NGFW_DF8_GLOBALS=1`, getter-less VPP-global, review M3).

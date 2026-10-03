@@ -55,7 +55,7 @@ ErrRouteConflict or a duplicate add). Suggest (manager/TD): a larger reply buffe
 default, or a dfkit dump helper with it. Not changed here (internal/vpp is not an owned file).
 
 ## Q9 CLI `ping <host>` / `traceroute <host>` send no body
-`apps/cli/internal/cli/cmd_op.go` `action()` calls `Actions_run` without a body, so `vrx ping 10.2.2.2` now answers 400
+`apps/cli/internal/cli/cmd_op.go` `action()` calls `Actions_run` without a body, so `ngfw ping 10.2.2.2` now answers 400
 (`/target` required) instead of the old 501. One-line fix for the CLI owner: send `{"target": args[0]}`. The operation
 table (`operations_gen.go`, regenerated) already says `Body: true`. Docs name the REST call as the CLI equivalent meanwhile.
 
@@ -86,10 +86,10 @@ evidence uses `vppctl show ip fib …`, `show svs`, FIB dumps and ping replies o
 - **FIB keyset cursor** (review M2/H1, V-new (d)): an additive `ListRoutesRequest.after` (prefix) so a deep page costs
   O(limit) in the agent; today offset + limit ≤ 100 000 (the agent answers INVALID_ARGUMENT, the API 400 at `/page`).
   Every page still costs a full walk in VPP — only a VPP-side cursor (V-new (d)) fixes that.
-- **CLI `vrx show ip route`** (review H1 f, not owned): it pages 500 at a time through every VRF, i.e. one full walk per
+- **CLI `ngfw show ip route`** (review H1 f, not owned): it pages 500 at a time through every VRF, i.e. one full walk per
   page per VRF, and stops at the 100 000-entry window. It should require `<vrf>` (or cap the pages) and say "narrow with
   a prefix". Same file as L5.
-- **CLI `vrx ping`** (review L5 = Q9, not owned): send `{"target": args[0]}` in `apps/cli/internal/cli/cmd_op.go`, and
+- **CLI `ngfw ping`** (review L5 = Q9, not owned): send `{"target": args[0]}` in `apps/cli/internal/cli/cmd_op.go`, and
   refresh the ping/traceroute/`show ip route` descriptions there ("answers 501 until …", "(connected + static)"), then
   `make -C apps/cli docs` — a regeneration alone does not change `docs/user/cli/reference.md`.
 - **svs record pruning** (review L6, optional): dropping applied-once records whose entry vanished with an old VPP
@@ -103,9 +103,9 @@ P12 and every other package must **not** call `frr.RegisterStaticSelector` (it p
 `renderers/frr` package itself cannot (import cycle) and keeps RF-1's stand-in selector in its own tests.
 
 ## Q16 svs range and TD-8's id-range seam (follow-up after TD-11b, 2026-09-25)
-TD-8 made an unset id range fail closed, so `TestSvsRangeFromSlot` ("no VRX_VPP_TABLE_BASE → svs.DefaultRange") failed.
+TD-8 made an unset id range fail closed, so `TestSvsRangeFromSlot` ("no NGFW_VPP_TABLE_BASE → svs.DefaultRange") failed.
 Fixed on this side: `subsystems.SvsRange()` now derives from `ResolveIDScope()` — slot/reserved range → its top 100 ids;
-`VRX_VPP_ID_RANGE=all` → `svs.DefaultRange`; nothing set, malformed or both set → the empty range (the projection then
+`NGFW_VPP_ID_RANGE=all` → `svs.DefaultRange`; nothing set, malformed or both set → the empty range (the projection then
 refuses the first `sourceSelect` entry, `vrfs.source-select.tables`; no id is needed otherwise). It reads the same
 function the agent resolves `Config.IDs` from, not `Wiring.IDRange`, because the projection runs in the service, which
 holds no Wiring, and `agent.go`/`service.go` are agent core (A5). If the manager wants it strictly through the seam:

@@ -19,7 +19,7 @@ import (
 const DescriptorName = "host-acl.nftables"
 
 // Key is the key of the one host firewall object of an agent.
-var Key = scheduler.Join(DescriptorName, "vrx")
+var Key = scheduler.Join(DescriptorName, "ngfw")
 
 // Descriptor wraps the renderer as one singleton scheduler object (decision (a) of F-host-acl-nftables:
 // the agent core runs descriptors only, so the renderer rides on one):
@@ -54,8 +54,8 @@ func NewDescriptor(r *Renderer, st *Store, log *slog.Logger) *Descriptor {
 func (d *Descriptor) Name() string { return DescriptorName }
 
 // RecordsNoOwnership declares, for the TD-11b ownership guard (dfkit/persist.NoOwnership), that this
-// descriptor records no ownership claim: what is ours is the owner-specific table name itself (`inet vrx`,
-// `inet vrx_<owner>`), the kernel's equivalent of an owner-prefixed name. Its store (the value last
+// descriptor records no ownership claim: what is ours is the owner-specific table name itself (`inet ngfw`,
+// `inet ngfw_<owner>`), the kernel's equivalent of an owner-prefixed name. Its store (the value last
 // applied, for Retrieve's configuration and annotations) is always a file in the state dir.
 func (*Descriptor) RecordsNoOwnership() {}
 

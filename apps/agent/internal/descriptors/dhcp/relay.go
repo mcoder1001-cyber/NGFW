@@ -33,7 +33,7 @@ const NameRelay = "dhcp.relay"
 // Relay is the Value of a dhcp.relay object.
 type Relay struct {
 	Name string `json:"name"`
-	// Doc is the base64 of the deterministic protobuf encoding of the document's vrx.v1.DhcpRelay.
+	// Doc is the base64 of the deterministic protobuf encoding of the document's ngfw.v1.DhcpRelay.
 	Doc string `json:"doc"`
 	// Enabled relays are realised by dhcp.proxy objects {RxVRF, ServerVRF, server, Src} for each of Servers.
 	Enabled   bool     `json:"enabled"`

@@ -1,7 +1,7 @@
 // Package nat44edsessions is the NAT44-ED session browser and kill of F-nat44-ed-sessions, as pure functions over
 // DF-3's Retrieve-only helpers (descriptors/nat44ed: Plugin.Users, Plugin.UserSessions, Plugin.DeleteSession). The
 // agent's NatSessions / NatSummary RPCs and the NatSessionKillAction case of Action (internal/agent/rpc_nat44_ed.go)
-// only translate to and from vrx.v1 (docs/contracts/proto.md §11).
+// only translate to and from ngfw.v1 (docs/contracts/proto.md §11).
 //
 // Paging (never the whole table): VPP dumps sessions per user (inside host). List reads the user dump (one small
 // row per user, with its session counts), keeps this owner's users, sorts them by (table, address) and — without a

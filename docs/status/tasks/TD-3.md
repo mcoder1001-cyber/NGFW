@@ -23,7 +23,7 @@ clears feature arcs on delete, but not these per-index vectors):
 A binding to an already **freed** table cannot be removed by any API call (VPP checks the table); it is dormant (its
 feature arc was cleared by the delete) — reported as `unclearable`, logged at warn. Every run is logged at info
 (`interface sanitized (VPP V19/V21 inherited state) cleared=[…] reset=[…]`) and counted:
-`vrx_agent_iface_sanitize_total`, `_errors_total`, `_inherited_total`, `_cleared_total{state}`,
+`ngfw_agent_iface_sanitize_total`, `_errors_total`, `_inherited_total`, `_cleared_total{state}`,
 `_unclearable_total{state}` (exported by the agent's `/metrics`). Plugins that are not loaded are skipped.
 
 Wired into every creator, after VPP returns the index and **before** the object is tagged / reported created (on
@@ -53,7 +53,7 @@ the loopback/sub-interface helpers of ifacetest, df2test, df6test, df7test (+ali
 was still bound on a failure path); the policer classify subtest unbinds before deleting its table.
 
 ### (d) `tools/ci.sh full` pre-flight
-`apps/agent/cmd/vrx-vpp-preflight` (read-only) + `v19_preflight` in `do_integration`, run **before any test** (after
+`apps/agent/cmd/ngfw-vpp-preflight` (read-only) + `v19_preflight` in `do_integration`, run **before any test** (after
 `tools/lab status`) and again **right after `tools/lab rig up`** (the rig's af_packet interfaces may land on a reused
 index). It dumps interfaces, classify tables, input ACL (binapi), the bindings VPP only shows via its CLI (`show
 inacl/outacl`, `show classify policer/flow` through `cli_inband` — output ACL/policer/flow have no binapi readback),
@@ -88,7 +88,7 @@ ok  	ngfw/agent/internal/descriptors/gre	0.020s
 ok  	ngfw/agent/internal/descriptors/classify	0.030s
 $ go test ./...   → 83 packages ok, 0 FAIL;   make lint → 0 issues.
 ```
-Pre-flight on canned real VPP output (`show ip fib` captured on vrx-a):
+Pre-flight on canned real VPP output (`show ip fib` captured on ngfw-a):
 ```
 FAIL  interface host-w9l0 (tag w9:host-w9l0): input ACL ip4 bound to classify table 7, which does not exist
 FAIL  interface loop292 (tag w2:loop292): FIB ipv4-VRF:0 10.2.91.1/32 has a classify DPO to classify table 0, which does not exist (ip classify binding inherited or left behind)
@@ -160,7 +160,7 @@ table was back at index 0), then deleted. The test now sanitizes in every raw de
 ## Decisions (for the LOG)
 1. Sanitize fails a Create only on an API error; an unclearable binding to a freed table is dormant (feature arcs are
    cleared on delete) → warn + metric, not an error. The first draft refused on "feature still enabled", but
-   `feature_is_enabled` answers true for VPP errors (V23 a, verified on vrx-a), so it is not used at all.
+   `feature_is_enabled` answers true for VPP errors (V23 a, verified on ngfw-a), so it is not used at all.
 2. Output ACL / policer / flow classify are cleared by probe-unbinding every live table (VPP logs a
    `clib_warning` per miss: ~8 calls × tables per new interface). Accepted: no readback exists.
 3. SPD stale binding is removed with the first existing spd_id: VPP's unbind does not check the id against the bound
@@ -182,7 +182,7 @@ table was back at index 0), then deleted. The test now sanitizes in every raw de
 ## Open questions
 - V23 (a): DF-2 `classify.output-acl` Create/Retrieve and `adl.interface` Retrieve trust `feature_is_enabled`; they
   should treat `true` as "unknown" unless confirmed. Separate fix task?
-- Should `tools/lab rig up` call the sanitizer (e.g. via a tiny `vrx-vpp-preflight --sanitize <if>` mode)?
+- Should `tools/lab rig up` call the sanitizer (e.g. via a tiny `ngfw-vpp-preflight --sanitize <if>` mode)?
 
 ## CI
 `tools/ci.sh --base main` at 1a53f5c (code identical to the final commit; only this file and TD-3-wip.md changed after):
@@ -217,7 +217,7 @@ a host test for the freed-table case, docs.
 | M3 pre-flight placement / TOCTOU / exit 2 | **fixed**: `before-tests` now runs while the exclusive lock is still held; second `classify_table_ids` snapshot after the reads (only tables missing in both count); new `after-tests` run after the suites, before rig down (rig down runs either way, then the gate fails); exit 2 has its own message ("could not inspect VPP", not "crash vector") | unit `TestPreflightReviewM2M3M4`; `bash -n tools/ci.sh`; quick gate green (full not run by me) |
 | M4 product and CI disagree | **fixed**: pre-flight reports a quarantine holder (tag `quarantine:*`, admin-down) as WARN, everything else as FAIL — the agent's rule | unit + host (`WARN interface loop0 (tag quarantine:w2): …`) |
 | M5 lcp host tap not sanitized; docs | **fixed** (salvage): lcp pair create goes through `Acquire` on `host_sw_if_index`, Delete calls `BeforeDelete`; VPP-handled (ACL plugin, NAT44, ADL) and known-unhandled (ABF, NAT64/66/DET44, cnat, flowprobe) listed in `interface.md` and V23(b) | lcp unit tests (5 sanitize runs logged) |
-| L1 metrics | **fixed**: `phase="create|delete"` label on every counter, `freed_table_total{phase,state}`, gauge `vrx_agent_iface_quarantined`, `vrx_agent_iface_quarantine_total` | unit `TestMetrics` |
+| L1 metrics | **fixed**: `phase="create|delete"` label on every counter, `freed_table_total{phase,state}`, gauge `ngfw_agent_iface_quarantined`, `ngfw_agent_iface_quarantine_total` | unit `TestMetrics` |
 | L2 probe cost | not changed; cost grew: every create now makes ≥ 8 placeholder tables (+ holes) and probes 8 × (tables + placeholders) unbinds. Fine at today's table counts; cap/batch later | — |
 
 ### Unit
@@ -279,7 +279,7 @@ ERROR interface sanitize failed (VPP V19) interface=loop288 sw_if_index=1 phase=
       table cannot be removed (VPP V19): [input-acl l2 table 0]"            (MaxPlaceholders=0: resurrection disabled on purpose)
 ERROR sw_if_index quarantined: … held by an admin-down loopback so it is never reused sw_if_index=1 tag=quarantine:w2
 INFO interface sanitized … interface=loop288 sw_if_index=3 phase=create … placeholders=0
-    quarantine: loop288 created on fresh sw_if_index 3; dirty 1 held by loop0 (tag "quarantine:w2", admin-down); gauge vrx_agent_iface_quarantined=1
+    quarantine: loop288 created on fresh sw_if_index 3; dirty 1 held by loop0 (tag "quarantine:w2", admin-down); gauge ngfw_agent_iface_quarantined=1
     pre-flight: WARN  interface loop0 (tag quarantine:w2): input ACL l2 bound to classify table 0, which does not exist
     pre-flight: WARN  interface loop0 (tag quarantine:w2): output ACL ip4 bound to classify table 0, which does not exist
     pre-flight: WARN  interface loop0 (tag quarantine:w2): output ACL l2 bound to classify table 0, which does not exist
@@ -332,7 +332,7 @@ Code: cd21806 (H1, M1, M2), e73db90 (L5, docs, questions); host runs + this sect
 | finding | status | how verified |
 |---|---|---|
 | H1 ipsec/wireguard interfaces bypass the sanitizer | **fixed**: `ipsec.itf` (itf.go) and `wireguard.interface` (interface.go) create through `ifsanitize.Acquire` and call `BeforeDelete` before the VPP delete, same pattern as the others. Guard test `TestEveryInterfaceCreatorIsSanitized`: static scan of `apps/agent/internal/descriptors/**` — every interface-create message (the list comes from binapi, not by hand: 54 messages) must be sent inside `Acquire` / `iface.AcquireAndTag` / a `df6.IfSpec` Add; it fails on main's itf.go:67 and interface.go:89. `TestGuardCatchesARawCreate` proves the scanner flags raw creates | unit `TestItfSanitizesReusedIndex`, `TestInterfaceSanitizesReusedIndex`, guard tests; host `TestIpsecOnHost`, `TestWireguardOnHost` (sanitize log lines below) |
-| M1 unbounded placeholder loop | **fixed**: when a hole is taken by another client meanwhile, the classify table list is re-read (`rereads` in the log) and that table is used; cap `MaxPlaceholders` = 16 per create; cap hits counted in `vrx_agent_iface_sanitize_capped_total{phase}`; on cap the create fails closed (`ErrCapped` wraps `ErrNoCleanIndex`); quarantine only if the run also proved a binding unclearable (rationale + liveness trade-off in TD-3-questions.md) | unit `TestHoleTakenBySomeoneElse`, `TestCappedFailsClosed`, `TestAcquireCappedFailsClosed`, `TestAcquireCappedAndUnclearable` |
+| M1 unbounded placeholder loop | **fixed**: when a hole is taken by another client meanwhile, the classify table list is re-read (`rereads` in the log) and that table is used; cap `MaxPlaceholders` = 16 per create; cap hits counted in `ngfw_agent_iface_sanitize_capped_total{phase}`; on cap the create fails closed (`ErrCapped` wraps `ErrNoCleanIndex`); quarantine only if the run also proved a binding unclearable (rationale + liveness trade-off in TD-3-questions.md) | unit `TestHoleTakenBySomeoneElse`, `TestCappedFailsClosed`, `TestAcquireCappedFailsClosed`, `TestAcquireCappedAndUnclearable` |
 | M2 holder takes the lowest free loopback instance | **fixed**: holders use `create_loopback_instance` with `is_specified`, highest free instance in **16000–16383** (VPP `LOOPBACK_MAX_INSTANCE` 16384), never VPP's lowest free; range documented as reserved in `docs/agent/descriptors/interface.md`; the schema accepts `loop16000+` today → CONTRACT question in TD-3-questions.md | unit `TestQuarantineHolderInstance`, `TestQuarantineReservedRangeFull`; host: holder is `loop16383` (below) |
 | L5 ci.sh pre-flight after failed suites; FAIL lines truncated | **fixed**: `after-tests` pre-flight runs even when a suite failed; all FAIL lines printed (no `tail -20`) | `bash -n`, harness run; CI below |
 
@@ -359,7 +359,7 @@ $ cd apps/agent && go test -count=1 ./internal/vpp/ifsanitize/ -run 'TestEveryIn
 ok  	ngfw/agent/internal/vpp/ifsanitize	2.511s
 ```
 
-### Host (slot 2, `eval "$(tools/lab env 2)"`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`, one package at a time, no packets)
+### Host (slot 2, `eval "$(tools/lab env 2)"`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`, one package at a time, no packets)
 
 Baseline: VPP restarted by its owner at 13:03:29 (host reboot 09:47) → `NRestarts=0`. None of these tests creates or
 deletes af_packet interfaces (D-101 not applicable).
@@ -377,7 +377,7 @@ ok  	ngfw/agent/internal/vpp/ifsanitize	70.117s
   ERROR interface sanitize failed (VPP V19) interface=loop288 sw_if_index=2 phase=create err="inherited binding to a deleted classify table cannot be removed (VPP V19): [input-acl l2 table 0]"
   ERROR sw_if_index quarantined: … held by an admin-down loopback so it is never reused sw_if_index=2 tag=quarantine:w2 holder=loop16383
   INFO interface sanitized … interface=loop288 sw_if_index=3 phase=create … placeholders=0 rereads=0
-    quarantine: loop288 created on fresh sw_if_index 3; dirty 2 held by loop16383 (tag "quarantine:w2", admin-down); gauge vrx_agent_iface_quarantined=9
+    quarantine: loop288 created on fresh sw_if_index 3; dirty 2 held by loop16383 (tag "quarantine:w2", admin-down); gauge ngfw_agent_iface_quarantined=9
       (the gauge is process-wide: the fake-VPP Acquire tests in the same test binary quarantined 8 before)
     pre-flight: WARN  interface loop16383 (tag quarantine:w2): input ACL l2 bound to classify table 0, which does not exist
     pre-flight: WARN  interface loop16383 (tag quarantine:w2): output ACL ip4 bound to classify table 0, which does not exist
@@ -411,7 +411,7 @@ ok  	ngfw/agent/internal/descriptors/wireguard	1.973s
   INFO interface sanitized (VPP V19/V21 inherited state) interface=wg4001 sw_if_index=1 phase=create cleared="[input-acl ip4 table 3 output-acl ip6 table 3 ipsec-spd spd-index 0]" …
   INFO interface sanitized (VPP V19/V21 inherited state) interface=wg4001 sw_if_index=1 phase=delete cleared="[output-acl ip4 table 3 output-acl ip6 table 3 output-acl l2 table 3]" …
 
-$ go run ./cmd/vrx-vpp-preflight        (read-only, after the three runs)
+$ go run ./cmd/ngfw-vpp-preflight        (read-only, after the three runs)
 V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
 $ vppctl show interface | grep -E '^ *(w2|loop16|loop2|ipsec|wg)'   → (nothing left behind)
 ```

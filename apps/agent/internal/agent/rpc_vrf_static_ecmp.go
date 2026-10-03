@@ -12,13 +12,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	vse "ngfw/agent/internal/actions/vrf-static-ecmp"
 	"ngfw/agent/internal/vpp"
 )
 
-// ListRoutes implements vrx.v1.Dataplane/ListRoutes: one page of one VRF's live FIB, paged and filtered here.
-func (g *server) ListRoutes(ctx context.Context, req *vrxv1.ListRoutesRequest) (*vrxv1.ListRoutesResponse, error) {
+// ListRoutes implements ngfw.v1.Dataplane/ListRoutes: one page of one VRF's live FIB, paged and filtered here.
+func (g *server) ListRoutes(ctx context.Context, req *ngfwv1.ListRoutesRequest) (*ngfwv1.ListRoutesResponse, error) {
 	s := g.svc
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
@@ -44,11 +44,11 @@ func (g *server) ListRoutes(ctx context.Context, req *vrxv1.ListRoutesRequest) (
 	if err != nil {
 		return nil, actionStatus(err)
 	}
-	return &vrxv1.ListRoutesResponse{Routes: page.Routes, Total: page.Total, Owner: s.owner, Vrf: vrf, TableId: table, RetrievedAt: timestamppb.New(s.now())}, nil
+	return &ngfwv1.ListRoutesResponse{Routes: page.Routes, Total: page.Total, Owner: s.owner, Vrf: vrf, TableId: table, RetrievedAt: timestamppb.New(s.now())}, nil
 }
 
 // actionPing runs a ping through VPP's ping plugin (default table only; vse.ValidatePing).
-func (g *server) actionPing(req *vrxv1.PingAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) actionPing(req *ngfwv1.PingAction, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	plan, err := vse.ValidatePing(req)
 	if err != nil {
 		return actionStatus(err)
@@ -63,7 +63,7 @@ func (g *server) actionPing(req *vrxv1.PingAction, stream grpc.ServerStreamingSe
 }
 
 // actionTraceroute answers UNIMPLEMENTED (no VPP API, no Linux path before P12).
-func (g *server) actionTraceroute(req *vrxv1.TracerouteAction) error {
+func (g *server) actionTraceroute(req *ngfwv1.TracerouteAction) error {
 	return actionStatus(vse.Traceroute(req))
 }
 

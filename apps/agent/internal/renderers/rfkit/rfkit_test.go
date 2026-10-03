@@ -94,10 +94,10 @@ func TestSecretsAndRedactor(t *testing.T) {
 	calls := 0
 	s := &Secrets{Resolver: SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
 		calls++
-		return map[string]string{"password/a": "VRX_TEST_PSK_RF4_a", "password/e": "", "password/r": "x" + Redacted}[ref], nil //nolint:gosec // test fixture, not a credential
+		return map[string]string{"password/a": "NGFW_TEST_PSK_RF4_a", "password/e": "", "password/r": "x" + Redacted}[ref], nil //nolint:gosec // test fixture, not a credential
 	})}
 	v, err := s.Resolve("password/a", nil)
-	if err != nil || v != "VRX_TEST_PSK_RF4_a" {
+	if err != nil || v != "NGFW_TEST_PSK_RF4_a" {
 		t.Fatal(v, err)
 	}
 	_, _ = s.Resolve("password/a", nil)
@@ -110,7 +110,7 @@ func TestSecretsAndRedactor(t *testing.T) {
 		}
 	}
 	_, err = s.Resolve("password/a2", func(string) error { return errors.New("bad shape") })
-	if err != nil && strings.Contains(err.Error(), "VRX_TEST") {
+	if err != nil && strings.Contains(err.Error(), "NGFW_TEST") {
 		t.Fatal("error echoes the value")
 	}
 	if _, err := (&Secrets{}).Resolve("password/a", nil); !errors.Is(err, ErrNoSecretResolver) {
@@ -118,15 +118,15 @@ func TestSecretsAndRedactor(t *testing.T) {
 	}
 
 	var r Redactor
-	pem := "-----BEGIN PRIVATE KEY-----\nVRX_TEST_PSK_RF4_line_one\nshort\n-----END PRIVATE KEY-----\n"
-	r.Add("VRX_TEST_PSK_RF4_a", "VRX_TEST_PSK_RF4_ab", pem, "")
-	got := r.Redact("x VRX_TEST_PSK_RF4_ab y VRX_TEST_PSK_RF4_a | VRX_TEST_PSK_RF4_line_one | short")
+	pem := "-----BEGIN PRIVATE KEY-----\nNGFW_TEST_PSK_RF4_line_one\nshort\n-----END PRIVATE KEY-----\n"
+	r.Add("NGFW_TEST_PSK_RF4_a", "NGFW_TEST_PSK_RF4_ab", pem, "")
+	got := r.Redact("x NGFW_TEST_PSK_RF4_ab y NGFW_TEST_PSK_RF4_a | NGFW_TEST_PSK_RF4_line_one | short")
 	if got != "x <redacted> y <redacted> | <redacted> | short" {
 		t.Fatalf("got %q", got)
 	}
-	base := errors.New("boom VRX_TEST_PSK_RF4_a")
+	base := errors.New("boom NGFW_TEST_PSK_RF4_a")
 	re := r.Error(base)
-	if strings.Contains(re.Error(), "VRX_TEST") || !errors.Is(re, base) {
+	if strings.Contains(re.Error(), "NGFW_TEST") || !errors.Is(re, base) {
 		t.Fatalf("got %v", re)
 	}
 	if r.Error(nil) != nil {
@@ -184,10 +184,10 @@ func TestApplyFilesRollback(t *testing.T) {
 
 func TestPoller(t *testing.T) {
 	states := []map[string]string{{"a": "1"}, {"a": "2", "b": "x"}, nil, nil, {"b": "x"}}
-	errs := []error{nil, nil, errors.New("down VRX_TEST_PSK_RF4_a"), errors.New("down VRX_TEST_PSK_RF4_a"), nil}
+	errs := []error{nil, nil, errors.New("down NGFW_TEST_PSK_RF4_a"), errors.New("down NGFW_TEST_PSK_RF4_a"), nil}
 	i := 0
 	var red Redactor
-	red.Add("VRX_TEST_PSK_RF4_a")
+	red.Add("NGFW_TEST_PSK_RF4_a")
 	p := &Poller{Source: "d", Redact: red.Redact, Snap: func(context.Context) (map[string]string, error) {
 		defer func() { i++ }()
 		return states[i], errs[i]

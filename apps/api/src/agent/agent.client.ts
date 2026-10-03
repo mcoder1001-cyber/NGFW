@@ -142,17 +142,17 @@ export class AgentClient implements OnModuleDestroy {
   constructor(@Inject(ENV) private readonly env: Env) {}
 
   get socket(): string {
-    return this.env.VRX_AGENT_SOCKET;
+    return this.env.NGFW_AGENT_SOCKET;
   }
 
   /** Owner stated on every request (proto.md §6): a request that reaches a foreign agent fails loudly. */
   get owner(): string {
-    return this.env.VRX_AGENT_OWNER;
+    return this.env.NGFW_AGENT_OWNER;
   }
 
   private get c(): DataplaneClient {
     this.client ??= new DataplaneClient(
-      `unix:${this.env.VRX_AGENT_SOCKET}`,
+      `unix:${this.env.NGFW_AGENT_SOCKET}`,
       credentials.createInsecure(),
       {
         // reconnect fast after an agent restart (the default backoff grows to 2 min)
@@ -198,7 +198,7 @@ export class AgentClient implements OnModuleDestroy {
       cb: (err: ServiceError | null, res: Res) => void,
     ) => unknown,
     req: Req,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<Res> {
     return new Promise((resolve, reject) => {
       call.call(
@@ -214,14 +214,14 @@ export class AgentClient implements OnModuleDestroy {
   /** `timeoutMs`: the commit engine's budget for this call (TD-10a, commit/budget.ts). */
   apply(
     req: Omit<ApplyRequest, 'owner'>,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ApplyResponse> {
     return this.unary(this.c.apply, { ...req, owner: this.owner }, timeoutMs);
   }
 
   dryRun(
     req: Omit<DryRunRequest, 'owner'>,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ValidationReport> {
     return this.unary(this.c.dryRun, { ...req, owner: this.owner }, timeoutMs);
   }
@@ -291,7 +291,7 @@ export class AgentClient implements OnModuleDestroy {
     return this.cgnatDone({ cnatSessionPurge: {} });
   }
   private async cgnatDone(req: ActionRequest): Promise<ActionDone> {
-    const r = await this.runAction(req, this.env.VRX_AGENT_TIMEOUT_MS);
+    const r = await this.runAction(req, this.env.NGFW_AGENT_TIMEOUT_MS);
     if (r.done === undefined)
       throw new ProblemError(
         502,
@@ -476,7 +476,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-neighbors-ra: run the arp_flush action (ActionRequest 4) and collect its lines and `done`. */
   arpFlush(
     req: ArpFlushAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<{ lines: string[]; done: NeighborsRaActionDone | undefined }> {
     return new Promise((resolve, reject) => {
       const call = this.c.action({ arpFlush: req }, new Metadata(), {
@@ -522,7 +522,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-nat44-ed-sessions: the NatSessionKillAction through the Action stream; resolves with its `done`. */
   natSessionKill(
     a: NatSessionKillAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ActionDone> {
     return new Promise((resolve, reject) => {
       const call = this.c.action({ natSessionKill: a }, new Metadata(), {
@@ -602,7 +602,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-unbound-chrony-syslog: ActionRequest.dns_lookup; collects the whole (short) output stream. */
   dnsLookup(
     req: DnsLookupAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ActionOutput[]> {
     return new Promise((resolve, reject) => {
       const out: ActionOutput[] = [];

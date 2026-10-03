@@ -65,9 +65,9 @@ umask 022; go test -count=1 ./...     # apps/agent: passed
 go build ./...                       # apps/agent: passed
 122 packages with passing tests; 162 packages with no test files
 
-go test ./internal/renderers/vppstartup ./cmd/vrx-startupgen
-go vet ./internal/renderers/vppstartup ./cmd/vrx-startupgen
-golangci-lint run ./internal/renderers/vppstartup ./cmd/vrx-startupgen
+go test ./internal/renderers/vppstartup ./cmd/ngfw-startupgen
+go vet ./internal/renderers/vppstartup ./cmd/ngfw-startupgen
+golangci-lint run ./internal/renderers/vppstartup ./cmd/ngfw-startupgen
 0 issues
 
 pnpm --filter @ngfw/ui-kit build

@@ -1,4 +1,4 @@
-# P03 — review of `task/P03` (gRPC contract `vrx.v1.Dataplane`)
+# P03 — review of `task/P03` (gRPC contract `ngfw.v1.Dataplane`)
 
 Reviewer: review agent (did not write the branch). Base `main@2de6c2f`, branch head `d1ba8ab`, worktree `/root/ngfw-wt/P03`.
 Everything below was re-run by the reviewer on host `ngfw` on 2026-09-23; commands and results are in §"Re-verification".
@@ -24,12 +24,12 @@ running-vs-actual diff path (F3). Each is a pre-tag fix of minutes to an hour.
 ## Findings (ranked)
 
 ### F1 — HIGH — `uint64` counters decode to `number` and **throw** above 2^53; the doc's "decades" claim is off by ~1000×
-- `packages/proto/buf.gen.yaml:15-19` (ts-proto opts, no `forceLong`), generated `packages/proto/gen/ts/vrx/v1/dataplane.ts:24809-24817`
+- `packages/proto/buf.gen.yaml:15-19` (ts-proto opts, no `forceLong`), generated `packages/proto/gen/ts/ngfw/v1/dataplane.ts:24809-24817`
   (`longToNumber` throws `"Value is larger than Number.MAX_SAFE_INTEGER"`) and `:4474` (`message.rxBytes = longToNumber(reader.uint64())`);
   `docs/contracts/proto.md:222-223` ("exact below 2^53 — fine for byte counters for decades at 100 Gbit/s").
 - Failure: counters are **absolute since VPP start** (D-P03-10, `dataplane.proto:316-336`). 2^53 bytes = 9.0 PB; at 100 Gbit/s that is
   **8.3 days**, at 10 Gbit/s 83 days. When any interface's `rx_bytes`/`tx_bytes` crosses it, `StatsBatch.decode` throws inside the
-  grpc-js stream in `vrx-api`'s telemetry relay (P06 §8) and every subsequent batch fails until counters are cleared or VPP restarts.
+  grpc-js stream in `ngfw-api`'s telemetry relay (P06 §8) and every subsequent batch fails until counters are cleared or VPP restarts.
   The same applies to `IpsecRekey.esp_bytes`/`esp_packets`, `WorkerCpu.calls/vectors`, `seq`.
 - Fix (TS-only, no wire change, but it changes the TS type of every 64-bit field, so it must land **before P06 codes against `number`**):
   `forceLong=string` (or `=bigint`) in `buf.gen.yaml`, regenerate, update the test, and correct §9 of `proto.md` with the real arithmetic.
@@ -82,7 +82,7 @@ branch; comparing against it:
 ### F4 — MEDIUM — `ManagementUser.password_hash` puts a secret in the wire contract and contradicts P05's persistence design
 - `dataplane.proto:829-838`; `docs/contracts/proto.md:50-51` ("the API strips it *unless the agent needs it*, the agent never logs or persists it,
   and `Retrieve` leaves it unset").
-- Failure: P05 §5 persists the **whole** last desired state in `/var/lib/vrx/agent/desired.pb`; with the field present in the message, either
+- Failure: P05 §5 persists the **whole** last desired state in `/var/lib/ngfw/agent/desired.pb`; with the field present in the message, either
   P05 special-cases one field forever or the hash lands on disk in the agent's state dir (00-CONTEXT rule 10). "Unless the agent needs it" is
   a loophole with no defined need (the agent never authenticates users). And because `Retrieve` "leaves it unset", every user with a hash shows
   as drift in the F3 diff path.
@@ -121,7 +121,7 @@ branch; comparing against it:
   `subsystems` is empty *and* at least one of the two is non-empty — or simply require `subsystems` to be non-empty. Pick one and write it down.
 
 ### F8 — LOW — hand-written Go test inside the contract-guarded generated tree
-- `apps/agent/gen/vrx/v1/desiredstate_test.go`; `packages/proto/gen.sh:8` now deletes only `*.pb.go` to keep it alive; `tools/ci.sh:24` treats
+- `apps/agent/gen/ngfw/v1/desiredstate_test.go`; `packages/proto/gen.sh:8` now deletes only `*.pb.go` to keep it alive; `tools/ci.sh:24` treats
   every change under `apps/agent/gen` as a contract change.
 - Failure: any edit to the test needs a `contract(` commit; a future `rm -rf apps/agent/gen` (main's previous `gen.sh`) or `golangci-lint`
   excludes for generated dirs silently drop the only strict test. The envelope granted `apps/agent/gen/**` as owned files, it did not require
@@ -130,7 +130,7 @@ branch; comparing against it:
   `gen.sh` to a full wipe. Can be done by P05/P03b; note it in P03-questions.
 
 ### F9 — LOW (pre-existing on `main`, but `packages/proto` is this task's file) — `@ngfw/proto` is not importable at runtime
-- `packages/proto/package.json:6-11` (`main`/`types`/`exports` → `./gen/ts/vrx/v1/dataplane.js` / `.d.ts`, which do not exist; only `dataplane.ts`
+- `packages/proto/package.json:6-11` (`main`/`types`/`exports` → `./gen/ts/ngfw/v1/dataplane.js` / `.d.ts`, which do not exist; only `dataplane.ts`
   is generated; `build` is an `echo`). `apps/api/package.json:22` already depends on it.
 - Verified: `tsc --moduleResolution nodenext` from `apps/api` resolves it (TS maps `.js` → `.ts`), but `node --input-type=module -e 'import("@ngfw/proto")'`
   from `apps/api` fails with `ERR_MODULE_NOT_FOUND …/dataplane.js`. NestJS at runtime (P06) will hit this unless it bundles or runs a TS loader.
@@ -145,7 +145,7 @@ branch; comparing against it:
 - `dataplane.proto:548-550` numbering convention says "Zod fields in declaration order from 1"; once a message exists that cannot be honoured
   (P02a reordered several). Say "append-only; new fields take the next free number regardless of Zod order".
 - `dataplane.proto:336` `rx_misses` comment ("packets received without a matching IP protocol") does not describe `/if/rx-no-buf` + `/if/rx-miss`.
-- `dataplane.proto:138,152,220` `Operation`, `ResultCode`, `Severity` are very generic names in package `vrx.v1`; later files in the package
+- `dataplane.proto:138,152,220` `Operation`, `ResultCode`, `Severity` are very generic names in package `ngfw.v1`; later files in the package
   (state RPCs, events) will want them. Renaming is free today (`ApplyOperation`, `ObjectResultCode`, `IssueSeverity`), impossible after the tag.
 - `HealthResponse` fields 1–3 are byte-identical to `main` — good; note that `Health` is the only RPC P05a's stub already implements.
 
@@ -180,7 +180,7 @@ $ buf breaking --against ../../.git#branch=main,subdir=packages/proto   → exit
   scratch copy, Interface.rx_mode string→optional string:            → FIELD_SAME_CARDINALITY, exit=100  (basis of F2/F3 urgency)
 $ pnpm gen; sha256sum …; pnpm gen; sha256sum … | diff   → "checksums identical";  git status --porcelain → (empty)
 $ cd apps/agent && go test -count=1 ./gen/... -run DesiredState -v
-  --- PASS: TestDesiredStateMirrorsRootKeys / TestDesiredStateFromSchemaExamples/{minimal,two-interfaces}.json   ok  ngfw/agent/gen/vrx/v1
+  --- PASS: TestDesiredStateMirrorsRootKeys / TestDesiredStateFromSchemaExamples/{minimal,two-interfaces}.json   ok  ngfw/agent/gen/ngfw/v1
 $ pnpm --filter @ngfw/proto test      → ✓ test/desired-state.test.ts (7 tests)   Tests 7 passed (7)
 $ toJSON probe (temporary test file, removed; tree clean afterwards)  → see F3
 $ node import("@ngfw/proto") from apps/api → ERR_MODULE_NOT_FOUND (F9); tsc resolves (TS .js→.ts mapping)

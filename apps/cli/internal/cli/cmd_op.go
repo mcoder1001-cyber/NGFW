@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/netip"
 	"net/url"
 	"os"
 	"sort"
@@ -95,13 +96,13 @@ func init() {
 		Ops:     []string{"Auth_me"}, Run: whoami,
 	})
 	register(&Command{
-		Words: []string{"ping"}, Args: "<host>", Where: inOp,
-		Summary: "Ping from the data plane (the API answers 501 until the agent implements actions)",
+		Words: []string{"ping"}, Args: "<address>", Where: inOp,
+		Summary: "Ping an IPv4/IPv6 address from the data plane (default VRF only)",
 		Ops:     []string{"Actions_run"}, Run: func(ctx context.Context, a *App, args []cpath.Token) error { return action(ctx, a, "ping", args) },
 	})
 	register(&Command{
-		Words: []string{"traceroute"}, Args: "<host>", Where: inOp,
-		Summary: "Traceroute from the data plane (the API answers 501 until the agent implements actions)",
+		Words: []string{"traceroute"}, Args: "<address>", Where: inOp,
+		Summary: "Traceroute an IPv4/IPv6 address (the agent currently answers 501)",
 		Ops:     []string{"Actions_run"}, Run: func(ctx context.Context, a *App, args []cpath.Token) error { return action(ctx, a, "traceroute", args) },
 	})
 	register(&Command{
@@ -725,9 +726,14 @@ func whoami(ctx context.Context, a *App, _ []cpath.Token) error {
 
 func action(ctx context.Context, a *App, name string, args []cpath.Token) error {
 	if len(args) != 1 {
-		return usagef("%s <host>", name)
+		return usagef("%s <address>", name)
 	}
-	raw, err := a.call(ctx, api.Call{Op: "Actions_run", Params: map[string]string{"action": name}}, nil)
+	target := args[0].Text
+	addr, err := netip.ParseAddr(target)
+	if err != nil || addr.Zone() != "" {
+		return usagef("%s <address>: %q must be an IPv4 or IPv6 address (no name resolution)", name, target)
+	}
+	raw, err := a.call(ctx, api.Call{Op: "Actions_run", Params: map[string]string{"action": name}, Body: map[string]string{"target": target}}, nil)
 	if err != nil {
 		return err
 	}

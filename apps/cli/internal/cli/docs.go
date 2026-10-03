@@ -108,7 +108,13 @@ Output formats of configuration: ` + "`text`" + ` (default: a stable brace hiera
 - Login-shell / SSH wiring and a local unix-socket transport with peer-credential check (P13 out of scope; the API
   listens on TCP only today): the CLI authenticates with a login or an API key.
 - ` + "`show bgp summary`" + ` exists but exits 10: the API has no BGP summary endpoint yet.
-- ` + "`ping`" + ` / ` + "`traceroute`" + ` call ` + "`POST /api/v1/actions/{action}`" + `, which answers 501 until the agent implements actions.
+- ` + "`traceroute`" + ` calls ` + "`POST /api/v1/actions/traceroute`" + ` with an IPv4/IPv6 target; the agent currently answers 501 (no VPP traceroute API).
+
+## Ping
+
+` + "`ping <address>`" + ` sends an IPv4 or IPv6 address to ` + "`POST /api/v1/actions/ping`" + `. Hostnames are not resolved.
+The agent runs ping in the default VRF with the API defaults (5 requests, 1000 ms interval);
+VPP worker threads cause HTTP 409, and another active ping causes HTTP 503.
 `)
 	return b.String()
 }

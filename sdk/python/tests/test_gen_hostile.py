@@ -71,3 +71,34 @@ def test_generated_comments_have_no_trailing_whitespace(tmp_path: Path) -> None:
         models = (tmp_path / "pkg" / "models.py").read_text()
         assert "RootConfig = TypedDict" in models
         assert all(line == line.rstrip() for line in models.splitlines())
+
+
+def test_normalized_operation_names_cannot_shadow_each_other(tmp_path: Path) -> None:
+    doc = hostile(tmp_path / "marker")
+    doc["paths"]["/other"] = {"get": {"operationId": "get_x", "responses": {}}}
+    result = run_gen(tmp_path, doc)
+    assert result.returncode != 0 and "collides" in result.stderr, result.stderr
+    assert not (tmp_path / "pkg" / "operations.py").exists()
+
+
+def test_colliding_parameter_names_fail_before_writing_output(tmp_path: Path) -> None:
+    for names, has_body in ((["itemId", "item_id"], False), (["self"], False), (["body"], True)):
+        doc = hostile(tmp_path / "marker")
+        op = next(iter(doc["paths"].values()))["get"]
+        op["parameters"] = [{"name": name, "in": "query", "schema": {"type": "string"}} for name in names]
+        if has_body:
+            op["requestBody"] = {"content": {"application/json": {"schema": {"type": "string"}}}}
+        result = run_gen(tmp_path, doc)
+        assert result.returncode != 0 and "collides" in result.stderr, (names, result.stderr)
+        assert not (tmp_path / "pkg" / "operations.py").exists()
+
+
+def test_body_parameter_without_request_body_remains_supported(tmp_path: Path) -> None:
+    doc = hostile(tmp_path / "marker")
+    op = next(iter(doc["paths"].values()))["get"]
+    op["parameters"] = [{"name": "body", "in": "query", "schema": {"type": "string"}}]
+    result = run_gen(tmp_path, doc)
+    assert result.returncode == 0, result.stderr
+    source = (tmp_path / "pkg" / "operations.py").read_text()
+    compile(source, "operations.py", "exec")
+    assert '"body": body' in source

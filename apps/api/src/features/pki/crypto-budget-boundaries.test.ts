@@ -27,7 +27,7 @@ describe('DER parent boundaries', () => {
   });
 });
 
-const pass = 'VRX_TEST_PSK_CRYPTO_REVIEW';
+const pass = 'NGFW_TEST_PSK_CRYPTO_REVIEW';
 function pfx(safe: Buffer, iterations = 1, validMac = true): Buffer {
   const salt = Buffer.from([1]);
   const password = Buffer.from(pass + '\0', 'utf16le').swap16();

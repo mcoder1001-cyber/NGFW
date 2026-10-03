@@ -26,12 +26,12 @@ function presentationSchema(schema: JsonSchema): JsonSchema {
   for (const key of ['title', 'description'] as const) {
     if (schema[key] !== undefined) out[key] = schemaWording(schema[key]);
   }
-  if (schema['x-vrx-ui']) {
-    const hints = { ...schema['x-vrx-ui'] };
+  if (schema['x-ngfw-ui']) {
+    const hints = { ...schema['x-ngfw-ui'] };
     for (const key of ['help', 'group', 'placeholder'] as const) {
       if (typeof hints[key] === 'string') hints[key] = schemaWording(hints[key]);
     }
-    out['x-vrx-ui'] = hints;
+    out['x-ngfw-ui'] = hints;
   }
   for (const key of ['properties', '$defs'] as const) {
     if (schema[key]) {
@@ -39,7 +39,7 @@ function presentationSchema(schema: JsonSchema): JsonSchema {
         Object.entries(schema[key]).map(([name, child]) => {
           const presented = presentationSchema(child);
           if (key === 'properties' && name === 'lcp') {
-            presented['x-vrx-ui'] = { ...presented['x-vrx-ui'], widget: 'hidden' };
+            presented['x-ngfw-ui'] = { ...presented['x-ngfw-ui'], widget: 'hidden' };
           }
           return [name, presented];
         }),
@@ -71,13 +71,13 @@ export interface DomainInfo {
   /** Title from the schema (English source of truth; `nav:domains.<key>` may translate it). */
   title: string;
   description: string | undefined;
-  /** `x-vrx-ui.order` on the domain schema — navigation order. */
+  /** `x-ngfw-ui.order` on the domain schema — navigation order. */
   order: number;
   schema: JsonSchema;
 }
 
 function orderOf(schema: JsonSchema): number {
-  const hints = schema['x-vrx-ui'];
+  const hints = schema['x-ngfw-ui'];
   const order = hints && typeof hints === 'object' ? (hints as { order?: unknown }).order : undefined;
   return typeof order === 'number' ? order : Number.MAX_SAFE_INTEGER;
 }

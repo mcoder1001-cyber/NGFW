@@ -82,7 +82,7 @@ function withMpls(api: FakeApi, mpls: MplsConfig | undefined = MPLS) {
   api.on('GET /api/v1/config/candidate/vrfs', { body: { red: { id: 5010 } } });
   api.on('GET /api/v1/state/routing/mpls/tunnels', {
     body: {
-      tables: [{ tableId: 0, name: 'vrx:0' }],
+      tables: [{ tableId: 0, name: 'ngfw:0' }],
       items: [
         {
           name: 't1',
@@ -219,7 +219,7 @@ describe('MPLS screen', () => {
           total: 1,
           tableId: 0,
           tables: [
-            { tableId: 0, name: 'vrx:0' },
+            { tableId: 0, name: 'ngfw:0' },
             { tableId: 5001, name: 'w5:5001' },
           ],
           items: [

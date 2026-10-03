@@ -8,10 +8,10 @@ import { isLoopback, secureTransport, tlsRequired } from './transport.js';
 
 /**
  * TD-10b (review 2.3b): the client address, its protocol and the password transport rule, resolved by a REAL Fastify
- * with the trustProxy that app.ts derives from VRX_TRUST_PROXY — not a hand-made request object.
+ * with the trustProxy that app.ts derives from NGFW_TRUST_PROXY — not a hand-made request object.
  */
 async function server(trust: string): Promise<FastifyInstance> {
-  const list = loadEnv({ VRX_TRUST_PROXY: trust }).VRX_TRUST_PROXY;
+  const list = loadEnv({ NGFW_TRUST_PROXY: trust }).NGFW_TRUST_PROXY;
   const f = Fastify({ trustProxy: list.length > 0 ? list : false });
   f.get('/probe', (req) => ({
     ip: sourceIp(req),
@@ -139,7 +139,7 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
     });
   });
 
-  it('VRX_TRUST_PROXY=none: headers are ignored, the socket peer is the client', async () => {
+  it('NGFW_TRUST_PROXY=none: headers are ignored, the socket peer is the client', async () => {
     expect(
       await probe(none, '127.0.0.1', {
         'x-forwarded-for': '198.51.100.7',
@@ -148,7 +148,7 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
     ).toEqual({ ip: '127.0.0.1', proto: 'http', secure: true });
   });
 
-  it('review C1: tools/app runs the API with VRX_TRUST_PROXY=none — its vite hop (xfwd) relaying a remote plain-HTTP browser is accepted as on main', async () => {
+  it('review C1: tools/app runs the API with NGFW_TRUST_PROXY=none — its vite hop (xfwd) relaying a remote plain-HTTP browser is accepted as on main', async () => {
     // what vite 7 (xfwd) sends for a browser at 198.51.100.7 on plain http://host:8080 (it appends to client headers)
     expect(
       await probe(none, '127.0.0.1', {
@@ -163,16 +163,16 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
       'utf8',
     );
     const apiLine = /start_svc api env ((?:.*\\\n)*.*)/.exec(app)?.[1] ?? '';
-    expect(apiLine).toMatch(/(^|\s)VRX_TRUST_PROXY=none(\s|\\|$)/);
+    expect(apiLine).toMatch(/(^|\s)NGFW_TRUST_PROXY=none(\s|\\|$)/);
     expect(app).toContain('PENDING-tools-app-transport');
   });
 
-  it('VRX_TRUST_PROXY: loopback by default; addresses, ranges and names; never "everyone"', () => {
-    expect(loadEnv({}).VRX_TRUST_PROXY).toEqual(['loopback']);
-    expect(loadEnv({ VRX_TRUST_PROXY: 'none' }).VRX_TRUST_PROXY).toEqual([]);
+  it('NGFW_TRUST_PROXY: loopback by default; addresses, ranges and names; never "everyone"', () => {
+    expect(loadEnv({}).NGFW_TRUST_PROXY).toEqual(['loopback']);
+    expect(loadEnv({ NGFW_TRUST_PROXY: 'none' }).NGFW_TRUST_PROXY).toEqual([]);
     expect(
-      loadEnv({ VRX_TRUST_PROXY: ' loopback , 10.1.2.3, 10.0.0.0/8 ,fd00::/8,uniquelocal' })
-        .VRX_TRUST_PROXY,
+      loadEnv({ NGFW_TRUST_PROXY: ' loopback , 10.1.2.3, 10.0.0.0/8 ,fd00::/8,uniquelocal' })
+        .NGFW_TRUST_PROXY,
     ).toEqual(['loopback', '10.1.2.3', '10.0.0.0/8', 'fd00::/8', 'uniquelocal']);
     for (const bad of [
       'true',
@@ -184,7 +184,7 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
       'none,loopback',
       'lan',
     ])
-      expect(() => loadEnv({ VRX_TRUST_PROXY: bad }), bad).toThrow(/VRX_TRUST_PROXY/);
+      expect(() => loadEnv({ NGFW_TRUST_PROXY: bad }), bad).toThrow(/NGFW_TRUST_PROXY/);
   });
 
   it('clientKey: IPv4 as is, IPv4-mapped as IPv4, IPv6 by its /64', () => {
@@ -202,7 +202,7 @@ describe('transport (TD-2 #1, D-100 (1); TD-10b trusted proxy)', () => {
     const p = tlsRequired();
     expect(p.getStatus()).toBe(403);
     expect(p.body('/api/v1/auth/login')).toEqual({
-      type: 'https://vrx.dev/problems/tls-required',
+      type: 'https://ngfw.dev/problems/tls-required',
       title: 'TLS required',
       status: 403,
       detail: 'passwords are accepted over TLS only (connect through https)',

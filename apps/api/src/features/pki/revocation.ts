@@ -74,7 +74,7 @@ export const httpFetch: Fetcher = (url, opts) =>
           ...(opts.contentType !== undefined ? { 'content-type': opts.contentType } : {}),
           ...(opts.accept !== undefined ? { accept: opts.accept } : {}),
           ...(opts.body !== undefined ? { 'content-length': String(opts.body.length) } : {}),
-          'user-agent': 'vrx-pki',
+          'user-agent': 'ngfw-pki',
         },
         timeout: opts.timeoutMs,
       },

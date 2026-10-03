@@ -72,12 +72,12 @@ export function localizeSchema(schema: JsonSchema, t: Translate, prefix = ''): J
     const next: Record<string, JsonSchema> = {};
     for (const [name, p] of Object.entries(props)) {
       const key = prefix + name;
-      const hints = (p['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+      const hints = (p['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       const help = t(`field.${key}.help`, { defaultValue: '' });
       next[name] = {
         ...localizeSchema(p, t, `${key}.`),
         title: t(`field.${key}.title`, { defaultValue: p.title ?? name }),
-        'x-vrx-ui': { ...hints, ...(help ? { help } : {}) },
+        'x-ngfw-ui': { ...hints, ...(help ? { help } : {}) },
       } as JsonSchema;
     }
     out['properties'] = next;

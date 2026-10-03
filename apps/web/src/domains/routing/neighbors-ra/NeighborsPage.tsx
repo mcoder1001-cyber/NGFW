@@ -90,7 +90,7 @@ function NeighborTable() {
         minWidth: 150,
         flex: 1,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
             {p.row.interface}
           </Box>
         ),
@@ -101,7 +101,7 @@ function NeighborTable() {
         minWidth: 190,
         flex: 1,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
             {p.row.ip}
           </Box>
         ),
@@ -111,7 +111,7 @@ function NeighborTable() {
         headerName: t('col.mac'),
         width: 170,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
             {p.row.mac}
           </Box>
         ),

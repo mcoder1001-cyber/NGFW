@@ -38,7 +38,7 @@ describe('login and protected routes', () => {
     );
     api.on('GET /api/v1/config/revisions', { body: { items: [], total: 0 } });
     render(app('/system/revisions'));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in to VRX' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in to NGFW' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/Username/), { target: { value: 'admin' } });
     fireEvent.change(screen.getByLabelText(/Password/), { target: { value: 'wrong' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -134,7 +134,7 @@ describe('pending-change bar → commit dialog → confirm countdown', () => {
     api.on('POST /api/v1/config/validate', {
       status: 400,
       body: {
-        type: 'https://vrx.dev/problems/validation',
+        type: 'https://ngfw.dev/problems/validation',
         title: 'Validation failed',
         status: 400,
         detail: 'semantic validation failed',

@@ -51,8 +51,8 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
   let b: { cert: string; key: string };
   beforeAll(() => {
     dir = mkdtempSync(join(tmpdir(), 'mgmt-tls-'));
-    a = makePair(dir, 'a', 'a.vrx.test');
-    b = makePair(dir, 'b', 'b.vrx.test');
+    a = makePair(dir, 'a', 'a.ngfw.test');
+    b = makePair(dir, 'b', 'b.ngfw.test');
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -61,8 +61,8 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       const r = validateTlsMaterial(a.cert, a.key, '1.2');
       expect(r.issues).toEqual([]);
       expect(r.options).toBeDefined();
-      expect(r.info?.subject).toBe('CN=a.vrx.test');
-      expect(r.info?.subjectAltNames).toEqual(['DNS:a.vrx.test', 'IP Address:192.0.2.1']);
+      expect(r.info?.subject).toBe('CN=a.ngfw.test');
+      expect(r.info?.subjectAltNames).toEqual(['DNS:a.ngfw.test', 'IP Address:192.0.2.1']);
       expect(JSON.stringify(r.info)).not.toContain('PRIVATE KEY');
     });
 
@@ -109,7 +109,7 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
           const s = connect({
             host: '127.0.0.1',
             port,
-            servername: 'b.vrx.test',
+            servername: 'b.ngfw.test',
             rejectUnauthorized: false,
             maxVersion,
           });
@@ -121,7 +121,7 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
         });
       try {
         expect(await hello('TLSv1.2')).toBe('refused');
-        expect(await hello('TLSv1.3')).toBe('TLSv1.3 CN=b.vrx.test');
+        expect(await hello('TLSv1.3')).toBe('TLSv1.3 CN=b.ngfw.test');
       } finally {
         server.close();
       }
@@ -156,7 +156,7 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       const secrets = { 'cert/a': a.cert, 'key/a': a.key, 'cert/b': b.cert, 'key/b': b.key };
       const { svc, holder, bus } = service(tlsDoc('cert/a', 'key/a'), secrets);
       const s1 = await svc.state();
-      expect(s1.active?.subject).toBe('CN=a.vrx.test');
+      expect(s1.active?.subject).toBe('CN=a.ngfw.test');
       expect(s1.listener).toEqual({ enabled: false, port: null });
       const ctx1 = svc.secureContext();
       expect(ctx1).not.toBeNull();
@@ -166,14 +166,14 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       bus.publish('commit.events', { type: 'applied', revision: 8 });
       await new Promise((r) => setTimeout(r, 20));
       const s2 = await svc.state();
-      expect(s2.active?.subject).toBe('CN=b.vrx.test');
+      expect(s2.active?.subject).toBe('CN=b.ngfw.test');
       expect(s2.loadedRevision).toBe(8);
       expect(svc.secureContext()).not.toBe(ctx1);
 
       holder.doc = tlsDoc('cert/a', 'key/b');
       await svc.reload();
       const s3 = await svc.state();
-      expect(s3.active?.subject).toBe('CN=b.vrx.test');
+      expect(s3.active?.subject).toBe('CN=b.ngfw.test');
       expect(s3.error).toContain('does not match');
       expect(JSON.stringify(s3)).not.toContain('PRIVATE KEY');
     });

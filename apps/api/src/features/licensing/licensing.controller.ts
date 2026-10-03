@@ -2,13 +2,13 @@ import { Body, Controller, Get, HttpCode, Put, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { LICENSE_FORMAT } from './format.js';
 import { LicensingService } from './licensing.service.js';
 
-/** The `.vrxlic` file content as uploaded (its JSON object, unchanged). */
+/** The `.ngfwlic` file content as uploaded (its JSON object, unchanged). */
 const LicenseFileBody = z
   .object({
     format: z.literal(LICENSE_FORMAT),
@@ -18,7 +18,7 @@ const LicenseFileBody = z
       .max(256)
       .describe('detached Ed25519 signature (base64); stored, never returned'),
   })
-  .describe('the .vrxlic file content');
+  .describe('the .ngfwlic file content');
 
 const LicenseStateOut = z.object({
   status: z.enum(['community', 'valid', 'grace', 'expired', 'invalid']),
@@ -55,12 +55,12 @@ export class LicensingController {
   @MinRole('admin')
   @HttpCode(200)
   @Protected(400)
-  @ApiOperation({ summary: 'Upload a .vrxlic licence file (verified before it is stored)' })
+  @ApiOperation({ summary: 'Upload a .ngfwlic licence file (verified before it is stored)' })
   @ApiBody({ schema: openapi(LicenseFileBody) })
   @ApiOkResponse({ schema: openapi(LicenseStateOut, 'output') })
   async put(
     @Body(new ZodPipe(LicenseFileBody)) body: z.output<typeof LicenseFileBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: 'system/license' };
     const st = await this.licensing.install(JSON.stringify(body));

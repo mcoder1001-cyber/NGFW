@@ -1,4 +1,4 @@
-// Package api is the CLI's REST client for vrx-api (/api/v1). Requests are made only by operationId through the
+// Package api is the CLI's REST client for ngfw-api (/api/v1). Requests are made only by operationId through the
 // generated Operations table (operations_gen.go, from the OpenAPI document), never with hand-written URLs.
 //
 // Credentials are an API key (`Authorization: ApiKey …`) or a bearer token from POST /auth/login. They are never
@@ -35,7 +35,7 @@ type Credential interface {
 	Kind() string
 }
 
-// Key authenticates with a vrxk_… key.
+// Key authenticates with a ngfwk_… key.
 type Key string
 
 // Authorization implements Credential.
@@ -86,7 +86,7 @@ func New(base string) (*Client, error) {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return nil, fmt.Errorf("invalid API URL %q (want http(s)://host:port)", base)
 	}
-	// review 5.7b: redirects are never followed. vrx-api does not redirect; a 3xx comes from something in between
+	// review 5.7b: redirects are never followed. ngfw-api does not redirect; a 3xx comes from something in between
 	// (nginx :80 → https, a proxy) and following it would carry the Authorization header to another scheme or port
 	// of the same host, or replay a 307/308 body (passwords) to wherever it points.
 	return &Client{Base: u, HTTP: &http.Client{CheckRedirect: noRedirect}}, nil
@@ -397,7 +397,7 @@ func redirectError(h http.Header) error {
 	if loc == "" {
 		loc = "(no Location)"
 	}
-	return fmt.Errorf("the server answered a redirect to %s, which the CLI does not follow (credentials and bodies never go to a redirect target) — if that is the API, use it as --api / VRX_API_URL", loc)
+	return fmt.Errorf("the server answered a redirect to %s, which the CLI does not follow (credentials and bodies never go to a redirect target) — if that is the API, use it as --api / NGFW_API_URL", loc)
 }
 
 func (c *Client) do(ctx context.Context, call Call) (*Response, error) {
@@ -420,7 +420,7 @@ func (c *Client) do(ctx context.Context, call Call) (*Response, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json, application/problem+json")
-	req.Header.Set("User-Agent", "vrx-cli")
+	req.Header.Set("User-Agent", "ngfw-cli")
 	if call.Body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

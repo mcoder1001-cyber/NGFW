@@ -3,7 +3,7 @@ import { ApiBody, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { AuditUnavailableDoc } from '../audit/audit.interceptor.js';
 import { MinRole } from '../auth/decorators.js';
-import type { VrxRequest } from '../common/principal.js';
+import type { NgfwRequest } from '../common/principal.js';
 import { ApiOut, Protected } from '../common/responses.js';
 import { EnvZodPipe, openapi, SafeParamPipe } from '../common/zod.js';
 import { CommitBusyDoc } from './commit-busy.js';
@@ -29,7 +29,7 @@ export const SetPasswordBody = z.strictObject({
       'admin reset only: keep the target’s API keys (service users); by default an admin reset revokes them (D-097)',
     ),
 });
-/** VRX_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting SetPasswordBody. */
+/** NGFW_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting SetPasswordBody. */
 export const SetPasswordBodyWeak = SetPasswordBody.extend({
   password: newPassword(true).describe('the new password (write-only; hashed with argon2id)'),
 });
@@ -73,9 +73,9 @@ export class UsersController {
   @ApiOut(SetPasswordOut)
   async setPassword(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Body(EnvZodPipe((env) => (env.VRX_DEV_WEAK_PASSWORDS ? SetPasswordBodyWeak : SetPasswordBody)))
+    @Body(EnvZodPipe((env) => (env.NGFW_DEV_WEAK_PASSWORDS ? SetPasswordBodyWeak : SetPasswordBody)))
     body: z.output<typeof SetPasswordBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<z.output<typeof SetPasswordOut>> {
     req.audit = { resource: `user/${name}` };
     const r = await this.users.setPassword(req.principal!, name, body, req);

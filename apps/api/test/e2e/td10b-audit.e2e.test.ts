@@ -35,7 +35,7 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
     h.db.execute(sql.raw(`alter table audit_log drop constraint ${name}`));
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: String(RATE) });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: String(RATE) });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op', role: 'operator', password: PW['op']! },
@@ -52,7 +52,7 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
       `2.3b via the proxy from ${X}: plain HTTP ${plain.status} ${plain.body.type ?? ''}, TLS ${tls.status}`,
     );
     expect(plain.status).toBe(403);
-    expect(plain.body.type).toBe('https://vrx.dev/problems/tls-required');
+    expect(plain.body.type).toBe('https://ngfw.dev/problems/tls-required');
     expect(tls.status).toBe(200);
     expect(await rows(sql`action = 'auth.login' and username = 'op'`)).toEqual([
       expect.objectContaining({ source_ip: X, after: { reason: 'tls-required' }, status: 403 }),
@@ -184,7 +184,7 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
       `2.3e fail-closed: key creation ${key.status} ${key.body.type}; password set ${pw.status}`,
     );
     expect(key.status).toBe(503);
-    expect(key.body.type).toBe('https://vrx.dev/problems/audit-unavailable');
+    expect(key.body.type).toBe('https://ngfw.dev/problems/audit-unavailable');
     expect(pw.status).toBe(503);
     expect(await keys()).toBe(k0);
     expect(
@@ -217,12 +217,12 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
       username: 'op',
       password: PW['op'],
     });
-    const attrs = cookieAttrs(l.headers, 'vrx_docs')!;
+    const attrs = cookieAttrs(l.headers, 'ngfw_docs')!;
     expect(attrs).toContain('path=/api/docs');
     expect(attrs).toContain('httponly');
     expect(attrs).toContain('samesite=strict');
     expect(attrs).toMatch(/max-age=(900|899)/);
-    const docs = cookieOf(l.headers, 'vrx_docs')!;
+    const docs = cookieOf(l.headers, 'ngfw_docs')!;
     const page = await h.call(undefined, 'GET', '/api/docs', undefined, { cookie: docs });
     const spec = await h.call(undefined, 'GET', '/api/docs/swagger-ui-init.js', undefined, {
       cookie: docs,
@@ -237,10 +237,10 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
     expect(bare.status).toBe(401);
     expect(bare.body.detail).toMatch(/log in to the web UI/);
     const out = await h.call(undefined, 'POST', '/api/v1/auth/logout', undefined, {
-      cookie: cookieOf(l.headers, 'vrx_refresh')!,
+      cookie: cookieOf(l.headers, 'ngfw_refresh')!,
     });
-    expect(cookieAttrs(out.headers, 'vrx_docs')).toMatch(
-      /vrx_docs=;.*(max-age=0|expires=thu, 01 jan 1970)/,
+    expect(cookieAttrs(out.headers, 'ngfw_docs')).toMatch(
+      /ngfw_docs=;.*(max-age=0|expires=thu, 01 jan 1970)/,
     );
     expect((await h.call(undefined, 'GET', '/api/docs', undefined, { cookie: docs })).status).toBe(
       401,
@@ -256,7 +256,7 @@ describe('TD-10b audit gaps, trusted proxy, /api/docs, commit-busy', () => {
     console.log(`commit-busy: ${r.status} ${r.body.type} after ${took} ms (lock held 3 s)`);
     expect(r.status).toBe(409);
     expect(r.body).toMatchObject({
-      type: 'https://vrx.dev/problems/commit-busy',
+      type: 'https://ngfw.dev/problems/commit-busy',
       retryAfterSec: 2,
     });
     expect(took).toBeLessThan(2_500);

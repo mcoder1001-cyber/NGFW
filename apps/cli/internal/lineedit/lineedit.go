@@ -1,4 +1,4 @@
-// Package lineedit is a small line editor for the vrx REPL: raw terminal mode, emacs-style editing keys, history
+// Package lineedit is a small line editor for the ngfw REPL: raw terminal mode, emacs-style editing keys, history
 // (↑/↓, Ctrl-P/N), Tab completion and `?` help. It uses only golang.org/x/sys/unix (already in the repo's Go
 // dependency set) instead of a third-party readline package. When the input is not a terminal it reads plain lines.
 package lineedit

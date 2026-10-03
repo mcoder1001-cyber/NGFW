@@ -12,7 +12,7 @@ const schema: JsonSchema = {
     lcp: {
       type: 'object',
       title: 'Automatic interface pair',
-      'x-vrx-ui': { widget: 'hidden', group: 'Automatic routing' },
+      'x-ngfw-ui': { widget: 'hidden', group: 'Automatic routing' },
       properties: {
         hostIfName: { type: 'string', title: 'Host interface name' },
         hostIfType: { type: 'string', enum: ['tap', 'tun'], default: 'tap' },

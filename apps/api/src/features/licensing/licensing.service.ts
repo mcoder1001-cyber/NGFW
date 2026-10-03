@@ -62,7 +62,7 @@ function readOptional(path: string): string | undefined {
 }
 
 /**
- * Offline licence (F-licensing): verifies the stored `.vrxlic`, computes status and entitlements, and checks a
+ * Offline licence (F-licensing): verifies the stored `.ngfwlic`, computes status and entitlements, and checks a
  * candidate document at commit validation time. Nothing here reaches the agent (D-040).
  */
 @Injectable()

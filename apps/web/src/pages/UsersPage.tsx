@@ -59,7 +59,7 @@ export function localizeUserSchema(schema: JsonSchema, t: Translate): JsonSchema
   const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
   const localized: Record<string, JsonSchema> = {};
   for (const [name, prop] of Object.entries(props)) {
-    const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+    const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
     const help = t(`field.${name}.help`, { defaultValue: '' });
     const enumLabels = Array.isArray(prop.enum)
       ? Object.fromEntries(prop.enum.map((v) => [String(v), t(`field.${name}.enum.${String(v)}`, { defaultValue: String(v) })]))
@@ -67,7 +67,7 @@ export function localizeUserSchema(schema: JsonSchema, t: Translate): JsonSchema
     localized[name] = {
       ...prop,
       title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
-      'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(enumLabels ? { enumLabels } : {}) },
+      'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(enumLabels ? { enumLabels } : {}) },
     } as JsonSchema;
   }
   return { ...schema, properties: localized } as JsonSchema;
@@ -263,7 +263,7 @@ export function UsersPage() {
             {rows.map(({ user, index, state: rowState }) => (
               <TableRow key={`${user.username}:${index}`} sx={rowState === 'removed' ? { '& td': { textDecoration: 'line-through', color: 'text.disabled' } } : undefined}>
                 <TableCell>
-                  <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+                  <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                     {user.username}
                   </Box>
                   {user.username === me && <Chip size="small" label={t('you')} sx={{ marginInlineStart: 1 }} />}

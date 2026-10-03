@@ -176,7 +176,7 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
   return (
     <Box sx={{ p: 2 }} role="region" aria-label={t('drawer.label', { name })}>
       <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-        <Typography component="h3" variant="h6" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, flex: 1, textAlign: 'start' }}>
+        <Typography component="h3" variant="h6" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}>
           {name}
         </Typography>
         {live && <StatusChip size="small" status={adminStatus(live)!} label={`${t('col.admin')}: ${t(`status.${adminStatus(live)!}`)}`} />}

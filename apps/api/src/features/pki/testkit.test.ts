@@ -6,15 +6,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-/** A scratch directory under $VRX_PKI_TEST_DIR (the slot's /run/vrx-test/w<N>) or the OS temp dir; removed by `done`. */
+/** A scratch directory under $NGFW_PKI_TEST_DIR (the slot's /run/ngfw-test/w<N>) or the OS temp dir; removed by `done`. */
 export function scratch(): {
   dir: string;
   file: (name: string, content: string | Buffer) => string;
   done: () => void;
 } {
-  const base = process.env['VRX_PKI_TEST_DIR'] ?? tmpdir();
+  const base = process.env['NGFW_PKI_TEST_DIR'] ?? tmpdir();
   mkdirSync(base, { recursive: true });
-  const dir = mkdtempSync(join(base, 'vrx-pki-'));
+  const dir = mkdtempSync(join(base, 'ngfw-pki-'));
   return {
     dir,
     file: (name, content) => {

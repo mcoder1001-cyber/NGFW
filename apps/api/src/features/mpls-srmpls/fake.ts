@@ -86,7 +86,7 @@ function docPath(doc: Json, p: Json, payload: string): MplsStatePath {
 
 function tables(agent: FakeAgent, m: Mpls | undefined): MplsStateTable[] {
   if (m === undefined) return [];
-  const out: MplsStateTable[] = needsTableZero(m) ? [{ tableId: 0, name: 'vrx:0' }] : [];
+  const out: MplsStateTable[] = needsTableZero(m) ? [{ tableId: 0, name: 'ngfw:0' }] : [];
   for (const id of Object.keys(m.tables ?? {}))
     out.push({ tableId: Number(id), name: `${agent.owner}:${id}` });
   return out.sort((a, b) => a.tableId - b.tableId);

@@ -315,7 +315,7 @@ export function EiTab() {
             <Typography
               component="p"
               dir="ltr"
-              sx={{ mt: 1, fontFamily: (th) => th.vrx.monoFontFamily, textAlign: 'start' }}
+              sx={{ mt: 1, fontFamily: (th) => th.ngfw.monoFontFamily, textAlign: 'start' }}
               data-testid="nat-ei-kill-tuple"
             >
               {`${confirm.protocol} ${ep(confirm.insideAddress, confirm.insidePort)} (vrf ${confirm.vrf})`}

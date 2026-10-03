@@ -1,18 +1,18 @@
 import { createTheme, type Direction, type PaletteMode, type Theme } from '@mui/material/styles';
 
 /** Network status vocabulary used by every interface / tunnel / neighbour indicator in the product. */
-export type VrxStatus = 'up' | 'down' | 'degraded' | 'adminDown';
+export type NgfwStatus = 'up' | 'down' | 'degraded' | 'adminDown';
 
-/** Semantic status colours — one hex per status. Read them through `theme.vrx.status.<status>`. */
-export interface VrxStatusTokens {
+/** Semantic status colours — one hex per status. Read them through `theme.ngfw.status.<status>`. */
+export interface NgfwStatusTokens {
   up: string;
   down: string;
   degraded: string;
   adminDown: string;
 }
 
-export interface VrxThemeTokens {
-  status: VrxStatusTokens;
+export interface NgfwThemeTokens {
+  status: NgfwStatusTokens;
   /** Row height used by dense tables and the data grid. */
   denseRowHeight: number;
   /** Monospace stack for addresses, MACs, counters and CLI output. */
@@ -21,41 +21,41 @@ export interface VrxThemeTokens {
 
 declare module '@mui/material/styles' {
   interface Theme {
-    vrx: VrxThemeTokens;
+    ngfw: NgfwThemeTokens;
   }
   interface ThemeOptions {
-    vrx?: VrxThemeTokens;
+    ngfw?: NgfwThemeTokens;
   }
 }
 
 /**
  * Status tokens per mode. Every pair (token on `background.paper` of that mode) is checked by
- * `createVrxTheme.test.ts` to keep at least WCAG AA contrast for UI components (≥ 3:1) and the text
+ * `createNgfwTheme.test.ts` to keep at least WCAG AA contrast for UI components (≥ 3:1) and the text
  * colours ≥ 4.5:1 — do not change a colour without running that test.
  */
-export const VRX_STATUS_COLOURS: Record<PaletteMode, VrxStatusTokens> = {
+export const NGFW_STATUS_COLOURS: Record<PaletteMode, NgfwStatusTokens> = {
   light: { up: '#1b7f3b', down: '#b3261e', degraded: '#9a5b00', adminDown: '#5f6368' },
   dark: { up: '#5dd39e', down: '#ff6b6b', degraded: '#ffb454', adminDown: '#9aa0a6' },
 };
 
-export const VRX_STATUSES: readonly VrxStatus[] = ['up', 'down', 'degraded', 'adminDown'];
+export const NGFW_STATUSES: readonly NgfwStatus[] = ['up', 'down', 'degraded', 'adminDown'];
 
 const FONT_FAMILY = '"Inter", "Vazirmatn", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const MONO_FAMILY = '"JetBrains Mono", "Fira Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
 
-export interface CreateVrxThemeOptions {
+export interface CreateNgfwThemeOptions {
   /** Dense layout is the default for a network appliance; `false` gives regular MUI sizing. */
   dense?: boolean;
 }
 
 /**
  * The one theme. `direction` follows the UI language (fa → rtl). Dense by default: small controls,
- * 8 px spacing grid, compact tables. Semantic status colours live under `theme.vrx.status`.
+ * 8 px spacing grid, compact tables. Semantic status colours live under `theme.ngfw.status`.
  */
-export function createVrxTheme(
+export function createNgfwTheme(
   mode: PaletteMode,
   direction: Direction = 'ltr',
-  { dense = true }: CreateVrxThemeOptions = {},
+  { dense = true }: CreateNgfwThemeOptions = {},
 ): Theme {
   const size = dense ? 'small' : 'medium';
   const denseRowHeight = dense ? 36 : 52;
@@ -103,6 +103,6 @@ export function createVrxTheme(
         },
       },
     },
-    vrx: { status: VRX_STATUS_COLOURS[mode], denseRowHeight, monoFontFamily: MONO_FAMILY },
+    ngfw: { status: NGFW_STATUS_COLOURS[mode], denseRowHeight, monoFontFamily: MONO_FAMILY },
   });
 }

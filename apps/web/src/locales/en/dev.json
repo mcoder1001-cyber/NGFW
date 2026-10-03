@@ -40,7 +40,7 @@
   },
   "stream": {
     "title": "WebSocket stream demo",
-    "body": "One multiplexed connection to /api/v1/stream, opened only while a topic has subscribers. Without vrx-api (P06) the client stays in the reconnecting state with exponential backoff; that is the real state, not simulated data.",
+    "body": "One multiplexed connection to /api/v1/stream, opened only while a topic has subscribers. Without ngfw-api (P06) the client stays in the reconnecting state with exponential backoff; that is the real state, not simulated data.",
     "subscribe": "Subscribe to iface.counters",
     "status": "Connection",
     "lastMessage": "Last message",

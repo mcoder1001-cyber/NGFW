@@ -8,14 +8,14 @@
   "yes": "بله",
   "no": "خیر",
   "adminOnly": "فقط مدیر سیستم می‌تواند رشته‌های community و عبارت‌های عبور را بنویسد.",
-  "mibHint": "MIB اختصاصی (VRX-MIB: شمارنده‌های رابط‌های موتور و سلامت عامل) در deploy/snmp/VRX-MIB.txt است.",
+  "mibHint": "MIB اختصاصی (NGFW-MIB: شمارنده‌های رابط‌های موتور و سلامت عامل) در deploy/snmp/NGFW-MIB.txt است.",
   "state": {
     "title": "وضعیت",
     "configured": "پیکربندی‌شده: {{value}}",
     "reachable": "پاسخ عامل: {{value}}",
     "sysName": "sysName: {{value}}",
     "credential": "خوانده‌شده با: {{value}}",
-    "subagent": "زیرعامل VRX-MIB: {{value}}",
+    "subagent": "زیرعامل NGFW-MIB: {{value}}",
     "registered": "ثبت‌شده",
     "notRegistered": "ثبت‌نشده",
     "pending": "snmpd پیش از فعال‌شدن کامل تغییر به یک اقدام نیاز دارد: {{action}}"
@@ -27,7 +27,7 @@
     "sysLocation": "sysLocation",
     "sysContact": "sysContact",
     "engineId": "شناسه موتور (هگز)",
-    "subagent": "ارائه VRX-MIB (شمارنده‌های رابط موتور)"
+    "subagent": "ارائه NGFW-MIB (شمارنده‌های رابط موتور)"
   },
   "communities": {
     "title": "Communityها (v2c، فقط خواندنی)",

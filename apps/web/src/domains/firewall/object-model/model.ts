@@ -69,7 +69,7 @@ export const PICKER_KINDS = {
 const KIND_IN_TEXT = /objects\.(addresses|addressGroups|services|serviceGroups|schedules|zones|tags)\b/g;
 
 /**
- * The kinds an `object-picker` field offers: an explicit `x-vrx-ui.objectKinds` hint, else the kinds its help text names
+ * The kinds an `object-picker` field offers: an explicit `x-ngfw-ui.objectKinds` hint, else the kinds its help text names
  * (`objects.addresses or objects.addressGroups`, as the schema writes them), else what its property name says
  * (`zone`, `schedule`, `tags`). A field none of these classify gets **no** kinds (review F4: `acl.attachments[].list`
  * names an ACL list, not an object) and the picker renders the plain field instead of guessing.
@@ -143,15 +143,15 @@ type Translate = (key: string, opts?: Record<string, unknown>) => string;
 /**
  * Titles, help and variant names in the UI language (`object-model:field.<prop>.title|help`, `variant.<value>`), the
  * schema's English text as fallback, recursively through unions and nested objects. `object-picker` fields keep the
- * kinds their original help names as `x-vrx-ui.objectKinds` (the translated help may not name them).
+ * kinds their original help names as `x-ngfw-ui.objectKinds` (the translated help may not name them).
  */
 export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): JsonSchema {
-  const hints = (schema['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+  const hints = (schema['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
   const out: JsonSchema = { ...schema };
   if (schema.properties) {
     const props: Record<string, JsonSchema> = {};
     for (const [name, prop] of Object.entries(schema.properties)) {
-      const ph = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+      const ph = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
       // `field.<scope>.<prop>` (e.g. field.addresses.start = "First address") before the shared `field.<prop>`
       const text = (what: 'title' | 'help', fallback: string) =>
         t(`field.${scope}.${name}.${what}`, { defaultValue: t(`field.${name}.${what}`, { defaultValue: fallback }) });
@@ -165,7 +165,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
         {
           ...prop,
           ...(prop.const === undefined ? { title: text('title', prop.title ?? name) } : {}),
-          'x-vrx-ui': { ...ph, ...extra, ...(help ? { help } : {}) },
+          'x-ngfw-ui': { ...ph, ...extra, ...(help ? { help } : {}) },
         } as JsonSchema,
         t,
         scope,
@@ -183,7 +183,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
     });
   }
   if (schema.items && typeof schema.items === 'object') out.items = localizeSchema(schema.items, t, scope);
-  if (Object.keys(hints).length > 0) out['x-vrx-ui'] = hints;
+  if (Object.keys(hints).length > 0) out['x-ngfw-ui'] = hints;
   return out;
 }
 

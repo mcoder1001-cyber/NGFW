@@ -11,7 +11,7 @@ export interface UiSettings {
 }
 
 export const DEFAULT_SETTINGS: UiSettings = { mode: 'system', lang: 'en', persianDigits: false, dense: true };
-const STORAGE_KEY = 'vrx.ui.settings';
+const STORAGE_KEY = 'ngfw.ui.settings';
 
 export function loadSettings(): UiSettings {
   try {

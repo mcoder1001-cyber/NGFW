@@ -50,9 +50,9 @@ function tlsOf(doc: unknown): TlsConfig {
   return m?.tls ?? {};
 }
 
-/** Optional HTTPS listener port (`VRX_HTTPS_PORT`); unset = the API keeps plain HTTP only. */
+/** Optional HTTPS listener port (`NGFW_HTTPS_PORT`); unset = the API keeps plain HTTP only. */
 export function httpsPortFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env['VRX_HTTPS_PORT'];
+  const raw = env['NGFW_HTTPS_PORT'];
   if (raw === undefined || raw === '') return null;
   const n = Number(raw);
   return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : null;
@@ -114,12 +114,12 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     // without a configured certificate the listener stays down (no self-signed fallback is generated here)
     if (this.context === null) {
       this.log.warn(
-        'VRX_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started',
+        'NGFW_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started',
       );
       return;
     }
     this.server = createServer(this.context, (req, res) => fastify.routing(req, res));
-    const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
+    const hostName = process.env['NGFW_HTTP_HOST'] ?? '127.0.0.1';
     this.server.listen(this.httpsPort, hostName, () =>
       this.log.log(
         `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,

@@ -97,7 +97,7 @@ let key: Buffer;
 let cert: Buffer;
 const cleanup: Array<() => Promise<void>> = [];
 beforeAll(() => {
-  directory = mkdtempSync(join(tmpdir(), 'vrx-notification-sink-'));
+  directory = mkdtempSync(join(tmpdir(), 'ngfw-notification-sink-'));
   const keyPath = join(directory, 'key.pem');
   const certPath = join(directory, 'cert.pem');
   execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
@@ -191,7 +191,7 @@ async function smtp(mode: 'tls' | 'starttls', authFailure = false, silent = fals
           authSecure.push(secured);
           socket.write(
             authFailure
-              ? '535 authentication failed VRX_TEST_PSK_provider\r\n'
+              ? '535 authentication failed NGFW_TEST_PSK_provider\r\n'
               : '235 authenticated\r\n',
           );
         } else if (line.startsWith('MAIL FROM:') || line.startsWith('RCPT TO:'))
@@ -263,7 +263,7 @@ describe('actual local notification sinks with test-only routing and trusted CA'
       await sendNotification(
         email(sink.port, mode),
         '{"kind":"alarm"}',
-        async () => 'VRX_TEST_PSK_fixture',
+        async () => 'NGFW_TEST_PSK_fixture',
         new AbortController().signal,
       );
       expect(sink.messages).toHaveLength(1);
@@ -282,7 +282,7 @@ describe('actual local notification sinks with test-only routing and trusted CA'
       sendNotification(
         email(sink.port, 'starttls'),
         '{}',
-        async () => 'VRX_TEST_PSK_fixture',
+        async () => 'NGFW_TEST_PSK_fixture',
         new AbortController().signal,
       ),
     ).rejects.toMatchObject({ reason: 'smtp-failed', message: 'smtp-failed' });
@@ -298,7 +298,7 @@ describe('actual local notification sinks with test-only routing and trusted CA'
         sendNotification(
           email(sink.port, 'starttls'),
           '{}',
-          async () => 'VRX_TEST_PSK_fixture',
+          async () => 'NGFW_TEST_PSK_fixture',
           abort.signal,
         ),
       ).rejects.toMatchObject({ reason: 'delivery-timeout' });
@@ -314,7 +314,7 @@ describe('actual local notification sinks with test-only routing and trusted CA'
       sendNotification(
         email(sink.port, 'tls'),
         '{}',
-        async () => 'VRX_TEST_PSK_fixture',
+        async () => 'NGFW_TEST_PSK_fixture',
         new AbortController().signal,
       ),
     ).rejects.toMatchObject({ reason: 'smtp-failed' });
@@ -333,10 +333,10 @@ describe('actual local notification sinks with test-only routing and trusted CA'
         request.on('end', () => {
           received.push({
             body,
-            signature: request.headers['x-vrx-signature'] as string | undefined,
+            signature: request.headers['x-ngfw-signature'] as string | undefined,
           });
           response.writeHead(status, { location: 'https://example.invalid/redirect' });
-          response.end('VRX_TEST_PSK_provider');
+          response.end('NGFW_TEST_PSK_provider');
         });
       });
       resolveSink();
@@ -344,7 +344,7 @@ describe('actual local notification sinks with test-only routing and trusted CA'
       const send = sendNotification(
         webhook(port),
         '{"kind":"commit"}',
-        async () => 'VRX_TEST_PSK_fixture',
+        async () => 'NGFW_TEST_PSK_fixture',
         new AbortController().signal,
       );
       if (status === 200) await send;
@@ -359,14 +359,14 @@ describe('actual local notification sinks with test-only routing and trusted CA'
           body: '{"kind":"commit"}',
           signature:
             'sha256=' +
-            createHmac('sha256', 'VRX_TEST_PSK_fixture').update('{"kind":"commit"}').digest('hex'),
+            createHmac('sha256', 'NGFW_TEST_PSK_fixture').update('{"kind":"commit"}').digest('hex'),
         },
       ]);
     },
   );
   it('nondefault VRF and rejected webhook destination never read secrets or open sockets', async () => {
     resolveSink();
-    const secret = vi.fn(async () => 'VRX_TEST_PSK_fixture');
+    const secret = vi.fn(async () => 'NGFW_TEST_PSK_fixture');
     const unsupported = { ...webhook(443), vrf: 'management' } as unknown as NotificationChannel;
     await expect(
       sendNotification(unsupported, '{}', secret, new AbortController().signal),

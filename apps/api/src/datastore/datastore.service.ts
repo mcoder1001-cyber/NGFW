@@ -19,7 +19,7 @@ import {
 import { checkLock, lockInfo, lockOwnerOf, type LockInfo } from './lock.js';
 import type { ConfigRepo, Doc, Revision } from './repo.js';
 
-export const CONFIG_REPO = Symbol('VRX_CONFIG_REPO');
+export const CONFIG_REPO = Symbol('NGFW_CONFIG_REPO');
 
 export interface Running {
   revision: Revision | null;
@@ -53,7 +53,7 @@ export interface EditResult {
 /**
  * Candidate/running datastore (P06 §2). One candidate document, one writer: the first edit takes the lock (owner +
  * timestamp), other users get 409 with the owner until the owner commits or discards, or the lock goes stale
- * (VRX_LOCK_TTL_SEC). Every stored candidate is schema-valid (tier a on the write path); semantic and agent
+ * (NGFW_LOCK_TTL_SEC). Every stored candidate is schema-valid (tier a on the write path); semantic and agent
  * validation run on validate/commit. Nothing here talks to the agent.
  */
 @Injectable()
@@ -67,7 +67,7 @@ export class DatastoreService {
   ) {}
 
   private get ttl(): number {
-    return this.env.VRX_LOCK_TTL_SEC;
+    return this.env.NGFW_LOCK_TTL_SEC;
   }
 
   async getRunning(): Promise<Running> {

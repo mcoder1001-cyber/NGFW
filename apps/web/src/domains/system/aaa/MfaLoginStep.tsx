@@ -141,7 +141,7 @@ export function MfaLoginStep({
                 sx={{
                   display: 'block',
                   wordBreak: 'break-all',
-                  fontFamily: (th) => th.vrx.monoFontFamily,
+                  fontFamily: (th) => th.ngfw.monoFontFamily,
                 }}
               >
                 {enrolment.secret}

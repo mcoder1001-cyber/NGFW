@@ -150,7 +150,7 @@ describe('F-mpls-srmpls e2e (PostgreSQL + fake agent)', () => {
     expect(r.body).toMatchObject({ page: 2, pageSize: 2, total: 6, tableId: 0 }); // 0, 1, 2 (VPP), 50020, binding 50040, BSID 50100
     expect(r.body.items.map((e: { label: number }) => e.label)).toEqual([2, 50020]);
     expect(r.body.tables).toEqual([
-      { tableId: 0, name: 'vrx:0' },
+      { tableId: 0, name: 'ngfw:0' },
       { tableId: 5001, name: `${h.fake.owner}:5001` },
     ]);
     const call = h.fake.calls.filter((x) => x.method === 'MplsState').at(-1);

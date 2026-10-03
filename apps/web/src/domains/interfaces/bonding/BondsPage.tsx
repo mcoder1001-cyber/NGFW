@@ -116,7 +116,7 @@ export function BondsPage() {
         flex: 1,
         renderCell: (p) => (
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
-            <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+            <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
               {p.row.name}
             </Box>
             {p.row.item.hasPendingChange && <Chip size="small" color="warning" variant="outlined" label={t('pending')} />}
@@ -149,7 +149,7 @@ export function BondsPage() {
           const s = p.row.item.state;
           if (!s) {
             return (
-              <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12 }}>
+              <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}>
                 {p.row.members}
               </Box>
             );

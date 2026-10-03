@@ -139,7 +139,7 @@ function columnWorthy(raw: JsonSchema, root: JsonSchema): boolean {
 
 /**
  * Columns of the rule-editor table for an array whose items are `items`: the `itemKey` members first (in key order),
- * then every other column-worthy member in render order (`x-vrx-ui.order`). Long text (textarea), JSON, secrets,
+ * then every other column-worthy member in render order (`x-ngfw-ui.order`). Long text (textarea), JSON, secrets,
  * records and lists of objects stay in the row form only.
  */
 export function tableColumns(items: JsonSchema, arrayHints: UiHints, root: JsonSchema): TableColumn[] {

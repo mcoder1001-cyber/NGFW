@@ -1,9 +1,9 @@
 import { SetMetadata } from '@nestjs/common';
 import type { Role } from '../db/schema.js';
 
-export const PUBLIC_KEY = 'vrx:public';
-export const ROLE_KEY = 'vrx:role';
-export const NO_AUDIT_KEY = 'vrx:no-audit';
+export const PUBLIC_KEY = 'ngfw:public';
+export const ROLE_KEY = 'ngfw:role';
+export const NO_AUDIT_KEY = 'ngfw:no-audit';
 
 /**
  * No authentication. Only login/refresh/logout and liveness use it; the route-guard test pins the exact list, so a

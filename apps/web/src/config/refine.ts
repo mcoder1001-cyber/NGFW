@@ -44,10 +44,10 @@ export function schemaAt(root: Node, pointer: string): Node | undefined {
   return nodes[0];
 }
 
-/** `x-vrx-ui.itemKey` of the array at `pointer` (e.g. `['username']` for `management.users`). */
+/** `x-ngfw-ui.itemKey` of the array at `pointer` (e.g. `['username']` for `management.users`). */
 function itemKeyAt(root: Node, pointer: string): string[] | undefined {
   for (const n of alternatives(schemaAt(root, pointer), root)) {
-    const key = (n['x-vrx-ui'] as { itemKey?: unknown } | undefined)?.itemKey;
+    const key = (n['x-ngfw-ui'] as { itemKey?: unknown } | undefined)?.itemKey;
     if (Array.isArray(key) && key.every((k) => typeof k === 'string')) return key as string[];
   }
   return undefined;
@@ -55,7 +55,7 @@ function itemKeyAt(root: Node, pointer: string): string[] | undefined {
 
 /**
  * P06 diffs treat arrays as leaves (contracts-v1, D-021): a changed `management.users` is ONE `replace` of the whole
- * list. For display, pair the items on the schema's `x-vrx-ui.itemKey` (as packages/schema/src/diff.ts suggests) and
+ * list. For display, pair the items on the schema's `x-ngfw-ui.itemKey` (as packages/schema/src/diff.ts suggests) and
  * show per-item adds/removes/field changes. Pointers of changed/added items use the index in the NEW list, removed
  * items their index in the old one. Arrays without an item key, with duplicate keys or with reordered items stay one
  * `replace`.

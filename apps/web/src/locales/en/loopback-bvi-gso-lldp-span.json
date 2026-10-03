@@ -70,7 +70,7 @@
     "title": "Network delay simulator",
     "lab": "lab tool",
     "intro": "Adds delay, a bandwidth limit and random loss between two interfaces or on the output of interfaces (engine nsim). For lab tests only.",
-    "warning": "The simulator is engine-wide and a lab tool: it is applied only by the agent that owns the engine-global settings AND runs with VRX_NSIM=lab (the API refuses a commit with it otherwise, 409). On an engine with worker threads it needs `nsim { poll-main-thread }` in startup.conf. Configuring it keeps the engine's main thread polling (a busy core) until the engine restarts; the engine cannot read it back or unconfigure it — removing it here only detaches the interfaces.",
+    "warning": "The simulator is engine-wide and a lab tool: it is applied only by the agent that owns the engine-global settings AND runs with NGFW_NSIM=lab (the API refuses a commit with it otherwise, 409). On an engine with worker threads it needs `nsim { poll-main-thread }` in startup.conf. Configuring it keeps the engine's main thread polling (a busy core) until the engine restarts; the engine cannot read it back or unconfigure it — removing it here only detaches the interfaces.",
     "off": "The simulator is not configured.",
     "on": "The simulator is configured.",
     "remove": "Remove simulator",

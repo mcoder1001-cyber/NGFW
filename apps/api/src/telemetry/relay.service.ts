@@ -82,7 +82,7 @@ export const WS_CLOSE = { expired: 4401, revoked: 4403 } as const;
 /**
  * Telemetry relay (P06 §8): one upstream StreamEvents (always, with reconnect/backoff) and one StreamStats (only while
  * some client wants counters) from the agent, fanned out on `WS /api/v1/stream`. Clients send `{subscribe:[topics]}` /
- * `{unsubscribe:[topics]}`; each connection gets only its topics; heartbeats every VRX_WS_HEARTBEAT_MS (JSON message +
+ * `{unsubscribe:[topics]}`; each connection gets only its topics; heartbeats every NGFW_WS_HEARTBEAT_MS (JSON message +
  * WebSocket ping; a client that misses a pong is dropped). Agent events also go to the in-process bus (the commit
  * engine listens for CONFIRM_REVERTED).
  */
@@ -124,7 +124,7 @@ export class RelayService implements OnApplicationShutdown {
     this.started = true;
     this.stopped = false;
     this.openEvents();
-    this.heartbeat = setInterval(() => this.beat(), this.env.VRX_WS_HEARTBEAT_MS);
+    this.heartbeat = setInterval(() => this.beat(), this.env.NGFW_WS_HEARTBEAT_MS);
     this.heartbeat.unref();
   }
 
@@ -305,7 +305,7 @@ export class RelayService implements OnApplicationShutdown {
       type: 'welcome',
       user: principal.username,
       topics: TOPICS,
-      heartbeatMs: this.env.VRX_WS_HEARTBEAT_MS,
+      heartbeatMs: this.env.NGFW_WS_HEARTBEAT_MS,
     });
   }
 

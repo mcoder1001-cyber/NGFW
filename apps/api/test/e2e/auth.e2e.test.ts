@@ -17,9 +17,9 @@ const PW = {
 function refreshCookie(headers: Record<string, unknown>): { value: string; attrs: string } {
   const raw = [headers['set-cookie']]
     .flat()
-    .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
   expect(raw).toBeDefined();
-  const value = raw.split(';')[0]!.slice('vrx_refresh='.length);
+  const value = raw.split(';')[0]!.slice('ngfw_refresh='.length);
   return { value, attrs: raw.toLowerCase() };
 }
 
@@ -28,7 +28,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
   let admin: string;
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '100', VRX_LOGIN_MAX_FAILURES: '10' });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: '100', NGFW_LOGIN_MAX_FAILURES: '10' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op2', role: 'operator', password: PW.op },
@@ -49,7 +49,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
   const breakGlass = () => ({
     db: h.db,
     kv: h.app.get<Valkey>(VALKEY),
-    prefix: h.env.VRX_VALKEY_PREFIX,
+    prefix: h.env.NGFW_VALKEY_PREFIX,
     audit: h.app.get(AuditService),
     events: h.app.get(SystemEventsService),
   });
@@ -94,18 +94,18 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     });
     const first = refreshCookie(l.headers).value;
     const r1 = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-      cookie: `vrx_refresh=${first}`,
+      cookie: `ngfw_refresh=${first}`,
     });
     expect(r1.status).toBe(200);
     const second = refreshCookie(r1.headers).value;
     expect(second).not.toBe(first);
     // replay of the rotated-away token: 401, and the family (incl. the new token) is dead
     const replay = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-      cookie: `vrx_refresh=${first}`,
+      cookie: `ngfw_refresh=${first}`,
     });
     expect(replay.status).toBe(401);
     const r2 = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-      cookie: `vrx_refresh=${second}`,
+      cookie: `ngfw_refresh=${second}`,
     });
     expect(r2.status).toBe(401);
     expect((await h.call(undefined, 'POST', '/api/v1/auth/refresh')).status).toBe(401);
@@ -120,14 +120,14 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     expect(
       (
         await h.call(undefined, 'POST', '/api/v1/auth/logout', undefined, {
-          cookie: `vrx_refresh=${tok}`,
+          cookie: `ngfw_refresh=${tok}`,
         })
       ).status,
     ).toBe(204);
     expect(
       (
         await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-          cookie: `vrx_refresh=${tok}`,
+          cookie: `ngfw_refresh=${tok}`,
         })
       ).status,
     ).toBe(401);
@@ -141,7 +141,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
       current: PW.op,
     });
     expect(k.status).toBe(201);
-    expect(k.body.key).toMatch(/^vrxk_/);
+    expect(k.body.key).toMatch(/^ngfwk_/);
     expect(k.body.role).toBe('readonly');
     const key = k.body.key as string;
     const asKey = (method: 'GET' | 'PATCH', url: string, body?: unknown) =>
@@ -178,7 +178,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
         })
       ).status,
     ).toBe(403);
-    // product rule (VRX_DEV_WEAK_PASSWORDS off): shorter than 12 → 400 on /password, before the current password is
+    // product rule (NGFW_DEV_WEAK_PASSWORDS off): shorter than 12 → 400 on /password, before the current password is
     // checked — a WRONG current, so a 403 here would mean the order changed (and a guess was counted)
     const short = await h.call(ro, 'POST', '/api/v1/auth/password', {
       current: runSecret(),
@@ -269,7 +269,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     expect(
       (
         await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-          cookie: `vrx_refresh=${other}`,
+          cookie: `ngfw_refresh=${other}`,
         })
       ).status,
     ).toBe(401);
@@ -278,7 +278,7 @@ describe('auth e2e (argon2id, JWT + rotating refresh, API keys, lockout, rate li
     expect(
       (
         await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-          cookie: `vrx_refresh=${refreshCookie(l1.headers).value}`,
+          cookie: `ngfw_refresh=${refreshCookie(l1.headers).value}`,
         })
       ).status,
     ).toBe(200);

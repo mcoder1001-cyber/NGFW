@@ -31,7 +31,7 @@ export interface ProblemBody {
   [extension: string]: unknown;
 }
 
-export const PROBLEM_TYPE_BASE = 'https://vrx.dev/problems/';
+export const PROBLEM_TYPE_BASE = 'https://ngfw.dev/problems/';
 
 export class ProblemError extends HttpException {
   constructor(

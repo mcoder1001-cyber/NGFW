@@ -40,7 +40,7 @@ describe('direct generic engine editor', () => {
           type: 'string',
           title: 'Mode',
           enum: ['stable', 'test'],
-          'x-vrx-ui': { enumLabels: { stable: 'Production', test: 'Testing' } },
+          'x-ngfw-ui': { enumLabels: { stable: 'Production', test: 'Testing' } },
         }}
         value="stable"
         onSubmit={onSubmit}

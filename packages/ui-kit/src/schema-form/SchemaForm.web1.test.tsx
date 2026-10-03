@@ -5,7 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import { describe, expect, it, vi } from 'vitest';
 import { directionFor } from '../i18n/index.js';
 import { createTestI18n, renderWithProviders } from '../test-utils.js';
-import { VrxThemeProvider } from '../theme/VrxThemeProvider.js';
+import { NgfwThemeProvider } from '../theme/NgfwThemeProvider.js';
 import { SchemaForm } from './SchemaForm.js';
 import type { JsonSchema } from './types.js';
 
@@ -18,9 +18,9 @@ function renderWithBundles(ui: ReactElement, lang: 'en' | 'fa', bundles: Record<
   return render(ui, {
     wrapper: ({ children }) => (
       <I18nextProvider i18n={i18n}>
-        <VrxThemeProvider mode="light" lang={lang} dir={directionFor(lang)}>
+        <NgfwThemeProvider mode="light" lang={lang} dir={directionFor(lang)}>
           {children}
-        </VrxThemeProvider>
+        </NgfwThemeProvider>
       </I18nextProvider>
     ),
   });
@@ -94,12 +94,12 @@ describe('<SchemaForm> presence of optional objects (P08-questions Q2)', () => {
 const WIDGETS: JsonSchema = {
   type: 'object',
   properties: {
-    ports: { type: 'string', title: 'Ports', pattern: '^(\\d{1,5})(?:-(\\d{1,5}))?$', 'x-vrx-ui': { widget: 'port-range' } },
-    pool: { type: 'string', title: 'Pool', pattern: '^(\\d{1,3}(?:\\.\\d{1,3}){3})(?:-(\\d{1,3}(?:\\.\\d{1,3}){3}))?$', 'x-vrx-ui': { widget: 'ip-range' } },
-    at: { type: 'string', title: 'At', pattern: '^(?:[01]\\d|2[0-3]):[0-5]\\d$', 'x-vrx-ui': { widget: 'time' } },
-    from: { type: 'string', title: 'Valid from', format: 'date-time', 'x-vrx-ui': { widget: 'datetime' } },
-    tz: { type: 'string', title: 'Time zone', 'x-vrx-ui': { widget: 'timezone-picker' } },
-    color: { type: 'string', title: 'Colour', pattern: '^#[0-9a-fA-F]{6}$', 'x-vrx-ui': { widget: 'color' } },
+    ports: { type: 'string', title: 'Ports', pattern: '^(\\d{1,5})(?:-(\\d{1,5}))?$', 'x-ngfw-ui': { widget: 'port-range' } },
+    pool: { type: 'string', title: 'Pool', pattern: '^(\\d{1,3}(?:\\.\\d{1,3}){3})(?:-(\\d{1,3}(?:\\.\\d{1,3}){3}))?$', 'x-ngfw-ui': { widget: 'ip-range' } },
+    at: { type: 'string', title: 'At', pattern: '^(?:[01]\\d|2[0-3]):[0-5]\\d$', 'x-ngfw-ui': { widget: 'time' } },
+    from: { type: 'string', title: 'Valid from', format: 'date-time', 'x-ngfw-ui': { widget: 'datetime' } },
+    tz: { type: 'string', title: 'Time zone', 'x-ngfw-ui': { widget: 'timezone-picker' } },
+    color: { type: 'string', title: 'Colour', pattern: '^#[0-9a-fA-F]{6}$', 'x-ngfw-ui': { widget: 'color' } },
   },
   additionalProperties: false,
 };
@@ -217,15 +217,15 @@ describe('<SchemaForm> structured-string widgets', () => {
 const RTL_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    description: { type: 'string', title: 'Description', 'x-vrx-ui': { widget: 'textarea' } },
+    description: { type: 'string', title: 'Description', 'x-ngfw-ui': { widget: 'textarea' } },
     label: { type: 'string', title: 'Label', maxLength: 63 },
-    vrf: { type: 'string', title: 'VRF', 'x-vrx-ui': { widget: 'vrf-picker' } },
+    vrf: { type: 'string', title: 'VRF', 'x-ngfw-ui': { widget: 'vrf-picker' } },
     object: { type: 'string', title: 'Object', pattern: '^[A-Za-z0-9][A-Za-z0-9_.-]*$' },
     host: { type: 'string', title: 'Host', format: 'hostname' },
-    ports: { type: 'string', title: 'Ports', 'x-vrx-ui': { widget: 'port-range', help: '443 or 8000-8080' } },
-    at: { type: 'string', title: 'At', 'x-vrx-ui': { widget: 'time' } },
-    prefixes: { type: 'array', title: 'Prefixes', items: { type: 'string', format: 'cidrv6', 'x-vrx-ui': { widget: 'cidr' } }, 'x-vrx-ui': { widget: 'chips' } },
-    tags: { type: 'array', title: 'Tags', items: { type: 'string' }, 'x-vrx-ui': { widget: 'tag-picker' } },
+    ports: { type: 'string', title: 'Ports', 'x-ngfw-ui': { widget: 'port-range', help: '443 or 8000-8080' } },
+    at: { type: 'string', title: 'At', 'x-ngfw-ui': { widget: 'time' } },
+    prefixes: { type: 'array', title: 'Prefixes', items: { type: 'string', format: 'cidrv6', 'x-ngfw-ui': { widget: 'cidr' } }, 'x-ngfw-ui': { widget: 'chips' } },
+    tags: { type: 'array', title: 'Tags', items: { type: 'string' }, 'x-ngfw-ui': { widget: 'tag-picker' } },
   },
 };
 
@@ -257,8 +257,8 @@ describe('<SchemaForm> RTL-1', () => {
     const schema: JsonSchema = {
       type: 'object',
       properties: {
-        mtu: { type: 'integer', title: 'MTU', 'x-vrx-ui': { help: 'MTU لایه‌ی ۳ به بایت (۶۸ تا ۹۲۱۶)؛ خالی = مقدار پیش‌فرض درایور' } },
-        rxMode: { type: 'string', title: 'RX mode', enum: ['polling', 'interrupt'], 'x-vrx-ui': { help: 'polling (پیش‌فرض DPDK)، interrupt یا adaptive' } },
+        mtu: { type: 'integer', title: 'MTU', 'x-ngfw-ui': { help: 'MTU لایه‌ی ۳ به بایت (۶۸ تا ۹۲۱۶)؛ خالی = مقدار پیش‌فرض درایور' } },
+        rxMode: { type: 'string', title: 'RX mode', enum: ['polling', 'interrupt'], 'x-ngfw-ui': { help: 'polling (پیش‌فرض DPDK)، interrupt یا adaptive' } },
       },
     };
     renderWithProviders(<SchemaForm schema={schema} value={{}} onSubmit={() => {}} />, { lang: 'fa' });
@@ -278,8 +278,8 @@ describe('<SchemaForm> RTL-1', () => {
 const I18N_SCHEMA: JsonSchema = {
   type: 'object',
   properties: {
-    role: { type: 'string', title: 'Role', enum: ['admin', 'operator'], 'x-vrx-ui': { group: 'Security' } },
-    scope: { type: 'string', title: 'Scope', 'x-vrx-ui': { group: 'Security', help: 'Untranslated help' } },
+    role: { type: 'string', title: 'Role', enum: ['admin', 'operator'], 'x-ngfw-ui': { group: 'Security' } },
+    scope: { type: 'string', title: 'Scope', 'x-ngfw-ui': { group: 'Security', help: 'Untranslated help' } },
     auth: {
       title: 'Authentication',
       oneOf: [
@@ -290,7 +290,7 @@ const I18N_SCHEMA: JsonSchema = {
     rules: {
       type: 'array',
       title: 'Rules',
-      'x-vrx-ui': { widget: 'rule-editor' },
+      'x-ngfw-ui': { widget: 'rule-editor' },
       items: {
         type: 'object',
         properties: { action: { type: 'string', title: 'Action', enum: ['permit', 'deny'] } },
@@ -344,7 +344,7 @@ const USERS: JsonSchema = {
     users: {
       type: 'array',
       title: 'Users',
-      'x-vrx-ui': { itemKey: ['username'] },
+      'x-ngfw-ui': { itemKey: ['username'] },
       items: {
         type: 'object',
         title: 'User',
@@ -395,13 +395,13 @@ const ACL: JsonSchema = {
     rules: {
       type: 'array',
       title: 'Rules',
-      'x-vrx-ui': { widget: 'rule-editor' },
+      'x-ngfw-ui': { widget: 'rule-editor' },
       items: {
         type: 'object',
         title: 'ACL rule',
         properties: {
           sequence: { type: 'integer', title: 'Sequence', minimum: 1 },
-          description: { type: 'string', title: 'Description', 'x-vrx-ui': { widget: 'textarea' } },
+          description: { type: 'string', title: 'Description', 'x-ngfw-ui': { widget: 'textarea' } },
           action: { type: 'string', title: 'Action', enum: ['permit', 'deny'] },
           source: {
             title: 'Source',

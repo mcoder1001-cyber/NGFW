@@ -39,6 +39,7 @@ import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored
 import { pkiFeature } from './features/pki/index.js';
 // wave-BC: F-ikev2-native
 // wave-BC: F-ospf
+import { ospfFeature } from './features/ospf/index.js';
 // wave-BC: F-isis-rip
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
@@ -168,6 +169,7 @@ export class AppModule {
         ...pkiFeature.controllers,
         // wave-BC: F-ikev2-native
         // wave-BC: F-ospf
+        ...ospfFeature.controllers,
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls

@@ -915,6 +915,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/ospf': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bounded observed OSPFv2 neighbors; unavailable readers are explicit */
+    get: operations['Ospf_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/mpls/fib': {
     parameters: {
       query?: never;
@@ -14499,6 +14516,83 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ospf_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            retrievedAt: string | null;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            warning: 'routing-observation-partial' | null;
+            truncated: boolean;
+            neighbors: {
+              vrf: string;
+              routerId: string;
+              address: string | null;
+              interface: string | null;
+              /** @description Observed FRR adjacency state, or Unknown */
+              state: string;
+              priority: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

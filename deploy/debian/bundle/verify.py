@@ -23,7 +23,7 @@ PRODUCT = {'vrx-agent', 'vrx-api', 'vrx-web', 'vrx-meta'}
 # The portable full-runtime profile needs P11's product plugin package even
 # while vrx-meta only Recommends it. Upstream strongSwan is not a substitute.
 REQUIRED_VPN = {'vrx-strongswan'}
-TERM = re.compile(r'([a-z0-9][a-z0-9+.-]+)'
+TERM = re.compile(r'([a-z0-9][a-z0-9+.-]+(?::any)?)'
                   r'(?:\s*\((<<|<=|=|>=|>>)\s*([^()\s]+)\))?')
 MAX_PACKAGES = 4096
 MAX_CONTROL = 65536
@@ -68,7 +68,7 @@ def run(argv, limit=1024 * 1024, pass_fds=()):
         process.stdout.close()
 
 
-def relations(value):
+def relations(value, allow_any=False):
     if len(value) > MAX_CONTROL or len(value.split(',')) > 256:
         raise InvalidBundle('dependency relationship count exceeds bound')
     groups = []
@@ -80,7 +80,7 @@ def relations(value):
             raise InvalidBundle('dependency alternatives exceed bound')
         for term in group.split('|'):
             match = TERM.fullmatch(term.strip())
-            if not match:
+            if not match or (match.group(1).endswith(':any') and not allow_any):
                 raise InvalidBundle(f'unsupported Debian relationship: {term!r}')
             alternatives.append(match.groups())
             if match.group(3):
@@ -195,13 +195,27 @@ def validate_set(packages, required):
             providers.setdefault(provided, []).append((name, version))
     def satisfied(term, excluding=None):
         name, operator, wanted = term
+        if name.endswith(':any'):
+            direct = packages.get(name[:-4])
+            if direct is None:
+                return False
+            fields = direct['fields']
+            return (name[:-4] != excluding and fields.get('Multi-Arch') == 'allowed'
+                    and fields['Architecture'] in ('amd64', 'all') and (
+                        not operator or matches(fields['Version'], operator, wanted)))
         return any(owner != excluding and (not operator or (
             version is not None and matches(version, operator, wanted)))
                    for owner, version in providers.get(name, []))
     for name, package in packages.items():
         fields = package['fields']
         for kind in ('Pre-Depends', 'Depends'):
-            for group in relations(fields.get(kind, '')):
+            for group in relations(fields.get(kind, ''), allow_any=True):
+                # Qualified virtual dependencies are deliberately unsupported.
+                # Do not accidentally accept them via an earlier alternative.
+                for term in group:
+                    if (term[0].endswith(':any') and term[0][:-4] not in packages
+                            and term[0][:-4] in providers):
+                        raise InvalidBundle('qualified virtual dependency is unsupported')
                 if not any(satisfied(term) for term in group):
                     raise InvalidBundle(f'{name}: unresolved {kind}: {group}')
         for kind in ('Conflicts', 'Breaks'):

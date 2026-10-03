@@ -40,8 +40,18 @@ names, foreign architectures, symlinked archive paths, unresolved versioned
 dependencies, declared conflicts/breaks and unsupported relationship syntax
 fail closed. Versioned virtual `Provides` and dependency alternatives are
 supported. Architecture/profile-restricted relationships and non-amd64 package
-sets require a separate supported implementation. Explicit architecture qualifiers
-such as `:any` and `:native` are also rejected; no Multi-Arch resolution is claimed.
+sets require a separate supported implementation. In `Depends` and `Pre-Depends`,
+a direct real-package `:any` dependency is supported only when the named package
+in this amd64/all bundle declares exactly `Multi-Arch: allowed` and satisfies
+its version constraint. `foreign`, `same`, `no`, absent or unknown Multi-Arch
+values cannot authorize `:any`. This follows [Debian Policy §5.6.34.4](https://www.debian.org/doc/debian-policy/ch-controlfields.html#multi-arch-allowed).
+
+Qualified virtual dependencies remain unsupported and are rejected even when
+another alternative could satisfy the relationship. Unqualified versioned
+virtual dependencies retain their existing behavior. `:any` in `Provides`,
+`Conflicts` or `Breaks`, explicit foreign/native architecture qualifiers,
+`:native`, architecture restrictions and build profiles are rejected. No
+cross-architecture installation or general Multi-Arch solver is claimed.
 Inspection uses a private archive snapshot with bounded output, archive count,
 sizes and relationship count. Source replacement during inspection is rejected.
 Files can change afterwards: the installer below takes its own private snapshot

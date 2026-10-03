@@ -27,7 +27,7 @@ import { srv6Field } from './ext/srv6.js';
 
 /**
  * `routing` — static routes, the routing-policy skeleton (prefix-lists, route-maps) and the dynamic protocols
- * (docs/04-api-datamodel.md; WBS D2.2, D3.x). Static routes and BFD are programmed in VPP by vrx-agent; bgp / ospf /
+ * (docs/04-api-datamodel.md; WBS D2.2, D3.x). Static routes and BFD are programmed in VPP by ngfw-agent; bgp / ospf /
  * isis / rip are rendered into FRR configuration. Each protocol is a typed object that is *absent* when the
  * protocol is not enabled — `{}` is a valid, empty routing section.
  *

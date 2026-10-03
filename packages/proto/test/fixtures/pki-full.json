@@ -12,8 +12,8 @@
           "ocspUrl": "http://localhost.localdomain:3561/ocsp",
           "keySpec": { "type": "ecdsa", "curve": "p384" },
           "issued": {
-            "subject": "CN=w5 root CA, O=VRX test",
-            "issuer": "CN=w5 root CA, O=VRX test",
+            "subject": "CN=w5 root CA, O=NGFW test",
+            "issuer": "CN=w5 root CA, O=NGFW test",
             "serial": "4A:1F:00:9C:22:7E:51:03",
             "notBefore": "2026-10-01T00:00:00.000Z",
             "notAfter": "2036-09-29T00:00:00.000Z",
@@ -30,13 +30,13 @@
           "ca": "w5-root",
           "expiryAlertDays": 21,
           "csr": {
-            "subject": "CN=gw.w5.example, O=VRX test, C=CH",
+            "subject": "CN=gw.w5.example, O=NGFW test, C=CH",
             "san": ["gw.w5.example", "10.5.250.1", "*.vpn.w5.example", "ops@w5.example"],
             "keySpec": { "type": "rsa", "bits": 3072 }
           },
           "issued": {
-            "subject": "CN=gw.w5.example, O=VRX test, C=CH",
-            "issuer": "CN=w5 root CA, O=VRX test",
+            "subject": "CN=gw.w5.example, O=NGFW test, C=CH",
+            "issuer": "CN=w5 root CA, O=NGFW test",
             "serial": "01:7F",
             "notBefore": "2026-10-01T00:00:00.000Z",
             "notAfter": "2027-10-01T00:00:00.000Z",

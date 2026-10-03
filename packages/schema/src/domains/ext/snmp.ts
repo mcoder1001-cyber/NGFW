@@ -24,7 +24,7 @@ export const SNMP_SYMBOLIC_OIDS = [
 ] as const;
 
 /** Name of the built-in all-OIDs view the renderer gives every community / user without a view. */
-export const SNMP_DEFAULT_VIEW = 'vrx_all';
+export const SNMP_DEFAULT_VIEW = 'ngfw_all';
 
 const oidRe = /^\.?[0-9]{1,10}(?:\.[0-9]{1,10}){0,63}$/;
 
@@ -77,9 +77,9 @@ export const SnmpMonitorsSchema = z.strictObject({
 
 export const SnmpSubagentSchema = z.strictObject({
   enabled: withUi(z.boolean().default(true), {
-    title: 'VRX-MIB subagent',
+    title: 'NGFW-MIB subagent',
     widget: 'switch',
-    help: 'Serve engine interface counters and agent health (VRX-MIB) through AgentX',
+    help: 'Serve engine interface counters and agent health (NGFW-MIB) through AgentX',
   }),
 });
 
@@ -94,7 +94,7 @@ export const snmpSysServicesField = withUi(z.number().int().min(0).max(127), {
 }).optional();
 export const snmpMonitorsField = withUi(SnmpMonitorsSchema, { title: 'Monitors' }).optional();
 export const snmpSubagentField = withUi(SnmpSubagentSchema, {
-  title: 'Private MIB (VRX-MIB)',
+  title: 'Private MIB (NGFW-MIB)',
   help: 'Absent = enabled',
 }).optional();
 export const snmpViewRefField = withUi(snmpViewName, {

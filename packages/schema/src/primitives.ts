@@ -291,7 +291,7 @@ export const secretRef = secretRefOf(SECRET_KINDS);
 
 /**
  * Password hash in modular-crypt / PHC format (`$argon2id$…`, `$6$…`, `$2b$…`). Write-only: the API accepts
- * it and never returns it; fixtures use the placeholder `$vrx-test$VRX_TEST_HASH_<id>`.
+ * it and never returns it; fixtures use the placeholder `$ngfw-test$NGFW_TEST_HASH_<id>`.
  */
 export const passwordHash = withUi(
   z

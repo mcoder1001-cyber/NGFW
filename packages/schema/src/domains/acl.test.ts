@@ -43,9 +43,9 @@ describe('AclSchema', () => {
   it('exposes UI hints', () => {
     const js = z.toJSONSchema(AclSchema, { target: 'draft-2020-12', io: 'input' });
     expect(js.title).toBe('ACL');
-    expect(js['x-vrx-ui']).toMatchObject({ order: 80 });
+    expect(js['x-ngfw-ui']).toMatchObject({ order: 80 });
     const props = js.properties as Record<string, Record<string, unknown>>;
-    expect(props.attachments?.['x-vrx-ui']).toMatchObject({ group: 'Attachments' });
+    expect(props.attachments?.['x-ngfw-ui']).toMatchObject({ group: 'Attachments' });
   });
 });
 
@@ -227,7 +227,7 @@ describe('attachments', () => {
 
 type JsonNode = Record<string, unknown>;
 
-/** JSON pointers of every node that carries `x-vrx-ui` and an address/prefix `format` but no `widget` (review H1). */
+/** JSON pointers of every node that carries `x-ngfw-ui` and an address/prefix `format` but no `widget` (review H1). */
 function leavesWithoutWidget(root: unknown): string[] {
   const out: string[] = [];
   const walk = (n: unknown, path: string): void => {
@@ -237,7 +237,7 @@ function leavesWithoutWidget(root: unknown): string[] {
       return;
     }
     const node = n as JsonNode;
-    const ui = node['x-vrx-ui'] as { widget?: string } | undefined;
+    const ui = node['x-ngfw-ui'] as { widget?: string } | undefined;
     const anyOf = node.anyOf as JsonNode[] | undefined;
     const formatted =
       typeof node.format === 'string' ||
@@ -261,7 +261,7 @@ describe('acl leaf UI hints survive re-wrapping (review H1)', () => {
   it('keeps widget/help of re-wrapped primitives on leaf fields', () => {
     expect(
       at(js, '/properties/macip/additionalProperties/properties/rules/items/properties/sourceMac')[
-        'x-vrx-ui'
+        'x-ngfw-ui'
       ],
       '/properties/macip/additionalProperties/properties/rules/items/properties/sourceMac',
     ).toMatchObject({ widget: 'mac' });
@@ -269,11 +269,11 @@ describe('acl leaf UI hints survive re-wrapping (review H1)', () => {
       at(
         js,
         '/properties/macip/additionalProperties/properties/rules/items/properties/sourceMacMask',
-      )['x-vrx-ui'],
+      )['x-ngfw-ui'],
       '/properties/macip/additionalProperties/properties/rules/items/properties/sourceMacMask',
     ).toMatchObject({ widget: 'mac', help: expect.any(String) });
     expect(
-      at(js, '/properties/attachments/items/properties/sequence')['x-vrx-ui'],
+      at(js, '/properties/attachments/items/properties/sequence')['x-ngfw-ui'],
       '/properties/attachments/items/properties/sequence',
     ).toMatchObject({ help: expect.any(String) });
   });

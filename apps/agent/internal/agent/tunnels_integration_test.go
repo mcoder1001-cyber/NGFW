@@ -140,6 +140,7 @@ func TestTunnelsOnDisposableVPP(t *testing.T) {
 	if len(got.GetGre())+len(got.GetIpip())+len(got.GetVxlan()) != 0 {
 		t.Fatal("rollback metadata residue", protojson.Format(got))
 	}
+	//nolint:gosec // Read only generated fixture filenames under this test's private state directory.
 	raw, err := os.ReadFile(filepath.Join(cfg.StateDir, "tunnels-meta-"+owner+".json"))
 	if err != nil {
 		t.Fatal(err)

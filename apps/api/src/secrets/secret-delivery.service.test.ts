@@ -2,6 +2,7 @@ import { DesiredState } from '@ngfw/proto';
 import { createCipheriv, randomBytes } from 'node:crypto';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Db } from '../db/db.js';
 import { testEnv } from '../testing/fixtures.js';
@@ -22,7 +23,7 @@ const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })));
 
 function setup(rows: unknown[][], payload = randomBytes(24).toString('hex')) {
-  const dir = mkdtempSync('/run/ngfw-secret-delivery-test-');
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-secret-delivery-test-'));
   dirs.push(dir);
   const key = randomBytes(32);
   const file = join(dir, 'master');

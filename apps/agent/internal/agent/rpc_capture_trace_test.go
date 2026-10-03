@@ -50,6 +50,7 @@ func TestCaptureRecoveryAtConnectWithoutRPC(t *testing.T) {
 	if err := s.recoverCaptures(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	//nolint:gosec // Read only generated fixture filenames under this test's private state directory.
 	data, err := os.ReadFile(filepath.Join(dir, record.ID+".json"))
 	if err != nil {
 		t.Fatal(err)

@@ -2,6 +2,7 @@ import { type ApplyRequest, DesiredState, type DryRunRequest } from '@ngfw/proto
 import { randomBytes } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { SecretDeliveryService } from '../secrets/secret-delivery.service.js';
 import { FakeAgent } from '../testing/fake-agent.js';
@@ -9,7 +10,7 @@ import { testEnv } from '../testing/fixtures.js';
 import { AgentClient } from './agent.client.js';
 
 describe('socket-only secret bundle', () => {
-  const dir = mkdtempSync('/run/ngfw-secret-socket-test-');
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-secret-socket-test-'));
   const socket = join(dir, 'agent.sock');
   const fake = new FakeAgent({ owner: 'w1' });
   const bundle = { values: { 'psk/native': randomBytes(32) } };

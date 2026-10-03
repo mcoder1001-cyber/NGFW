@@ -71,6 +71,7 @@ func TestSecretSnapshotsFollowApplyConfirmRevertAndRestart(t *testing.T) {
 		t.Fatal(e)
 	}
 	for _, name := range []string{"agent-state.json", "desired.pb"} {
+		//nolint:gosec // Read only generated fixture filenames under this test's private state directory.
 		raw, e := os.ReadFile(filepath.Join(dir, name))
 		if e != nil {
 			t.Fatal(e)

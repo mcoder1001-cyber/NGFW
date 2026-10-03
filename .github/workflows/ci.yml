@@ -77,6 +77,26 @@ jobs:
             args+=(--base origin/main)
           fi
           tools/ci.sh "${args[@]}"
+      - name: Capture actual notification generator outputs
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm gen
+          make -C apps/cli gen
+          mkdir -p "$RUNNER_TEMP/notification-generated/packages/api-client/src/generated" "$RUNNER_TEMP/notification-generated/apps/cli/internal/api" "$RUNNER_TEMP/notification-generated/packages/yang/generated"
+          cp packages/api-client/src/generated/schema.d.ts "$RUNNER_TEMP/notification-generated/packages/api-client/src/generated/"
+          cp packages/api-client/openapi.json "$RUNNER_TEMP/notification-generated/packages/api-client/"
+          cp apps/cli/internal/api/operations_gen.go "$RUNNER_TEMP/notification-generated/apps/cli/internal/api/"
+          cp packages/yang/generated/vrx-management.yang "$RUNNER_TEMP/notification-generated/packages/yang/generated/"
+      - name: Upload generated notification recovery files
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: notification-generated-${{ github.run_id }}
+          path: ${{ runner.temp }}/notification-generated
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload gate logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

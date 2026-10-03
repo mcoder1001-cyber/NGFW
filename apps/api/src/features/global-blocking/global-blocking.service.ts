@@ -1,7 +1,9 @@
+import { Bus } from '../../infra/bus.js';
 import {
   Inject,
   Injectable,
   Logger,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
@@ -107,6 +109,7 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
     @Inject(DB) private readonly db: Db,
     @Inject(VALKEY) private readonly kv: Valkey,
     @Inject(CONFIG_REPO) private readonly repo: ConfigRepo,
+    @Optional() private readonly notificationBus?: Bus,
   ) {}
 
   onModuleInit(): void {
@@ -421,6 +424,10 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
       lastFetchAt: this.now().toISOString(),
       lastResult: 'failed',
       lastError: why,
+    });
+    this.notificationBus?.publish('security.events', {
+      type: 'global-blocking-fetch-failed',
+      list: name,
     });
     await this.events.record(
       'warning',

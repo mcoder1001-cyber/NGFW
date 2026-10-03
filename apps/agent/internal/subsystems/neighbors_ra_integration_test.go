@@ -11,7 +11,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_neighbor"
 	"ngfw/agent/binapi/vlib"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/descriptors/df2/df2test"
 	"ngfw/agent/internal/vpp"
@@ -27,13 +27,13 @@ func cli(t *testing.T, c vpp.Client, cmd string) string {
 	return r.Reply
 }
 
-// TestNeighborWatchOnHost (VRX_INTEGRATION=1, host VPP): the watcher subscribes to want_ip_neighbor_events_v2 one
+// TestNeighborWatchOnHost (NGFW_INTEGRATION=1, host VPP): the watcher subscribes to want_ip_neighbor_events_v2 one
 // interface at a time — the watcher table (`show ip neighbor-watcher`) shows our pid on our loopback's sw_if_index, never
 // on ~0 — and a neighbour learned on (here: added to) that interface arrives as ONE coalesced EVENT_KIND_NEIGHBOR_CHANGED
 // with the interface's logical name; its removal as another. The product agent publishes these once TD-8 wires
 // Env.Publish (questions Q3); this test drives the same RunNeighborWatch with its own sink.
 func TestNeighborWatchOnHost(t *testing.T) {
-	c := df2test.Connect(t) // skips unless VRX_INTEGRATION=1; shared lab lock for the run
+	c := df2test.Connect(t) // skips unless NGFW_INTEGRATION=1; shared lab lock for the run
 	owner := vpptest.Prefix(t)
 	name, idx := df2test.Loopback(t, c, 71)
 	df2test.AddAddress(t, c, idx, fmt.Sprintf("10.%d.71.1/24", vpptest.Slot(t)))
@@ -73,7 +73,7 @@ func TestNeighborWatchOnHost(t *testing.T) {
 	if _, err := svc.IPNeighborAddDel(df2test.Ctx(t), &ip_neighbor.IPNeighborAddDel{IsAdd: true, Neighbor: nb}); err != nil {
 		t.Fatal(err)
 	}
-	wait := func(what string, cond func([]*vrxv1.Event) bool) []*vrxv1.Event {
+	wait := func(what string, cond func([]*ngfwv1.Event) bool) []*ngfwv1.Event {
 		t.Helper()
 		deadline := time.Now().Add(10 * time.Second)
 		for time.Now().Before(deadline) {
@@ -85,15 +85,15 @@ func TestNeighborWatchOnHost(t *testing.T) {
 		t.Fatalf("timed out waiting for %s: %v", what, got.snapshot())
 		return nil
 	}
-	evs := wait("the ADDED event", func(evs []*vrxv1.Event) bool { return len(evs) >= 1 })
-	if e := evs[0]; e.GetInterface() != name || e.GetAttributes()["added"] != "1" || e.GetKind() != vrxv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED {
+	evs := wait("the ADDED event", func(evs []*ngfwv1.Event) bool { return len(evs) >= 1 })
+	if e := evs[0]; e.GetInterface() != name || e.GetAttributes()["added"] != "1" || e.GetKind() != ngfwv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED {
 		t.Fatalf("event %v", e)
 	}
 	t.Logf("event: kind=%s interface=%s message=%q attributes=%v", evs[0].GetKind(), evs[0].GetInterface(), evs[0].GetMessage(), evs[0].GetAttributes())
 	if _, err := svc.IPNeighborAddDel(df2test.Ctx(t), &ip_neighbor.IPNeighborAddDel{IsAdd: false, Neighbor: nb}); err != nil {
 		t.Fatal(err)
 	}
-	evs = wait("the REMOVED event", func(evs []*vrxv1.Event) bool {
+	evs = wait("the REMOVED event", func(evs []*ngfwv1.Event) bool {
 		for _, e := range evs {
 			if e.GetAttributes()["removed"] == "1" {
 				return true

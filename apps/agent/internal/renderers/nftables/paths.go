@@ -22,20 +22,20 @@ const (
 	ModeCheck = "check"
 )
 
-// ProductTable is the table of the product agent (owner "vrx").
-const ProductTable = "vrx"
+// ProductTable is the table of the product agent (owner "ngfw").
+const ProductTable = "ngfw"
 
 // Environment of the host firewall (read once when the agent wires the family).
 const (
 	// EnvMode forces a mode: "apply" | "netns" | "check".
-	EnvMode = "VRX_HOST_ACL_MODE"
+	EnvMode = "NGFW_HOST_ACL_MODE"
 	// EnvNetns names the network namespace of mode netns ("ns-<prefix>-…").
-	EnvNetns = "VRX_HOST_ACL_NETNS"
+	EnvNetns = "NGFW_HOST_ACL_NETNS"
 )
 
 // Paths is where and how one owner's host firewall lives.
 type Paths struct {
-	// Table is the nftables table name in family inet ("vrx"; tests "vrx_<prefix>").
+	// Table is the nftables table name in family inet ("ngfw"; tests "ngfw_<prefix>").
 	Table string
 	// Mode is ModeApply, ModeNetns or ModeCheck.
 	Mode string
@@ -48,13 +48,13 @@ type Paths struct {
 }
 
 var (
-	tableRe = regexp.MustCompile(`^vrx(_[A-Za-z0-9_-]{1,24})?$`)
+	tableRe = regexp.MustCompile(`^ngfw(_[A-Za-z0-9_-]{1,24})?$`)
 	netnsRe = regexp.MustCompile(`^ns-[A-Za-z0-9]{1,6}-[A-Za-z0-9_-]{1,16}$`)
 	ownerRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,24}$`)
 )
 
-// TableFor is the table of owner: "vrx" for the product owner "vrx", "vrx_<owner>" for a test slot
-// ("vrx_<hash>" when the owner has characters an nft identifier cannot carry).
+// TableFor is the table of owner: "ngfw" for the product owner "ngfw", "ngfw_<owner>" for a test slot
+// ("ngfw_<hash>" when the owner has characters an nft identifier cannot carry).
 func TableFor(owner string) string {
 	if owner == ProductTable {
 		return ProductTable
@@ -69,7 +69,7 @@ func TableFor(owner string) string {
 // ProductPaths are the paths of owner's host firewall with its files in stateDir: mode apply only for the
 // product owner that is also the globals owner (D-071: the root-netns firewall is a host-wide singleton,
 // like VPP's globals; fix round 1, H2), mode check for everyone else — a slot agent, and a product stack
-// on a shared host that runs with VRX_GLOBALS_OWNER=0 (tools/app), never touch the root netns.
+// on a shared host that runs with NGFW_GLOBALS_OWNER=0 (tools/app), never touch the root netns.
 func ProductPaths(stateDir, owner string, globalsOwner bool) Paths {
 	p := Paths{
 		Table:     TableFor(owner),
@@ -83,7 +83,7 @@ func ProductPaths(stateDir, owner string, globalsOwner bool) Paths {
 	return p
 }
 
-// TestPaths are the paths of a test slot (prefix "w9"): table vrx_<prefix> inside the namespace netns,
+// TestPaths are the paths of a test slot (prefix "w9"): table ngfw_<prefix> inside the namespace netns,
 // files in dir.
 func TestPaths(prefix, netns, dir string) Paths {
 	return Paths{
@@ -97,7 +97,7 @@ func TestPaths(prefix, netns, dir string) Paths {
 
 // PathsFromEnv are ProductPaths adjusted by EnvMode and EnvNetns:
 //   - EnvNetns set → mode netns in that namespace (any owner);
-//   - EnvMode=check → mode check; EnvMode=apply is refused for any owner but "vrx" and without the
+//   - EnvMode=check → mode check; EnvMode=apply is refused for any owner but "ngfw" and without the
 //     globals owner (the root netns of a shared host is never a test slot's, nor a non-globals agent's,
 //     to change);
 //   - nothing set → ProductPaths.
@@ -121,7 +121,7 @@ func PathsFromEnv(stateDir, owner string, globalsOwner bool) (Paths, error) {
 			return p, fmt.Errorf("%s=apply is only for the product owner %q (owner %q): use %s", EnvMode, ProductTable, owner, EnvNetns)
 		}
 		if !globalsOwner {
-			return p, fmt.Errorf("%s=apply needs the globals owner (VRX_GLOBALS_OWNER): the root-netns firewall is host-wide (D-071)", EnvMode)
+			return p, fmt.Errorf("%s=apply needs the globals owner (NGFW_GLOBALS_OWNER): the root-netns firewall is host-wide (D-071)", EnvMode)
 		}
 		if ns != "" {
 			return p, fmt.Errorf("%s=apply contradicts %s=%s", EnvMode, EnvNetns, ns)
@@ -138,7 +138,7 @@ func PathsFromEnv(stateDir, owner string, globalsOwner bool) (Paths, error) {
 func (p Paths) Validate(owner string, globalsOwner bool) error {
 	switch {
 	case !tableRe.MatchString(p.Table):
-		return fmt.Errorf("nftables: table name %q is not vrx or vrx_<prefix>", p.Table)
+		return fmt.Errorf("nftables: table name %q is not ngfw or ngfw_<prefix>", p.Table)
 	case p.Mode == ModeNetns && !netnsRe.MatchString(p.Netns):
 		return fmt.Errorf("nftables: namespace %q is not ns-<prefix>-<name>", p.Netns)
 	case p.Mode != ModeNetns && p.Netns != "":

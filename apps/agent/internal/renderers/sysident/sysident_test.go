@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -36,15 +36,15 @@ func testPaths(t *testing.T) Paths {
 	return p
 }
 
-func sample() *vrxv1.SystemConfig {
-	return &vrxv1.SystemConfig{
-		Hostname: proto.String("vrx-a.lab.example"),
+func sample() *ngfwv1.SystemConfig {
+	return &ngfwv1.SystemConfig{
+		Hostname: proto.String("ngfw-a.lab.example"),
 		Timezone: proto.String("Asia/Tehran"),
-		Banner: &vrxv1.SystemBanner{
+		Banner: &ngfwv1.SystemBanner{
 			Login: proto.String("Authorised access only.\n\tLab w10"),
-			Motd:  proto.String("Welcome to vrx-a\n"),
+			Motd:  proto.String("Welcome to ngfw-a\n"),
 		},
-		Dns: &vrxv1.SystemDns{
+		Dns: &ngfwv1.SystemDns{
 			Servers:       []string{"10.10.53.1", "2001:db8::53"},
 			SearchDomains: []string{"lab.example", "corp.example"},
 			Vrf:           proto.String("default"),
@@ -68,7 +68,7 @@ func TestRenderGolden(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, path := range map[string]string{
-		"hostname": p.Hostname, "issue": p.Issue, "issue.net": p.IssueNet, "motd": p.Motd, "resolved-vrx.conf": p.ResolvedDropIn,
+		"hostname": p.Hostname, "issue": p.Issue, "issue.net": p.IssueNet, "motd": p.Motd, "resolved-ngfw.conf": p.ResolvedDropIn,
 	} {
 		got, err := os.ReadFile(path) //nolint:gosec // temp rig
 		if err != nil {
@@ -102,7 +102,7 @@ func TestUnchangedWritesNothing(t *testing.T) {
 	p.SetKernelHostname = true
 	d, kernel := newDesc(p)
 	ch, err := d.apply(Input(sample()))
-	if err != nil || len(ch.Files) != 5 || !ch.Localtime || !ch.Kernel || *kernel != "vrx-a.lab.example" {
+	if err != nil || len(ch.Files) != 5 || !ch.Localtime || !ch.Kernel || *kernel != "ngfw-a.lab.example" {
 		t.Fatalf("first apply %+v %v kernel=%q", ch, err, *kernel)
 	}
 	fi, _ := os.Stat(p.Hostname)
@@ -129,7 +129,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	ctx := context.Background()
 	p := testPaths(t)
 	d, _ := newDesc(p)
-	if d.Name() != Name || Key != "system.identity/vrx" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil || d.Stage() != scheduler.StageDaemon {
+	if d.Name() != Name || Key != "system.identity/ngfw" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil || d.Stage() != scheduler.StageDaemon {
 		t.Fatal("identity")
 	}
 	kvs, err := d.Retrieve(ctx)
@@ -179,10 +179,10 @@ func TestDescriptorLifecycle(t *testing.T) {
 
 func TestInputDefaults(t *testing.T) {
 	in := Input(nil)
-	if in.GetHostname() != "vrx" || in.GetTimezone() != "UTC" || in.GetDns().GetVrf() != "default" || in.Banner == nil {
+	if in.GetHostname() != "ngfw" || in.GetTimezone() != "UTC" || in.GetDns().GetVrf() != "default" || in.Banner == nil {
 		t.Fatalf("defaults %v", in)
 	}
-	e := Input(&vrxv1.SystemConfig{Banner: &vrxv1.SystemBanner{Login: proto.String("")}})
+	e := Input(&ngfwv1.SystemConfig{Banner: &ngfwv1.SystemBanner{Login: proto.String("")}})
 	if e.Banner.Login != nil {
 		t.Fatal("empty banner kept")
 	}
@@ -197,19 +197,19 @@ func TestValidator(t *testing.T) {
 		t.Fatalf("valid: %v", err)
 	}
 	for name, tc := range map[string]struct {
-		mut  func(*vrxv1.SystemConfig)
+		mut  func(*ngfwv1.SystemConfig)
 		ptr  string
 		frag string
 	}{
-		"unknown zone":    {func(c *vrxv1.SystemConfig) { c.Timezone = proto.String("Mars/Olympus") }, "/system/timezone", "unknown time zone"},
-		"zone traversal":  {func(c *vrxv1.SystemConfig) { c.Timezone = proto.String("Asia/../../etc/passwd") }, "/system/timezone", "IANA"},
-		"escape in login": {func(c *vrxv1.SystemConfig) { c.Banner.Login = proto.String("hi\x1b[2J") }, "/system/banner/login", "U+001B"},
-		"CR in motd":      {func(c *vrxv1.SystemConfig) { c.Banner.Motd = proto.String("a\rb") }, "/system/banner/motd", "U+000D"},
-		"C1 in motd":      {func(c *vrxv1.SystemConfig) { c.Banner.Motd = proto.String("a\u009bb") }, "/system/banner/motd", "U+009B"},
-		"bidi in login":   {func(c *vrxv1.SystemConfig) { c.Banner.Login = proto.String("a\u202eb") }, "/system/banner/login", "bidirectional"},
-		"bad host":        {func(c *vrxv1.SystemConfig) { c.Hostname = proto.String("-bad") }, "/system/hostname", "RFC 1123"},
-		"bad server":      {func(c *vrxv1.SystemConfig) { c.Dns.Servers = []string{"ns1"} }, "/system/dns/servers/0", "IP address"},
-		"vrf":             {func(c *vrxv1.SystemConfig) { c.Dns.Vrf = proto.String("mgmt") }, "/system/dns/vrf", "default VRF"},
+		"unknown zone":    {func(c *ngfwv1.SystemConfig) { c.Timezone = proto.String("Mars/Olympus") }, "/system/timezone", "unknown time zone"},
+		"zone traversal":  {func(c *ngfwv1.SystemConfig) { c.Timezone = proto.String("Asia/../../etc/passwd") }, "/system/timezone", "IANA"},
+		"escape in login": {func(c *ngfwv1.SystemConfig) { c.Banner.Login = proto.String("hi\x1b[2J") }, "/system/banner/login", "U+001B"},
+		"CR in motd":      {func(c *ngfwv1.SystemConfig) { c.Banner.Motd = proto.String("a\rb") }, "/system/banner/motd", "U+000D"},
+		"C1 in motd":      {func(c *ngfwv1.SystemConfig) { c.Banner.Motd = proto.String("a\u009bb") }, "/system/banner/motd", "U+009B"},
+		"bidi in login":   {func(c *ngfwv1.SystemConfig) { c.Banner.Login = proto.String("a\u202eb") }, "/system/banner/login", "bidirectional"},
+		"bad host":        {func(c *ngfwv1.SystemConfig) { c.Hostname = proto.String("-bad") }, "/system/hostname", "RFC 1123"},
+		"bad server":      {func(c *ngfwv1.SystemConfig) { c.Dns.Servers = []string{"ns1"} }, "/system/dns/servers/0", "IP address"},
+		"vrf":             {func(c *ngfwv1.SystemConfig) { c.Dns.Vrf = proto.String("mgmt") }, "/system/dns/vrf", "default VRF"},
 	} {
 		c := sample()
 		tc.mut(c)
@@ -241,8 +241,8 @@ func TestPaths(t *testing.T) {
 	if err := ProductPaths().Validate(); err != nil {
 		t.Fatal(err)
 	}
-	u := PathsUnder("/run/vrx-test/w3/sysident")
-	if u.SetKernelHostname || u.Hostname != "/run/vrx-test/w3/sysident/etc/hostname" || u.ZoneinfoDir != "/usr/share/zoneinfo" {
+	u := PathsUnder("/run/ngfw-test/w3/sysident")
+	if u.SetKernelHostname || u.Hostname != "/run/ngfw-test/w3/sysident/etc/hostname" || u.ZoneinfoDir != "/usr/share/zoneinfo" {
 		t.Fatalf("%+v", u)
 	}
 	bad := ProductPaths()

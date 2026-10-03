@@ -66,14 +66,14 @@ func Workers(t testing.TB, c vpp.Client) int {
 	return n
 }
 
-// Hold sleeps VRX_DF1_HOLD seconds (if set) so an operator can run vppctl show ... against the
+// Hold sleeps NGFW_DF1_HOLD seconds (if set) so an operator can run vppctl show ... against the
 // objects a test created before its Cleanup removes them. Never set in CI.
 func Hold(t testing.TB) {
 	t.Helper()
-	if s := os.Getenv("VRX_DF1_HOLD"); s != "" {
+	if s := os.Getenv("NGFW_DF1_HOLD"); s != "" {
 		n, err := strconv.Atoi(s)
 		if err == nil && n > 0 {
-			t.Logf("VRX_DF1_HOLD: holding objects for %ds", n)
+			t.Logf("NGFW_DF1_HOLD: holding objects for %ds", n)
 			time.Sleep(time.Duration(n) * time.Second)
 		}
 	}

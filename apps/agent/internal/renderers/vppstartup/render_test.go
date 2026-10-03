@@ -15,20 +15,20 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
-// vrxA returns the facts of the dev host vrx-a (docs/lab/host-vrx-a.md, verified 2026-09-24:
+// ngfwA returns the facts of the dev host ngfw-a (docs/lab/host-ngfw-a.md, verified 2026-09-24:
 // management NIC ens192 = 0000:0b:00.0, CPUs 0-31, 2 NUMA nodes, 1024 × 2 MB hugepages, no
-// isolcpus) with the on-disk plugin list frozen in testdata/plugins-vrx-a.txt and the current
+// isolcpus) with the on-disk plugin list frozen in testdata/plugins-ngfw-a.txt and the current
 // plugin switches taken from testdata/host-startup.conf (a copy of the hand-written file), so the
 // tests are hermetic and never read the live host.
-func vrxA(t *testing.T) Host {
+func ngfwA(t *testing.T) Host {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join("testdata", "plugins-vrx-a.txt"))
+	b, err := os.ReadFile(filepath.Join("testdata", "plugins-ngfw-a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,10 +47,10 @@ func vrxA(t *testing.T) Host {
 	}
 }
 
-// hostCPUs returns vrxA with another online / isolated CPU set.
+// hostCPUs returns ngfwA with another online / isolated CPU set.
 func hostCPUs(t *testing.T, online, isol string) *Host {
 	t.Helper()
-	h := vrxA(t)
+	h := ngfwA(t)
 	h.OnlineCPUs, _ = ParseCPUList(online)
 	h.IsolCPUs, _ = ParseCPUList(isol)
 	return &h
@@ -92,17 +92,17 @@ func golden(t *testing.T, name string, got []byte) {
 	}
 }
 
-// TestGolden renders every testdata/cases/<name>.json against the vrx-a host facts and compares
+// TestGolden renders every testdata/cases/<name>.json against the ngfw-a host facts and compares
 // with testdata/<name>.golden byte for byte. Cases: empty document, host-equivalent (the current
 // hand-written /etc/vpp/startup.conf semantics), single-core lab, 2-worker lab (corelist and
-// auto-pinned), the six-NIC vrx-a layout with a SAMPLE port-group mapping (the real mapping is
+// auto-pinned), the six-NIC ngfw-a layout with a SAMPLE port-group mapping (the real mapping is
 // still pending from the product owner — Q2), plugins block, dpdk disabled, whitelist only.
 func TestGolden(t *testing.T) {
 	cases, err := filepath.Glob(filepath.Join("testdata", "cases", "*.json"))
 	if err != nil || len(cases) < 9 {
 		t.Fatalf("cases: %v %v", cases, err)
 	}
-	host := vrxA(t)
+	host := ngfwA(t)
 	for _, c := range cases {
 		name := strings.TrimSuffix(filepath.Base(c), ".json")
 		t.Run(name, func(t *testing.T) {
@@ -126,7 +126,7 @@ func TestGolden(t *testing.T) {
 // TestSixNICSample pins the acceptance shape: each data NIC as `dev <pci> { name <logical> }`,
 // the management NIC blacklisted and never a dev, no no-pci.
 func TestSixNICSample(t *testing.T) {
-	out, m, err := Generate(loadDoc(t, "testdata/cases/six-nic-sample.json"), vrxA(t), DefaultSettings())
+	out, m, err := Generate(loadDoc(t, "testdata/cases/six-nic-sample.json"), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,12 +154,12 @@ func TestSixNICSample(t *testing.T) {
 }
 
 // TestHostEquivalentSemantics renders the equivalent of the current hand-written host file
-// (testdata/host-startup.conf = /etc/vpp/startup.conf on vrx-a, 2026-09-24) and diffs it
+// (testdata/host-startup.conf = /etc/vpp/startup.conf on ngfw-a, 2026-09-24) and diffs it
 // semantically: plugins, blacklist, no-pci, unix/api/socksvr all equal; the only additions are the
 // explicit main-core (F4: pinning is always explicit) and the statseg default socket. The empty
 // document gives the same result (host facts supply the blacklist, the current file the plugins).
 func TestHostEquivalentSemantics(t *testing.T) {
-	out, _, err := Generate(loadDoc(t, "testdata/cases/host-equivalent.json"), vrxA(t), DefaultSettings())
+	out, _, err := Generate(loadDoc(t, "testdata/cases/host-equivalent.json"), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestHostEquivalentSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertHostSemantics(t, host, out)
-	empty, _, err := Generate(loadDoc(t, "testdata/cases/empty.json"), vrxA(t), DefaultSettings())
+	empty, _, err := Generate(loadDoc(t, "testdata/cases/empty.json"), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestRendererInterface(t *testing.T) {
 	dir := t.TempDir()
 	s := DefaultSettings()
 	s.ConfPath = filepath.Join(dir, "startup.conf")
-	r := New(vrxA(t), WithSettings(s))
+	r := New(ngfwA(t), WithSettings(s))
 	if r.Name() != "vpp-startup" {
 		t.Fatal(r.Name())
 	}
@@ -245,32 +245,32 @@ func TestRendererInterface(t *testing.T) {
 	// typed inputs: DesiredState / DataplaneConfig / nil
 	for _, msg := range []proto.Message{
 		nil,
-		&vrxv1.DesiredState{},
-		&vrxv1.DesiredState{Dataplane: &vrxv1.DataplaneConfig{Workers: proto.Uint32(2), MainCore: proto.Uint32(1)}},
-		&vrxv1.DataplaneConfig{},
+		&ngfwv1.DesiredState{},
+		&ngfwv1.DesiredState{Dataplane: &ngfwv1.DataplaneConfig{Workers: proto.Uint32(2), MainCore: proto.Uint32(1)}},
+		&ngfwv1.DataplaneConfig{},
 	} {
 		if _, err := r.Render(ctx, msg); err != nil {
 			t.Errorf("Render(%T) = %v", msg, err)
 		}
 	}
-	if _, err := r.Render(ctx, &vrxv1.SystemConfig{}); !errors.Is(err, ErrInput) {
+	if _, err := r.Render(ctx, &ngfwv1.SystemConfig{}); !errors.Is(err, ErrInput) {
 		t.Errorf("wrong input type accepted: %v", err)
 	}
 }
 
 func TestTypedInputMatchesDocument(t *testing.T) {
-	typed := &vrxv1.DataplaneConfig{
+	typed := &ngfwv1.DataplaneConfig{
 		Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, MainCore: proto.Uint32(1), RxQueues: proto.Uint32(2), HugepagesGb: proto.Uint32(2),
-		ManagementPci: []string{"0000:0b:00.0"}, Devices: map[string]*vrxv1.DataplaneDevice{"0000:04:00.0": {Name: proto.String("wan"), RxDesc: proto.Uint32(512)}},
-		BuffersPerNuma: proto.Uint32(32768), Plugins: &vrxv1.PluginSet{Switches: map[string]bool{"acl_plugin.so": true}},
+		ManagementPci: []string{"0000:0b:00.0"}, Devices: map[string]*ngfwv1.DataplaneDevice{"0000:04:00.0": {Name: proto.String("wan"), RxDesc: proto.Uint32(512)}},
+		BuffersPerNuma: proto.Uint32(32768), Plugins: &ngfwv1.PluginSet{Switches: map[string]bool{"acl_plugin.so": true}},
 	}
 	doc := parseDoc(t, `{"dataplane":{"workers":2,"corelist":[2,3],"mainCore":1,"rxQueues":2,"hugepagesGb":2,"managementPci":["0000:0b:00.0"],
 		"devices":{"0000:04:00.0":{"name":"wan","rxDesc":512}},"buffersPerNuma":32768,"plugins":{"switches":{"acl_plugin.so":true}}}}`)
-	a, _, err := Generate(typed, vrxA(t), DefaultSettings())
+	a, _, err := Generate(typed, ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, _, err := Generate(doc, vrxA(t), DefaultSettings())
+	b, _, err := Generate(doc, ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestTypedInputMatchesDocument(t *testing.T) {
 	}
 }
 
-// TestPluginListMatchesHost keeps testdata/plugins-vrx-a.txt honest on vrx-a.
+// TestPluginListMatchesHost keeps testdata/plugins-ngfw-a.txt honest on ngfw-a.
 func TestPluginListMatchesHost(t *testing.T) {
 	onDisk, _ := filepath.Glob("/usr/lib/x86_64-linux-gnu/vpp_plugins/*.so")
 	if len(onDisk) == 0 {
@@ -290,10 +290,10 @@ func TestPluginListMatchesHost(t *testing.T) {
 		names = append(names, filepath.Base(p))
 	}
 	slices.Sort(names)
-	frozen := vrxA(t).Plugins
+	frozen := ngfwA(t).Plugins
 	slices.Sort(frozen)
 	if !slices.Equal(names, frozen) {
-		t.Logf("on-disk plugin list differs from testdata/plugins-vrx-a.txt (VPP rebuilt?) — refresh the fixture:\n disk %v\n file %v", names, frozen)
+		t.Logf("on-disk plugin list differs from testdata/plugins-ngfw-a.txt (VPP rebuilt?) — refresh the fixture:\n disk %v\n file %v", names, frozen)
 	}
 	for _, p := range names {
 		if err := PluginName(p); err != nil {
@@ -303,14 +303,14 @@ func TestPluginListMatchesHost(t *testing.T) {
 }
 
 func TestWarnings(t *testing.T) {
-	_, m, err := Generate(loadDoc(t, "testdata/cases/whitelist-only.json"), vrxA(t), DefaultSettings())
+	_, m, err := Generate(loadDoc(t, "testdata/cases/whitelist-only.json"), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !slices.ContainsFunc(m.Warnings, func(w string) bool { return strings.Contains(w, "0000:04:00.0 has no logical name") }) {
 		t.Errorf("warnings = %q", m.Warnings)
 	}
-	h := vrxA(t)
+	h := ngfwA(t)
 	h.HugepageBytes = 1 << 30
 	_, m, err = Generate(parseDoc(t, `{"dataplane":{"hugepagesGb":2,"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), h, DefaultSettings())
 	if err != nil {

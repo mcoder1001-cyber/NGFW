@@ -15,7 +15,7 @@ import (
 
 	"ngfw/agent/binapi/bpf_trace_filter"
 	interfaces "ngfw/agent/binapi/interface"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 )
@@ -96,14 +96,14 @@ func (r *rig) manager(t *testing.T, globals bool, boot dfkit.BootStore) *Manager
 }
 
 func TestValidate(t *testing.T) {
-	p, err := Validate(&vrxv1.CaptureAction{Interface: "loop501"})
+	p, err := Validate(&ngfwv1.CaptureAction{Interface: "loop501"})
 	if err != nil || !p.Rx || !p.Tx || p.Drop || p.MaxPackets != 1000 || p.Seconds != 30 || p.Snaplen != 9000 {
 		t.Fatalf("%+v %v", p, err)
 	}
-	if p, _ := Validate(&vrxv1.CaptureAction{Interface: "any", Drop: true}); p.Direction() != "drop" {
+	if p, _ := Validate(&ngfwv1.CaptureAction{Interface: "any", Drop: true}); p.Direction() != "drop" {
 		t.Fatal(p.Direction())
 	}
-	for field, a := range map[string]*vrxv1.CaptureAction{
+	for field, a := range map[string]*ngfwv1.CaptureAction{
 		"interface":   {},
 		"bpf":         {Interface: "loop501", Bpf: "icmp; rm -rf /"},
 		"seconds":     {Interface: "loop501", Seconds: 601},
@@ -116,20 +116,20 @@ func TestValidate(t *testing.T) {
 			t.Errorf("%s: %v", field, err)
 		}
 	}
-	if _, err := Validate(&vrxv1.CaptureAction{Interface: "loop501", Bpf: `host "x"`}); !errors.Is(err, ErrInvalid) {
+	if _, err := Validate(&ngfwv1.CaptureAction{Interface: "loop501", Bpf: `host "x"`}); !errors.Is(err, ErrInvalid) {
 		t.Fatal(err)
 	}
 }
 
-func run(ctx context.Context, t *testing.T, m *Manager, a *vrxv1.CaptureAction) ([]string, *vrxv1.ActionDone, error) {
+func run(ctx context.Context, t *testing.T, m *Manager, a *ngfwv1.CaptureAction) ([]string, *ngfwv1.ActionDone, error) {
 	t.Helper()
 	p, err := Validate(a)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var lines []string
-	var done *vrxv1.ActionDone
-	err = m.Run(ctx, p, func(o *vrxv1.ActionOutput) error {
+	var done *ngfwv1.ActionDone
+	err = m.Run(ctx, p, func(o *ngfwv1.ActionOutput) error {
 		if l := o.GetLine(); l != "" {
 			lines = append(lines, l)
 		}
@@ -144,7 +144,7 @@ func run(ctx context.Context, t *testing.T, m *Manager, a *vrxv1.CaptureAction) 
 func TestCaptureKeepsFile0600(t *testing.T) {
 	r := newRig(t)
 	m := r.manager(t, true, nil)
-	lines, done, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "loop501", Seconds: 1, Bpf: "icmp"})
+	lines, done, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "loop501", Seconds: 1, Bpf: "icmp"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestCaptureKeepsFile0600(t *testing.T) {
 		t.Fatalf("filter not restored: %q %q", r.filter, r.fn)
 	}
 	var got []byte
-	if err := m.Read(id, func(c *vrxv1.CaptureChunk) error { got = append(got, c.GetData()...); return nil }); err != nil || len(got) != len(pcapFile(3)) {
+	if err := m.Read(id, func(c *ngfwv1.CaptureChunk) error { got = append(got, c.GetData()...); return nil }); err != nil || len(got) != len(pcapFile(3)) {
 		t.Fatalf("read %d %v", len(got), err)
 	}
 	l, _ := m.List(context.Background())
@@ -190,11 +190,11 @@ func TestCaptureKeepsFile0600(t *testing.T) {
 func TestBusyAndGlobals(t *testing.T) {
 	r := newRig(t)
 	m := r.manager(t, false, nil)
-	if _, _, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "loop501", Bpf: "icmp"}); !errors.Is(err, ErrGlobals) {
+	if _, _, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "loop501", Bpf: "icmp"}); !errors.Is(err, ErrGlobals) {
 		t.Fatal(err)
 	}
 	r.running = true // another owner's capture
-	if _, _, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "loop501", Seconds: 1}); !errors.Is(err, ErrBusy) {
+	if _, _, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "loop501", Seconds: 1}); !errors.Is(err, ErrBusy) {
 		t.Fatal(err)
 	}
 	r.running = false
@@ -213,12 +213,12 @@ func TestBusyAndGlobals(t *testing.T) {
 	})
 	go func() {
 		defer close(done)
-		p, _ := Validate(&vrxv1.CaptureAction{Interface: "loop501", Seconds: 60})
+		p, _ := Validate(&ngfwv1.CaptureAction{Interface: "loop501", Seconds: 60})
 		once := sync.Once{}
-		_ = m.Run(ctx, p, func(*vrxv1.ActionOutput) error { once.Do(func() { close(started) }); return nil })
+		_ = m.Run(ctx, p, func(*ngfwv1.ActionOutput) error { once.Do(func() { close(started) }); return nil })
 	}()
 	<-started
-	if _, _, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "loop501", Seconds: 1}); !errors.Is(err, ErrBusy) {
+	if _, _, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "loop501", Seconds: 1}); !errors.Is(err, ErrBusy) {
 		t.Fatal(err)
 	}
 	l, _ := m.List(context.Background())
@@ -241,7 +241,7 @@ func TestBusyAndGlobals(t *testing.T) {
 		t.Fatalf("%+v", l.Captures[0])
 	}
 	// another owner's interface
-	if _, _, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "loop601", Seconds: 1}); !errors.Is(err, ErrInvalid) {
+	if _, _, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "loop601", Seconds: 1}); !errors.Is(err, ErrInvalid) {
 		t.Fatal(err)
 	}
 }
@@ -252,7 +252,7 @@ func TestRetention(t *testing.T) {
 	now := time.Date(2026, 9, 27, 10, 0, 0, 0, time.UTC)
 	m.c.Now = func() time.Time { now = now.Add(time.Second); return now }
 	for i := 0; i < 4; i++ {
-		if _, _, err := run(context.Background(), t, m, &vrxv1.CaptureAction{Interface: "any", Seconds: 1}); err != nil {
+		if _, _, err := run(context.Background(), t, m, &ngfwv1.CaptureAction{Interface: "any", Seconds: 1}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -286,10 +286,10 @@ func TestAgentRestartDuringCapture(t *testing.T) {
 	})
 	go func() {
 		defer close(done)
-		p, _ := Validate(&vrxv1.CaptureAction{Interface: "loop501", Seconds: 60})
+		p, _ := Validate(&ngfwv1.CaptureAction{Interface: "loop501", Seconds: 60})
 		once := sync.Once{}
 		// the "old process" never returns from its stream: block until the test ends
-		_ = m1.Run(ctx, p, func(*vrxv1.ActionOutput) error {
+		_ = m1.Run(ctx, p, func(*ngfwv1.ActionOutput) error {
 			once.Do(func() { close(started) })
 			<-ctx.Done()
 			return ctx.Err()

@@ -1,14 +1,14 @@
-// Command vrx-vppcheck answers the read-only questions deploy/vpp/apply-startup.sh asks VPP
+// Command ngfw-vppcheck answers the read-only questions deploy/vpp/apply-startup.sh asks VPP
 // while it applies a start-up configuration (F-startup-apply, re-review N1/N3). It talks to VPP
 // only through the agent's binary-API client (internal/vpp: govpp over the API socket, bindings
 // from apps/agent/binapi) — never vppctl, never vpp_papi — and every call has a deadline.
 //
-//	vrx-vppcheck [--socket PATH] [--timeout DUR] version          print "vpp <version>" (show_version)
-//	vrx-vppcheck [--socket PATH] [--timeout DUR] plugins          loaded plugins, one per line (content of `show plugins`)
-//	vrx-vppcheck [--socket PATH] [--timeout DUR] ifaces NAME...   every NAME is a VPP interface (sw_interface_dump by name, exact match)
-//	vrx-vppcheck [--socket PATH] [--timeout DUR] bootid           D-080 boot identity "<boot_id>/<vpe pid>/<start time>" (control_ping + /proc); exit 1 when incomplete
+//	ngfw-vppcheck [--socket PATH] [--timeout DUR] version          print "vpp <version>" (show_version)
+//	ngfw-vppcheck [--socket PATH] [--timeout DUR] plugins          loaded plugins, one per line (content of `show plugins`)
+//	ngfw-vppcheck [--socket PATH] [--timeout DUR] ifaces NAME...   every NAME is a VPP interface (sw_interface_dump by name, exact match)
+//	ngfw-vppcheck [--socket PATH] [--timeout DUR] bootid           D-080 boot identity "<boot_id>/<vpe pid>/<start time>" (control_ping + /proc); exit 1 when incomplete
 //
-// The socket defaults to $VRX_VPP_API_SOCKET, then /run/vpp/api.sock; the timeout (default 10s)
+// The socket defaults to $NGFW_VPP_API_SOCKET, then /run/vpp/api.sock; the timeout (default 10s)
 // bounds the whole run: connect plus every request. A VPP that accepts the socket but does not
 // answer (hung main loop) therefore ends in exit 2 after the timeout, never in a blocked caller.
 // A hard backstop exits the process one second after the deadline even if a library call ignores
@@ -75,16 +75,16 @@ func dialVPP(ctx context.Context, socket string) (vpp.Client, func(), error) {
 }
 
 func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(time.Duration, func()) *time.Timer) int {
-	fs := flag.NewFlagSet("vrx-vppcheck", flag.ContinueOnError)
+	fs := flag.NewFlagSet("ngfw-vppcheck", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	sock := os.Getenv("VRX_VPP_API_SOCKET")
+	sock := os.Getenv("NGFW_VPP_API_SOCKET")
 	if sock == "" {
 		sock = defaultSock
 	}
 	fs.StringVar(&sock, "socket", sock, "VPP binary API socket")
 	limit := fs.Duration("timeout", defaultLimit, "deadline for the whole run (connect + requests)")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: vrx-vppcheck [--socket PATH] [--timeout DUR] version | plugins | bootid | ifaces NAME...")
+		_, _ = fmt.Fprintln(stderr, "usage: ngfw-vppcheck [--socket PATH] [--timeout DUR] version | plugins | bootid | ifaces NAME...")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -114,7 +114,7 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 
 	// Hard backstop: whatever a library does with the context, the process ends.
 	backstop := afterFunc(*limit+time.Second, func() {
-		_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: VPP did not answer within %s (hard deadline)\n", *limit)
+		_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: VPP did not answer within %s (hard deadline)\n", *limit)
 		os.Exit(exitVPP)
 	})
 	defer backstop.Stop()
@@ -123,7 +123,7 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 	defer cancel()
 	client, closeFn, err := dial(ctx, sock)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: cannot reach VPP at %s: %v\n", sock, err)
+		_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: cannot reach VPP at %s: %v\n", sock, err)
 		return exitVPP
 	}
 	defer closeFn()
@@ -132,14 +132,14 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 	case "version":
 		v, err := version(ctx, client)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: show_version: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: show_version: %v\n", err)
 			return exitVPP
 		}
 		_, _ = fmt.Fprintf(stdout, "vpp %s\n", v)
 	case "plugins":
 		ps, err := plugins(ctx, client)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: show plugins: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: show plugins: %v\n", err)
 			return exitVPP
 		}
 		for _, p := range ps {
@@ -148,19 +148,19 @@ func run(args []string, stdout, stderr io.Writer, dial dialer, afterFunc func(ti
 	case "bootid":
 		id, err := bootid.Current(ctx, client)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: %v\n", err)
 			return exitVPP
 		}
 		_, _ = fmt.Fprintln(stdout, id.String())
 		if !id.Complete() {
 			// a partial identity (unreadable /proc, other PID namespace) cannot prove "same instance"
-			_, _ = fmt.Fprintln(stderr, "vrx-vppcheck: boot identity incomplete (boot_id or start time unreadable)")
+			_, _ = fmt.Fprintln(stderr, "ngfw-vppcheck: boot identity incomplete (boot_id or start time unreadable)")
 			return exitMissing
 		}
 	case "ifaces":
 		missing, err := missingIfaces(ctx, client, names)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "vrx-vppcheck: sw_interface_dump: %v\n", err)
+			_, _ = fmt.Fprintf(stderr, "ngfw-vppcheck: sw_interface_dump: %v\n", err)
 			return exitVPP
 		}
 		if len(missing) > 0 {

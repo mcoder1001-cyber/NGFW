@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/scheduler"
@@ -43,9 +43,9 @@ func (s *lbSink) keys() []string {
 	return out
 }
 
-func lbServices(t *testing.T, js string) *vrxv1.ServicesConfig {
+func lbServices(t *testing.T, js string) *ngfwv1.ServicesConfig {
 	t.Helper()
-	svc := &vrxv1.ServicesConfig{}
+	svc := &ngfwv1.ServicesConfig{}
 	if err := protojson.Unmarshal([]byte(js), svc); err != nil {
 		t.Fatal(err)
 	}

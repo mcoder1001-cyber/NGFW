@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-const labLock = "/run/lock/vrx-lab.lock"
+const labLock = "/run/lock/ngfw-lab.lock"
 
 type slot struct {
 	prefix, httpPort, webPort, metricsPort, valkeyDB, runDir, socket, repo string
@@ -32,14 +32,14 @@ type slot struct {
 
 func slotFromEnv(t *testing.T) slot {
 	t.Helper()
-	p := os.Getenv("VRX_TEST_PREFIX")
+	p := os.Getenv("NGFW_TEST_PREFIX")
 	m := regexp.MustCompile(`^w([0-9]{1,2})$`).FindStringSubmatch(p)
 	if m == nil {
-		t.Fatalf("VRX_TEST_PREFIX=%q: needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
 	if n < 1 || n > 32 || n == 13 { // review L4: w0/w00 would take the product stack's ports (3000, 5000, 9101); 13 = tools/app (D-156)
-		t.Fatalf("VRX_TEST_PREFIX=%q: slot %d outside 1..12, 14..32", p, n)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: slot %d outside 1..12, 14..32", p, n)
 	}
 	httpBase, webBase := 3000, 5000 // slots 14-32: 10000/14000 (D-156, tools/lab env)
 	if n > 12 {
@@ -53,14 +53,14 @@ func slotFromEnv(t *testing.T) slot {
 	}
 	s := slot{
 		prefix: p, num: n,
-		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(httpBase+100*n)),
-		webPort:     env("VRX_WEB_PORT", strconv.Itoa(webBase+100*n)),
-		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
-		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
-		runDir:      "/run/vrx-test/" + p,
+		httpPort:    env("NGFW_HTTP_PORT", strconv.Itoa(httpBase+100*n)),
+		webPort:     env("NGFW_WEB_PORT", strconv.Itoa(webBase+100*n)),
+		metricsPort: env("NGFW_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
+		valkeyDB:    env("NGFW_VALKEY_DB", strconv.Itoa(n)),
+		runDir:      "/run/ngfw-test/" + p,
 		repo:        repoRoot(t),
 	}
-	s.socket = env("VRX_AGENT_SOCKET", s.runDir+"/agent.sock")
+	s.socket = env("NGFW_AGENT_SOCKET", s.runDir+"/agent.sock")
 	return s
 }
 

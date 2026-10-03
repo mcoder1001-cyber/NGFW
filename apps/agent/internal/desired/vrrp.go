@@ -10,7 +10,7 @@ package desired
 //	  track[]                           → vrrp.vr-track-interface/<if>/<vrid>/<af>/<tracked>
 //	  enabled (default true)            → vrrp.vr-state/<if>/<vrid>/<af>             (started; absent = stopped)
 //	  name, description, vrf            → vrrp.meta/<if>/<vrid>/<af>                 (agent-local: VPP holds no name)
-//	ha.vrrp.<name> (engine keepalived)  → keepalived.config/vrx                      (one singleton: every keepalived instance
+//	ha.vrrp.<name> (engine keepalived)  → keepalived.config/ngfw                      (one singleton: every keepalived instance
 //	                                                                                  with a linux-cp pair, plus those pairs)
 //
 // A keepalived instance whose interface has no linux-cp pair (interfaces.<if>.lcp) is skipped with an
@@ -31,7 +31,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vrrp"
@@ -54,7 +54,7 @@ const (
 )
 
 // KeepalivedKey is the single key of the keepalived stage.
-var KeepalivedKey = scheduler.Join(KeepalivedConfigName, "vrx")
+var KeepalivedKey = scheduler.Join(KeepalivedConfigName, "ngfw")
 
 // ---- vrrp.meta ----------------------------------------------------------------------------------
 
@@ -183,7 +183,7 @@ func canonAddrs(in []string) ([]string, error) {
 	return df7.SortedAddrs(out)
 }
 
-func vrrpEngine(v *vrxv1.VrrpInstance) string {
+func vrrpEngine(v *ngfwv1.VrrpInstance) string {
 	if v.Engine == nil {
 		return vrrpEngineVPP
 	}
@@ -191,7 +191,7 @@ func vrrpEngine(v *vrxv1.VrrpInstance) string {
 }
 
 // Vrrp projects ha.vrrp (both engines). in is the set of authoritative domains of the transaction.
-func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
+func Vrrp(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
 	if !in["ha"] {
 		return
 	}
@@ -203,8 +203,8 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 	sort.Strings(names)
 	seen := map[string]string{}
 	lcp := lcpmap.FromDesired(ds)
-	keep := map[string]*vrxv1.VrrpInstance{}
-	pairs := map[string]*vrxv1.Interface{}
+	keep := map[string]*ngfwv1.VrrpInstance{}
+	pairs := map[string]*ngfwv1.Interface{}
 	for _, name := range names {
 		v := ha.GetVrrp()[name]
 		pt := Ptr("ha", "vrrp", name)
@@ -230,7 +230,7 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 				continue
 			}
 			keep[name] = v
-			pairs[v.GetInterface()] = &vrxv1.Interface{Lcp: ds.GetInterfaces()[v.GetInterface()].GetLcp()}
+			pairs[v.GetInterface()] = &ngfwv1.Interface{Lcp: ds.GetInterfaces()[v.GetInterface()].GetLcp()}
 		case vrrpEngineVPP:
 			vrrpVPP(s, pt, name, vr, v)
 		default:
@@ -238,15 +238,15 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 		}
 	}
 	if len(keep) > 0 {
-		val := &vrxv1.DesiredState{Ha: &vrxv1.HaConfig{Vrrp: keep}, Interfaces: pairs}
+		val := &ngfwv1.DesiredState{Ha: &ngfwv1.HaConfig{Vrrp: keep}, Interfaces: pairs}
 		if h := ds.GetSystem().GetHostname(); h != "" {
-			val.System = &vrxv1.SystemConfig{Hostname: proto.String(h)}
+			val.System = &ngfwv1.SystemConfig{Hostname: proto.String(h)}
 		}
 		s.Add(KeepalivedKey, val, Ptr("ha", "vrrp"))
 	}
 }
 
-func vrrpVPP(s Sink, pt, name string, vr vrrp.VR, v *vrxv1.VrrpInstance) {
+func vrrpVPP(s Sink, pt, name string, vr vrrp.VR, v *ngfwv1.VrrpInstance) {
 	addrs, err := canonAddrs(v.GetAddresses())
 	if err != nil || len(addrs) == 0 {
 		s.Errorf(Ptr("ha", "vrrp", name, "addresses"), vrrpRule, "virtual addresses: %v", err)
@@ -312,7 +312,7 @@ func vrrpFallbackName(vr vrrp.VR) string {
 
 // AssembleVrrp adds ha.vrrp to the assembled document from the retrieved vrrp.*, vrrp.meta and
 // keepalived.config objects.
-func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool) {
+func AssembleVrrp(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool) {
 	if !in["ha"] {
 		return
 	}
@@ -324,7 +324,7 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 	}
 	vrs := map[string]*acc{}
 	meta := map[string]VrrpMetaSpec{}
-	out := map[string]*vrxv1.VrrpInstance{}
+	out := map[string]*ngfwv1.VrrpInstance{}
 	for _, kv := range kvs {
 		switch kv.Key.Descriptor() {
 		case vrrp.NameVR:
@@ -336,9 +336,9 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 				meta[m.ID] = m
 			}
 		case KeepalivedConfigName:
-			if k, ok := kv.Value.(*vrxv1.DesiredState); ok {
+			if k, ok := kv.Value.(*ngfwv1.DesiredState); ok {
 				for n, v := range k.GetHa().GetVrrp() {
-					out[n] = proto.Clone(v).(*vrxv1.VrrpInstance)
+					out[n] = proto.Clone(v).(*ngfwv1.VrrpInstance)
 				}
 			}
 		}
@@ -365,18 +365,18 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 		if sp.IPv6 {
 			af = "ipv6"
 		}
-		inst := &vrxv1.VrrpInstance{
+		inst := &ngfwv1.VrrpInstance{
 			Enabled: proto.Bool(a.running), Interface: proto.String(sp.Interface), VrId: proto.Uint32(uint32(sp.VRID)),
 			AddressFamily: proto.String(af), Priority: proto.Uint32(uint32(sp.Priority)),
 			AdvertisementIntervalMs: proto.Uint32(uint32(sp.Interval) * 10), Preempt: proto.Bool(sp.Preempt),
 			AcceptMode: proto.Bool(sp.Accept), Addresses: append([]string(nil), sp.Addresses...), Engine: proto.String(vrrpEngineVPP),
 		}
 		if sp.Unicast {
-			inst.Unicast = &vrxv1.VrrpInstance_Unicast{Peers: a.peers}
+			inst.Unicast = &ngfwv1.VrrpInstance_Unicast{Peers: a.peers}
 		}
 		sort.Slice(a.track, func(i, j int) bool { return a.track[i].Tracked < a.track[j].Tracked })
 		for _, t := range a.track {
-			inst.Track = append(inst.Track, &vrxv1.VrrpInstance_Track{Interface: proto.String(t.Tracked), PriorityDecrement: proto.Uint32(uint32(t.Priority))})
+			inst.Track = append(inst.Track, &ngfwv1.VrrpInstance_Track{Interface: proto.String(t.Tracked), PriorityDecrement: proto.Uint32(uint32(t.Priority))})
 		}
 		name := vrrpFallbackName(sp.VR)
 		if m, ok := meta[id]; ok {
@@ -394,7 +394,7 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 		return
 	}
 	if ds.Ha == nil {
-		ds.Ha = &vrxv1.HaConfig{}
+		ds.Ha = &ngfwv1.HaConfig{}
 	}
 	ds.Ha.Vrrp = out
 }

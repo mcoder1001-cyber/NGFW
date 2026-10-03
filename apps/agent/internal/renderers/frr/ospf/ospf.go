@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/policy"
@@ -83,7 +83,7 @@ func parseArea(s string) (uint32, bool) {
 }
 
 // areas returns the areas by number (every key validated, duplicates refused).
-func areas(o *vrxv1.OspfConfig) (map[uint32]area, error) {
+func areas(o *ngfwv1.OspfConfig) (map[uint32]area, error) {
 	out := map[uint32]area{}
 	for _, k := range slices.Sorted(maps.Keys(o.GetAreas())) {
 		n, ok := parseArea(k)
@@ -99,7 +99,7 @@ func areas(o *vrxv1.OspfConfig) (map[uint32]area, error) {
 }
 
 // Render returns the `router ospf` block for o (nil = OSPF not configured).
-func Render(o *vrxv1.OspfConfig) ([]string, error) {
+func Render(o *ngfwv1.OspfConfig) ([]string, error) {
 	if o == nil {
 		return nil, nil
 	}
@@ -165,7 +165,7 @@ func Render(o *vrxv1.OspfConfig) ([]string, error) {
 }
 
 // redistribute renders the router block's `redistribute` lines in FRR's route-type order.
-func redistribute(r *vrxv1.Redistribute) ([]string, error) {
+func redistribute(r *ngfwv1.Redistribute) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
@@ -175,7 +175,7 @@ func redistribute(r *vrxv1.Redistribute) ([]string, error) {
 	var out []string
 	for _, src := range []struct {
 		name string
-		opt  *vrxv1.RedistributeOptions
+		opt  *ngfwv1.RedistributeOptions
 	}{
 		{"connected", r.GetConnected()}, {"static", r.GetStatic()}, {"rip", r.GetRip()},
 		{"isis", r.GetIsis()}, {"bgp", r.GetBgp()},
@@ -204,7 +204,7 @@ func redistribute(r *vrxv1.Redistribute) ([]string, error) {
 var networkTypes = []string{"broadcast", "non-broadcast", "point-to-multipoint", "point-to-point"}
 
 // RenderInterfaces returns the `ip ospf …` lines per Linux interface (nil = OSPF not configured).
-func RenderInterfaces(o *vrxv1.OspfConfig, mapIf frr.InterfaceMapper) (map[string][]string, error) {
+func RenderInterfaces(o *ngfwv1.OspfConfig, mapIf frr.InterfaceMapper) (map[string][]string, error) {
 	if o == nil || len(o.GetInterfaces()) == 0 {
 		return nil, nil
 	}

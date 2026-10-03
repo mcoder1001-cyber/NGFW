@@ -147,7 +147,7 @@ var noResurrect bool
 const dumpEveryIndex interface_types.InterfaceIndex = 0
 
 // placeholderMask is the signature of Sanitize's own throwaway classify tables.
-var placeholderMask = []byte("vrx-td3-v19-hold")
+var placeholderMask = []byte("ngfw-td3-v19-hold")
 
 // State names used in reports, logs and the metric label.
 const (
@@ -221,7 +221,7 @@ type sanitizer struct {
 	// unbind of P failed after a bind of P succeeded. P is then left in VPP instead of deleted —
 	// deleting it would leave a binding to a freed table (V19) on this index (TD-25 review L1).
 	probeBound bool
-	rep     *Report
+	rep        *Report
 }
 
 // Sanitize clears inherited per-interface state on idx, a sw_if_index VPP has just returned for

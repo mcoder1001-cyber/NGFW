@@ -214,7 +214,7 @@ func (d *ConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 			return nil, err
 		}
 		if n > 0 {
-			return nil, fmt.Errorf("%w (%d workers): add `nsim { poll-main-thread }` to startup.conf and set VRX_NSIM_POLL_MAIN_THREAD=1 for the agent", ErrWorkerThreads, n)
+			return nil, fmt.Errorf("%w (%d workers): add `nsim { poll-main-thread }` to startup.conf and set NGFW_NSIM_POLL_MAIN_THREAD=1 for the agent", ErrWorkerThreads, n)
 		}
 	}
 	if _, err := nsimapi.NewServiceClient(d.client).NsimConfigure2(ctx, &nsimapi.NsimConfigure2{

@@ -10,7 +10,7 @@ import (
 )
 
 // ProductConfig is the immutable protected appliance bootstrap input path.
-const ProductConfig = "/etc/vrx/base-policy.env"
+const ProductConfig = "/etc/ngfw/base-policy.env"
 const maxConfig = 4096
 
 // Config contains only immutable nonsecret bootstrap admission inputs.
@@ -53,7 +53,7 @@ func ParseConfig(data []byte) (Config, error) {
 			continue
 		}
 		key, value, ok := strings.Cut(line, "=")
-		if !ok || (key != "VRX_BOOTSTRAP_MGMT_IF" && key != "VRX_BOOTSTRAP_PUNT_IFS") {
+		if !ok || (key != "NGFW_BOOTSTRAP_MGMT_IF" && key != "NGFW_BOOTSTRAP_PUNT_IFS") {
 			return Config{}, errors.New("basepolicy: unexpected configuration assignment")
 		}
 		if _, seen := values[key]; seen {
@@ -61,11 +61,11 @@ func ParseConfig(data []byte) (Config, error) {
 		}
 		values[key] = value
 	}
-	management, ok := values["VRX_BOOTSTRAP_MGMT_IF"]
+	management, ok := values["NGFW_BOOTSTRAP_MGMT_IF"]
 	if !ok {
 		return Config{}, errors.New("basepolicy: missing management interface")
 	}
-	punts, ok := values["VRX_BOOTSTRAP_PUNT_IFS"]
+	punts, ok := values["NGFW_BOOTSTRAP_PUNT_IFS"]
 	if !ok {
 		return Config{}, errors.New("basepolicy: missing permanent punt inputs")
 	}

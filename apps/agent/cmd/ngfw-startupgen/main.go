@@ -1,7 +1,7 @@
-// Command vrx-startupgen renders VPP's startup.conf from the `dataplane` domain of a VRX
+// Command ngfw-startupgen renders VPP's startup.conf from the `dataplane` domain of a NGFW
 // configuration document (JSON) — WBS D0.6, task F-startup-gen.
 //
-//	vrx-startupgen [flags] [document.json|-]
+//	ngfw-startupgen [flags] [document.json|-]
 //
 //	-o <path>            write the rendering to <path> (atomic rename, mode 0644) instead of stdout
 //	--diff <existing>    print a unified diff existing → rendering; exit 1 when they differ
@@ -58,7 +58,7 @@ type options struct {
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var o options
-	fs := flag.NewFlagSet("vrx-startupgen", flag.ContinueOnError)
+	fs := flag.NewFlagSet("ngfw-startupgen", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	fs.StringVar(&o.out, "o", "", "write the rendering to `path` (atomic) instead of stdout")
 	fs.StringVar(&o.diff, "diff", "", "compare with the `existing` file; exit 1 when different")
@@ -75,7 +75,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.IntVar(&o.numaNodes, "numa-nodes", 0, "number of NUMA nodes (default: /sys/devices/system/node)")
 	fs.IntVar(&o.hugepagesMB, "hugepages-mb", 0, "hugepage memory reserved by the host in MiB (default: /proc/meminfo)")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintln(stderr, "usage: vrx-startupgen [flags] [document.json|-]")
+		_, _ = fmt.Fprintln(stderr, "usage: ngfw-startupgen [flags] [document.json|-]")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -90,15 +90,15 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case 1:
 		o.input = fs.Arg(0)
 	default:
-		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: at most one document")
+		_, _ = fmt.Fprintln(stderr, "ngfw-startupgen: at most one document")
 		return 2
 	}
 	if o.semantic && o.diff == "" {
-		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: --semantic needs --diff")
+		_, _ = fmt.Fprintln(stderr, "ngfw-startupgen: --semantic needs --diff")
 		return 2
 	}
 	if o.check && (o.out != "" || o.diff != "") {
-		_, _ = fmt.Fprintln(stderr, "vrx-startupgen: --check cannot be combined with -o or --diff")
+		_, _ = fmt.Fprintln(stderr, "ngfw-startupgen: --check cannot be combined with -o or --diff")
 		return 2
 	}
 	visited := map[string]bool{}
@@ -106,7 +106,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	code, err := generate(o, visited, stdin, stdout, stderr)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: %v\n", err)
 	}
 	return code
 }
@@ -128,18 +128,18 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 	if err != nil {
 		return 2, err
 	}
-	_, _ = fmt.Fprintf(stderr, "vrx-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
+	_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
 	for _, n := range host.ManagementNotes {
-		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: management: %s\n", n)
+		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: management: %s\n", n)
 	}
 	// N5: the sha256 of exactly this rendering, so a reviewer can pin what gets installed
-	_, _ = fmt.Fprintf(stderr, "vrx-startupgen: rendered sha256 %x\n", sha256.Sum256(out))
+	_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: rendered sha256 %x\n", sha256.Sum256(out))
 	for _, w := range model.Warnings {
-		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: warning: %s\n", w)
+		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: warning: %s\n", w)
 	}
 	switch {
 	case o.check:
-		_, _ = fmt.Fprintf(stderr, "vrx-startupgen: ok (%d DPDK device(s), %d plugin switch(es))\n", len(model.Devices), len(model.Plugins))
+		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: ok (%d DPDK device(s), %d plugin switch(es))\n", len(model.Devices), len(model.Plugins))
 		return 0, nil
 	case o.diff != "":
 		existing, err := os.ReadFile(o.diff) //nolint:gosec // operator-supplied file to compare with, read only

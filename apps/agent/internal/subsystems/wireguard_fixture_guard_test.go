@@ -19,7 +19,7 @@ func TestWireguardFixtureHookOnlyInTaggedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const tag = "//go:build vrxtestsecrets"
+	const tag = "//go:build ngfwtestsecrets"
 	fset := token.NewFileSet()
 	var setters []string
 	for _, f := range files {

@@ -59,7 +59,7 @@ type SvsState struct {
 	// PingResult answers want_ping_finished_events (nil: every request answered).
 	PingResult func(addr netip.Addr, repeat uint32) (requests, replies uint32)
 	Pings      []ping.WantPingFinishedEvents
-	// Workers is the number of worker threads show_threads reports besides the main thread (0 = vrx-a's cpu { }).
+	// Workers is the number of worker threads show_threads reports besides the main thread (0 = ngfw-a's cpu { }).
 	Workers int
 }
 

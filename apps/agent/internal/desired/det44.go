@@ -18,7 +18,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/det44"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -36,7 +36,7 @@ func Det44PortsPerHost(in, out int) uint32 {
 	return (65535 - 1023) / (uint32(1) << d)
 }
 
-func det44Build(s Sink, d *vrxv1.Det44Config, vrfID func(string) (uint32, bool)) {
+func det44Build(s Sink, d *ngfwv1.Det44Config, vrfID func(string) (uint32, bool)) {
 	if d == nil || !d.GetEnabled() {
 		return
 	}
@@ -105,7 +105,7 @@ func det44Build(s Sink, d *vrxv1.Det44Config, vrfID func(string) (uint32, bool))
 
 // assembleDet44 builds `nat.det44` from retrieved objects (enable is write-only: `enabled` is reported when any
 // det44 object exists; the VRFs are not retrievable and stay unset; timeouts only from the globals owner).
-func assembleDet44(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleDet44(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var (
 		any44           bool
 		timeouts        *det44.TimeoutsSpec
@@ -139,17 +139,17 @@ func assembleDet44(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 	if !any44 {
 		return
 	}
-	d := &vrxv1.Det44Config{Enabled: proto.Bool(true)}
+	d := &ngfwv1.Det44Config{Enabled: proto.Bool(true)}
 	sort.Strings(inside)
 	sort.Strings(outside)
 	d.Inside, d.Outside = inside, outside
 	sort.Slice(maps, func(a, b int) bool { return natPrefixLess(maps[a].Inside, maps[b].Inside) })
 	for _, m := range maps {
-		d.Mappings = append(d.Mappings, &vrxv1.Det44Config_Mapping{Inside: proto.String(m.Inside), Outside: proto.String(m.Outside)})
+		d.Mappings = append(d.Mappings, &ngfwv1.Det44Config_Mapping{Inside: proto.String(m.Inside), Outside: proto.String(m.Outside)})
 	}
 	if timeouts != nil {
 		t := *timeouts
-		d.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
+		d.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
 	}
 	out.Det44 = d
 }

@@ -19,7 +19,7 @@ import (
 // DefaultReplyTimeout bounds one VPP reply (TD-9, review 1.1): the time VPP may take to answer a request, or to send the
 // next message of a dump. govpp's own default is 0, "wait forever": a VPP that crashes or hangs while a request is in
 // flight then parks the caller — and with it the agent's transaction lock — for good. The agent overrides it with
-// VRX_AGENT_VPP_REPLY_TIMEOUT (ConnOptions.ReplyTimeout).
+// NGFW_AGENT_VPP_REPLY_TIMEOUT (ConnOptions.ReplyTimeout).
 const DefaultReplyTimeout = 30 * time.Second
 
 // ErrTimeout is returned (wrapped) when VPP did not answer within the reply timeout. It wraps
@@ -42,7 +42,7 @@ func IsTimeout(err error) bool {
 	return strings.Contains(msg, context.DeadlineExceeded.Error()) || strings.Contains(msg, core.ErrReplyTimeout.Error())
 }
 
-// govpp's health-check defaults (250 ms reply timeout, 2 misses) disconnect on hypervisor jitter: on vrx-a an idle VPP
+// govpp's health-check defaults (250 ms reply timeout, 2 misses) disconnect on hypervisor jitter: on ngfw-a an idle VPP
 // answers a control ping in 0.4 ms median but spikes to ~300 ms with nothing else running (ESXi memory reclaim, P08 review
 // I6, D-108), and every disconnect forces a full reconnect + resync. 2 s × 5 misses still reports a dead VPP within ~10 s.
 // core.DefaultReplyTimeout is the backstop for any govpp path that does not go through Conn (TD-9).
@@ -165,7 +165,7 @@ func (c *Conn) loop() {
 	backoff := c.opts.MinBackoff
 	for {
 		adapter := socketclient.NewVppClient(c.path)
-		adapter.SetClientName("vrx-agent")
+		adapter.SetClientName("ngfw-agent")
 		conn, events, err := core.AsyncConnect(adapter, c.opts.Attempts, c.opts.Interval)
 		if err != nil {
 			c.log.Warn("govpp async connect", "err", err)
@@ -260,7 +260,7 @@ func (c *Conn) current() (*core.Connection, error) {
 // Invoke implements Client. The round trip is bounded by ReplyTimeout (TD-9): a caller's earlier deadline
 // wins, a ctx without one gets it. A missed deadline is ErrTimeout. It is govpp's Connection.Invoke on a
 // stream of this Conn's own reply timeout: govpp's Invoke uses the process-wide core.DefaultReplyTimeout,
-// which would cut a larger VRX_AGENT_VPP_REPLY_TIMEOUT short (TD-9 review M1).
+// which would cut a larger NGFW_AGENT_VPP_REPLY_TIMEOUT short (TD-9 review M1).
 func (c *Conn) Invoke(ctx context.Context, req, reply api.Message) error {
 	conn, err := c.current()
 	if err != nil {

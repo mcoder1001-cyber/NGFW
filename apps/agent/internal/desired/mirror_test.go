@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/gso"
 	"ngfw/agent/internal/descriptors/lldp"
@@ -29,9 +29,9 @@ func (s *lbgsSink) Add(k scheduler.Key, v proto.Message, _ string) { s.kvs[k] = 
 func (s *lbgsSink) Errorf(p, rule, _ string, _ ...any)             { s.errors[p] = rule }
 func (s *lbgsSink) Warnf(p, rule, _ string, _ ...any)              { s.warnings[p] = rule }
 
-func lbgsParse(t *testing.T, js string) *vrxv1.DesiredState {
+func lbgsParse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestMirrorRoundTripKeepsDocumentOrder(t *testing.T) {
 	for _, k := range []scheduler.Key{span.Key("loop1", "gre7", false), span.Key("loop1", "loop2", false), span.Key("loop1", "loop3", true)} {
 		kvs = append(kvs, scheduler.KV{Key: k, Value: s.kvs[k]})
 	}
-	back := &vrxv1.DesiredState{}
+	back := &ngfwv1.DesiredState{}
 	AssembleMirror(back, kvs, ds.GetInterfaces())
 	got := back.GetInterfaces()["loop1"].GetMirror()
 	want := []string{"loop3/tx/l2", "gre7/both/device", "loop2/rx/device"}
@@ -69,7 +69,7 @@ func TestMirrorRoundTripKeepsDocumentOrder(t *testing.T) {
 	}
 	// a session VPP has that the document does not name comes last (sorted)
 	extra := scheduler.KV{Key: span.Key("loop1", "loop9", false), Value: MirrorValue("loop1", "loop9", "rx", false)}
-	back = &vrxv1.DesiredState{}
+	back = &ngfwv1.DesiredState{}
 	AssembleMirror(back, append([]scheduler.KV{extra}, kvs...), ds.GetInterfaces())
 	if got := back.GetInterfaces()["loop1"].GetMirror(); len(got) != 4 || got[3].GetDestination() != "loop9" {
 		t.Fatalf("extra session %v", got)
@@ -89,7 +89,7 @@ func TestMirrorAndGsoProjectionErrors(t *testing.T) {
 		t.Fatalf("objects %v", s.kvs)
 	}
 	// Retrieve: on for loop1, the stored `gso: false` of loop2 reported as false, nothing for an unnamed one
-	back := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"loop2": {}, "loop3": {}}}
+	back := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"loop2": {}, "loop3": {}}}
 	AssembleGso(back, []scheduler.KV{{Key: gso.Key("loop1"), Value: gso.Interface{Interface: "loop1"}.Proto()}}, ds.GetInterfaces())
 	if !back.GetInterfaces()["loop1"].GetGso() || back.GetInterfaces()["loop2"].Gso == nil || back.GetInterfaces()["loop2"].GetGso() || back.GetInterfaces()["loop3"].Gso != nil {
 		t.Fatalf("assembled %v", back.GetInterfaces())
@@ -97,7 +97,7 @@ func TestMirrorAndGsoProjectionErrors(t *testing.T) {
 }
 
 func TestLldpProjection(t *testing.T) {
-	ds := lbgsParse(t, `{"services": {"lldp": {"enabled": true, "systemName": "vrx", "txHold": 4, "txIntervalSec": 30, "interfaces": [
+	ds := lbgsParse(t, `{"services": {"lldp": {"enabled": true, "systemName": "ngfw", "txHold": 4, "txIntervalSec": 30, "interfaces": [
 	  {"interface": "loop1", "portDescription": "up", "mgmtIpv6": "2001:DB8::1"}, {"interface": "loop1"}, {"interface": "loop2", "mgmtIpv4": "::1"}]}}}`)
 	// slot agent: per-interface only; VPP-global fields reported unsupported; the whole leaf write-only
 	s := newLbgsSink()
@@ -149,7 +149,7 @@ func TestNsimProjection(t *testing.T) {
 	s = newLbgsSink()
 	Nsim(s, ds.GetServices().GetNsim(), LoopbackBviGsoLldpSpanEnv{GlobalsOwner: true})
 	if len(s.kvs) != 0 || s.warnings["/services/nsim"] != lbgsUnsupported {
-		t.Fatalf("globals owner without VRX_NSIM=lab: %v %v", s.kvs, s.warnings)
+		t.Fatalf("globals owner without NGFW_NSIM=lab: %v %v", s.kvs, s.warnings)
 	}
 	s = newLbgsSink()
 	Nsim(s, ds.GetServices().GetNsim(), LoopbackBviGsoLldpSpanEnv{GlobalsOwner: true, Nsim: true})
@@ -177,7 +177,7 @@ func TestServicesMembers(t *testing.T) {
 	if s.warnings["/services/ntp"] != lbgsUnsupported || s.warnings["/services/snmp"] != "" || s.warnings["/services/lldp"] != lbgsWriteOnly || s.warnings["/services/dhcp"] != "" {
 		t.Fatalf("warnings %v", s.warnings)
 	}
-	back := &vrxv1.DesiredState{}
+	back := &ngfwv1.DesiredState{}
 	AssembleLoopbackBviGsoLldpSpan(back, nil, map[string]bool{"services": true}, nil)
 	if back.Services == nil {
 		t.Fatal("services must be present when requested")

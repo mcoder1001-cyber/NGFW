@@ -13,13 +13,13 @@ import (
 // the slot web port, while a headless browser (an external node script: playwright-core + Chrome from env paths,
 // nothing installed, nothing committed — the P07a/P07b/P08 approach) takes the screenshots against the real endpoints.
 //
-//	VRX_BL2_SHOTS=<node script> VRX_BL2_SHOTS_OUT=<dir> run.sh -run TestBridgeL2Screenshots
+//	NGFW_BL2_SHOTS=<node script> NGFW_BL2_SHOTS_OUT=<dir> run.sh -run TestBridgeL2Screenshots
 //
 // The script is called as: node <script> <baseUrl> <outDir> <adminPasswordFile>.
 func TestBridgeL2Screenshots(t *testing.T) {
-	script, out := os.Getenv("VRX_BL2_SHOTS"), os.Getenv("VRX_BL2_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || script == "" || out == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_BL2_SHOTS (node script) and VRX_BL2_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_BL2_SHOTS"), os.Getenv("NGFW_BL2_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || script == "" || out == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_BL2_SHOTS (node script) and NGFW_BL2_SHOTS_OUT")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -41,12 +41,12 @@ func TestBridgeL2Screenshots(t *testing.T) {
 	st := newStack(t, s)
 	a := st.api
 
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(s.runDir, "bl2", "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 

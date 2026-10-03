@@ -1,10 +1,10 @@
 // Package nftables is the host firewall renderer (F-host-acl-nftables, D-057): it renders `acl.host`,
-// `acl.hostAttachments` and `acl.hostSettings` into ONE nftables table, `table inet vrx`, and nothing
+// `acl.hostAttachments` and `acl.hostSettings` into ONE nftables table, `table inet ngfw`, and nothing
 // else — never `flush ruleset`, never another table (P10's static base policy and foreign tables
 // survive). The table is replaced atomically by one `nft -f` transaction (`add table` + `delete table` +
 // the full table body); `nft -c -f` validates a staged copy first; Retrieve reads `nft -j list table`.
 //
-// The agent drives it through one singleton scheduler descriptor, `host-acl.nftables/vrx`
+// The agent drives it through one singleton scheduler descriptor, `host-acl.nftables/ngfw`
 // (descriptor.go), registered under Domains["acl"] (decision (a) of the task: no agent-core change).
 // See README.md and docs/agent/renderers/nftables.md.
 package nftables
@@ -141,7 +141,7 @@ func (r *Renderer) nft(ctx context.Context, args ...string) (renderers.Output, e
 var (
 	setNameRe   = regexp.MustCompile(`^[ab][46]_[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`) // a: address object, b: block list
 	chainNameRe = regexp.MustCompile(`^((in|out|fwd)_[A-Za-z0-9][A-Za-z0-9_.-]{0,62}|` + BlockChain + `)$`)
-	commentRe   = regexp.MustCompile(`^vrx:(@[a-z-]+|[A-Za-z0-9][A-Za-z0-9_.-]{0,62}:[0-9]{1,10})/[0-9]{1,4}:[0-9a-f]{8}$`)
+	commentRe   = regexp.MustCompile(`^ngfw:(@[a-z-]+|[A-Za-z0-9][A-Za-z0-9_.-]{0,62}:[0-9]{1,10})/[0-9]{1,4}:[0-9a-f]{8}$`)
 )
 
 // RenderText is the file `nft -f` loads for table (v nil or without chains: the table is removed). It
@@ -154,11 +154,11 @@ func RenderText(table string, v *HostTable) ([]byte, error) {
 		return nil, err
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "# vrx-agent host firewall (F-host-acl-nftables): table inet %s, rendered from acl.host*.\n", table)
+	fmt.Fprintf(&b, "# ngfw-agent host firewall (F-host-acl-nftables): table inet %s, rendered from acl.host*.\n", table)
 	b.WriteString("# One nft -f transaction replaces the whole table; hand edits are overwritten by the next apply.\n")
 	fmt.Fprintf(&b, "add table inet %s\ndelete table inet %s\n", table, table)
 	if len(v.GetChains()) > 0 {
-		fmt.Fprintf(&b, "table inet %s {\n\tcomment \"vrx-agent host firewall\"\n", table)
+		fmt.Fprintf(&b, "table inet %s {\n\tcomment \"ngfw-agent host firewall\"\n", table)
 		for _, s := range v.GetSets() {
 			fmt.Fprintf(&b, "\tset %s {\n\t\ttype %s\n\t\tflags interval\n", s.GetName(), s.GetType())
 			if len(s.GetElements()) > 0 {

@@ -22,11 +22,11 @@ that grants anything to others (`ErrInsecure`).
   All servers of a family must share one VRF (else `ErrInvalid`); per-VRF instances are a later
   extension (vdom.md #5 keeps the document ready).
 - Subnet ids (review M1): a subnet keeps the id Kea runs for it — the assignment is read back
-  from the applied config (`user-context.vrx` next to `id`) by `New` and after every `Apply`, so
+  from the applied config (`user-context.ngfw` next to `id`) by `New` and after every `Apply`, so
   it survives agent restarts and rollbacks. A new subnet gets FNV-32a of `<server>/<subnet>`,
   salted (`…#1`, `#2`) until free; existing subnets are placed first and are never renumbered.
   Renaming a server or subnet is a new subnet (new id).
-- `user-context.vrx` carries server/subnet/reservation names and descriptions back through
+- `user-context.ngfw` carries server/subnet/reservation names and descriptions back through
   `config-get`. Kea's JSON is byte-oriented (it re-emits non-ASCII bytes as `\u00XX`), so free
   text is made printable ASCII with Go escape syntax (`☃` → `☃`, `\` → `\\`) and
   `DecodeText` restores it exactly.
@@ -35,7 +35,7 @@ that grants anything to others (`ErrInsecure`).
   name leads it — DHCPv6 has no domain-name option). Custom options: a Kea standard code
   (probed list for 3.0.3) uses Kea's definition; any other code with `0x…` data is sent as raw
   hex (`csv-format: false`, stored without `0x` as Kea reports it); other text gets a string
-  `option-def` `vrx-<code>`. Option data: printable ASCII, ≤ 255 (v4) / 1024 (v6).
+  `option-def` `ngfw-<code>`. Option data: printable ASCII, ≤ 255 (v4) / 1024 (v6).
 - Interfaces: `WithInterfaceMapper` maps VPP names to Linux names (default identity; names must
   be Linux interface names). With a `DesiredState` the v4 binding is `<if>/<addr>` when the
   interface has an address inside one of the subnets. `Paths.InterfacePrefix` (tests: `w6-`)
@@ -55,14 +55,14 @@ option spaces beyond dhcp4/dhcp6 (all outside RF-3).
 
 `go test ./internal/renderers/kea/` — goldens in `testdata/` (`-update` rewrites), hostile
 strings, argv of the checkers, Apply/rollback with a fake controller. Integration
-(`VRX_INTEGRATION=1`): `kea_integration_test.go` — `ns-<prefix>-a` with veth `<prefix>-a`
+(`NGFW_INTEGRATION=1`): `kea_integration_test.go` — `ns-<prefix>-a` with veth `<prefix>-a`
 (10.<slot>.10.1/24), kea-dhcp4/6 inside it, all children
 killed by PID.
 
 ## In the agent (F-kea-dhcp-relay)
 
-`descriptor.go`: one singleton scheduler descriptor per daemon (`kea.dhcp4/vrx`, `kea.dhcp6/vrx`, D-109 d) whose Value
-is `Input(document, family)` (`input.go`). The input is embedded in the rendered config (`user-context.vrx.input`), so
+`descriptor.go`: one singleton scheduler descriptor per daemon (`kea.dhcp4/ngfw`, `kea.dhcp6/ngfw`, D-109 d) whose Value
+is `Input(document, family)` (`input.go`). The input is embedded in the rendered config (`user-context.ngfw.input`), so
 Retrieve derives the Value from what the daemon runs (`config-get`, or the file it loads when stopped), re-renders it and
 checks `ConfigDrift` — never an echo of cached desired state (D-063). `status.go`: `Status` and `LeasePage` for the
 `DhcpLeases` RPC. `WithAddressBinding(false)` renders plain interface names (lab relay rig). See

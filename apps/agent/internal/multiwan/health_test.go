@@ -11,7 +11,7 @@ func TestHealthy(t *testing.T) {
 	}{
 		{"all received, low latency", CheckResult{Sent: 4, Received: 4, AvgLatencyMs: 20}, true},
 		{"total loss", CheckResult{Sent: 4, Received: 0}, false},
-		{"loss at threshold", CheckResult{Sent: 4, Received: 2, AvgLatencyMs: 10}, false}, // 50% >= 50%
+		{"loss at threshold", CheckResult{Sent: 4, Received: 2, AvgLatencyMs: 10}, false},   // 50% >= 50%
 		{"loss under threshold", CheckResult{Sent: 4, Received: 3, AvgLatencyMs: 10}, true}, // 25% < 50%
 		{"latency over", CheckResult{Sent: 4, Received: 4, AvgLatencyMs: 150}, false},
 		{"no probes sent", CheckResult{}, false},

@@ -14,16 +14,16 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/wireguard"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
 )
 
-// Test vectors: SHA-256 of "VRX_TEST_PSK_F-wireguard_<label>" (00-CONTEXT fixture rule), never real keys.
+// Test vectors: SHA-256 of "NGFW_TEST_PSK_F-wireguard_<label>" (00-CONTEXT fixture rule), never real keys.
 func wgVector(label string) []byte {
-	s := sha256.Sum256([]byte("VRX_TEST_PSK_F-wireguard_" + label))
+	s := sha256.Sum256([]byte("NGFW_TEST_PSK_F-wireguard_" + label))
 	return s[:]
 }
 
@@ -55,7 +55,7 @@ func wgDoc(t *testing.T) string {
 }
 
 // wgCanonical is what Retrieve reports for wgDoc (sorted lists, explicit scalars).
-func wgCanonical(t *testing.T) *vrxv1.VpnConfig {
+func wgCanonical(t *testing.T) *ngfwv1.VpnConfig {
 	t.Helper()
 	ds := doc(t, fmt.Sprintf(`{"vpn": {"wireguard": {"interfaces": {"site-a": {
 	    "enabled": true, "description": "HQ", "instance": 7001, "vrf": "red", "underlayVrf": "default",
@@ -86,9 +86,9 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 	putWgSecrets(t)
 	ctx := context.Background()
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "wg1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	byKey := map[string]*vrxv1.ObjectResult{}
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "wg1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	byKey := map[string]*ngfwv1.ObjectResult{}
 	for _, r := range resp.GetResults() {
 		byKey[r.GetKey()] = r
 	}
@@ -104,7 +104,7 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 		"ip.route/7001/10.7.12.0/24":                 "/vpn/wireguard/interfaces/site-a/peers/b2/allowedIps/0",
 	} {
 		r := byKey[key]
-		if r == nil || r.GetPointer() != ptr || r.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
+		if r == nil || r.GetPointer() != ptr || r.GetCode() != ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
 			t.Fatalf("%s: result %v (want pointer %s)", key, r, ptr)
 		}
 	}
@@ -113,7 +113,7 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 	}
 
 	// Retrieve == canonical desired; the wg interface and the automatic routes are not reported elsewhere
-	got, err := s.Retrieve(ctx, &vrxv1.RetrieveRequest{})
+	got, err := s.Retrieve(ctx, &ngfwv1.RetrieveRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,15 +133,15 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 
 	// idempotent
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "wg2", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "wg2", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("second apply: %v", resp.GetResults())
 	}
 
 	// live state
 	v.SetWireguardPeerFlags(1, wireguard.WIREGUARD_PEER_ESTABLISHED)
-	st, err := s.WireguardState(ctx, &vrxv1.WireguardStateRequest{}, nil)
+	st, err := s.WireguardState(ctx, &ngfwv1.WireguardStateRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,14 +165,14 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 	if established != 1 {
 		t.Fatalf("peers %v", itf.GetPeers())
 	}
-	if _, err := s.WireguardState(ctx, &vrxv1.WireguardStateRequest{Owner: "someone-else"}, nil); err == nil {
+	if _, err := s.WireguardState(ctx, &ngfwv1.WireguardStateRequest{Owner: "someone-else"}, nil); err == nil {
 		t.Fatal("a foreign owner must be refused")
 	}
 
 	// rollback: the configuration without WireGuard deletes every object (and the metadata)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "wg3", DesiredState: doc(t, `{"vrfs": {"red": {"id": 7001}}, "routing": {"static": []}, "vpn": {}}`), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err = s.Retrieve(ctx, &vrxv1.RetrieveRequest{})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "wg3", DesiredState: doc(t, `{"vrfs": {"red": {"id": 7001}}, "routing": {"static": []}, "vpn": {}}`), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err = s.Retrieve(ctx, &ngfwv1.RetrieveRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,14 +191,14 @@ func TestWireguardApplyRetrieveStateRollback(t *testing.T) {
 func TestWireguardWithoutSecretMaterial(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir()) // no secrets: the product agent today (PENDING-secret-channel)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var warned []string
 	for _, e := range rep.GetErrors() {
 		if e.GetRule() == "agent.secret-unavailable" {
-			if e.GetSeverity() != vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+			if e.GetSeverity() != ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 				t.Fatalf("issue %v", e)
 			}
 			warned = append(warned, e.GetPointer())
@@ -207,8 +207,8 @@ func TestWireguardWithoutSecretMaterial(t *testing.T) {
 	if strings.Join(warned, ",") != "/vpn/wireguard/interfaces/site-a/peers/b1/presharedKeyRef,/vpn/wireguard/interfaces/site-a/privateKeyRef" {
 		t.Fatalf("warnings %v", rep.GetErrors())
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if !strings.Contains(applyText(resp), "PENDING-secret-channel") {
 		t.Fatalf("response %v", resp)
 	}
@@ -221,8 +221,8 @@ func TestWireguardWithoutSecretMaterial(t *testing.T) {
 	if err := sec.Put("key/w7-site-a", wgVector("itf")); err != nil {
 		t.Fatal(err)
 	}
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if v.WireguardPeerCount() != 0 {
 		t.Fatal("a peer was created without its preshared key")
 	}
@@ -238,10 +238,10 @@ func TestWireguardPeerEventsPublished(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	events := make(chan *vrxv1.Event, 16)
+	events := make(chan *ngfwv1.Event, 16)
 	reg := scheduler.NewRegistry()
 	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
-		Publish: func(ev *vrxv1.Event) { events <- ev }})
+		Publish: func(ev *ngfwv1.Event) { events <- ev }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,8 +255,8 @@ func TestWireguardPeerEventsPublished(t *testing.T) {
 	}
 	t.Cleanup(s.Close)
 	putWgSecrets(t)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "e1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e1", DesiredState: doc(t, wgDoc(t)), Subsystems: allDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	deadline := time.Now().Add(3 * time.Second)
 	for !subsystems.WireguardObserverFor(testOwner).Active() {
@@ -268,14 +268,14 @@ func TestWireguardPeerEventsPublished(t *testing.T) {
 	v.Emit(&wireguard.WireguardPeerEvent{PeerIndex: 1, Flags: wireguard.WIREGUARD_PEER_ESTABLISHED})
 	select {
 	case ev := <-events:
-		if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED || ev.GetInterface() != "wg7001" ||
+		if ev.GetKind() != ngfwv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED || ev.GetInterface() != "wg7001" ||
 			ev.GetAttributes()["established"] != "true" || ev.GetAttributes()["dead"] != "false" || ev.GetAttributes()["public_key"] == "" {
 			t.Fatalf("event %v", ev)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("no event published")
 	}
-	st, err := s.WireguardState(context.Background(), &vrxv1.WireguardStateRequest{}, nil)
+	st, err := s.WireguardState(context.Background(), &ngfwv1.WireguardStateRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestWireguardPeerEventsPublished(t *testing.T) {
 }
 
 // applyText is the response's message and per-object messages (where a failure is reported).
-func applyText(r *vrxv1.ApplyResponse) string {
+func applyText(r *ngfwv1.ApplyResponse) string {
 	parts := []string{r.GetMessage()}
 	for _, o := range r.GetResults() {
 		parts = append(parts, o.GetKey()+": "+o.GetMessage())

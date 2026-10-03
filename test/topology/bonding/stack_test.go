@@ -1,7 +1,7 @@
 package bonding
 
 // The stack under test (P08's topology harness, test/topology/interfaces, without the rig and the websocket): the real
-// vrx-agent binary (built from this tree, owner = VRX_TEST_PREFIX) and the real vrx-api (apps/api/dist, slot port) on a
+// ngfw-agent binary (built from this tree, owner = NGFW_TEST_PREFIX) and the real ngfw-api (apps/api/dist, slot port) on a
 // throwaway slot database, and the host VPP. Every process is started by this test and stopped by PID; every object
 // carries the slot prefix or the slot's id range.
 
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-const labLock = "/run/lock/vrx-lab.lock"
+const labLock = "/run/lock/ngfw-lab.lock"
 
 type slot struct {
 	prefix      string
@@ -34,7 +34,7 @@ type slot struct {
 	httpPort    string
 	metricsPort string
 	valkeyDB    string
-	runDir      string // /run/vrx-test/<prefix>
+	runDir      string // /run/ngfw-test/<prefix>
 	socket      string
 	repo        string
 	lab         string
@@ -42,10 +42,10 @@ type slot struct {
 
 func slotFromEnv(t *testing.T) slot {
 	t.Helper()
-	p := os.Getenv("VRX_TEST_PREFIX")
+	p := os.Getenv("NGFW_TEST_PREFIX")
 	m := regexp.MustCompile(`^w([0-9]{1,2})$`).FindStringSubmatch(p)
 	if m == nil {
-		t.Fatalf("VRX_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
 	env := func(k, def string) string {
@@ -57,13 +57,13 @@ func slotFromEnv(t *testing.T) slot {
 	s := slot{
 		prefix:      p,
 		num:         n,
-		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(3000+100*n)),
-		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
-		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
-		runDir:      "/run/vrx-test/" + p,
+		httpPort:    env("NGFW_HTTP_PORT", strconv.Itoa(3000+100*n)),
+		metricsPort: env("NGFW_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
+		valkeyDB:    env("NGFW_VALKEY_DB", strconv.Itoa(n)),
+		runDir:      "/run/ngfw-test/" + p,
 		repo:        repoRoot(t),
 	}
-	s.socket = env("VRX_AGENT_SOCKET", s.runDir+"/agent.sock")
+	s.socket = env("NGFW_AGENT_SOCKET", s.runDir+"/agent.sock")
 	s.lab = filepath.Join(s.repo, "tools", "lab")
 	return s
 }
@@ -99,8 +99,8 @@ func sharedLock(t *testing.T) {
 	t.Cleanup(func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() })
 }
 
-// mkdirShared creates dir and any missing parent as 0755 whatever the umask (the slot run dir /run/vrx-test/<prefix>
-// and /run/vrx-test must stay traversable for the frr/_chrony test daemons, D-106/D-107). An existing directory is
+// mkdirShared creates dir and any missing parent as 0755 whatever the umask (the slot run dir /run/ngfw-test/<prefix>
+// and /run/ngfw-test must stay traversable for the frr/_chrony test daemons, D-106/D-107). An existing directory is
 // never re-moded; only the test's own work dir below it is private (0700).
 func mkdirShared(dir string) error {
 	if fi, err := os.Stat(dir); err == nil {
@@ -374,7 +374,7 @@ func fileSize(path string) int64 {
 	return fi.Size()
 }
 
-// stack is the product stack of this test: vrx-agent (owner = prefix) + vrx-api on the slot ports and database.
+// stack is the product stack of this test: ngfw-agent (owner = prefix) + ngfw-api on the slot ports and database.
 type stack struct {
 	s        slot
 	agentBin string
@@ -389,12 +389,12 @@ type stack struct {
 
 func newStack(t *testing.T, s slot) *stack {
 	t.Helper()
-	bin := os.Getenv("VRX_F_BONDING_AGENT_BIN")
+	bin := os.Getenv("NGFW_F_BONDING_AGENT_BIN")
 	if bin == "" { // tools/ci.sh full: build the agent from this tree (run.sh passes a prebuilt one)
-		bin = filepath.Join(t.TempDir(), "vrx-agent")
-		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent")
+		bin = filepath.Join(t.TempDir(), "ngfw-agent")
+		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-agent")
 		if err != nil {
-			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+			t.Fatalf("go build ngfw-agent: %v\n%s", err, out)
 		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
@@ -424,19 +424,19 @@ func newStack(t *testing.T, s slot) *stack {
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
-		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info")
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: test slots never own globals
+		"NGFW_AGENT_STATE_DIR="+st.stateDir, "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info")
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 
 	adminPW := secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":f-bonding:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":f-bonding:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(60*time.Second, func() bool {
@@ -446,7 +446,7 @@ func newStack(t *testing.T, s slot) *stack {
 		return st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", adminPW)
 	st.adminPW = adminPW
@@ -455,12 +455,12 @@ func newStack(t *testing.T, s slot) *stack {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		_, err := os.Stat(st.s.socket)
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }

@@ -11,16 +11,16 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/objects"
 )
 
-func (g *server) FqdnObjectState(_ context.Context, req *vrxv1.FqdnObjectStateRequest) (*vrxv1.FqdnObjectStateResponse, error) {
+func (g *server) FqdnObjectState(_ context.Context, req *ngfwv1.FqdnObjectStateRequest) (*ngfwv1.FqdnObjectStateResponse, error) {
 	return g.svc.FqdnObjectState(req)
 }
 
 // FqdnObjectState implements the RPC (no VPP round trip; works while VPP is disconnected).
-func (s *Service) FqdnObjectState(req *vrxv1.FqdnObjectStateRequest) (*vrxv1.FqdnObjectStateResponse, error) {
+func (s *Service) FqdnObjectState(req *ngfwv1.FqdnObjectStateRequest) (*ngfwv1.FqdnObjectStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -28,9 +28,9 @@ func (s *Service) FqdnObjectState(req *vrxv1.FqdnObjectStateRequest) (*vrxv1.Fqd
 	if rt == nil {
 		return nil, status.Error(codes.Unavailable, "the objects domain is not running in this agent")
 	}
-	resp := &vrxv1.FqdnObjectStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.FqdnObjectStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
 	for _, st := range rt.FQDNStates(req.GetNames()...) {
-		o := &vrxv1.FqdnObjectState{Name: st.Name, Fqdn: st.FQDN, Error: st.Err, Failures: uint32(max(st.Failures, 0))} //nolint:gosec // a small non-negative counter
+		o := &ngfwv1.FqdnObjectState{Name: st.Name, Fqdn: st.FQDN, Error: st.Err, Failures: uint32(max(st.Failures, 0))} //nolint:gosec // a small non-negative counter
 		for _, a := range st.Addresses {
 			o.Addresses = append(o.Addresses, a.String())
 		}

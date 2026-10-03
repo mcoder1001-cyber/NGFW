@@ -21,7 +21,7 @@ import (
 )
 
 // TestSnmpdIntegration runs the real net-snmp agent as a child of the test (never the system
-// unit, never /etc/snmp): config and state under /run/vrx-test/<prefix>/snmpd, bound only to
+// unit, never /etc/snmp): config and state under /run/ngfw-test/<prefix>/snmpd, bound only to
 // 127.0.0.1:3<N>61, killed by the PID the test spawned.
 func TestSnmpdIntegration(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
@@ -285,7 +285,7 @@ func alive(pid int) bool { return syscall.Kill(pid, 0) == nil }
 // packages of one slot never share a daemon directory: RF-1 review M4).
 func lockSlotDir(t *testing.T, base string) {
 	t.Helper()
-	if !strings.HasPrefix(base, "/run/vrx-test/") {
+	if !strings.HasPrefix(base, "/run/ngfw-test/") {
 		t.Fatalf("refusing to use %s", base)
 	}
 	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {

@@ -12,7 +12,7 @@ import (
 // Typed errors descriptors return and integration tests recognise.
 var (
 	// ErrPluginNotLoaded: the VPP on this host does not know the plugin's messages
-	// (docs/lab/host-vrx-a.md: ip6_dad_autoremove, linux_cp, …). Integration tests t.Skip on it.
+	// (docs/lab/host-ngfw-a.md: ip6_dad_autoremove, linux_cp, …). Integration tests t.Skip on it.
 	ErrPluginNotLoaded = errors.New("vpp plugin not loaded")
 	// ErrRetrieveUnsupported: VPP has no dump for this object type, so Retrieve cannot report
 	// actual state (adl, classify ip/l2 table bindings, output-acl). The descriptor is

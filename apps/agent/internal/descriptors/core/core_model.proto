@@ -1,10 +1,10 @@
 // Values of the P05 core descriptors (scheduler.KV.Value). Agent-internal: the agent projects
-// vrx.v1.DesiredState (packages/proto) onto these objects and back (internal/agent/projection.go).
+// ngfw.v1.DesiredState (packages/proto) onto these objects and back (internal/agent/projection.go).
 // Canonical form (what Retrieve returns and what the projection produces) is documented per field;
 // proto.Equal on these messages is the scheduler's diff.
 syntax = "proto3";
 
-package vrx.agent.core;
+package ngfw.agent.core;
 
 option go_package = "ngfw/agent/internal/descriptors/core;core";
 

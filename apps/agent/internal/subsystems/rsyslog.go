@@ -9,7 +9,7 @@ import (
 )
 
 // newRsyslog returns the rsyslog export renderer of env: for the globals owner the product include
-// (/etc/rsyslog.d/50-vrx-export.conf, `systemctl restart rsyslog` — RF-4), else a standalone slot configuration
+// (/etc/rsyslog.d/50-ngfw-export.conf, `systemctl restart rsyslog` — RF-4), else a standalone slot configuration
 // (<slot dir>/rsyslog/rsyslog.conf, imuxsock on its log.sock — never /dev/log, no imtcp) driven by a
 // DeferredController: a restart request, never a restart (the slot harness runs the instance with
 // `-i <dir>/rsyslogd.pid`), and the hook that prepares the directories.
@@ -31,6 +31,6 @@ func newRsyslog(env Env) (*rsyslog.Renderer, func() error, error) {
 		}
 		return nil
 	}
-	ctl := &rsyslog.DeferredController{PendingFile: filepath.Join(dir, "vrx.pending"), PIDFile: filepath.Join(dir, "rsyslogd.pid")}
+	ctl := &rsyslog.DeferredController{PendingFile: filepath.Join(dir, "ngfw.pending"), PIDFile: filepath.Join(dir, "rsyslogd.pid")}
 	return rsyslog.New(runner, rsyslog.WithPaths(p), rsyslog.WithController(ctl)), prep, nil
 }

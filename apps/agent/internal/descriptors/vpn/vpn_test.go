@@ -21,10 +21,10 @@ import (
 )
 
 // test vector: 32 bytes of the documented placeholder, never real material
-var testKey = []byte("VRX_TEST_PSK_DF5_0123456789abcde")
+var testKey = []byte("NGFW_TEST_PSK_DF5_0123456789abcde")
 
 // testKeys is the fixed fingerprint key of the unit tests (a test vector, not an agent key).
-var testKeys, _ = vpn.NewKeyer([]byte("VRX_TEST_PSK_DF5_fingerprint_key"))
+var testKeys, _ = vpn.NewKeyer([]byte("NGFW_TEST_PSK_DF5_fingerprint_key"))
 
 func TestSecretReferences(t *testing.T) {
 	ref := testKeys.Ref(testKey)
@@ -77,7 +77,7 @@ func TestSecretReferences(t *testing.T) {
 	if _, err := vpn.PublicKeyOfRef(ref); !errors.Is(err, vpn.ErrBadRef) {
 		t.Fatalf("PublicKeyOfRef(hmac): %v", err)
 	}
-	if s := fmt.Sprintf("%v %+v %#v", testKeys, *testKeys, testKeys); strings.Contains(s, "VRX_TEST_PSK") || strings.Contains(s, "fingerprint_key") {
+	if s := fmt.Sprintf("%v %+v %#v", testKeys, *testKeys, testKeys); strings.Contains(s, "NGFW_TEST_PSK") || strings.Contains(s, "fingerprint_key") {
 		t.Fatalf("keyer formatting leaks the key: %s", s)
 	}
 }

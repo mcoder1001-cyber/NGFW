@@ -165,7 +165,7 @@ var File_l3xc_model_proto protoreflect.FileDescriptor
 
 const file_l3xc_model_proto_rawDesc = "" +
 	"\n" +
-	"\x10l3xc_model.proto\x12\x0evrx.agent.l3xc\"\x8d\x01\n" +
+	"\x10l3xc_model.proto\x12\x0engfw.agent.l3xc\"\x8d\x01\n" +
 	"\x04Path\x12\x19\n" +
 	"\bnext_hop\x18\x01 \x01(\tR\anextHop\x12\x1c\n" +
 	"\tinterface\x18\x02 \x01(\tR\tinterface\x12\x14\n" +
@@ -177,7 +177,7 @@ const file_l3xc_model_proto_rawDesc = "" +
 	"\x04L3xc\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x12\n" +
 	"\x04ipv6\x18\x02 \x01(\bR\x04ipv6\x12*\n" +
-	"\x05paths\x18\x03 \x03(\v2\x14.vrx.agent.l3xc.PathR\x05pathsB+Z)ngfw/agent/internal/descriptors/l3xc;l3xcb\x06proto3"
+	"\x05paths\x18\x03 \x03(\v2\x14.ngfw.agent.l3xc.PathR\x05pathsB+Z)ngfw/agent/internal/descriptors/l3xc;l3xcb\x06proto3"
 
 var (
 	file_l3xc_model_proto_rawDescOnce sync.Once
@@ -193,11 +193,11 @@ func file_l3xc_model_proto_rawDescGZIP() []byte {
 
 var file_l3xc_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_l3xc_model_proto_goTypes = []any{
-	(*Path)(nil), // 0: vrx.agent.l3xc.Path
-	(*L3Xc)(nil), // 1: vrx.agent.l3xc.L3xc
+	(*Path)(nil), // 0: ngfw.agent.l3xc.Path
+	(*L3Xc)(nil), // 1: ngfw.agent.l3xc.L3xc
 }
 var file_l3xc_model_proto_depIdxs = []int32{
-	0, // 0: vrx.agent.l3xc.L3xc.paths:type_name -> vrx.agent.l3xc.Path
+	0, // 0: ngfw.agent.l3xc.L3xc.paths:type_name -> ngfw.agent.l3xc.Path
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

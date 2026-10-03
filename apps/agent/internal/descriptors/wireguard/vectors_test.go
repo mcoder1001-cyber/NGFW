@@ -10,8 +10,8 @@ import (
 	"ngfw/agent/internal/descriptors/vpn"
 )
 
-// Test vectors (00-CONTEXT: fixtures use the literal VRX_TEST_PSK_<id>): every key is the SHA-256
-// of a "VRX_TEST_PSK_DF5_wg_…" label, so it is reproducible from this file and is not real
+// Test vectors (00-CONTEXT: fixtures use the literal NGFW_TEST_PSK_<id>): every key is the SHA-256
+// of a "NGFW_TEST_PSK_DF5_wg_…" label, so it is reproducible from this file and is not real
 // material. The slot is part of the label because VPP requires peer public keys to be unique
 // VPP-wide and several workers share the host VPP.
 type vectors struct {
@@ -23,7 +23,7 @@ type vectors struct {
 }
 
 func vector(label string) []byte {
-	s := sha256.Sum256([]byte("VRX_TEST_PSK_DF5_wg_" + label))
+	s := sha256.Sum256([]byte("NGFW_TEST_PSK_DF5_wg_" + label))
 	return s[:]
 }
 

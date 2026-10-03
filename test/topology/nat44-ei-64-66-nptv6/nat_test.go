@@ -1,19 +1,19 @@
 // Package nat44ei6466nptv6 is F-nat44-ei-64-66-nptv6's topology test: NAT44-EI, NAT64, NAT66 and NPTv6 end to end
-// against the REAL host VPP through the af_packet veth/netns rig (path: af_packet, D-010), with the real vrx-agent and
-// vrx-api of the slot. The rig is IPv4-only; this test adds its IPv6 inside fd00:<slot hex>::/32 and removes it.
+// against the REAL host VPP through the af_packet veth/netns rig (path: af_packet, D-010), with the real ngfw-agent and
+// ngfw-api of the slot. The rig is IPv4-only; this test adds its IPv6 inside fd00:<slot hex>::/32 and removes it.
 //
 //	TestNatEI6466Nptv6
 //	  config          interfaces + slot VRF (rev 1) → mode "ei" with a twice-NAT pool, NPTv6 /48 → /56: 400 + pointer →
 //	                  EI + NAT66 + NPTv6 (rev 2) → Retrieve(nat) == canonical desired (NPTv6 is write-only: never
 //	                  retrieved) → vppctl show nat44 ei / nat66 / npt66
-//	  ei-packets      V19 guard + vrx-vpp-preflight → outbound PAT (tcpdump in the wan netns sees the pool address;
+//	  ei-packets      V19 guard + ngfw-vpp-preflight → outbound PAT (tcpdump in the wan netns sees the pool address;
 //	                  vppctl show nat44 ei sessions and GET /state/nat/ei/sessions) → kill through the API (audited)
 //	  nptv6-packets   lan fd00:N:10::2 → wan fd00:N:2::2 over TCP: tcpdump in the wan netns sees a source in the
 //	                  external prefix fd00:N:20::/48, the reply is translated back (the client reads the greeting)
 //	  restart-ei      agent stopped → the npt66 binding, EI and NAT66 objects deleted via binapi (dependents first) →
 //	                  agent started → back within 30 s, exactly one npt66 binding; a second restart without loss
 //	                  re-applies the write-only binding and still leaves exactly one
-//	  nat64           OPT-IN (VRX_NAT64_TENANT_VRF_HOST=1, see tenantVRFHost; otherwise skipped, and rev 1 has no slot
+//	  nat64           OPT-IN (NGFW_NAT64_TENANT_VRF_HOST=1, see tenantVRFHost; otherwise skipped, and rev 1 has no slot
 //	                  VRF) rev 3: EI removed, the rig lan in the slot VRF, NAT64 with the slot /96 in that VRF →
 //	                  Retrieve == canonical → v6 client → [fd00:N:64::<v4>]:8000 reaches the IPv4 wan host (tcpdump
 //	                  sees the NAT64 pool address), static BIB inbound, vppctl show nat64 session table all, the API
@@ -21,7 +21,7 @@
 //	  rollback        to rev 1 → Retrieve has no NAT object, VPP holds none of ours, no npt66 binding of the slot, the
 //	                  plugins stay enabled (D-071)
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix, under flock -s on the lab lock, the slot's nat44 lock
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix, under flock -s on the lab lock, the slot's nat44 lock
 // (ED and EI are exclusive) and the globals lock shared (D-082); nat44-ei, nat64 and nat66 are fixtures (enabled only
 // if off, disabled again only if this test enabled them and they are empty). NRestarts is checked before and after.
 // VPP is never restarted; every process is stopped by PID; no packet trace (D-128).
@@ -42,33 +42,33 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
-func dialAgent(t *testing.T, sock string) vrxv1.DataplaneClient {
+func dialAgent(t *testing.T, sock string) ngfwv1.DataplaneClient {
 	t.Helper()
 	cc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cc.Close() })
-	return vrxv1.NewDataplaneClient(cc)
+	return ngfwv1.NewDataplaneClient(cc)
 }
 
-func retrieveNat(t *testing.T, c vrxv1.DataplaneClient) (*vrxv1.NatConfig, error) {
+func retrieveNat(t *testing.T, c ngfwv1.DataplaneClient) (*ngfwv1.NatConfig, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	r, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"nat"}})
+	r, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"nat"}})
 	if err != nil {
 		return nil, err
 	}
 	return r.GetDesiredState().GetNat(), nil
 }
 
-func natJSON(t *testing.T, js string) *vrxv1.NatConfig {
+func natJSON(t *testing.T, js string) *ngfwv1.NatConfig {
 	t.Helper()
-	n := &vrxv1.NatConfig{}
+	n := &ngfwv1.NatConfig{}
 	if err := protojson.Unmarshal([]byte(js), n); err != nil {
 		t.Fatalf("nat json: %v\n%s", err, js)
 	}
@@ -95,7 +95,7 @@ type fixture struct {
 	a6      v6
 	st      *stack
 	a       *api
-	c       vrxv1.DataplaneClient
+	c       ngfwv1.DataplaneClient
 	conn    vppapi.Connection
 	sc      scope
 	scripts string
@@ -103,7 +103,7 @@ type fixture struct {
 	loopIn  string // NAT66 inside / outside: slot loopbacks
 	loopOut string
 	rev1    int
-	canon   *vrxv1.NatConfig
+	canon   *ngfwv1.NatConfig
 	natCfg  map[string]any
 	binding map[string]string // interface → internal prefix of the npt66 binding (for the loss)
 }
@@ -129,10 +129,10 @@ func (f *fixture) evidence64(t *testing.T) {
 }
 
 // retrieveUntil polls Retrieve(nat) until it equals want (or the timeout) and returns how long it took.
-func (f *fixture) retrieveUntil(t *testing.T, want *vrxv1.NatConfig, timeout time.Duration) (time.Duration, *vrxv1.NatConfig) {
+func (f *fixture) retrieveUntil(t *testing.T, want *ngfwv1.NatConfig, timeout time.Duration) (time.Duration, *ngfwv1.NatConfig) {
 	t.Helper()
 	start := time.Now()
-	var got *vrxv1.NatConfig
+	var got *ngfwv1.NatConfig
 	waitFor(timeout, func() bool {
 		g, err := retrieveNat(t, f.c)
 		if err != nil {
@@ -149,13 +149,13 @@ func (f *fixture) retrieveUntil(t *testing.T, want *vrxv1.NatConfig, timeout tim
 // IPv6 table (docs/vpp-code-track.md V-new c), so every run leaves `<slot>:<slot>-n64` (table <slot>064) in VPP until
 // VPP restarts, and every later transaction of that slot's agent that covers `vrfs` then fails its verify and is
 // rolled back. The evidence of those phases is in docs/status/tasks/F-nat44-ei-64-66-nptv6.md (host run 9).
-const tenantVRFHostEnv = "VRX_NAT64_TENANT_VRF_HOST"
+const tenantVRFHostEnv = "NGFW_NAT64_TENANT_VRF_HOST"
 
 func tenantVRFHost() bool { return os.Getenv(tenantVRFHostEnv) == "1" }
 
 func TestNatEI6466Nptv6(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-nat44-ei-64-66-nptv6 topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-nat44-ei-64-66-nptv6 topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -305,11 +305,11 @@ func TestNatEI6466Nptv6(t *testing.T) {
 		for _, l := range v19Guard(t, conn, map[string]uint32{r.lanIf: idx[r.lanIf], r.wanIf: idx[r.wanIf]}) {
 			t.Log("V19 guard: " + l)
 		}
-		if bin := os.Getenv("VRX_PREFLIGHT_BIN"); bin != "" {
+		if bin := os.Getenv("NGFW_PREFLIGHT_BIN"); bin != "" {
 			out, err := run(t, bin)
-			t.Logf("vrx-vpp-preflight: %v\n%s", err, strings.TrimSpace(out))
+			t.Logf("ngfw-vpp-preflight: %v\n%s", err, strings.TrimSpace(out))
 			if err != nil {
-				t.Fatal("vrx-vpp-preflight did not exit 0 — no packet may cross the rig (D-095)")
+				t.Fatal("ngfw-vpp-preflight did not exit 0 — no packet may cross the rig (D-095)")
 			}
 		}
 		r.peers(t, true)
@@ -423,7 +423,7 @@ func (f *fixture) eiPackets(t *testing.T) {
 	}
 	greet, _ := os.ReadFile(cl.log) //nolint:gosec // our own log
 	t.Logf("NAT44-EI outbound PAT: %s:40001 → seen on the wan side as %s:%s (pool %s-%s); the client read %q", r.lanIP, natSrc, natPort, r.addr(2, 100), r.addr(2, 103), strings.TrimSpace(string(greet)))
-	if !strings.Contains(string(greet), "vrx-nat-ok") {
+	if !strings.Contains(string(greet), "ngfw-nat-ok") {
 		t.Fatal("the client did not read the server's greeting: the reply was not translated back")
 	}
 	vs := vppctl(t, "show", "nat44", "ei", "sessions", "detail", "filter", "saddr", r.lanIP)
@@ -498,7 +498,7 @@ func (f *fixture) nptPackets(t *testing.T) {
 		t.Fatalf("the wan side saw no source in the external prefix %s", a6.nptExternal)
 	}
 	t.Logf("NPTv6: %s → seen on the wan side as %s (external prefix %s; the interface id / subnet word carries the RFC 6296 checksum adjustment)", a6.nptHost, seen, a6.nptExternal)
-	if err != nil || !strings.Contains(out, "vrx-nat-ok") {
+	if err != nil || !strings.Contains(out, "ngfw-nat-ok") {
 		t.Fatal("the lan host did not read the greeting: the reply was not translated back to the internal prefix")
 	}
 	t.Log("vppctl show errors (npt66 counters):\n" + grepLines(vppctl(t, "show", "errors"), "npt66"))
@@ -578,7 +578,7 @@ func (f *fixture) nat64(t *testing.T, tbl string, tblID uint32) {
 	if natSrc == "" || !pool.Contains(netip.MustParseAddr(natSrc)) {
 		t.Fatalf("the wan side did not see a NAT64 pool address (%s-%s) as source", r.addr(64, 1), r.addr(64, 2))
 	}
-	if !strings.Contains(string(greet), "vrx-nat-ok") {
+	if !strings.Contains(string(greet), "ngfw-nat-ok") {
 		t.Fatal("the IPv6 client did not read the IPv4 server's greeting: the reply was not translated back")
 	}
 	st := vppctl(t, "show", "nat64", "session", "table", "all")
@@ -605,7 +605,7 @@ func (f *fixture) nat64(t *testing.T, tbl string, tblID uint32) {
 	time.Sleep(500 * time.Millisecond)
 	out, err := inNS(t, r.wanNS, "python3", once, r.wanIP, "41064", bibOut, "8080")
 	t.Logf("static BIB: wan %s:41064 → %s:8080 (→ [%s]:80): %v %s", r.wanIP, bibOut, bibIn, err, strings.TrimSpace(out))
-	if err != nil || !strings.Contains(out, "vrx-nat-ok") {
+	if err != nil || !strings.Contains(out, "ngfw-nat-ok") {
 		t.Fatal("the static BIB did not forward the IPv4 connection to the IPv6 server")
 	}
 	t.Log("vppctl show nat64 session table all (ours, after the BIB connection):\n" + grepLines(vppctl(t, "show", "nat64", "session", "table", "all"), a6.lanClient))
@@ -614,7 +614,7 @@ func (f *fixture) nat64(t *testing.T, tbl string, tblID uint32) {
 // restart is the restart-safety simulation (FAST MODE): stop the slot's agent, delete its NAT objects via binapi
 // (dependents first), start the agent → everything back within 30 s without a config API call, the write-only npt66
 // binding exactly once; then a second restart without loss (the binding is re-applied, still exactly once).
-func (f *fixture) restart(t *testing.T, want *vrxv1.NatConfig) {
+func (f *fixture) restart(t *testing.T, want *ngfwv1.NatConfig) {
 	st := f.st
 	st.agent.stop(t)
 	for _, l := range f.sc.loss(t, f.conn, f.binding) {

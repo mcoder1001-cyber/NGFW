@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dhcp"
 	"ngfw/agent/internal/renderers/kea"
@@ -38,29 +38,29 @@ var keaVrfIDs = map[string]uint32{"default": 0, "w2-lan": 2001, "w2-wan": 2002}
 
 func keaVrfID(n string) (uint32, bool) { id, ok := keaVrfIDs[n]; return id, ok }
 
-func lanDoc() *vrxv1.DesiredState {
-	return &vrxv1.DesiredState{
-		Interfaces: map[string]*vrxv1.Interface{
+func lanDoc() *ngfwv1.DesiredState {
+	return &ngfwv1.DesiredState{
+		Interfaces: map[string]*ngfwv1.Interface{
 			"host-w2l0": {Vrf: proto.String("w2-lan"), Ipv4: []string{"10.2.1.1/24"}},
 			"host-w2w0": {Vrf: proto.String("w2-lan"), Ipv4: []string{"10.2.2.1/24"}},
 		},
-		Services: &vrxv1.ServicesConfig{
-			Dhcp: &vrxv1.DhcpService{
-				Servers: map[string]*vrxv1.DhcpServer{
+		Services: &ngfwv1.ServicesConfig{
+			Dhcp: &ngfwv1.DhcpService{
+				Servers: map[string]*ngfwv1.DhcpServer{
 					"lan": {Enabled: proto.Bool(true), Family: proto.String("ipv4"), Vrf: proto.String("w2-lan"), Interfaces: []string{"host-w2l0"},
 						LeaseTimeSec: proto.Uint32(3600), Authoritative: proto.Bool(true),
-						Subnets: map[string]*vrxv1.DhcpSubnet{"lan": {Subnet: proto.String("10.2.1.0/24"),
-							Pools: []*vrxv1.DhcpPool{{Start: proto.String("10.2.1.100"), End: proto.String("10.2.1.150")}}}}},
+						Subnets: map[string]*ngfwv1.DhcpSubnet{"lan": {Subnet: proto.String("10.2.1.0/24"),
+							Pools: []*ngfwv1.DhcpPool{{Start: proto.String("10.2.1.100"), End: proto.String("10.2.1.150")}}}}},
 					"lan6": {Family: proto.String("ipv6"), Vrf: proto.String("w2-lan"), Interfaces: []string{"host-w2l0"}},
 				},
-				Relays: map[string]*vrxv1.DhcpRelay{
+				Relays: map[string]*ngfwv1.DhcpRelay{
 					"to-kea": {Enabled: proto.Bool(true), Family: proto.String("ipv4"), Vrf: proto.String("w2-lan"), Interfaces: []string{"host-w2l0"},
 						Servers: []string{"10.2.2.2", "10.2.2.3"}, SourceAddress: proto.String("10.2.2.1"), Description: proto.String("relay")},
 					"off": {Enabled: proto.Bool(false), Family: proto.String("ipv4"), Vrf: proto.String("w2-wan"), Servers: []string{"10.9.9.9"}, SourceAddress: proto.String("10.9.9.1")},
 				},
 			},
-			Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(false)},
-			Dns:  &vrxv1.DnsService{},
+			Snmp: &ngfwv1.SnmpService{Enabled: proto.Bool(false)},
+			Dns:  &ngfwv1.DnsService{},
 		},
 	}
 }
@@ -82,7 +82,7 @@ func TestDHCPProjectionRoundTrip(t *testing.T) {
 	if len(s.errs) != 0 {
 		t.Fatalf("errors %v", s.errs)
 	}
-	want := "kea.dhcp4/vrx kea.dhcp6/vrx dhcp.relay/off dhcp.proxy/2001/2001/10.2.2.2 dhcp.proxy/2001/2001/10.2.2.3 dhcp.relay/to-kea"
+	want := "kea.dhcp4/ngfw kea.dhcp6/ngfw dhcp.relay/off dhcp.proxy/2001/2001/10.2.2.2 dhcp.proxy/2001/2001/10.2.2.3 dhcp.relay/to-kea"
 	if got := keys(s.kvs); got != want {
 		t.Fatalf("keys\n got %s\nwant %s", got, want)
 	}
@@ -100,7 +100,7 @@ func TestDHCPProjectionRoundTrip(t *testing.T) {
 		t.Fatal("kea.dhcp4 value is not kea.Input")
 	}
 
-	out := &vrxv1.DesiredState{}
+	out := &ngfwv1.DesiredState{}
 	AssembleDHCP(out, s.kvs)
 	if !proto.Equal(out.GetServices().GetDhcp(), ds.GetServices().GetDhcp()) {
 		t.Fatalf("round trip:\n got %v\nwant %v", out.GetServices().GetDhcp(), ds.GetServices().GetDhcp())
@@ -115,14 +115,14 @@ func TestDHCPProjectionRoundTrip(t *testing.T) {
 			s.kvs[i].Value = rec.Proto()
 		}
 	}
-	out = &vrxv1.DesiredState{}
+	out = &ngfwv1.DesiredState{}
 	AssembleDHCP(out, s.kvs)
 	if got := out.GetServices().GetDhcp().GetRelays()["to-kea"].GetServers(); len(got) != 1 {
 		t.Fatalf("drifted relay servers %v", got)
 	}
 
 	// an empty services domain still assembles services.dhcp (empty maps)
-	out = &vrxv1.DesiredState{}
+	out = &ngfwv1.DesiredState{}
 	AssembleDHCP(out, nil)
 	if out.GetServices().GetDhcp() == nil {
 		t.Fatal("services.dhcp must be present")
@@ -132,11 +132,11 @@ func TestDHCPProjectionRoundTrip(t *testing.T) {
 func TestDHCPProjectionErrors(t *testing.T) {
 	ds := lanDoc()
 	d := ds.Services.Dhcp
-	d.Servers["other"] = &vrxv1.DhcpServer{Family: proto.String("ipv4"), Vrf: proto.String("w2-wan"), Interfaces: []string{"host-w2w0"}}
-	d.Servers["bad"] = &vrxv1.DhcpServer{Family: proto.String("ipx")}
-	d.Relays["second-src"] = &vrxv1.DhcpRelay{Family: proto.String("ipv4"), Vrf: proto.String("w2-lan"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("10.2.1.1")}
-	d.Relays["novrf"] = &vrxv1.DhcpRelay{Family: proto.String("ipv4"), Vrf: proto.String("nope"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("10.2.1.1")}
-	d.Relays["fam"] = &vrxv1.DhcpRelay{Family: proto.String("ipv6"), Vrf: proto.String("w2-wan"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("fd00::1")}
+	d.Servers["other"] = &ngfwv1.DhcpServer{Family: proto.String("ipv4"), Vrf: proto.String("w2-wan"), Interfaces: []string{"host-w2w0"}}
+	d.Servers["bad"] = &ngfwv1.DhcpServer{Family: proto.String("ipx")}
+	d.Relays["second-src"] = &ngfwv1.DhcpRelay{Family: proto.String("ipv4"), Vrf: proto.String("w2-lan"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("10.2.1.1")}
+	d.Relays["novrf"] = &ngfwv1.DhcpRelay{Family: proto.String("ipv4"), Vrf: proto.String("nope"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("10.2.1.1")}
+	d.Relays["fam"] = &ngfwv1.DhcpRelay{Family: proto.String("ipv6"), Vrf: proto.String("w2-wan"), Servers: []string{"10.2.2.9"}, SourceAddress: proto.String("fd00::1")}
 	s := newKeaSink()
 	DHCP(s, ds, keaVrfID)
 	got := strings.Join(s.errs, "\n")
@@ -152,7 +152,7 @@ func TestDHCPProjectionErrors(t *testing.T) {
 	}
 	// one VRF per family is the renderer's check at apply time (and the semantic rule), not a projection error
 	ds = lanDoc()
-	ds.Services.Dhcp.Servers["other"] = &vrxv1.DhcpServer{Family: proto.String("ipv4"), Vrf: proto.String("w2-wan"), Interfaces: []string{"host-w2w0"}}
+	ds.Services.Dhcp.Servers["other"] = &ngfwv1.DhcpServer{Family: proto.String("ipv4"), Vrf: proto.String("w2-wan"), Interfaces: []string{"host-w2w0"}}
 	s = newKeaSink()
 	Kea(s, ds)
 	if len(s.errs) != 0 || len(s.kvs) != 2 {
@@ -164,7 +164,7 @@ func TestServicesUnsupportedDhcp(t *testing.T) {
 	withServiceUnimplemented(t, "ntp") // every member has a builder since F-unbound-chrony-syslog
 	s := newKeaSink()
 	ServicesUnsupported(s, nil)
-	ServicesUnsupported(s, &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}, Ntp: &vrxv1.NtpService{Enabled: proto.Bool(true)}})
+	ServicesUnsupported(s, &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{}, Ntp: &ngfwv1.NtpService{Enabled: proto.Bool(true)}})
 	if strings.Join(s.warns, ",") != "/services/ntp agent.unsupported-field" {
 		t.Fatalf("warnings %v", s.warns)
 	}

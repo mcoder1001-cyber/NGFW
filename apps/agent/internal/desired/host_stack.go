@@ -6,7 +6,7 @@ package desired
 //	hostStack.namespaces.<id>              → hoststack.namespace/<id>        (write-only; secretRef refused, no channel yet)
 //	hostStack.sessionRules[] (tag)         → hoststack.session-rule/<tag>    (Retrieve: session_rules_v2_dump)
 //	hostStack.tcpSourceAddresses           → hoststack.tcp-src/<fib>         (write-only, irreversible per fib)
-//	hostStack.httpStatic (enabled)         → hoststack.http-static/global    (globals owner + VRX_HOSTSTACK_HTTP_STATIC=1)
+//	hostStack.httpStatic (enabled)         → hoststack.http-static/global    (globals owner + NGFW_HOSTSTACK_HTTP_STATIC=1)
 //
 // Only session rules can be read back, so HostStackAssemble reports only them.
 
@@ -17,7 +17,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/hoststack"
 	"ngfw/agent/internal/scheduler"
@@ -30,7 +30,7 @@ func init() { ServicesImplemented["hostStack"] = true }
 const RuleWriteOnly = "agent.write-only-field"
 
 // HostStack projects services.hostStack.
-func HostStack(s Sink, hs *vrxv1.HostStackService, vrfID func(string) (uint32, bool)) {
+func HostStack(s Sink, hs *ngfwv1.HostStackService, vrfID func(string) (uint32, bool)) {
 	if hs == nil {
 		return
 	}
@@ -131,7 +131,7 @@ func HostStack(s Sink, hs *vrxv1.HostStackService, vrfID func(string) (uint32, b
 
 // HostStackAssemble adds the retrievable part of services.hostStack (this owner's session rules)
 // to ds. Write-only objects (session, namespaces, TCP pool, http_static) are never echoed (D-063).
-func HostStackAssemble(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func HostStackAssemble(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	var rules []hoststack.Rule
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() != hoststack.NameSessionRule {
@@ -147,11 +147,11 @@ func HostStackAssemble(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 	}
 	sort.Slice(rules, func(i, j int) bool { return rules[i].Tag < rules[j].Tag })
 	if ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
-	hs := &vrxv1.HostStackService{}
+	hs := &ngfwv1.HostStackService{}
 	for _, r := range rules {
-		m := &vrxv1.HostStackSessionRule{Tag: proto.String(r.Tag), Scope: proto.String(r.Scope), Transport: proto.String(r.Transport),
+		m := &ngfwv1.HostStackSessionRule{Tag: proto.String(r.Tag), Scope: proto.String(r.Scope), Transport: proto.String(r.Transport),
 			Local: proto.String(r.Local), Remote: proto.String(r.Remote), Action: proto.String(r.Action)}
 		if r.LocalPort != 0 {
 			m.LocalPort = proto.Uint32(r.LocalPort)

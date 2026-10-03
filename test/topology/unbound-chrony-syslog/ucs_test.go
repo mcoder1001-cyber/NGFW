@@ -4,8 +4,8 @@ package ucs
 // every process started here is stopped by PID, the host's chrony.service / rsyslog.service / /dev/log are never
 // touched):
 //
-//	real vrx-agent (owner = slot prefix, VRX_GLOBALS_OWNER=0 → renders into /run/vrx-test/<prefix>/…)
-//	real vrx-api (slot port, slot database) — configuration through the generic pointer routes, commit, rollback
+//	real ngfw-agent (owner = slot prefix, NGFW_GLOBALS_OWNER=0 → renders into /run/ngfw-test/<prefix>/…)
+//	real ngfw-api (slot port, slot database) — configuration through the generic pointer routes, commit, rollback
 //	slot daemon instances started here on the agent's renderings, as the product's systemd would:
 //	  unbound -d -c <slot>/unbound/unbound.conf                       (listens on 127.10.0.53:3<N>53)
 //	  chronyd -f <slot>/chrony/agent/chrony.conf -n -x                (client of the slot NTP server below)
@@ -126,7 +126,7 @@ type stack struct {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		c, err := net.Dial("unix", st.s.socket)
 		if err == nil {
@@ -135,17 +135,17 @@ func (st *stack) startAgent(t *testing.T) {
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }
 
 func newStack(t *testing.T, s slot) *stack {
 	t.Helper()
-	bin := os.Getenv("VRX_UCS_AGENT_BIN")
+	bin := os.Getenv("NGFW_UCS_AGENT_BIN")
 	if bin == "" {
-		bin = filepath.Join(t.TempDir(), "vrx-agent")
-		if out, err := run("go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent"); err != nil {
-			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+		bin = filepath.Join(t.TempDir(), "ngfw-agent")
+		if out, err := run("go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-agent"); err != nil {
+			t.Fatalf("go build ngfw-agent: %v\n%s", err, out)
 		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
@@ -173,26 +173,26 @@ func newStack(t *testing.T, s slot) *stack {
 	pg := readEnvFile(t, filepath.Join(s.runDir, "pg.env"))
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: a slot never owns globals
-		"VRX_AGENT_STATE_DIR="+filepath.Join(work, "agent-state"), "VRX_METRICS_PORT="+s.metricsPort,
-		"VRX_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num), "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info")
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: a slot never owns globals
+		"NGFW_AGENT_STATE_DIR="+filepath.Join(work, "agent-state"), "NGFW_METRICS_PORT="+s.metricsPort,
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num), "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info")
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 	st.adminPW = secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":ucs:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":ucs:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(60*time.Second, func() bool {
 		return st.apiProc.exited() || st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", st.adminPW)
 	return st
@@ -238,8 +238,8 @@ func chronyServer(t *testing.T, s slot, logDir string) *proc {
 }
 
 func TestUnboundChronySyslog(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-unbound-chrony-syslog topology test: set VRX_INTEGRATION=1 (run.sh does)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-unbound-chrony-syslog topology test: set NGFW_INTEGRATION=1 (run.sh does)")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (the chrony instance directories belong to _chrony)")
@@ -266,7 +266,7 @@ func TestUnboundChronySyslog(t *testing.T) {
 	slotDir := s.runDir
 	ubConf := filepath.Join(slotDir, "unbound", "unbound.conf")
 	chConf := filepath.Join(slotDir, "chrony", "agent", "chrony.conf")
-	chSrc := filepath.Join(slotDir, "chrony", "agent", "sources.d", "vrx.sources")
+	chSrc := filepath.Join(slotDir, "chrony", "agent", "sources.d", "ngfw.sources")
 	chSock := filepath.Join(slotDir, "chrony", "agent", "chronyd.sock")
 	rsDir := filepath.Join(slotDir, "rsyslog")
 	rsConf := filepath.Join(rsDir, "rsyslog.conf")
@@ -396,13 +396,13 @@ func TestUnboundChronySyslog(t *testing.T) {
 	if !waitFor(20*time.Second, func() bool { _, err := os.Stat(sock); return err == nil }) {
 		t.Fatalf("rsyslogd did not create %s", sock)
 	}
-	t.Log(mustRun(t, loggerBin, "-u", sock, "-p", "local7.notice", "-t", "vrx-ucs-"+s.prefix, "hello from "+s.prefix+" "+nonce))
+	t.Log(mustRun(t, loggerBin, "-u", sock, "-p", "local7.notice", "-t", "ngfw-ucs-"+s.prefix, "hello from "+s.prefix+" "+nonce))
 	var got string
 	if !waitFor(20*time.Second, func() bool { var ok bool; got, ok = coll.has(nonce); return ok }) {
 		t.Fatalf("the collector did not receive %s", nonce)
 	}
-	t.Logf("$ logger -u %s -p local7.notice -t vrx-ucs-%s 'hello from %s %s'\ncollector %s received: %q", sock, s.prefix, s.prefix, nonce, collectorAddr, got)
-	_, _ = run(loggerBin, "-u", sock, "-p", "daemon.info", "-t", "vrx-ucs-"+s.prefix, "filtered out "+nonce+"-daemon")
+	t.Logf("$ logger -u %s -p local7.notice -t ngfw-ucs-%s 'hello from %s %s'\ncollector %s received: %q", sock, s.prefix, s.prefix, nonce, collectorAddr, got)
+	_, _ = run(loggerBin, "-u", sock, "-p", "daemon.info", "-t", "ngfw-ucs-"+s.prefix, "filtered out "+nonce+"-daemon")
 	time.Sleep(2 * time.Second)
 	if _, leaked := coll.has(nonce + "-daemon"); leaked {
 		t.Fatal("the facility filter let daemon.info through")
@@ -522,7 +522,7 @@ func TestUnboundChronySyslog(t *testing.T) {
 	}
 
 	// ---- screenshots (optional evidence run) -------------------------------------------------------------------
-	if script, out := os.Getenv("VRX_UCS_SHOTS"), os.Getenv("VRX_UCS_SHOTS_OUT"); script != "" && out != "" {
+	if script, out := os.Getenv("NGFW_UCS_SHOTS"), os.Getenv("NGFW_UCS_SHOTS_OUT"); script != "" && out != "" {
 		shots(t, st, script, out)
 	}
 
@@ -577,7 +577,7 @@ func logExcerpt(t *testing.T, path string, offset int64, words ...string) string
 func shots(t *testing.T, st *stack, script, out string) {
 	t.Helper()
 	web := filepath.Join(st.s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+st.s.httpPort, "VRX_WEB_PORT="+st.s.webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+st.s.httpPort, "NGFW_WEB_PORT="+st.s.webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	defer pv.stop(t)
 	pwFile := filepath.Join(st.work, "admin.pw")

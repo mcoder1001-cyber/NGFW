@@ -163,7 +163,7 @@ var File_tapv2_model_proto protoreflect.FileDescriptor
 
 const file_tapv2_model_proto_rawDesc = "" +
 	"\n" +
-	"\x11tapv2_model.proto\x12\x0fvrx.agent.tapv2\"\xfd\x02\n" +
+	"\x11tapv2_model.proto\x12\x0fngfw.agent.tapv2\"\xfd\x02\n" +
 	"\x03Tap\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\rR\x02id\x12 \n" +
@@ -197,7 +197,7 @@ func file_tapv2_model_proto_rawDescGZIP() []byte {
 
 var file_tapv2_model_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_tapv2_model_proto_goTypes = []any{
-	(*Tap)(nil), // 0: vrx.agent.tapv2.Tap
+	(*Tap)(nil), // 0: ngfw.agent.tapv2.Tap
 }
 var file_tapv2_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

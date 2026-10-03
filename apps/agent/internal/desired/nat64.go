@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/nat64"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -37,7 +37,7 @@ const ruleNat64TenantVRF = "nat.nat64-tenant-vrf"
 // nat64PrefixLengths are the RFC 6052 prefix lengths VPP accepts.
 var nat64PrefixLengths = map[int]bool{32: true, 40: true, 48: true, 56: true, 64: true, 96: true}
 
-func nat64Build(s Sink, n *vrxv1.Nat64Config, vrfID func(string) (uint32, bool)) {
+func nat64Build(s Sink, n *ngfwv1.Nat64Config, vrfID func(string) (uint32, bool)) {
 	if n == nil || !n.GetEnabled() {
 		return
 	}
@@ -142,7 +142,7 @@ func nat64TenantVRFWarn(s Sink, vrf uint32, name, ptr string) {
 // assembleNat64 builds `nat.nat64` from retrieved objects in canonical form. `enabled` is reported when any nat64
 // object exists (VPP keeps none while the plugin is disabled: the objects prove it); the timeouts only when the
 // globals owner retrieved non-default values; descriptions are never invented.
-func assembleNat64(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
+func assembleNat64(out *ngfwv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
 	var (
 		any64           bool
 		timeouts        *nat64.TimeoutsSpec
@@ -186,7 +186,7 @@ func assembleNat64(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 	if !any64 {
 		return
 	}
-	n := &vrxv1.Nat64Config{Enabled: proto.Bool(true)}
+	n := &ngfwv1.Nat64Config{Enabled: proto.Bool(true)}
 	sort.Strings(inside)
 	sort.Strings(outside)
 	n.Inside, n.Outside = inside, outside
@@ -197,7 +197,7 @@ func assembleNat64(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 		return prefixes[a].Prefix < prefixes[b].Prefix
 	})
 	for _, p := range prefixes {
-		n.Prefixes = append(n.Prefixes, &vrxv1.Nat64Config_Prefix{Prefix: proto.String(p.Prefix), Vrf: natVRFName(p.VRF, tableName)})
+		n.Prefixes = append(n.Prefixes, &ngfwv1.Nat64Config_Prefix{Prefix: proto.String(p.Prefix), Vrf: natVRFName(p.VRF, tableName)})
 	}
 	sort.Slice(pools, func(a, b int) bool {
 		if pools[a].VRF != pools[b].VRF {
@@ -210,7 +210,7 @@ func assembleNat64(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 		if p.Last != p.First {
 			r += "-" + p.Last
 		}
-		n.Pools = append(n.Pools, &vrxv1.Nat64Config_Pool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName)})
+		n.Pools = append(n.Pools, &ngfwv1.Nat64Config_Pool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName)})
 	}
 	sort.Slice(bibs, func(a, b int) bool {
 		x, y := bibs[a], bibs[b]
@@ -226,16 +226,16 @@ func assembleNat64(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 		return x.InsidePort < y.InsidePort
 	})
 	for _, b := range bibs {
-		n.StaticBibs = append(n.StaticBibs, &vrxv1.Nat64Config_StaticBib{
+		n.StaticBibs = append(n.StaticBibs, &ngfwv1.Nat64Config_StaticBib{
 			Protocol: proto.String(b.Protocol),
-			Inside:   &vrxv1.Nat64Config_StaticBib_Endpoint{Ip: proto.String(b.InsideIP), Port: proto.Uint32(b.InsidePort)},
-			Outside:  &vrxv1.Nat64Config_StaticBib_Endpoint{Ip: proto.String(b.OutsideIP), Port: proto.Uint32(b.OutsidePort)},
+			Inside:   &ngfwv1.Nat64Config_StaticBib_Endpoint{Ip: proto.String(b.InsideIP), Port: proto.Uint32(b.InsidePort)},
+			Outside:  &ngfwv1.Nat64Config_StaticBib_Endpoint{Ip: proto.String(b.OutsideIP), Port: proto.Uint32(b.OutsidePort)},
 			Vrf:      natVRFName(b.VRF, tableName),
 		})
 	}
 	if timeouts != nil { // the globals owner's non-default timeouts (defaults are "no object", a slot sees none)
 		t := *timeouts
-		n.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
+		n.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
 	}
 	out.Nat64 = n
 }

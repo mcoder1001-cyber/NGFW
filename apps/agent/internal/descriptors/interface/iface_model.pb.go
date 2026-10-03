@@ -304,7 +304,7 @@ func (x *Promisc) GetInterface() string {
 type RxMode struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Interface     string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
-	Mode          RxModeKind             `protobuf:"varint,2,opt,name=mode,proto3,enum=vrx.agent.iface.RxModeKind" json:"mode,omitempty"`
+	Mode          RxModeKind             `protobuf:"varint,2,opt,name=mode,proto3,enum=ngfw.agent.iface.RxModeKind" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -598,7 +598,7 @@ var File_iface_model_proto protoreflect.FileDescriptor
 
 const file_iface_model_proto_rawDesc = "" +
 	"\n" +
-	"\x11iface_model.proto\x12\x0fvrx.agent.iface\"*\n" +
+	"\x11iface_model.proto\x12\x0fngfw.agent.iface\"*\n" +
 	"\n" +
 	"AdminState\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\"m\n" +
@@ -616,7 +616,7 @@ const file_iface_model_proto_rawDesc = "" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\"W\n" +
 	"\x06RxMode\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12/\n" +
-	"\x04mode\x18\x02 \x01(\x0e2\x1b.vrx.agent.iface.RxModeKindR\x04mode\"Y\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x1b.ngfw.agent.iface.RxModeKindR\x04mode\"Y\n" +
 	"\vRxPlacement\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x14\n" +
 	"\x05queue\x18\x02 \x01(\rR\x05queue\x12\x16\n" +
@@ -661,18 +661,18 @@ func file_iface_model_proto_rawDescGZIP() []byte {
 var file_iface_model_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_iface_model_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_iface_model_proto_goTypes = []any{
-	(RxModeKind)(0),        // 0: vrx.agent.iface.RxModeKind
-	(*AdminState)(nil),     // 1: vrx.agent.iface.AdminState
-	(*Mtu)(nil),            // 2: vrx.agent.iface.Mtu
-	(*MacAddress)(nil),     // 3: vrx.agent.iface.MacAddress
-	(*Promisc)(nil),        // 4: vrx.agent.iface.Promisc
-	(*RxMode)(nil),         // 5: vrx.agent.iface.RxMode
-	(*RxPlacement)(nil),    // 6: vrx.agent.iface.RxPlacement
-	(*Subinterface)(nil),   // 7: vrx.agent.iface.Subinterface
-	(*InterfaceAlias)(nil), // 8: vrx.agent.iface.InterfaceAlias
+	(RxModeKind)(0),        // 0: ngfw.agent.iface.RxModeKind
+	(*AdminState)(nil),     // 1: ngfw.agent.iface.AdminState
+	(*Mtu)(nil),            // 2: ngfw.agent.iface.Mtu
+	(*MacAddress)(nil),     // 3: ngfw.agent.iface.MacAddress
+	(*Promisc)(nil),        // 4: ngfw.agent.iface.Promisc
+	(*RxMode)(nil),         // 5: ngfw.agent.iface.RxMode
+	(*RxPlacement)(nil),    // 6: ngfw.agent.iface.RxPlacement
+	(*Subinterface)(nil),   // 7: ngfw.agent.iface.Subinterface
+	(*InterfaceAlias)(nil), // 8: ngfw.agent.iface.InterfaceAlias
 }
 var file_iface_model_proto_depIdxs = []int32{
-	0, // 0: vrx.agent.iface.RxMode.mode:type_name -> vrx.agent.iface.RxModeKind
+	0, // 0: ngfw.agent.iface.RxMode.mode:type_name -> ngfw.agent.iface.RxModeKind
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

@@ -1,0 +1,5 @@
+# Rendered by ngfw-agent from the `system.dns` configuration (F-system-identity). Do not edit.
+# ngfw-input: ChF2cngtYS5sYWIuZXhhbXBsZRILQXNpYS9UZWhyYW4aNQogQXV0aG9yaXNlZCBhY2Nlc3Mgb25seS4KCUxhYiB3MTASEVdlbGNvbWUgdG8gdnJ4LWEKKj4KCjEwLjEwLjUzLjEKDDIwMDE6ZGI4Ojo1MxILbGFiLmV4YW1wbGUSDGNvcnAuZXhhbXBsZRoHZGVmYXVsdA==
+[Resolve]
+DNS=10.10.53.1 2001:db8::53
+Domains=lab.example corp.example

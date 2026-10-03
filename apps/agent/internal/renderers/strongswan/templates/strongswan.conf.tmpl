@@ -1,5 +1,5 @@
 {{- /* strongswan.conf(5) for charon (charon-systemd falls back to the charon section). */ -}}
-# strongswan.conf: rendered by vrx-agent (strongswan renderer); every change is overwritten.
+# strongswan.conf: rendered by ngfw-agent (strongswan renderer); every change is overwritten.
 charon {
 	load_modular = no
 	load = {{q (words .Plugins)}}
@@ -17,7 +17,7 @@ charon {
 	}
 {{- with .LogFile}}
 	filelog {
-		vrx {
+		ngfw {
 			path = {{tok .}}
 			default = {{$.LogLevel}}
 			append = yes

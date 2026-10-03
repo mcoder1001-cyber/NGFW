@@ -33,7 +33,7 @@ type hostClient struct{ *core.Connection }
 
 func (hostClient) Connected() bool { return true }
 
-// ConnectHost gates on VRX_INTEGRATION=1, takes the shared lab lock and connects to
+// ConnectHost gates on NGFW_INTEGRATION=1, takes the shared lab lock and connects to
 // /run/vpp/api.sock. Everything is released in t.Cleanup.
 func ConnectHost(t *testing.T) *Host {
 	t.Helper()
@@ -118,17 +118,17 @@ func (h *Host) loopback(t *testing.T, i int, tagged bool) (string, uint32) {
 	return name, uint32(rep.SwIfIndex)
 }
 
-// HoldForEvidence pauses while VRX_DF8_EVIDENCE_HOLD (a duration) is set, so an operator can
+// HoldForEvidence pauses while NGFW_DF8_EVIDENCE_HOLD (a duration) is set, so an operator can
 // capture the VPP CLI `show …` output for the status report while the test objects exist.
 func HoldForEvidence(t *testing.T, what string) {
 	t.Helper()
-	v := os.Getenv("VRX_DF8_EVIDENCE_HOLD")
+	v := os.Getenv("NGFW_DF8_EVIDENCE_HOLD")
 	if v == "" {
 		return
 	}
 	d, err := time.ParseDuration(v)
 	if err != nil {
-		t.Fatalf("VRX_DF8_EVIDENCE_HOLD=%q: %v", v, err)
+		t.Fatalf("NGFW_DF8_EVIDENCE_HOLD=%q: %v", v, err)
 	}
 	t.Logf("EVIDENCE HOLD %s: %s", d, what)
 	time.Sleep(d)
@@ -142,7 +142,7 @@ func interfaceIndex(i uint32) interface_types.InterfaceIndex {
 // getter (flowprobe params, sflow globals, IPFIX exporter 0, lcp default netns): exclusive for the
 // whole test, so the read-first/skip check and the set cannot interleave with another slot that
 // uses the same lock (review M3; the lock file is a proposal for the manager, DF-8-questions Q9).
-const GlobalsLock = "/run/lock/vrx-globals.lock"
+const GlobalsLock = "/run/lock/ngfw-globals.lock"
 
 // LockGlobals takes GlobalsLock exclusively until the test ends. It also serialises this slot's
 // own packages, which `go test ./...` runs in parallel.
@@ -163,10 +163,10 @@ func (h *Host) LockGlobals(t *testing.T) {
 }
 
 // SkipUnlessGlobals skips a test that changes a getter-less VPP-global (its previous value cannot
-// be restored) unless VRX_DF8_GLOBALS=1 — run only in a manager window (review M3, D-077).
+// be restored) unless NGFW_DF8_GLOBALS=1 — run only in a manager window (review M3, D-077).
 func SkipUnlessGlobals(t *testing.T, what string) {
 	t.Helper()
-	if os.Getenv("VRX_DF8_GLOBALS") != "1" {
-		t.Skipf("%s changes a getter-less VPP-global; set VRX_DF8_GLOBALS=1 in a manager window", what)
+	if os.Getenv("NGFW_DF8_GLOBALS") != "1" {
+		t.Skipf("%s changes a getter-less VPP-global; set NGFW_DF8_GLOBALS=1 in a manager window", what)
 	}
 }

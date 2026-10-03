@@ -3,7 +3,7 @@ package desired
 // P12 builder and assembler of the FRR stage (wave-A-hotspots A2: projection.go calls them under its anchors).
 //
 //	routing.bgp, routing.policy, routing.static[i] with viaFrr (D-072),
-//	+ interfaces.<n>{lcp, ipv4, ipv6, description} of every paired interface   → frr.config/vrx (one singleton object)
+//	+ interfaces.<n>{lcp, ipv4, ipv6, description} of every paired interface   → frr.config/ngfw (one singleton object)
 //
 // The object's value is the FRR-relevant subset of the document (FRRDoc) — secret *references* only, never values —
 // wrapped with a status: the desired object says "applied"; the descriptor's Retrieve reports "applied" when FRR's running
@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/policy"
@@ -35,7 +35,7 @@ const (
 	// FRRConfigName is the descriptor of the FRR stage (the renderer as one scheduler object, D-109 d).
 	FRRConfigName = "frr.config"
 	// FRRConfigID is its only id.
-	FRRConfigID = "vrx"
+	FRRConfigID = "ngfw"
 )
 
 // FRRConfigKey is the key of the singleton.
@@ -54,49 +54,49 @@ const (
 // addresses on its Linux side (lcpmap, S2) for as long as the pair exists — were they removed with the last BGP line,
 // linux-nl would mirror the removal into VPP and take the addresses off the VPP interface as well.
 // selector reports whether routing.static[i] belongs to FRR (frr.StaticOwnedByFRR, D-072).
-func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) bool) *vrxv1.DesiredState {
+func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute) bool) *ngfwv1.DesiredState {
 	rt := ds.GetRouting()
-	out := &vrxv1.RoutingConfig{}
+	out := &ngfwv1.RoutingConfig{}
 	content := false
 	if rt.GetBgp() != nil {
-		out.Bgp = proto.Clone(rt.GetBgp()).(*vrxv1.BgpConfig)
+		out.Bgp = proto.Clone(rt.GetBgp()).(*ngfwv1.BgpConfig)
 		content = true
 	}
 	if rt.GetOspf() != nil { // F-ospf
-		out.Ospf = proto.Clone(rt.GetOspf()).(*vrxv1.OspfConfig)
+		out.Ospf = proto.Clone(rt.GetOspf()).(*ngfwv1.OspfConfig)
 		content = true
 	}
 	if rt.GetIsis() != nil { // F-isis-rip
-		out.Isis = proto.Clone(rt.GetIsis()).(*vrxv1.IsisConfig)
+		out.Isis = proto.Clone(rt.GetIsis()).(*ngfwv1.IsisConfig)
 		content = true
 	}
 	if rt.GetRip() != nil { // F-isis-rip
-		out.Rip = proto.Clone(rt.GetRip()).(*vrxv1.RipConfig)
+		out.Rip = proto.Clone(rt.GetRip()).(*ngfwv1.RipConfig)
 		content = true
 	}
 	if pol := rt.GetPolicy(); len(pol.GetPrefixLists()) > 0 || len(pol.GetRouteMaps()) > 0 {
-		out.Policy = proto.Clone(pol).(*vrxv1.RoutingPolicy)
+		out.Policy = proto.Clone(pol).(*ngfwv1.RoutingPolicy)
 		content = true
 	}
 	for i, sr := range rt.GetStatic() {
 		if selector != nil && selector(i, sr) {
-			out.Static = append(out.Static, proto.Clone(sr).(*vrxv1.StaticRoute))
+			out.Static = append(out.Static, proto.Clone(sr).(*ngfwv1.StaticRoute))
 			content = true
 		}
 	}
-	doc := &vrxv1.DesiredState{Routing: out}
+	doc := &ngfwv1.DesiredState{Routing: out}
 	for name, itf := range ds.GetInterfaces() {
 		if itf.Lcp == nil {
 			continue
 		}
 		content = true
 		if doc.Interfaces == nil {
-			doc.Interfaces = map[string]*vrxv1.Interface{}
+			doc.Interfaces = map[string]*ngfwv1.Interface{}
 		}
 		// no description (review M2): FRR does not need it, and the interface description is free text (Persian, '|', up
 		// to 255 characters) that FRR's LINE token cannot carry
-		doc.Interfaces[name] = &vrxv1.Interface{
-			Lcp:  proto.Clone(itf.GetLcp()).(*vrxv1.InterfaceLcp),
+		doc.Interfaces[name] = &ngfwv1.Interface{
+			Lcp:  proto.Clone(itf.GetLcp()).(*ngfwv1.InterfaceLcp),
 			Ipv4: append([]string(nil), itf.GetIpv4()...),
 			Ipv6: append([]string(nil), itf.GetIpv6()...),
 		}
@@ -108,7 +108,7 @@ func FRRDoc(ds *vrxv1.DesiredState, selector func(i int, sr *vrxv1.StaticRoute) 
 }
 
 // FRRValue wraps doc with a status into the frr.config value.
-func FRRValue(doc *vrxv1.DesiredState, status string) *structpb.Struct {
+func FRRValue(doc *ngfwv1.DesiredState, status string) *structpb.Struct {
 	raw, err := protojson.Marshal(doc)
 	if err != nil {
 		panic(fmt.Sprintf("desired: encode FRR document: %v", err)) // only on a broken proto message
@@ -127,7 +127,7 @@ func FRRValue(doc *vrxv1.DesiredState, status string) *structpb.Struct {
 var ErrFRRValue = errors.New("desired: malformed frr.config value")
 
 // ParseFRRValue unwraps an frr.config value.
-func ParseFRRValue(v proto.Message) (*vrxv1.DesiredState, string, error) {
+func ParseFRRValue(v proto.Message) (*ngfwv1.DesiredState, string, error) {
 	s, ok := v.(*structpb.Struct)
 	if !ok || s == nil {
 		return nil, "", fmt.Errorf("%w: %T", ErrFRRValue, v)
@@ -137,7 +137,7 @@ func ParseFRRValue(v proto.Message) (*vrxv1.DesiredState, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: %v", ErrFRRValue, err)
 	}
-	doc := &vrxv1.DesiredState{}
+	doc := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal(raw, doc); err != nil {
 		return nil, "", fmt.Errorf("%w: %v", ErrFRRValue, err)
 	}
@@ -147,17 +147,17 @@ func ParseFRRValue(v proto.Message) (*vrxv1.DesiredState, string, error) {
 // FRROptions are the agent-side facts the FRR builder needs.
 type FRROptions struct {
 	// Selector is the D-072 static-route selector (frr.StaticOwnedByFRR).
-	Selector func(i int, sr *vrxv1.StaticRoute) bool
+	Selector func(i int, sr *ngfwv1.StaticRoute) bool
 	// Secrets reports whether the agent can resolve secret references (false until PENDING-secret-channel).
 	Secrets bool
 	// Check renders the document without applying it (the FRR renderer's pure Render); nil = no check.
-	Check func(doc *vrxv1.DesiredState) error
+	Check func(doc *ngfwv1.DesiredState) error
 	// Disabled: this agent drives no FRR; FRR content is reported as agent.unsupported-field and not projected.
 	Disabled bool
 }
 
 // FRR projects the FRR stage object for a transaction that includes `routing`.
-func FRR(s Sink, ds *vrxv1.DesiredState, in map[string]bool, o FRROptions) {
+func FRR(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, o FRROptions) {
 	if !in["routing"] {
 		return
 	}
@@ -167,13 +167,13 @@ func FRR(s Sink, ds *vrxv1.DesiredState, in map[string]bool, o FRROptions) {
 	}
 	if o.Disabled {
 		if rt := doc.GetRouting(); rt.GetBgp() != nil || rt.GetPolicy() != nil {
-			s.Warnf(Ptr("routing"), "agent.unsupported-field", "this agent drives no FRR (VRX_FRR / VRX_FRR_PATHSPACE): routing.bgp and routing.policy are not applied")
+			s.Warnf(Ptr("routing"), "agent.unsupported-field", "this agent drives no FRR (NGFW_FRR / NGFW_FRR_PATHSPACE): routing.bgp and routing.policy are not applied")
 		}
 		// the D-072 notice of each FRR-owned static route (the single reporter: with FRR, the frr.config stage renders them)
 		for i, sr := range ds.GetRouting().GetStatic() {
 			if o.Selector != nil && o.Selector(i, sr) {
 				s.Warnf(Ptr("routing", "static", strconv.Itoa(i)), "agent.unsupported-field",
-					"routing.static[%d] (%s) is programmed by FRR (viaFrr, D-072), not by the agent; this agent drives no FRR (VRX_FRR / VRX_FRR_PATHSPACE), so it is not applied", i, sr.GetPrefix())
+					"routing.static[%d] (%s) is programmed by FRR (viaFrr, D-072), not by the agent; this agent drives no FRR (NGFW_FRR / NGFW_FRR_PATHSPACE), so it is not applied", i, sr.GetPrefix())
 			}
 		}
 		return
@@ -223,7 +223,7 @@ func FRR(s Sink, ds *vrxv1.DesiredState, in map[string]bool, o FRROptions) {
 // AssembleFRR adds what the retrieved frr.config object reports to ds: routing.bgp, routing.policy and the viaFrr
 // static routes (sorted into routing.static by VRF name, then prefix — the order assemble uses). Only an object FRR
 // runs as applied is reported: drift or an unreachable FRR leaves the leaves unset (contract §5).
-func AssembleFRR(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleFRR(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
 		if kv.Key != FRRConfigKey {
 			continue
@@ -233,7 +233,7 @@ func AssembleFRR(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 			return
 		}
 		if ds.Routing == nil {
-			ds.Routing = &vrxv1.RoutingConfig{}
+			ds.Routing = &ngfwv1.RoutingConfig{}
 		}
 		rt := doc.GetRouting()
 		ds.Routing.Bgp = rt.GetBgp()

@@ -19,7 +19,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/span"
 	"ngfw/agent/internal/scheduler"
@@ -39,7 +39,7 @@ func MirrorValue(src, dst, direction string, l2 bool) proto.Message {
 }
 
 // Mirror emits one span.mirror object per session of every interface in ifs.
-func Mirror(s Sink, ifs map[string]*vrxv1.Interface) {
+func Mirror(s Sink, ifs map[string]*ngfwv1.Interface) {
 	for _, src := range sortedKeys(ifs) {
 		for i, m := range ifs[src].GetMirror() {
 			pt := Ptr("interfaces", src, "mirror", strconv.Itoa(i))
@@ -69,8 +69,8 @@ func Mirror(s Sink, ifs map[string]*vrxv1.Interface) {
 
 // AssembleMirror sets interfaces.<src>.mirror from the retrieved span.mirror objects; stored is the
 // agent's stored `interfaces` document (its session order is kept).
-func AssembleMirror(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string]*vrxv1.Interface) {
-	bySource := map[string][]*vrxv1.MirrorSession{}
+func AssembleMirror(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[string]*ngfwv1.Interface) {
+	bySource := map[string][]*ngfwv1.MirrorSession{}
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() != span.NameMirror {
 			continue
@@ -83,7 +83,7 @@ func AssembleMirror(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[strin
 		if m.L2 {
 			level = mirrorLevelL2
 		}
-		bySource[m.Source] = append(bySource[m.Source], &vrxv1.MirrorSession{
+		bySource[m.Source] = append(bySource[m.Source], &ngfwv1.MirrorSession{
 			Destination: proto.String(m.Destination), Direction: proto.String(m.State), Level: proto.String(level),
 		})
 	}
@@ -96,7 +96,7 @@ func AssembleMirror(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[strin
 }
 
 // orderSessions orders got like want (by destination and level), then the rest by destination, level.
-func orderSessions(got, want []*vrxv1.MirrorSession) []*vrxv1.MirrorSession {
+func orderSessions(got, want []*ngfwv1.MirrorSession) []*ngfwv1.MirrorSession {
 	rank := map[string]int{}
 	for i, w := range want {
 		level := w.GetLevel()
@@ -107,7 +107,7 @@ func orderSessions(got, want []*vrxv1.MirrorSession) []*vrxv1.MirrorSession {
 			rank[w.GetDestination()+"\x00"+level] = i
 		}
 	}
-	pos := func(m *vrxv1.MirrorSession) int {
+	pos := func(m *ngfwv1.MirrorSession) int {
 		if r, ok := rank[m.GetDestination()+"\x00"+m.GetLevel()]; ok {
 			return r
 		}

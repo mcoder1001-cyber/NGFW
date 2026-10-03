@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Secrets (00-CONTEXT rule 10, D-051, D-072; RF-1 review M2). The document carries only
@@ -135,10 +135,10 @@ func (ss *secretSet) redact(s string) string {
 type RenderContext struct {
 	// Ctx is the Render call's context (for the secret resolver).
 	Ctx context.Context
-	// Input is the message given to Renderer.Render (*vrxv1.DesiredState or *structpb.Struct).
+	// Input is the message given to Renderer.Render (*ngfwv1.DesiredState or *structpb.Struct).
 	Input proto.Message
 	// Desired is the typed desired state; Ext the D-055 stand-in fields.
-	Desired *vrxv1.DesiredState
+	Desired *ngfwv1.DesiredState
 	Ext     *Extensions
 
 	mapIf    InterfaceMapper

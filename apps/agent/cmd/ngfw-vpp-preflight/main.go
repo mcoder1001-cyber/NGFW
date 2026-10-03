@@ -1,10 +1,10 @@
-// Command vrx-vpp-preflight is the `tools/ci.sh full` pre-flight of D-095 (d): before any
+// Command ngfw-vpp-preflight is the `tools/ci.sh full` pre-flight of D-095 (d): before any
 // integration test touches the shared VPP it dumps the interfaces and their classify / SPD
 // bindings and fails fast, naming the offending interface, when a binding (or a classify DPO in
 // the FIB) points at a classify table that no longer exists — the state that crashed VPP on
 // 2026-09-24 04:50:27 (V19: SIGSEGV in vnet_classify_find_entry on the first packet).
 //
-//	vrx-vpp-preflight [-socket /run/vpp/api.sock] [-timeout 30s]
+//	ngfw-vpp-preflight [-socket /run/vpp/api.sock] [-timeout 30s]
 //
 // Exit status: 0 = no crash vector (warnings may be printed), 1 = crash vector found,
 // 2 = VPP not reachable / API error. Read-only: it never changes VPP.
@@ -28,7 +28,7 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
-	fs := flag.NewFlagSet("vrx-vpp-preflight", flag.ContinueOnError)
+	fs := flag.NewFlagSet("ngfw-vpp-preflight", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	socket := fs.String("socket", "/run/vpp/api.sock", "VPP binary API socket")
 	timeout := fs.Duration("timeout", 30*time.Second, "overall timeout")
@@ -40,12 +40,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	c := vpp.Dial(*socket, vpp.ConnOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	defer c.Close()
 	if err := c.WaitConnected(ctx); err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrx-vpp-preflight: VPP API %s not reachable: %v\n", *socket, err)
+		_, _ = fmt.Fprintf(stderr, "ngfw-vpp-preflight: VPP API %s not reachable: %v\n", *socket, err)
 		return 2
 	}
 	findings, err := ifsanitize.Preflight(ctx, c)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "vrx-vpp-preflight: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "ngfw-vpp-preflight: %v\n", err)
 		return 2
 	}
 	fatal := 0

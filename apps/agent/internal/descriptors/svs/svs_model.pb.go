@@ -235,7 +235,7 @@ var File_svs_model_proto protoreflect.FileDescriptor
 
 const file_svs_model_proto_rawDesc = "" +
 	"\n" +
-	"\x0fsvs_model.proto\x12\rvrx.agent.svs\"Y\n" +
+	"\x0fsvs_model.proto\x12\rngfw.agent.svs\"Y\n" +
 	"\x05Table\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1f\n" +
 	"\vmissing_ip4\x18\x02 \x01(\bR\n" +
@@ -268,9 +268,9 @@ func file_svs_model_proto_rawDescGZIP() []byte {
 
 var file_svs_model_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_svs_model_proto_goTypes = []any{
-	(*Table)(nil),     // 0: vrx.agent.svs.Table
-	(*Route)(nil),     // 1: vrx.agent.svs.Route
-	(*Interface)(nil), // 2: vrx.agent.svs.Interface
+	(*Table)(nil),     // 0: ngfw.agent.svs.Table
+	(*Route)(nil),     // 1: ngfw.agent.svs.Route
+	(*Interface)(nil), // 2: ngfw.agent.svs.Interface
 }
 var file_svs_model_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

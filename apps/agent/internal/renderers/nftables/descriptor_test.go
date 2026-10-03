@@ -17,7 +17,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
-// kernelJSON is a real `nft -j list table inet vrx_w9` of testdata/<name>.golden, captured once from
+// kernelJSON is a real `nft -j list table inet ngfw_w9` of testdata/<name>.golden, captured once from
 // nft 1.1.6 inside a throwaway slot namespace (testdata/kernel-<name>.json).
 func kernelJSON(t *testing.T, name string) []byte {
 	t.Helper()
@@ -34,7 +34,7 @@ func TestKernelRoundTrip(t *testing.T) {
 	basic, _ := build(t, fixture(t))
 	full, _ := build(t, doc(t, fullDoc))
 	for name, v := range map[string]*HostTable{"basic": basic, "full": full} {
-		k, err := ParseKernel(kernelJSON(t, name), "vrx_w9")
+		k, err := ParseKernel(kernelJSON(t, name), "ngfw_w9")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,17 +56,17 @@ func TestKernelRoundTrip(t *testing.T) {
 func TestKernelDriftIsVisible(t *testing.T) {
 	v, _ := build(t, doc(t, fullDoc))
 	raw := kernelJSON(t, "full")
-	orig, err := ParseKernel(raw, "vrx_w9")
+	orig, err := ParseKernel(raw, "ngfw_w9")
 	if err != nil {
 		t.Fatal(err)
 	}
 	stored := proto.Clone(v).(*HostTable)
 	stored.KernelHashes = orig.Hashes() // what apply records right after `nft -f`
-	lastRule := bytes.Index(raw, []byte(`vrx:local-in:1000/0:54750c03`))
+	lastRule := bytes.Index(raw, []byte(`ngfw:local-in:1000/0:54750c03`))
 	for name, edit := range map[string]func([]byte) []byte{
 		"set element": func(b []byte) []byte { return bytes.Replace(b, []byte(`"192.0.2.10"`), []byte(`"192.0.2.11"`), 1) },
 		"rule comment": func(b []byte) []byte {
-			return bytes.Replace(b, []byte(`vrx:local-in:1000/0:54750c03`), []byte(`hand edit`), 1)
+			return bytes.Replace(b, []byte(`ngfw:local-in:1000/0:54750c03`), []byte(`hand edit`), 1)
 		},
 		"policy": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"policy": "drop"`), []byte(`"policy": "accept"`), 1)
@@ -82,9 +82,9 @@ func TestKernelDriftIsVisible(t *testing.T) {
 		// … and a table that exists but is switched off.
 		"dormant table": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"handle": 2,
-    "comment": "vrx-agent host firewall"`), []byte(`"handle": 2,
+    "comment": "ngfw-agent host firewall"`), []byte(`"handle": 2,
     "flags": ["dormant"],
-    "comment": "vrx-agent host firewall"`), 1)
+    "comment": "ngfw-agent host firewall"`), 1)
 		},
 		"chain not hooked": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"hook": "forward",`), []byte(``), 1)
@@ -94,7 +94,7 @@ func TestKernelDriftIsVisible(t *testing.T) {
 		if bytes.Equal(edited, raw) {
 			t.Fatalf("%s: the edit did not apply", name)
 		}
-		k, err := ParseKernel(edited, "vrx_w9")
+		k, err := ParseKernel(edited, "ngfw_w9")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -111,11 +111,11 @@ func TestParseKernelCountersAndElements(t *testing.T) {
 	raw := bytes.Replace(kernelJSON(t, "full"), []byte(`"packets": 0,
        "bytes": 0`), []byte(`"packets": 7,
        "bytes": 420`), 1)
-	k, err := ParseKernel(raw, "vrx_w9")
+	k, err := ParseKernel(raw, "ngfw_w9")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r := k.Chains[0].Rules[0]; r.Packets != 7 || r.Bytes != 420 || r.Verdict != "accept" || r.Comment != "vrx:@established/0:c77fde03" {
+	if r := k.Chains[0].Rules[0]; r.Packets != 7 || r.Bytes != 420 || r.Verdict != "accept" || r.Comment != "ngfw:@established/0:c77fde03" {
 		t.Errorf("first rule %+v", r)
 	}
 	if k.Chains[0].Rules[len(k.Chains[0].Rules)-1].Verdict != "drop" {
@@ -130,7 +130,7 @@ func TestParseKernelCountersAndElements(t *testing.T) {
 	if err != nil || !slices.Equal(elems, []string{"10.0.0.1/32", "10.1.0.0/16", "10.2.0.0/30", "10.2.0.4/31", "2001:db8::1/128"}) {
 		t.Errorf("elements %v %v", elems, err)
 	}
-	if _, err := ParseKernel([]byte("{not json"), "vrx"); err == nil {
+	if _, err := ParseKernel([]byte("{not json"), "ngfw"); err == nil {
 		t.Error("bad JSON accepted")
 	}
 }
@@ -173,7 +173,7 @@ func (f *fakeNft) run(cmd renderers.Command) (renderers.Output, error) {
 			return fail("Error: Operation not permitted")
 		}
 		if f.loaded == "" {
-			return fail("Error: No such file or directory; did you mean table 'vrx_w9' in family inet?\nlist table inet vrx_w9\n                 ^^^^^^")
+			return fail("Error: No such file or directory; did you mean table 'ngfw_w9' in family inet?\nlist table inet ngfw_w9\n                 ^^^^^^")
 		}
 		raw, err := os.ReadFile(filepath.Join("testdata", "kernel-"+f.loaded+".json"))
 		return renderers.Output{Stdout: raw}, err
@@ -183,7 +183,7 @@ func (f *fakeNft) run(cmd renderers.Command) (renderers.Output, error) {
 
 func unitPaths(t *testing.T, mode string) Paths {
 	dir := t.TempDir()
-	return Paths{Table: "vrx_w9", Mode: mode, RulesFile: filepath.Join(dir, "host-acl-w9.nft"), StoreFile: filepath.Join(dir, "host-acl-w9.json")}
+	return Paths{Table: "ngfw_w9", Mode: mode, RulesFile: filepath.Join(dir, "host-acl-w9.nft"), StoreFile: filepath.Join(dir, "host-acl-w9.json")}
 }
 
 func TestDescriptorLifecycle(t *testing.T) {
@@ -192,7 +192,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	rec := renderers.NewRecordingRunner().On(NftBin, fake.run)
 	p := unitPaths(t, ModeApply)
 	d := NewDescriptor(New(rec, p), NewStore(p.StoreFile), nil)
-	if d.Name() != DescriptorName || d.KeyOf(nil) != Key || Key != scheduler.Key("host-acl.nftables/vrx") {
+	if d.Name() != DescriptorName || d.KeyOf(nil) != Key || Key != scheduler.Key("host-acl.nftables/ngfw") {
 		t.Fatalf("name/key %s %s", d.Name(), d.KeyOf(nil))
 	}
 	if kvs, err := d.Retrieve(ctx); err != nil || kvs != nil {
@@ -205,7 +205,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	calls := rec.Calls()
 	// Retrieve (plan) · nft -c on the staged copy · nft -f · read-back of the rule bodies (M1)
 	if len(calls) != 4 || calls[1].Args[0] != "-c" || calls[1].Args[2] == p.RulesFile || !slices.Equal(calls[2].Args, []string{"-f", p.RulesFile}) ||
-		!slices.Equal(calls[3].Args, []string{"-j", "list", "table", "inet", "vrx_w9"}) {
+		!slices.Equal(calls[3].Args, []string{"-j", "list", "table", "inet", "ngfw_w9"}) {
 		t.Fatalf("argv: %v", calls)
 	}
 	written, _ := os.ReadFile(p.RulesFile)
@@ -320,7 +320,7 @@ func TestState(t *testing.T) {
 		t.Error("registry")
 	}
 	st, err := rt.State(ctx, time.Unix(0, 0))
-	if err != nil || st.GetPresent() || !st.GetInSync() || st.GetTable() != "vrx_w9" {
+	if err != nil || st.GetPresent() || !st.GetInSync() || st.GetTable() != "ngfw_w9" {
 		t.Fatalf("nothing applied: %v %v", st, err)
 	}
 	v, _ := build(t, doc(t, fullDoc))
@@ -349,25 +349,25 @@ func TestState(t *testing.T) {
 }
 
 func TestPathsFromEnv(t *testing.T) {
-	dir := "/var/lib/vrx/agent"
+	dir := "/var/lib/ngfw/agent"
 	cases := []struct {
 		owner, mode, ns string
 		globals         bool
 		want            Paths
 		err             bool
 	}{
-		{owner: "vrx", globals: true, want: Paths{Table: "vrx", Mode: ModeApply}},
+		{owner: "ngfw", globals: true, want: Paths{Table: "ngfw", Mode: ModeApply}},
 		// H2 (fix round 1): the root-netns firewall is host-wide (D-071): without the globals owner (tools/app's
-		// VRX_GLOBALS_OWNER=0 product stack on the shared host) the product owner only checks, and apply is refused.
-		{owner: "vrx", globals: false, want: Paths{Table: "vrx", Mode: ModeCheck}},
-		{owner: "vrx", mode: "apply", globals: false, err: true},
-		{owner: "vrx", mode: "apply", globals: true, want: Paths{Table: "vrx", Mode: ModeApply}},
-		{owner: "w9", want: Paths{Table: "vrx_w9", Mode: ModeCheck}},
-		{owner: "w9", globals: true, want: Paths{Table: "vrx_w9", Mode: ModeCheck}},
-		{owner: "w9", ns: "ns-w9-hacl", want: Paths{Table: "vrx_w9", Mode: ModeNetns, Netns: "ns-w9-hacl"}},
-		{owner: "vrx", mode: "check", globals: true, want: Paths{Table: "vrx", Mode: ModeCheck}},
+		// NGFW_GLOBALS_OWNER=0 product stack on the shared host) the product owner only checks, and apply is refused.
+		{owner: "ngfw", globals: false, want: Paths{Table: "ngfw", Mode: ModeCheck}},
+		{owner: "ngfw", mode: "apply", globals: false, err: true},
+		{owner: "ngfw", mode: "apply", globals: true, want: Paths{Table: "ngfw", Mode: ModeApply}},
+		{owner: "w9", want: Paths{Table: "ngfw_w9", Mode: ModeCheck}},
+		{owner: "w9", globals: true, want: Paths{Table: "ngfw_w9", Mode: ModeCheck}},
+		{owner: "w9", ns: "ns-w9-hacl", want: Paths{Table: "ngfw_w9", Mode: ModeNetns, Netns: "ns-w9-hacl"}},
+		{owner: "ngfw", mode: "check", globals: true, want: Paths{Table: "ngfw", Mode: ModeCheck}},
 		{owner: "w9", mode: "apply", globals: true, err: true},
-		{owner: "vrx", mode: "apply", ns: "ns-w9-hacl", globals: true, err: true},
+		{owner: "ngfw", mode: "apply", ns: "ns-w9-hacl", globals: true, err: true},
 		{owner: "w9", mode: "netns", err: true},
 		{owner: "w9", mode: "bogus", err: true},
 		{owner: "w9", ns: "../../proc/1/ns/net", err: true},
@@ -388,11 +388,11 @@ func TestPathsFromEnv(t *testing.T) {
 			t.Errorf("%+v: got %+v %v", c, p, err)
 		}
 	}
-	if err := (Paths{Table: "vrx", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("vrx", false); err == nil {
+	if err := (Paths{Table: "ngfw", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("ngfw", false); err == nil {
 		t.Error("apply without the globals owner accepted by Validate")
 	}
 	// Only the product owner's table ever goes into the root netns, whatever builds the paths.
-	if err := (Paths{Table: "vrx_w9", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("w9", true); err == nil {
+	if err := (Paths{Table: "ngfw_w9", Mode: ModeApply, RulesFile: "/a", StoreFile: "/b"}).Validate("w9", true); err == nil {
 		t.Error("apply of a slot table in the root netns accepted")
 	}
 	if !slices.Equal(Binaries().Paths(), []string{NftBin}) {

@@ -31,7 +31,7 @@ type hostClient struct{ *core.Connection }
 func (hostClient) Connected() bool { return true }
 
 // Host is one integration-test session against the host VPP: shared lab lock held, owner =
-// VRX_TEST_PREFIX, a fresh govpp connection.
+// NGFW_TEST_PREFIX, a fresh govpp connection.
 type Host struct {
 	T      *testing.T
 	Ctx    context.Context
@@ -41,7 +41,7 @@ type Host struct {
 	TableB uint32
 }
 
-// StartHost skips unless VRX_INTEGRATION=1, takes the shared lab lock and connects to
+// StartHost skips unless NGFW_INTEGRATION=1, takes the shared lab lock and connects to
 // /run/vpp/api.sock. Everything it creates is removed in t.Cleanup.
 func StartHost(t *testing.T) *Host {
 	t.Helper()
@@ -237,32 +237,32 @@ func (h *Host) NoLeftovers(id uint32) {
 	}
 }
 
-// Hold pauses when VRX_DF7_EVIDENCE_HOLD (a duration) is set, so an operator can capture
+// Hold pauses when NGFW_DF7_EVIDENCE_HOLD (a duration) is set, so an operator can capture
 // `vppctl show …` output while the objects exist.
 func (h *Host) Hold(what string) {
-	if v := os.Getenv("VRX_DF7_EVIDENCE_HOLD"); v != "" {
+	if v := os.Getenv("NGFW_DF7_EVIDENCE_HOLD"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
-			h.T.Fatalf("VRX_DF7_EVIDENCE_HOLD=%q: %v", v, err)
+			h.T.Fatalf("NGFW_DF7_EVIDENCE_HOLD=%q: %v", v, err)
 		}
 		h.T.Logf("holding %s for %s (evidence)", what, d)
 		time.Sleep(d)
 	}
 }
 
-// GlobalsOptIn skips t unless VRX_DF7_GLOBALS=1: a test slot on the shared host is never the
+// GlobalsOptIn skips t unless NGFW_DF7_GLOBALS=1: a test slot on the shared host is never the
 // globals owner and must not set VPP-global settings (D-071). An operator who owns the host's
 // globals for the moment may opt in; the tests then restore what they can read back.
 func GlobalsOptIn(t *testing.T, what string) {
 	t.Helper()
-	if os.Getenv("VRX_DF7_GLOBALS") != "1" {
-		t.Skipf("skip: %s is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in", what)
+	if os.Getenv("NGFW_DF7_GLOBALS") != "1" {
+		t.Skipf("skip: %s is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in", what)
 	}
 	LockGlobals(t)
 }
 
 // GlobalsLock is the lab-wide lock of tests that set VPP-global singletons (D-082).
-const GlobalsLock = "/run/lock/vrx-globals.lock"
+const GlobalsLock = "/run/lock/ngfw-globals.lock"
 
 // LockGlobals holds GlobalsLock exclusively until the (sub)test ends (D-082).
 func LockGlobals(t *testing.T) {
@@ -293,12 +293,12 @@ func CrashOptIn(t *testing.T, env string) {
 	}
 }
 
-// LBOptIn skips the lb host test unless VRX_DF7_LB=1: every run leaves removed-but-not-collected
+// LBOptIn skips the lb host test unless NGFW_DF7_LB=1: every run leaves removed-but-not-collected
 // VIPs in VPP (lb GC runs only from the CLI; review M3, DF-7-questions Q1).
 func LBOptIn(t *testing.T) {
 	t.Helper()
-	if os.Getenv("VRX_DF7_LB") != "1" {
-		t.Skip("skip: lb host test leaves removed VIPs in VPP until `lb gc`/restart (DF-7 Q1); VRX_DF7_LB=1 to opt in")
+	if os.Getenv("NGFW_DF7_LB") != "1" {
+		t.Skip("skip: lb host test leaves removed VIPs in VPP until `lb gc`/restart (DF-7 Q1); NGFW_DF7_LB=1 to opt in")
 	}
 }
 

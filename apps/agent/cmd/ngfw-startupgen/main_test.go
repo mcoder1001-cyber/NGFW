@@ -13,11 +13,11 @@ import (
 const fixtures = "../../internal/renderers/vppstartup/testdata"
 
 // hostFlags pins the host facts so the tests do not depend on the machine they run on; the
-// plugin dir is a fake directory with the vrx-a plugin names.
+// plugin dir is a fake directory with the ngfw-a plugin names.
 func hostFlags(t *testing.T) []string {
 	t.Helper()
 	dir := t.TempDir()
-	names, err := os.ReadFile(filepath.Join(fixtures, "plugins-vrx-a.txt"))
+	names, err := os.ReadFile(filepath.Join(fixtures, "plugins-ngfw-a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}

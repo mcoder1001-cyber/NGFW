@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/nat_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -65,9 +65,9 @@ const canonicalNat = `{
   "identityMappings": [{"ip": "10.7.2.112", "protocol": "udp", "port": 500}]
 }`
 
-func natNat(t *testing.T, s *Service) *vrxv1.NatConfig {
+func natNat(t *testing.T, s *Service) *ngfwv1.NatConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"nat"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"nat"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,8 +81,8 @@ func TestNatDomainOnFake(t *testing.T) {
 	withNat := doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))
 
 	// the plugin is off: the non-owner's requirement fails, nothing of NAT is applied (the transaction rolls back)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n0", DesiredState: withNat})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || !strings.Contains(protojson.Format(resp), "not the globals owner") {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n0", DesiredState: withNat})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || !strings.Contains(protojson.Format(resp), "not the globals owner") {
 		t.Fatalf("apply with the plugin off: %s", protojson.Format(resp))
 	}
 	if !n.Empty() {
@@ -91,8 +91,8 @@ func TestNatDomainOnFake(t *testing.T) {
 
 	// the plugin fixture (a test slot never enables it, D-071), then the commit
 	n.NatEnable()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: withNat})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", DesiredState: withNat})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	ptrs := map[string]string{}
 	for _, r := range resp.GetResults() {
 		ptrs[r.GetKey()] = r.GetPointer() + " " + r.GetSubsystem()
@@ -112,11 +112,11 @@ func TestNatDomainOnFake(t *testing.T) {
 		t.Fatalf("Retrieve nat != canonical desired:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
 	// idempotent: an empty plan; DryRun reports the not-applied translators as warnings (drift skips them)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: withNat})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", DesiredState: withNat})
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: withNat})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: withNat})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run %v %v", err, rep)
 	}
@@ -142,8 +142,8 @@ func TestNatDomainOnFake(t *testing.T) {
 
 	// rollback to a document without nat objects: every NAT object leaves VPP (Retrieve, not assumption); the plugin
 	// stays enabled (a non-owner never disables it, D-071)
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", `, "nat": {}`, 1))})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", `, "nat": {}`, 1))})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := natNat(t, s); proto.Size(got) != 0 {
 		t.Fatalf("Retrieve after rollback: %s", protojson.Format(got))
 	}
@@ -152,7 +152,7 @@ func TestNatDomainOnFake(t *testing.T) {
 	}
 }
 
-func natServer(t *testing.T, s *Service) vrxv1.DataplaneClient {
+func natServer(t *testing.T, s *Service) ngfwv1.DataplaneClient {
 	t.Helper()
 	sock := filepath.Join(t.TempDir(), "a.sock")
 	l, err := listenUnix(sock, "", nil)
@@ -160,7 +160,7 @@ func natServer(t *testing.T, s *Service) vrxv1.DataplaneClient {
 		t.Fatal(err)
 	}
 	g := grpc.NewServer()
-	vrxv1.RegisterDataplaneServer(g, &server{svc: s, stats: fakeStats{}, log: s.log})
+	ngfwv1.RegisterDataplaneServer(g, &server{svc: s, stats: fakeStats{}, log: s.log})
 	go func() { _ = g.Serve(l) }()
 	t.Cleanup(g.Stop)
 	cc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -168,18 +168,18 @@ func natServer(t *testing.T, s *Service) vrxv1.DataplaneClient {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cc.Close() })
-	return vrxv1.NewDataplaneClient(cc)
+	return ngfwv1.NewDataplaneClient(cc)
 }
 
-func kill(t *testing.T, c vrxv1.DataplaneClient, a *vrxv1.NatSessionKillAction) ([]*vrxv1.ActionOutput, error) {
+func kill(t *testing.T, c ngfwv1.DataplaneClient, a *ngfwv1.NatSessionKillAction) ([]*ngfwv1.ActionOutput, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	st, err := c.Action(ctx, &vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_NatSessionKill{NatSessionKill: a}})
+	st, err := c.Action(ctx, &ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_NatSessionKill{NatSessionKill: a}})
 	if err != nil {
 		return nil, err
 	}
-	var out []*vrxv1.ActionOutput
+	var out []*ngfwv1.ActionOutput
 	for {
 		o, err := st.Recv()
 		if err == io.EOF {
@@ -197,7 +197,7 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	n := v.Nat44ED()
 	n.NatEnable()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "k1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "k1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for u := 0; u < 21; u++ { // 2 100 sessions of w7's users, 2 of another slot's
 		for i := 0; i < 100; i++ {
 			n.AddNatSession(0, 6, "10.7.1."+strconv.Itoa(10+u), uint16(10000+i), "10.7.2.100", uint16(20000+u*100+i), "10.7.2.2", 80) //nolint:gosec // test data
@@ -209,7 +209,7 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	ctx := context.Background()
 
 	// paged and bounded: pageSize 100 never returns more than 100, the message stays small
-	r, err := c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Limit: 100, Offset: 200})
+	r, err := c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Limit: 100, Offset: 200})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,19 +224,19 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 		t.Fatalf("session %v", first)
 	}
 	// filter by VRF name (the table's configured name) and by protocol
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Vrf: proto.String("cust")}})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Filter: &ngfwv1.NatSessionFilter{Vrf: proto.String("cust")}})
 	if err != nil || r.GetTotalSessions() != 1 || r.GetSessions()[0].GetVrf() != "cust" || r.GetSessions()[0].GetTableId() != 7001 {
 		t.Fatalf("vrf filter %v %v", r, err)
 	}
-	r, err = c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Protocol: proto.String("udp")}})
+	r, err = c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Filter: &ngfwv1.NatSessionFilter{Protocol: proto.String("udp")}})
 	if err != nil || r.GetTotalSessions() != 1 {
 		t.Fatalf("protocol filter %v %v", r, err)
 	}
-	for name, req := range map[string]*vrxv1.NatSessionsRequest{
+	for name, req := range map[string]*ngfwv1.NatSessionsRequest{
 		"limit":  {Limit: 1001},
 		"owner":  {Owner: "w3"},
-		"filter": {Filter: &vrxv1.NatSessionFilter{InsideAddress: proto.String("nope")}},
-		"vrf":    {Filter: &vrxv1.NatSessionFilter{Vrf: proto.String("nope")}},
+		"filter": {Filter: &ngfwv1.NatSessionFilter{InsideAddress: proto.String("nope")}},
+		"vrf":    {Filter: &ngfwv1.NatSessionFilter{Vrf: proto.String("nope")}},
 	} {
 		if _, err := c.NatSessions(ctx, req); grpcCode(err) != codes.InvalidArgument {
 			t.Errorf("%s: %v", name, err)
@@ -244,7 +244,7 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	}
 
 	// summary: totals from the user dump, per pool from the scan
-	sum, err := c.NatSummary(ctx, &vrxv1.NatSummaryRequest{})
+	sum, err := c.NatSummary(ctx, &ngfwv1.NatSummaryRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +255,7 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	}
 
 	// kill: done exit 0, then 1 (gone); a foreign or malformed request is INVALID_ARGUMENT before any output
-	k := &vrxv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 10005, ExternalAddress: "10.7.2.2", ExternalPort: 80}
+	k := &ngfwv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 10005, ExternalAddress: "10.7.2.2", ExternalPort: 80}
 	out, err := kill(t, c, k)
 	if err != nil || len(out) != 1 || out[0].GetDone().GetExitCode() != 0 || out[0].GetDone().GetStats()["inside_port"] != "10005" {
 		t.Fatalf("kill: %v %v", out, err)
@@ -267,15 +267,15 @@ func TestNatSessionsSummaryKillOverGRPC(t *testing.T) {
 	if err != nil || len(out) != 1 || out[0].GetDone().GetExitCode() != 1 || !strings.Contains(out[0].GetDone().GetSummary(), "no such session") {
 		t.Fatalf("second kill: %v %v", out, err)
 	}
-	if _, err := kill(t, c, &vrxv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.9.1.5", InsidePort: 1, ExternalAddress: "10.9.2.2", ExternalPort: 3}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := kill(t, c, &ngfwv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.9.1.5", InsidePort: 1, ExternalAddress: "10.9.2.2", ExternalPort: 3}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign kill: %v", err)
 	}
-	if _, err := kill(t, c, &vrxv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 1}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := kill(t, c, &ngfwv1.NatSessionKillAction{Protocol: "tcp", InsideAddress: "10.7.1.10", InsidePort: 1}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("kill without the external endpoint: %v", err)
 	}
 	// an action no feature implements is still Unimplemented (the A4 switch's default; ping is F-vrf-static-ecmp's now)
 	// (capture is F-capture-trace's now: an empty request hits the default)
-	st, err := c.Action(ctx, &vrxv1.ActionRequest{})
+	st, err := c.Action(ctx, &ngfwv1.ActionRequest{})
 	if err == nil {
 		_, err = st.Recv()
 	}
@@ -291,7 +291,7 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 	n := v.Nat44ED()
 	n.NatEnable()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for u := 0; u < 300; u++ { // 300 inside hosts, one session each
 		h := 256 + 10 + u
 		n.AddNatSession(0, 6, "10.7."+strconv.Itoa(h/256)+"."+strconv.Itoa(h%256), 10000, "10.7.2.100", uint16(20000+u), "10.7.2.2", 80) //nolint:gosec // test data
@@ -306,7 +306,7 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 	}
 
 	u0, d0 := counts()
-	first, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{})
+	first, err := s.NatSummary(ctx, &ngfwv1.NatSummaryRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,7 +317,7 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 	// within the TTL: the cached snapshot, no VPP call at all, same retrieved_at
 	clock = clock.Add(natSummaryTTL - time.Second)
 	n.AddNatSession(0, 6, "10.7.1.9", 1, "10.7.2.100", 1, "10.7.2.2", 80)
-	again, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{})
+	again, err := s.NatSummary(ctx, &ngfwv1.NatSummaryRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,7 +331,7 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if r, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); err != nil || r.GetTotalSessions() != 301 {
+			if r, err := s.NatSummary(ctx, &ngfwv1.NatSummaryRequest{}); err != nil || r.GetTotalSessions() != 301 {
 				t.Errorf("concurrent summary %v %v", err, r.GetTotalSessions())
 			}
 		}()
@@ -340,13 +340,13 @@ func TestNatSummaryCacheAndCaps(t *testing.T) {
 	if u3, d3 := counts(); u3-u1 != 1 || d3-d1 != natSummaryCaps.UserDumps {
 		t.Fatalf("8 concurrent callers after the TTL: %d user dumps, %d session dumps (want 1 and %d)", u3-u1, d3-d1, natSummaryCaps.UserDumps)
 	}
-	if r, _ := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); !r.GetRetrievedAt().AsTime().Equal(clock) {
+	if r, _ := s.NatSummary(ctx, &ngfwv1.NatSummaryRequest{}); !r.GetRetrievedAt().AsTime().Equal(clock) {
 		t.Fatalf("retrieved_at %v, want the refresh time %v", r.GetRetrievedAt().AsTime(), clock)
 	}
 
 	// NatSessions with a session-level filter: at most MaxUserDumps users per call, truncated
 	_, d4 := counts()
-	r, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Port: proto.Uint32(80)}})
+	r, err := s.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Filter: &ngfwv1.NatSessionFilter{Port: proto.Uint32(80)}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -362,7 +362,7 @@ func TestNatWalksAreSerialised(t *testing.T) {
 	n := v.Nat44ED()
 	n.NatEnable()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "w1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "w1", DesiredState: doc(t, strings.Replace(natIfDoc, "%s", natPart, 1))}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for u := 0; u < 20; u++ {
 		n.AddNatSession(0, 6, "10.7.1."+strconv.Itoa(10+u), 10000, "10.7.2.100", uint16(20000+u), "10.7.2.2", 80) //nolint:gosec // test data
 	}
@@ -387,13 +387,13 @@ func TestNatWalksAreSerialised(t *testing.T) {
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Filter: &vrxv1.NatSessionFilter{Protocol: proto.String("tcp")}}); err != nil {
+			if _, err := s.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Filter: &ngfwv1.NatSessionFilter{Protocol: proto.String("tcp")}}); err != nil {
 				t.Error(err)
 			}
 		}()
 		go func() {
 			defer wg.Done()
-			if _, err := s.NatSessions(ctx, &vrxv1.NatSessionsRequest{Limit: 50}); err != nil {
+			if _, err := s.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Limit: 50}); err != nil {
 				t.Error(err)
 			}
 		}()
@@ -401,7 +401,7 @@ func TestNatWalksAreSerialised(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if _, err := s.NatSummary(ctx, &vrxv1.NatSummaryRequest{}); err != nil {
+		if _, err := s.NatSummary(ctx, &ngfwv1.NatSummaryRequest{}); err != nil {
 			t.Error(err)
 		}
 	}()
@@ -416,7 +416,7 @@ func TestNatWalksAreSerialised(t *testing.T) {
 	}
 	short, cancel := context.WithTimeout(ctx, 20*time.Millisecond)
 	defer cancel()
-	if _, err := s.NatSessions(short, &vrxv1.NatSessionsRequest{}); grpcCode(err) != codes.DeadlineExceeded {
+	if _, err := s.NatSessions(short, &ngfwv1.NatSessionsRequest{}); grpcCode(err) != codes.DeadlineExceeded {
 		t.Fatalf("NatSessions while the walk slot is taken: %v", err)
 	}
 	release()

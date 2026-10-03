@@ -87,7 +87,7 @@ func TestLoopbackBviGsoLldpSpanWiring(t *testing.T) {
 	}
 }
 
-// Review M2: nsim is registered only for the globals owner WITH the lab gate (VRX_NSIM=lab, off by default).
+// Review M2: nsim is registered only for the globals owner WITH the lab gate (NGFW_NSIM=lab, off by default).
 func TestNsimLabGate(t *testing.T) {
 	for _, c := range []struct {
 		owner bool

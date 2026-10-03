@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // retrieveL2 asks the slot's agent for Retrieve(interfaces, routing) over its unix socket and returns the F-bridge-l2 half
@@ -29,7 +29,7 @@ func retrieveL2(t *testing.T, socket string) (routingL2 any, ports map[string]an
 	defer cc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r, err := vrxv1.NewDataplaneClient(cc).Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
+	r, err := ngfwv1.NewDataplaneClient(cc).Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
 	if err != nil {
 		t.Fatalf("agent Retrieve: %v", err)
 	}

@@ -221,11 +221,11 @@ func sameSpec[T any](a, b T) bool {
 
 // ---- host-wide locks ------------------------------------------------------------------------
 
-// HostLock takes a host-wide flock on <dir>/vrx-nat-<name>.lock (shared or exclusive) and
+// HostLock takes a host-wide flock on <dir>/ngfw-nat-<name>.lock (shared or exclusive) and
 // returns the release function. It serialises hazardous global mutations across agents and
 // test slots on one VPP (cnat default SNAT entry, review finding 8).
 func HostLock(dir, name string, exclusive bool) (func(), error) {
-	path := filepath.Join(filepath.Clean(dir), "vrx-nat-"+name+".lock")
+	path := filepath.Join(filepath.Clean(dir), "ngfw-nat-"+name+".lock")
 	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // fixed lock path
 	if err != nil {
 		return nil, fmt.Errorf("natcommon: lock %s: %w", path, err)

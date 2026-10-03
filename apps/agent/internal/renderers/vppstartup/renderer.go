@@ -30,12 +30,12 @@ const DefaultConfPath = "/etc/vpp/startup.conf"
 var ErrManagerStep = errors.New("vppstartup: applying startup.conf restarts VPP and is a manager step (docs/agent/renderers/vppstartup.md)")
 
 // ErrRetrieveUnsupported is returned by Retrieve: VPP has no API that returns its start-up
-// configuration; compare files with vrx-startupgen --diff instead.
+// configuration; compare files with ngfw-startupgen --diff instead.
 var ErrRetrieveUnsupported = errors.New("vppstartup: VPP cannot report its start-up configuration")
 
 // Settings are the product constants of the unix/api/statseg sections. They are not part of
 // the configuration document; the defaults reproduce the appliance layout (and the current
-// hand-written file on vrx-a).
+// hand-written file on ngfw-a).
 type Settings struct {
 	// ConfPath is where the file goes (Files key).
 	ConfPath string

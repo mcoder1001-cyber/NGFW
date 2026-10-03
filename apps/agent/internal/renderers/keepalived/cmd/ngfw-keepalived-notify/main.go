@@ -1,8 +1,8 @@
-// Command vrx-keepalived-notify is the only notify target the keepalived renderer ever
+// Command ngfw-keepalived-notify is the only notify target the keepalived renderer ever
 // renders (notify_master / notify_backup / notify_fault / notify_stop). keepalived runs it with
 // a fixed argv taken from the rendered config:
 //
-//	vrx-keepalived-notify <state-dir> INSTANCE|GROUP <name> MASTER|BACKUP|FAULT|STOP
+//	ngfw-keepalived-notify <state-dir> INSTANCE|GROUP <name> MASTER|BACKUP|FAULT|STOP
 //
 // and it writes <state-dir>/<name>.state atomically as one JSON line
 //
@@ -12,7 +12,7 @@
 // channel between keepalived and the agent: no shell, no user-provided script text, no
 // network. Every argument is validated; anything unexpected exits 2 without writing.
 //
-// Product path /usr/libexec/vrx/vrx-keepalived-notify (P10 packaging); tests build it into
+// Product path /usr/libexec/ngfw/ngfw-keepalived-notify (P10 packaging); tests build it into
 // the slot's check directory.
 package main
 
@@ -30,7 +30,7 @@ var (
 	states  = map[string]bool{"MASTER": true, "BACKUP": true, "FAULT": true, "STOP": true}
 	kinds   = map[string]bool{"INSTANCE": true, "GROUP": true}
 	pathRe  = regexp.MustCompile(`^/[A-Za-z0-9_./-]{1,200}$`)
-	usage   = "usage: vrx-keepalived-notify <state-dir> INSTANCE|GROUP <name> MASTER|BACKUP|FAULT|STOP [priority]"
+	usage   = "usage: ngfw-keepalived-notify <state-dir> INSTANCE|GROUP <name> MASTER|BACKUP|FAULT|STOP [priority]"
 	nowFunc = time.Now
 )
 
@@ -44,7 +44,7 @@ type Record struct {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "vrx-keepalived-notify:", err)
+		fmt.Fprintln(os.Stderr, "ngfw-keepalived-notify:", err)
 		os.Exit(2)
 	}
 }

@@ -7,8 +7,8 @@ Mapping table: `docs/agent/renderers/snmpd.md`. Shared pieces (controller, secre
 
 | | product (`ProductPaths`) | tests (`TestPaths("w8")`) |
 |---|---|---|
-| config | `/etc/snmp/snmpd.conf`, `root:root 0600`, `Secret` | `/run/vrx-test/w8/snmpd/snmpd.conf`, 0600 |
-| AgentX master socket | `/run/vrx/snmpd/agentx.sock` (F-snmp subagent) | `/run/vrx-test/w8/snmpd/agentx.sock` |
+| config | `/etc/snmp/snmpd.conf`, `root:root 0600`, `Secret` | `/run/ngfw-test/w8/snmpd/snmpd.conf`, 0600 |
+| AgentX master socket | `/run/ngfw/snmpd/agentx.sock` (F-snmp subagent) | `/run/ngfw-test/w8/snmpd/agentx.sock` |
 | control channel | `systemctl reload snmpd` (SIGHUP) — `rfkit.SystemdController` | SIGHUP to the child PID — `rfkit.ProcessController` |
 
 One file only. `createUser` lines live in the main `snmpd.conf`, **not** in the persistent store
@@ -87,11 +87,11 @@ snmpd to a VRF.
 
 ## Integration test
 
-`VRX_INTEGRATION=1 go test -run TestSnmpdIntegration ./internal/renderers/snmpd/` (slot from `VRX_TEST_PREFIX`/
-`VRX_SLOT`): child `snmpd -f -Lf <dir>/snmpd.log -C -c <dir>/snmpd.conf -p <dir>/snmpd.pid -m "" -M <dir>/mibs`
+`NGFW_INTEGRATION=1 go test -run TestSnmpdIntegration ./internal/renderers/snmpd/` (slot from `NGFW_TEST_PREFIX`/
+`NGFW_SLOT`): child `snmpd -f -Lf <dir>/snmpd.log -C -c <dir>/snmpd.conf -p <dir>/snmpd.pid -m "" -M <dir>/mibs`
 with `SNMP_PERSISTENT_DIR=<dir>/persist SNMPCONFPATH=<dir>`, bound only to `udp:127.0.0.1:3<N>61` (asserted on the
 rendered file before start). No endpoint on argv: with `agentaddress` in the file that would bind twice ("Error
 opening specified endpoint"). Checks: parse run accepts the full file and rejects a broken copy; v3 + v2c GETs; a
 wrong community is not answered; SIGHUP applies a `sysLocation` change with the same PID; a reload that never
 reaches the daemon is refused and rolled back; a poller event; secrets only in the 0600 file. Exclusive
-`/run/vrx-test/<prefix>/snmpd.lock` per slot (RF-1 M4); the child is killed by its PID in `t.Cleanup`.
+`/run/ngfw-test/<prefix>/snmpd.lock` per slot (RF-1 M4); the child is killed by its PID in `t.Cleanup`.

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/subsystems"
@@ -51,9 +51,9 @@ func newObjectsSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	return s
 }
 
-func retrieveObjects(t *testing.T, s *Service) *vrxv1.ObjectsConfig {
+func retrieveObjects(t *testing.T, s *Service) *ngfwv1.ObjectsConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"objects"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"objects"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,9 +71,9 @@ func TestObjectsDomainOnFake(t *testing.T) {
 		t.Fatalf("objects not in Health.subsystems: %v", s.Health().GetSubsystems())
 	}
 	want := doc(t, objectsJSON)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "o1", DesiredState: want})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	byKey := map[string]*vrxv1.ObjectResult{}
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "o1", DesiredState: want})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	byKey := map[string]*ngfwv1.ObjectResult{}
 	for _, r := range resp.GetResults() {
 		byKey[r.GetKey()] = r
 	}
@@ -86,7 +86,7 @@ func TestObjectsDomainOnFake(t *testing.T) {
 		"objects.schedule/office-hours":     "/objects/schedules/office-hours",
 		"objects.zone/lan":                  "/objects/zones/lan",
 	} {
-		if r := byKey[k]; r == nil || r.GetPointer() != ptr || r.GetSubsystem() != "objects" || r.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_CREATE {
+		if r := byKey[k]; r == nil || r.GetPointer() != ptr || r.GetSubsystem() != "objects" || r.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE {
 			t.Fatalf("result %s = %v, want pointer %s", k, r, ptr)
 		}
 	}
@@ -96,29 +96,29 @@ func TestObjectsDomainOnFake(t *testing.T) {
 	if got := retrieveObjects(t, s); !proto.Equal(got, want.GetObjects()) {
 		t.Fatalf("Retrieve != desired:\n%s", protojson.Format(got))
 	}
-	again := apply(t, s, &vrxv1.ApplyRequest{TxnId: "o2", DesiredState: want})
+	again := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "o2", DesiredState: want})
 	if sm := again.GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
 		t.Fatalf("second apply not empty: %v", sm)
 	}
 
 	// the state RPC: the FQDN object, never a Retrieve field
-	st, err := s.FqdnObjectState(&vrxv1.FqdnObjectStateRequest{})
+	st, err := s.FqdnObjectState(&ngfwv1.FqdnObjectStateRequest{})
 	if err != nil || len(st.GetObjects()) != 1 || st.GetObjects()[0].GetName() != "cdn" || st.GetObjects()[0].GetFqdn() != "cdn.w7.test" || st.GetOwner() != testOwner {
 		t.Fatalf("FqdnObjectState: %v %v", st, err)
 	}
-	if st, _ := s.FqdnObjectState(&vrxv1.FqdnObjectStateRequest{Names: []string{"web1"}}); len(st.GetObjects()) != 0 {
+	if st, _ := s.FqdnObjectState(&ngfwv1.FqdnObjectStateRequest{Names: []string{"web1"}}); len(st.GetObjects()) != 0 {
 		t.Fatalf("filter: %v", st)
 	}
-	if _, err := s.FqdnObjectState(&vrxv1.FqdnObjectStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.FqdnObjectState(&ngfwv1.FqdnObjectStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner: %v", err)
 	}
 
 	// confirm timeout: the unconfirmed change (web2 changed, zone and schedule gone) is reverted
-	changed := proto.Clone(want).(*vrxv1.DesiredState)
+	changed := proto.Clone(want).(*ngfwv1.DesiredState)
 	changed.Objects.Addresses["web2"].Address = proto.String("192.0.2.99")
 	delete(changed.Objects.Zones, "lan")
 	delete(changed.Objects.Schedules, "office-hours")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "o3", DesiredState: changed, ConfirmTimeoutSec: 60}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "o3", DesiredState: changed, ConfirmTimeoutSec: 60}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := retrieveObjects(t, s); !proto.Equal(got, changed.GetObjects()) {
 		t.Fatalf("pending change not applied:\n%s", protojson.Format(got))
 	}
@@ -134,16 +134,16 @@ func TestObjectsDomainOnFake(t *testing.T) {
 	if got := retrieveObjects(t, s2); !proto.Equal(got, want.GetObjects()) {
 		t.Fatalf("Retrieve after restart:\n%s", protojson.Format(got))
 	}
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated()+r.GetSummary().GetDeleted()+r.GetSummary().GetUpdated() != 0 {
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated()+r.GetSummary().GetDeleted()+r.GetSummary().GetUpdated() != 0 {
 		t.Fatalf("resync after restart: %v", r)
 	}
 
 	// an explicitly empty objects domain deletes every object (D-041)
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "o4", DesiredState: doc(t, `{"objects": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "o4", DesiredState: doc(t, `{"objects": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := retrieveObjects(t, s2); got != nil {
 		t.Fatalf("objects left: %s", protojson.Format(got))
 	}
-	if st, _ := s2.FqdnObjectState(&vrxv1.FqdnObjectStateRequest{}); len(st.GetObjects()) != 0 {
+	if st, _ := s2.FqdnObjectState(&ngfwv1.FqdnObjectStateRequest{}); len(st.GetObjects()) != 0 {
 		t.Fatalf("fqdn state left: %v", st)
 	}
 }
@@ -152,7 +152,7 @@ func TestObjectsDomainOnFake(t *testing.T) {
 // is an error at the group, a group above the expansion cap a warning.
 func TestObjectsDryRunFindings(t *testing.T) {
 	s := newObjectsSvc(t, coretest.New(), t.TempDir())
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{"objects": {
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: doc(t, `{"objects": {
 	  "addressGroups": {"a": {"members": ["b"]}, "b": {"members": ["a"]}}}}`)})
 	if err != nil || rep.GetOk() {
 		t.Fatalf("cycle accepted: %v %v", err, rep)
@@ -167,18 +167,18 @@ func TestObjectsDryRunFindings(t *testing.T) {
 
 	// 46 IPv6 ranges, each <x>::1 – <x>:ffff:…:fffe inside its own /16 (224 prefixes, none mergeable
 	// across ranges): 10 304 entries from 47 objects
-	big := &vrxv1.ObjectsConfig{Addresses: map[string]*vrxv1.AddressObject{}, AddressGroups: map[string]*vrxv1.AddressGroup{"big": {}}}
+	big := &ngfwv1.ObjectsConfig{Addresses: map[string]*ngfwv1.AddressObject{}, AddressGroups: map[string]*ngfwv1.AddressGroup{"big": {}}}
 	for i := 0; i < 46; i++ {
 		n := fmt.Sprintf("r%02d", i)
 		x := fmt.Sprintf("%x", 0x3000+i)
-		big.Addresses[n] = &vrxv1.AddressObject{Type: proto.String("range"), Start: proto.String(x + "::1"), End: proto.String(x + ":ffff:ffff:ffff:ffff:ffff:ffff:fffe")}
+		big.Addresses[n] = &ngfwv1.AddressObject{Type: proto.String("range"), Start: proto.String(x + "::1"), End: proto.String(x + ":ffff:ffff:ffff:ffff:ffff:ffff:fffe")}
 		big.AddressGroups["big"].Members = append(big.AddressGroups["big"].Members, n)
 	}
-	rep, err = s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: &vrxv1.DesiredState{Objects: big}})
+	rep, err = s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: &ngfwv1.DesiredState{Objects: big}})
 	if err != nil || !rep.GetOk() || len(rep.GetErrors()) != 1 {
 		t.Fatalf("big group: %v %v", err, rep.GetErrors())
 	}
-	if w := rep.GetErrors()[0]; w.GetPointer() != "/objects/addressGroups/big" || w.GetRule() != "objects.object-model-expansion-limit" || w.GetSeverity() != vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+	if w := rep.GetErrors()[0]; w.GetPointer() != "/objects/addressGroups/big" || w.GetRule() != "objects.object-model-expansion-limit" || w.GetSeverity() != ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 		t.Fatalf("big group finding %v", w)
 	}
 	t.Logf("DryRun warning: %s %s: %s", rep.GetErrors()[0].GetPointer(), rep.GetErrors()[0].GetRule(), rep.GetErrors()[0].GetMessage())
@@ -201,7 +201,7 @@ func TestAgentStopClosesObjectsRuntimeAndMetrics(t *testing.T) {
 	}
 	var b strings.Builder
 	newMetrics().write(&b)
-	for _, m := range []string{"vrx_agent_objects_store_corrupt_total", "vrx_agent_objects_store_persist_errors_total", "vrx_agent_objects_fqdn_stale_expired_total"} {
+	for _, m := range []string{"ngfw_agent_objects_store_corrupt_total", "ngfw_agent_objects_store_persist_errors_total", "ngfw_agent_objects_fqdn_stale_expired_total"} {
 		if !strings.Contains(b.String(), m+" ") {
 			t.Fatalf("metric %s missing", m)
 		}

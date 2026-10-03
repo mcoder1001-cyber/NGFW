@@ -2,7 +2,7 @@
 // renderer and of every protocol task that plugs into it (P12 bgpd, F-ospf ospfd, …). It
 // follows docs/lab/shared-host-rules.md §3/§5: the daemons are child processes of the test
 // with a pathspace (-N <prefix>), config and socket directories under
-// /run/vrx-test/<prefix>/frr, inside a network namespace named after the slot prefix; vty
+// /run/ngfw-test/<prefix>/frr, inside a network namespace named after the slot prefix; vty
 // bound to 127.0.0.1 with the TCP port disabled (-P 0, vtysh uses the unix sockets); never
 // the system unit, never /etc/frr, never ens192. Daemons are stopped by the PIDs the harness
 // spawned (their own pidfiles), never by pattern.
@@ -76,7 +76,7 @@ type Link struct {
 	Kind string // "dummy" or "vrf"
 	// CIDR is an address for a dummy link ("10.12.1.2/24"); "" = none.
 	CIDR string
-	// Table is the kernel table of a vrf link (use the slot's VRX_VPP_TABLE_BASE range).
+	// Table is the kernel table of a vrf link (use the slot's NGFW_VPP_TABLE_BASE range).
 	Table uint32
 	// Master enslaves a dummy link to a vrf link created before it.
 	Master string
@@ -84,7 +84,7 @@ type Link struct {
 
 // Options configure Start.
 type Options struct {
-	// Prefix is the slot prefix (VRX_TEST_PREFIX, "w12"); required.
+	// Prefix is the slot prefix (NGFW_TEST_PREFIX, "w12"); required.
 	Prefix string
 	// NetNS is an existing namespace to reuse (e.g. the rig's ns-<prefix>-lan); it must carry
 	// the prefix and is not deleted. "" = create ns-<prefix>-frr and delete it afterwards.
@@ -94,9 +94,9 @@ type Options struct {
 	// Links to create in a harness-owned namespace (ignored with NetNS).
 	Links []Link
 	// Instance names one more FRR instance of the same slot ("p1", "p2": 1–3 of [a-z0-9]; "" = the slot's main
-	// instance). It gets its own pathspace <Prefix><Instance>, base /run/vrx-test/<Prefix>/frr-<Instance>, lock
-	// /run/vrx-test/<Prefix>/frr-<Instance>.lock and default namespace ns-<Prefix>-<Instance>, so a topology test can
-	// run the VRX-side FRR and its peers in one slot (P12). Object names still carry the slot prefix.
+	// instance). It gets its own pathspace <Prefix><Instance>, base /run/ngfw-test/<Prefix>/frr-<Instance>, lock
+	// /run/ngfw-test/<Prefix>/frr-<Instance>.lock and default namespace ns-<Prefix>-<Instance>, so a topology test can
+	// run the NGFW-side FRR and its peers in one slot (P12). Object names still carry the slot prefix.
 	Instance string
 }
 
@@ -105,7 +105,7 @@ type Harness struct {
 	Paths  frr.Paths
 	NetNS  string
 	Runner renderers.Runner
-	// Base is /run/vrx-test/<prefix>/frr.
+	// Base is /run/ngfw-test/<prefix>/frr.
 	Base string
 
 	prefix   string
@@ -119,19 +119,19 @@ type Harness struct {
 }
 
 // LockFile is the slot-scoped harness lock (flock LOCK_EX for the harness lifetime).
-func LockFile(prefix string) string { return filepath.Join("/run/vrx-test", prefix, "frr.lock") }
+func LockFile(prefix string) string { return filepath.Join("/run/ngfw-test", prefix, "frr.lock") }
 
 // InstanceLockFile is the lock of one named instance of a slot ("" = LockFile).
 func InstanceLockFile(prefix, instance string) string {
 	if instance == "" {
 		return LockFile(prefix)
 	}
-	return filepath.Join("/run/vrx-test", prefix, "frr-"+instance+".lock")
+	return filepath.Join("/run/ngfw-test", prefix, "frr-"+instance+".lock")
 }
 
 func (h *Harness) lockSlot() error {
 	path := InstanceLockFile(h.prefix, h.instance)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // /run/vrx-test/<prefix>, shared-host layout
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //nolint:gosec // /run/ngfw-test/<prefix>, shared-host layout
 		return err
 	}
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file, no content
@@ -173,7 +173,7 @@ func Start(t testing.TB, opts Options) *Harness {
 
 func start(ctx context.Context, opts Options) (*Harness, error) {
 	if !prefixRe.MatchString(opts.Prefix) {
-		return nil, fmt.Errorf("prefix %q must match %s (VRX_TEST_PREFIX)", opts.Prefix, prefixRe)
+		return nil, fmt.Errorf("prefix %q must match %s (NGFW_TEST_PREFIX)", opts.Prefix, prefixRe)
 	}
 	daemons := opts.Daemons
 	if daemons == nil {
@@ -198,11 +198,11 @@ func start(ctx context.Context, opts Options) (*Harness, error) {
 		pids:     map[string]int{},
 		symlink:  filepath.Join("/run/frr", paths.Namespace),
 	}
-	if !strings.HasPrefix(h.Base, "/run/vrx-test/"+opts.Prefix+"/") {
-		return nil, fmt.Errorf("base %s is not under /run/vrx-test/%s", h.Base, opts.Prefix)
+	if !strings.HasPrefix(h.Base, "/run/ngfw-test/"+opts.Prefix+"/") {
+		return nil, fmt.Errorf("base %s is not under /run/ngfw-test/%s", h.Base, opts.Prefix)
 	}
 	// One harness per slot prefix at a time (RF-1 review M4): packages run in parallel under
-	// the same VRX_TEST_PREFIX would otherwise kill each other's daemons in killStale and
+	// the same NGFW_TEST_PREFIX would otherwise kill each other's daemons in killStale and
 	// remove each other's directories. The lock file lives next to (not in) the base dir.
 	if err := h.lockSlot(); err != nil {
 		return nil, err

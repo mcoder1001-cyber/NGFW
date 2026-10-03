@@ -109,7 +109,7 @@ func (d *PolicyDescriptor) Create(ctx context.Context, obj proto.Message) (any, 
 }
 
 // Update changes the path list in place. abf_policy_add_del is additive (is_add appends the
-// given paths to the policy's list, verified on vrx-a; !is_add removes them), so the new
+// given paths to the policy's list, verified on ngfw-a; !is_add removes them), so the new
 // paths are added first and the paths no longer desired removed afterwards — the list is
 // never empty in between, which would delete the policy. A different ACL needs a recreate
 // (VPP rejects changing it).

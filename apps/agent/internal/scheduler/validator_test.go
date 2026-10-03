@@ -22,7 +22,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -366,20 +366,20 @@ func TestValidatorFindingRedactsSecretLeaves(t *testing.T) {
 	s, v, d := td13Fixture(t)
 	// *_ref fields (a well-formed and a malformed reference, one nested) and a D-051 reference in a
 	// field of another name are masked; a BGP community and the name "psk0" are not secrets (D-040).
-	extra := map[string]any{ //nolint:gosec // G101: test placeholders (VRX_TEST_PSK_<id>, 00-CONTEXT), no credential
+	extra := map[string]any{ //nolint:gosec // G101: test placeholders (NGFW_TEST_PSK_<id>, 00-CONTEXT), no credential
 		"secret_ref":   "psk/site-a",
-		"password_ref": "VRX_TEST_PSK_TD13",
-		"auth":         map[string]any{"private_key_ref": "VRX_TEST_PSK_TD13_pk", "psk0": "10.0.0.9"},
+		"password_ref": "NGFW_TEST_PSK_TD13",
+		"auth":         map[string]any{"private_key_ref": "NGFW_TEST_PSK_TD13_pk", "psk0": "10.0.0.9"},
 		"ca":           "cert/lab-ca",
 		"community":    "65000:70000",
 		"peer":         "10.0.0.2",
 	}
 	d.setCheck(func(context.Context, scheduler.Key, proto.Message, scheduler.ReadOnlyView) error {
-		return errors.New(`line 7: "secret psk/site-a; password VRX_TEST_PSK_TD13; key VRX_TEST_PSK_TD13_pk; ca cert/lab-ca" near router community 65000:70000 peer 10.0.0.2 psk0 10.0.0.9`)
+		return errors.New(`line 7: "secret psk/site-a; password NGFW_TEST_PSK_TD13; key NGFW_TEST_PSK_TD13_pk; ca cert/lab-ca" near router community 65000:70000 peer 10.0.0.2 psk0 10.0.0.9`)
 	})
 	r := s.Apply(context.Background(), []scheduler.KV{d.kv("ipsec", "", extra)}, nil)
 	msg := onlyIssue(t, r.Plan).Message
-	for _, leak := range []string{"psk/site-a", "VRX_TEST_PSK_TD13", "VRX_TEST_PSK_TD13_pk", "cert/lab-ca"} {
+	for _, leak := range []string{"psk/site-a", "NGFW_TEST_PSK_TD13", "NGFW_TEST_PSK_TD13_pk", "cert/lab-ca"} {
 		if strings.Contains(msg, leak) {
 			t.Fatalf("finding leaks %q: %s", leak, msg)
 		}
@@ -389,7 +389,7 @@ func TestValidatorFindingRedactsSecretLeaves(t *testing.T) {
 			t.Fatalf("finding lost %q: %s", keep, msg)
 		}
 	}
-	if r.Err == nil || strings.Contains(r.Err.Error(), "VRX_TEST_PSK_TD13") {
+	if r.Err == nil || strings.Contains(r.Err.Error(), "NGFW_TEST_PSK_TD13") {
 		t.Fatalf("err %v", r.Err)
 	}
 
@@ -482,7 +482,7 @@ func (d *fakeDaemon) setCheck(f func(ctx context.Context, key scheduler.Key, val
 // secrets, so user object names (an interface named "psk0"), descriptions, addresses and BGP
 // communities stay readable in a finding; the SNMP community's secret reference is masked.
 func TestRedactLeavesKeepsNonSecrets(t *testing.T) {
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(`{
 	  "interfaces": {"psk0": {"description": "to branch", "ipv4": ["10.0.0.1/24"]}},
 	  "routing": {"policy": {"routeMaps": {"rm1": {"entries": [{"set": {"community": ["65000:70000"]}}]}}}},

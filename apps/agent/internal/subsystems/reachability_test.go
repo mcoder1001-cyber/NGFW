@@ -134,7 +134,7 @@ var rendererReach = map[string]reachEntry{
 	"strongswan": {pending, "P11"},
 	"sysident":   {wired, "F-system-identity"},
 	"unbound":    {wired, "F-unbound-chrony-syslog"},
-	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},
+	"vppstartup": {library, "startup.conf generator: cmd/ngfw-startupgen (F-startup-gen), not an agent registry item"},
 }
 
 // libraryPins is the exact library set; change it only with a reason in the entry (and a D-entry for

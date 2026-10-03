@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/policer"
 	"ngfw/agent/internal/descriptors/qos"
@@ -78,9 +78,9 @@ const qosDoc = `{"services": {"qos": {
   }
 }}}`
 
-func parseDS(t *testing.T, doc string) *vrxv1.DesiredState {
+func parseDS(t *testing.T, doc string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(doc), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestQoSAssembleRoundTrip(t *testing.T) {
 	in := parseDS(t, qosDoc)
 	s := &qosSink{}
 	QoS(s, in.GetServices().GetQos())
-	out := &vrxv1.DesiredState{}
+	out := &ngfwv1.DesiredState{}
 	AssembleQoS(out, s.kvs)
 	if !proto.Equal(out.GetServices().GetQos(), in.GetServices().GetQos()) {
 		t.Fatalf("round trip\n got %s\nwant %s", protojson.Format(out.GetServices().GetQos()), protojson.Format(in.GetServices().GetQos()))
@@ -209,14 +209,14 @@ func TestQoSAssembleRetrieve(t *testing.T) {
 		}
 	}
 	retrieved = append(retrieved, df7.KV(qos.KeyEgressMap(1500), qos.EgressMap{ID: 1500, IP: func() []int { r := make([]int, 256); r[1] = 2; return r }()}, nil))
-	up := QosShaperSpec("w1-uplink", &vrxv1.QosShaper{RateKbps: proto.Uint32(50000)})
+	up := QosShaperSpec("w1-uplink", &ngfwv1.QosShaper{RateKbps: proto.Uint32(50000)})
 	up.CB = 999 // changed behind the agent's back
 	for i, kv := range retrieved {
 		if kv.Key == policer.KeyPolicer("shaper:w1-uplink") {
 			retrieved[i] = df7.KV(kv.Key, up, nil)
 		}
 	}
-	out := &vrxv1.DesiredState{}
+	out := &ngfwv1.DesiredState{}
 	AssembleQoS(out, retrieved)
 	q := out.GetServices().GetQos()
 	if _, ok := q.GetInterfaces()["loop1003"]; ok {
@@ -231,9 +231,9 @@ func TestQoSAssembleRetrieve(t *testing.T) {
 	if sh := q.GetShapers()["w1-uplink"]; sh.GetBurstBytes() != 999 {
 		t.Fatalf("drifted burst not reported: %v", sh)
 	}
-	empty := &vrxv1.DesiredState{}
+	empty := &ngfwv1.DesiredState{}
 	AssembleQoS(empty, nil)
-	if !proto.Equal(empty, &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Qos: &vrxv1.QosService{}}}) {
+	if !proto.Equal(empty, &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Qos: &ngfwv1.QosService{}}}) {
 		t.Fatalf("empty %v", empty)
 	}
 }
@@ -269,7 +269,7 @@ func TestQoSProjectionErrors(t *testing.T) {
 			t.Errorf("error %d = %q, want %q…", i, s.errs[i], w)
 		}
 	}
-	// the empty range (no VRX_VPP_TABLE_BASE, fail closed) owns no map id at all
+	// the empty range (no NGFW_VPP_TABLE_BASE, fail closed) owns no map id at all
 	withRange(t, &df7.IDRange{Lo: 1, Hi: 0})
 	s = &qosSink{}
 	QoS(s, parseDS(t, `{"services": {"qos": {"maps": {"a": {"rows": {"ip": [{"from": 1, "to": 2}]}}}}}}`).GetServices().GetQos())

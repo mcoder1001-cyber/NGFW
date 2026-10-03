@@ -13,7 +13,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestNat46OnHost (VRX_INTEGRATION=1, shared lab lock; skipped otherwise): the NAT46 projection
+// TestNat46OnHost (NGFW_INTEGRATION=1, shared lab lock; skipped otherwise): the NAT46 projection
 // applied through the mapnat descriptors on the host VPP. It answers the spike's open host
 // question — does VPP 26.06 accept a 1:1 MAP-T domain (/32 ↔ /128, ea_bits_len 0) — asserts
 // Retrieve == desired, a re-apply plans nothing (restart simulation at descriptor level) and

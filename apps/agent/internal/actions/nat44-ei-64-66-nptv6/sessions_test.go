@@ -150,7 +150,7 @@ func TestListNat64(t *testing.T) {
 		t.Fatalf("limit: %v", err)
 	}
 	// the production owner sees every session
-	p, _ = ListNat64(context.Background(), f, nil, natcommon.ScopeFor("vrx"), "", 0, 100, 0)
+	p, _ = ListNat64(context.Background(), f, nil, natcommon.ScopeFor("ngfw"), "", 0, 100, 0)
 	if p.TotalSessions != 12 {
 		t.Fatalf("production owner %+v", p)
 	}

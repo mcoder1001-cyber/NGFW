@@ -14,7 +14,7 @@ package nftables
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	v1 "ngfw/agent/gen/vrx/v1"
+	v1 "ngfw/agent/gen/ngfw/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -265,7 +265,7 @@ func (x *Chain) GetRules() []*Rule {
 // annotations (text, kind, list, sequence, pointer, verdict) from the store entry with the same comment.
 type Rule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "vrx:<id>/<n>:<hash8>"; <id> = "<list>:<sequence>" or "@established" | "@loopback" | "@icmp" |
+	// "ngfw:<id>/<n>:<hash8>"; <id> = "<list>:<sequence>" or "@established" | "@loopback" | "@icmp" |
 	// "@anti-lockout"; <n> = index of the nft rule within that id; <hash8> = sha256(text)[:8].
 	Comment string `protobuf:"bytes,1,opt,name=comment,proto3" json:"comment,omitempty"`
 	// The rule as rendered, without counter and comment.
@@ -366,13 +366,13 @@ var File_nftables_model_proto protoreflect.FileDescriptor
 
 const file_nftables_model_proto_rawDesc = "" +
 	"\n" +
-	"\x14nftables_model.proto\x12\x12vrx.agent.nftables\x1a\x16vrx/v1/dataplane.proto\"\xc7\x02\n" +
+	"\x14nftables_model.proto\x12\x12ngfw.agent.nftables\x1a\x16ngfw/v1/dataplane.proto\"\xc7\x02\n" +
 	"\tHostTable\x12)\n" +
-	"\x06config\x18\x01 \x01(\v2\x11.vrx.v1.AclConfigR\x06config\x12+\n" +
-	"\x04sets\x18\x02 \x03(\v2\x17.vrx.agent.nftables.SetR\x04sets\x121\n" +
-	"\x06chains\x18\x03 \x03(\v2\x19.vrx.agent.nftables.ChainR\x06chains\x12\x18\n" +
+	"\x06config\x18\x01 \x01(\v2\x11.ngfw.v1.AclConfigR\x06config\x12+\n" +
+	"\x04sets\x18\x02 \x03(\v2\x17.ngfw.agent.nftables.SetR\x04sets\x121\n" +
+	"\x06chains\x18\x03 \x03(\v2\x19.ngfw.agent.nftables.ChainR\x06chains\x12\x18\n" +
 	"\adormant\x18\x04 \x01(\bR\adormant\x12T\n" +
-	"\rkernel_hashes\x18\x05 \x03(\v2/.vrx.agent.nftables.HostTable.KernelHashesEntryR\fkernelHashes\x1a?\n" +
+	"\rkernel_hashes\x18\x05 \x03(\v2/.ngfw.agent.nftables.HostTable.KernelHashesEntryR\fkernelHashes\x1a?\n" +
 	"\x11KernelHashesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"I\n" +
@@ -385,7 +385,7 @@ const file_nftables_model_proto_rawDesc = "" +
 	"\x04hook\x18\x02 \x01(\tR\x04hook\x12\x1a\n" +
 	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12\x16\n" +
 	"\x06policy\x18\x04 \x01(\tR\x06policy\x12.\n" +
-	"\x05rules\x18\x05 \x03(\v2\x18.vrx.agent.nftables.RuleR\x05rules\"\xac\x01\n" +
+	"\x05rules\x18\x05 \x03(\v2\x18.ngfw.agent.nftables.RuleR\x05rules\"\xac\x01\n" +
 	"\x04Rule\x12\x18\n" +
 	"\acomment\x18\x01 \x01(\tR\acomment\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12\x12\n" +
@@ -409,19 +409,19 @@ func file_nftables_model_proto_rawDescGZIP() []byte {
 
 var file_nftables_model_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_nftables_model_proto_goTypes = []any{
-	(*HostTable)(nil),    // 0: vrx.agent.nftables.HostTable
-	(*Set)(nil),          // 1: vrx.agent.nftables.Set
-	(*Chain)(nil),        // 2: vrx.agent.nftables.Chain
-	(*Rule)(nil),         // 3: vrx.agent.nftables.Rule
-	nil,                  // 4: vrx.agent.nftables.HostTable.KernelHashesEntry
-	(*v1.AclConfig)(nil), // 5: vrx.v1.AclConfig
+	(*HostTable)(nil),    // 0: ngfw.agent.nftables.HostTable
+	(*Set)(nil),          // 1: ngfw.agent.nftables.Set
+	(*Chain)(nil),        // 2: ngfw.agent.nftables.Chain
+	(*Rule)(nil),         // 3: ngfw.agent.nftables.Rule
+	nil,                  // 4: ngfw.agent.nftables.HostTable.KernelHashesEntry
+	(*v1.AclConfig)(nil), // 5: ngfw.v1.AclConfig
 }
 var file_nftables_model_proto_depIdxs = []int32{
-	5, // 0: vrx.agent.nftables.HostTable.config:type_name -> vrx.v1.AclConfig
-	1, // 1: vrx.agent.nftables.HostTable.sets:type_name -> vrx.agent.nftables.Set
-	2, // 2: vrx.agent.nftables.HostTable.chains:type_name -> vrx.agent.nftables.Chain
-	4, // 3: vrx.agent.nftables.HostTable.kernel_hashes:type_name -> vrx.agent.nftables.HostTable.KernelHashesEntry
-	3, // 4: vrx.agent.nftables.Chain.rules:type_name -> vrx.agent.nftables.Rule
+	5, // 0: ngfw.agent.nftables.HostTable.config:type_name -> ngfw.v1.AclConfig
+	1, // 1: ngfw.agent.nftables.HostTable.sets:type_name -> ngfw.agent.nftables.Set
+	2, // 2: ngfw.agent.nftables.HostTable.chains:type_name -> ngfw.agent.nftables.Chain
+	4, // 3: ngfw.agent.nftables.HostTable.kernel_hashes:type_name -> ngfw.agent.nftables.HostTable.KernelHashesEntry
+	3, // 4: ngfw.agent.nftables.Chain.rules:type_name -> ngfw.agent.nftables.Rule
 	5, // [5:5] is the sub-list for method output_type
 	5, // [5:5] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name

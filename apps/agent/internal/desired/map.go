@@ -19,7 +19,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/mapnat"
 	"ngfw/agent/internal/descriptors/nat46"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -34,7 +34,7 @@ const (
 )
 
 // mapParams turns the document's parameters into a spec; unset leaves take VPP's defaults.
-func mapParams(p *vrxv1.MapParameters) mapnat.ParamsSpec {
+func mapParams(p *ngfwv1.MapParameters) mapnat.ParamsSpec {
 	out := mapnat.DefaultParams
 	if p == nil {
 		return out
@@ -73,7 +73,7 @@ func mapParams(p *vrxv1.MapParameters) mapnat.ParamsSpec {
 	return out
 }
 
-func mapBuild(s Sink, m *vrxv1.MapConfig) {
+func mapBuild(s Sink, m *ngfwv1.MapConfig) {
 	if m == nil {
 		return
 	}
@@ -120,7 +120,7 @@ func mapBuild(s Sink, m *vrxv1.MapConfig) {
 	}
 }
 
-func mapDomain(s Sink, d *vrxv1.MapDomain, i int) {
+func mapDomain(s Sink, d *ngfwv1.MapDomain, i int) {
 	pt := Ptr("nat", "map", "domains", strconv.Itoa(i))
 	v4, e1 := netip.ParsePrefix(d.GetIpv4Prefix())
 	v6, e2 := netip.ParsePrefix(d.GetIpv6Prefix())
@@ -199,7 +199,7 @@ func mapDomain(s Sink, d *vrxv1.MapDomain, i int) {
 // assembleMap builds `nat.map` from retrieved objects. VPP does not keep the domain mode: a domain without EA bits
 // that carries rules is reported as lw4o6, a domain whose ipv6Source is not a /128 as map-t, otherwise map-e.
 // Descriptions are never invented; parameters only where the globals owner retrieved non-default values.
-func assembleMap(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleMap(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var (
 		anyMap  bool
 		params  *mapnat.ParamsSpec
@@ -233,7 +233,7 @@ func assembleMap(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 	if !anyMap {
 		return
 	}
-	m := &vrxv1.MapConfig{}
+	m := &ngfwv1.MapConfig{}
 	sort.Slice(domains, func(a, b int) bool { return domains[a].Name < domains[b].Name })
 	for _, d := range domains {
 		rs := rules[d.Name]
@@ -244,14 +244,14 @@ func assembleMap(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		case !mapIsHost(d.IP6Src):
 			mode = MapModeT
 		}
-		md := &vrxv1.MapDomain{Name: proto.String(d.Name), Mode: proto.String(mode), Ipv4Prefix: proto.String(d.IP4Prefix), Ipv6Prefix: proto.String(d.IP6Prefix),
+		md := &ngfwv1.MapDomain{Name: proto.String(d.Name), Mode: proto.String(mode), Ipv4Prefix: proto.String(d.IP4Prefix), Ipv6Prefix: proto.String(d.IP6Prefix),
 			Ipv6Source: proto.String(d.IP6Src), EaBitsLength: proto.Uint32(d.EABitsLen), PsidOffset: proto.Uint32(d.PSIDOffset), PsidLength: proto.Uint32(d.PSIDLength)}
 		if d.MTU != 0 {
 			md.Mtu = proto.Uint32(d.MTU)
 		}
 		sort.Slice(rs, func(a, b int) bool { return rs[a].PSID < rs[b].PSID })
 		for _, r := range rs {
-			md.Rules = append(md.Rules, &vrxv1.MapDomain_Rule{Psid: proto.Uint32(r.PSID), Ipv6Destination: proto.String(r.IP6Dst)})
+			md.Rules = append(md.Rules, &ngfwv1.MapDomain_Rule{Psid: proto.Uint32(r.PSID), Ipv6Destination: proto.String(r.IP6Dst)})
 		}
 		m.Domains = append(m.Domains, md)
 	}
@@ -266,15 +266,15 @@ func assembleMap(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		if i.Translation {
 			mode = MapModeT
 		}
-		m.Interfaces = append(m.Interfaces, &vrxv1.MapInterface{Interface: proto.String(i.Interface), Mode: proto.String(mode)})
+		m.Interfaces = append(m.Interfaces, &ngfwv1.MapInterface{Interface: proto.String(i.Interface), Mode: proto.String(mode)})
 	}
 	if params != nil {
 		p := *params
-		mp := &vrxv1.MapParameters{
-			Fragmentation:     &vrxv1.MapParameters_Fragmentation{Inner: proto.Bool(p.FragInner), IgnoreDf: proto.Bool(p.FragIgnoreDF)},
+		mp := &ngfwv1.MapParameters{
+			Fragmentation:     &ngfwv1.MapParameters_Fragmentation{Inner: proto.Bool(p.FragInner), IgnoreDf: proto.Bool(p.FragIgnoreDF)},
 			Icmp6Unreachables: proto.Bool(p.ICMP6Unreachable),
-			SecurityCheck:     &vrxv1.MapParameters_SecurityCheck{Enabled: proto.Bool(p.SecurityCheck), Fragments: proto.Bool(p.SecurityCheckFrags)},
-			TrafficClass:      &vrxv1.MapParameters_TrafficClass{Copy: proto.Bool(p.TCCopy), Value: proto.Uint32(p.TCClass)},
+			SecurityCheck:     &ngfwv1.MapParameters_SecurityCheck{Enabled: proto.Bool(p.SecurityCheck), Fragments: proto.Bool(p.SecurityCheckFrags)},
+			TrafficClass:      &ngfwv1.MapParameters_TrafficClass{Copy: proto.Bool(p.TCCopy), Value: proto.Uint32(p.TCClass)},
 		}
 		if p.ICMPRelaySrc != "" {
 			mp.IcmpSourceAddress = proto.String(p.ICMPRelaySrc)

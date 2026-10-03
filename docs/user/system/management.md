@@ -53,6 +53,13 @@ can be retried on a subsequent configuration reload once the requested port is a
 stream authentication and subscription handlers. Missing or invalid credentials are refused before the WebSocket
 upgrade. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
 
+Stopping the API closes its active HTTPS stream connections and refuses new stream upgrades once shutdown begins.
+Certificate hot reload keeps existing connections open; an API restart disconnects them, so clients reconnect after
+the service becomes available again.
+
+با شروع خاموش‌شدن API، اتصال جدید به جریان HTTPS پذیرفته نمی‌شود و اتصال‌های فعال آن بسته می‌شوند.
+تعویض گواهی بدون راه‌اندازی مجدد، اتصال‌های موجود را حفظ می‌کند؛ پس از راه‌اندازی مجدد API باید دوباره متصل شوید.
+
 ## Remote syslog
 
 Each collector has an address, port, transport (UDP, TCP or TLS), minimum severity and VRF, plus the forwarding

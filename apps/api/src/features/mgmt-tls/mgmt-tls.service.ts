@@ -10,6 +10,7 @@ import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { createServer, type Server } from 'node:https';
+import type { Duplex } from 'node:stream';
 import type { SecureContextOptions } from 'node:tls';
 import type { ProblemIssue } from '../../common/problem.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
@@ -70,6 +71,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   private context: SecureContextOptions | null = null;
   private current: Omit<MgmtTlsState, 'listener'> | null = null;
   private server: Server | null = null;
+  private readonly upgradedSockets = new Set<Duplex>();
   private reloadQueue: Promise<void> = Promise.resolve();
   private bootstrapped = false;
   private shuttingDown = false;
@@ -131,6 +133,13 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     // Reuse Fastify's existing upgrade handler: it runs stream authentication and route hooks.
     // Preserve the TLS socket and upgrade head; never create a second websocket/auth stack.
     this.server.on('upgrade', (req, socket, head) => {
+      if (this.shuttingDown) {
+        socket.destroy();
+        return;
+      }
+      // HTTPS close leaves upgraded connections open; retain only our listener's sockets for shutdown.
+      this.upgradedSockets.add(socket);
+      socket.once('close', () => this.upgradedSockets.delete(socket));
       if (!fastify.server.emit('upgrade', req, socket, head)) socket.destroy();
     });
     const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
@@ -155,6 +164,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     this.shuttingDown = true;
     this.unsubscribe?.();
     await this.reloadQueue;
+    for (const socket of this.upgradedSockets) socket.destroy();
     await new Promise<void>((r) => (this.server ? this.server.close(() => r()) : r()));
   }
 

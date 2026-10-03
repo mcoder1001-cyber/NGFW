@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl c
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Duplex } from 'node:stream';
 import { connect, createServer, type Server, type TLSSocket } from 'node:tls';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { registerStreamRoute } from '../../telemetry/stream.route.js';
@@ -268,6 +269,123 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
         ]);
         expect(attach).toHaveBeenCalledOnce();
       } finally {
+        await svc.onApplicationShutdown();
+        await fastify.close();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('closes live authenticated HTTPS upgrades on shutdown', async () => {
+      vi.stubEnv('VRX_HTTPS_PORT', '3301'); // slot 3 test sub-port
+      vi.stubEnv('VRX_HTTP_HOST', '127.0.0.1');
+      const fastify = Fastify();
+      await fastify.register(fastifyWebsocket);
+      const authenticate = vi.fn(async (credential: string | undefined) =>
+        credential === 'Bearer test-access' ? { username: 'w3-user', role: 'admin' } : null,
+      );
+      const attach = vi.fn();
+      await registerStreamRoute(fastify, { authenticate } as never, { attach } as never);
+      await fastify.ready();
+      const { svc } = service(tlsDoc('cert/a', 'key/a'), {
+        'cert/a': a.cert,
+        'key/a': a.key,
+      });
+      Object.assign(svc, { host: { httpAdapter: { getInstance: () => fastify } } });
+      let client: Duplex | undefined;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      let stopping: Promise<void> | undefined;
+      let releaseReload: (() => void) | undefined;
+      const upgradeRequest = () =>
+        request({
+          hostname: '127.0.0.1',
+          port: 3301,
+          path: '/api/v1/stream',
+          rejectUnauthorized: false,
+          agent: false,
+          headers: {
+            connection: 'Upgrade',
+            upgrade: 'websocket',
+            'sec-websocket-version': '13',
+            'sec-websocket-key': randomBytes(16).toString('base64'),
+            authorization: 'Bearer test-access',
+          },
+        });
+      try {
+        await svc.onApplicationBootstrap();
+        client = await new Promise<Duplex>((resolve, reject) => {
+          const req = upgradeRequest();
+          req.on('error', reject);
+          req.on('response', (res) => {
+            res.resume();
+            reject(new Error(`upgrade refused: ${res.statusCode}`));
+          });
+          req.setTimeout(5_000, () => req.destroy(new Error('upgrade timed out')));
+          req.on('upgrade', (res, socket) => {
+            req.setTimeout(0);
+            socket.setTimeout(0);
+            expect(res.statusCode).toBe(101);
+            expect((socket as TLSSocket).encrypted).toBe(true);
+            resolve(socket);
+          });
+          req.end();
+        });
+        expect(attach).toHaveBeenCalledOnce();
+        expect(client.destroyed).toBe(false);
+        let enteredReload!: () => void;
+        const reading = new Promise<void>((resolve) => {
+          enteredReload = resolve;
+        });
+        const blocked = new Promise<void>((resolve) => {
+          releaseReload = resolve;
+        });
+        svc.secretReader = async (ref) => {
+          if (ref === 'cert/a') {
+            enteredReload();
+            await blocked;
+          }
+          return ref === 'cert/a' ? a.cert : a.key;
+        };
+        const reloading = svc.reload();
+        await reading;
+        const closed = new Promise<void>((resolve) => client!.once('close', () => resolve()));
+        stopping = svc.onApplicationShutdown();
+        // While shutdown waits for an in-flight secret read, a new upgrade must not attach.
+        await new Promise<void>((resolve, reject) => {
+          const req = upgradeRequest();
+          req.on('upgrade', (_, socket) => {
+            socket.destroy();
+            reject(new Error('new stream accepted during shutdown'));
+          });
+          req.on('response', (res) => {
+            res.resume();
+            reject(new Error(`unexpected response during shutdown: ${res.statusCode}`));
+          });
+          req.on('error', (error: NodeJS.ErrnoException) => {
+            if (error.code === 'ECONNRESET') resolve();
+            else reject(error);
+          });
+          req.setTimeout(1_000, () => req.destroy(new Error('shutdown upgrade timed out')));
+          req.end();
+        });
+        expect(attach).toHaveBeenCalledOnce();
+        releaseReload!();
+        await reloading;
+        await Promise.race([
+          Promise.all([stopping, closed]),
+          new Promise<never>((_, reject) => {
+            deadline = setTimeout(
+              () => reject(new Error('live HTTPS upgrade survived shutdown')),
+              1_000,
+            );
+          }),
+        ]);
+        expect(client.destroyed).toBe(true);
+        expect((await svc.state()).listener.enabled).toBe(false);
+      } finally {
+        if (deadline) clearTimeout(deadline);
+        client?.destroy();
+        releaseReload?.();
+        await stopping;
         await svc.onApplicationShutdown();
         await fastify.close();
         vi.unstubAllEnvs();

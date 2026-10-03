@@ -1,0 +1,9 @@
+# Independent restart-clock precision review — 2026-10-03
+
+Reviewed immutable7e2b42438bed8165ae898457e7205365c94bf51b in Restart-clock. Product files read only. Verdict: APPROVE source correction, pending manager-owned deterministic/race validation.
+
+The parser converts decimal seconds to exact integer centiseconds for the existing USER_HZ100 target. Whole seconds and one/two-digit fractions are parsed separately; one fractional digit is scaled by appending zero. No binary floating arithmetic remains, so10.03 yields1003 instead of a possible1002 after truncation. The overflow condition seconds>(MaxUint64-fraction)/100 correctly protects both multiplication and addition, including the tested maximum184467440737095516.15. ParseUint rejects negative/nonnumeric values, fractional width rejects empty or excessive precision, and malformed/overflow input returns an error from SetPending before replacing the pending record.
+
+StartedAfter product semantics remain unchanged: positive PID with a different known boot acknowledges; otherwise a later start tick acknowledges, or a different known PID starting in the same tick acknowledges. An unchanged process with start tick1003 and a newly recorded request tick1003 cannot falsely acknowledge. The regression tests that exact original trigger plus replacement PID same/later ticks, preserving the documented within-tick restart rule. Existing older-process, missing-process, same-tick replacement and boot-change coverage remains relevant. Proc root/read-size and persisted permissions are unchanged.
+
+Validation evidence: source diff and neighboring pending/fake-proc tests inspected only. No Go suites, repeated/race tests, services or proc modifications executed by this reviewer. Root owns the queued30-repeat/race checks and combined full-gate verification. This approval does not assert those commands passed or broaden Linux USER_HZ support beyond the existing target assumption.

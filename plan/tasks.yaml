@@ -1225,14 +1225,15 @@ tasks:
   - D0.10
   scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
   files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
-  branch: codex/management-resume-parallel-20261003
-  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-management-resume
+  branch: codex/management-lifecycle-parallel-20261003
+  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-management-lifecycle
   owner: /root/ngfw_manager/management_developer
   started: '2026-10-03'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
     apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry. | Integrated partial scope, remaining code in review-lab-audit.md;
-    lab alone no merge blocker. | 2026-10-03: live isolated developer assigned by programme manager; unfinished code first, bounded source slice, whole task not yet done.'
+    lab alone no merge blocker. | 2026-10-03: live isolated developer assigned by programme manager; unfinished code first, bounded source slice, whole task not yet done. | PR99 stream candidate published7f7b81eb
+    unmerged, next isolated lifecycle source increment stacked on99; fresh panel blocked runtimecap.'
 - id: WEB-dashboard
   title: 'Dashboard: status banner, device CPU/memory/storage gauges and history, throughput, traffic chart, packet engine (hugepages, threads), interface donut, busiest interfaces, events'
   prompt: ''

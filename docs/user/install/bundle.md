@@ -178,10 +178,118 @@ only an export you trust into a new empty directory with a standard tar tool,
 then rerun `verify.py --manifest` or the default `install.py` preflight against
 that directory. The exporter supplies no extraction helper or automatic
 installation. Allow disk space for the private snapshot plus the uncompressed
-archive. The source checkout and its helper dependencies remain required on the
-recipient; this archive does not embed an installer or create a bootable image.
+archive. The package archive does not embed an installer or create a bootable
+image. The separate authenticated helper delivery below removes the recipient's
+source-checkout requirement; package archives never authorize helper execution.
 
 Export fixtures build real small Debian archives, exercise deterministic member
 content/roundtrip and failure paths, and stub the VPP provenance boundary. They
 are not a real complete artifact delivery, signed release, clean-machine install
 or hardware acceptance result. Those P10 release gates remain required.
+
+## Deliver trusted helpers to a recipient without a checkout
+
+On the publishing machine, use a trusted checkout at a committed revision.
+Export the helper archive into an existing caller-owned output directory outside
+the checkout (no group/other write permission):
+
+```sh
+python3 deploy/debian/bundle/helpers.py --output /owned/output/vrx-helpers.tar > /owned/output/helper-report.json
+cp deploy/debian/bundle/recipient.py /owned/output/recipient.py
+sha256sum /owned/output/helper-report.json /owned/output/recipient.py
+```
+
+The helper exporter refuses source files that differ from their committed bytes.
+It exports the canonical installer and verifier, the runtime installer's literal
+package lists, and the complete VPP verification dependency closure: VERSION,
+lib/build/verify scripts, pydeps lock, patch series and patch files (including
+optional patches), and `tests/run.sh`. These are byte-identical canonical files
+at their existing paths, not a maintained vendored implementation. The report
+records the source revision, exact file inventory, sizes, hashes and private
+modes, the complete helper tar hash/size and the separate launcher hash/size.
+Export is deterministic and refuses to replace an existing output. It neither
+builds packages nor signs artifacts.
+
+**Authenticate the launcher before executing it.** Send the expected launcher
+SHA256 and helper-report SHA256 through a separately authenticated release
+channel, together with the trusted runtime manifest and package transport report.
+Copying these hashes alongside unknown files does not establish trust. The
+recipient must compare the received `recipient.py` hash with that externally
+trusted value before running any Python code. The launcher's own hash check is
+only an accidental-mismatch check; executable code cannot authenticate itself.
+No public-key signing/bootstrap distribution or ownership policy is supplied by
+this change. Existing signed APT publication remains the release trust mechanism.
+
+On a recipient, only the delivered `recipient.py`, `vrx-helpers.tar`, helper report,
+external runtime manifest and restored package directory are needed. No repository
+checkout, Python packages, Go/Node toolchain or source build is required. The
+unchanged VPP gate still needs normal Debian/Ubuntu system tools: Python **3.12
+or newer** at `/usr/bin/python3`, Bash, dpkg/dpkg-deb, APT, Git, patch and coreutils
+(plus ordinary awk/grep/sed/find utilities); shellcheck is used if installed.
+Git is needed for VPP's scratch unit tests, not to fetch or access a checkout.
+Do not omit dependencies or skip the VPP tests to make a target appear supported.
+
+After authenticating the launcher and checking the package tar against its
+trusted transport report before extraction, run the read-only preflight from
+any directory:
+
+```sh
+env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C /usr/bin/python3 -I /received/recipient.py /restored/delivery \
+  --manifest /trusted/bundle-manifest.json \
+  --helpers /received/vrx-helpers.tar \
+  --helper-report /received/helper-report.json \
+  --helper-report-sha256 EXPECTED_SHA256_FROM_AUTHENTICATED_CHANNEL
+```
+
+The bootstrap checks the report against that external digest before parsing it,
+then checks the complete helper archive's size/hash before parsing the tar. Every
+member must match the independently authenticated inventory in name, bytes, size
+and mode; omitted/extra/duplicate members, links, special files and unsafe paths
+are refused. Helpers are bounded to 128 files, 1 MiB each, 8 MiB expanded and a
+10 MiB tar. Extraction uses a private temporary tree under `/var/tmp`, with
+0600 files/0700 executables and directories. Only after all members pass does it
+run the canonical installer with isolated Python, fixed system PATH and a minimal
+environment. The installer's VPP verification retains its full tests and install
+gate. A fixed `/nonexistent` HOME satisfies those path-guard tests without using
+the caller's home or Git startup configuration. Temporary helper files are removed
+on success or failure. The runtime manifest and helper report must be outside the
+delivery directory. An unknown helper in the package directory is never executed.
+
+For an explicitly authorized fresh Ubuntu 26.04 amd64 target, the same authenticated
+launcher accepts `--install`; run the command with `sudo env -i ...` and add that
+flag. All privileged mutation, APT isolation, simulation, failure and release
+limitations described above still apply. No target installation has been validated
+by this helper-delivery change.
+
+The outside-checkout tests build actual small synthetic Debian archives and run
+the **unchanged real full VPP verifier and its 66 tests** from the delivered helper
+tree, without stubbing that gate. They cover successful read-only preflight and
+refusal of modified helper archives/reports, changed runtime manifests, missing
+dependencies, unsafe members and oversized inputs. Synthetic manifests agreeing
+with pinned source metadata do not prove that their empty payloads were built
+from that upstream source. Real release build provenance, signatures, clean Ubuntu
+install/remove/reinstall, firstboot and hardware acceptance remain outstanding;
+this closes the bounded recipient checkout gap, not all of P10.
+
+برای دریافت‌کنندهٔ بدون مخزن کد، **پیش از اجرای `recipient.py`** هش آن را با
+مقدار مورد انتظارِ دریافت‌شده از یک کانال مستقل و احرازشده مقایسه کنید. هش یا
+گزارشِ همراه فایل ناشناس، اصالت آن را ثابت نمی‌کند. مقدار
+`--helper-report-sha256` نیز باید از همان مسیر مطمئن به دست آید؛ راه‌انداز پیش
+از تجزیهٔ گزارش، این هش را بررسی می‌کند و پیش از اجرای کمک‌ابزارها، هش آرشیو و
+همهٔ فایل‌های آن را می‌سنجد. مانیفست زمان‌اجرا (`--manifest`) و گزارش کمک‌ابزار
+(`--helper-report`) باید **بیرون از دایرکتوری تحویل بسته‌ها** باشند. پیش از
+استخراج بستهٔ منتقل‌شده با ابزار استاندارد `tar`، هش و اندازهٔ آن را با گزارش
+انتقالِ دریافت‌شده از کانال مطمئن تطبیق دهید.
+
+پیش‌نیازها همان ابزارهای سیستمِ ذکرشده در بالا هستند: Python **۳٫۱۲ یا جدیدتر**
+در `/usr/bin/python3`، Bash، `dpkg`/`dpkg-deb`، APT، Git، `patch`، `coreutils` و
+ابزارهای متنی معمول؛ `shellcheck` در صورت نصب‌شدن استفاده می‌شود. مخزن کد،
+زنجیرهٔ ساخت Go/Node یا بسته‌های اضافی Python لازم نیست؛ وابستگی‌ها یا آزمون‌های
+VPP را برای عبور ظاهری از بررسی حذف نکنید.
+
+فرمان استاندارد بالا در حالت پیش‌فرض فقط بررسیِ پیش از نصب و چاپ طرح را انجام
+می‌دهد و **هیچ بسته‌ای نصب نمی‌کند**. نصب واقعی فقط با مجوز صریح، دسترسی root و
+گزینهٔ `--install` روی هدف تازهٔ Ubuntu 26.04 amd64 درخواست می‌شود؛ همان فرمان و
+محدودیت‌های بخش نصب را رعایت کنید. سیاست امضا و توزیع راه‌انداز، اثبات منشأ
+بسته‌های واقعی و پذیرش نصب روی هدف پاک و سخت‌افزار همچنان باز هستند؛ این تغییر
+به معنای تکمیل همهٔ P10 نیست.

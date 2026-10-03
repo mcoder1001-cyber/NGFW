@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"testing"
 
 	"ngfw/agent/internal/descriptors/vpn"
@@ -37,6 +38,8 @@ func slotVectors(t testing.TB, slot int) (vectors, string) {
 		}
 		v.peerPub = append(v.peerPub, base64.StdEncoding.EncodeToString(priv.PublicKey().Bytes()))
 	}
+	// Keep fixture peer order aligned with the documented canonical key order.
+	sort.Strings(v.peerPub)
 	itfRef, err := v.resolver.AddX25519(v.itfPriv)
 	if err != nil {
 		t.Fatal(err)

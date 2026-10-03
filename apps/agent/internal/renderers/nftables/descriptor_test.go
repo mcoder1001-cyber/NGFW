@@ -19,6 +19,8 @@ import (
 
 // kernelJSON is a real `nft -j list table inet ngfw_w9` of testdata/<name>.golden, captured once from
 // nft 1.1.6 inside a throwaway slot namespace (testdata/kernel-<name>.json).
+// The NGFW rename transforms product names/log prefixes and their canonical comment hashes;
+// this fixture migration does not claim a new live-kernel capture.
 func kernelJSON(t *testing.T, name string) []byte {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("testdata", "kernel-"+name+".json")) //nolint:gosec // testdata
@@ -62,11 +64,11 @@ func TestKernelDriftIsVisible(t *testing.T) {
 	}
 	stored := proto.Clone(v).(*HostTable)
 	stored.KernelHashes = orig.Hashes() // what apply records right after `nft -f`
-	lastRule := bytes.Index(raw, []byte(`ngfw:local-in:1000/0:54750c03`))
+	lastRule := bytes.Index(raw, []byte(`ngfw:local-in:1000/0:bc9146ef`))
 	for name, edit := range map[string]func([]byte) []byte{
 		"set element": func(b []byte) []byte { return bytes.Replace(b, []byte(`"192.0.2.10"`), []byte(`"192.0.2.11"`), 1) },
 		"rule comment": func(b []byte) []byte {
-			return bytes.Replace(b, []byte(`ngfw:local-in:1000/0:54750c03`), []byte(`hand edit`), 1)
+			return bytes.Replace(b, []byte(`ngfw:local-in:1000/0:bc9146ef`), []byte(`hand edit`), 1)
 		},
 		"policy": func(b []byte) []byte {
 			return bytes.Replace(b, []byte(`"policy": "drop"`), []byte(`"policy": "accept"`), 1)

@@ -21,7 +21,7 @@ import (
 )
 
 // test vector: 32 bytes of the documented placeholder, never real material
-var testKey = []byte("NGFW_TEST_PSK_DF5_0123456789abcde")
+var testKey = []byte("NGFW_TEST_PSK_DF5_0123456789abcd")
 
 // testKeys is the fixed fingerprint key of the unit tests (a test vector, not an agent key).
 var testKeys, _ = vpn.NewKeyer([]byte("NGFW_TEST_PSK_DF5_fingerprint_key"))

@@ -3,11 +3,11 @@
 module(load="impstats" interval="1" format="json" log.file="/var/spool/rsyslog/ngfw-impstats.json" log.syslog="off" resetCounters="off")
 template(name="ngfw_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
 
-ruleset(name="ngfw_export_0_22f9cc16") {
-    action(type="omfwd" name="ngfw_export_0_22f9cc16" target="logs.example.net" port="6514" protocol="tcp" TCP_Framing="octet-counted"
+ruleset(name="ngfw_export_0_57053ff0") {
+    action(type="omfwd" name="ngfw_export_0_57053ff0" target="logs.example.net" port="6514" protocol="tcp" TCP_Framing="octet-counted"
            StreamDriver="ossl" StreamDriverMode="1" StreamDriverAuthMode="x509/name" StreamDriverPermittedPeers="logs.example.net" StreamDriver.CAFile="/etc/ngfw/rsyslog-tls/export-0-ca.pem" StreamDriver.CertFile="/etc/ngfw/rsyslog-tls/export-0-cert.pem" StreamDriver.KeyFile="/etc/ngfw/rsyslog-tls/export-0-key.pem"
            template="ngfw_rfc5424" queue.type="LinkedList" queue.size="10000" action.resumeRetryCount="-1")
 }
 if prifilt("*.notice") then {
-    call ngfw_export_0_22f9cc16
+    call ngfw_export_0_57053ff0
 }

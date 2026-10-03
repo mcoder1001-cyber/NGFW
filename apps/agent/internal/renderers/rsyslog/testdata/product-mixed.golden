@@ -3,12 +3,12 @@
 module(load="impstats" interval="1" format="json" log.file="/var/spool/rsyslog/ngfw-impstats.json" log.syslog="off" resetCounters="off")
 template(name="ngfw_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
 
-ruleset(name="ngfw_export_0_9a3a9bdc") {
-    action(type="omfwd" name="ngfw_export_0_9a3a9bdc" target="192.0.2.10" port="5514" protocol="udp"
+ruleset(name="ngfw_export_0_c508d644") {
+    action(type="omfwd" name="ngfw_export_0_c508d644" target="192.0.2.10" port="5514" protocol="udp"
            template="ngfw_rfc5424" queue.type="LinkedList" queue.size="10000" action.resumeRetryCount="-1")
 }
 if prifilt("kern,local7.warning") then {
-    call ngfw_export_0_9a3a9bdc
+    call ngfw_export_0_c508d644
 }
 
 ruleset(name="ngfw_export_1_d23921f8") {
@@ -19,10 +19,10 @@ if prifilt("*.err") then {
     call ngfw_export_1_d23921f8
 }
 
-ruleset(name="ngfw_export_2_a8c022d1") {
-    action(type="omfwd" name="ngfw_export_2_a8c022d1" target="collector.example.net" port="514" protocol="tcp" TCP_Framing="octet-counted"
+ruleset(name="ngfw_export_2_13a98a17") {
+    action(type="omfwd" name="ngfw_export_2_13a98a17" target="collector.example.net" port="514" protocol="tcp" TCP_Framing="octet-counted"
            template="ngfw_rfc5424" queue.type="LinkedList" queue.size="10000" action.resumeRetryCount="-1")
 }
 if prifilt("*.debug") then {
-    call ngfw_export_2_a8c022d1
+    call ngfw_export_2_13a98a17
 }

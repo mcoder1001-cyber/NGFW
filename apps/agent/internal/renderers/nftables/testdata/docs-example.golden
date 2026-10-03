@@ -13,6 +13,6 @@ table inet ngfw {
 		iifname "ens192" ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept comment "ngfw:@anti-lockout/0:0de959a4"
 		ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept comment "ngfw:mgmt-in:10/0:c7ad031a"
 		ip saddr 10.0.0.0/24 udp dport 161 counter accept comment "ngfw:mgmt-in:20/0:eccc846b"
-		tcp dport { 22, 443 } counter log prefix "ngfw:mgmt-in:30 " drop comment "ngfw:mgmt-in:30/0:b65366bb"
+		tcp dport { 22, 443 } counter log prefix "ngfw:mgmt-in:30 " drop comment "ngfw:mgmt-in:30/0:0c117ae5"
 	}
 }

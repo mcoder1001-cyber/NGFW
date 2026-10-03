@@ -260,7 +260,7 @@
     "table": "ngfw_w9",
     "chain": "in_mgmt-in",
     "handle": 11,
-    "comment": "ngfw:mgmt-in:10/0:fd241224",
+    "comment": "ngfw:mgmt-in:10/0:0a66fc21",
     "expr": [
      {
       "match": {
@@ -314,7 +314,7 @@
     "table": "ngfw_w9",
     "chain": "in_mgmt-in",
     "handle": 13,
-    "comment": "ngfw:mgmt-in:10/1:63540fb8",
+    "comment": "ngfw:mgmt-in:10/1:926a1924",
     "expr": [
      {
       "match": {

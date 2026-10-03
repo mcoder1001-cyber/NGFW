@@ -23,8 +23,8 @@ import (
 
 // Test vectors: the documented placeholder, never real material (00-CONTEXT "Never do these").
 var (
-	cryptoKey = []byte("NGFW_TEST_PSK_DF5")     // 16 bytes → aes-gcm-128 / aes-cbc-128
-	integKey  = []byte("NGFW_TEST_PSK_DF5_int") // 20 bytes → sha1-96
+	cryptoKey = []byte("NGFW_TEST_PSK_DF")     // 16 bytes → aes-gcm-128 / aes-cbc-128
+	integKey  = []byte("NGFW_TEST_PSK_DF_int") // 20 bytes → sha1-96
 	secrets   = vpn.NewMapResolver(keys, cryptoKey, integKey)
 	owner     = "w4"
 	ctx       = context.Background()

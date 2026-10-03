@@ -539,7 +539,7 @@ func TestSAState(t *testing.T) {
 	v.sas = []ikev2_types.Ikev2SaV3{
 		{SaIndex: 7, ProfileName: "w4-site-a", State: ikev2_types.AUTHENTICATED, Ispi: 1, Rspi: 2,
 			Iaddr: ip_types.NewAddress([]byte{10, 4, 5, 1}), Raddr: ip_types.NewAddress([]byte{10, 4, 5, 2}), Keys: keys,
-			IID:        ikev2_types.Ikev2ID{Type: 2, DataLen: 10, Data: "a.ngfw.test"},
+			IID:        ikev2_types.Ikev2ID{Type: 2, DataLen: 11, Data: "a.ngfw.test"},
 			Encryption: ikev2_types.Ikev2SaTransform{TransformType: 1, TransformID: 12, KeyLen: 32},
 			Integrity:  ikev2_types.Ikev2SaTransform{TransformType: 3, TransformID: 12},
 			Prf:        ikev2_types.Ikev2SaTransform{TransformType: 2, TransformID: 5},

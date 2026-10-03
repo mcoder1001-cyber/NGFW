@@ -594,7 +594,7 @@ ok: gitleaks — scanned ~67419 bytes (67.42 KB) in 1.3s no leaks found
 Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    2m15.318s  
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/ngfw-startupgen	1.442s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.868s; ok  	ngfw/agent/internal/agent	15.266s; ok  	ngfw/agent/internal/contracttest	8.388s; ok  	ngfw/agent/internal/descriptors/abf	1.365s; ok  	ngfw/agent/internal/descriptors/acl	1.596s; ok  	ngfw/agent/internal/descriptors/adl	1.268s; ok  	ngfw/agent/internal/descriptors/af_packet	13.948s; ok  	ngfw/agent/internal/descriptors/arp	1.328s; ok  	ngfw/agent/internal/descriptors/bfd	1.427s; ok  	ngfw/agent/internal/descriptors/bond	1.568s; ok  	ngfw/agent/internal/descriptors/classify	2.756s; 
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.442s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.868s; ok  	ngfw/agent/internal/agent	15.266s; ok  	ngfw/agent/internal/contracttest	8.388s; ok  	ngfw/agent/internal/descriptors/abf	1.365s; ok  	ngfw/agent/internal/descriptors/acl	1.596s; ok  	ngfw/agent/internal/descriptors/adl	1.268s; ok  	ngfw/agent/internal/descriptors/af_packet	13.948s; ok  	ngfw/agent/internal/descriptors/arp	1.328s; ok  	ngfw/agent/internal/descriptors/bfd	1.427s; ok  	ngfw/agent/internal/descriptors/bond	1.568s; ok  	ngfw/agent/internal/descriptors/classify	2.756s;
 
 == apps/cli: make lint test build ==
 ok  	ngfw/cli/internal/api	1.348s; ok  	ngfw/cli/internal/cli	1.932s; ok  	ngfw/cli/internal/cpath	1.093s; ok  	ngfw/cli/internal/jschema	1.208s; ok  	ngfw/cli/internal/render	1.124s; ok  	ngfw/cli/internal/safe	1.093s; ok  	ngfw/cli/test/e2e	1.078s; 

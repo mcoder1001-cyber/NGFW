@@ -1,0 +1,5 @@
+# Pipeline cleanup fix WIP
+Base454dd312, own isolatedbranch; remote unpublished.
+Meaningful real child regressions written: main command exits0 after descendant ready; descendant reacts only to cleanupTERM and survives until owned groupKILL, modifying source or moving fixture.git. No product correction yet. Next command: targeted new tests for genuine RED, then fix final verification after cleanup; existing7+new2 suite remains required. Mandatory exactfinalquick/reviews still required; no completed gate/serviceclaim.
+
+Actual targeted RED command: PYTHONDONTWRITEBYTECODE=1 python3 tools/test_test_handoff.py HandoffTests.test_cleanup_descendant_mutation_invalidates_success HandoffTests.test_cleanup_verification_error_fails_closed. Exit1, both2FAIL: maincommandexit0, actualchild changes trackedsource or removes Git during cleanup, but baseline persistedpassed. Raw /tmp/pipeline-cleanup-fix-red.log. Owneddescendants verifieddead andisolatedslot released. Root must publish REDcheckpoint then correction.

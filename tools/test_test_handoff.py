@@ -83,6 +83,50 @@ class HandoffTests(unittest.TestCase):
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(direct.returncode, 2)
 
+    def cleanup_mutator(self, mutation):
+        # The child signals readiness before the successful parent exits. It
+        # mutates only on cleanup's TERM, after the worker's first clean check.
+        ready = self.root / 'cleanup-child.ready'
+        pidfile = self.root / 'cleanup-child.pid'
+        child = (
+            'import signal,time; from pathlib import Path\n'
+            'def cleanup(signum, frame):\n'
+            '    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n'
+            f'    {mutation}\n'
+            'signal.signal(signal.SIGTERM, cleanup)\n'
+            f'Path({str(ready)!r}).write_text("ready")\n'
+            'while True: time.sleep(1)\n'
+        )
+        parent = (
+            'import subprocess,sys,time; from pathlib import Path\n'
+            f'p=subprocess.Popen([sys.executable,"-c",{child!r}])\n'
+            f'Path({str(pidfile)!r}).write_text(str(p.pid))\n'
+            'deadline=time.monotonic()+5\n'
+            f'while not Path({str(ready)!r}).exists():\n'
+            '    if p.poll() is not None or time.monotonic()>deadline: raise RuntimeError("child not ready")\n'
+            '    time.sleep(0.01)\n'
+        )
+        result = self.worker([sys.executable, '-c', parent])
+        self.assertEqual(result['exit_code'], 0)  # main validation succeeded
+        pid = int(pidfile.read_text())
+        stat = Path(f'/proc/{pid}/stat')
+        if stat.exists():
+            self.assertEqual(stat.read_text().split()[2], 'Z', 'cleanup descendant must be dead')
+        with open(self.locks / 'vrx-heavy-3.lock', 'w') as slot:
+            fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return result
+
+    def test_cleanup_descendant_mutation_invalidates_success(self):
+        result = self.cleanup_mutator('Path("source").write_text("changed during cleanup")')
+        self.assertEqual((self.repo / 'source').read_text(), 'changed during cleanup')
+        self.assertEqual(result['state'], 'stale')
+
+    def test_cleanup_verification_error_fails_closed(self):
+        result = self.cleanup_mutator('Path(".git").rename(".git-after-cleanup")')
+        self.assertFalse((self.repo / '.git').exists())
+        self.assertEqual(result['state'], 'failed')
+        self.assertIn('Final checkpoint verification failed', result['error'])
+
     def test_deadline_cleans_stubborn_descendant_and_releases_lock(self):
         pidfile = self.root / 'child.pid'
         child = 'import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)'

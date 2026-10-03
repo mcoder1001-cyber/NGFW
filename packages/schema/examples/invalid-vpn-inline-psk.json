@@ -8,7 +8,7 @@
         "bad": {
           "localAddr": "198.51.100.2",
           "remoteAddr": "203.0.113.10",
-          "auth": { "method": "psk", "psk": "VRX_TEST_PSK_inline" },
+          "auth": { "method": "psk", "psk": "NGFW_TEST_PSK_inline" },
           "proposal": "p",
           "localTs": ["10.0.0.0/24"],
           "remoteTs": ["10.1.0.0/24"]

@@ -1,4 +1,4 @@
-// Package client is the provider's small HTTP client for the VRX REST API: API-key auth, TLS verification on by
+// Package client is the provider's small HTTP client for the NGFW REST API: API-key auth, TLS verification on by
 // default, RFC 9457 problem+json → *APIError with pointers, and the candidate → commit(confirm) → confirm workflow.
 package client
 
@@ -102,7 +102,7 @@ func New(o Options) (*Client, error) {
 		return nil, fmt.Errorf("refusing plain http:// to %s: the API key would cross the network in clear — use https:// (or set allow_http = true for an isolated lab)", u.Hostname())
 	}
 	if o.APIKey == "" {
-		return nil, errors.New("no API key (api_key or VRX_API_KEY)")
+		return nil, errors.New("no API key (api_key or NGFW_API_KEY)")
 	}
 	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12}
 	if o.CAFile != "" {
@@ -126,7 +126,7 @@ func New(o Options) (*Client, error) {
 	}
 	ua := o.UserAgent
 	if ua == "" {
-		ua = "terraform-provider-vrx"
+		ua = "terraform-provider-ngfw"
 	}
 	return &Client{
 		base: u.String(),
@@ -151,7 +151,7 @@ func IsLoopback(host string) bool {
 }
 
 // String never shows the key.
-func (c *Client) String() string { return "vrx.Client(" + c.base + ")" }
+func (c *Client) String() string { return "ngfw.Client(" + c.base + ")" }
 
 // Do performs one request; body nil = no body (and no content-type). out may be nil.
 func (c *Client) Do(ctx context.Context, method, path string, query url.Values, body, out any) error {

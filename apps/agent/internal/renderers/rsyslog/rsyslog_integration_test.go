@@ -26,7 +26,7 @@ import (
 
 // TestRsyslogIntegration runs a test-scoped rsyslogd as a child (never the host's rsyslog
 // unit, never /etc/rsyslog*, never /dev/log): a standalone config under
-// /run/vrx-test/<prefix>/rsyslog with imuxsock on <dir>/log.sock and imtcp on
+// /run/ngfw-test/<prefix>/rsyslog with imuxsock on <dir>/log.sock and imtcp on
 // 127.0.0.1:3<N>14, exporting to Go collectors on 127.0.0.1:3<N>15 (UDP) and 3<N>16 (TCP).
 func TestRsyslogIntegration(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
@@ -150,11 +150,11 @@ func TestRsyslogIntegration(t *testing.T) {
 	pid1, _ := ctl.PID()
 	t.Logf("rsyslogd child pid %d: %s -n -iNONE -f %s", pid1, RsyslogdBin, paths.ConfFile)
 
-	sendUnix(t, paths.Standalone.Socket, "<14>vrxtest: hello RF-4 user.info")        // user.info → UDP only
-	sendUnix(t, paths.Standalone.Socket, "<156>vrxtest: hello RF-4 local3.warning")  // local3.warning → UDP and TCP
-	sendUnix(t, paths.Standalone.Socket, "<159>vrxtest: hello RF-4 local3.debug")    // below both filters
-	sendTCP(t, inTCP, "<13>1 2026-09-24T00:00:00Z h vrxtcp - - - hello via imtcp\n") // user.notice via imtcp → UDP
-	rfc5424 := regexp.MustCompile(`^<14>1 \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+[+-]\d\d:\d\d \S+ vrxtest - - - +hello RF-4 user\.info\n?$`)
+	sendUnix(t, paths.Standalone.Socket, "<14>ngfwtest: hello RF-4 user.info")        // user.info → UDP only
+	sendUnix(t, paths.Standalone.Socket, "<156>ngfwtest: hello RF-4 local3.warning")  // local3.warning → UDP and TCP
+	sendUnix(t, paths.Standalone.Socket, "<159>ngfwtest: hello RF-4 local3.debug")    // below both filters
+	sendTCP(t, inTCP, "<13>1 2026-09-24T00:00:00Z h ngfwtcp - - - hello via imtcp\n") // user.notice via imtcp → UDP
+	rfc5424 := regexp.MustCompile(`^<14>1 \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+[+-]\d\d:\d\d \S+ ngfwtest - - - +hello RF-4 user\.info\n?$`)
 	got := udp.wait(t, 3, 5*time.Second)
 	t.Logf("UDP collector 127.0.0.1:%d received (RFC 5424):", udpPort)
 	for _, l := range got {
@@ -212,8 +212,8 @@ func TestRsyslogIntegration(t *testing.T) {
 	}
 	t.Logf("two more Applies of the same files: pid %d unchanged (no restart)", pid2)
 	udp.reset()
-	sendUnix(t, paths.Standalone.Socket, "<14>vrxtest: after restart user.info (filtered now)")
-	sendUnix(t, paths.Standalone.Socket, "<13>vrxtest: after restart user.notice")
+	sendUnix(t, paths.Standalone.Socket, "<14>ngfwtest: after restart user.info (filtered now)")
+	sendUnix(t, paths.Standalone.Socket, "<13>ngfwtest: after restart user.notice")
 	_ = udp.wait(t, 1, 5*time.Second)
 	time.Sleep(300 * time.Millisecond)
 	got = udp.snapshot()
@@ -248,7 +248,7 @@ func TestRsyslogIntegration(t *testing.T) {
 		}
 	})
 	waitFor(t, 10*time.Second, "suspension event", func() bool {
-		sendUnix(t, paths.Standalone.Socket, "<156>vrxtest: while the collector is down")
+		sendUnix(t, paths.Standalone.Socket, "<156>ngfwtest: while the collector is down")
 		evs = append(evs, pl.Step(ctx)...)
 		for _, e := range evs {
 			if strings.HasSuffix(e.Key, "/queue") && e.New == "backlog" || strings.HasSuffix(e.Key, "/suspended") || strings.HasSuffix(e.Key, "/failed") {
@@ -280,7 +280,7 @@ func TestRsyslogHostImpstatsIntegration(t *testing.T) {
 	colPort := uint32(n) //nolint:gosec // slot port
 	hostPID := rsyslogUnitPID(t)
 	ctx := context.Background()
-	base := filepath.Join("/run/vrx-test", prefix, "rsyslog-host")
+	base := filepath.Join("/run/ngfw-test", prefix, "rsyslog-host")
 	lockSlotDir(t, base)
 	dropIns := filepath.Join(base, "rsyslog.d")
 	for _, d := range []string{dropIns, filepath.Join(base, "work")} {
@@ -300,7 +300,7 @@ include(file=%q)
 		t.Fatal(err)
 	}
 	paths := ProductPaths()
-	paths.ConfFile, paths.StatsFile, paths.TLSDir = filepath.Join(dropIns, "50-vrx-export.conf"), filepath.Join(base, "vrx-impstats.json"), filepath.Join(base, "tls")
+	paths.ConfFile, paths.StatsFile, paths.TLSDir = filepath.Join(dropIns, "50-ngfw-export.conf"), filepath.Join(base, "ngfw-impstats.json"), filepath.Join(base, "tls")
 	paths.HostConfigs = []string{mainConf, filepath.Join(dropIns, "*.conf")}
 	paths.FileOwner, paths.KeyOwner = "", ""
 	udp := udpCollector(t, colPort)
@@ -361,7 +361,7 @@ include(file=%q)
 	old := New(runner, WithPaths(func() Paths { p := paths; p.HostConfigs = nil; return p }()))
 	oldFiles, _ := old.Render(ctx, doc(t, []any{map[string]any{"address": "127.0.0.1", "port": colPort}}))
 	oldPath := filepath.Join(dropIns, "51-prefix-copy.conf")
-	if err := os.WriteFile(oldPath, bytes.ReplaceAll(oldFiles[paths.ConfFile].Content, []byte("vrx_export_"), []byte("old_export_")), 0o600); err != nil {
+	if err := os.WriteFile(oldPath, bytes.ReplaceAll(oldFiles[paths.ConfFile].Content, []byte("ngfw_export_"), []byte("old_export_")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out, err = exec.Command(RsyslogdBin, "-N1", "-f", mainConf).CombinedOutput() //nolint:gosec // fixed argv
@@ -377,7 +377,7 @@ include(file=%q)
 		t.Fatal(err)
 	}
 	waitFor(t, 5*time.Second, "log.sock", func() bool { _, err := os.Stat(sock); return err == nil })
-	sendUnix(t, sock, "<14>vrxtest: via the host config")
+	sendUnix(t, sock, "<14>ngfwtest: via the host config")
 	got := udp.wait(t, 1, 5*time.Second)
 	t.Logf("collector 127.0.0.1:%d: %q", colPort, got[0])
 	// A changed export: restart, converged on the host's impstats file.
@@ -410,9 +410,9 @@ func tlsResolver() rfkit.SecretResolver {
 	return rfkit.SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
 		switch ref {
 		case "cert/syslog-ca", "cert/syslog-client":
-			return "-----BEGIN CERTIFICATE-----\nVRX_TEST_PSK_RF4_cert\n-----END CERTIFICATE-----\n", nil
+			return "-----BEGIN CERTIFICATE-----\nNGFW_TEST_PSK_RF4_cert\n-----END CERTIFICATE-----\n", nil
 		case "key/syslog-client":
-			return "-----BEGIN PRIVATE KEY-----\nVRX_TEST_PSK_RF4_tlskey\n-----END PRIVATE KEY-----\n", nil // VRX_TEST_PSK_ fixture
+			return "-----BEGIN PRIVATE KEY-----\nNGFW_TEST_PSK_RF4_tlskey\n-----END PRIVATE KEY-----\n", nil // NGFW_TEST_PSK_ fixture
 		}
 		return "", errors.New("unknown")
 	})
@@ -564,7 +564,7 @@ func waitFor(t *testing.T, d time.Duration, what string, ok func() bool) {
 
 func lockSlotDir(t *testing.T, base string) {
 	t.Helper()
-	if !strings.HasPrefix(base, "/run/vrx-test/") {
+	if !strings.HasPrefix(base, "/run/ngfw-test/") {
 		t.Fatalf("refusing to use %s", base)
 	}
 	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {

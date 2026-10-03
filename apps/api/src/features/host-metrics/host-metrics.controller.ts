@@ -32,7 +32,7 @@ export const HostOut = z
     sampledAt: z.string(),
   })
   .describe(
-    'The appliance host: CPU, memory, disks and hugepages (read from the kernel by vrx-api, D-154)',
+    'The appliance host: CPU, memory, disks and hugepages (read from the kernel by ngfw-api, D-154)',
   );
 
 /** WEB-dashboard: `GET /api/v1/state/host`. */

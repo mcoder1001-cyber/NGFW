@@ -17,7 +17,7 @@ import (
 	"ngfw/sdk/terraform/internal/client"
 )
 
-// vrx_interface — the typed resource of one entry of /interfaces. Its attributes are GENERATED from the
+// ngfw_interface — the typed resource of one entry of /interfaces. Its attributes are GENERATED from the
 // InterfacesConfig JSON Schema (zz_interface_schema_gen.go); the conversion to and from the API document is generic.
 type interfaceResource struct{ p *providerData }
 
@@ -46,8 +46,8 @@ func (r *interfaceResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	attrs["revision"] = schema.Int64Attribute{Computed: true,
 		MarkdownDescription: "Revision created by the last commit of this resource."}
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "One interface of the VRX configuration (`/interfaces/<name>`); attributes generated from the " +
-			"interfaces JSON Schema. Each apply is a confirmed commit. Import with the name: `terraform import vrx_interface.x loop1`.",
+		MarkdownDescription: "One interface of the NGFW configuration (`/interfaces/<name>`); attributes generated from the " +
+			"interfaces JSON Schema. Each apply is a confirmed commit. Import with the name: `terraform import ngfw_interface.x loop1`.",
 		Attributes: attrs,
 	}
 }
@@ -94,7 +94,7 @@ func (r *interfaceResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 	if res.Status == "unchanged" {
-		resp.Diagnostics.AddError("VRX: nothing was committed for create "+ptr, concurrentHint)
+		resp.Diagnostics.AddError("NGFW: nothing was committed for create "+ptr, concurrentHint)
 		return
 	}
 	resp.State.Raw = req.Plan.Raw
@@ -148,7 +148,7 @@ func (r *interfaceResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 	if extra := unknownMembers(obj); len(extra) > 0 {
-		resp.Diagnostics.AddWarning("VRX: "+ptr+" has members this provider does not know",
+		resp.Diagnostics.AddWarning("NGFW: "+ptr+" has members this provider does not know",
 			fmt.Sprintf("%v — they are not shown in the plan and an update would remove them; rebuild the provider from the current API (sdk/gen.sh)", extra))
 	}
 	obj["id"], obj["name"] = name.ValueString(), name.ValueString()
@@ -189,7 +189,7 @@ func (r *interfaceResource) Update(ctx context.Context, req resource.UpdateReque
 		if m, ok := live.(map[string]any); ok {
 			if extra := unknownMembers(m); len(extra) > 0 {
 				return fmt.Errorf("%s has members this provider does not know (%v); replacing the object would remove them — "+
-					"rebuild the provider from the current API (sdk/gen.sh) or manage the node with vrx_config", ptr, extra)
+					"rebuild the provider from the current API (sdk/gen.sh) or manage the node with ngfw_config", ptr, extra)
 			}
 		}
 		return r.p.client.Put(ctx, ptr, body)
@@ -200,7 +200,7 @@ func (r *interfaceResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 	if res.Status == "unchanged" {
 		if live, err := r.p.client.Running(ctx, ptr); err != nil || !jsonSubset(normalizeNumbers(body), normalizeNumbers(live)) {
-			resp.Diagnostics.AddError("VRX: nothing was committed for update "+ptr, concurrentHint)
+			resp.Diagnostics.AddError("NGFW: nothing was committed for update "+ptr, concurrentHint)
 			return
 		}
 	}

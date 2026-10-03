@@ -11,7 +11,7 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_neighbor"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/vpp"
 )
@@ -93,7 +93,7 @@ func (c *Coalescer) Add(name string, ch Change) {
 func (c *Coalescer) Pending() bool { return len(c.per) > 0 }
 
 // Flush returns the events of the period (sorted by interface) and resets the counts.
-func (c *Coalescer) Flush() []*vrxv1.Event {
+func (c *Coalescer) Flush() []*ngfwv1.Event {
 	if len(c.per) == 0 {
 		return nil
 	}
@@ -115,13 +115,13 @@ func (c *Coalescer) Flush() []*vrxv1.Event {
 		}
 		a := attrs(sum)
 		a["interfaces"] = strconv.Itoa(len(names))
-		return []*vrxv1.Event{{
-			Kind:       vrxv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED,
+		return []*ngfwv1.Event{{
+			Kind:       ngfwv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED,
 			Message:    fmt.Sprintf("neighbour tables of %d interfaces changed", len(names)),
 			Attributes: a,
 		}}
 	}
-	out := make([]*vrxv1.Event, 0, len(names))
+	out := make([]*ngfwv1.Event, 0, len(names))
 	for _, name := range names {
 		n := c.per[name]
 		var parts []string
@@ -133,8 +133,8 @@ func (c *Coalescer) Flush() []*vrxv1.Event {
 				parts = append(parts, fmt.Sprintf("%d %s", p.v, p.what))
 			}
 		}
-		out = append(out, &vrxv1.Event{
-			Kind:       vrxv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED,
+		out = append(out, &ngfwv1.Event{
+			Kind:       ngfwv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED,
 			Interface:  &name,
 			Message:    fmt.Sprintf("neighbours on %s: %s", name, strings.Join(parts, ", ")),
 			Attributes: attrs(n),

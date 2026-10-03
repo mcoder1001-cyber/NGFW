@@ -20,7 +20,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/mapnat"
 	"ngfw/agent/internal/descriptors/nat46"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -36,7 +36,7 @@ var nat46Owners struct {
 }
 
 // SetNat46Owners records which map-t interfaces the STORED desired state gives to nat.nat46 and to nat.map.
-func SetNat46Owners(nat *vrxv1.NatConfig) {
+func SetNat46Owners(nat *ngfwv1.NatConfig) {
 	n46, mt := map[string]bool{}, map[string]bool{}
 	for _, i := range nat.GetNat46().GetInterfaces() {
 		n46[i] = true
@@ -52,7 +52,7 @@ func SetNat46Owners(nat *vrxv1.NatConfig) {
 }
 
 // nat46Config is the library view of the document object; an unset clientPrefix is RFC 6052's well-known prefix.
-func nat46Config(n *vrxv1.Nat46Config) nat46.Config {
+func nat46Config(n *ngfwv1.Nat46Config) nat46.Config {
 	c := nat46.Config{ClientPrefix: n.GetClientPrefix(), Interfaces: n.GetInterfaces()}
 	if n.ClientPrefix == nil {
 		c.ClientPrefix = nat46.WellKnownPrefix
@@ -63,7 +63,7 @@ func nat46Config(n *vrxv1.Nat46Config) nat46.Config {
 	return c
 }
 
-func nat46Build(s Sink, nat *vrxv1.NatConfig) {
+func nat46Build(s Sink, nat *ngfwv1.NatConfig) {
 	n := nat.GetNat46()
 	if n == nil {
 		return
@@ -133,7 +133,7 @@ func nat46Build(s Sink, nat *vrxv1.NatConfig) {
 
 // assembleNat46 adds `nat.nat46` and moves NAT46-owned map-t interfaces out of the assembled nat.map (runs after
 // assembleMap).
-func assembleNat46(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleNat46(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	nat46Owners.Lock()
 	own46, ownMap := nat46Owners.nat46, nat46Owners.mapT
 	nat46Owners.Unlock()
@@ -182,12 +182,12 @@ func assembleNat46(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		}
 		sort.Strings(c.Interfaces)
 	}
-	n := &vrxv1.Nat46Config{Interfaces: c.Interfaces}
+	n := &ngfwv1.Nat46Config{Interfaces: c.Interfaces}
 	if c.ClientPrefix != "" {
 		n.ClientPrefix = proto.String(c.ClientPrefix)
 	}
 	for _, m := range c.Mappings {
-		nm := &vrxv1.Nat46Mapping{Name: proto.String(m.Name), Ipv4: proto.String(m.IPv4), Ipv6: proto.String(m.IPv6)}
+		nm := &ngfwv1.Nat46Mapping{Name: proto.String(m.Name), Ipv4: proto.String(m.IPv4), Ipv6: proto.String(m.IPv6)}
 		if m.MTU != 0 {
 			nm.Mtu = proto.Uint32(m.MTU)
 		}

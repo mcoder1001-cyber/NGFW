@@ -119,10 +119,10 @@ interface LocalOk {
 export interface LoginResult {
   accessToken: string;
   tokenType: 'Bearer';
-  /** Seconds the access token lives (≤ VRX_ACCESS_TTL_SEC, ≤ the session's end). */
+  /** Seconds the access token lives (≤ NGFW_ACCESS_TTL_SEC, ≤ the session's end). */
   expiresIn: number;
   refreshToken: string;
-  /** Seconds the refresh cookie lives: the idle TTL capped by VRX_SESSION_MAX_SEC (TD-10b, review 2.3d). */
+  /** Seconds the refresh cookie lives: the idle TTL capped by NGFW_SESSION_MAX_SEC (TD-10b, review 2.3d). */
   refreshMaxAge: number;
   user: { id: number; username: string; role: Role };
 }
@@ -160,22 +160,22 @@ export class AuthService {
 
   /** D-048: the API seeds the first admin when there is no user at all. Returns true when it created one. */
   async seedBootstrapAdmin(): Promise<boolean> {
-    if (this.env.VRX_DEV_WEAK_PASSWORDS) {
+    if (this.env.NGFW_DEV_WEAK_PASSWORDS) {
       this.log.warn(
-        `VRX_DEV_WEAK_PASSWORDS is on: new passwords shorter than ${PASSWORD_MIN} characters are accepted — development only`,
+        `NGFW_DEV_WEAK_PASSWORDS is on: new passwords shorter than ${PASSWORD_MIN} characters are accepted — development only`,
       );
     }
     const [c] = await this.db.select({ n: count() }).from(appUser);
     if ((c?.n ?? 0) > 0) return false;
-    const password = this.env.VRX_BOOTSTRAP_ADMIN_PASSWORD;
+    const password = this.env.NGFW_BOOTSTRAP_ADMIN_PASSWORD;
     if (password === undefined) {
-      this.log.warn('no users and VRX_BOOTSTRAP_ADMIN_PASSWORD is not set: nobody can log in');
+      this.log.warn('no users and NGFW_BOOTSTRAP_ADMIN_PASSWORD is not set: nobody can log in');
       return false;
     }
     const inserted = await this.db
       .insert(appUser)
       .values({
-        username: this.env.VRX_BOOTSTRAP_ADMIN_USER,
+        username: this.env.NGFW_BOOTSTRAP_ADMIN_USER,
         passwordHash: await hashPassword(password),
         role: 'admin',
         source: 'bootstrap',
@@ -183,7 +183,7 @@ export class AuthService {
       .onConflictDoNothing()
       .returning({ id: appUser.id });
     if (inserted.length > 0)
-      this.log.log(`bootstrap admin '${this.env.VRX_BOOTSTRAP_ADMIN_USER}' created`);
+      this.log.log(`bootstrap admin '${this.env.NGFW_BOOTSTRAP_ADMIN_USER}' created`);
     return inserted.length > 0;
   }
 
@@ -209,7 +209,7 @@ export class AuthService {
     // password sent in clear by a remote peer is never acted on: no failed login counted, the lockout untouched
     if (!secure) throw await fail('tls-required', null, 403);
     // TD-10b (review 2.3b): `ip` is the client behind the trusted proxy, so this bucket is per client, not global
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.NGFW_LOGIN_RATE_PER_MIN) {
       throw await fail('rate-limited', null, 429);
     }
     const policy = await this.aaa.policy();
@@ -222,7 +222,7 @@ export class AuthService {
     // cannot lock the account out in the directory behind us; the per-client bucket above still applies
     if (
       (await this.tokens.hit(`extlogin:${username.toLowerCase()}`, 60)) >
-      this.env.VRX_LOGIN_RATE_PER_MIN
+      this.env.NGFW_LOGIN_RATE_PER_MIN
     ) {
       throw await fail('rate-limited-name', null, 429);
     }
@@ -661,7 +661,7 @@ export class AuthService {
    */
   async mfaEnrollWithChallenge(challenge: string, token: string, ip: string, secure: boolean) {
     if (!secure) throw tlsRequired();
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.NGFW_LOGIN_RATE_PER_MIN) {
       throw problems.tooMany('too many login attempts; try again in a minute');
     }
     const r = await this.challengeUser(challenge);
@@ -732,7 +732,7 @@ export class AuthService {
       });
       return problems.unauthorized('invalid code or challenge');
     };
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.NGFW_LOGIN_RATE_PER_MIN) {
       throw problems.tooMany('too many login attempts; try again in a minute');
     }
     const r = await this.challengeUser(challenge);
@@ -793,7 +793,7 @@ export class AuthService {
   async oidcStart(ip: string, secure: boolean): Promise<{ url: string; binding: string }> {
     // review 4: the D-100 (1) transport rule of every login step
     if (!secure) throw tlsRequired();
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.NGFW_LOGIN_RATE_PER_MIN) {
       throw problems.tooMany('too many login attempts; try again in a minute');
     }
     const cfg = await this.aaa.oidcConfig();
@@ -833,7 +833,7 @@ export class AuthService {
     secure: boolean,
   ): Promise<LoginResult | MfaChallenge> {
     if (!secure) throw tlsRequired();
-    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.VRX_LOGIN_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`login:${clientKey(ip)}`, 60)) > this.env.NGFW_LOGIN_RATE_PER_MIN) {
       throw problems.tooMany('too many login attempts; try again in a minute');
     }
     const fail = this.failer('(oidc)', ip);
@@ -950,7 +950,7 @@ export class AuthService {
       );
     }
     if (!secure) throw tlsRequired();
-    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) {
       throw problems.tooMany('too many password checks; try again in a minute');
     }
     const gen = await this.checkCurrent(user, current);
@@ -988,7 +988,7 @@ export class AuthService {
         'a second factor is set up from a login session, not with an API key',
       );
     }
-    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) {
+    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) {
       throw problems.tooMany('too many attempts; try again in a minute');
     }
     if (!(await this.mfa.verifyCode(user.id, code, true))) {
@@ -1049,11 +1049,11 @@ export class AuthService {
    * failures each add 1 — no read-modify-write race. PostgreSQL evaluates every SET expression against the old row,
    * so the CASEs see the same pre-increment value. Returns whether the account is locked now.
    * TD-10b (review 2.3a): the LAST ADMIN is never locked here — an enabled admin with no other enabled admin who is
-   * not locked. Its checks stay bounded by the per-account budget (`pwset:<id>`, VRX_PASSWORD_RATE_PER_MIN) that runs
+   * not locked. Its checks stay bounded by the per-account budget (`pwset:<id>`, NGFW_PASSWORD_RATE_PER_MIN) that runs
    * before argon2 on both routes; a lock would shut the owner out of every login (this lock is account-wide).
    */
   async registerFailure(userId: number): Promise<boolean> {
-    const max = this.env.VRX_LOGIN_MAX_FAILURES;
+    const max = this.env.NGFW_LOGIN_MAX_FAILURES;
     const hit = sql`${appUser.failedLogins} + 1 >= ${max}`;
     const last = sql`(${appUser.role} = 'admin' and not ${appUser.disabled} and not exists (select 1 from ${appUser} o where o.role = 'admin' and not o.disabled and o.id <> ${appUser.id} and (o.locked_until is null or o.locked_until <= now())))`;
     // review L1: lock decisions are serialised (one transaction-scoped advisory lock), so two concurrent failures of
@@ -1064,7 +1064,7 @@ export class AuthService {
         .update(appUser)
         .set({
           failedLogins: sql`case when ${hit} then 0 else ${appUser.failedLogins} + 1 end`,
-          lockedUntil: sql`case when ${hit} and not ${last} then now() + make_interval(secs => ${this.env.VRX_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
+          lockedUntil: sql`case when ${hit} and not ${last} then now() + make_interval(secs => ${this.env.NGFW_LOGIN_LOCKOUT_SEC}) else ${appUser.lockedUntil} end`,
         })
         .where(eq(appUser.id, userId))
         .returning({ lockedUntil: appUser.lockedUntil });
@@ -1075,7 +1075,7 @@ export class AuthService {
 
   /**
    * Refresh chain + access token under credential generation `gen` (from app_user); null when the chain was revoked
-   * meanwhile (D-097), `expired` when the login session reached VRX_SESSION_MAX_SEC (TD-10b). `family` continues a
+   * meanwhile (D-097), `expired` when the login session reached NGFW_SESSION_MAX_SEC (TD-10b). `family` continues a
    * chain (refresh); without it a new one starts (login). The access token never outlives the session.
    */
   private async session(
@@ -1242,7 +1242,7 @@ export class AuthService {
   }
 
   private async authenticateApiKey(token: string): Promise<Principal | null> {
-    if (!/^vrxk_[A-Za-z0-9_-]{43}$/.test(token)) return null;
+    if (!/^ngfwk_[A-Za-z0-9_-]{43}$/.test(token)) return null;
     const [row] = await this.db
       .select({ key: apiKey, user: appUser })
       .from(apiKey)
@@ -1314,7 +1314,7 @@ export class AuthService {
     if (stepUp.current !== undefined) {
       // review H1: the per-account budget shared with password changes (`pwset:<user id>`, as in setPassword), spent
       // BEFORE argon2 — a stolen session cannot out-run the lockout with parallel guesses or queue unbounded argon2
-      if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.VRX_PASSWORD_RATE_PER_MIN) {
+      if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) {
         throw problems.tooMany('too many password checks; try again in a minute');
       }
       checkedGen = await this.checkCurrent(user, stepUp.current);

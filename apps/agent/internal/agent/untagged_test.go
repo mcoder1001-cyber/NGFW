@@ -12,7 +12,7 @@ import (
 
 	afpapi "ngfw/agent/binapi/af_packet"
 	interfaces "ngfw/agent/binapi/interface"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -72,8 +72,8 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 	wan := v.AddInterface("wan", "dpdk", "")
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, nicDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, nicDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if i, _ := v.InterfaceByName("lan"); i.Table4 != 10001 || i.Table6 != 10001 || !i.Addrs["10.10.1.1/24"] || !i.Addrs["2001:db8:a::1/64"] || !i.AdminUp {
 		t.Fatalf("VPP lan %+v", i)
 	}
@@ -90,7 +90,7 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 	// ours — not reported, not removed. (On lan it would block the VRF unbind: VPP refuses a table
 	// change while the interface has an address of that family, ADDRESS_FOUND_FOR_INTERFACE.)
 	v.Ifaces[wan].Addrs["192.0.2.1/24"] = true
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, nicDoc)}); len(r.GetResults()) != 0 {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, nicDoc)}); len(r.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", r.GetResults())
 	}
 	if got, want := retrieveIfs(t, s), doc(t, nicCanonical); !proto.Equal(got, want) {
@@ -101,7 +101,7 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 	s.Close()
 	s2 := newSvc(t, v, dir)
 	v.Reset()
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED ||
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED ||
 		r.GetSummary().GetCreated()+r.GetSummary().GetDeleted()+r.GetSummary().GetUpdated() != 0 {
 		t.Fatalf("restart resync %v", r)
 	}
@@ -114,7 +114,7 @@ func TestPhysicalNICAddressAndVRF(t *testing.T) {
 
 	// Removal: our addresses and binding leave VPP, the claims are released, the NICs and the foreign
 	// address stay.
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if i, ok := v.InterfaceByName("lan"); !ok || i.Table4 != 0 || i.Table6 != 0 || len(i.Addrs) != 0 {
 		t.Fatalf("lan after removal %+v", i)
 	}
@@ -133,12 +133,12 @@ func TestSubinterfaceRemovedWhileParentStays(t *testing.T) {
 	s := newSvc(t, v, t.TempDir())
 	withSub := `{"interfaces":{"host-zq11c0":{"enabled":true,
 	  "subinterfaces":{"100":{"vlanId":100,"enabled":true,"ipv4":["10.10.100.1/24"]}}}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, withSub)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, withSub)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !v.AdminUp("host-zq11c0.100") {
 		t.Fatalf("sub-interface %s", v.Snapshot())
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "s2", DesiredState: doc(t, `{"interfaces":{"host-zq11c0":{"enabled":true}}}`)})
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "s2", DesiredState: doc(t, `{"interfaces":{"host-zq11c0":{"enabled":true}}}`)})
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		var rs []string
 		for _, r := range resp.GetResults() {
 			rs = append(rs, r.GetKey()+" "+r.GetOp().String()+" "+r.GetCode().String()+" "+r.GetMessage())
@@ -160,9 +160,9 @@ func TestInterfaceRemovedDeletesAttributesFirst(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
 	d := `{"vrfs":{"blue":{"id":10001}},"interfaces":{"host-zq11c1":{"enabled":true,"mtu":1400,"vrf":"blue","ipv4":["10.10.2.1/24"]}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: doc(t, d)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.Reset()
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a2", DesiredState: doc(t, `{"interfaces":{}}`), Subsystems: []string{"interfaces"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var seq []string
 	for _, c := range v.Calls() {
 		switch m := c.(type) {

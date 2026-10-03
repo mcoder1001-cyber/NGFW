@@ -14,14 +14,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/scheduler"
 )
 
 // The system-identity renderer inside the agent (F-system-identity; D-109 d: one singleton scheduler descriptor):
 //
-//	system.identity/vrx   Value = Input(system) (*vrxv1.SystemConfig, normalised)
+//	system.identity/ngfw   Value = Input(system) (*ngfwv1.SystemConfig, normalised)
 //	Validate              Check: host name, IANA zone with an existing zone file, banners without control
 //	                      characters (D-049), IP name servers, search domains, VRF = default (scheduler.Validator)
 //	Create / Update       Render → write only the files whose content differs (atomic), re-point /etc/localtime
@@ -36,7 +36,7 @@ import (
 // Descriptor name and singleton object id.
 const (
 	Name     = "system.identity"
-	ObjectID = "vrx"
+	ObjectID = "ngfw"
 )
 
 // Key is the key of the singleton object.
@@ -92,9 +92,9 @@ func (d *Descriptor) Stage() scheduler.Stage { return scheduler.StageDaemon }
 
 // Validate implements scheduler.Validator: Check, the finding pointing at the offending leaf. Read only.
 func (d *Descriptor) Validate(_ context.Context, _ scheduler.Key, value proto.Message, _ scheduler.ReadOnlyView) error {
-	in, ok := value.(*vrxv1.SystemConfig)
+	in, ok := value.(*ngfwv1.SystemConfig)
 	if !ok {
-		return fmt.Errorf("%w: %s value is %T, want *vrx.v1.SystemConfig", ErrInvalid, Name, value)
+		return fmt.Errorf("%w: %s value is %T, want *ngfw.v1.SystemConfig", ErrInvalid, Name, value)
 	}
 	if err := Check(Input(in), d.paths.ZoneinfoDir); err != nil {
 		var fe *FieldError
@@ -108,9 +108,9 @@ func (d *Descriptor) Validate(_ context.Context, _ scheduler.Key, value proto.Me
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(_ context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*vrxv1.SystemConfig)
+	in, ok := obj.(*ngfwv1.SystemConfig)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *vrx.v1.SystemConfig", ErrInvalid, Name, obj)
+		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.SystemConfig", ErrInvalid, Name, obj)
 	}
 	return nil, d.Apply(Input(in))
 }
@@ -140,12 +140,12 @@ type Changes struct {
 }
 
 // Apply renders in (normalised) and writes what differs. An unchanged input writes nothing.
-func (d *Descriptor) Apply(in *vrxv1.SystemConfig) error {
+func (d *Descriptor) Apply(in *ngfwv1.SystemConfig) error {
 	_, err := d.apply(in)
 	return err
 }
 
-func (d *Descriptor) apply(in *vrxv1.SystemConfig) (Changes, error) {
+func (d *Descriptor) apply(in *ngfwv1.SystemConfig) (Changes, error) {
 	var ch Changes
 	if err := d.paths.Validate(); err != nil {
 		return ch, err
@@ -209,7 +209,7 @@ func (d *Descriptor) apply(in *vrxv1.SystemConfig) (Changes, error) {
 
 // symlinkAtomic points link at target: a temporary symlink renamed over link.
 func symlinkAtomic(target, link string) error {
-	tmp := filepath.Join(filepath.Dir(link), "."+filepath.Base(link)+".vrx-tmp")
+	tmp := filepath.Join(filepath.Dir(link), "."+filepath.Base(link)+".ngfw-tmp")
 	_ = os.Remove(tmp)
 	if err := os.Symlink(target, tmp); err != nil {
 		return fmt.Errorf("sysident: symlink %s: %w", link, err)
@@ -247,7 +247,7 @@ func (d *Descriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 }
 
 // Drift lists how the host differs from the rendering of in (nil: in sync).
-func (d *Descriptor) Drift(in *vrxv1.SystemConfig) []string {
+func (d *Descriptor) Drift(in *ngfwv1.SystemConfig) []string {
 	want, err := Render(in, d.paths)
 	if err != nil {
 		return []string{"re-render: " + err.Error()}

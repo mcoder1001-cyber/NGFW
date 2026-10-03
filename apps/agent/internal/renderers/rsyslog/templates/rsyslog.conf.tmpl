@@ -1,11 +1,11 @@
-{{- /* RainerScript export config — rendered by the vrx-agent rsyslog renderer (RF-4). Every
+{{- /* RainerScript export config — rendered by the ngfw-agent rsyslog renderer (RF-4). Every
        value inside a string passes q (RainerScript quoting: \ and " escaped, control
        characters rejected) after its own validation; numbers are rendered from integers.
        Only omfwd actions are emitted; never omprog/omshell/omusrmsg, $IncludeConfig or
        include() — this file is included by the host's rsyslog in the product. */ -}}
-# Rendered by vrx-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
+# Rendered by ngfw-agent (rsyslog renderer). Do not edit: every commit overwrites this file.
 {{- if .Input}}
-# vrx-input: {{b64 .Input}}
+# ngfw-input: {{b64 .Input}}
 {{- end}}
 {{- with .Standalone}}
 global(workDirectory={{q .WorkDir}})
@@ -22,7 +22,7 @@ module(load="impstats" interval="1" format="json" log.file={{q .StatsFile}} log.
 {{- else}}
 # impstats is loaded by the host's rsyslog configuration (its JSON log.file is read)
 {{- end}}
-template(name="vrx_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
+template(name="ngfw_rfc5424" type="string" string="<%PRI%>1 %TIMESTAMP:::date-rfc3339% %HOSTNAME% %APP-NAME% %PROCID% %MSGID% %STRUCTURED-DATA% %msg%\n")
 {{- range .Targets}}
 
 ruleset(name={{q .Name}}) {

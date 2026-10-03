@@ -1,7 +1,7 @@
 import type { JsonSchema, JsonSchemaType, UiDependsOn, UiHints } from './types.js';
 
 export function hintsOf(schema: JsonSchema): UiHints {
-  const h = schema['x-vrx-ui'];
+  const h = schema['x-ngfw-ui'];
   return h && typeof h === 'object' ? h : {};
 }
 
@@ -42,7 +42,7 @@ function memo(): (root: JsonSchema, schema: JsonSchema, make: () => JsonSchema) 
 const refMemo = memo();
 const allOfMemo = memo();
 
-/** Follow local `$ref`s (`#/$defs/...`); keywords next to the `$ref` (title, x-vrx-ui) override the target's. Memoised. */
+/** Follow local `$ref`s (`#/$defs/...`); keywords next to the `$ref` (title, x-ngfw-ui) override the target's. Memoised. */
 export function resolveRef(schema: JsonSchema, root: JsonSchema): JsonSchema {
   if (typeof schema.$ref !== 'string') return schema;
   return refMemo(root, schema, () => resolveRefUncached(schema, root));
@@ -155,7 +155,7 @@ export interface PropertyEntry {
   hints: UiHints;
 }
 
-/** Properties in render order: `x-vrx-ui.order` ascending, then declaration order. */
+/** Properties in render order: `x-ngfw-ui.order` ascending, then declaration order. */
 export function sortedProperties(schema: JsonSchema, root: JsonSchema): PropertyEntry[] {
   const required = new Set(schema.required ?? []);
   return Object.entries(schema.properties ?? {})
@@ -273,7 +273,7 @@ export function defaultValueFor(raw: JsonSchema, root: JsonSchema, options: Defa
   return undefined;
 }
 
-/** `x-vrx-ui.itemKey` of an array schema (string members only), or `[]`. */
+/** `x-ngfw-ui.itemKey` of an array schema (string members only), or `[]`. */
 export function itemKeyOf(hints: UiHints): string[] {
   const k: unknown = hints.itemKey;
   return Array.isArray(k) ? k.filter((m): m is string => typeof m === 'string') : [];

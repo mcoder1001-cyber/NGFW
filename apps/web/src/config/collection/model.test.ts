@@ -37,7 +37,7 @@ describe('collection model from the schema alone', () => {
     expect(addresses.itemSchema.oneOf ?? addresses.itemSchema.anyOf).toBeDefined();
   });
 
-  it('lists: the key members come from x-vrx-ui.itemKey (single and compound)', () => {
+  it('lists: the key members come from x-ngfw-ui.itemKey (single and compound)', () => {
     expect(USERS.shape).toEqual({ kind: 'list', itemKey: ['username'] });
     expect(STATIC.shape).toEqual({ kind: 'list', itemKey: ['vrf', 'prefix'] });
     expect(listKeyOf({ username: 'alice', role: 'admin' }, ['username'])).toBe('alice');
@@ -176,7 +176,7 @@ describe('collectionRows', () => {
 
 describe('problemAt', () => {
   const problem = new ApiError(400, {
-    type: 'https://vrx.dev/problems/validation',
+    type: 'https://ngfw.dev/problems/validation',
     title: 'Validation failed',
     status: 400,
     errors: [
@@ -211,9 +211,9 @@ describe('localizeSchema', () => {
     const s = localizeSchema(USERS.itemSchema, t);
     const role = s.properties?.['role'];
     expect(role?.title).toBe('Rolle');
-    expect(role?.['x-vrx-ui']?.help).toBe('Hilfe');
-    expect(role?.['x-vrx-ui']?.['enumLabels']).toEqual({ admin: 'Verwalter', operator: 'operator', readonly: 'readonly' });
+    expect(role?.['x-ngfw-ui']?.help).toBe('Hilfe');
+    expect(role?.['x-ngfw-ui']?.['enumLabels']).toEqual({ admin: 'Verwalter', operator: 'operator', readonly: 'readonly' });
     expect(s.properties?.['username']?.title).toBe('Username');
-    expect(s.properties?.['username']?.['x-vrx-ui']?.help).toBeUndefined();
+    expect(s.properties?.['username']?.['x-ngfw-ui']?.help).toBeUndefined();
   });
 });

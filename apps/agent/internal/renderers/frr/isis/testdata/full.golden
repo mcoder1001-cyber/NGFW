@@ -4,8 +4,8 @@ log syslog informational
 service integrated-vtysh-config
 !
 interface w8-l0
- ip router isis vrx
- ipv6 router isis vrx
+ ip router isis ngfw
+ ipv6 router isis ngfw
  isis circuit-type level-2-only
  isis network point-to-point
  isis metric 10
@@ -13,18 +13,18 @@ interface w8-l0
 exit
 !
 interface w8-l1
- ip router isis vrx
- ipv6 router isis vrx
+ ip router isis ngfw
+ ipv6 router isis ngfw
  isis circuit-type level-1
 exit
 !
 interface w8-lo
- ip router isis vrx
- ipv6 router isis vrx
+ ip router isis ngfw
+ ipv6 router isis ngfw
  isis passive
 exit
 !
-router isis vrx
+router isis ngfw
  is-type level-1-2
  net 49.0001.1921.6800.1001.00
  metric-style wide

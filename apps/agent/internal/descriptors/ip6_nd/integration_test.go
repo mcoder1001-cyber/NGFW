@@ -103,10 +103,10 @@ func TestRaOnHost(t *testing.T) {
 // TestProxyNdOnHost is disabled on the shared host: on 2026-09-23 15:52:38 the first
 // ip6nd_proxy_add_del (loop305, 2001:db8:3:5::99) crashed VPP 26.06 (systemd restart #1,
 // see docs/status/tasks/DF-2-questions.md). The descriptor is covered by the fake-client
-// tests; re-enable with VRX_DF2_PROXY_ND=1 once the manager clears it.
+// tests; re-enable with NGFW_DF2_PROXY_ND=1 once the manager clears it.
 func TestProxyNdOnHost(t *testing.T) {
-	if os.Getenv("VRX_DF2_PROXY_ND") != "1" {
-		t.Skip("skip: ip6nd_proxy_add_del crashed VPP 26.06 on vrx-a (2026-09-23 15:52:38); set VRX_DF2_PROXY_ND=1 to run")
+	if os.Getenv("NGFW_DF2_PROXY_ND") != "1" {
+		t.Skip("skip: ip6nd_proxy_add_del crashed VPP 26.06 on ngfw-a (2026-09-23 15:52:38); set NGFW_DF2_PROXY_ND=1 to run")
 	}
 	c := df2test.Connect(t)
 	ctx := df2test.Ctx(t)
@@ -140,7 +140,7 @@ func TestProxyNdOnHost(t *testing.T) {
 }
 
 // TestDadOnHost is skip-unless-plugin-loaded: it skips when VPP does not know the ip6_dad
-// messages (df2.ErrPluginNotLoaded); on vrx-a they are core API and the test runs.
+// messages (df2.ErrPluginNotLoaded); on ngfw-a they are core API and the test runs.
 func TestDadOnHost(t *testing.T) {
 	c := df2test.Connect(t)
 	ctx := df2test.Ctx(t)

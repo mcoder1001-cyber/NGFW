@@ -72,7 +72,7 @@ describe('NsimGateInterceptor', () => {
     ]);
   });
 
-  it('passes a commit without nsim, and any commit with VRX_NSIM=lab, without writing (the audit interceptor does)', async () => {
+  it('passes a commit without nsim, and any commit with NGFW_NSIM=lab, without writing (the audit interceptor does)', async () => {
     const plain = setup({ services: {} }, 'POST', '/api/v1/config/commit', '/api/v1/config/commit');
     await expect(plain.run()).resolves.toBe('handled');
     expect(plain.writes).toEqual([]);

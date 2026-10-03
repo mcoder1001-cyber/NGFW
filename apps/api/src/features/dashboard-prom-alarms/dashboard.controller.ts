@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/comm
 import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ProblemError, problems } from '../../common/problem.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { AgentClient } from '../../agent/agent.client.js';
@@ -76,7 +76,7 @@ export class DashboardController {
   @ApiParam({ name: 'id', schema: { type: 'integer' } })
   @ApiOperation({ summary: 'Acknowledge an alarm (records who and when; does not clear it)' })
   @ApiOkResponse({ schema: openapi(AckOut, 'output') })
-  async ack(@Param('id') id: string, @Req() req: VrxRequest) {
+  async ack(@Param('id') id: string, @Req() req: NgfwRequest) {
     const n = Number(id);
     if (!Number.isInteger(n) || n <= 0) throw problems.badRequest('id must be a positive integer');
     const acked = await this.alarms.ack(n, req.principal!.username);

@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // DefaultPollInterval is the event polling period for daemons without a push channel.
@@ -17,7 +17,7 @@ const DefaultPollInterval = time.Second
 type Event struct {
 	// Source is the renderer name ("snmpd", "keepalived", "rsyslog").
 	Source string
-	// Key identifies the object ("vi1", "reachable", "vrx_export_0/failed").
+	// Key identifies the object ("vi1", "reachable", "ngfw_export_0/failed").
 	Key string
 	// Old and New are the values before and after ("" = absent).
 	Old, New string
@@ -42,16 +42,16 @@ func (e Event) String() string {
 // ToProto maps the event to the agent's Event message: poll errors are EVENT_KIND_ERROR,
 // changes EVENT_KIND_UNSPECIFIED with the details in attributes (no daemon-specific kind
 // exists yet; the same choice as the FRR renderer).
-func (e Event) ToProto() *vrxv1.Event {
+func (e Event) ToProto() *ngfwv1.Event {
 	if e.Error != "" {
-		return &vrxv1.Event{
-			Kind:       vrxv1.EventKind_EVENT_KIND_ERROR,
+		return &ngfwv1.Event{
+			Kind:       ngfwv1.EventKind_EVENT_KIND_ERROR,
 			Message:    e.String(),
 			Attributes: map[string]string{"source": e.Source},
 		}
 	}
-	return &vrxv1.Event{
-		Kind:       vrxv1.EventKind_EVENT_KIND_UNSPECIFIED,
+	return &ngfwv1.Event{
+		Kind:       ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED,
 		Message:    e.String(),
 		Attributes: map[string]string{"source": e.Source, "key": e.Key, "old": e.Old, "new": e.New},
 	}

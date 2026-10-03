@@ -18,8 +18,8 @@ function app(path: string) {
 }
 
 const modules = [
-  { name: 'vrx-system', namespace: 'urn:vrx:system', revision: '2026-01-01' },
-  { name: 'vrx-interfaces', namespace: 'urn:vrx:interfaces', revision: '2026-01-01' },
+  { name: 'ngfw-system', namespace: 'urn:ngfw:system', revision: '2026-01-01' },
+  { name: 'ngfw-interfaces', namespace: 'urn:ngfw:interfaces', revision: '2026-01-01' },
 ];
 
 afterEach(async () => {
@@ -33,9 +33,9 @@ describe('RESTCONF / YANG page', () => {
     const api = installFakeApi();
     api.on('GET /api/v1/system/yang', { body: { modules } });
     let fetched = '';
-    api.on('GET /api/v1/system/yang/vrx-system', () => {
-      fetched = 'vrx-system';
-      return { body: { name: 'vrx-system', yang: 'module vrx-system { }' } };
+    api.on('GET /api/v1/system/yang/ngfw-system', () => {
+      fetched = 'ngfw-system';
+      return { body: { name: 'ngfw-system', yang: 'module ngfw-system { }' } };
     });
     // jsdom lacks URL.createObjectURL / a real anchor download — stub just those, keep `new URL` working
     const origCreate = URL.createObjectURL;
@@ -50,12 +50,12 @@ describe('RESTCONF / YANG page', () => {
       await screen.findByRole('heading', { level: 2, name: 'RESTCONF / YANG' }, { timeout: 15_000 }),
     ).toBeInTheDocument();
     const table = await screen.findByRole('table', { name: 'YANG modules' });
-    expect(within(table).getByText('vrx-system')).toBeInTheDocument();
-    expect(within(table).getByText('urn:vrx:interfaces')).toBeInTheDocument();
+    expect(within(table).getByText('ngfw-system')).toBeInTheDocument();
+    expect(within(table).getByText('urn:ngfw:interfaces')).toBeInTheDocument();
 
-    const row = within(table).getByText('vrx-system').closest('tr')!;
+    const row = within(table).getByText('ngfw-system').closest('tr')!;
     fireEvent.click(within(row).getByRole('button', { name: 'Download' }));
-    await waitFor(() => expect(fetched).toBe('vrx-system'));
+    await waitFor(() => expect(fetched).toBe('ngfw-system'));
     expect(clicked).toHaveBeenCalled();
     clicked.mockRestore();
     URL.createObjectURL = origCreate;

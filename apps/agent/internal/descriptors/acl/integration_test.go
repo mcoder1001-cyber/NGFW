@@ -21,24 +21,24 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// Integration test against the VPP on this host (docs/lab/shared-host-rules.md): VRX_INTEGRATION=1,
-// shared lab lock, every object tagged "<VRX_TEST_PREFIX>:…", attach points are this slot's
+// Integration test against the VPP on this host (docs/lab/shared-host-rules.md): NGFW_INTEGRATION=1,
+// shared lab lock, every object tagged "<NGFW_TEST_PREFIX>:…", attach points are this slot's
 // loopbacks, cleanup in t.Cleanup (unbind before delete). Assertions filter by owner — other
 // workers' ACLs are on the same VPP at the same time.
 //
 // The global counters switch (acl.stats-enable) has no getter. It is off on this host (nothing on
 // main enables it), so the test switches it on for the stats subtest and restores it to
-// disabled in Cleanup. Set VRX_ACL_STATS_KEEP=1 to leave it on (e.g. when the operator knows
+// disabled in Cleanup. Set NGFW_ACL_STATS_KEEP=1 to leave it on (e.g. when the operator knows
 // another consumer needs it).
 
-// holdForEvidence pauses when VRX_ACL_EVIDENCE_HOLD (a duration) is set, so an operator can
+// holdForEvidence pauses when NGFW_ACL_EVIDENCE_HOLD (a duration) is set, so an operator can
 // capture the VPP CLI `show acl-plugin …` output for the status report while the objects exist.
 func holdForEvidence(t *testing.T) {
 	t.Helper()
-	if v := os.Getenv("VRX_ACL_EVIDENCE_HOLD"); v != "" {
+	if v := os.Getenv("NGFW_ACL_EVIDENCE_HOLD"); v != "" {
 		d, err := time.ParseDuration(v)
 		if err != nil {
-			t.Fatalf("VRX_ACL_EVIDENCE_HOLD=%q: %v", v, err)
+			t.Fatalf("NGFW_ACL_EVIDENCE_HOLD=%q: %v", v, err)
 		}
 		time.Sleep(d)
 	}
@@ -188,16 +188,16 @@ func TestACLPluginOnHost(t *testing.T) {
 	reader := NewStatsReader(stats, c, owner)
 
 	deleteOwned(ctx, t, bindD, etypeD, mbindD, aclD, macipD) // leftovers of an earlier failed run
-	if os.Getenv("VRX_ACL_STATS_KEEP") != "1" {
+	if os.Getenv("NGFW_ACL_STATS_KEEP") != "1" {
 		t.Cleanup(func() {
 			if err := setCounters(context.Background(), c, false); err != nil {
 				t.Errorf("restore counters flag: %v", err)
 			} else {
-				t.Log("restored acl stats counters flag to disabled (set VRX_ACL_STATS_KEEP=1 to keep it on)")
+				t.Log("restored acl stats counters flag to disabled (set NGFW_ACL_STATS_KEEP=1 to keep it on)")
 			}
 		})
 	} else {
-		t.Log("VRX_ACL_STATS_KEEP=1: acl stats counters flag stays enabled after the test")
+		t.Log("NGFW_ACL_STATS_KEEP=1: acl stats counters flag stays enabled after the test")
 	}
 	ifA := createLoopback(ctx, t, c, owner, 40, true)
 	ifB := createLoopback(ctx, t, c, owner, 41, true)

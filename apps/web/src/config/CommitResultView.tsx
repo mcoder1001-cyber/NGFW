@@ -52,7 +52,7 @@ export function CommitResultView({ result, title }: { result: ResultLike; title?
               component="code"
               dir="ltr"
               sx={{
-                fontFamily: (th) => th.vrx.monoFontFamily,
+                fontFamily: (th) => th.ngfw.monoFontFamily,
                 marginInlineStart: 1,
                 fontSize: '0.75rem',
               }}
@@ -78,7 +78,7 @@ export function CommitResultView({ result, title }: { result: ResultLike; title?
         >
           {result.warnings.map((w, i) => (
             <li key={`${w.pointer}:${i}`} dir="auto">
-              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                 {diffPointerLabel(w.pointer || '/')}
               </Box>
               {' — '}
@@ -95,7 +95,7 @@ export function CommitResultView({ result, title }: { result: ResultLike; title?
         >
           {failedResults(result).map((r, i) => (
             <li key={`${r.key}:${i}`} dir="auto">
-              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                 {r.key ? resultKeyText(r.key) : diffPointerLabel(r.pointer)}
               </Box>
               {` ${serviceText(r.code)}: ${serviceText(r.message)}`}

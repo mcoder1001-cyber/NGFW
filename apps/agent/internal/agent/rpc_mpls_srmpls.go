@@ -23,7 +23,7 @@ import (
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/mpls"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/vpp"
 )
@@ -62,12 +62,12 @@ func acquireMplsWalk(ctx context.Context) error {
 	}
 }
 
-// MplsState implements vrx.v1.Dataplane/MplsState.
-func (g *server) MplsState(ctx context.Context, req *vrxv1.MplsStateRequest) (*vrxv1.MplsStateResponse, error) {
+// MplsState implements ngfw.v1.Dataplane/MplsState.
+func (g *server) MplsState(ctx context.Context, req *ngfwv1.MplsStateRequest) (*ngfwv1.MplsStateResponse, error) {
 	return g.svc.mplsState(ctx, req)
 }
 
-func (s *Service) mplsState(ctx context.Context, req *vrxv1.MplsStateRequest) (*vrxv1.MplsStateResponse, error) {
+func (s *Service) mplsState(ctx context.Context, req *ngfwv1.MplsStateRequest) (*ngfwv1.MplsStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (s *Service) mplsState(ctx context.Context, req *vrxv1.MplsStateRequest) (*
 	if err != nil {
 		return nil, mplsStatus(err)
 	}
-	resp := &vrxv1.MplsStateResponse{Owner: s.owner, View: view, Tables: tables}
+	resp := &ngfwv1.MplsStateResponse{Owner: s.owner, View: view, Tables: tables}
 	switch view {
 	case "fib":
 		readable := false
@@ -139,12 +139,12 @@ func mplsStatus(err error) error {
 
 // mplsReadableTables lists the MPLS tables owner may read: table 0 when it exists (VPP-global) and
 // the tables named "<owner>:<id>", ascending.
-func mplsReadableTables(ctx context.Context, c vpp.Client, owner string) ([]*vrxv1.MplsStateTable, error) {
+func mplsReadableTables(ctx context.Context, c vpp.Client, owner string) ([]*ngfwv1.MplsStateTable, error) {
 	stream, err := mpls.NewServiceClient(c).MplsTableDump(ctx, &mpls.MplsTableDump{})
 	if err != nil {
 		return nil, fmt.Errorf("mpls_table_dump: %w", err)
 	}
-	var out []*vrxv1.MplsStateTable
+	var out []*ngfwv1.MplsStateTable
 	for {
 		d, err := stream.Recv()
 		if err != nil {
@@ -156,7 +156,7 @@ func mplsReadableTables(ctx context.Context, c vpp.Client, owner string) ([]*vrx
 		id, name := d.MtTable.MtTableID, strings.TrimRight(d.MtTable.MtName, "\x00")
 		tagged, ok := vpp.ParseOwnerTag(name, owner)
 		if id == 0 || (ok && tagged == fmt.Sprint(id)) {
-			out = append(out, &vrxv1.MplsStateTable{TableId: id, Name: name})
+			out = append(out, &ngfwv1.MplsStateTable{TableId: id, Name: name})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].GetTableId() < out[j].GetTableId() })
@@ -167,7 +167,7 @@ func mplsReadableTables(ctx context.Context, c vpp.Client, owner string) ([]*vrx
 type mplsEntry struct {
 	label uint32
 	eos   bool
-	e     *vrxv1.MplsStateFibEntry
+	e     *ngfwv1.MplsStateFibEntry
 }
 
 func mplsLess(a, b mplsEntry) bool {
@@ -193,7 +193,7 @@ func (w *mplsWindow) Pop() any {
 
 // listMplsFib reads MPLS table `table` once (serialised per agent), keeps the entries of `label` (0 =
 // all) and only the smallest offset+limit of them, and returns the page and the number of matches.
-func listMplsFib(ctx context.Context, c vpp.Client, ifs *iface.Table, table, label, offset, limit uint32) ([]*vrxv1.MplsStateFibEntry, uint32, error) {
+func listMplsFib(ctx context.Context, c vpp.Client, ifs *iface.Table, table, label, offset, limit uint32) ([]*ngfwv1.MplsStateFibEntry, uint32, error) {
 	if err := acquireMplsWalk(ctx); err != nil {
 		return nil, 0, err
 	}
@@ -224,7 +224,7 @@ func listMplsFib(ctx context.Context, c vpp.Client, ifs *iface.Table, table, lab
 		if w.Len() == window && !mplsLess(e, (*w)[0]) {
 			continue
 		}
-		e.e = &vrxv1.MplsStateFibEntry{Label: r.MrLabel, Eos: r.MrEos != 0, Paths: mplsStatePaths(r.MrPaths, ifs)}
+		e.e = &ngfwv1.MplsStateFibEntry{Label: r.MrLabel, Eos: r.MrEos != 0, Paths: mplsStatePaths(r.MrPaths, ifs)}
 		if e.eos {
 			e.e.Payload = mplsPayloadName(r.MrEosProto)
 		}
@@ -235,7 +235,7 @@ func listMplsFib(ctx context.Context, c vpp.Client, ifs *iface.Table, table, lab
 	}
 	kept := append(mplsWindow(nil), *w...)
 	sort.Slice(kept, func(i, j int) bool { return mplsLess(kept[i], kept[j]) })
-	var page []*vrxv1.MplsStateFibEntry
+	var page []*ngfwv1.MplsStateFibEntry
 	for i := int(offset); i < len(kept); i++ {
 		page = append(page, kept[i].e)
 	}
@@ -244,12 +244,12 @@ func listMplsFib(ctx context.Context, c vpp.Client, ifs *iface.Table, table, lab
 
 // listMplsTunnels lists this owner's MPLS tunnels (tag "<owner>:<name>") and untagged ones; another
 // owner's are never listed.
-func listMplsTunnels(ctx context.Context, c vpp.Client, ifs *iface.Table, owner string) ([]*vrxv1.MplsStateTunnel, error) {
+func listMplsTunnels(ctx context.Context, c vpp.Client, ifs *iface.Table, owner string) ([]*ngfwv1.MplsStateTunnel, error) {
 	stream, err := mpls.NewServiceClient(c).MplsTunnelDump(ctx, &mpls.MplsTunnelDump{SwIfIndex: interface_types.InterfaceIndex(iface.AllInterfaces)})
 	if err != nil {
 		return nil, fmt.Errorf("mpls_tunnel_dump: %w", err)
 	}
-	var out []*vrxv1.MplsStateTunnel
+	var out []*ngfwv1.MplsStateTunnel
 	for {
 		d, err := stream.Recv()
 		if err != nil {
@@ -262,7 +262,7 @@ func listMplsTunnels(ctx context.Context, c vpp.Client, ifs *iface.Table, owner 
 		sw := uint32(t.MtSwIfIndex)
 		tag := strings.TrimRight(t.MtTag, "\x00")
 		vppName := ifs.VPPName(sw)
-		st := &vrxv1.MplsStateTunnel{Interface: vppName, SwIfIndex: sw, TunnelIndex: t.MtTunnelIndex, L2Only: t.MtL2Only,
+		st := &ngfwv1.MplsStateTunnel{Interface: vppName, SwIfIndex: sw, TunnelIndex: t.MtTunnelIndex, L2Only: t.MtL2Only,
 			Multicast: t.MtIsMulticast, Paths: mplsStatePaths(t.MtPaths, ifs)}
 		switch name, ours := vpp.ParseOwnerTag(tag, owner); {
 		case ours:
@@ -279,10 +279,10 @@ func listMplsTunnels(ctx context.Context, c vpp.Client, ifs *iface.Table, owner 
 }
 
 // mplsStatePaths converts FIB paths (interface names: logical, else VPP's).
-func mplsStatePaths(paths []fib_types.FibPath, ifs *iface.Table) []*vrxv1.MplsStatePath {
-	out := make([]*vrxv1.MplsStatePath, 0, len(paths))
+func mplsStatePaths(paths []fib_types.FibPath, ifs *iface.Table) []*ngfwv1.MplsStatePath {
+	out := make([]*ngfwv1.MplsStatePath, 0, len(paths))
 	for _, p := range paths {
-		sp := &vrxv1.MplsStatePath{
+		sp := &ngfwv1.MplsStatePath{
 			Type:       enumName(p.Type.String(), "FIB_API_PATH_TYPE_"),
 			Proto:      enumName(p.Proto.String(), "FIB_API_PATH_NH_PROTO_"),
 			TableId:    p.TableID,

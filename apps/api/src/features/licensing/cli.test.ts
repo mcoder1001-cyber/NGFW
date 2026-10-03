@@ -15,12 +15,12 @@ import { LICENSING_OPTIONS, type LicensingOptions } from './licensing.config.js'
 import { LicensingController } from './licensing.controller.js';
 import { LicensingService } from './licensing.service.js';
 
-const CLI = fileURLToPath(new URL('../../../../../tools/license/vrx-license.mjs', import.meta.url));
+const CLI = fileURLToPath(new URL('../../../../../tools/license/ngfw-license.mjs', import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL('../../../../../', import.meta.url));
 
-/** tools/license/vrx-license.mjs end to end; keys are generated under a fresh temp dir (0700) and deleted. */
-describe('vrx-license CLI', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-lic-cli-'));
+/** tools/license/ngfw-license.mjs end to end; keys are generated under a fresh temp dir (0700) and deleted. */
+describe('ngfw-license CLI', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-lic-cli-'));
   type Cli = {
     main: (argv: string[], io: { out: (s: string) => void; err: (s: string) => void }) => number;
   };
@@ -36,7 +36,7 @@ describe('vrx-license CLI', () => {
     return { status, stdout, stderr };
   };
   const keyDir = join(dir, 'keys');
-  const lic = join(dir, 'a.vrxlic');
+  const lic = join(dir, 'a.ngfwlic');
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -44,7 +44,7 @@ describe('vrx-license CLI', () => {
     const r = run('keygen', '--out-dir', keyDir);
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('signing key:');
-    expect(statSync(join(keyDir, 'vrx-license-signing.pem')).mode & 0o777).toBe(0o600);
+    expect(statSync(join(keyDir, 'ngfw-license-signing.pem')).mode & 0o777).toBe(0o600);
     const inRepo = run('keygen', '--out-dir', join(REPO_ROOT, 'tmp-should-not-exist'));
     expect(inRepo.status).toBe(2);
     expect(inRepo.stderr).toMatch(/refusing/);
@@ -54,7 +54,7 @@ describe('vrx-license CLI', () => {
     const r = run(
       'issue',
       '--key',
-      join(keyDir, 'vrx-license-signing.pem'),
+      join(keyDir, 'ngfw-license-signing.pem'),
       '--customer',
       'ACME Test',
       '--id',
@@ -71,7 +71,7 @@ describe('vrx-license CLI', () => {
       lic,
     );
     expect(r.status, r.stderr).toBe(0);
-    const pub = join(keyDir, 'vrx-license-public.pem');
+    const pub = join(keyDir, 'ngfw-license-public.pem');
     const v = run('verify', '--pub', pub, lic);
     expect(v.status).toBe(0);
     expect(v.stdout).toMatch(/signature OK; status valid/);
@@ -91,9 +91,9 @@ describe('vrx-license CLI', () => {
   });
 
   it('verify rejects a tampered byte', () => {
-    const bad = join(dir, 'bad.vrxlic');
+    const bad = join(dir, 'bad.ngfwlic');
     writeFileSync(bad, readFileSync(lic, 'utf8').replace('ACME Test', 'ACME Tesu'));
-    const v = run('verify', '--pub', join(keyDir, 'vrx-license-public.pem'), bad);
+    const v = run('verify', '--pub', join(keyDir, 'ngfw-license-public.pem'), bad);
     expect(v.status).toBe(1);
     expect(v.stdout).toMatch(/INVALID/);
   });
@@ -104,8 +104,8 @@ describe('vrx-license CLI', () => {
 
     beforeAll(async () => {
       const opts: LicensingOptions = {
-        file: join(dir, 'store', 'license.vrxlic'),
-        extraPublicKeyFile: join(keyDir, 'vrx-license-public.pem'),
+        file: join(dir, 'store', 'license.ngfwlic'),
+        extraPublicKeyFile: join(keyDir, 'ngfw-license-public.pem'),
         serial: 'SER-9',
         machineIdFile: join(dir, 'no-machine-id'),
         dmiSerialFile: join(dir, 'no-serial'),

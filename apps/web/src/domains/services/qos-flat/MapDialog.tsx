@@ -30,7 +30,7 @@ import {
 } from './model';
 import { NAME_RE } from './SchemaDialog';
 
-const MONO = { fontFamily: (th: Theme) => th.vrx.monoFontFamily, fontSize: 12 } as const;
+const MONO = { fontFamily: (th: Theme) => th.ngfw.monoFontFamily, fontSize: 12 } as const;
 const LTR = { dir: 'ltr' } as const;
 const NUMERIC_LTR = { dir: 'ltr', inputMode: 'numeric' } as const;
 const CELL_INPUT = { dir: 'ltr', inputMode: 'numeric', style: { textAlign: 'center' as const, padding: 2 } };

@@ -18,7 +18,7 @@ func Binaries() []string { return []string{PppdBin, SystemctlBin} }
 
 // Paths are the file locations the renderer writes. All absolute and clean.
 type Paths struct {
-	// PeersDir holds one pppd peer file per session ("<PeersDir>/vrx-<hostif>").
+	// PeersDir holds one pppd peer file per session ("<PeersDir>/ngfw-<hostif>").
 	PeersDir string
 	// ChapSecrets / PapSecrets are the shared secret files pppd reads (one line per session).
 	ChapSecrets string
@@ -26,7 +26,7 @@ type Paths struct {
 	// IPUpDir / IPDownDir hold the per-session hook pppd runs on link up/down.
 	IPUpDir   string
 	IPDownDir string
-	// UnitDir holds the per-session systemd unit ("<UnitDir>/vrx-pppoe-<hostif>.service").
+	// UnitDir holds the per-session systemd unit ("<UnitDir>/ngfw-pppoe-<hostif>.service").
 	UnitDir string
 	// StateDir is where the hook writes "<hostif>.state" (read by the state reader).
 	StateDir string
@@ -41,7 +41,7 @@ func ProductPaths() Paths {
 		IPUpDir:     "/etc/ppp/ip-up.d",
 		IPDownDir:   "/etc/ppp/ip-down.d",
 		UnitDir:     "/etc/systemd/system",
-		StateDir:    "/run/vrx/pppoe",
+		StateDir:    "/run/ngfw/pppoe",
 	}
 }
 
@@ -54,7 +54,7 @@ func PathsUnder(base string) Paths {
 		IPUpDir:     filepath.Join(base, "etc/ppp/ip-up.d"),
 		IPDownDir:   filepath.Join(base, "etc/ppp/ip-down.d"),
 		UnitDir:     filepath.Join(base, "etc/systemd/system"),
-		StateDir:    filepath.Join(base, "run/vrx/pppoe"),
+		StateDir:    filepath.Join(base, "run/ngfw/pppoe"),
 	}
 }
 

@@ -1,12 +1,12 @@
 package agent
 
-// Host integration tests (VRX_INTEGRATION=1, shared lab lock, slot prefix): the whole agent —
+// Host integration tests (NGFW_INTEGRATION=1, shared lab lock, slot prefix): the whole agent —
 // gRPC server, reconciler, core descriptors, persistence — against the VPP on this host.
 //
 //	TestAgentOnHost          in-process agent: apply → Retrieve == desired → second owner cannot
 //	                          touch it → stop, delete our objects via binapi, start → recreated
 //	                          → restart without loss changes nothing → confirm timeout reverts
-//	TestAgentProcessOnHost   the real vrx-agent binary: kill -9 by PID, simulated loss, restart
+//	TestAgentProcessOnHost   the real ngfw-agent binary: kill -9 by PID, simulated loss, restart
 //	                          → recreated within 30 s; kill -9 again → no VPP changes
 //
 // Only objects carrying the slot prefix are created (loop<N>xx, tables N000–N999 named
@@ -33,21 +33,21 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
 func vppSocket() string {
-	if p := os.Getenv("VRX_VPP_API_SOCKET"); p != "" {
+	if p := os.Getenv("NGFW_VPP_API_SOCKET"); p != "" {
 		return p
 	}
 	return "/run/vpp/api.sock"
 }
 
 // hostDoc is the slot's test document: a VRF, two loopbacks with addresses in it, two routes.
-func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredState) {
+func hostDoc(t *testing.T, owner string) (*ngfwv1.DesiredState, *ngfwv1.DesiredState) {
 	t.Helper()
 	slot := vpptest.Slot(t)
 	table := vpptest.TableBase(t) + 1
@@ -55,7 +55,7 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 	l2 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 2))
 	vrf := owner + "-red"
 	js := fmt.Sprintf(`{
-	  "system": {"hostname": "vrx-a"},
+	  "system": {"hostname": "ngfw-a"},
 	  "vrfs": {"default": {"id": 0}, %[1]q: {"id": %[2]d}},
 	  "interfaces": {
 	    %[3]q: {"vrf": %[1]q, "ipv4": ["10.%[5]d.1.1/24"], "ipv6": ["2001:db8:%[5]d::1/64"]},
@@ -84,23 +84,23 @@ func hostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredSta
 }
 
 // dialAgent returns a gRPC client for the agent at sock.
-func dialAgent(t *testing.T, sock string) vrxv1.DataplaneClient {
+func dialAgent(t *testing.T, sock string) ngfwv1.DataplaneClient {
 	t.Helper()
 	cc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cc.Close() })
-	return vrxv1.NewDataplaneClient(cc)
+	return ngfwv1.NewDataplaneClient(cc)
 }
 
 // waitReady waits until the agent answers Health with VPP connected and a finished reconcile.
-func waitReady(t *testing.T, c vrxv1.DataplaneClient) *vrxv1.HealthResponse {
+func waitReady(t *testing.T, c ngfwv1.DataplaneClient) *ngfwv1.HealthResponse {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		h, err := c.Health(ctx, &vrxv1.HealthRequest{})
+		h, err := c.Health(ctx, &ngfwv1.HealthRequest{})
 		cancel()
 		if err == nil && h.GetVppConnected() && h.GetLastReconcileAt() != nil && !h.GetReconcileInProgress() {
 			return h
@@ -112,12 +112,12 @@ func waitReady(t *testing.T, c vrxv1.DataplaneClient) *vrxv1.HealthResponse {
 }
 
 // waitConverged polls Retrieve until it equals want (≤ 30 s) and returns the time it took.
-func waitConverged(t *testing.T, c vrxv1.DataplaneClient, want *vrxv1.DesiredState, since time.Time) time.Duration {
+func waitConverged(t *testing.T, c ngfwv1.DataplaneClient, want *ngfwv1.DesiredState, since time.Time) time.Duration {
 	t.Helper()
-	var last *vrxv1.DesiredState
+	var last *ngfwv1.DesiredState
 	for time.Since(since) < 30*time.Second {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		got, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{})
+		got, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{})
 		cancel()
 		if err == nil {
 			last = got.GetDesiredState()
@@ -235,13 +235,13 @@ func TestAgentOnHost(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. apply → APPLIED, Retrieve == desired (canonical form).
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-1", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-it-1", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %v", err, resp)
 	}
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
 	waitConverged(t, c, canonical, time.Now())
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-2", DesiredState: desired})
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-it-2", DesiredState: desired})
 	// 12 = VRF + 2 loopbacks + 2 interface/<name> aliases (P08, D-065) + 2 table bindings + 3 addresses + 2 routes
 	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
 		t.Fatalf("idempotent apply: %v %v", err, resp)
@@ -256,14 +256,14 @@ func TestAgentOnHost(t *testing.T) {
 	}
 	cb := dialAgent(t, cfgB.Socket)
 	waitReady(t, cb)
-	if got, err := cb.Retrieve(ctx, &vrxv1.RetrieveRequest{}); err != nil || len(got.GetDesiredState().GetInterfaces())+len(got.GetDesiredState().GetVrfs())+len(got.GetDesiredState().GetRouting().GetStatic()) != 0 {
+	if got, err := cb.Retrieve(ctx, &ngfwv1.RetrieveRequest{}); err != nil || len(got.GetDesiredState().GetInterfaces())+len(got.GetDesiredState().GetVrfs())+len(got.GetDesiredState().GetRouting().GetStatic()) != 0 {
 		t.Fatalf("owner %sb sees %v %v", owner, err, got)
 	}
-	rb, err := cb.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "b-empty", Subsystems: []string{"interfaces", "vrfs", "routing"}})
-	if err != nil || rb.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || len(rb.GetResults()) != 0 {
+	rb, err := cb.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "b-empty", Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	if err != nil || rb.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || len(rb.GetResults()) != 0 {
 		t.Fatalf("owner %sb authoritative-empty apply: %v %v", owner, err, rb)
 	}
-	if _, err := cb.Apply(ctx, &vrxv1.ApplyRequest{TxnId: "x", Owner: owner}); err == nil {
+	if _, err := cb.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "x", Owner: owner}); err == nil {
 		t.Fatal("agent b accepted a request for owner a")
 	}
 	b.Stop()
@@ -301,16 +301,16 @@ func TestAgentOnHost(t *testing.T) {
 	_ = ifsBefore
 
 	// 5. confirm timeout reverts on its own (rollback removes what the pending txn added).
-	evs, err := c.StreamEvents(ctx, &vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
+	evs, err := c.StreamEvents(ctx, &ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	time.Sleep(100 * time.Millisecond)
-	extra := proto.Clone(desired).(*vrxv1.DesiredState)
+	extra := proto.Clone(desired).(*ngfwv1.DesiredState)
 	l3 := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 3))
-	extra.Interfaces[l3] = &vrxv1.Interface{Ipv4: []string{fmt.Sprintf("10.%d.3.1/24", vpptest.Slot(t))}}
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-3", DesiredState: extra, ConfirmTimeoutSec: 2})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetConfirmDeadline() == nil {
+	extra.Interfaces[l3] = &ngfwv1.Interface{Ipv4: []string{fmt.Sprintf("10.%d.3.1/24", vpptest.Slot(t))}}
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-it-3", DesiredState: extra, ConfirmTimeoutSec: 2})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetConfirmDeadline() == nil {
 		t.Fatalf("pending apply: %v %v", err, resp)
 	}
 	if ifs, _ := ownedOnHost(t, raw, owner); ifs[l3] == 0 {
@@ -333,8 +333,8 @@ func TestAgentOnHost(t *testing.T) {
 	waitConverged(t, c, canonical, time.Now())
 
 	// 6. remove everything through the agent.
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-it-4", Subsystems: []string{"interfaces", "vrfs", "routing"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetDeleted() != 10 {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-it-4", Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetDeleted() != 10 {
 		t.Fatalf("delete all: %v %v", err, resp)
 	}
 	a.Stop()
@@ -357,8 +357,8 @@ func TestAgentProcessOnHost(t *testing.T) {
 	}
 	t.Cleanup(func() { deleteOwned(t, raw, owner) })
 
-	bin := filepath.Join(t.TempDir(), "vrx-agent")
-	build := exec.Command("go", "build", "-o", bin, "ngfw/agent/cmd/vrx-agent") //nolint:gosec // fixed argv, test only
+	bin := filepath.Join(t.TempDir(), "ngfw-agent")
+	build := exec.Command("go", "build", "-o", bin, "ngfw/agent/cmd/ngfw-agent") //nolint:gosec // fixed argv, test only
 	build.Env = append(os.Environ(), "GOFLAGS=-mod=mod")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
@@ -368,8 +368,8 @@ func TestAgentProcessOnHost(t *testing.T) {
 	start := func() *exec.Cmd {
 		cmd := exec.Command(bin) //nolint:gosec // our own binary
 		cmd.Env = append(os.Environ(),
-			"VRX_AGENT_SOCKET="+cfg.Socket, "VRX_OWNER="+owner, "VRX_AGENT_STATE_DIR="+cfg.StateDir,
-			"VRX_AGENT_VPP_API_SOCKET="+cfg.VPPAPISocket, "VRX_METRICS_ADDR=off", "VRX_SOCKET_GROUP=")
+			"NGFW_AGENT_SOCKET="+cfg.Socket, "NGFW_OWNER="+owner, "NGFW_AGENT_STATE_DIR="+cfg.StateDir,
+			"NGFW_AGENT_VPP_API_SOCKET="+cfg.VPPAPISocket, "NGFW_METRICS_ADDR=off", "NGFW_SOCKET_GROUP=")
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // test temp dir
 		if err != nil {
 			t.Fatal(err)
@@ -400,8 +400,8 @@ func TestAgentProcessOnHost(t *testing.T) {
 	p := start()
 	c := dialAgent(t, cfg.Socket)
 	waitReady(t, c)
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-proc-1", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-proc-1", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %v", err, resp)
 	}
 	waitConverged(t, c, canonical, time.Now())
@@ -426,8 +426,8 @@ func TestAgentProcessOnHost(t *testing.T) {
 			t.Fatalf("kill -9 + restart changed %s (%d → %d)", name, idx, ifsAfter[name])
 		}
 	}
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-proc-2", Subsystems: []string{"interfaces", "vrfs", "routing"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-proc-2", Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("cleanup apply: %v %v", err, resp)
 	}
 	_ = p.Process.Signal(syscall.SIGTERM)

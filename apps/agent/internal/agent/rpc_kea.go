@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/kea"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
@@ -26,12 +26,12 @@ const (
 	dhcpReadTimeout     = 20 * time.Second
 )
 
-func (g *server) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) (*vrxv1.DhcpLeasesResponse, error) {
+func (g *server) DhcpLeases(ctx context.Context, req *ngfwv1.DhcpLeasesRequest) (*ngfwv1.DhcpLeasesResponse, error) {
 	return g.svc.DhcpLeases(ctx, req)
 }
 
 // DhcpLeases implements the RPC.
-func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) (*vrxv1.DhcpLeasesResponse, error) {
+func (s *Service) DhcpLeases(ctx context.Context, req *ngfwv1.DhcpLeasesRequest) (*ngfwv1.DhcpLeasesResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 	if rt == nil {
 		return nil, status.Error(codes.Unimplemented, "the services domain (DHCP) is not wired in this agent")
 	}
-	resp := &vrxv1.DhcpLeasesResponse{Owner: s.owner, Page: uint32(page), PageSize: uint32(size), RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // bounded above
+	resp := &ngfwv1.DhcpLeasesResponse{Owner: s.owner, Page: uint32(page), PageSize: uint32(size), RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // bounded above
 	ctx, cancel := context.WithTimeout(ctx, dhcpReadTimeout)
 	defer cancel()
 
@@ -76,7 +76,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 			}
 			return nil, status.Errorf(codes.Internal, "dhcp_client_dump: %v", err)
 		}
-		cl := &vrxv1.DhcpClientLease{Interface: ifn}
+		cl := &ngfwv1.DhcpClientLease{Interface: ifn}
 		if l, ok := leases[ifn]; ok {
 			cl.Configured, cl.State, cl.Hostname, cl.Mac = true, l.State, l.Hostname, l.HostMAC
 			if l.Address.IsValid() {
@@ -96,7 +96,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 	}
 
 	if rt.Kea == nil {
-		return resp, nil // VRX_KEA_MODE=off: no Kea daemons are managed
+		return resp, nil // NGFW_KEA_MODE=off: no Kea daemons are managed
 	}
 	q := kea.LeaseQuery{Families: fams, Filter: req.GetFilter(), Offset: (page - 1) * size, Limit: size}
 	names := map[int]map[uint32][2]string{} // family → subnet id → {server, subnet}
@@ -105,7 +105,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 	}
 	for _, fam := range fams {
 		st := rt.Kea.Status(ctx, fam)
-		ds := &vrxv1.DhcpServerStatus{Family: kea.FamilyName(fam), Running: st.Running, Active: st.Active,
+		ds := &ngfwv1.DhcpServerStatus{Family: kea.FamilyName(fam), Running: st.Running, Active: st.Active,
 			ActionRequired: st.ActionRequired, ReloadSec: st.ReloadSec, Error: st.Err}
 		names[fam] = map[uint32][2]string{}
 		for _, u := range st.Subnets {
@@ -119,7 +119,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 				}
 				q.SubnetIDs[fam][u.ID] = true
 			}
-			ds.Subnets = append(ds.Subnets, &vrxv1.DhcpSubnetUsage{Server: u.Server, Subnet: u.Subnet, Prefix: u.Prefix, SubnetId: u.ID,
+			ds.Subnets = append(ds.Subnets, &ngfwv1.DhcpSubnetUsage{Server: u.Server, Subnet: u.Subnet, Prefix: u.Prefix, SubnetId: u.ID,
 				Total: u.Total, Assigned: u.Assigned, Declined: u.Declined})
 		}
 		resp.Servers = append(resp.Servers, ds)
@@ -133,7 +133,7 @@ func (s *Service) DhcpLeases(ctx context.Context, req *vrxv1.DhcpLeasesRequest) 
 	}
 	resp.Total, resp.Truncated = uint32(total), truncated //nolint:gosec // ≤ 2 × kea.MaxLeases
 	for _, l := range leases {
-		out := &vrxv1.DhcpLease{Family: kea.FamilyName(l.Family), Address: l.Address, HwAddress: l.HWAddress, ClientId: l.ClientID,
+		out := &ngfwv1.DhcpLease{Family: kea.FamilyName(l.Family), Address: l.Address, HwAddress: l.HWAddress, ClientId: l.ClientID,
 			Duid: l.DUID, Hostname: l.Hostname, SubnetId: l.SubnetID, ValidLifetimeSec: l.ValidLft, State: l.StateName(),
 			LeaseType: l.Type, PrefixLen: l.PrefixLen}
 		if n, ok := names[l.Family][l.SubnetID]; ok {

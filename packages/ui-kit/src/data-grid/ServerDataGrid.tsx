@@ -189,8 +189,8 @@ export function ServerDataGrid<R extends GridValidRowModel>({
         }}
         pageSizeOptions={pageSizeOptions}
         density="compact"
-        rowHeight={theme.vrx.denseRowHeight}
-        columnHeaderHeight={theme.vrx.denseRowHeight + 4}
+        rowHeight={theme.ngfw.denseRowHeight}
+        columnHeaderHeight={theme.ngfw.denseRowHeight + 4}
         disableRowSelectionOnClick
         localeText={{ ...localeText, ...rest.localeText }}
         slots={{ noRowsOverlay: StateOverlay, ...slots }}

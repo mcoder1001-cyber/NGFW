@@ -2,7 +2,7 @@
 // helpers: the NAT44-EI session browser and kill (descriptors/nat44ei Plugin.Users / UserSessions / DeleteSession) and
 // the NAT64 session table (descriptors/nat64 Plugin.Sessions). The agent's NatSessions RPC and the NatSessionKillAction
 // case of Action (internal/agent/rpc_nat44_ei.go) dispatch here on NatSessionVariant and only translate to and from
-// vrx.v1 (docs/contracts/proto.md §11 "F-nat44-ei-64-66-nptv6: NAT session variants").
+// ngfw.v1 (docs/contracts/proto.md §11 "F-nat44-ei-64-66-nptv6: NAT session variants").
 //
 // EI pages exactly like ED (F-nat44-ed-sessions' pager, reused through an adapter): users first, whole users skipped
 // by their counts, filtered scans capped. NAT64 has one dump for the whole table (nat64_st_dump per protocol): the

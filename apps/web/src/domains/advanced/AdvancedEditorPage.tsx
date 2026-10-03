@@ -215,7 +215,7 @@ export function AdvancedEditorPage() {
           <Box component="ul" sx={{ m: 0, ps: 2 }}>
             {warningsHere.map((w, i) => (
               <li key={`${diffPointerLabel(w.pointer)}:${i}`} dir="auto">
-                <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+                <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                   {diffPointerLabel(w.pointer)}
                 </Box>
                 {` — ${serviceText(w.message)}`}
@@ -236,7 +236,7 @@ export function AdvancedEditorPage() {
         <Box component="ul" sx={{ mt: 0, ps: 2, mb: 2 }}>
           {changesHere.map((c, i) => (
             <li key={`${c.pointer}:${i}`} dir="auto">
-              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+              <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                 {c.pointer || '/'}
               </Box>
               {`: ${t(`diff.op.${c.op}`)}`}
@@ -320,7 +320,7 @@ function RecordChildren({
             onClick={() => onOpen(key)}
             sx={{ flex: 1, justifyContent: 'flex-start', textTransform: 'none' }}
           >
-            <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+            <Box component="code" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
               {key}
             </Box>
           </Button>

@@ -72,7 +72,7 @@ describe('F-mpls-srmpls fake agent: MplsState', () => {
     const { err, res } = await state(agent, { view: 'fib', tableId: 0 });
     expect(err).toBeNull();
     expect(res?.tables.map((t) => [t.tableId, t.name])).toEqual([
-      [0, 'vrx:0'],
+      [0, 'ngfw:0'],
       [5001, 'w5:5001'],
     ]);
     expect(res?.entries.map((e) => `${e.label}/${e.eos ? 'eos' : 'neos'}`)).toEqual([
@@ -142,7 +142,7 @@ describe('MplsSrmplsController', () => {
     total: 0,
     entries: [],
     tunnels: [],
-    tables: [{ tableId: 0, name: 'vrx:0' }],
+    tables: [{ tableId: 0, name: 'ngfw:0' }],
     retrievedAt: new Date('2026-09-25T10:00:00Z'),
   };
 

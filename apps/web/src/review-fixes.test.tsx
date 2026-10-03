@@ -126,7 +126,7 @@ describe('M2 — a reload during an outage never lands on /login', () => {
     const banner = within(offline).getByTestId('confirm-banner');
     expect(banner).toHaveTextContent('Reconnecting to the device…');
     expect(banner).toHaveTextContent(/auto-revert in 1:[23]\d/);
-    expect(screen.queryByRole('heading', { name: 'Sign in to VRX' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Sign in to NGFW' })).toBeNull();
     s.dispose();
   });
 });

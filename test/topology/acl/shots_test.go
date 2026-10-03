@@ -14,25 +14,25 @@ import (
 
 // TestACLScreenshots is the evidence run for docs/user/firewall/acl.md: the stack, rig and V19 checks of
 // TestACLTopology with a committed list (zone attachment, a foreign ACL first on the port, MACIP on the wan port) and
-// ping traffic for the hit counters, plus an UNCOMMITTED list of VRX_ACL_SHOTS_RULES rules (default 100 000, imported
+// ping traffic for the hit counters, plus an UNCOMMITTED list of NGFW_ACL_SHOTS_RULES rules (default 100 000, imported
 // through the CSV route into the candidate — the editor pages the candidate) for the rule editor at scale; `vite preview`
 // of the production web build (apps/web/dist) on the slot web port and an external headless-browser script
 // (playwright-core + Chrome-for-Testing from env paths, nothing installed, nothing committed — P07a/P07b/P08).
 //
-//	VRX_ACL_SHOTS=<node script> VRX_ACL_SHOTS_OUT=<dir> run.sh -run TestACLScreenshots
+//	NGFW_ACL_SHOTS=<node script> NGFW_ACL_SHOTS_OUT=<dir> run.sh -run TestACLScreenshots
 //
-// VRX_ACL_SHOTS_NORIG=1 takes the same screens without the rig: no interface is created (the V19 sanitizer may refuse
+// NGFW_ACL_SHOTS_NORIG=1 takes the same screens without the rig: no interface is created (the V19 sanitizer may refuse
 // creates on a VPP with many freed classify indices), the list is committed unattached, the MACIP list and the
 // attachments stay in the candidate (no MACIP classify tables are made), no traffic.
 //
 // The script is called as: node <script> <baseUrl> <outDir> <adminPasswordFile> <bigListName>.
 func TestACLScreenshots(t *testing.T) {
-	script, out := os.Getenv("VRX_ACL_SHOTS"), os.Getenv("VRX_ACL_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || script == "" || out == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_ACL_SHOTS (node script) and VRX_ACL_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_ACL_SHOTS"), os.Getenv("NGFW_ACL_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || script == "" || out == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_ACL_SHOTS (node script) and NGFW_ACL_SHOTS_OUT")
 	}
 	big := 100_000
-	if n, err := strconv.Atoi(os.Getenv("VRX_ACL_SHOTS_RULES")); err == nil && n > 0 {
+	if n, err := strconv.Atoi(os.Getenv("NGFW_ACL_SHOTS_RULES")); err == nil && n > 0 {
 		big = n
 	}
 	s := slotFromEnv(t)
@@ -43,7 +43,7 @@ func TestACLScreenshots(t *testing.T) {
 			t.Errorf("VPP restarted during the run: NRestarts %d → %d", restarts0, n)
 		}
 	})
-	norig := os.Getenv("VRX_ACL_SHOTS_NORIG") == "1"
+	norig := os.Getenv("NGFW_ACL_SHOTS_NORIG") == "1"
 	r := newRig(s)
 	conn := connectVPP(t)
 	if !norig {
@@ -58,12 +58,12 @@ func TestACLScreenshots(t *testing.T) {
 	st := newStack(t, s)
 	a := st.api
 
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 
@@ -138,7 +138,7 @@ func TestACLScreenshots(t *testing.T) {
 			"macipAttachments": []any{map[string]any{"list": "wan-l2", "interface": r.wanIf}},
 		})
 		a.commit("acl-shots")
-		countersScope(t, conn, os.Getenv("VRX_ACL_STATS_GLOBALS") == "1") // §7: save, switch on, restore at the end
+		countersScope(t, conn, os.Getenv("NGFW_ACL_STATS_GLOBALS") == "1") // §7: save, switch on, restore at the end
 		if countersFlag(t, conn) {
 			st.preflight(t)
 			r.peers(t, true)

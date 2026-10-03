@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/l2"
 	"ngfw/agent/internal/descriptors/mactime"
 	"ngfw/agent/internal/scheduler"
@@ -24,7 +24,7 @@ func (s *l2Sink) Warnf(string, string, string, ...any)           {}
 // MAC-filter ranges: one VPP range per day (Sunday = 0), grouped back per time window in the canonical order
 // (first day in mon…sun order, then start, end); 24:00 is the end of the day.
 func TestMacFilterRoundTrip(t *testing.T) {
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(`{"routing":{"l2":{"macFilters":{"d":{"mac":"02:00:00:00:00:AA","action":"drop",
 	  "ranges":[{"days":["sat","sun"],"start":"22:00","end":"24:00"},{"days":["mon"],"start":"08:30","end":"09:00"}]}}}}}`), ds); err != nil {
 		t.Fatal(err)
@@ -35,10 +35,10 @@ func TestMacFilterRoundTrip(t *testing.T) {
 	if !ok || len(s.errors) != 0 {
 		t.Fatalf("objects %v errors %v", s.kvs, s.errors)
 	}
-	back := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{}}
+	back := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{}}
 	AssembleBridgeL2(back, []scheduler.KV{{Key: mactime.RangeKey("d"), Value: v}}, nil, func(uint32) string { return "default" })
 	got := back.GetRouting().GetL2().GetMacFilters()["d"]
-	want := &vrxv1.BridgeL2MacFilter{Mac: proto.String("02:00:00:00:00:aa"), Action: proto.String("drop"), Ranges: []*vrxv1.BridgeL2MacFilterRange{
+	want := &ngfwv1.BridgeL2MacFilter{Mac: proto.String("02:00:00:00:00:aa"), Action: proto.String("drop"), Ranges: []*ngfwv1.BridgeL2MacFilterRange{
 		{Days: []string{"mon"}, Start: proto.String("08:30"), End: proto.String("09:00")},
 		{Days: []string{"sat", "sun"}, Start: proto.String("22:00"), End: proto.String("24:00")},
 	}}
@@ -54,7 +54,7 @@ func TestTagRewriteMapping(t *testing.T) {
 			t.Errorf("TagRewriteName(%v) = %q, want %q", op, TagRewriteName(op), name)
 		}
 	}
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(`{"interfaces":{"x":{"subinterfaces":{"10":{"vlanId":10,"l2":{"bridgeDomain":"b","tagRewrite":{"op":"pop-1","dot1ad":false}}}}},
 	  "y":{"l2":{"bridgeDomain":"b","tagRewrite":{"op":"push-2","tag1":10,"tag2":20,"dot1ad":true}}}},
 	  "routing":{"l2":{"bridgeDomains":{"b":{"id":7001}}}}}`), ds); err != nil {

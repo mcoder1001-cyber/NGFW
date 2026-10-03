@@ -12,7 +12,7 @@ function fakeDirectory(opts: { down?: boolean; entries?: number } = {}) {
     bind: async (dn: string, pw?: string) => {
       calls.push(`bind ${dn}`);
       if (opts.down) throw new Error('connect ECONNREFUSED');
-      if (dn === 'cn=svc,dc=x' && pw === 'VRX_TEST_PSK_FAAA_LDAP') return;
+      if (dn === 'cn=svc,dc=x' && pw === 'NGFW_TEST_PSK_FAAA_LDAP') return;
       if (dn === 'uid=w1alice,dc=x' && pw === 'alice-pw') return;
       throw new InvalidCredentialsError();
     },
@@ -36,7 +36,7 @@ function fakeDirectory(opts: { down?: boolean; entries?: number } = {}) {
 const srv: LdapServer = {
   url: 'ldaps://127.0.0.1:1',
   bindDn: 'cn=svc,dc=x',
-  bindPassword: 'VRX_TEST_PSK_FAAA_LDAP',
+  bindPassword: 'NGFW_TEST_PSK_FAAA_LDAP',
   baseDn: 'dc=x',
   userFilter: '(uid=%s)',
   groupAttr: 'memberOf',
@@ -114,7 +114,7 @@ describe('ldapAuthenticate', () => {
       fakeDirectory().factory,
     );
     expect(bad).toEqual({ status: 'unreachable', error: 'ldap: service bind refused' });
-    expect(JSON.stringify([down, bad])).not.toContain('VRX_TEST_PSK_FAAA_LDAP');
+    expect(JSON.stringify([down, bad])).not.toContain('NGFW_TEST_PSK_FAAA_LDAP');
   });
   it('escapes the login name into the filter (no filter injection)', () => {
     expect(userFilterFor('(uid=%s)', 'a*)(uid=*')).toBe('(uid=a\\2a\\29\\28uid=\\2a)');

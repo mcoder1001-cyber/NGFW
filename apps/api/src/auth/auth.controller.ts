@@ -22,7 +22,7 @@ import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { ENV, type Env } from '../config.js';
 import { ApiOut, Protected, PublicDoc } from '../common/responses.js';
-import { sourceIp, type VrxRequest } from '../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../common/principal.js';
 import { ProblemError } from '../common/problem.js';
 import { EnvZodPipe, openapi, ref, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
@@ -48,7 +48,7 @@ export const PasswordBody = z.strictObject({
   current: z.string().min(1).max(1024),
   password: z.string().min(PASSWORD_MIN).max(1024),
 });
-/** VRX_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting PasswordBody. */
+/** NGFW_DEV_WEAK_PASSWORDS (development only): any non-empty password; the OpenAPI keeps documenting PasswordBody. */
 export const PasswordBodyWeak = PasswordBody.extend({ password: newPassword(true) });
 const ApiKeyBody = z.strictObject({
   name: safeText(64).min(1),
@@ -140,7 +140,7 @@ export class AuthController {
         refreshMaxAge: r.refreshMaxAge,
         accessMaxAge: r.expiresIn,
       },
-      { secure: this.env.VRX_COOKIE_SECURE },
+      { secure: this.env.NGFW_COOKIE_SECURE },
     );
     return {
       accessToken: r.accessToken,
@@ -168,7 +168,7 @@ export class AuthController {
   @PublicDoc(400, 401, 429)
   async login(
     @Body(new ZodPipe(LoginBody)) body: z.output<typeof LoginBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     const r = await this.auth.login(
@@ -190,7 +190,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Rotate the refresh cookie and get a new access token' })
   @ApiOut(SessionOut)
   @PublicDoc(401)
-  async refresh(@Req() req: VrxRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+  async refresh(@Req() req: NgfwRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     return this.setRefresh(
       reply,
       await this.auth.refresh(req.cookies[REFRESH_COOKIE], sourceIp(req)),
@@ -208,7 +208,7 @@ export class AuthController {
       'Logged out: the login session of the refresh cookie (or of a Bearer token sent along) ends — its refresh chain and its access tokens; the user’s other sessions stay. Also 204 when there was no valid session',
   })
   async logout(
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<void> {
     // TD-10b (review 2.3c/2.3e): per-session revocation, audited in the service (the route is @NoAudit)
@@ -220,7 +220,7 @@ export class AuthController {
   @Protected()
   @ApiOperation({ summary: 'The authenticated user' })
   @ApiOut(MeOut)
-  me(@Req() req: VrxRequest) {
+  me(@Req() req: NgfwRequest) {
     return this.auth.me(req.principal!);
   }
 
@@ -238,9 +238,9 @@ export class AuthController {
   @ApiNoContentResponse({ description: 'Password changed' })
   @ApiBody({ schema: openapi(PasswordBody) })
   async password(
-    @Body(EnvZodPipe((env) => (env.VRX_DEV_WEAK_PASSWORDS ? PasswordBodyWeak : PasswordBody)))
+    @Body(EnvZodPipe((env) => (env.NGFW_DEV_WEAK_PASSWORDS ? PasswordBodyWeak : PasswordBody)))
     body: z.output<typeof PasswordBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     // TD-2 #1: one implementation with POST /api/v1/users/{name}/password (serialised with commits, stored
     // candidate/pending hashes replaced, the other sessions end — this one survives)
@@ -258,7 +258,7 @@ export class AuthController {
   @Protected()
   @ApiOperation({ summary: 'API keys of the authenticated user' })
   @ApiOut(z.array(ApiKeyOut))
-  apiKeys(@Req() req: VrxRequest) {
+  apiKeys(@Req() req: NgfwRequest) {
     return this.auth.listApiKeys(req.principal!);
   }
 
@@ -272,7 +272,7 @@ export class AuthController {
   @ApiResponse({
     status: 429,
     description:
-      '`rate-limited`: the account’s per-minute budget of current-password checks (VRX_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked',
+      '`rate-limited`: the account’s per-minute budget of current-password checks (NGFW_PASSWORD_RATE_PER_MIN, shared with password changes) is spent — nothing was checked',
     content: { 'application/problem+json': { schema: ref('Problem') } },
   })
   @Protected(400)
@@ -284,7 +284,7 @@ export class AuthController {
   @ApiOut(ApiKeyCreated)
   async createApiKey(
     @Body(new ZodPipe(ApiKeyBody)) body: z.output<typeof ApiKeyBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const via = req.principal!.via;
     // D-100 (2): the audit row says which credential created the key — never the password
@@ -319,7 +319,7 @@ export class AuthController {
   @ApiNoContentResponse({ description: 'Deleted' })
   async deleteApiKey(
     @Param('id', new SafeParamPipe('id', 64)) id: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<void> {
     req.audit = { resource: `api-key/${id}` };
     await this.auth.deleteApiKey(req.principal!, id);

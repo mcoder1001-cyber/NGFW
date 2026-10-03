@@ -1,4 +1,4 @@
-# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+# Rendered by ngfw-agent (keepalived renderer). Do not edit: every commit overwrites this file.
 global_defs {
     router_id w0-ka
     enable_script_security
@@ -8,7 +8,7 @@ global_defs {
 }
 
 vrrp_script gw {
-    script "/opt/vrx-test/bin/checks/vrx-check-ping"
+    script "/opt/ngfw-test/bin/checks/ngfw-check-ping"
     interval 2
     weight -20
     fall 3
@@ -16,7 +16,7 @@ vrrp_script gw {
 }
 
 vrrp_script up {
-    script "/opt/vrx-test/bin/checks/vrx-check-ok"
+    script "/opt/ngfw-test/bin/checks/ngfw-check-ok"
     interval 1
 }
 
@@ -46,10 +46,10 @@ vrrp_instance vi1 {
         up
         gw
     }
-    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 MASTER"
-    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 BACKUP"
-    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 FAULT"
-    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi1 STOP"
+    notify_master "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi1 MASTER"
+    notify_backup "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi1 BACKUP"
+    notify_fault "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi1 FAULT"
+    notify_stop "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi1 STOP"
 }
 
 vrrp_instance vi2 {
@@ -64,10 +64,10 @@ vrrp_instance vi2 {
         10.0.241.1/32 dev w0-b
         10.0.241.2/32 dev w0-b
     }
-    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 MASTER"
-    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 BACKUP"
-    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 FAULT"
-    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE vi2 STOP"
+    notify_master "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi2 MASTER"
+    notify_backup "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi2 BACKUP"
+    notify_fault "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi2 FAULT"
+    notify_stop "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE vi2 STOP"
 }
 
 vrrp_sync_group g1 {

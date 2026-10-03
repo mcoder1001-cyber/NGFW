@@ -1,6 +1,6 @@
 // Package df6test holds the test doubles and shared-host fixtures the DF-6 descriptor tests
 // use: a fake VPP with an interface table (sw_interface_dump / tag / loopback handlers on top
-// of internal/vpp/fake), a govpp connection to the host VPP for VRX_INTEGRATION=1 tests, and
+// of internal/vpp/fake), a govpp connection to the host VPP for NGFW_INTEGRATION=1 tests, and
 // prefixed fixtures (loopbacks, IP tables, the MPLS table) that clean themselves up.
 package df6test
 

@@ -1,4 +1,4 @@
-import { createFormatters, VrxThemeProvider } from '@ngfw/ui-kit';
+import { createFormatters, NgfwThemeProvider } from '@ngfw/ui-kit';
 import type { ServerPageRequest } from '@ngfw/ui-kit/data-grid';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -17,9 +17,9 @@ import { matchesFilter, pageRows } from './paging';
 function wrap(children: ReactNode, qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return (
     <QueryClientProvider client={qc}>
-      <VrxThemeProvider mode="light" lang="en" dir="ltr">
+      <NgfwThemeProvider mode="light" lang="en" dir="ltr">
         {children}
-      </VrxThemeProvider>
+      </NgfwThemeProvider>
     </QueryClientProvider>
   );
 }
@@ -148,9 +148,9 @@ describe('dev previews', () => {
     try {
       render(
         <QueryClientProvider client={new QueryClient()}>
-          <VrxThemeProvider mode="light" lang="fa" dir="rtl">
+          <NgfwThemeProvider mode="light" lang="fa" dir="rtl">
             <KitPreview />
-          </VrxThemeProvider>
+          </NgfwThemeProvider>
         </QueryClientProvider>,
       );
       expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('پیش‌نمایش');

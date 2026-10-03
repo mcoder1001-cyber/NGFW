@@ -1,17 +1,17 @@
 // Package keadhcprelay is F-kea-dhcp-relay's topology test: DHCP end to end on the REAL host VPP through the af_packet
-// veth/netns rig (path: af_packet, D-010), with the real vrx-agent + vrx-api of this tree on the slot's ports and
+// veth/netns rig (path: af_packet, D-010), with the real ngfw-agent + ngfw-api of this tree on the slot's ports and
 // database, and a slot-local Kea test instance (kea-dhcp4 in ns-<p>-wan, own conf/run/lib/log dirs under
-// /run/vrx-test/<p>/kea, own unix control socket — never the system units, never kea-ctrl-agent, D-079).
+// /run/ngfw-test/<p>/kea, own unix control socket — never the system units, never kea-ctrl-agent, D-079).
 //
 //	client netns ns-<p>-lan (dhclient on <p>l1)
 //	   │ veth <p>l1 ↔ <p>l0 ── VPP host-<p>l0 10.<N>.1.1/24, VRF <p>-dhcp (table <N>001)  ← dhcp.proxy (relay)
 //	   │                        VPP host-<p>w0 10.<N>.2.1/24, VRF <p>-dhcp               → relay source
-//	   │ veth <p>w0 ↔ <p>w1 ── ns-<p>-wan 10.<N>.2.2/24: kea-dhcp4 (the agent's Kea, VRX_KEA_MODE=test)
+//	   │ veth <p>w0 ↔ <p>w1 ── ns-<p>-wan 10.<N>.2.2/24: kea-dhcp4 (the agent's Kea, NGFW_KEA_MODE=test)
 //	   │ veth <p>c0 ↔ <p>c1 ── VPP host-<p>c0, VRF <p>-cli (table <N>002): VPP's DHCPv4 client (no server on its link)
 //
 //	TestKeaDhcpRelay
 //	  commit         vrfs + interfaces + services.dhcp (server `lan` on host-<p>l0 → Kea's netdev <p>w1 via
-//	                 VRX_KEA_IFMAP, relay `to-kea` in VRF <p>-dhcp → 10.<N>.2.2) + dhcpClient on host-<p>c0 through the
+//	                 NGFW_KEA_IFMAP, relay `to-kea` in VRF <p>-dhcp → 10.<N>.2.2) + dhcpClient on host-<p>c0 through the
 //	                 API → Kea not running yet: files written, status "start" (D-079) → Kea started → config-get ==
 //	                 rendering (the agent's Retrieve; /state/drift clean for services)
 //	  relay          V19 guard (TD-3 pre-flight + per-interface bindings) → veths up → dhclient in ns-<p>-lan gets a
@@ -23,7 +23,7 @@
 //	                 subnet; a pool outside its subnet → 400 problem+json with the pool's pointer
 //	  cleanup        interfaces deleted through the API with the veths down (D-101), Kea stopped by PID
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process
 // it starts is stopped by PID; NRestarts of vpp is checked before and after. Never a packet trace (D-128).
 package keadhcprelay
 
@@ -67,9 +67,9 @@ type topo struct {
 	subnet, poolLo, poolHi      string
 	vrf, cliVrf                 string
 	vrfID, cliVrfID             uint32
-	keaBase                     string // /run/vrx-test/<p>/kea
+	keaBase                     string // /run/ngfw-test/<p>/kea
 	keaConf, keaSock, keaRunDir string
-	work                        string // /run/vrx-test/<p>/kea-relay (0700): dhclient files, logs
+	work                        string // /run/ngfw-test/<p>/kea-relay (0700): dhclient files, logs
 }
 
 func newTopo(s slot) *topo {
@@ -331,11 +331,11 @@ type stack struct {
 
 func newStack(t *testing.T, s slot, tp *topo) *stack {
 	t.Helper()
-	bin := os.Getenv("VRX_KEA_AGENT_BIN")
+	bin := os.Getenv("NGFW_KEA_AGENT_BIN")
 	if bin == "" {
-		bin = filepath.Join(t.TempDir(), "vrx-agent")
-		if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent"); err != nil {
-			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+		bin = filepath.Join(t.TempDir(), "ngfw-agent")
+		if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-agent"); err != nil {
+			t.Fatalf("go build ngfw-agent: %v\n%s", err, out)
 		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
@@ -355,28 +355,28 @@ func newStack(t *testing.T, s slot, tp *topo) *stack {
 	pg := readEnvFile(t, filepath.Join(s.runDir, "pg.env"))
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071
-		"VRX_AGENT_STATE_DIR="+filepath.Join(tp.work, "agent-state"), "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root",
-		"VRX_LOG_LEVEL=info", "VRX_VPP_TABLE_BASE="+strconv.Itoa(s.num*1000),
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071
+		"NGFW_AGENT_STATE_DIR="+filepath.Join(tp.work, "agent-state"), "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root",
+		"NGFW_LOG_LEVEL=info", "NGFW_VPP_TABLE_BASE="+strconv.Itoa(s.num*1000),
 		// the slot's Kea test instance (subsystems/kea.go): checkers in the Kea netns, host-<p>l0 served by Kea on <p>w1
-		"VRX_KEA_MODE=test", "VRX_KEA_NETNS="+tp.wanNS, "VRX_KEA_IFMAP="+tp.lanIf+"="+tp.wanPeer)
+		"NGFW_KEA_MODE=test", "NGFW_KEA_NETNS="+tp.wanNS, "NGFW_KEA_IFMAP="+tp.lanIf+"="+tp.wanPeer)
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 	adminPW := secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":kea:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(tp.work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(tp.work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":kea:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(tp.work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(tp.work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(60*time.Second, func() bool {
 		return st.apiProc.exited() || st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(tp.work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", adminPW)
 	st.adminPW = adminPW
@@ -385,13 +385,13 @@ func newStack(t *testing.T, s slot, tp *topo) *stack {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		_, err := os.Stat(st.s.socket)
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }
 
@@ -459,12 +459,12 @@ func dumpClients(t *testing.T, conn vppapi.Connection) map[uint32]dhcp.DHCPClien
 	}
 }
 
-// preflight runs TD-3's read-only V19 pre-flight (apps/agent/cmd/vrx-vpp-preflight) over the whole VPP.
+// preflight runs TD-3's read-only V19 pre-flight (apps/agent/cmd/ngfw-vpp-preflight) over the whole VPP.
 func preflight(t *testing.T, s slot) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "vrx-vpp-preflight")
-	if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-vpp-preflight"); err != nil {
-		t.Fatalf("build vrx-vpp-preflight: %v\n%s", err, out)
+	bin := filepath.Join(t.TempDir(), "ngfw-vpp-preflight")
+	if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-vpp-preflight"); err != nil {
+		t.Fatalf("build ngfw-vpp-preflight: %v\n%s", err, out)
 	}
 	out, err := run(t, bin)
 	if err != nil {
@@ -476,8 +476,8 @@ func preflight(t *testing.T, s slot) string {
 // ---- the test -------------------------------------------------------------------------------------------------
 
 func TestKeaDhcpRelay(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-kea-dhcp-relay topology test: set VRX_INTEGRATION=1 (host VPP, Kea, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-kea-dhcp-relay topology test: set NGFW_INTEGRATION=1 (host VPP, Kea, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket, Kea)")
@@ -564,7 +564,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 		keaProc := tp.startKea(t)
 		parent.Cleanup(func() { keaProc.stop(parent) })
 		subs, hasInput := tp.keaSubnets(t)
-		t.Logf("Kea config-get (own unix socket %s, dir mode %v): subnet4=%v user-context.vrx present=%v", tp.keaSock, fileMode(tp.keaRunDir), subs, hasInput)
+		t.Logf("Kea config-get (own unix socket %s, dir mode %v): subnet4=%v user-context.ngfw present=%v", tp.keaSock, fileMode(tp.keaRunDir), subs, hasInput)
 		if len(subs) != 1 || !strings.HasPrefix(subs[0], tp.subnet) || !hasInput {
 			t.Fatalf("Kea does not run the rendered configuration: %v", subs)
 		}
@@ -597,7 +597,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 	t.Run("relay", func(t *testing.T) {
 		a.t = t
 		idx := waitIfs(t, conn, tp.lanIf, tp.wanIf, tp.cliIf)
-		t.Log("V19 pre-flight (TD-3 vrx-vpp-preflight): " + strings.TrimSpace(trunc(preflight(t, s), 800)))
+		t.Log("V19 pre-flight (TD-3 ngfw-vpp-preflight): " + strings.TrimSpace(trunc(preflight(t, s), 800)))
 		for _, l := range v19Guard(t, conn, idx) {
 			t.Log("V19 guard: " + l)
 		}
@@ -713,7 +713,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 		}
 		lines, raw := readAgentLog(t, st.agentLog, logFrom)
 		for i, l := range lines {
-			if l.Msg == "vrx-agent starting" || l.Msg == "resync finished" || l.Msg == "kea wired" || strings.Contains(l.Msg, "reconcile") {
+			if l.Msg == "ngfw-agent starting" || l.Msg == "resync finished" || l.Msg == "kea wired" || strings.Contains(l.Msg, "reconcile") {
 				t.Log("agent log: " + trunc(raw[i], 500))
 			}
 		}
@@ -749,7 +749,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 		t.Log("vppctl show dhcp proxy (after rollback):\n" + vppctl(t, "show", "dhcp", "proxy"))
 		t.Log("vppctl show dhcp client (after rollback):\n" + vppctl(t, "show", "dhcp", "client"))
 		subs, in := tp.keaSubnets(t)
-		t.Logf("Kea config-get after rollback: subnet4=%v user-context.vrx present=%v", subs, in)
+		t.Logf("Kea config-get after rollback: subnet4=%v user-context.ngfw present=%v", subs, in)
 		if len(subs) != 0 || in {
 			t.Error("Kea still runs the DHCP configuration after the rollback")
 		}
@@ -822,21 +822,21 @@ func fileMode(p string) os.FileMode {
 	return fi.Mode().Perm()
 }
 
-// runShots takes the UI screenshots against this real stack when VRX_KEA_SHOTS (a node script outside the repo:
-// playwright-core + Chrome from env paths, P07a/P07b) and VRX_KEA_SHOTS_OUT are set: `vite preview` of apps/web/dist
+// runShots takes the UI screenshots against this real stack when NGFW_KEA_SHOTS (a node script outside the repo:
+// playwright-core + Chrome from env paths, P07a/P07b) and NGFW_KEA_SHOTS_OUT are set: `vite preview` of apps/web/dist
 // on the slot web port, stopped by PID. The script is called as node <script> <baseUrl> <outDir> <adminPasswordFile>.
 func runShots(t *testing.T, s slot, st *stack, tp *topo) error {
-	script, out := os.Getenv("VRX_KEA_SHOTS"), os.Getenv("VRX_KEA_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_KEA_SHOTS"), os.Getenv("NGFW_KEA_SHOTS_OUT")
 	if script == "" || out == "" {
-		t.Log("screenshots skipped (VRX_KEA_SHOTS / VRX_KEA_SHOTS_OUT unset)")
+		t.Log("screenshots skipped (NGFW_KEA_SHOTS / NGFW_KEA_SHOTS_OUT unset)")
 		return nil
 	}
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		return errors.New("VRX_WEB_PORT unset")
+		return errors.New("NGFW_WEB_PORT unset")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(tp.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	defer pv.stop(t)
 	pwFile := filepath.Join(tp.work, "admin.pw")

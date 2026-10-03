@@ -8,7 +8,7 @@ import {
   type MirrorSessionConfig,
   type NsimConfig,
 } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { z } from 'zod';
 import type { InterfaceItem } from '../model';
@@ -176,7 +176,7 @@ export function localizeAll(
 }
 
 /** Chip status of "present / heard": up when true. */
-export function presence(on: boolean): VrxStatus {
+export function presence(on: boolean): NgfwStatus {
   return on ? 'up' : 'down';
 }
 

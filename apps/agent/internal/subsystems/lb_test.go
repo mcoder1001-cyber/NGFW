@@ -107,7 +107,7 @@ func createDelete(t *testing.T, reg *scheduler.MapRegistry) {
 	}
 }
 
-// Envelope obligation (D-090, D-071): a slot agent (VRX_GLOBALS_OWNER=0) never sends the collection and never
+// Envelope obligation (D-090, D-071): a slot agent (NGFW_GLOBALS_OWNER=0) never sends the collection and never
 // registers lb.conf.
 func TestLbSlotAgentNeverCollects(t *testing.T) {
 	shortGC(t, 10*time.Millisecond)

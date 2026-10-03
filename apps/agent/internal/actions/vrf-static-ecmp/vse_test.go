@@ -17,7 +17,7 @@ import (
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	vse "ngfw/agent/internal/actions/vrf-static-ecmp"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
@@ -154,12 +154,12 @@ func TestListRoutesFiltersAndDetail(t *testing.T) {
 }
 
 func TestPingValidation(t *testing.T) {
-	ok, err := vse.ValidatePing(&vrxv1.PingAction{Target: "10.2.2.2"})
+	ok, err := vse.ValidatePing(&ngfwv1.PingAction{Target: "10.2.2.2"})
 	if err != nil || ok.Count != 5 || ok.Interval != time.Second {
 		t.Fatalf("defaults %+v %v", ok, err)
 	}
-	for _, bad := range []*vrxv1.PingAction{
-		{Target: "vrx.example"},
+	for _, bad := range []*ngfwv1.PingAction{
+		{Target: "ngfw.example"},
 		{Target: "10.2.2.2", Vrf: "red"},
 		{Target: "10.2.2.2", Source: "10.2.1.1"},
 		{Target: "10.2.2.2", Size: 1400},
@@ -171,10 +171,10 @@ func TestPingValidation(t *testing.T) {
 			t.Errorf("%v: %v", bad, err)
 		}
 	}
-	if _, err := vse.ValidatePing(&vrxv1.PingAction{Target: "10.2.2.2", Vrf: "default", Count: 20, IntervalMs: 250}); err != nil {
+	if _, err := vse.ValidatePing(&ngfwv1.PingAction{Target: "10.2.2.2", Vrf: "default", Count: 20, IntervalMs: 250}); err != nil {
 		t.Fatalf("20 × 250 ms in default: %v", err)
 	}
-	if err := vse.Traceroute(&vrxv1.TracerouteAction{Target: "10.2.2.2"}); !errors.Is(err, vse.ErrUnimplemented) || !strings.Contains(err.Error(), vse.VItem) {
+	if err := vse.Traceroute(&ngfwv1.TracerouteAction{Target: "10.2.2.2"}); !errors.Is(err, vse.ErrUnimplemented) || !strings.Contains(err.Error(), vse.VItem) {
 		t.Fatalf("traceroute %v", err)
 	}
 }
@@ -187,12 +187,12 @@ func TestPingSummaryAndStats(t *testing.T) {
 		}
 		return repeat, repeat - 1
 	}
-	plan, err := vse.ValidatePing(&vrxv1.PingAction{Target: "10.2.2.2", Count: 4, IntervalMs: 100})
+	plan, err := vse.ValidatePing(&ngfwv1.PingAction{Target: "10.2.2.2", Count: 4, IntervalMs: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out []*vrxv1.ActionOutput
-	if err := vse.Ping(context.Background(), v, plan, func(o *vrxv1.ActionOutput) error { out = append(out, o); return nil }); err != nil {
+	var out []*ngfwv1.ActionOutput
+	if err := vse.Ping(context.Background(), v, plan, func(o *ngfwv1.ActionOutput) error { out = append(out, o); return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 2 || !strings.Contains(out[0].GetLine(), "4 packets transmitted, 3 received, 25% packet loss") {
@@ -209,7 +209,7 @@ func TestPingSummaryAndStats(t *testing.T) {
 	// no reply → exit code 1
 	plan.Target = netip.MustParseAddr("10.2.2.9")
 	out = nil
-	if err := vse.Ping(context.Background(), v, plan, func(o *vrxv1.ActionOutput) error { out = append(out, o); return nil }); err != nil {
+	if err := vse.Ping(context.Background(), v, plan, func(o *ngfwv1.ActionOutput) error { out = append(out, o); return nil }); err != nil {
 		t.Fatal(err)
 	}
 	if out[1].GetDone().GetExitCode() != 1 {
@@ -292,11 +292,11 @@ func TestListRoutesBusyWhileAWalkRuns(t *testing.T) {
 func TestPingRefusedWithWorkerThreads(t *testing.T) {
 	v := coretest.New().InstallVrfStaticEcmp()
 	v.Svs().Workers = 1
-	plan, err := vse.ValidatePing(&vrxv1.PingAction{Target: "10.2.2.2", Count: 2, IntervalMs: 100})
+	plan, err := vse.ValidatePing(&ngfwv1.PingAction{Target: "10.2.2.2", Count: 2, IntervalMs: 100})
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = vse.Ping(context.Background(), v, plan, func(*vrxv1.ActionOutput) error { return nil })
+	err = vse.Ping(context.Background(), v, plan, func(*ngfwv1.ActionOutput) error { return nil })
 	if !errors.Is(err, vse.ErrWorkers) || !strings.Contains(err.Error(), "worker barrier") || !strings.Contains(err.Error(), vse.VItem) {
 		t.Fatalf("ping with a worker thread: %v", err)
 	}

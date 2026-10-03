@@ -19,7 +19,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dhcp"
 	"ngfw/agent/internal/scheduler"
@@ -28,21 +28,21 @@ import (
 // DHCP is the projection of `services.dhcp` (F-kea-dhcp-relay): the Kea servers and the relays. The unsupported-field
 // notes of the other sub-keys come from the shared ServicesUnsupported, called once per projection (projection.go).
 // vrfID maps a VRF name to its table id (false: unknown VRF).
-func DHCP(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bool)) {
+func DHCP(s Sink, ds *ngfwv1.DesiredState, vrfID func(string) (uint32, bool)) {
 	Kea(s, ds)
 	DHCPRelays(s, ds.GetServices().GetDhcp().GetRelays(), vrfID)
 }
 
 // AssembleDHCP adds services.dhcp (servers and relays) of the retrieved objects to ds. `services.dhcp` is always
 // present (empty maps) once the domain is assembled.
-func AssembleDHCP(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleDHCP(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	dhcpOf(ds)
 	AssembleKea(ds, kvs)
 	AssembleDHCPRelays(ds, kvs)
 }
 
 // DHCPRelays projects the relays.
-func DHCPRelays(s Sink, relays map[string]*vrxv1.DhcpRelay, vrfID func(string) (uint32, bool)) {
+func DHCPRelays(s Sink, relays map[string]*ngfwv1.DhcpRelay, vrfID func(string) (uint32, bool)) {
 	type srcOwner struct{ relay, src string }
 	srcs := map[string]srcOwner{} // "<rx>|<family>" → first relay and its src
 	for _, name := range sortedKeys(relays) {
@@ -122,7 +122,7 @@ func DHCPRelays(s Sink, relays map[string]*vrxv1.DhcpRelay, vrfID func(string) (
 
 // AssembleDHCPRelays adds the relays of the retrieved dhcp.relay records to ds: the document relay the record carries,
 // with the servers VPP actually has when they differ (drift stays visible).
-func AssembleDHCPRelays(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleDHCPRelays(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() != dhcp.NameRelay {
 			continue
@@ -135,7 +135,7 @@ func AssembleDHCPRelays(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		if err != nil {
 			continue
 		}
-		r := &vrxv1.DhcpRelay{}
+		r := &ngfwv1.DhcpRelay{}
 		if proto.Unmarshal(raw, r) != nil {
 			continue
 		}

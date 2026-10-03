@@ -103,7 +103,7 @@ describe('System → High availability (WEB-4b, routed by F-vrrp-config-sync)', 
     api.on('PATCH /api/v1/config/ha', () => ({
       status: 400,
       body: {
-        type: 'https://vrx.dev/problems/validation',
+        type: 'https://ngfw.dev/problems/validation',
         title: 'Validation failed',
         status: 400,
         errors: [{ pointer: '/ha/cluster/port', message: 'port 4370 is already in use' }],

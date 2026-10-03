@@ -1,6 +1,6 @@
 package agent
 
-// Persistent agent state in the state dir (VRX_AGENT_STATE_DIR, product /var/lib/vrx/agent):
+// Persistent agent state in the state dir (NGFW_AGENT_STATE_DIR, product /var/lib/ngfw/agent):
 //
 //	agent-state.json  THE state, written atomically as one file (temp + fsync + rename): managed
 //	                  domains, last/pending txn, confirm deadline, "revert owed" flag, recent Apply
@@ -24,7 +24,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/ownertable"
 )
 
@@ -70,13 +70,13 @@ type persisted struct {
 // state is the in-memory copy; the service guards it with its transaction lock.
 type state struct {
 	dir     string
-	desired *vrxv1.DesiredState // current (possibly pending)
-	confirm *vrxv1.DesiredState // confirmed baseline
+	desired *ngfwv1.DesiredState // current (possibly pending)
+	confirm *ngfwv1.DesiredState // confirmed baseline
 	meta    persisted
 }
 
 func newState(dir, owner string) *state {
-	return &state{dir: dir, desired: &vrxv1.DesiredState{}, confirm: &vrxv1.DesiredState{}, meta: persisted{Owner: owner}}
+	return &state{dir: dir, desired: &ngfwv1.DesiredState{}, confirm: &ngfwv1.DesiredState{}, meta: persisted{Owner: owner}}
 }
 
 var docJSON = protojson.UnmarshalOptions{DiscardUnknown: true}
@@ -119,8 +119,8 @@ func loadState(dir, owner string) (*state, error) {
 	return s, nil
 }
 
-func readPB(path string) (*vrxv1.DesiredState, error) {
-	ds := &vrxv1.DesiredState{}
+func readPB(path string) (*ngfwv1.DesiredState, error) {
+	ds := &ngfwv1.DesiredState{}
 	b, err := os.ReadFile(path) //nolint:gosec // fixed names in the configured state dir
 	if errors.Is(err, os.ErrNotExist) {
 		return ds, nil
@@ -172,7 +172,7 @@ func (s *state) save() error {
 }
 
 // remember stores resp for txnID (bounded history, newest last).
-func (s *state) remember(txnID, fingerprint string, resp *vrxv1.ApplyResponse) {
+func (s *state) remember(txnID, fingerprint string, resp *ngfwv1.ApplyResponse) {
 	b, err := protojson.Marshal(resp)
 	if err != nil {
 		return
@@ -190,12 +190,12 @@ func (s *state) remember(txnID, fingerprint string, resp *vrxv1.ApplyResponse) {
 }
 
 // recall returns the stored response of txnID.
-func (s *state) recall(txnID string) (fingerprint string, resp *vrxv1.ApplyResponse, ok bool) {
+func (s *state) recall(txnID string) (fingerprint string, resp *ngfwv1.ApplyResponse, ok bool) {
 	for _, r := range s.meta.History {
 		if r.TxnID != txnID {
 			continue
 		}
-		out := &vrxv1.ApplyResponse{}
+		out := &ngfwv1.ApplyResponse{}
 		if err := protojson.Unmarshal(r.Response, out); err != nil {
 			return "", nil, false
 		}
@@ -206,10 +206,10 @@ func (s *state) recall(txnID string) (fingerprint string, resp *vrxv1.ApplyRespo
 
 // mergeDomains returns base with every domain in domains replaced by the one in update (cleared
 // when update does not carry it).
-func mergeDomains(base, update *vrxv1.DesiredState, domains []string) *vrxv1.DesiredState {
-	out := proto.Clone(base).(*vrxv1.DesiredState)
+func mergeDomains(base, update *ngfwv1.DesiredState, domains []string) *ngfwv1.DesiredState {
+	out := proto.Clone(base).(*ngfwv1.DesiredState)
 	if update == nil {
-		update = &vrxv1.DesiredState{}
+		update = &ngfwv1.DesiredState{}
 	}
 	src, dst := update.ProtoReflect(), out.ProtoReflect()
 	for _, d := range domains {
@@ -223,7 +223,7 @@ func mergeDomains(base, update *vrxv1.DesiredState, domains []string) *vrxv1.Des
 			dst.Clear(fd)
 		}
 	}
-	return proto.Clone(out).(*vrxv1.DesiredState)
+	return proto.Clone(out).(*ngfwv1.DesiredState)
 }
 
 func union(a, b []string) []string {

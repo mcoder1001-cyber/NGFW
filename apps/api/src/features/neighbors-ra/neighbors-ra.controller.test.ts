@@ -1,7 +1,7 @@
 import type { ActionDone, ListNeighborsRequest, ListNeighborsResponse } from '@ngfw/proto';
 import { describe, expect, it } from 'vitest';
 import type { AgentClient } from '../../agent/agent.client.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { ProblemError } from '../../common/problem.js';
 import { EventKind } from '@ngfw/proto';
 import { eventTopic } from '../../telemetry/relay.service.js';
@@ -100,7 +100,7 @@ describe('NeighborsRaController', () => {
         },
       },
     });
-    const req = {} as VrxRequest;
+    const req = {} as NgfwRequest;
     const out = await ctl.arpFlush(req, ArpFlushBody.parse({ interface: 'host-w9l0' }));
     expect(calls.flush[0]).toEqual({ interface: 'host-w9l0', family: '' });
     expect(out).toEqual({
@@ -122,7 +122,7 @@ describe('NeighborsRaController', () => {
       undefined,
     ]) {
       const { ctl } = stub({ flush: { lines: [], done } });
-      const req = {} as VrxRequest;
+      const req = {} as NgfwRequest;
       const err = await ctl.arpFlush(req, ArpFlushBody.parse(undefined)).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(ProblemError);
       expect((err as ProblemError).getStatus()).toBe(502);
@@ -147,7 +147,7 @@ describe('NeighborsRaController', () => {
         ),
     } as unknown as AgentClient;
     const err = (await new NeighborsRaController(agent)
-      .arpFlush({} as VrxRequest, ArpFlushBody.parse({ interface: 'loop301' }))
+      .arpFlush({} as NgfwRequest, ArpFlushBody.parse({ interface: 'loop301' }))
       .catch((e: unknown) => e)) as ProblemError;
     expect(err.getStatus()).toBe(400);
     expect(err.errors).toEqual([

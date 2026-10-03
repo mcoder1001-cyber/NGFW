@@ -237,11 +237,11 @@ func (r *Renderer) RenderModel(m *Model) (renderers.Files, error) {
 	if err := r.checkOwnedModel(m); err != nil {
 		return nil, err
 	}
-	conns, err := renderers.ExecuteTemplate(templates, "vrx.conf.tmpl", m)
+	conns, err := renderers.ExecuteTemplate(templates, "ngfw.conf.tmpl", m)
 	if err != nil {
 		return nil, r.secrets.redactErr(err)
 	}
-	secrets, err := renderers.ExecuteTemplate(templates, "vrx-secrets.conf.tmpl", m)
+	secrets, err := renderers.ExecuteTemplate(templates, "ngfw-secrets.conf.tmpl", m)
 	if err != nil {
 		return nil, r.secrets.redactErr(err)
 	}
@@ -259,8 +259,8 @@ func (r *Renderer) RenderModel(m *Model) (renderers.Files, error) {
 	return files, files.Validate()
 }
 
-// Render implements renderers.Renderer: strongswan.conf, conf.d/vrx.conf and
-// conf.d/vrx-secrets.conf (Secret, mode 0600). No I/O except the injected secret resolver.
+// Render implements renderers.Renderer: strongswan.conf, conf.d/ngfw.conf and
+// conf.d/ngfw-secrets.conf (Secret, mode 0600). No I/O except the injected secret resolver.
 // Resolved values are remembered so every later output of this renderer masks them.
 func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {

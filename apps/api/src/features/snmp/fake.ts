@@ -30,7 +30,7 @@ export function snmpStateFake(
             ? 'v2c community'
             : '',
       sysName: on ? String(snmp['sysName'] ?? '') : '',
-      sysDescr: on ? 'Linux vrx (fake agent)' : '',
+      sysDescr: on ? 'Linux ngfw (fake agent)' : '',
       sysLocation: on ? String(snmp['sysLocation'] ?? '') : '',
       sysContact: on ? String(snmp['sysContact'] ?? '') : '',
       sysUpTime: on ? '4200' : '0',

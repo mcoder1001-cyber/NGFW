@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -23,9 +23,9 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 		begins++
 		return func() error { flushes++; return failWith }
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "c2", DesiredState: doc(t, `{"interfaces":{"loop1":{"vrf":"nope"}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED) // validation failure: still one (empty) batch
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c2", DesiredState: doc(t, `{"interfaces":{"loop1":{"vrf":"nope"}}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED) // validation failure: still one (empty) batch
 	if begins != 2 || flushes != 2 {
 		t.Fatalf("begins %d flushes %d, want 2 and 2", begins, flushes)
 	}
@@ -33,9 +33,9 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 	// F2: the claims cannot be written → DEGRADED (not APPLIED), the new document is not stored.
 	failWith = errors.New("disk full")
 	more := doc(t, sampleDoc)
-	more.Interfaces["loop703"] = &vrxv1.Interface{}
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "c3", DesiredState: more})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+	more.Interfaces["loop703"] = &ngfwv1.Interface{}
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c3", DesiredState: more})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED)
 	if h := s.Health(); !h.GetDegraded() {
 		t.Fatalf("a failed claim-store write must degrade the agent: %v", h)
 	}
@@ -43,13 +43,13 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 		t.Fatal("the document of a transaction whose claims were not persisted was stored")
 	}
 	// … a refused transaction keeps its status, the agent is degraded all the same
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c3b", DesiredState: doc(t, `{"interfaces":{"loop1":{"vrf":"nope"}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c3b", DesiredState: doc(t, `{"interfaces":{"loop1":{"vrf":"nope"}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	if !s.Health().GetDegraded() {
 		t.Fatal("refused transaction with a failed claim write: agent not degraded")
 	}
 	// … and the next good write clears it; now the document is stored.
 	failWith = nil
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c4", DesiredState: more}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c4", DesiredState: more}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if h := s.Health(); h.GetDegraded() || begins != 5 || flushes != 5 {
 		t.Fatalf("after a good write: degraded %v, begins %d flushes %d", h.GetDegraded(), begins, flushes)
 	}
@@ -63,7 +63,7 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 	s.beforeTxn = func() { panic("boom") }
 	func() {
 		defer func() { _ = recover() }()
-		_, _ = s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "c5", DesiredState: more})
+		_, _ = s.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: "c5", DesiredState: more})
 	}()
 	s.beforeTxn = before
 	if begins != 6 || flushes != 6 {
@@ -76,7 +76,7 @@ func TestClaimStoresBracketEveryTransaction(t *testing.T) {
 func TestClaimStoresBracketSourceSync(t *testing.T) {
 	v := coretest.New()
 	s, md, src := newSrcSvc(t, v, nil)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var begins, flushes int
 	var failWith error
 	s.claimsTxn = func() func() error {

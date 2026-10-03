@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	cnatapi "ngfw/agent/binapi/cnat"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/natcommon"
 )
 
@@ -24,7 +24,7 @@ import (
 var cnatSessionCap = 200_000
 
 // CnatSessions pages the CNAT session table in VPP's dump order.
-func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsRequest) (*vrxv1.CnatSessionsResponse, error) {
+func (s *Service) CnatSessions(ctx context.Context, req *ngfwv1.CnatSessionsRequest) (*ngfwv1.CnatSessionsResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsReque
 	if err != nil {
 		return nil, natErr("cnat_session_dump", err)
 	}
-	resp := &vrxv1.CnatSessionsResponse{Owner: s.owner}
+	resp := &ngfwv1.CnatSessionsResponse{Owner: s.owner}
 	off := int(req.GetOffset())
 	n, seen := 0, 0 // n: rows of this owner (total_sessions); seen: rows looked at (the cap)
 	scope := natcommon.ScopeFor(s.owner)
@@ -59,7 +59,7 @@ func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsReque
 			continue // another owner's session (review BLOCK 2)
 		}
 		if n >= off && n < off+limit {
-			row := &vrxv1.CnatSession{
+			row := &ngfwv1.CnatSession{
 				DstAddress: t.Addr[0].String(), SrcAddress: t.Addr[1].String(),
 				Protocol: natcommon.ProtoName(uint8(t.IPProto)), TranslationIndex: d.Session.TsIndex, Flags: d.Session.Flags,
 			}
@@ -80,7 +80,7 @@ func (s *Service) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsReque
 }
 
 // cnatSessionPurge purges the CNAT session table (globals owner only).
-func (s *Service) cnatSessionPurge(ctx context.Context, send func(*vrxv1.ActionOutput) error) error {
+func (s *Service) cnatSessionPurge(ctx context.Context, send func(*ngfwv1.ActionOutput) error) error {
 	if !captureGlobalsOwner(s.owner) {
 		return status.Errorf(codes.PermissionDenied, "the CNAT session table is a VPP global: only the globals owner may purge it (D-071; owner %q)", s.owner)
 	}
@@ -91,14 +91,14 @@ func (s *Service) cnatSessionPurge(ctx context.Context, send func(*vrxv1.ActionO
 		return natErr("cnat_session_purge", err)
 	}
 	s.log.Info("cnat session purge")
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: "purged the CNAT session table"}}})
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: "purged the CNAT session table"}}})
 }
 
-func (g *server) CnatSessions(ctx context.Context, req *vrxv1.CnatSessionsRequest) (*vrxv1.CnatSessionsResponse, error) {
+func (g *server) CnatSessions(ctx context.Context, req *ngfwv1.CnatSessionsRequest) (*ngfwv1.CnatSessionsResponse, error) {
 	return g.svc.CnatSessions(ctx, req)
 }
 
 // cnatSessionPurge adapts the Action stream (server.go's case under the F-det44-map-dslite-cnat anchor).
-func (g *server) cnatSessionPurge(_ *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) cnatSessionPurge(_ *ngfwv1.ActionRequest, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	return g.svc.cnatSessionPurge(stream.Context(), stream.Send)
 }

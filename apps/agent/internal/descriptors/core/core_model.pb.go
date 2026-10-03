@@ -1,5 +1,5 @@
 // Values of the P05 core descriptors (scheduler.KV.Value). Agent-internal: the agent projects
-// vrx.v1.DesiredState (packages/proto) onto these objects and back (internal/agent/projection.go).
+// ngfw.v1.DesiredState (packages/proto) onto these objects and back (internal/agent/projection.go).
 // Canonical form (what Retrieve returns and what the projection produces) is documented per field;
 // proto.Equal on these messages is the scheduler's diff.
 
@@ -416,7 +416,7 @@ var File_core_model_proto protoreflect.FileDescriptor
 
 const file_core_model_proto_rawDesc = "" +
 	"\n" +
-	"\x10core_model.proto\x12\x0evrx.agent.core\":\n" +
+	"\x10core_model.proto\x12\x0fngfw.agent.core\":\n" +
 	"\bLoopback\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\binstance\x18\x02 \x01(\rR\binstance\"H\n" +
@@ -432,11 +432,11 @@ const file_core_model_proto_rawDesc = "" +
 	"\vmissing_ip4\x18\x03 \x01(\bR\n" +
 	"missingIp4\x12\x1f\n" +
 	"\vmissing_ip6\x18\x04 \x01(\bR\n" +
-	"missingIp6\"\x8b\x01\n" +
+	"missingIp6\"\x8c\x01\n" +
 	"\x05Route\x12\x19\n" +
 	"\btable_id\x18\x01 \x01(\rR\atableId\x12\x16\n" +
-	"\x06prefix\x18\x02 \x01(\tR\x06prefix\x12/\n" +
-	"\x05paths\x18\x03 \x03(\v2\x19.vrx.agent.core.RoutePathR\x05paths\x12\x1e\n" +
+	"\x06prefix\x18\x02 \x01(\tR\x06prefix\x120\n" +
+	"\x05paths\x18\x03 \x03(\v2\x1a.ngfw.agent.core.RoutePathR\x05paths\x12\x1e\n" +
 	"\n" +
 	"preference\x18\x04 \x01(\rR\n" +
 	"preference\"\x99\x01\n" +
@@ -461,15 +461,15 @@ func file_core_model_proto_rawDescGZIP() []byte {
 
 var file_core_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_core_model_proto_goTypes = []any{
-	(*Loopback)(nil),         // 0: vrx.agent.core.Loopback
-	(*InterfaceAddress)(nil), // 1: vrx.agent.core.InterfaceAddress
-	(*InterfaceTable)(nil),   // 2: vrx.agent.core.InterfaceTable
-	(*Table)(nil),            // 3: vrx.agent.core.Table
-	(*Route)(nil),            // 4: vrx.agent.core.Route
-	(*RoutePath)(nil),        // 5: vrx.agent.core.RoutePath
+	(*Loopback)(nil),         // 0: ngfw.agent.core.Loopback
+	(*InterfaceAddress)(nil), // 1: ngfw.agent.core.InterfaceAddress
+	(*InterfaceTable)(nil),   // 2: ngfw.agent.core.InterfaceTable
+	(*Table)(nil),            // 3: ngfw.agent.core.Table
+	(*Route)(nil),            // 4: ngfw.agent.core.Route
+	(*RoutePath)(nil),        // 5: ngfw.agent.core.RoutePath
 }
 var file_core_model_proto_depIdxs = []int32{
-	5, // 0: vrx.agent.core.Route.paths:type_name -> vrx.agent.core.RoutePath
+	5, // 0: ngfw.agent.core.Route.paths:type_name -> ngfw.agent.core.RoutePath
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

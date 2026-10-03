@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/vpp"
@@ -30,12 +30,12 @@ var (
 )
 
 // LbState implements the LbState RPC.
-func (g *server) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv1.LbStateResponse, error) {
+func (g *server) LbState(ctx context.Context, req *ngfwv1.LbStateRequest) (*ngfwv1.LbStateResponse, error) {
 	return g.svc.LbState(ctx, req)
 }
 
 // LbFlushVip implements the LbFlushVip RPC.
-func (g *server) LbFlushVip(ctx context.Context, req *vrxv1.LbFlushVipRequest) (*vrxv1.LbFlushVipResponse, error) {
+func (g *server) LbFlushVip(ctx context.Context, req *ngfwv1.LbFlushVipRequest) (*ngfwv1.LbFlushVipResponse, error) {
 	return g.svc.LbFlushVip(ctx, req)
 }
 
@@ -66,7 +66,7 @@ func (s *Service) lbLock(ctx context.Context) error {
 }
 
 // lbStored returns a copy of services.lb of the stored desired state (nil when absent).
-func (s *Service) lbStored(ctx context.Context) (*vrxv1.LbService, error) {
+func (s *Service) lbStored(ctx context.Context) (*ngfwv1.LbService, error) {
 	if err := s.lbLock(ctx); err != nil {
 		return nil, err
 	}
@@ -75,12 +75,12 @@ func (s *Service) lbStored(ctx context.Context) (*vrxv1.LbService, error) {
 }
 
 // lbStoredLocked is lbStored for a caller that holds the transaction lock.
-func (s *Service) lbStoredLocked() *vrxv1.LbService {
+func (s *Service) lbStoredLocked() *ngfwv1.LbService {
 	l := s.st.desired.GetServices().GetLb()
 	if l == nil {
 		return nil
 	}
-	return proto.Clone(l).(*vrxv1.LbService)
+	return proto.Clone(l).(*ngfwv1.LbService)
 }
 
 func lbStatusOf(err error) error {
@@ -94,7 +94,7 @@ func lbStatusOf(err error) error {
 }
 
 // LbState implements the LbState RPC: one entry per VIP of the stored desired state.
-func (s *Service) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv1.LbStateResponse, error) {
+func (s *Service) LbState(ctx context.Context, req *ngfwv1.LbStateRequest) (*ngfwv1.LbStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -130,10 +130,10 @@ func (s *Service) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv
 	}
 	sort.Strings(names)
 	vd := lb.NewVIP(s.vpp, s.owner)
-	resp := &vrxv1.LbStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), TotalVppVips: uint32(len(vips))} //nolint:gosec // a VPP table dump, far below 2^32 entries
+	resp := &ngfwv1.LbStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), TotalVppVips: uint32(len(vips))} //nolint:gosec // a VPP table dump, far below 2^32 entries
 	for _, name := range names {
 		v := cfg.GetVips()[name]
-		st := &vrxv1.LbVipState{Name: name, Prefix: v.GetPrefix(), Protocol: v.GetProtocol(), Port: v.GetPort()}
+		st := &ngfwv1.LbVipState{Name: name, Prefix: v.GetPrefix(), Protocol: v.GetProtocol(), Port: v.GetPort()}
 		spec, err := desired.LbVIPOf(v)
 		if err != nil {
 			resp.Vips = append(resp.Vips, st) // never applied (the projection refused it)
@@ -151,7 +151,7 @@ func (s *Service) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv
 		}
 		for _, a := range ases {
 			if a.Prefix == spec.Prefix && a.Port == spec.Port {
-				st.Servers = append(st.Servers, &vrxv1.LbServerState{Address: a.Address, InUse: a.InUse, InUseSince: a.InUseSince})
+				st.Servers = append(st.Servers, &ngfwv1.LbServerState{Address: a.Address, InUse: a.InUse, InUseSince: a.InUseSince})
 			}
 		}
 		sort.SliceStable(st.Servers, func(i, j int) bool {
@@ -169,7 +169,7 @@ func (s *Service) LbState(ctx context.Context, req *vrxv1.LbStateRequest) (*vrxv
 // created on the running VPP instance and that has an application server in use (lb.FlushVIP). The whole check and
 // the flush hold the transaction lock (F-lb review M1): a transaction deleting the VIP between lb.FlushVIP's
 // lb_as_dump and the lb_flush_vip would make VPP 26.06 flush an uninitialised VIP index.
-func (s *Service) LbFlushVip(ctx context.Context, req *vrxv1.LbFlushVipRequest) (*vrxv1.LbFlushVipResponse, error) {
+func (s *Service) LbFlushVip(ctx context.Context, req *ngfwv1.LbFlushVipRequest) (*ngfwv1.LbFlushVipResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -212,5 +212,5 @@ func (s *Service) LbFlushVip(ctx context.Context, req *vrxv1.LbFlushVipRequest) 
 		return nil, lbStatusOf(err)
 	}
 	s.log.Info("lb VIP flow table flushed", "vip", req.GetName(), "key", string(key))
-	return &vrxv1.LbFlushVipResponse{Vip: string(key)}, nil
+	return &ngfwv1.LbFlushVipResponse{Vip: string(key)}, nil
 }

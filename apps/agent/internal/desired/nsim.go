@@ -9,7 +9,7 @@ package desired
 //	services.nsim.outputInterfaces[i]  → nsim.output/<if>           (depends on the model and the alias)
 //
 // VPP holds one model and one cross-connect pair, so only the globals owner projects any of it (D-071), and only with
-// the lab gate VRX_NSIM=lab (review M2); every other agent reports `/services/nsim` as agent.unsupported-field and
+// the lab gate NGFW_NSIM=lab (review M2); every other agent reports `/services/nsim` as agent.unsupported-field and
 // applies nothing. All three
 // are write-only (no getter; D-063): DryRun notes `/services/nsim` as agent.write-only.
 
@@ -17,13 +17,13 @@ import (
 	"math"
 	"strconv"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/nsim"
 )
 
 // NsimConfigOf converts the configuration's units to VPP's (delay ms → µs, Mbit/s → bit/s, drop
 // fraction → packets per drop; 0 = no loss).
-func NsimConfigOf(n *vrxv1.NsimService) nsim.Config {
+func NsimConfigOf(n *ngfwv1.NsimService) nsim.Config {
 	c := nsim.Config{
 		DelayUsec:    uint32(math.Round(n.GetDelayMs() * 1000)),
 		BandwidthBps: math.Round(n.GetBandwidthMbps() * 1e6),
@@ -41,7 +41,7 @@ func NsimConfigOf(n *vrxv1.NsimService) nsim.Config {
 }
 
 // Nsim emits the nsim objects of n (see the file comment) when env allows it: the globals owner with the lab gate on.
-func Nsim(s Sink, n *vrxv1.NsimService, env LoopbackBviGsoLldpSpanEnv) {
+func Nsim(s Sink, n *ngfwv1.NsimService, env LoopbackBviGsoLldpSpanEnv) {
 	if n == nil {
 		return
 	}
@@ -51,7 +51,7 @@ func Nsim(s Sink, n *vrxv1.NsimService, env LoopbackBviGsoLldpSpanEnv) {
 		s.Warnf(pt, lbgsUnsupported, "services.nsim is VPP-global (one delay model, one cross-connect pair) and only the globals owner applies it (D-071); this agent is not the globals owner")
 		return
 	case !env.Nsim:
-		s.Warnf(pt, lbgsUnsupported, "services.nsim is a lab tool: the agent applies it only with VRX_NSIM=lab (off; configuring nsim keeps VPP's main thread polling until VPP restarts)")
+		s.Warnf(pt, lbgsUnsupported, "services.nsim is a lab tool: the agent applies it only with NGFW_NSIM=lab (off; configuring nsim keeps VPP's main thread polling until VPP restarts)")
 		return
 	}
 	c := NsimConfigOf(n)

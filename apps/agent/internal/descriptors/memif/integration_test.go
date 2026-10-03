@@ -59,7 +59,7 @@ func TestMemifOnHost(t *testing.T) {
 	vpptest.LockLab(t)
 	owner := vpptest.Prefix(t)
 	c := ifacetest.Connect(t)
-	dir := memif.DefaultSocketDir(owner) // /run/vrx-test/<prefix>/memif
+	dir := memif.DefaultSocketDir(owner) // /run/ngfw-test/<prefix>/memif
 	sd := memif.NewSocket(c, owner, dir)
 	sock := &memif.Socket{Id: vpptest.TableBase(t) + 40, Filename: filepath.Join(dir, vpptest.Name(t, "memif40")+".sock")}
 	t.Cleanup(func() { _ = os.Remove(sock.Filename) })

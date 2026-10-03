@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -167,7 +167,7 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 
 // RenderFamily renders the configuration file of one family (4 or 6) from its render input (Input; nil = the idle
 // configuration). The result holds exactly that family's file (the descriptor applies one daemon at a time).
-func (r *Renderer) RenderFamily(input *vrxv1.DesiredState, family int) (renderers.Files, error) {
+func (r *Renderer) RenderFamily(input *ngfwv1.DesiredState, family int) (renderers.Files, error) {
 	if err := r.check(); err != nil {
 		return nil, err
 	}

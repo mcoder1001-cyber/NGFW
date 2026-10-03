@@ -17,7 +17,7 @@ import {
 } from './x509.js';
 
 /** Slot 5's local CRL/OCSP responder port (wave-BC-numbers: TCP 3000+100·N+61), loopback only. */
-const SLOT = Number(process.env['VRX_SLOT'] ?? '5');
+const SLOT = Number(process.env['NGFW_SLOT'] ?? '5');
 const PORT = 3000 + 100 * SLOT + 61;
 
 /**
@@ -34,7 +34,7 @@ describe('F-pki revocation: CRL fetch + verify, OCSP check (openssl responder on
   const otherKey = generateKey({ type: 'ecdsa', curve: 'p256' });
 
   beforeAll(async () => {
-    ca = selfSignedCa(parseDn('CN=w5 revocation CA, O=VRX test'), caKey, 30);
+    ca = selfSignedCa(parseDn('CN=w5 revocation CA, O=NGFW test'), caKey, 30);
     const issue = (cn: string) => {
       const k = generateKey({ type: 'ecdsa', curve: 'p256' });
       return signCsr(
@@ -143,7 +143,7 @@ describe('F-pki revocation: CRL fetch + verify, OCSP check (openssl responder on
       timeoutMs: 5000,
     });
     const crl = parseCrl(body, ca.facts);
-    expect(crl.issuer).toBe('CN=w5 revocation CA, O=VRX test');
+    expect(crl.issuer).toBe('CN=w5 revocation CA, O=NGFW test');
     expect(crl.revoked.map((r) => r.serial)).toEqual([revoked.facts.serial]);
     expect(crl.number).toBe(String(0x1000));
     expect(crl.nextUpdate).not.toBeNull();
@@ -153,7 +153,7 @@ describe('F-pki revocation: CRL fetch + verify, OCSP check (openssl responder on
   });
 
   it('refuses a CRL of another CA and an oversized body', async () => {
-    const otherCa = selfSignedCa(parseDn('CN=w5 revocation CA, O=VRX test'), otherKey, 30); // same name, other key
+    const otherCa = selfSignedCa(parseDn('CN=w5 revocation CA, O=NGFW test'), otherKey, 30); // same name, other key
     const body = await httpFetch(`http://127.0.0.1:${PORT}/w5-ca.crl`, {
       maxBytes: 10 << 20,
       timeoutMs: 5000,
@@ -187,7 +187,7 @@ describe('F-pki revocation: CRL fetch + verify, OCSP check (openssl responder on
     );
     // a response checked against the wrong CA is refused
     const otherCa = certFacts(
-      selfSignedCa(parseDn('CN=w5 revocation CA, O=VRX test'), otherKey, 30).der,
+      selfSignedCa(parseDn('CN=w5 revocation CA, O=NGFW test'), otherKey, 30).der,
     );
     const resp = readFileSync(`${s.dir}/resp.der`);
     expect(() =>

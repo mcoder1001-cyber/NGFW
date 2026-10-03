@@ -7,9 +7,9 @@ import type { TestProject } from 'vitest/node';
 
 /**
  * e2e bootstrap on the shared host (docs/lab/shared-host-rules.md): the slot's own database via
- * `deploy/dev/pg-test.sh create <prefix>` (role + db `vrx_<prefix>`, password only in /run/vrx-test/<prefix>/pg.env),
- * dropped again at the end; Valkey = the slot's logical db, keys under `vrx:<prefix>:e2e:` (deleted by pattern at the
- * end — never FLUSHALL/FLUSHDB). Set VRX_E2E_KEEP_DB=1 to keep the database for debugging.
+ * `deploy/dev/pg-test.sh create <prefix>` (role + db `ngfw_<prefix>`, password only in /run/ngfw-test/<prefix>/pg.env),
+ * dropped again at the end; Valkey = the slot's logical db, keys under `ngfw:<prefix>:e2e:` (deleted by pattern at the
+ * end — never FLUSHALL/FLUSHDB). Set NGFW_E2E_KEEP_DB=1 to keep the database for debugging.
  */
 declare module 'vitest' {
   export interface ProvidedContext {
@@ -24,19 +24,19 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 const PG_TEST = resolve(REPO, 'deploy/dev/pg-test.sh');
 
 export default async function setup(project: TestProject) {
-  const prefix = process.env['VRX_TEST_PREFIX'];
+  const prefix = process.env['NGFW_TEST_PREFIX'];
   if (!prefix || !/^[a-z][a-z0-9]{0,5}$/.test(prefix)) {
     throw new Error(
-      'VRX_TEST_PREFIX (the slot prefix, e.g. w1 — eval "$(tools/lab env <slot>)") is required for e2e tests',
+      'NGFW_TEST_PREFIX (the slot prefix, e.g. w1 — eval "$(tools/lab env <slot>)") is required for e2e tests',
     );
   }
   const slot = Number(/(\d+)$/.exec(prefix)?.[1] ?? '0');
-  const valkeyDb = Number(process.env['VRX_VALKEY_DB'] ?? slot);
-  const runDir = `/run/vrx-test/${prefix}`;
+  const valkeyDb = Number(process.env['NGFW_VALKEY_DB'] ?? slot);
+  const runDir = `/run/ngfw-test/${prefix}`;
   execFileSync(PG_TEST, ['create', prefix], { stdio: ['ignore', 'inherit', 'inherit'] });
   const env = readFileSync(`${runDir}/pg.env`, 'utf8');
-  const dsn = /^VRX_PG_DSN=(.+)$/m.exec(env)?.[1];
-  if (!dsn) throw new Error(`no VRX_PG_DSN in ${runDir}/pg.env`);
+  const dsn = /^NGFW_PG_DSN=(.+)$/m.exec(env)?.[1];
+  if (!dsn) throw new Error(`no NGFW_PG_DSN in ${runDir}/pg.env`);
   project.provide('pgDsn', dsn);
   project.provide('prefix', prefix);
   project.provide('valkeyDb', valkeyDb);
@@ -49,17 +49,17 @@ export default async function setup(project: TestProject) {
       let cursor = '0';
       let deleted = 0;
       do {
-        const [next, keys] = await kv.scan(cursor, 'MATCH', `vrx:${prefix}:e2e:*`, 'COUNT', 500);
+        const [next, keys] = await kv.scan(cursor, 'MATCH', `ngfw:${prefix}:e2e:*`, 'COUNT', 500);
         cursor = next;
         if (keys.length > 0) deleted += await kv.del(...keys);
       } while (cursor !== '0');
       console.log(
-        `e2e teardown: deleted ${deleted} Valkey keys vrx:${prefix}:e2e:* in db ${valkeyDb}`,
+        `e2e teardown: deleted ${deleted} Valkey keys ngfw:${prefix}:e2e:* in db ${valkeyDb}`,
       );
     } finally {
       kv.disconnect();
     }
-    if (process.env['VRX_E2E_KEEP_DB'] !== '1') {
+    if (process.env['NGFW_E2E_KEEP_DB'] !== '1') {
       execFileSync(PG_TEST, ['drop', prefix], { stdio: ['ignore', 'inherit', 'inherit'] });
     }
   };

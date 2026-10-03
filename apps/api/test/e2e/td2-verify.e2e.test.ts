@@ -23,7 +23,7 @@ for (const u of USERS) PW[u] = runSecret();
 function cookieOf(headers: Record<string, unknown>): string {
   const raw = [headers['set-cookie']]
     .flat()
-    .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
   return raw.split(';')[0]!;
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -37,8 +37,8 @@ describe('TD-2 verify fixes e2e (round 2, D-102)', () => {
 
   beforeAll(async () => {
     h = await startHarness({
-      VRX_PASSWORD_RATE_PER_MIN: '10000',
-      VRX_LOGIN_RATE_PER_MIN: '10000',
+      NGFW_PASSWORD_RATE_PER_MIN: '10000',
+      NGFW_LOGIN_RATE_PER_MIN: '10000',
     });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(

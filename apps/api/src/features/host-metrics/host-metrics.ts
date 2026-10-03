@@ -2,8 +2,8 @@ import { readFile, stat, statfs } from 'node:fs/promises';
 import { cpus, hostname, loadavg, totalmem, freemem, uptime } from 'node:os';
 
 /**
- * WEB-dashboard host metrics (D-154): the appliance's own CPU, memory, disk and hugepages, read by vrx-api from the
- * kernel (`node:os`, `/proc/meminfo`, statfs) — no shell, no VPP. vrx-api and vrx-agent run on the same appliance (P10),
+ * WEB-dashboard host metrics (D-154): the appliance's own CPU, memory, disk and hugepages, read by ngfw-api from the
+ * kernel (`node:os`, `/proc/meminfo`, statfs) — no shell, no VPP. ngfw-api and ngfw-agent run on the same appliance (P10),
  * so the API's host is the router. Pure helpers here; the Nest service samples them on a timer.
  */
 

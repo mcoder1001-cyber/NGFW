@@ -52,7 +52,7 @@ func TestBasePolicyProjectionActivationAndDefaultNamespace(t *testing.T) {
 }
 func TestBasePolicyActivationRequiresProductGlobalsOwner(t *testing.T) {
 	t.Setenv(EnvBasePolicy, "1")
-	for _, env := range []Env{{Owner: "lab", GlobalsOwner: true}, {Owner: "vrx", GlobalsOwner: false}} {
+	for _, env := range []Env{{Owner: "lab", GlobalsOwner: true}, {Owner: "ngfw", GlobalsOwner: false}} {
 		if err := registerBasePolicy(scheduler.NewRegistry(), &Wiring{env: env}); err == nil {
 			t.Fatal("nonproduct activation accepted")
 		}

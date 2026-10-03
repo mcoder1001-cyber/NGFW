@@ -9,19 +9,19 @@ import (
 	"time"
 )
 
-// TestACLEditorScale measures the rule editor's routes on a VRX_ACL_EDITOR_RULES-rule list (default 100 000) that stays
+// TestACLEditorScale measures the rule editor's routes on a NGFW_ACL_EDITOR_RULES-rule list (default 100 000) that stays
 // in the CANDIDATE: CSV dry run + import through the streamed route, first/middle/last page latency, a quick-filter
 // search, a bulk disable of 1 000 rules and a move to sequence — against the real API and slot database. Nothing is
 // committed and nothing reaches VPP (the agent is up only because the API needs it for its health), so it needs no
 // manager window.
 //
-//	VRX_ACL_EDITOR=1 run.sh -run TestACLEditorScale
+//	NGFW_ACL_EDITOR=1 run.sh -run TestACLEditorScale
 func TestACLEditorScale(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" || os.Getenv("VRX_ACL_EDITOR") != "1" {
-		t.Skip("editor scale run: set VRX_INTEGRATION=1 and VRX_ACL_EDITOR=1")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_ACL_EDITOR") != "1" {
+		t.Skip("editor scale run: set NGFW_INTEGRATION=1 and NGFW_ACL_EDITOR=1")
 	}
 	n := 100_000
-	if v, err := strconv.Atoi(os.Getenv("VRX_ACL_EDITOR_RULES")); err == nil && v > 0 {
+	if v, err := strconv.Atoi(os.Getenv("NGFW_ACL_EDITOR_RULES")); err == nil && v > 0 {
 		n = v
 	}
 	s := slotFromEnv(t)

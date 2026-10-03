@@ -20,14 +20,14 @@ import { localUser, readKeyFile, type KeyFileOwners } from './key-file.js';
 import { keyId, parseKeyRing } from './tokens.service.js';
 
 /**
- * TD-10b (review 2.3a): root-only break-glass operations on the box — `vrx-authctl` (break-glass-cli.ts,
- * deploy/sbin/vrx-authctl; packaged by P10). They talk to PostgreSQL and Valkey directly with the API's own settings,
+ * TD-10b (review 2.3a): root-only break-glass operations on the box — `ngfw-authctl` (break-glass-cli.ts,
+ * deploy/sbin/ngfw-authctl; packaged by P10). They talk to PostgreSQL and Valkey directly with the API's own settings,
  * so they work when nobody can log in. Every action writes an audit row and a system_event.
  */
 export interface BreakGlassDeps {
   db: Db;
   kv: Valkey;
-  /** VRX_VALKEY_PREFIX: SCAN patterns are not prefixed by the client */
+  /** NGFW_VALKEY_PREFIX: SCAN patterns are not prefixed by the client */
   prefix: string;
   audit: Pick<AuditService, 'write'>;
   events: Pick<SystemEventsService, 'record'>;
@@ -154,17 +154,17 @@ export interface RotateResult {
   uid: number;
 }
 
-/** The API's system user on a product box (docs/01-architecture.md AD-6); `vrx-authctl` takes VRX_API_USER. */
-export const DEFAULT_API_USER = 'vrx';
+/** The API's system user on a product box (docs/01-architecture.md AD-6); `ngfw-authctl` takes NGFW_API_USER. */
+export const DEFAULT_API_USER = 'ngfw';
 
 /**
- * P06 tech debt (JWT key rotation): put a new random signing key on top of the VRX_JWT_KEY_FILE ring and keep the
+ * P06 tech debt (JWT key rotation): put a new random signing key on top of the NGFW_JWT_KEY_FILE ring and keep the
  * previous signing key (tokens it signed stay valid until they expire); older keys are dropped. Atomic (temp file,
  * fsync, rename), mode 0600, the existing file's owner kept. The API reloads the ring within 5 s.
  * Review M1: the tool runs as root, the API as `apiUser` — so the file may belong to root or to the API user (the
- * product layout: 0600 owned by `vrx`, the only way the API can read it); any other owner, a symlink, or group/other
+ * product layout: 0600 owned by `ngfw`, the only way the API can read it); any other owner, a symlink, or group/other
  * bits are refused. A new file is created for the API user when that user exists (else root, with a note).
- * Rotate at most once per VRX_ACCESS_TTL_SEC: a token signed by a dropped key is refused (the web UI and the CLI then
+ * Rotate at most once per NGFW_ACCESS_TTL_SEC: a token signed by a dropped key is refused (the web UI and the CLI then
  * refresh, which does not depend on this key).
  */
 export function rotateKeyFile(path: string, apiUser = DEFAULT_API_USER): RotateResult {
@@ -187,7 +187,7 @@ export function rotateKeyFile(path: string, apiUser = DEFAULT_API_USER): RotateR
   try {
     writeSync(
       fd,
-      `# VRX access-token key ring (VRX_JWT_KEY_FILE): newest first; written by vrx-authctl rotate-jwt-key\n${ring.join('\n')}\n`,
+      `# NGFW access-token key ring (NGFW_JWT_KEY_FILE): newest first; written by ngfw-authctl rotate-jwt-key\n${ring.join('\n')}\n`,
     );
     fsyncSync(fd);
   } finally {

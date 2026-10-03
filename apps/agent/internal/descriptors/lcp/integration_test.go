@@ -134,8 +134,8 @@ func TestLCPOnHost(t *testing.T) {
 	})
 
 	t.Run("replace helpers", func(t *testing.T) {
-		if os.Getenv("VRX_DF8_LCP_REPLACE") != "1" {
-			t.Skip("replace_begin/end can delete pairs other slots create meanwhile; VRX_DF8_LCP_REPLACE=1 in a manager window (unit-tested with the fake)")
+		if os.Getenv("NGFW_DF8_LCP_REPLACE") != "1" {
+			t.Skip("replace_begin/end can delete pairs other slots create meanwhile; NGFW_DF8_LCP_REPLACE=1 in a manager window (unit-tested with the fake)")
 		}
 		// begin marks every existing pair stale and end deletes the stale ones — of every owner.
 		// Run the round trip only while no pair exists at all (pairs made after begin are fresh).

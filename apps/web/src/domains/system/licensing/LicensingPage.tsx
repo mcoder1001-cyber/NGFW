@@ -178,7 +178,7 @@ export function LicensingPage(): ReactElement {
               <Typography sx={{ mb: 1 }}>{t('upload.help')}</Typography>
               <Button component="label" variant="contained" startIcon={<UploadFileIcon />} disabled={upload.isPending}>
                 {t('upload.button')}
-                <input hidden type="file" accept=".vrxlic,application/json" aria-label={t('upload.button')} onChange={(e) => void onFile(e)} />
+                <input hidden type="file" accept=".ngfwlic,application/json" aria-label={t('upload.button')} onChange={(e) => void onFile(e)} />
               </Button>
               {upload.isSuccess && <Alert severity="success" sx={{ mt: 1 }}>{t('upload.done')}</Alert>}
               {upload.error instanceof SyntaxError && <Alert severity="error" sx={{ mt: 1 }}>{t('upload.notJson')}</Alert>}

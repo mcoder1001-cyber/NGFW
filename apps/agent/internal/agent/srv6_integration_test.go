@@ -1,15 +1,15 @@
 package agent
 
-// F-srv6 host integration check (VRX_INTEGRATION=1, shared lab lock, slot prefix; docs/status/tasks/F-srv6.md):
+// F-srv6 host integration check (NGFW_INTEGRATION=1, shared lab lock, slot prefix; docs/status/tasks/F-srv6.md):
 //
-//	TestSrv6OnHost          in-process agent (owner <prefix>sr, VRX_GLOBALS_OWNER=0): apply routing.srv6 →
+//	TestSrv6OnHost          in-process agent (owner <prefix>sr, NGFW_GLOBALS_OWNER=0): apply routing.srv6 →
 //	                        Retrieve == desired, `vppctl show sr …` lists it → Srv6State reports only our
 //	                        objects → validation failure with pointer → stop, delete our SR objects via binapi
 //	                        (steering → policies → SIDs, each checked first, D-074), start → recreated ≤ 30 s
 //	                        → converged restart re-adds nothing → rollback removes steering → policies → SIDs
 //	                        → VRF with no SR route left (`show ip6 fib table`, `show ip fib`).
-//	TestSrv6GlobalsOnHost   opt-in VRX_FSRV6_GLOBALS=1 (manager window, D-082): the globals owner sets the
-//	                        encap source / hop limit under flock -x /run/lock/vrx-globals.lock and restores the
+//	TestSrv6GlobalsOnHost   opt-in NGFW_FSRV6_GLOBALS=1 (manager window, D-082): the globals owner sets the
+//	                        encap source / hop limit under flock -x /run/lock/ngfw-globals.lock and restores the
 //	                        values it recorded before (write-only: read with `vppctl show sr encaps …`).
 //
 // Addresses: SIDs/BSIDs/segments in fd00:<slot hex>::/48, the steered prefixes 10.<slot>.160.0/24 and
@@ -36,7 +36,7 @@ import (
 	"ngfw/agent/binapi/ip_types"
 	srapi "ngfw/agent/binapi/sr"
 	"ngfw/agent/binapi/sr_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -68,7 +68,7 @@ func srv6HostAddrs(t *testing.T, owner string) srv6Addrs {
 }
 
 // srv6HostDoc is the slot's SRv6 document (canonical form, steering in Retrieve order).
-func srv6HostDoc(t *testing.T, a srv6Addrs) *vrxv1.DesiredState {
+func srv6HostDoc(t *testing.T, a srv6Addrs) *ngfwv1.DesiredState {
 	t.Helper()
 	return doc(t, fmt.Sprintf(`{
 	  "vrfs": {%[1]q: {"id": %[2]d}},
@@ -276,9 +276,9 @@ func TestSrv6OnHost(t *testing.T) {
 	ctx := context.Background()
 	desired := srv6HostDoc(t, a)
 	want := desired.GetRouting().GetSrv6()
-	retrieve := func() *vrxv1.Srv6Config {
+	retrieve := func() *ngfwv1.Srv6Config {
 		t.Helper()
-		got, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+		got, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -286,7 +286,7 @@ func TestSrv6OnHost(t *testing.T) {
 	}
 	waitSrv6 := func(since time.Time) time.Duration {
 		t.Helper()
-		var last *vrxv1.Srv6Config
+		var last *ngfwv1.Srv6Config
 		for time.Since(since) < 30*time.Second {
 			if last = retrieve(); proto.Equal(last, want) {
 				return time.Since(since)
@@ -298,8 +298,8 @@ func TestSrv6OnHost(t *testing.T) {
 	}
 
 	// 1. apply → Retrieve == desired; VPP shows it.
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-1", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-1", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %s", err, protojson.Format(resp))
 	}
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
@@ -312,17 +312,17 @@ func TestSrv6OnHost(t *testing.T) {
 	t.Logf("vppctl show ip fib table %d:\n%s", a.table, srv6Show(t, "show", "ip", "fib", "table", fmt.Sprint(a.table)))
 
 	// 2. Srv6State: exactly our objects.
-	st, err := c.Srv6State(ctx, &vrxv1.Srv6StateRequest{})
+	st, err := c.Srv6State(ctx, &ngfwv1.Srv6StateRequest{})
 	if err != nil || len(st.GetLocalSids()) != 5 || len(st.GetPolicies()) != 2 || len(st.GetSteering()) != 3 {
 		t.Fatalf("Srv6State: %v %s", err, protojson.Format(st))
 	}
 	t.Logf("Srv6State: %s", protojson.Format(st))
 
 	// 3. validation failure with a pointer (the agent's own gate).
-	bad := proto.Clone(desired).(*vrxv1.DesiredState)
+	bad := proto.Clone(desired).(*ngfwv1.DesiredState)
 	bad.GetRouting().GetSrv6().GetPolicies()[a.bsids[0]].EncapSource = nil
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-bad", DesiredState: bad})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_FAILED || resp.GetValidation().GetErrors()[0].GetPointer() != "/routing/srv6/policies/"+a.bsids[0]+"/encapSource" {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-bad", DesiredState: bad})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_FAILED || resp.GetValidation().GetErrors()[0].GetPointer() != "/routing/srv6/policies/"+a.bsids[0]+"/encapSource" {
 		t.Fatalf("encap without source: %v %s", err, protojson.Format(resp))
 	}
 
@@ -347,15 +347,15 @@ func TestSrv6OnHost(t *testing.T) {
 	}
 	c = dialAgent(t, cfg.Socket)
 	h := waitReady(t, c)
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-2", DesiredState: desired})
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-2", DesiredState: desired})
 	if err != nil || len(resp.GetResults()) != 0 {
 		t.Fatalf("converged restart then re-apply changed something: %v %s", err, protojson.Format(resp))
 	}
 	t.Logf("converged restart: last reconcile %s, re-apply unchanged=%d", h.GetLastReconcileAt().AsTime().Format(time.RFC3339), resp.GetSummary().GetUnchanged())
 
 	// 6. rollback: routing and vrfs authoritative and empty → steering → policies → SIDs → VRF, no SR route left.
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-3", DesiredState: doc(t, fmt.Sprintf(`{"interfaces": {%q: {}, %q: {}}}`, a.l1, a.l2)), Subsystems: []string{"interfaces", "vrfs", "routing"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-3", DesiredState: doc(t, fmt.Sprintf(`{"interfaces": {%q: {}, %q: {}}}`, a.l1, a.l2)), Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("rollback: %v %s", err, protojson.Format(resp))
 	}
 	var order []string
@@ -387,14 +387,14 @@ func srv6ShowMaybe(t *testing.T, args ...string) string {
 }
 
 // TestSrv6GlobalsOnHost changes the two write-only VPP globals as the globals owner — only in a manager
-// window (VRX_FSRV6_GLOBALS=1, D-082): exclusive globals lock, previous values recorded first and restored.
+// window (NGFW_FSRV6_GLOBALS=1, D-082): exclusive globals lock, previous values recorded first and restored.
 func TestSrv6GlobalsOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
-	if os.Getenv("VRX_FSRV6_GLOBALS") != "1" {
-		t.Skip("changes the getter-less SRv6 globals; set VRX_FSRV6_GLOBALS=1 in a manager window (D-082)")
+	if os.Getenv("NGFW_FSRV6_GLOBALS") != "1" {
+		t.Skip("changes the getter-less SRv6 globals; set NGFW_FSRV6_GLOBALS=1 in a manager window (D-082)")
 	}
 	vpptest.LockLab(t)
-	f, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // lock file
+	f, err := os.OpenFile("/run/lock/ngfw-globals.lock", os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // lock file
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,8 +439,8 @@ func TestSrv6GlobalsOnHost(t *testing.T) {
 	c := dialAgent(t, cfg.Socket)
 	waitReady(t, c)
 	src := fmt.Sprintf("fd00:%x::99", vpptest.Slot(t))
-	resp, err := c.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: owner + "-g", DesiredState: doc(t, fmt.Sprintf(`{"routing": {"srv6": {"encapSource": %q, "encapHopLimit": 33}}}`, src))})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: owner + "-g", DesiredState: doc(t, fmt.Sprintf(`{"routing": {"srv6": {"encapSource": %q, "encapHopLimit": 33}}}`, src))})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %s", err, protojson.Format(resp))
 	}
 	if s, h := readGlobals(); s != src || h != "33" {

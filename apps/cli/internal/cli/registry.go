@@ -11,7 +11,7 @@ import (
 
 // Where a command is available.
 const (
-	inOp     = 1 << iota // operational mode (and one-shot `vrx <command>`)
+	inOp     = 1 << iota // operational mode (and one-shot `ngfw <command>`)
 	inConfig             // configuration mode
 	inBoth   = inOp | inConfig
 )

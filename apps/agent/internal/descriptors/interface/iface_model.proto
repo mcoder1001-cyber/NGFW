@@ -3,7 +3,7 @@
 // P08 promotes them to packages/proto when the API starts sending desired state (contract PR).
 syntax = "proto3";
 
-package vrx.agent.iface;
+package ngfw.agent.iface;
 
 option go_package = "ngfw/agent/internal/descriptors/interface;iface";
 

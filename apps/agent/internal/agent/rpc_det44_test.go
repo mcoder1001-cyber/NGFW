@@ -12,7 +12,7 @@ import (
 	cnatapi "ngfw/agent/binapi/cnat"
 	"ngfw/agent/binapi/det44"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -80,13 +80,13 @@ func TestCgnatDomainOnFake(t *testing.T) {
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	withNat := doc(t, strings.Replace(natIfDoc, "%s", cgnatPart, 1))
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: withNat})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c1", DesiredState: withNat})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	want := doc(t, `{"nat":`+canonicalCgnat+`}`).GetNat()
 	if got := natNat(t, s); !proto.Equal(got, want) {
 		t.Fatalf("Retrieve nat != canonical:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
-	if resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "c2", DesiredState: withNat}); len(resp.GetResults()) != 0 {
+	if resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c2", DesiredState: withNat}); len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
 
@@ -115,8 +115,8 @@ func TestCgnatDomainOnFake(t *testing.T) {
 	}
 
 	// rollback: every object of this owner leaves VPP; det44 stays enabled (V9); the globals are untouched
-	resp = apply(t, s2, &vrxv1.ApplyRequest{TxnId: "c3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "c3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := natNat(t, s2); proto.Size(got) != 0 {
 		t.Fatalf("Retrieve after rollback: %s", protojson.Format(got))
 	}
@@ -142,8 +142,8 @@ func TestCgnatSlotRequiresGlobals(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
 	withNat := doc(t, strings.Replace(natIfDoc, "%s", `, "nat": {"dslite": {"enabled": true, "aftr": {"ipv6": "fd00:7::1"}}}`, 1))
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: withNat})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: withNat})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("slot agent applied a DS-Lite AFTR it does not own: %v", resp.GetResults())
 	}
 	ds := v.Dslite()

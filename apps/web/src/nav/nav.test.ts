@@ -4,12 +4,12 @@ import { domains } from '../schema/registry';
 import { buildNav, currentNavPath, DOMAIN_GROUP, NAV_GROUPS, domainPath } from './nav';
 
 describe('navigation from the schema (vdom.md guardrail 4)', () => {
-  it('places every root key exactly once, in x-vrx-ui.order, with dashboard first and dev last', () => {
+  it('places every root key exactly once, in x-ngfw-ui.order, with dashboard first and dev last', () => {
     const nav = buildNav(domains, { devRoutes: true });
     const domainItems = nav.flatMap((g) => g.items).filter((i) => i.domain);
     expect([...domainItems.map((i) => i.domain)].sort()).toEqual([...ROOT_KEYS].sort());
     expect(new Set(domainItems.map((i) => i.domain)).size).toBe(ROOT_KEYS.length);
-    // inside each group the schema order (x-vrx-ui.order) is kept
+    // inside each group the schema order (x-ngfw-ui.order) is kept
     const rank = new Map(domains.map((d, i) => [d.key, i]));
     for (const g of nav) {
       const ranks = g.items.filter((i) => i.domain).map((i) => rank.get(i.domain!)!);

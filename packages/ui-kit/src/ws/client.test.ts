@@ -3,13 +3,13 @@ import type { AddressInfo } from 'node:net';
 import { once } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocketServer, type WebSocket as ServerSocket } from 'ws';
-import { VrxWsClient, type TopicMessage, type WebSocketLike, type WsStatus } from './client.js';
+import { NgfwWsClient, type TopicMessage, type WebSocketLike, type WsStatus } from './client.js';
 
 /**
  * Runs the real client against a real `ws` server on an ephemeral loopback port (no slot port needed;
  * nothing is left running — the server is closed in afterEach).
  */
-describe('VrxWsClient against a mock WebSocket server', () => {
+describe('NgfwWsClient against a mock WebSocket server', () => {
   let wss: WebSocketServer;
   let url: string;
   const serverSockets: ServerSocket[] = [];
@@ -35,7 +35,7 @@ describe('VrxWsClient against a mock WebSocket server', () => {
   const factory = (u: string): WebSocketLike => new WebSocket(u) as unknown as WebSocketLike;
 
   it('multiplexes topics on one socket, buffers at the flush rate and unsubscribes on release', async () => {
-    const client = new VrxWsClient({ url, factory, flushIntervalMs: 50, backoff: { baseMs: 10, maxMs: 50 }, idleCloseDelayMs: 0 });
+    const client = new NgfwWsClient({ url, factory, flushIntervalMs: 50, backoff: { baseMs: 10, maxMs: 50 }, idleCloseDelayMs: 0 });
     const statuses: WsStatus[] = [];
     client.onStatus((s) => statuses.push(s));
     const batches: TopicMessage<{ rx: number }>[][] = [];
@@ -64,7 +64,7 @@ describe('VrxWsClient against a mock WebSocket server', () => {
   });
 
   it('reconnects with backoff after the server drops the connection and re-subscribes', async () => {
-    const client = new VrxWsClient({ url, factory, flushIntervalMs: 0, backoff: { baseMs: 10, maxMs: 40, jitter: 0 }, idleCloseDelayMs: 0 });
+    const client = new NgfwWsClient({ url, factory, flushIntervalMs: 0, backoff: { baseMs: 10, maxMs: 40, jitter: 0 }, idleCloseDelayMs: 0 });
     const statuses: WsStatus[] = [];
     client.onStatus((s) => statuses.push(s));
     const data: unknown[] = [];
@@ -87,7 +87,7 @@ describe('VrxWsClient against a mock WebSocket server', () => {
   });
 
   it('keeps retrying while the server is unreachable and stops when closed', async () => {
-    const client = new VrxWsClient({ url: 'ws://127.0.0.1:1/api/v1/stream', factory, backoff: { baseMs: 5, maxMs: 20, jitter: 0 }, onError: () => {} });
+    const client = new NgfwWsClient({ url: 'ws://127.0.0.1:1/api/v1/stream', factory, backoff: { baseMs: 5, maxMs: 20, jitter: 0 }, onError: () => {} });
     const off = client.subscribe('iface.counters', () => {});
     await vi.waitFor(() => expect(client.status).toBe('reconnecting'));
     client.close();

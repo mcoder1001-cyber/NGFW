@@ -135,7 +135,7 @@ describe('unbound-chrony-syslog e2e (PostgreSQL + fake agent)', () => {
     const warn = await h.call(admin, 'GET', '/api/v1/state/logs?severity=warning');
     expect(warn.body.items.map((e: { identifier: string }) => e.identifier)).toEqual([
       'chronyd',
-      'vrx-test',
+      'ngfw-test',
     ]);
     const fac = await h.call(admin, 'GET', '/api/v1/state/logs?facility=local7&q=FORWARDED');
     expect(fac.body.items).toEqual([

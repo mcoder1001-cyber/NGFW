@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/subsystems/ruleexpiry"
 )
@@ -34,7 +34,7 @@ func TestACLRuleRemovedAtExpiryWithoutACommit(t *testing.T) {
     "attachments": [{"list": "tmp", "target": {"kind": "interface", "interface": "loop701"}, "direction": "in", "sequence": 1, "enabled": true}]
   }
 }`, at))
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: d}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: d}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	idx := ownedACL(t, v, "tmp")
 	if n := len(v.ACL().Rules(idx)); n != 2 {
 		t.Fatalf("before expiry: %d VPP rules, want 2", n)
@@ -58,7 +58,7 @@ func TestACLRuleRemovedAtExpiryWithoutACommit(t *testing.T) {
 	s.Close()
 	v2 := v
 	s2, _ := newACLSvc(t, v2, dir, false)
-	mustStatus(t, s2.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s2.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if rules := v.ACL().Rules(ownedACL(t, v, "tmp")); len(rules) != 1 {
 		t.Fatalf("after an agent restart: VPP rules %+v, want the expired rule still out", rules)
 	}

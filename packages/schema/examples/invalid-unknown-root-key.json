@@ -1,4 +1,4 @@
 {
-  "system": { "hostname": "vrx-a" },
+  "system": { "hostname": "ngfw-a" },
   "tenants": { "customer-a": {} }
 }

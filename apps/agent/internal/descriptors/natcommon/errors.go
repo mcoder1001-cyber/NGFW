@@ -10,7 +10,7 @@ import (
 )
 
 // ErrPluginNotLoaded is returned by Retrieve when the plugin's messages are unknown to this
-// VPP (docs/lab/host-vrx-a.md: npt66 is not loaded). Integration tests t.Skip on it.
+// VPP (docs/lab/host-ngfw-a.md: npt66 is not loaded). Integration tests t.Skip on it.
 var ErrPluginNotLoaded = errors.New("natcommon: plugin not loaded on this VPP")
 
 // ErrRetrieveUnsupported is returned by Retrieve of object types whose VPP state cannot be

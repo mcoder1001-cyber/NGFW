@@ -13,13 +13,13 @@ import (
 // web build (apps/web/dist) on the slot web port, and an external headless-browser script (playwright-core +
 // Chrome-for-Testing from env paths, nothing installed, nothing committed — the P07a/P07b/P08 approach).
 //
-//	VRX_HA_SHOTS=<node script> VRX_HA_SHOTS_OUT=<dir> run.sh -run TestHostACLScreenshots
+//	NGFW_HA_SHOTS=<node script> NGFW_HA_SHOTS_OUT=<dir> run.sh -run TestHostACLScreenshots
 //
 // The script is called as: node <script> <baseUrl> <outDir> <adminPasswordFile>.
 func TestHostACLScreenshots(t *testing.T) {
-	script, out := os.Getenv("VRX_HA_SHOTS"), os.Getenv("VRX_HA_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || script == "" || out == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_HA_SHOTS (node script) and VRX_HA_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_HA_SHOTS"), os.Getenv("NGFW_HA_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || script == "" || out == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_HA_SHOTS (node script) and NGFW_HA_SHOTS_OUT")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -34,7 +34,7 @@ func TestHostACLScreenshots(t *testing.T) {
 	a := st.api
 
 	webDir := filepath.Join(s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+s.webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+s.webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.work, "vite.log"), env, filepath.Join(webDir, "node_modules", ".bin", "vite"), "preview", webDir)
 	t.Cleanup(func() { pv.stop(t) })
 

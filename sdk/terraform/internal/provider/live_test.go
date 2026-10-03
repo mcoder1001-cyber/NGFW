@@ -19,27 +19,27 @@ import (
 	"ngfw/sdk/terraform/internal/tfharness"
 )
 
-// TestLive drives the provider against a REAL VRX API + vrx-agent + VPP on the caller's slot, through the plugin
+// TestLive drives the provider against a REAL NGFW API + ngfw-agent + VPP on the caller's slot, through the plugin
 // protocol exactly as Terraform core would (the terraform CLI is not installed on this host):
 //
 //	eval "$(tools/lab env 5)"
 //	test/topology/sdk-terraform-ansible/live.sh run go -C sdk/terraform test -count=1 -v -run TestLive ./internal/provider
 //
-// Skipped unless VRX_INTEGRATION=1 and VRX_SDK_URL / VRX_SDK_API_KEY_FILE are set. Objects: loop<slot>21/22 on
+// Skipped unless NGFW_INTEGRATION=1 and NGFW_SDK_URL / NGFW_SDK_API_KEY_FILE are set. Objects: loop<slot>21/22 on
 // 10.<slot>.12{1,2}.0/24 and the user <prefix>tf; all removed at the end.
 func TestLive(t *testing.T) {
-	url, keyFile := os.Getenv("VRX_SDK_URL"), os.Getenv("VRX_SDK_API_KEY_FILE")
-	if os.Getenv("VRX_INTEGRATION") != "1" || url == "" || keyFile == "" {
-		t.Skip("live run: VRX_INTEGRATION=1 + VRX_SDK_URL + VRX_SDK_API_KEY_FILE (test/topology/sdk-terraform-ansible/live.sh run …)")
+	url, keyFile := os.Getenv("NGFW_SDK_URL"), os.Getenv("NGFW_SDK_API_KEY_FILE")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || url == "" || keyFile == "" {
+		t.Skip("live run: NGFW_INTEGRATION=1 + NGFW_SDK_URL + NGFW_SDK_API_KEY_FILE (test/topology/sdk-terraform-ansible/live.sh run …)")
 	}
 	key, err := os.ReadFile(keyFile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prefix := os.Getenv("VRX_TEST_PREFIX")
+	prefix := os.Getenv("NGFW_TEST_PREFIX")
 	slot := regexp.MustCompile(`\d+`).FindString(prefix)
 	if slot == "" {
-		t.Fatal("VRX_TEST_PREFIX must be w<N>")
+		t.Fatal("NGFW_TEST_PREFIX must be w<N>")
 	}
 	h, err := tfharness.New(provider.New("live"))
 	if err != nil {
@@ -117,14 +117,14 @@ func TestLive(t *testing.T) {
 	t.Cleanup(cleanup)
 	cidr := func(n, host int) string { return fmt.Sprintf("10.%s.%d.%d/24", slot, n, host) }
 
-	// 1. vrx_config: create → no-diff → update → no-diff
-	stA := step("vrx_config", h.Null("vrx_config"), map[string]any{"pointer": ptrA,
+	// 1. ngfw_config: create → no-diff → update → no-diff
+	stA := step("ngfw_config", h.Null("ngfw_config"), map[string]any{"pointer": ptrA,
 		"value": fmt.Sprintf(`{"enabled":true,"ipv4":[%q]}`, cidr(121, 1))})
-	stA = step("vrx_config", stA, map[string]any{"pointer": ptrA,
+	stA = step("ngfw_config", stA, map[string]any{"pointer": ptrA,
 		"value": fmt.Sprintf(`{"enabled":true,"ipv4":[%q]}`, cidr(121, 2))})
 
-	// 2. data "vrx_state" sees it (agent Retrieve) and VPP has the address
-	ds, err := h.ReadData("vrx_state", map[string]any{"path": "interfaces"})
+	// 2. data "ngfw_state" sees it (agent Retrieve) and VPP has the address
+	ds, err := h.ReadData("ngfw_state", map[string]any{"path": "interfaces"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestLive(t *testing.T) {
 	for _, it := range st.Items {
 		if it.Name == ifA {
 			found = true
-			say("data.vrx_state interfaces: %s config=%v", it.Name, it.Config)
+			say("data.ngfw_state interfaces: %s config=%v", it.Name, it.Config)
 			if fmt.Sprint(it.Config["ipv4"]) != fmt.Sprint([]any{cidr(121, 2)}) {
 				t.Fatalf("state ipv4 = %v", it.Config["ipv4"])
 			}
@@ -150,23 +150,23 @@ func TestLive(t *testing.T) {
 	}
 	say("vppctl show int addr: %s", vppAddr(ifA))
 
-	// 3. import by pointer into a fresh state = what `terraform import vrx_config.x <pointer>` does
-	imp, err := h.Import("vrx_config", ptrA)
+	// 3. import by pointer into a fresh state = what `terraform import ngfw_config.x <pointer>` does
+	imp, err := h.Import("ngfw_config", ptrA)
 	if err != nil {
 		t.Fatal(err)
 	}
 	say("import %s → value=%s", ptrA, tfharness.Attr(imp, "value"))
 
-	// 4. vrx_interface (typed, generated from the interfaces JSON Schema)
-	stB := step("vrx_interface", h.Null("vrx_interface"), map[string]any{"name": ifB, "enabled": true,
+	// 4. ngfw_interface (typed, generated from the interfaces JSON Schema)
+	stB := step("ngfw_interface", h.Null("ngfw_interface"), map[string]any{"name": ifB, "enabled": true,
 		"ipv4": []any{cidr(122, 1)}, "mtu": 1500, "description": "terraform " + prefix})
-	stB = step("vrx_interface", stB, map[string]any{"name": ifB, "enabled": true,
+	stB = step("ngfw_interface", stB, map[string]any{"name": ifB, "enabled": true,
 		"ipv4": []any{cidr(122, 1)}, "mtu": 9000, "description": "terraform " + prefix})
 	say("vppctl show int addr: %s", vppAddr(ifB))
 
 	// 5. secrets: a user's passwordHash only through the write-only sensitive_value
 	hashAdmin, hash := randomPHC(), randomPHC()
-	users, err := h.Import("vrx_config", "/management/users")
+	users, err := h.Import("ngfw_config", "/management/users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,9 +176,9 @@ func TestLive(t *testing.T) {
 		// matched by username (keyed array), never by position
 		"sensitive_value":         fmt.Sprintf(`[{"username":%q,"passwordHash":%q},{"username":"admin","passwordHash":%q}]`, user, hash, hashAdmin),
 		"sensitive_value_version": 1}
-	users = step("vrx_config", users, usersCfg)
-	cfgNoHash, _ := h.Config("vrx_config", map[string]any{"pointer": "/management/users", "value": fmt.Sprintf(`[{"username":%q,"role":"operator","passwordHash":%q}]`, user, hash)})
-	verr := h.Validate("vrx_config", cfgNoHash)
+	users = step("ngfw_config", users, usersCfg)
+	cfgNoHash, _ := h.Config("ngfw_config", map[string]any{"pointer": "/management/users", "value": fmt.Sprintf(`[{"username":%q,"role":"operator","passwordHash":%q}]`, user, hash)})
+	verr := h.Validate("ngfw_config", cfgNoHash)
 	say("hash inside value → validation: %v", firstLine(verr))
 	if verr == nil {
 		t.Fatal("a write-only member in value was accepted")
@@ -189,12 +189,12 @@ func TestLive(t *testing.T) {
 	say("state after apply: sensitive_value=%v (write-only), hash in state: %v", tfharness.Attr(users, "sensitive_value"), strings.Contains(users.String(), hash))
 	say("app_user %s has a password hash: %s", user, appUserHasHash(prefix, user))
 	// remove the test user again (admin keeps its hash: an omitted passwordHash is "unchanged", D-046)
-	users = step("vrx_config", users, map[string]any{"pointer": "/management/users", "value": `[{"username":"admin","role":"admin"}]`, "sensitive_value_version": 1})
+	users = step("ngfw_config", users, map[string]any{"pointer": "/management/users", "value": `[{"username":"admin","role":"admin"}]`, "sensitive_value_version": 1})
 	say("app_user %s still present: %s", user, appUserHasHash(prefix, user))
 
 	// 6. destroy everything
-	step("vrx_interface", stB, nil)
-	step("vrx_config", stA, nil)
+	step("ngfw_interface", stB, nil)
+	step("ngfw_config", stA, nil)
 	_ = users
 	say("after destroy: %s %s", vppAddr(ifA), vppAddr(ifB))
 }
@@ -229,14 +229,14 @@ func randomPHC() string {
 // appUserHasHash asks PostgreSQL (the slot database, credentials from /run) whether the user got a hash — prints
 // only a boolean.
 func appUserHasHash(prefix, user string) string {
-	env, err := os.ReadFile("/run/vrx-test/" + prefix + "/pg.env")
+	env, err := os.ReadFile("/run/ngfw-test/" + prefix + "/pg.env")
 	if err != nil {
 		return "(no pg.env)"
 	}
 	dsn := ""
 	for _, l := range strings.Split(string(env), "\n") {
-		if strings.HasPrefix(l, "VRX_PG_DSN=") {
-			dsn = strings.TrimPrefix(l, "VRX_PG_DSN=")
+		if strings.HasPrefix(l, "NGFW_PG_DSN=") {
+			dsn = strings.TrimPrefix(l, "NGFW_PG_DSN=")
 		}
 	}
 	out, err := exec.Command("psql", dsn, "-XAtc",

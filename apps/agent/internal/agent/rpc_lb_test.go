@@ -21,7 +21,7 @@ import (
 	"ngfw/agent/binapi/lb_types"
 	"ngfw/agent/binapi/memclnt"
 	"ngfw/agent/binapi/vlib"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/vpp/bootid"
 )
@@ -243,10 +243,10 @@ const lbDoc = `{
 func TestLbApplyStateFlushRemove(t *testing.T) {
 	v := coretest.New()
 	m := installLbModel(t, v)
-	s := newSvc(t, v, t.TempDir()) // a slot agent: VRX_GLOBALS_OWNER=0
+	s := newSvc(t, v, t.TempDir()) // a slot agent: NGFW_GLOBALS_OWNER=0
 	ctx := context.Background()
 
-	rep, err := s.DryRun(ctx, &vrxv1.DryRunRequest{DesiredState: doc(t, lbDoc)})
+	rep, err := s.DryRun(ctx, &ngfwv1.DryRunRequest{DesiredState: doc(t, lbDoc)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run %v %v", err, rep)
 	}
@@ -258,7 +258,7 @@ func TestLbApplyStateFlushRemove(t *testing.T) {
 		t.Fatalf("notes %v", notes)
 	}
 
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "lb1", DesiredState: doc(t, lbDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "lb1", DesiredState: doc(t, lbDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if vips, used, ases, usedAses := m.counts(); vips != 3 || used != 3 || ases != 4 || usedAses != 4 || m.natTotal() != 1 {
 		t.Fatalf("model after apply: vips %d/%d ases %d/%d nat %d", used, vips, usedAses, ases, m.natTotal())
 	}
@@ -266,12 +266,12 @@ func TestLbApplyStateFlushRemove(t *testing.T) {
 		t.Fatalf("a slot agent sent lb_conf %d times (D-071)", n)
 	}
 	// write-only: Retrieve never reports services.lb
-	got, err := s.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"services"}})
+	got, err := s.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"services"}})
 	if err != nil || got.GetDesiredState().GetServices().GetLb() != nil {
 		t.Fatalf("retrieve %v %v", err, got)
 	}
 
-	st, err := s.LbState(ctx, &vrxv1.LbStateRequest{})
+	st, err := s.LbState(ctx, &ngfwv1.LbStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,12 +288,12 @@ func TestLbApplyStateFlushRemove(t *testing.T) {
 	if dsr.GetName() != "dsr" || dsr.GetEncap() != "l3dsr" || dsr.GetDscp() != 10 || dsr.GetPort() != 0 {
 		t.Fatalf("dsr %v", dsr)
 	}
-	if st, err := s.LbState(ctx, &vrxv1.LbStateRequest{Names: []string{"dsr"}}); err != nil || len(st.GetVips()) != 1 {
+	if st, err := s.LbState(ctx, &ngfwv1.LbStateRequest{Names: []string{"dsr"}}); err != nil || len(st.GetVips()) != 1 {
 		t.Fatalf("filter %v %v", err, st)
 	}
 
 	// flush: the ip46 layout for an IPv4 VIP, protocol and port of the VIP
-	fr, err := s.LbFlushVip(ctx, &vrxv1.LbFlushVipRequest{Name: "web"})
+	fr, err := s.LbFlushVip(ctx, &ngfwv1.LbFlushVipRequest{Name: "web"})
 	if err != nil || fr.GetVip() != "lb.vip/10.2.250.1/32/tcp/80" || len(m.flushed) != 1 {
 		t.Fatalf("flush %v %v", err, fr)
 	}
@@ -307,35 +307,35 @@ func TestLbApplyStateFlushRemove(t *testing.T) {
 	if err := s.lock(ctx); err != nil {
 		t.Fatal(err)
 	}
-	_, err = s.LbFlushVip(ctx, &vrxv1.LbFlushVipRequest{Name: "web"})
+	_, err = s.LbFlushVip(ctx, &ngfwv1.LbFlushVipRequest{Name: "web"})
 	s.unlock()
 	lbWalkWait = prevWait
 	if grpcCode(err) != codes.Unavailable || len(m.flushed) != 1 {
 		t.Fatalf("flush during a transaction: %v (%d flushes)", err, len(m.flushed))
 	}
 	for name, want := range map[string]codes.Code{"nope": codes.NotFound, "": codes.InvalidArgument} {
-		if _, err := s.LbFlushVip(ctx, &vrxv1.LbFlushVipRequest{Name: name}); grpcCode(err) != want {
+		if _, err := s.LbFlushVip(ctx, &ngfwv1.LbFlushVipRequest{Name: name}); grpcCode(err) != want {
 			t.Fatalf("flush %q: %v", name, err)
 		}
 	}
-	if _, err := s.LbState(ctx, &vrxv1.LbStateRequest{Owner: "other"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.LbState(ctx, &ngfwv1.LbStateRequest{Owner: "other"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatal(err)
 	}
 
 	// a VIP change is delete + add: VPP keeps the old entry as "removed" (V20)
 	changed := strings.Replace(lbDoc, `"port": 80, "encap": "gre4", "newFlowsTableLength": 1024`, `"port": 80, "encap": "gre4", "newFlowsTableLength": 2048`, 1)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "lb2", DesiredState: doc(t, changed)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	st, _ = s.LbState(ctx, &vrxv1.LbStateRequest{Names: []string{"web"}})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "lb2", DesiredState: doc(t, changed)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	st, _ = s.LbState(ctx, &ngfwv1.LbStateRequest{Names: []string{"web"}})
 	if w := st.GetVips()[0]; w.GetVppEntries() != 2 || len(w.GetServers()) != 4 || !w.GetServers()[0].GetInUse() || w.GetServers()[3].GetInUse() {
 		t.Fatalf("changed web %v", w)
 	}
 
 	// removal: delete messages sent, VPP lists the VIPs as removed, the NAT feature is disabled
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "lb3", DesiredState: doc(t, `{"interfaces": {"loop731": {"ipv4": ["10.7.31.1/24"]}}, "services": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "lb3", DesiredState: doc(t, `{"interfaces": {"loop731": {"ipv4": ["10.7.31.1/24"]}}, "services": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if vips, used, _, usedAses := m.counts(); vips != 4 || used != 0 || usedAses != 0 || m.natTotal() != 0 {
 		t.Fatalf("after removal: %d vips, %d used, %d ASes in use, nat %d", vips, used, usedAses, m.natTotal())
 	}
-	if st, err := s.LbState(ctx, &vrxv1.LbStateRequest{}); err != nil || len(st.GetVips()) != 0 || st.GetTotalVppVips() != 4 {
+	if st, err := s.LbState(ctx, &ngfwv1.LbStateRequest{}); err != nil || len(st.GetVips()) != 0 || st.GetTotalVppVips() != 4 {
 		t.Fatalf("state after removal %v %v", err, st)
 	}
 	if len(m.cli) != 0 {
@@ -350,15 +350,15 @@ func TestLbRestartReappliesWithoutDuplicates(t *testing.T) {
 	m := installLbModel(t, v)
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "lb1", DesiredState: doc(t, lbDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "lb1", DesiredState: doc(t, lbDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close()
 
 	s2 := newSvc(t, v, dir)
-	mustStatus(t, s2.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s2.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if vips, used, ases, _ := m.counts(); vips != 3 || used != 3 || ases != 4 || m.natTotal() != 1 {
 		t.Fatalf("resync duplicated: vips %d/%d ases %d nat %d", used, vips, ases, m.natTotal())
 	}
-	st, err := s2.LbState(context.Background(), &vrxv1.LbStateRequest{})
+	st, err := s2.LbState(context.Background(), &ngfwv1.LbStateRequest{})
 	if err != nil || len(st.GetVips()) != 3 || !st.GetVips()[0].GetApplied() || !st.GetVips()[2].GetApplied() {
 		t.Fatalf("records lost across the restart: %v %v", err, st)
 	}
@@ -376,7 +376,7 @@ func TestLbRestartReappliesWithoutDuplicates(t *testing.T) {
 	}
 	m.mu.Unlock()
 	s3 := newSvc(t, v, dir)
-	mustStatus(t, s3.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s3.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, used, _, usedAses := m.counts(); used != 3 || usedAses != 4 {
 		t.Fatalf("lost VIP not re-created: %d VIPs, %d ASes in use", used, usedAses)
 	}
@@ -386,7 +386,7 @@ func TestLbRestartReappliesWithoutDuplicates(t *testing.T) {
 func TestLbProjectionRefusesSentinel(t *testing.T) {
 	s := newSvc(t, coretest.New(), t.TempDir())
 	bad := strings.Replace(lbDoc, "10.2.250.1/32", "0.0.0.0/32", 1)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, bad)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: doc(t, bad)})
 	if err != nil || rep.GetOk() {
 		t.Fatalf("%v %v", err, rep)
 	}

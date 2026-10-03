@@ -16,7 +16,7 @@ import (
 	bondapi "ngfw/agent/binapi/bond"
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/bond"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	iface "ngfw/agent/internal/descriptors/interface"
@@ -59,8 +59,8 @@ func bondFake(t *testing.T) (*coretest.VPP, *Service) {
 	return v, newSvc(t, v, t.TempDir())
 }
 
-func resultsByKey(resp *vrxv1.ApplyResponse) map[string]*vrxv1.ObjectResult {
-	out := map[string]*vrxv1.ObjectResult{}
+func resultsByKey(resp *ngfwv1.ApplyResponse) map[string]*ngfwv1.ObjectResult {
+	out := map[string]*ngfwv1.ObjectResult{}
 	for _, r := range resp.GetResults() {
 		out[r.GetKey()] = r
 	}
@@ -69,8 +69,8 @@ func resultsByKey(resp *vrxv1.ApplyResponse) map[string]*vrxv1.ObjectResult {
 
 func TestBondingOnFake(t *testing.T) {
 	v, s := bondFake(t)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, bondDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, bondDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	by := resultsByKey(resp)
 	for k, ptr := range map[string]string{
 		"bond.bond/BondEthernet6000":                      "/interfaces/BondEthernet6000/bond",
@@ -107,16 +107,16 @@ func TestBondingOnFake(t *testing.T) {
 			t.Fatalf("no bond.member claim on %s", m)
 		}
 	}
-	if got, want := retrieveIfs(t, s), doc(t, canonicalBondDoc); !proto.Equal(got.GetInterfaces()["BondEthernet6000"], want.GetInterfaces()["BondEthernet6000"]) || !proto.Equal(got, &vrxv1.DesiredState{Interfaces: want.GetInterfaces()}) {
+	if got, want := retrieveIfs(t, s), doc(t, canonicalBondDoc); !proto.Equal(got.GetInterfaces()["BondEthernet6000"], want.GetInterfaces()["BondEthernet6000"]) || !proto.Equal(got, &ngfwv1.DesiredState{Interfaces: want.GetInterfaces()}) {
 		t.Fatalf("Retrieve != canonical desired:\n%s", protojson.Format(got))
 	}
 	v.Reset()
-	if resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, canonicalBondDoc)}); len(resp.GetResults()) != 0 {
+	if resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, canonicalBondDoc)}); len(resp.GetResults()) != 0 {
 		t.Fatalf("re-applying the retrieved document changed %v", resp.GetResults())
 	}
 
 	// BondState: the live view.
-	st, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+	st, err := s.BondState(context.Background(), &ngfwv1.BondStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,10 +137,10 @@ func TestBondingOnFake(t *testing.T) {
 	if m1.GetInterface() != "tap6001" || !m1.GetPassive() || !m1.GetLongTimeout() || strings.Contains(strings.Join(m1.GetLacp().GetActor().GetStateFlags(), ","), "timeout") {
 		t.Fatalf("member 1 %v", m1)
 	}
-	if st, _ := s.BondState(context.Background(), &vrxv1.BondStateRequest{Names: []string{"BondEthernet1"}}); len(st.GetBonds()) != 0 {
+	if st, _ := s.BondState(context.Background(), &ngfwv1.BondStateRequest{Names: []string{"BondEthernet1"}}); len(st.GetBonds()) != 0 {
 		t.Fatalf("names filter %v", st)
 	}
-	if _, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{Owner: "w9"}); err == nil {
+	if _, err := s.BondState(context.Background(), &ngfwv1.BondStateRequest{Owner: "w9"}); err == nil {
 		t.Fatal("foreign owner accepted")
 	}
 
@@ -150,11 +150,11 @@ func TestBondingOnFake(t *testing.T) {
 	// interface/BondEthernet6000.100 gives the planner no edge to interface.subinterface (TD-11c 3.1c; the same holds
 	// for a sub-interface of any parent), so they cannot yet be deleted in the same transaction as the sub-interface.
 	noSubAttrs := doc(t, bondDoc)
-	noSubAttrs.Interfaces["BondEthernet6000"].Subinterfaces["100"] = &vrxv1.Subinterface{VlanId: proto.Uint32(100)}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b3a", DesiredState: noSubAttrs}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	noSubAttrs.Interfaces["BondEthernet6000"].Subinterfaces["100"] = &ngfwv1.Subinterface{VlanId: proto.Uint32(100)}
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b3a", DesiredState: noSubAttrs}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.Reset()
 	base := doc(t, `{"interfaces": {"tap6000": {"enabled": true}, "tap6001": {"enabled": true}}}`)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b3", DesiredState: base}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b3", DesiredState: base}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var order []string
 	for _, c := range v.Calls() {
 		switch m := c.(type) {
@@ -183,7 +183,7 @@ func TestBondingOnFake(t *testing.T) {
 	}
 
 	// Loss behind the agent's back (members first, then the bond — D-095c) → resync re-creates all of it.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "b4", DesiredState: doc(t, bondDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b4", DesiredState: doc(t, bondDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	b, _ = v.Bond("BondEthernet6000")
 	ctx := context.Background()
 	for _, m := range []string{"tap6000", "tap6001"} {
@@ -195,10 +195,10 @@ func TestBondingOnFake(t *testing.T) {
 	if _, err := bondapi.NewServiceClient(v).BondDelete(ctx, &bondapi.BondDelete{SwIfIndex: bondIfIndex(b.Index)}); err != nil {
 		t.Fatal(err)
 	}
-	if r := s.Resync(ctx); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
+	if r := s.Resync(ctx); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync %v", r)
 	}
-	if got, want := retrieveIfs(t, s), doc(t, canonicalBondDoc); !proto.Equal(got, &vrxv1.DesiredState{Interfaces: want.GetInterfaces()}) {
+	if got, want := retrieveIfs(t, s), doc(t, canonicalBondDoc); !proto.Equal(got, &ngfwv1.DesiredState{Interfaces: want.GetInterfaces()}) {
 		t.Fatalf("after resync Retrieve != canonical desired:\n%s", protojson.Format(got))
 	}
 }
@@ -209,14 +209,14 @@ func TestBondingActiveBackupWeightsAndModeChange(t *testing.T) {
 	  "BondEthernet6001": {"enabled": true, "ipv4": ["10.6.11.1/24"],
 	    "bond": {"mode": "active-backup", "id": 6001, "members": {"tap6000": {"weight": 200}, "tap6001": {"weight": 100}, "tap6002": {}}}},
 	  "tap6000": {"enabled": true}, "tap6001": {"enabled": true}, "tap6002": {"enabled": true}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "w1", DesiredState: doc(t, ab)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "w1", DesiredState: doc(t, ab)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	b, _ := v.Bond("BondEthernet6001")
 	ms := v.BondMembers("BondEthernet6001")
 	if b.Mode != bondapi.BOND_API_MODE_ACTIVE_BACKUP || b.Lb != bondapi.BOND_API_LB_ALGO_AB || ms["tap6000"].Weight != 200 || ms["tap6001"].Weight != 100 || ms["tap6002"].Weight != 0 {
 		t.Fatalf("VPP %+v %+v", b, ms)
 	}
 	got := retrieveIfs(t, s).GetInterfaces()["BondEthernet6001"].GetBond()
-	want := &vrxv1.Bond{Mode: proto.String("active-backup"), NumaOnly: proto.Bool(false), Id: proto.Uint32(6001), Members: map[string]*vrxv1.BondMember{
+	want := &ngfwv1.Bond{Mode: proto.String("active-backup"), NumaOnly: proto.Bool(false), Id: proto.Uint32(6001), Members: map[string]*ngfwv1.BondMember{
 		"tap6000": {Passive: proto.Bool(false), LongTimeout: proto.Bool(false), Weight: proto.Uint32(200)},
 		"tap6001": {Passive: proto.Bool(false), LongTimeout: proto.Bool(false), Weight: proto.Uint32(100)},
 		"tap6002": {Passive: proto.Bool(false), LongTimeout: proto.Bool(false)},
@@ -224,7 +224,7 @@ func TestBondingActiveBackupWeightsAndModeChange(t *testing.T) {
 	if !proto.Equal(got, want) { // no loadBalance on an active-backup bond; id because the document sets it
 		t.Fatalf("Retrieve bond = %v", got)
 	}
-	st, _ := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+	st, _ := s.BondState(context.Background(), &ngfwv1.BondStateRequest{})
 	if bs := st.GetBonds()[0]; bs.GetLoadBalance() != "active-backup" || bs.GetActiveMemberCount() != 3 || bs.GetMembers()[0].GetWeight() != 200 || bs.GetMembers()[0].GetLacp() != nil {
 		t.Fatalf("BondState %v", bs)
 	}
@@ -232,9 +232,9 @@ func TestBondingActiveBackupWeightsAndModeChange(t *testing.T) {
 	// a weight change is an in-place update of one object
 	v.Reset()
 	upd := strings.Replace(ab, `"weight": 100`, `"weight": 250`, 1)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "w2", DesiredState: doc(t, upd)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	if len(resp.GetResults()) != 1 || resp.GetResults()[0].GetKey() != "bond.member-weight/BondEthernet6001/tap6001" || resp.GetResults()[0].GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_UPDATE ||
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "w2", DesiredState: doc(t, upd)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if len(resp.GetResults()) != 1 || resp.GetResults()[0].GetKey() != "bond.member-weight/BondEthernet6001/tap6001" || resp.GetResults()[0].GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_UPDATE ||
 		v.BondMembers("BondEthernet6001")["tap6001"].Weight != 250 || len(v.CallsNamed("bond_delete")) != 0 {
 		t.Fatalf("weight update %v, VPP %+v", resp.GetResults(), v.BondMembers("BondEthernet6001"))
 	}
@@ -244,7 +244,7 @@ func TestBondingActiveBackupWeightsAndModeChange(t *testing.T) {
 	  "BondEthernet6001": {"enabled": true, "ipv4": ["10.6.11.1/24"],
 	    "bond": {"mode": "xor", "loadBalance": "l23", "id": 6001, "members": {"tap6000": {}, "tap6001": {}}}},
 	  "tap6000": {"enabled": true}, "tap6001": {"enabled": true}, "tap6002": {"enabled": true}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "w3", DesiredState: doc(t, xor)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "w3", DesiredState: doc(t, xor)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	b, _ = v.Bond("BondEthernet6001")
 	row, _ := v.InterfaceByName("BondEthernet6001")
 	if b.Mode != bondapi.BOND_API_MODE_XOR || b.Lb != bondapi.BOND_API_LB_ALGO_L23 || len(v.BondMembers("BondEthernet6001")) != 2 || !row.AdminUp || !row.Addrs["10.6.11.1/24"] {
@@ -270,13 +270,13 @@ func TestBondingValidation(t *testing.T) {
 		{`{"interfaces": {"BondEthernet6000": {"bond": {"mode": "xor", "members": {"tap6000": {"passive": true}}}}, "tap6000": {}}}`, "/interfaces/BondEthernet6000/bond/members/tap6000", "interfaces.bonding-lacp-options"},
 		{`{"interfaces": {"BondEthernet6000": {"bond": {"mode": "lacp", "members": {"tap6000": {"weight": 5}}}}, "tap6000": {}}}`, "/interfaces/BondEthernet6000/bond/members/tap6000/weight", "interfaces.bonding-weight"},
 	} {
-		rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "v", DesiredState: doc(t, tc.doc)})
+		rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "v", DesiredState: doc(t, tc.doc)})
 		if err != nil {
 			t.Fatal(err)
 		}
 		found := false
 		for _, is := range rep.GetErrors() {
-			if is.GetPointer() == tc.pointer && is.GetRule() == tc.rule && is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+			if is.GetPointer() == tc.pointer && is.GetRule() == tc.rule && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 				found = true
 			}
 		}
@@ -302,7 +302,7 @@ func bondIfIndex(i uint32) interface_types.InterfaceIndex { return interface_typ
 // time; a caller that cannot get the walk within the wait gets UNAVAILABLE instead of a second walk.
 func TestBondStateOneWalkAtATime(t *testing.T) {
 	v, s := bondFake(t)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, bondDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "c1", DesiredState: doc(t, bondDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.SetBondDumpDelay(50 * time.Millisecond)
 	var wg sync.WaitGroup
 	errs := make(chan error, 6)
@@ -310,7 +310,7 @@ func TestBondStateOneWalkAtATime(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+			_, err := s.BondState(context.Background(), &ngfwv1.BondStateRequest{})
 			errs <- err
 		}()
 	}
@@ -332,11 +332,11 @@ func TestBondStateOneWalkAtATime(t *testing.T) {
 	v.SetBondDumpDelay(600 * time.Millisecond)
 	first := make(chan error, 1)
 	go func() {
-		_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+		_, err := s.BondState(context.Background(), &ngfwv1.BondStateRequest{})
 		first <- err
 	}()
 	time.Sleep(150 * time.Millisecond) // the first walk is in its dump
-	_, err := s.BondState(context.Background(), &vrxv1.BondStateRequest{})
+	_, err := s.BondState(context.Background(), &ngfwv1.BondStateRequest{})
 	if status.Code(err) != codes.Unavailable {
 		t.Fatalf("second caller: %v, want UNAVAILABLE", err)
 	}

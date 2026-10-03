@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	fpapi "ngfw/agent/binapi/flowprobe"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/flowprobe"
 	"ngfw/agent/internal/descriptors/ipfix"
@@ -31,10 +31,10 @@ import (
 const sflowCounterPattern = "^/err/sflow/"
 
 // counterSource reads named counters (the stats segment; a stub in tests).
-type counterSource func(pattern string) ([]*vrxv1.IpfixCounter, error)
+type counterSource func(pattern string) ([]*ngfwv1.IpfixCounter, error)
 
 // IpfixState implements the IpfixState RPC.
-func (g *server) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest) (*vrxv1.IpfixStateResponse, error) {
+func (g *server) IpfixState(ctx context.Context, req *ngfwv1.IpfixStateRequest) (*ngfwv1.IpfixStateResponse, error) {
 	var counters counterSource
 	if r, ok := g.stats.(*statsReader); ok {
 		counters = statsSegmentCounters(r.path)
@@ -45,7 +45,7 @@ func (g *server) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest) (
 // statsSegmentCounters reads counters from the VPP stats segment at path (one short-lived
 // connection per call: the RPC is polled by a UI, not streamed).
 func statsSegmentCounters(path string) counterSource {
-	return func(pattern string) ([]*vrxv1.IpfixCounter, error) {
+	return func(pattern string) ([]*ngfwv1.IpfixCounter, error) {
 		c := statsclient.NewStatsClient(path)
 		if err := c.Connect(); err != nil {
 			return nil, fmt.Errorf("stats segment %s: %w", path, err)
@@ -60,8 +60,8 @@ func statsSegmentCounters(path string) counterSource {
 }
 
 // countersOf sums scalar/error counters over workers, sorted by name.
-func countersOf(entries []adapter.StatEntry) []*vrxv1.IpfixCounter {
-	var out []*vrxv1.IpfixCounter
+func countersOf(entries []adapter.StatEntry) []*ngfwv1.IpfixCounter {
+	var out []*ngfwv1.IpfixCounter
 	for _, e := range entries {
 		var sum uint64
 		switch d := e.Data.(type) {
@@ -80,7 +80,7 @@ func countersOf(entries []adapter.StatEntry) []*vrxv1.IpfixCounter {
 		default:
 			continue
 		}
-		out = append(out, &vrxv1.IpfixCounter{Name: string(e.Name), Value: sum})
+		out = append(out, &ngfwv1.IpfixCounter{Name: string(e.Name), Value: sum})
 	}
 	sort.Slice(out, func(a, b int) bool { return out[a].GetName() < out[b].GetName() })
 	return out
@@ -88,7 +88,7 @@ func countersOf(entries []adapter.StatEntry) []*vrxv1.IpfixCounter {
 
 // IpfixState builds the flow-export snapshot. counters (nil: no stats segment) reads the sFlow
 // counters.
-func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, counters counterSource) (*vrxv1.IpfixStateResponse, error) {
+func (s *Service) IpfixState(ctx context.Context, req *ngfwv1.IpfixStateRequest, counters counterSource) (*ngfwv1.IpfixStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, 
 		}
 		return status.Errorf(codes.Internal, "ipfix state: %v", err)
 	}
-	resp := &vrxv1.IpfixStateResponse{Owner: s.owner, GlobalsOwner: desired.IpfixGlobalsOwner(), RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.IpfixStateResponse{Owner: s.owner, GlobalsOwner: desired.IpfixGlobalsOwner(), RetrievedAt: timestamppb.New(s.now())}
 
 	// exporter 0: read directly (for a non-owner its descriptor is write-only)
 	e0, ok, err := ipfix.NewDefaultExporter(s.vpp).Current(ctx)
@@ -138,12 +138,12 @@ func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, 
 		case flowprobe.NameInterface:
 			var f flowprobe.Interface
 			if dfkit.Decode(kv.Value, &f) == nil {
-				resp.FlowprobeInterfaces = append(resp.FlowprobeInterfaces, &vrxv1.IpfixFlowprobeInterfaceState{Interface: f.Interface, Which: f.Which, Direction: f.Direction})
+				resp.FlowprobeInterfaces = append(resp.FlowprobeInterfaces, &ngfwv1.IpfixFlowprobeInterfaceState{Interface: f.Interface, Which: f.Which, Direction: f.Direction})
 			}
 		case sflow.NameInterface:
 			var i sflow.Interface
 			if dfkit.Decode(kv.Value, &i) == nil {
-				st := &vrxv1.IpfixSflowInterfaceState{Interface: i.Interface}
+				st := &ngfwv1.IpfixSflowInterfaceState{Interface: i.Interface}
 				if m, ok := kv.Meta.(sflow.InterfaceMeta); ok {
 					st.HwIfIndex = m.HwIfIndex
 				}
@@ -163,7 +163,7 @@ func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, 
 		return nil, fail(fmt.Errorf("flowprobe_get_params: %w", err))
 	}
 	if p.RecordFlags != 0 {
-		resp.FlowprobeParams = &vrxv1.IpfixFlowprobeParamsState{
+		resp.FlowprobeParams = &ngfwv1.IpfixFlowprobeParamsState{
 			RecordL2: p.RecordFlags&fpapi.FLOWPROBE_RECORD_FLAG_L2 != 0, RecordL3: p.RecordFlags&fpapi.FLOWPROBE_RECORD_FLAG_L3 != 0,
 			RecordL4: p.RecordFlags&fpapi.FLOWPROBE_RECORD_FLAG_L4 != 0, ActiveTimerSec: p.ActiveTimer, PassiveTimerSec: p.PassiveTimer,
 		}
@@ -172,7 +172,7 @@ func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, 
 	if err != nil {
 		return nil, fail(err)
 	}
-	resp.SflowGlobal = &vrxv1.IpfixSflowGlobalState{SamplingN: g.SamplingRate, PollingIntervalSec: g.PollingInterval,
+	resp.SflowGlobal = &ngfwv1.IpfixSflowGlobalState{SamplingN: g.SamplingRate, PollingIntervalSec: g.PollingInterval,
 		HeaderBytes: g.HeaderBytes, Direction: g.Direction, DropMonitoring: g.DropMonitoring}
 
 	if counters == nil {
@@ -191,13 +191,13 @@ func (s *Service) IpfixState(ctx context.Context, req *vrxv1.IpfixStateRequest, 
 	return resp, nil
 }
 
-func (s *Service) exporterState(e ipfix.Exporter, def bool, statIndex *uint32) *vrxv1.IpfixExporterState {
+func (s *Service) exporterState(e ipfix.Exporter, def bool, statIndex *uint32) *ngfwv1.IpfixExporterState {
 	vrf := "none"
 	if e.VRF != ipfix.NoVRF {
 		vrf = s.tableName(e.VRF)
 	}
 	name := desired.IpfixExporterName(e.Collector)
-	return &vrxv1.IpfixExporterState{
+	return &ngfwv1.IpfixExporterState{
 		Name: name, DefaultExporter: def, Collector: e.Collector, CollectorPort: uint32(e.CollectorPort),
 		SourceAddress: e.Src, Vrf: vrf, PathMtu: e.PathMTU, TemplateIntervalSec: e.TemplateInterval,
 		UdpChecksum: e.UDPChecksum, StatIndex: statIndex,

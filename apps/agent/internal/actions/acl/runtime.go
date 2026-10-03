@@ -21,7 +21,7 @@ import (
 	vppacl "ngfw/agent/binapi/acl"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/vlib"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	dfiface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/vpp"
@@ -263,7 +263,7 @@ func (rt *Runtime) readCounters(indexes []uint32) (map[uint32][]descacl.RuleCoun
 }
 
 // State implements the AclState RPC (docs/contracts/proto.md §11 F-acl).
-func (rt *Runtime) State(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) {
+func (rt *Runtime) State(ctx context.Context, req *ngfwv1.AclStateRequest) (*ngfwv1.AclStateResponse, error) {
 	limit := int(req.GetLimit())
 	switch {
 	case limit == 0:
@@ -274,7 +274,7 @@ func (rt *Runtime) State(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv
 	if n := len(req.GetFilter().GetSequences()); n > MaxSequences {
 		return nil, fmt.Errorf("%w: %d sequences in the filter, at most %d", ErrInvalid, n, MaxSequences)
 	}
-	resp := &vrxv1.AclStateResponse{Owner: rt.cfg.Owner, RetrievedAt: timestamppb.New(rt.cfg.Now())}
+	resp := &ngfwv1.AclStateResponse{Owner: rt.cfg.Owner, RetrievedAt: timestamppb.New(rt.cfg.Now())}
 
 	tracked := rt.tracker.ACLs()
 	if req.GetList() != "" {
@@ -328,7 +328,7 @@ func (rt *Runtime) State(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv
 		}
 	} else {
 		for _, a := range rt.tracker.MacipACLs() {
-			resp.MacipLists = append(resp.MacipLists, &vrxv1.AclListState{
+			resp.MacipLists = append(resp.MacipLists, &ngfwv1.AclListState{
 				Name: a.Name, AclIndex: a.Index, VppRules: uint32(min(a.VPPRules, maxRuleCounts)), //nolint:gosec // bounded
 				MappingKnown: true, ConfigRules: uint32(min(a.VPPRules, maxRuleCounts)), //nolint:gosec // bounded
 			})
@@ -347,7 +347,7 @@ func (rt *Runtime) State(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv
 // Interfaces reports every interface with ACLs or a MACIP ACL bound, by sw_if_index: input and
 // output lists in VPP order, other owners' ACLs included (D-066). Small dumps only: the interface
 // table, the binding lists, and one acl_dump per foreign ACL index (to show its tag).
-func (rt *Runtime) Interfaces(ctx context.Context) ([]*vrxv1.AclInterfaceState, error) {
+func (rt *Runtime) Interfaces(ctx context.Context) ([]*ngfwv1.AclInterfaceState, error) {
 	c, owner := rt.cfg.Client, rt.cfg.Owner
 	tbl, err := dfiface.Dump(ctx, c, owner)
 	if err != nil {
@@ -371,10 +371,10 @@ func (rt *Runtime) Interfaces(ctx context.Context) ([]*vrxv1.AclInterfaceState, 
 		oursMacip[a.Index] = a.Name
 	}
 	tags := map[uint32]string{}
-	bound := func(idx uint32) *vrxv1.AclBoundAcl {
+	bound := func(idx uint32) *ngfwv1.AclBoundAcl {
 		if name, ok := ours[idx]; ok {
 			tag, _ := vpp.OwnerTag(owner, name)
-			return &vrxv1.AclBoundAcl{AclIndex: idx, Name: name, Tag: tag}
+			return &ngfwv1.AclBoundAcl{AclIndex: idx, Name: name, Tag: tag}
 		}
 		tag, ok := tags[idx]
 		if !ok {
@@ -382,19 +382,19 @@ func (rt *Runtime) Interfaces(ctx context.Context) ([]*vrxv1.AclInterfaceState, 
 			tags[idx] = tag
 		}
 		if name, mine := vpp.ParseOwnerTag(tag, owner); mine {
-			return &vrxv1.AclBoundAcl{AclIndex: idx, Name: name, Tag: tag}
+			return &ngfwv1.AclBoundAcl{AclIndex: idx, Name: name, Tag: tag}
 		}
-		return &vrxv1.AclBoundAcl{AclIndex: idx, Tag: tag, Foreign: true}
+		return &ngfwv1.AclBoundAcl{AclIndex: idx, Tag: tag, Foreign: true}
 	}
-	byIndex := map[uint32]*vrxv1.AclInterfaceState{}
-	get := func(sw uint32) *vrxv1.AclInterfaceState {
+	byIndex := map[uint32]*ngfwv1.AclInterfaceState{}
+	get := func(sw uint32) *ngfwv1.AclInterfaceState {
 		st, ok := byIndex[sw]
 		if !ok {
 			name, logical := tbl.Logical(sw)
 			if !logical {
 				name = tbl.VPPName(sw)
 			}
-			st = &vrxv1.AclInterfaceState{Interface: name, SwIfIndex: sw}
+			st = &ngfwv1.AclInterfaceState{Interface: name, SwIfIndex: sw}
 			byIndex[sw] = st
 		}
 		return st
@@ -417,7 +417,7 @@ func (rt *Runtime) Interfaces(ctx context.Context) ([]*vrxv1.AclInterfaceState, 
 			if idx == ^uint32(0) {
 				continue // VPP reports ~0 for an interface whose MACIP ACL was removed
 			}
-			b := &vrxv1.AclBoundAcl{AclIndex: idx}
+			b := &ngfwv1.AclBoundAcl{AclIndex: idx}
 			if name, ok := oursMacip[idx]; ok {
 				b.Name = name
 				b.Tag, _ = vpp.OwnerTag(owner, name)
@@ -432,7 +432,7 @@ func (rt *Runtime) Interfaces(ctx context.Context) ([]*vrxv1.AclInterfaceState, 
 			get(uint32(d.SwIfIndex)).Macip = b
 		}
 	}
-	out := make([]*vrxv1.AclInterfaceState, 0, len(byIndex))
+	out := make([]*ngfwv1.AclInterfaceState, 0, len(byIndex))
 	for _, st := range byIndex {
 		out = append(out, st)
 	}

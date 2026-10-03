@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/vpp"
@@ -72,9 +72,9 @@ const withoutL2 = `{
   "routing": {}
 }`
 
-func retrieveAll(t *testing.T, s *Service) *vrxv1.DesiredState {
+func retrieveAll(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +82,8 @@ func retrieveAll(t *testing.T, s *Service) *vrxv1.DesiredState {
 }
 
 // l2Parts is the F-bridge-l2 half of a document: routing.l2 and every l2 leaf by interface name.
-func l2Parts(ds *vrxv1.DesiredState) (*vrxv1.BridgeL2Config, map[string]*vrxv1.BridgeL2Port) {
-	ports := map[string]*vrxv1.BridgeL2Port{}
+func l2Parts(ds *ngfwv1.DesiredState) (*ngfwv1.BridgeL2Config, map[string]*ngfwv1.BridgeL2Port) {
+	ports := map[string]*ngfwv1.BridgeL2Port{}
 	for n, itf := range ds.GetInterfaces() {
 		if itf.GetL2() != nil {
 			ports[n] = itf.GetL2()
@@ -97,7 +97,7 @@ func l2Parts(ds *vrxv1.DesiredState) (*vrxv1.BridgeL2Config, map[string]*vrxv1.B
 	return ds.GetRouting().GetL2(), ports
 }
 
-func assertL2Equal(t *testing.T, got, want *vrxv1.DesiredState) {
+func assertL2Equal(t *testing.T, got, want *ngfwv1.DesiredState) {
 	t.Helper()
 	gc, gp := l2Parts(got)
 	wc, wp := l2Parts(want)
@@ -119,8 +119,8 @@ func TestBridgeL2OnFake(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, l2Doc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b1", DesiredState: doc(t, l2Doc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	ptrs := map[string]string{}
 	for _, r := range resp.GetResults() {
 		ptrs[r.GetKey()] = r.GetPointer()
@@ -155,18 +155,18 @@ func TestBridgeL2OnFake(t *testing.T) {
 	assertL2Equal(t, got, want)
 
 	// idempotent: nothing to do, the mactime feature does not stack; the retrieved document re-applies as a no-op
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, l2Doc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b2", DesiredState: doc(t, l2Doc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 || v.MactimeCount("host-w7l0") != 1 {
 		t.Fatalf("re-apply changed %v (mactime %d)", resp.GetResults(), v.MactimeCount("host-w7l0"))
 	}
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "b3", DesiredState: got})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "b3", DesiredState: got})
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("re-applying the retrieved document changed %v", resp.GetResults())
 	}
 
 	// live state
-	st, err := s.BridgeDomainState(context.Background(), &vrxv1.BridgeDomainStateRequest{})
+	st, err := s.BridgeDomainState(context.Background(), &ngfwv1.BridgeDomainStateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,17 +185,17 @@ func TestBridgeL2OnFake(t *testing.T) {
 			t.Fatalf("BVI member %v", m)
 		}
 	}
-	page, err := s.BridgeDomainMacs(context.Background(), &vrxv1.BridgeDomainMacsRequest{BdId: 7001, Limit: 1})
+	page, err := s.BridgeDomainMacs(context.Background(), &ngfwv1.BridgeDomainMacsRequest{BdId: 7001, Limit: 1})
 	if err != nil || page.GetTotal() != 2 || len(page.GetMacs()) != 1 || page.GetMacs()[0].GetMac() != "02:00:00:00:70:01" || page.GetMacs()[0].GetInterface() != "host-w7l0" || !page.GetMacs()[0].GetStatic() {
 		t.Fatalf("macs page %v %v", page, err)
 	}
-	if page, err := s.BridgeDomainMacs(context.Background(), &vrxv1.BridgeDomainMacsRequest{BdId: 7001, Offset: 1, Limit: 5}); err != nil || len(page.GetMacs()) != 1 || !page.GetMacs()[0].GetBvi() {
+	if page, err := s.BridgeDomainMacs(context.Background(), &ngfwv1.BridgeDomainMacsRequest{BdId: 7001, Offset: 1, Limit: 5}); err != nil || len(page.GetMacs()) != 1 || !page.GetMacs()[0].GetBvi() {
 		t.Fatalf("second page %v %v", page, err)
 	}
-	if _, err := s.BridgeDomainMacs(context.Background(), &vrxv1.BridgeDomainMacsRequest{BdId: 7001, Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.BridgeDomainMacs(context.Background(), &ngfwv1.BridgeDomainMacsRequest{BdId: 7001, Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("limit 1001: %v", err)
 	}
-	if _, err := s.BridgeDomainMacs(context.Background(), &vrxv1.BridgeDomainMacsRequest{BdId: 9999}); grpcCode(err) != codes.NotFound {
+	if _, err := s.BridgeDomainMacs(context.Background(), &ngfwv1.BridgeDomainMacsRequest{BdId: 9999}); grpcCode(err) != codes.NotFound {
 		t.Fatalf("foreign bd: %v", err)
 	}
 
@@ -204,7 +204,7 @@ func TestBridgeL2OnFake(t *testing.T) {
 	s.Close()
 	v.DropBridgeL2()
 	s2 := newSvc(t, v, dir)
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync %v", r)
 	}
 	assertL2Equal(t, retrieveAll(t, s2), want)
@@ -213,7 +213,7 @@ func TestBridgeL2OnFake(t *testing.T) {
 	}
 
 	// rollback: every member back in L3, nothing of routing.l2 left
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "b4", DesiredState: doc(t, withoutL2)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "b4", DesiredState: doc(t, withoutL2)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(v.BridgeMembers()) != 0 || len(v.BridgeDomainIDs()) != 0 || v.MactimeCount("host-w7l0") != 0 {
 		t.Fatalf("after rollback: members %v bds %v mactime %d", v.BridgeMembers(), v.BridgeDomainIDs(), v.MactimeCount("host-w7l0"))
 	}
@@ -225,11 +225,11 @@ func TestBridgeL2OnFake(t *testing.T) {
 func TestBridgeL2Validation(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{
 	  "interfaces": {"loop7000": {"l2": {"bridgeDomain": "nope"}}, "loop7001": {"l2": {"tagRewrite": {"op": "pop-1"}}}},
 	  "routing": {"l2": {"l3xc": {"loop7000": {"ipv4Paths": [{"vrf": "missing"}]}}}}
 	}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	got := map[string]string{}
 	for _, is := range resp.GetValidation().GetErrors() {
 		got[is.GetPointer()] = is.GetRule()

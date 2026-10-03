@@ -3,7 +3,7 @@ import { cpuCore, pciAddress } from '../primitives.js';
 import { withUi } from '../ui.js';
 
 /**
- * `dataplane` — VPP start-up tuning (docs/04-api-datamodel.md). vrx-agent renders these into the `cpu {}`,
+ * `dataplane` — VPP start-up tuning (docs/04-api-datamodel.md). ngfw-agent renders these into the `cpu {}`,
  * `dpdk {}` and hugepage settings of the VPP start-up configuration; the schema only carries desired values and
  * every field is optional (absent = keep the platform default). Changing them needs a data-plane restart, which the
  * commit engine reports as a "restart required" warning — nothing here is applied live.

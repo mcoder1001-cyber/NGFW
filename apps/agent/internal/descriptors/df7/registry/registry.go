@@ -21,7 +21,7 @@ import (
 
 // Config is what the agent passes to Register.
 type Config struct {
-	// Owner is VRX_OWNER (tests: VRX_TEST_PREFIX).
+	// Owner is NGFW_OWNER (tests: NGFW_TEST_PREFIX).
 	Owner string
 	// GlobalsOwner registers the VPP-global descriptors (agent config globalsOwner: true; never
 	// a test slot on the shared host).

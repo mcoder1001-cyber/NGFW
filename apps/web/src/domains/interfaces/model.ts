@@ -1,7 +1,7 @@
 import type { paths } from '@ngfw/api-client';
 import type { InterfaceConfig, SubinterfaceConfig } from '@ngfw/schema';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import { domainSchemas } from '../../schema/registry';
 import { drawerSafeL2 } from './bridge-l2/model'; // wave-A: F-bridge-l2
 
@@ -49,13 +49,13 @@ export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
   const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
   const out: Record<string, JsonSchema> = {};
   for (const [name, prop] of Object.entries(props)) {
-    const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+    const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
     const help = t(`field.${name}.help`, { defaultValue: '' });
     out[name] = {
       ...prop,
       title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
       // group names are fieldset titles: translate them too (the same key for every member keeps the grouping)
-      'x-vrx-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
+      'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
     } as JsonSchema;
   }
   return { ...schema, properties: out } as JsonSchema;
@@ -88,13 +88,13 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 /** Semantic status of the admin state. */
-export function adminStatus(s: LiveState | null | undefined): VrxStatus | undefined {
+export function adminStatus(s: LiveState | null | undefined): NgfwStatus | undefined {
   if (!s) return undefined;
   return s.adminUp ? 'up' : 'adminDown';
 }
 
 /** Semantic status of the link: an admin-down interface is `adminDown`, not a failure. */
-export function linkStatus(s: LiveState | null | undefined): VrxStatus | undefined {
+export function linkStatus(s: LiveState | null | undefined): NgfwStatus | undefined {
   if (!s) return undefined;
   if (!s.adminUp) return 'adminDown';
   return s.linkUp ? 'up' : 'down';

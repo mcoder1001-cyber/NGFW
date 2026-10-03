@@ -1,12 +1,12 @@
 // Package swantest runs test-scoped strongSwan daemons for integration tests (RF-2, and P11's
 // topology test): each charon is a child process in a rig network namespace ns-<prefix>-<x>,
-// with its own strongswan.conf, VICI socket and log under /run/vrx-test/<prefix>/swan/<x>. The
+// with its own strongswan.conf, VICI socket and log under /run/ngfw-test/<prefix>/swan/<x>. The
 // system strongswan unit, /etc/strongswan.conf and /etc/swanctl are never used.
 //
 // Binaries. When strongSwan is installed (/usr/sbin/charon-systemd and /usr/sbin/swanctl
 // exist) they are used directly. Otherwise the stock Ubuntu packages may be extracted without
 // installing them (README.md: apt-get download + dpkg -x into
-// /run/vrx-test/<prefix>/swan-stock/root): the stock binaries load their plugins from the
+// /run/ngfw-test/<prefix>/swan-stock/root): the stock binaries load their plugins from the
 // compile-time path /usr/lib/ipsec/plugins and /run is mounted noexec, so every daemon and
 // swanctl run happens on an OS thread that first enters a private mount namespace (propagation
 // private, so nothing leaks back to the host) and mounts read-only overlays
@@ -15,7 +15,7 @@
 // charon-systemd is used instead of /usr/lib/ipsec/charon: charon's pid file is the
 // compile-time /var/run/charon.pid (strongswan.conf(5) has no setting for it) and would collide
 // between instances; charon-systemd writes none. Each daemon is started through a symlink
-// /run/vrx-test/<prefix>/swan/<x>/charon-systemd so `pgrep -f /run/vrx-test/<prefix>/swan`
+// /run/ngfw-test/<prefix>/swan/<x>/charon-systemd so `pgrep -f /run/ngfw-test/<prefix>/swan`
 // finds exactly the test daemons. They are stopped by cancelling the runner context of the
 // process they are (never by pattern) in Close, which t.Cleanup calls.
 package swantest
@@ -50,7 +50,7 @@ const (
 
 // StockRoot is where README.md extracts the stock packages for slot prefix.
 func StockRoot(prefix string) string {
-	return filepath.Join("/run/vrx-test", prefix, "swan-stock", "root")
+	return filepath.Join("/run/ngfw-test", prefix, "swan-stock", "root")
 }
 
 // FindRoot returns "/" when strongSwan is installed, the extracted stock root when present,
@@ -78,7 +78,7 @@ var prefixRe = regexp.MustCompile(`^w[0-9]{1,2}[a-z]?$`)
 type Harness struct {
 	Prefix string
 	Root   string
-	// Base is /run/vrx-test/<prefix>/swan.
+	// Base is /run/ngfw-test/<prefix>/swan.
 	Base string
 	// Runner runs ip (host namespace).
 	Runner renderers.Runner
@@ -107,7 +107,7 @@ func New(prefix, root string) (*Harness, error) {
 	if root == "" {
 		return nil, errors.New("swantest: no strongSwan binaries (see README.md)")
 	}
-	slot := filepath.Join("/run/vrx-test", prefix)
+	slot := filepath.Join("/run/ngfw-test", prefix)
 	if err := os.MkdirAll(slot, 0o755); err != nil { //nolint:gosec // shared test area
 		return nil, err
 	}

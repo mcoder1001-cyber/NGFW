@@ -140,7 +140,7 @@ func Quote(s string) (string, error) {
 }
 
 var (
-	rulesetRe = regexp.MustCompile(`^vrx_export_[0-9]{1,2}_[0-9a-f]{8}$`)
+	rulesetRe = regexp.MustCompile(`^ngfw_export_[0-9]{1,2}_[0-9a-f]{8}$`)
 	filterRe  = regexp.MustCompile(`^(?:\*|[a-z0-9]+(?:,[a-z0-9]+)*)\.(?:emerg|alert|crit|err|warning|notice|info|debug)$`)
 	hostRe    = regexp.MustCompile(`^[A-Za-z0-9.:-]{1,253}$`)
 )
@@ -393,7 +393,7 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 			// process still running the previous config reports other names (actionName).
 			var got []string
 			for n, c := range stats {
-				if c.Origin == "core.action" && strings.HasPrefix(n, "vrx_export_") {
+				if c.Origin == "core.action" && strings.HasPrefix(n, "ngfw_export_") {
 					got = append(got, n)
 				}
 			}
@@ -441,7 +441,7 @@ func unchanged(files renderers.Files) bool {
 	return true
 }
 
-var actionNameRe = regexp.MustCompile(`action\(type="omfwd" name="(vrx_export_[0-9]{1,2}_[0-9a-f]{8})"`)
+var actionNameRe = regexp.MustCompile(`action\(type="omfwd" name="(ngfw_export_[0-9]{1,2}_[0-9a-f]{8})"`)
 
 func actionNames(conf []byte) []string {
 	var out []string

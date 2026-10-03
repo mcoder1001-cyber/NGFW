@@ -121,7 +121,7 @@ func TestCnatOnHost(t *testing.T) {
 			nattest.AssertWriteOnly(t, w.d)
 		}
 
-		nattest.Pause(t, "cnat") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
+		nattest.Pause(t, "cnat") // evidence hook (NGFW_EVIDENCE_DIR), no-op otherwise
 		for _, w := range []struct {
 			d   scheduler.Descriptor
 			obj *structpb.Struct

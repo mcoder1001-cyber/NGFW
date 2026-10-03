@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// TestHostACLTopology is F-host-acl-nftables' acceptance run on the slot (VRX_INTEGRATION=1, lab lock shared): the real
-// agent renders `table inet vrx_<prefix>` into the slot namespace ns-<prefix>-hacl (VRX_HOST_ACL_NETNS), the real API
+// TestHostACLTopology is F-host-acl-nftables' acceptance run on the slot (NGFW_INTEGRATION=1, lab lock shared): the real
+// agent renders `table inet ngfw_<prefix>` into the slot namespace ns-<prefix>-hacl (NGFW_HOST_ACL_NETNS), the real API
 // drives it through candidate → commit → rollback, and packets come from the veth peer ns-<prefix>-hpeer.
 //
 //  1. commit → `nft list table` in the namespace shows the rules; /state/drift is clean for acl (Retrieve == running);
@@ -21,8 +21,8 @@ import (
 //     identically within 30 s (log excerpt)
 //  6. a foreign table in the namespace and the root netns ruleset (`nft list tables`) are untouched throughout
 func TestHostACLTopology(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("topology test: VRX_INTEGRATION=1 and a slot (eval \"$(tools/lab env <N>)\"; run.sh)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("topology test: NGFW_INTEGRATION=1 and a slot (eval \"$(tools/lab env <N>)\"; run.sh)")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -42,7 +42,7 @@ func TestHostACLTopology(t *testing.T) {
 
 	st := newStack(t, s, ns.host)
 	a := st.api
-	table := "vrx_" + s.prefix
+	table := "ngfw_" + s.prefix
 
 	// 1. commit A
 	a.patch("/objects", map[string]any{"addresses": map[string]any{"peer": map[string]any{"type": "host", "address": ns.peerAddr}}})
@@ -57,7 +57,7 @@ func TestHostACLTopology(t *testing.T) {
 	if state["present"] != true || state["inSync"] != true || state["mode"] != "netns" || state["table"] != table {
 		t.Fatalf("state: %v", state)
 	}
-	t.Logf("retrieve acl (vrx-agentctl): %v", st.retrieveACL(t))
+	t.Logf("retrieve acl (ngfw-agentctl): %v", st.retrieveACL(t))
 
 	// 2. packets from the veth peer
 	for _, p := range []int{2222, 2323} {

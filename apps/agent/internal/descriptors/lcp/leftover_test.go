@@ -248,7 +248,7 @@ func TestMovedAcceptReReadSeesNewNetnsPair(t *testing.T) {
 }
 
 // linux-cp's own view is never refused and never touched: a stale Accept without a pair (stale
-// linux-cp Accept, vpp-code-track lcp_router.c row, as in table 0 on vrx-a), a default-namespace
+// linux-cp Accept, vpp-code-track lcp_router.c row, as in table 0 on ngfw-a), a default-namespace
 // pair's Accept, or no entry at all. Its lone local path draws only the API local delete, a no-op
 // for VPP (no API source).
 func TestDefaultPairLeavesLinuxCPView(t *testing.T) {

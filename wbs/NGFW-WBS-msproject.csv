@@ -1,0 +1,103 @@
+ID,Name,Work,Duration,Start,Finish,Resource Names,Depends On (WBS ID),Tier,Release,Notes
+D0.1,"Monorepo, CI/CD, codegen pipeline (Zod -> OpenAPI -> client -> proto -> binapi)",200h,92d,2026-10-01,2026-12-31,Platform & Release,,T1,R0.1 Alpha,CI must fail on dirty generated output
+D0.2,"Pinned VPP fork, patch management, VPP package build",240h,182d,2026-10-01,2027-03-31,Platform & Release,D0.1,T1,R0.1 Alpha,"Track a stable release branch, never master"
+D0.3,OS image: Ubuntu 24.04 autoinstall + installer ISO,360h,181d,2027-01-01,2027-06-30,Platform & Release,D0.2,T1,R0.5 Beta (MVP),
+D0.4,"Debian packaging, signed APT repository",200h,182d,2026-10-01,2027-03-31,Platform & Release,D0.1,T1,R0.1 Alpha,
+D0.5,A/B image upgrade with automatic rollback,320h,91d,2028-01-01,2028-03-31,Platform & Release,D0.3,T1,R1.0 GA-1,Required for GA-1
+D0.6,"startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, PCI whitelist",240h,90d,2027-01-01,2027-03-31,Dataplane & Agent,D0.2,T1,R0.1 Alpha,
+D0.7,"Agent core: govpp connection, stats reader, reconciler/KVScheduler, dependency graph",560h,182d,2026-10-01,2027-03-31,Dataplane & Agent,D0.2,T1,R0.1 Alpha,CRITICAL PATH - everything depends on this
+D0.8,"API core: NestJS, candidate/running datastore, atomic commit, confirmed-commit, revisions, rollback",600h,182d,2026-10-01,2027-03-31,Control Plane,D0.1,T1,R0.1 Alpha,CRITICAL PATH
+D0.9,"Auth, RBAC, audit log, API keys, TLS, TPM-backed secret store",440h,90d,2027-01-01,2027-03-31,Control Plane,D0.8,T1,R0.1 Alpha,
+D0.10,"UI shell: theme, layout, i18n en/fa + RTL, SchemaForm renderer, DataGrid wrapper, WS client",640h,182d,2026-10-01,2027-03-31,Frontend,D0.8,T1,R0.1 Alpha,
+D0.11,"Interactive CLI (clixon-like: config mode, completion, show commands)",720h,182d,2028-01-01,2028-06-30,Control Plane,D0.8,T1,R1.5 GA-2,TNSR's primary interface
+D0.12,Telemetry pipeline: stats -> gRPC stream -> WS fan-out -> Prometheus -> history,400h,181d,2027-01-01,2027-06-30,Control Plane,D0.7,T1,R0.5 Beta (MVP),
+D0.13,"Test infra: containerlab/QEMU lab, Robot Framework, TRex harness, Playwright",560h,182d,2026-10-01,2027-03-31,QA / Lab,D0.1,T1,R0.1 Alpha,
+D1.1,"NIC inventory and driver binding: dpdk, rdma, af_xdp, af_packet, vmxnet3, virtio, vhost-user, tap-v2, netmap, memif, pipe, Marvell mGig",560h,181d,2027-01-01,2027-06-30,Dataplane & Agent,D0.6,T1,R0.5 Beta (MVP),Fix a supported-hardware matrix; refuse 'any NIC'
+D1.2,"Interface basics: admin state, MTU, MAC, promisc, rx-mode, rx/tx queues, worker placement",280h,90d,2027-01-01,2027-03-31,Dataplane & Agent,D0.7,T1,R0.1 Alpha,
+D1.3,IPv4/IPv6 addressing + IP unnumbered,160h,90d,2027-01-01,2027-03-31,Dataplane & Agent,D1.2,T1,R0.1 Alpha,
+D1.4,802.1q sub-interfaces + QinQ/802.1ad stacking,200h,90d,2027-01-01,2027-03-31,Dataplane & Agent,D1.2,T1,R0.1 Alpha,
+D1.5,"Bonding: LACP, XOR, round-robin, active-backup",240h,181d,2027-01-01,2027-06-30,Dataplane & Agent,D1.2,T1,R0.5 Beta (MVP),
+D1.6,"L2: bridge domains, cross-connect, L2XC, L3XC, split-horizon, MAC aging, time-range MAC filter",360h,181d,2027-01-01,2027-06-30,Dataplane & Agent,D1.2,T1,R0.5 Beta (MVP),
+D1.7,LLDP,96h,91d,2027-04-01,2027-06-30,Dataplane & Agent,D1.2,T2,R0.5 Beta (MVP),
+D1.8,"VNET GSO, checksum offload, jumbo frames",160h,92d,2027-07-01,2027-09-30,Dataplane & Agent,D1.2,T1,R0.5 Beta (MVP),
+D1.9,Network Delay Simulator (nsim),64h,90d,2029-01-01,2029-03-31,Dataplane & Agent,D1.2,T3,R2.0 GA-3,"Test tool, not a product feature"
+D1.10,SPAN / ERSPAN mirroring,200h,91d,2028-04-01,2028-06-30,Dataplane & Agent,D1.6,T2,R1.5 GA-2,
+D1.11,Loopback / BVI interfaces,80h,91d,2027-04-01,2027-06-30,Dataplane & Agent,D1.6,T1,R0.5 Beta (MVP),
+D2.1,VRF/table management + Source VRF Select,240h,91d,2027-04-01,2027-06-30,Routing & L3,D1.3,T1,R0.5 Beta (MVP),
+D2.2,"Static routes v4/v6, ECMP, weighted paths, DPO/adjacency view",280h,91d,2027-04-01,2027-06-30,Routing & L3,D2.1,T1,R0.5 Beta (MVP),
+D2.3,"Neighbour DB: ARP, ND, proxy-ND, IPv6 RA, IPv6 DAD (new in 26.06)",240h,91d,2027-04-01,2027-06-30,Dataplane & Agent,D1.3,T1,R0.5 Beta (MVP),
+D2.4,"RPF strict/loose, ADL allow/deny lists, Auto-SDL",240h,92d,2028-10-01,2028-12-31,Routing & L3,D2.2,T2,R2.0 GA-3,
+D2.5,FIB browser with server-side pagination (1M+ routes),200h,183d,2027-04-01,2027-09-30,Frontend,D2.2,T1,R0.5 Beta (MVP),
+D2.6,"Tools: ping, traceroute, ARP flush",160h,91d,2027-04-01,2027-06-30,Control Plane,D2.2,T1,R0.5 Beta (MVP),
+D2.7,"Classifier/classify tables, IP session redirect, ACL-Based Forwarding (PBR)",360h,92d,2027-10-01,2027-12-31,Routing & L3,D2.2,T2,R1.0 GA-1,
+D2.8,"MPLS: label operations, LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS",720h,182d,2028-10-01,2029-03-31,Routing & L3,D3.3,T2,R2.0 GA-3,
+D2.9,"Multicast: IGMPv3, PIM via FRR, mfib, BIER",560h,182d,2028-10-01,2029-03-31,Routing & L3,D3.2,T3,R2.0 GA-3,BIER has near-zero commercial demand
+D3.1,"linux-cp / linux-nl hardening: interface pairs, state/MTU sync, VRF mapping, IPv6, full-table performance",720h,183d,2027-04-01,2027-09-30,Routing & L3,D1.2,T1,R0.5 Beta (MVP),"CRITICAL PATH - prototype in Q3, not Q5"
+D3.2,"FRR lifecycle: renderer framework, JSON state readers, safe reload, dry-run",480h,92d,2027-07-01,2027-09-30,Routing & L3,D3.1,T1,R0.5 Beta (MVP),
+D3.3,"BGP: core, AFI/SAFI v4/v6, communities, route-maps, prefix-lists, AS-path filters, peer-groups, RR, confederation, graceful restart, BGP Roles (RFC 9234), add-path, VPNv4/VPNv6",1120h,184d,2027-07-01,2027-12-31,Routing & L3,D3.2,T1,R1.0 GA-1,
+D3.4,OSPFv2,440h,92d,2027-10-01,2027-12-31,Routing & L3,D3.2,T1,R1.0 GA-1,
+D3.5,OSPFv3,320h,92d,2028-07-01,2028-09-30,Routing & L3,D3.2,T2,R1.5 GA-2,
+D3.6,IS-IS,360h,91d,2028-04-01,2028-06-30,Routing & L3,D3.2,T2,R1.5 GA-2,
+D3.7,RIPv2 / RIPng,200h,92d,2028-07-01,2028-09-30,Routing & L3,D3.2,T2,R1.5 GA-2,
+D3.8,BFD (native VPP plugin + FRR integration),280h,92d,2027-10-01,2027-12-31,Routing & L3,D3.2,T1,R1.0 GA-1,
+D3.9,Policy-based routing in API/UI,160h,91d,2028-01-01,2028-03-31,Routing & L3,D2.7,T2,R1.0 GA-1,
+D3.10,Redistribution matrix and route-policy UX,240h,183d,2027-10-01,2028-03-31,Routing & L3,D3.3,T1,R1.0 GA-1,
+D4.1,"NAT44-ED: sessions, pools, twice-NAT, port-forward, 1:1, interface NAT, hairpinning, session helpers/ALGs",720h,183d,2027-04-01,2027-09-30,Security & VPN,D2.2,T1,R0.5 Beta (MVP),
+D4.2,NAT44-EI,200h,91d,2028-04-01,2028-06-30,Security & VPN,D4.1,T2,R1.5 GA-2,
+D4.3,"NAT64, NAT66, NPTv6",400h,92d,2028-07-01,2028-09-30,Security & VPN,D4.1,T2,R1.5 GA-2,
+D4.4,DET44 deterministic CGNAT + CGNAT logging/IPFIX,360h,91d,2028-04-01,2028-06-30,Security & VPN,D4.1,T2,R1.5 GA-2,
+D4.5,"DS-Lite, MAP-E, MAP-T, LW4o6 BR, 464XLAT",600h,183d,2028-04-01,2028-09-30,Security & VPN,D4.3,T2,R1.5 GA-2,
+D4.6,"CNAT: policy 1:1, SNAT/DNAT policy (new in 26.06), load-balanced translation",360h,92d,2028-07-01,2028-09-30,Security & VPN,D4.1,T2,R1.5 GA-2,
+D4.7,Session browser at 1M+ scale with server-side filter and kill-session,280h,92d,2027-07-01,2027-09-30,Security & VPN,D4.1,T1,R0.5 Beta (MVP),
+D5.1,"Object model: addresses, groups, FQDN, services, schedules, zones, tags",400h,184d,2027-07-01,2027-12-31,Control Plane,D0.8,T1,R1.0 GA-1,
+D5.2,"ACL plugin: L2 MACIP, L3/L4 stateless and stateful, per-interface in/out, hit counters",560h,92d,2027-10-01,2027-12-31,Security & VPN,D5.1,T1,R1.0 GA-1,
+D5.3,Host/local-in ACL for management-plane protection + nftables host firewall,240h,91d,2028-01-01,2028-03-31,Security & VPN,D5.2,T1,R1.0 GA-1,
+D5.4,"Rule editor UI for 100,000 rules (virtualised, CSV bulk, reorder, search)",480h,91d,2028-01-01,2028-03-31,Frontend,D5.2,T1,R1.0 GA-1,
+D5.5,ADL / Auto-SDL integration,120h,90d,2029-01-01,2029-03-31,Security & VPN,D5.2,T3,R2.0 GA-3,Largely covered by ACLs
+D5.6,Stateful policy state synchronisation for HA (TNSR VPF state sync equivalent),360h,92d,2028-07-01,2028-09-30,Security & VPN,D9.2,T2,R1.5 GA-2,
+D6.1,"IPsec core: SA/SPD, tunnel and transport mode, ESP/AH, async crypto, native/ipsecmb/openssl engines, QAT offload",640h,91d,2027-04-01,2027-06-30,Security & VPN,D1.3,T1,R0.5 Beta (MVP),
+D6.2,"strongSwan + kernel-vpp/socket-vpp, swanctl.conf renderer, IKEv1/IKEv2, full cipher and DH 1-24/31 matrix, NAT-T, DPD, MOBIKE",800h,183d,2027-04-01,2027-09-30,Security & VPN,D6.1,T1,R0.5 Beta (MVP),
+D6.3,Native VPP IKEv2 plugin path + 26.06 crypto enhancements,320h,90d,2029-01-01,2029-03-31,Security & VPN,D6.1,T2,R2.0 GA-3,Alternative to strongSwan for responder-only cases
+D6.4,"PKI: CA, CSR, import/export, CRL/OCSP, ACME, expiry alerts, PKCS#11/HSM",480h,91d,2028-04-01,2028-06-30,Security & VPN,D6.2,T1,R1.5 GA-2,
+D6.5,WireGuard,280h,91d,2028-04-01,2028-06-30,Security & VPN,D6.1,T1,R1.5 GA-2,
+D6.6,"Tunnels: GRE (L2/L3), IPIP, VXLAN, VXLAN-GPE, GTP-U, L2TPv3, PPPoE, Tunnel Infra, Packet Vector Tunnel",720h,366d,2027-07-01,2028-06-30,Security & VPN,D2.2,T1,R1.5 GA-2,GTP-U/L2TPv3/PPPoE are T3-value; schedule last
+D6.7,"SRv6: core, network programming, service chaining proxies, SRv6-mobile GTP functions",880h,182d,2028-10-01,2029-03-31,Security & VPN,D2.8,T3,R2.0 GA-3,Only large mobile operators need this
+D6.8,LISP and LISP-GPE,320h,90d,2029-01-01,2029-03-31,Security & VPN,D2.2,T3,R2.0 GA-3,Effectively dead technology
+D6.9,Remote-access VPN: IKEv2 + EAP + client pools (optional OpenVPN/SSL-VPN),480h,92d,2028-10-01,2028-12-31,Security & VPN,D6.4,T2,R2.0 GA-3,
+D6.10,"Tunnel dashboards, SA/SPI inspection, rekey history, per-tunnel telemetry",280h,91d,2028-01-01,2028-03-31,Frontend,D6.2,T1,R1.0 GA-1,
+D7.1,"Kea DHCPv4/v6 server, reservations, option sets, lease DB and UI",480h,184d,2027-07-01,2027-12-31,Control Plane,D1.3,T1,R1.0 GA-1,
+D7.2,DHCP relay/proxy (VPP plugin) + DHCP client,240h,184d,2027-07-01,2027-12-31,Control Plane,D7.1,T1,R1.0 GA-1,
+D7.3,DNS: Unbound resolver/forwarder/DNSSEC/views + VPP caching DNS plugin,400h,184d,2027-07-01,2027-12-31,Control Plane,D1.3,T1,R1.0 GA-1,
+D7.4,"NTP via chrony (client/server), optional PTP",200h,92d,2027-10-01,2027-12-31,Control Plane,D0.9,T1,R1.0 GA-1,
+D7.5,SNMP v2c/v3 via net-snmp + private MIB,360h,91d,2028-01-01,2028-03-31,Control Plane,D0.12,T2,R1.0 GA-1,
+D7.6,IPFIX/NetFlow (flowprobe) + sFlow,400h,92d,2028-07-01,2028-09-30,Dataplane & Agent,D0.12,T2,R1.5 GA-2,
+D7.7,Syslog export + log explorer,280h,92d,2028-10-01,2028-12-31,Control Plane,D0.12,T1,R2.0 GA-3,
+D7.8,"QoS: policer, shaper, QoS record/map/mark, DSCP/dot1p, hierarchical HQoS, per-interface queues",680h,183d,2028-04-01,2028-09-30,Dataplane & Agent,D1.2,T2,R1.5 GA-2,
+D7.9,Load Balancer plugin (GRE/NAT/L3DSR/maglev),320h,90d,2029-01-01,2029-03-31,Dataplane & Agent,D4.1,T3,R2.0 GA-3,Solved outside the product by HAProxy/nginx
+D7.10,"Host Stack: session layer, TCP/UDP tuning, VCL, TLS engines, QUIC/quicly, HTTP static server, HTTP/3 CONNECT + UDP proxying, SRTP, HSI",1040h,181d,2029-01-01,2029-06-30,Dataplane & Agent,D0.7,T3,R2.5 GA-Final,No router customer asks for this
+D7.11,Packet generator (PG) + pcap tooling in UI,200h,91d,2028-04-01,2028-06-30,Dataplane & Agent,D8.2,T2,R1.5 GA-2,
+D8.1,"Dashboard, charts, per-worker CPU, queue/buffer stats, buffers monitoring, buffer metadata tracker",480h,366d,2027-04-01,2028-03-31,Frontend,D0.12,T1,R1.0 GA-1,
+D8.2,"Packet capture: pcap rx/tx/drop, BPF Trace Filter, trace node, Trace Path plugin (new 26.06), G2 export",440h,183d,2028-04-01,2028-09-30,Dataplane & Agent,D0.7,T1,R1.5 GA-2,
+D8.3,Prometheus exporter (VPP prom plugin + own metrics) + Grafana dashboards,280h,91d,2028-01-01,2028-03-31,Control Plane,D0.12,T1,R1.0 GA-1,
+D8.4,"Event and alarm engine, thresholds, email/webhook/SNMP traps",360h,184d,2027-07-01,2027-12-31,Control Plane,D0.12,T1,R1.0 GA-1,
+D8.5,"Backup/restore, scheduled export, config templates, bulk provisioning",320h,92d,2027-10-01,2027-12-31,Control Plane,D0.8,T1,R1.0 GA-1,
+D8.6,Support bundle / sysdump,160h,92d,2028-10-01,2028-12-31,Platform & Release,D0.12,T1,R2.0 GA-3,
+D8.7,Upgrade UI and staged rollout,200h,91d,2028-01-01,2028-03-31,Frontend,D0.5,T1,R1.0 GA-1,
+D8.8,RESTCONF/NETCONF compatibility layer + YANG models,720h,183d,2028-04-01,2028-09-30,Control Plane,D0.8,T2,R1.5 GA-2,Needed for TNSR API parity
+D8.9,"Terraform provider, Ansible collection, Python SDK",440h,90d,2029-01-01,2029-03-31,Control Plane,D0.8,T2,R2.0 GA-3,
+D9.1,VRRPv3 (native VPP plugin) + keepalived path,360h,91d,2028-01-01,2028-03-31,Dataplane & Agent,D1.3,T1,R1.0 GA-1,
+D9.2,"Config synchronisation between peers, cluster membership",400h,182d,2028-01-01,2028-06-30,Control Plane,D0.8,T1,R1.5 GA-2,
+D9.3,State sync: NAT/ACL sessions and IPsec SAs,480h,92d,2028-07-01,2028-09-30,Security & VPN,D9.2,T2,R1.5 GA-2,
+D9.4,Failover test automation and convergence tuning,240h,92d,2028-07-01,2028-09-30,QA / Lab,D9.3,T1,R1.5 GA-2,
+D9.5,Cluster view in UI,200h,92d,2028-07-01,2028-09-30,Frontend,D9.2,T2,R1.5 GA-2,
+D10.1,"VDOM/tenant model, per-tenant RBAC and API scoping",560h,181d,2029-01-01,2029-06-30,Control Plane,D0.9,T2,R2.5 GA-Final,Changes the data model - decide in Q1 whether it is in scope
+D10.2,"AAA: RADIUS, TACACS+, LDAP, SAML, OIDC + MFA",440h,92d,2028-10-01,2028-12-31,Control Plane,D0.9,T2,R2.0 GA-3,
+D11.1,"Cloud images AWS/Azure/GCP + marketplace, cloud-init, ENA/Hyper-V drivers, cloud routing integration",720h,181d,2029-01-01,2029-06-30,Platform & Release,D0.3,T2,R2.5 GA-Final,
+D11.2,KVM/VMware/Hyper-V/Proxmox images + SR-IOV and PCI passthrough,320h,92d,2028-10-01,2028-12-31,Platform & Release,D0.3,T1,R2.0 GA-3,
+D12.1,"CIS hardening, secure boot, package signing, offline (air-gapped) update bundle",480h,91d,2029-04-01,2029-06-30,Platform & Release,D0.4,T1,R2.5 GA-Final,
+D12.2,Licensing and entitlement enforcement,320h,91d,2029-04-01,2029-06-30,Control Plane,D0.9,T1,R2.5 GA-Final,
+D12.3,Independent penetration test + remediation,360h,92d,2029-07-01,2029-09-30,QA / Lab,D12.1,T1,R2.5 GA-Final,
+D12.4,Full user documentation (~400 pages) + CLI reference + API reference,960h,365d,2028-10-01,2029-09-30,Technical writer,,T1,R2.5 GA-Final,Technical writer from M12
+D12.5,"QA: regression suite growth, nightly topology, perf CI, interop matrix (Cisco/Juniper/FortiGate/strongSwan/AWS VGW)",1280h,823d,2027-07-01,2029-09-30,QA / Lab,D0.13,T1,R2.5 GA-Final,Continuous from Q4 to GA
+D12.6,"Soak and chaos: kill -9, link flap, 72h at line rate",400h,183d,2029-04-01,2029-09-30,QA / Lab,D12.5,T1,R2.5 GA-Final,
+D12.7,Certification preparation (Common Criteria / local standards),480h,183d,2029-04-01,2029-09-30,Platform & Release,D12.1,T2,R2.5 GA-Final,Get the requirement list before end of Q2

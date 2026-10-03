@@ -257,7 +257,7 @@ func TestMetrics(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	for _, want := range []string{`vrx_agent_iface_sanitize_total{phase="create"}`, `vrx_agent_iface_sanitize_cleared_total{phase="create",state="input-acl"}`, `vrx_agent_iface_sanitize_inherited_total{phase="create"}`, "vrx_agent_iface_quarantined "} {
+	for _, want := range []string{`ngfw_agent_iface_sanitize_total{phase="create"}`, `ngfw_agent_iface_sanitize_cleared_total{phase="create",state="input-acl"}`, `ngfw_agent_iface_sanitize_inherited_total{phase="create"}`, "ngfw_agent_iface_quarantined "} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("metrics lack %q:\n%s", want, b.String())
 		}
@@ -482,7 +482,7 @@ func TestCappedFailsClosed(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) || !strings.Contains(b.String(), `vrx_agent_iface_sanitize_placeholders_total{phase="create"}`) {
+	if !strings.Contains(b.String(), `ngfw_agent_iface_sanitize_capped_total{phase="create"}`) || !strings.Contains(b.String(), `ngfw_agent_iface_sanitize_placeholders_total{phase="create"}`) {
 		t.Fatalf("metrics lack the capped / placeholders counters:\n%s", b.String())
 	}
 	t.Logf("capped: %v", err)

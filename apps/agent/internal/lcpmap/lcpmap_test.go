@@ -7,15 +7,15 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 )
 
-func doc(t *testing.T, js string) *vrxv1.DesiredState {
+func doc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -34,16 +34,16 @@ func TestHostName(t *testing.T) {
 		{"loop0", "10.0.0.1", "", false},
 		{"loop0", "a-name-that-is-too-long", "", false},
 	} {
-		var l *vrxv1.InterfaceLcp
+		var l *ngfwv1.InterfaceLcp
 		if tc.host != "" {
-			l = &vrxv1.InterfaceLcp{HostIfName: &tc.host}
+			l = &ngfwv1.InterfaceLcp{HostIfName: &tc.host}
 		}
 		got, err := lcpmap.HostName(tc.vpp, l)
 		if (err == nil) != tc.ok || got != tc.want {
 			t.Errorf("HostName(%q, %q) = %q, %v", tc.vpp, tc.host, got, err)
 		}
 	}
-	if lcpmap.HostType(nil) != "tap" || lcpmap.HostType(&vrxv1.InterfaceLcp{HostIfType: new(string)}) != "tap" {
+	if lcpmap.HostType(nil) != "tap" || lcpmap.HostType(&ngfwv1.InterfaceLcp{HostIfType: new(string)}) != "tap" {
 		t.Fatal("default host type")
 	}
 }

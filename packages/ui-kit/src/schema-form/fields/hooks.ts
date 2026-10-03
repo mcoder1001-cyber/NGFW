@@ -37,7 +37,7 @@ export function useSchemaText(): SchemaText {
 }
 
 /**
- * Per-path help (`<prefix>.<propPath>.help`), else `x-vrx-ui.help` (an i18n key when it exists in the app's
+ * Per-path help (`<prefix>.<propPath>.help`), else `x-ngfw-ui.help` (an i18n key when it exists in the app's
  * resources, else literal), else the description.
  */
 export function useHelpText(schema: JsonSchema, hints: UiHints, propPath = ''): string | undefined {
@@ -45,7 +45,7 @@ export function useHelpText(schema: JsonSchema, hints: UiHints, propPath = ''): 
   return text.help(propPath, hints.help, schema.description);
 }
 
-/** Per-path enum labels merged over the literal `x-vrx-ui.enumLabels` (same object when nothing is translated). */
+/** Per-path enum labels merged over the literal `x-ngfw-ui.enumLabels` (same object when nothing is translated). */
 export function useEnumHints(hints: UiHints, propPath: string, schema: JsonSchema): UiHints {
   const text = useSchemaText();
   const { i18n } = useTranslation(UI_KIT_NS);

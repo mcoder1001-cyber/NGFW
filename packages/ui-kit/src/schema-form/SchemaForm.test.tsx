@@ -16,7 +16,7 @@ describe('<SchemaForm>', () => {
     expect(screen.getByRole('radiogroup')).toBeInTheDocument(); // duplex
     expect(screen.getByRole('group', { name: 'IPv4 addresses' })).toBeInTheDocument(); // primitive list
     expect(screen.getByRole('group', { name: 'DNS servers' })).toBeInTheDocument(); // object list
-    expect(screen.getByRole('group', { name: 'Security' })).toBeInTheDocument(); // x-vrx-ui.group
+    expect(screen.getByRole('group', { name: 'Security' })).toBeInTheDocument(); // x-ngfw-ui.group
     expect(screen.getByDisplayValue('Gig0/0/0.100')).toBeInTheDocument(); // record key
     expect(screen.getByLabelText('VLAN', { exact: false })).toHaveValue(100);
     expect(screen.getByLabelText('Type', { exact: false })).toHaveTextContent('Pre-shared key'); // oneOf picker
@@ -120,10 +120,10 @@ describe('<SchemaForm>', () => {
     await userEvent.click(screen.getByLabelText('Type', { exact: false }));
     await userEvent.click(await screen.findByRole('option', { name: 'Certificate' }));
     const cert = await screen.findByLabelText('Certificate name', { exact: false });
-    await userEvent.type(cert, 'vrx-a');
+    await userEvent.type(cert, 'ngfw-a');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0]![0]).toMatchObject({ auth: { kind: 'cert', cert: 'vrx-a' } });
+    expect(onSubmit.mock.calls[0]![0]).toMatchObject({ auth: { kind: 'cert', cert: 'ngfw-a' } });
   });
 
   it('adds and removes record entries and list items', async () => {

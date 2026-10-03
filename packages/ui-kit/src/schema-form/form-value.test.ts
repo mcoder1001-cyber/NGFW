@@ -99,8 +99,8 @@ describe('dependsOn pruning and compile failures (review M3, M4)', () => {
         type: 'object',
         properties: {
           on: { type: 'boolean' },
-          sibling: { type: 'string', minLength: 3, 'x-vrx-ui': { dependsOn: 'on' } },
-          absolute: { type: 'string', minLength: 3, 'x-vrx-ui': { dependsOn: { field: '/mode', value: 'static' } } },
+          sibling: { type: 'string', minLength: 3, 'x-ngfw-ui': { dependsOn: 'on' } },
+          absolute: { type: 'string', minLength: 3, 'x-ngfw-ui': { dependsOn: { field: '/mode', value: 'static' } } },
         },
       },
     },

@@ -234,7 +234,7 @@ describe('F-vrf-static-ecmp e2e (PostgreSQL + fake agent)', () => {
       source: '10.1.102.1',
     });
     expect(src.body.errors).toEqual([expect.objectContaining({ pointer: '/source' })]);
-    const bad = await h.call(op, 'POST', '/api/v1/actions/ping', { target: 'vrx.example' });
+    const bad = await h.call(op, 'POST', '/api/v1/actions/ping', { target: 'ngfw.example' });
     expect(bad.status).toBe(400);
     expect(bad.body.errors[0].pointer).toBe('/target');
 

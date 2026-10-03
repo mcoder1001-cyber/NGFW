@@ -2,17 +2,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { runSecret, startHarness, type Harness } from '../support/harness.js';
 
 /**
- * VRX_DEV_WEAK_PASSWORDS=1 (development only): both password routes accept a new password shorter than 12 characters,
+ * NGFW_DEV_WEAK_PASSWORDS=1 (development only): both password routes accept a new password shorter than 12 characters,
  * and it works for login. The product rule (flag off) is covered in auth.e2e (/auth/password) and td2.e2e (/users/…).
  * Passwords are generated per run; "short" means a slice of a few characters.
  */
-describe('VRX_DEV_WEAK_PASSWORDS e2e', () => {
+describe('NGFW_DEV_WEAK_PASSWORDS e2e', () => {
   let h: Harness;
   let adminPw: string;
   const RO = runSecret();
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_DEV_WEAK_PASSWORDS: '1', VRX_PASSWORD_RATE_PER_MIN: '30' });
+    h = await startHarness({ NGFW_DEV_WEAK_PASSWORDS: '1', NGFW_PASSWORD_RATE_PER_MIN: '30' });
     adminPw = h.adminPassword;
     const admin = await h.login('admin', adminPw);
     await h.createUsers(admin, [{ username: 'wro1', role: 'readonly', password: RO }]);

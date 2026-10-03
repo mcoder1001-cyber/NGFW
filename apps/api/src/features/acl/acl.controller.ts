@@ -12,7 +12,7 @@ import {
 import { objectName } from '@ngfw/schema';
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../../common/zod.js';
 import { AclService } from './acl.service.js';
@@ -312,7 +312,7 @@ export class AclController {
   async importCsv(
     @Query(new ZodPipe(ImportQuery)) q: z.output<typeof ImportQuery>,
     @Body() body: unknown,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const r = await this.acl.importCsv(req.principal!, q.list, body, {
       mode: q.mode,
@@ -341,7 +341,7 @@ export class AclController {
   async bulk(
     @Param('name', new SafeParamPipe('name')) name: string,
     @Body(new ZodPipe(BulkBody)) body: z.output<typeof BulkBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const r = await this.acl.bulk(req.principal!, name, body);
     req.audit = {

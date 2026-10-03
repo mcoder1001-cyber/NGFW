@@ -20,7 +20,7 @@ held = []
 while True:
     c, _ = s.accept()
     try:
-        c.sendall(b"vrx-nat-ok\n")
+        c.sendall(b"ngfw-nat-ok\n")
     except OSError:
         pass
     held.append(c)

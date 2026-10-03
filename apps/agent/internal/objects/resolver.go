@@ -21,7 +21,7 @@ const (
 	MinRefresh = 30 * time.Second
 	MaxRefresh = time.Hour
 	// DefaultRefresh is the fixed interval used when the lookup reports no TTL (Go's resolver never
-	// does); VRX_OBJECTS_FQDN_REFRESH_SEC overrides it (subsystems/object_model.go).
+	// does); NGFW_OBJECTS_FQDN_REFRESH_SEC overrides it (subsystems/object_model.go).
 	DefaultRefresh = 60 * time.Second
 	// LookupTimeout bounds one resolution (A and AAAA in parallel, every server).
 	LookupTimeout = 5 * time.Second
@@ -31,7 +31,7 @@ const (
 	// DormantTTL: how long the answers of a name no object uses any more are kept (not queried).
 	DormantTTL = time.Hour
 	// DefaultMaxStale: how long the last good answers of a failing name are kept (D-129); after that the
-	// family expands to nothing, with a warning. VRX_OBJECTS_FQDN_MAX_STALE_SEC overrides it within
+	// family expands to nothing, with a warning. NGFW_OBJECTS_FQDN_MAX_STALE_SEC overrides it within
 	// [MinMaxStale, MaxMaxStale].
 	DefaultMaxStale = 24 * time.Hour
 	MinMaxStale     = time.Minute
@@ -86,7 +86,7 @@ func IsNotFound(err error) bool {
 // NetLookup resolves with Go's own resolver (PreferGo: no cgo, no exec, no shell). With no
 // servers it is the system resolver configuration (/etc/resolv.conf, and /etc/hosts per
 // nsswitch.conf); otherwise each query goes to these "host:port" servers, in order (tests: the
-// in-process responder; VRX_OBJECTS_DNS_SERVERS). It reports no TTL.
+// in-process responder; NGFW_OBJECTS_DNS_SERVERS). It reports no TTL.
 func NetLookup(servers []string) Lookup {
 	if len(servers) == 0 {
 		return netLookup{resolvers: []*net.Resolver{{PreferGo: true}}}

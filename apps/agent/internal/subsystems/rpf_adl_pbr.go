@@ -12,7 +12,7 @@ package subsystems
 // Stores: every DF-2 family gets the persisted "acl" claim store (Wiring.KeyedClaims("acl"), the one
 // F-acl also uses; never the in-memory default, D-080), the allow-list and Auto-SDL their applied-once
 // records in the owner's BootStore, the policy name records <state dir>/pbr-<owner>.json. ABF policy
-// ids are scoped to the slot range on the shared host (SlotIDRange, VRX_VPP_TABLE_BASE … +999) and
+// ids are scoped to the slot range on the shared host (SlotIDRange, NGFW_VPP_TABLE_BASE … +999) and
 // unrestricted in the product agent.
 
 import (

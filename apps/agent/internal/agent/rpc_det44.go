@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"ngfw/agent/binapi/det44"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/natcommon"
 )
 
@@ -86,7 +86,7 @@ func (s *Service) det44Owned(in netip.Addr) error {
 }
 
 // Det44Sessions pages one inside user's DET44 sessions (det44_forward for the port block, then det44_session_dump).
-func (s *Service) Det44Sessions(ctx context.Context, req *vrxv1.Det44SessionsRequest) (*vrxv1.Det44SessionsResponse, error) {
+func (s *Service) Det44Sessions(ctx context.Context, req *ngfwv1.Det44SessionsRequest) (*ngfwv1.Det44SessionsResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -121,14 +121,14 @@ func (s *Service) Det44Sessions(ctx context.Context, req *vrxv1.Det44SessionsReq
 		}
 		all = append(all, d)
 	}
-	resp := &vrxv1.Det44SessionsResponse{
+	resp := &ngfwv1.Det44SessionsResponse{
 		TotalSessions: uint64(len(all)), OutsideAddress: netip.AddrFrom4(fw.OutAddr).String(),
 		PortLo: uint32(fw.OutPortLo), PortHi: uint32(fw.OutPortHi), Owner: s.owner, RetrievedAt: timestamppb.New(s.now()),
 	}
 	off := int(req.GetOffset())
 	for i := off; i < len(all) && i < off+limit; i++ {
 		d := all[i]
-		resp.Sessions = append(resp.Sessions, &vrxv1.Det44Session{
+		resp.Sessions = append(resp.Sessions, &ngfwv1.Det44Session{
 			InsidePort: uint32(d.InPort), OutsidePort: uint32(d.OutPort), ExternalAddress: netip.AddrFrom4(d.ExtAddr).String(),
 			ExternalPort: uint32(d.ExtPort), State: det44StateName(d.State), Expire: d.Expire,
 		})
@@ -142,7 +142,7 @@ func (s *Service) Det44Sessions(ctx context.Context, req *vrxv1.Det44SessionsReq
 
 // Det44Lookup is the deterministic mapping in either direction (CGNAT logging): forward inside → outside address
 // and port block, reverse outside address + port → inside address.
-func (s *Service) Det44Lookup(ctx context.Context, req *vrxv1.Det44LookupRequest) (*vrxv1.Det44LookupResponse, error) {
+func (s *Service) Det44Lookup(ctx context.Context, req *ngfwv1.Det44LookupRequest) (*ngfwv1.Det44LookupResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (s *Service) Det44Lookup(ctx context.Context, req *vrxv1.Det44LookupRequest
 		if err != nil {
 			return nil, det44Err("det44_forward", err)
 		}
-		return &vrxv1.Det44LookupResponse{InsideAddress: in.String(), OutsideAddress: netip.AddrFrom4(fw.OutAddr).String(),
+		return &ngfwv1.Det44LookupResponse{InsideAddress: in.String(), OutsideAddress: netip.AddrFrom4(fw.OutAddr).String(),
 			PortLo: uint32(fw.OutPortLo), PortHi: uint32(fw.OutPortHi)}, nil
 	case req.OutsideAddress != nil && req.InsideAddress == nil:
 		out, err := parseIP4("outside_address", req.GetOutsideAddress())
@@ -182,13 +182,13 @@ func (s *Service) Det44Lookup(ctx context.Context, req *vrxv1.Det44LookupRequest
 		if err := s.det44Owned(in); err != nil {
 			return nil, err
 		}
-		return &vrxv1.Det44LookupResponse{InsideAddress: in.String(), OutsideAddress: out.String()}, nil
+		return &ngfwv1.Det44LookupResponse{InsideAddress: in.String(), OutsideAddress: out.String()}, nil
 	}
 	return nil, status.Error(codes.InvalidArgument, "set exactly one of inside_address or outside_address")
 }
 
 // det44SessionClose closes one session; exit_code 0 closed, 1 no such session.
-func (s *Service) det44SessionClose(ctx context.Context, a *vrxv1.Det44SessionCloseAction, send func(*vrxv1.ActionOutput) error) error {
+func (s *Service) det44SessionClose(ctx context.Context, a *ngfwv1.Det44SessionCloseAction, send func(*ngfwv1.ActionOutput) error) error {
 	if !s.vpp.Connected() {
 		return status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
@@ -238,18 +238,18 @@ func (s *Service) det44SessionClose(ctx context.Context, a *vrxv1.Det44SessionCl
 		return det44Err("det44 session close", err)
 	}
 	s.log.Info("det44 session close", "direction", a.GetDirection(), "address", addr.String(), "port", p, "external", ext.String(), "external_port", ep, "exit_code", code)
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: summary, ExitCode: int32(code)}}}) //nolint:gosec // 0–1
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: summary, ExitCode: int32(code)}}}) //nolint:gosec // 0–1
 }
 
-func (g *server) Det44Sessions(ctx context.Context, req *vrxv1.Det44SessionsRequest) (*vrxv1.Det44SessionsResponse, error) {
+func (g *server) Det44Sessions(ctx context.Context, req *ngfwv1.Det44SessionsRequest) (*ngfwv1.Det44SessionsResponse, error) {
 	return g.svc.Det44Sessions(ctx, req)
 }
 
-func (g *server) Det44Lookup(ctx context.Context, req *vrxv1.Det44LookupRequest) (*vrxv1.Det44LookupResponse, error) {
+func (g *server) Det44Lookup(ctx context.Context, req *ngfwv1.Det44LookupRequest) (*ngfwv1.Det44LookupResponse, error) {
 	return g.svc.Det44Lookup(ctx, req)
 }
 
 // det44SessionClose adapts the Action stream (server.go's case under the F-det44-map-dslite-cnat anchor).
-func (g *server) det44SessionClose(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) det44SessionClose(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	return g.svc.det44SessionClose(stream.Context(), req.GetDet44SessionClose(), stream.Send)
 }

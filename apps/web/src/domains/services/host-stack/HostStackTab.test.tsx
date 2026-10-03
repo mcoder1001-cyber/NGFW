@@ -64,8 +64,8 @@ describe('Services → Host stack (F-host-stack)', () => {
   });
   it('shows the server problem when the candidate or live state fails to load', async () => {
     const api = installFakeApi();
-    api.on('GET /api/v1/state/host-stack', { status: 503, body: { type: 'https://vrx.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'agent socket closed' } });
-    api.on('GET /api/v1/config/candidate/services', { status: 500, body: { type: 'https://vrx.dev/problems/internal', title: 'Internal error', status: 500, detail: 'candidate store failed' } });
+    api.on('GET /api/v1/state/host-stack', { status: 503, body: { type: 'https://ngfw.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'agent socket closed' } });
+    api.on('GET /api/v1/config/candidate/services', { status: 500, body: { type: 'https://ngfw.dev/problems/internal', title: 'Internal error', status: 500, detail: 'candidate store failed' } });
     await signIn();
     render(app('/services?tab=host-stack'));
     expect(await screen.findByText(/candidate store failed/)).toBeInTheDocument();

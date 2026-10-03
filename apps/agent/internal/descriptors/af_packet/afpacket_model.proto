@@ -1,7 +1,7 @@
 // Desired-state model of the af_packet descriptor (task DF-1). Agent-internal, see interface/model.proto.
 syntax = "proto3";
 
-package vrx.agent.afpacket;
+package ngfw.agent.afpacket;
 
 option go_package = "ngfw/agent/internal/descriptors/af_packet;afpacket";
 

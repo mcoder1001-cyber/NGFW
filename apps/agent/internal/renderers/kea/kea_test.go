@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -33,8 +33,8 @@ func newUnit(opts ...Option) *Renderer {
 	return New(renderers.NewRecordingRunner(), append(base, opts...)...)
 }
 
-func v4Server() *vrxv1.DhcpServer {
-	return &vrxv1.DhcpServer{
+func v4Server() *ngfwv1.DhcpServer {
+	return &ngfwv1.DhcpServer{
 		Enabled:        proto.Bool(true),
 		Description:    proto.String("LAN clients"),
 		Family:         proto.String("ipv4"),
@@ -44,51 +44,51 @@ func v4Server() *vrxv1.DhcpServer {
 		RenewTimerSec:  proto.Uint32(1800),
 		RebindTimerSec: proto.Uint32(3600),
 		Authoritative:  proto.Bool(true),
-		Options:        []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("tftp.example.test")}},
-		Subnets: map[string]*vrxv1.DhcpSubnet{
+		Options:        []*ngfwv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("tftp.example.test")}},
+		Subnets: map[string]*ngfwv1.DhcpSubnet{
 			"lan": {
 				Description:  proto.String("main LAN"),
 				Subnet:       proto.String("10.6.10.0/24"),
-				Pools:        []*vrxv1.DhcpPool{{Start: proto.String("10.6.10.100"), End: proto.String("10.6.10.199")}},
+				Pools:        []*ngfwv1.DhcpPool{{Start: proto.String("10.6.10.100"), End: proto.String("10.6.10.199")}},
 				Gateway:      proto.String("10.6.10.1"),
 				DnsServers:   []string{"10.6.10.1", "10.6.0.53"},
 				NtpServers:   []string{"10.6.10.1"},
 				DomainName:   proto.String("lan.example.test"),
 				DomainSearch: []string{"lan.example.test", "example.test"},
-				Options: []*vrxv1.DhcpOption{
-					{Code: proto.Uint32(224), Data: proto.String("vrx private text")},
+				Options: []*ngfwv1.DhcpOption{
+					{Code: proto.Uint32(224), Data: proto.String("ngfw private text")},
 					{Code: proto.Uint32(225), Data: proto.String("0x0a0b0c"), AlwaysSend: proto.Bool(true)},
 				},
-				Reservations: map[string]*vrxv1.DhcpReservation{
+				Reservations: map[string]*ngfwv1.DhcpReservation{
 					"printer": {
 						Mac: proto.String("AA-BB-CC-00-11-22"), Ip: proto.String("10.6.10.20"), Hostname: proto.String("Printer1"),
-						Options: []*vrxv1.DhcpOption{{Code: proto.Uint32(15), Data: proto.String("print.example.test")}},
+						Options: []*ngfwv1.DhcpOption{{Code: proto.Uint32(15), Data: proto.String("print.example.test")}},
 					},
 				},
 			},
 			"guest": {
 				Subnet:       proto.String("10.6.11.0/24"),
-				Pools:        []*vrxv1.DhcpPool{{Start: proto.String("10.6.11.10"), End: proto.String("10.6.11.50")}, {Start: proto.String("10.6.11.60"), End: proto.String("10.6.11.70")}},
+				Pools:        []*ngfwv1.DhcpPool{{Start: proto.String("10.6.11.10"), End: proto.String("10.6.11.50")}, {Start: proto.String("10.6.11.60"), End: proto.String("10.6.11.70")}},
 				LeaseTimeSec: proto.Uint32(600),
 			},
 		},
 	}
 }
 
-func v6Server() *vrxv1.DhcpServer {
-	return &vrxv1.DhcpServer{
+func v6Server() *ngfwv1.DhcpServer {
+	return &ngfwv1.DhcpServer{
 		Family:     proto.String("ipv6"),
 		Interfaces: []string{"w0-a", "w0-b"},
-		Subnets: map[string]*vrxv1.DhcpSubnet{
+		Subnets: map[string]*ngfwv1.DhcpSubnet{
 			"lan6": {
 				Subnet:       proto.String("fd00:6:10::/64"),
-				Pools:        []*vrxv1.DhcpPool{{Start: proto.String("fd00:6:10::1000"), End: proto.String("FD00:6:10::1FFF")}},
+				Pools:        []*ngfwv1.DhcpPool{{Start: proto.String("fd00:6:10::1000"), End: proto.String("FD00:6:10::1FFF")}},
 				DnsServers:   []string{"fd00:6:10::1"},
 				NtpServers:   []string{"fd00:6:10::1"},
 				DomainName:   proto.String("lan.example.test"),
 				DomainSearch: []string{"example.test"},
-				Options:      []*vrxv1.DhcpOption{{Code: proto.Uint32(1000), Data: proto.String("hello v6")}},
-				Reservations: map[string]*vrxv1.DhcpReservation{
+				Options:      []*ngfwv1.DhcpOption{{Code: proto.Uint32(1000), Data: proto.String("hello v6")}},
+				Reservations: map[string]*ngfwv1.DhcpReservation{
 					"nas": {Duid: proto.String("00:01:00:01:AA:BB:CC:DD:EE:FF"), Ip: proto.String("fd00:6:10::20"), Hostname: proto.String("nas")},
 					"cam": {Mac: proto.String("aa:bb:cc:00:11:33"), Ip: proto.String("fd00:6:10::21")},
 				},
@@ -97,8 +97,8 @@ func v6Server() *vrxv1.DhcpServer {
 	}
 }
 
-func dhcp(servers map[string]*vrxv1.DhcpServer) *vrxv1.DhcpService {
-	return &vrxv1.DhcpService{Servers: servers}
+func dhcp(servers map[string]*ngfwv1.DhcpServer) *ngfwv1.DhcpService {
+	return &ngfwv1.DhcpService{Servers: servers}
 }
 
 func render(t *testing.T, r *Renderer, desired proto.Message) renderers.Files {
@@ -133,15 +133,15 @@ func golden(t *testing.T, name string, files renderers.Files) {
 }
 
 func TestRenderGolden(t *testing.T) {
-	ifs := map[string]*vrxv1.Interface{"w0-a": {Ipv4: []string{"10.6.10.1/24"}}}
+	ifs := map[string]*ngfwv1.Interface{"w0-a": {Ipv4: []string{"10.6.10.1/24"}}}
 	cases := map[string]proto.Message{
 		"empty":    nil,
-		"v4":       dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()}),
-		"v6":       dhcp(map[string]*vrxv1.DhcpServer{"lan6": v6Server()}),
-		"both":     &vrxv1.ServicesConfig{Dhcp: dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server(), "lan6": v6Server()})},
-		"bindaddr": &vrxv1.DesiredState{Interfaces: ifs, Services: &vrxv1.ServicesConfig{Dhcp: dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()})}},
-		"disabled": dhcp(map[string]*vrxv1.DhcpServer{"off": {Enabled: proto.Bool(false), Interfaces: []string{"ens192"}}}),
-		"hostile-description": dhcp(map[string]*vrxv1.DhcpServer{"lan": func() *vrxv1.DhcpServer {
+		"v4":       dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}),
+		"v6":       dhcp(map[string]*ngfwv1.DhcpServer{"lan6": v6Server()}),
+		"both":     &ngfwv1.ServicesConfig{Dhcp: dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server(), "lan6": v6Server()})},
+		"bindaddr": &ngfwv1.DesiredState{Interfaces: ifs, Services: &ngfwv1.ServicesConfig{Dhcp: dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()})}},
+		"disabled": dhcp(map[string]*ngfwv1.DhcpServer{"off": {Enabled: proto.Bool(false), Interfaces: []string{"ens192"}}}),
+		"hostile-description": dhcp(map[string]*ngfwv1.DhcpServer{"lan": func() *ngfwv1.DhcpServer {
 			s := v4Server()
 			s.Description = proto.String(`"; rm -rf /`)
 			s.Subnets["lan"].Description = proto.String(`"}]} , "Dhcp4": {"hooks-libraries": [{"library": "/tmp/evil.so"}]} ☃ \`)
@@ -177,7 +177,7 @@ func TestHostileDescriptionEscaped(t *testing.T) {
 	evil := `"}]} , "Dhcp4": {"hooks-libraries": [{"library": "/tmp/evil.so"}]}`
 	s.Description = proto.String(`"; rm -rf /`)
 	s.Subnets["lan"].Description = proto.String(evil)
-	files := render(t, newUnit(), dhcp(map[string]*vrxv1.DhcpServer{"lan": s}))
+	files := render(t, newUnit(), dhcp(map[string]*ngfwv1.DhcpServer{"lan": s}))
 	var root struct {
 		Dhcp4 struct {
 			Hooks   []hookLibrary `json:"hooks-libraries"`
@@ -192,8 +192,8 @@ func TestHostileDescriptionEscaped(t *testing.T) {
 	}
 	found := map[string]bool{}
 	for _, sub := range root.Dhcp4.Subnet4 {
-		found[sub.UserContext.VRX.Description] = true
-		found[sub.UserContext.VRX.ServerDescription] = true
+		found[sub.UserContext.NGFW.Description] = true
+		found[sub.UserContext.NGFW.ServerDescription] = true
 	}
 	if !found[evil] || !found[`"; rm -rf /`] {
 		t.Fatalf("descriptions not preserved verbatim as strings: %v", found)
@@ -206,77 +206,77 @@ var hostile = []string{
 }
 
 func TestRejects(t *testing.T) {
-	type mut func(s *vrxv1.DhcpServer)
+	type mut func(s *ngfwv1.DhcpServer)
 	cases := map[string]mut{
-		"desc-5k":        func(s *vrxv1.DhcpServer) { s.Description = proto.String(strings.Repeat("x", 5*1024)) },
-		"iface-hostile":  func(s *vrxv1.DhcpServer) { s.Interfaces = []string{`w0-a"; rm -rf /`} },
-		"iface-host-nic": func(s *vrxv1.DhcpServer) { s.Interfaces = []string{"ens192"} },
-		"iface-none":     func(s *vrxv1.DhcpServer) { s.Interfaces = nil },
-		"vrf-hostile":    func(s *vrxv1.DhcpServer) { s.Vrf = proto.String("a b") },
-		"family":         func(s *vrxv1.DhcpServer) { s.Family = proto.String("ipx") },
-		"renew":          func(s *vrxv1.DhcpServer) { s.RenewTimerSec = proto.Uint32(9000) },
-		"opt-code-0": func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(0), Data: proto.String("x")}}
+		"desc-5k":        func(s *ngfwv1.DhcpServer) { s.Description = proto.String(strings.Repeat("x", 5*1024)) },
+		"iface-hostile":  func(s *ngfwv1.DhcpServer) { s.Interfaces = []string{`w0-a"; rm -rf /`} },
+		"iface-host-nic": func(s *ngfwv1.DhcpServer) { s.Interfaces = []string{"ens192"} },
+		"iface-none":     func(s *ngfwv1.DhcpServer) { s.Interfaces = nil },
+		"vrf-hostile":    func(s *ngfwv1.DhcpServer) { s.Vrf = proto.String("a b") },
+		"family":         func(s *ngfwv1.DhcpServer) { s.Family = proto.String("ipx") },
+		"renew":          func(s *ngfwv1.DhcpServer) { s.RenewTimerSec = proto.Uint32(9000) },
+		"opt-code-0": func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(0), Data: proto.String("x")}}
 		},
-		"opt-code-v4-300": func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(300), Data: proto.String("x")}}
+		"opt-code-v4-300": func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(300), Data: proto.String("x")}}
 		},
-		"opt-dup": func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("a")}, {Code: proto.Uint32(66), Data: proto.String("b")}}
+		"opt-dup": func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("a")}, {Code: proto.Uint32(66), Data: proto.String("b")}}
 		},
-		"opt-unicode": func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("☃")}}
+		"opt-unicode": func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String("☃")}}
 		},
-		"opt-5k": func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(strings.Repeat("a", 5*1024))}}
+		"opt-5k": func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(strings.Repeat("a", 5*1024))}}
 		},
-		"opt-typed-dup": func(s *vrxv1.DhcpServer) {
-			s.Subnets["lan"].Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(3), Data: proto.String("10.6.10.2")}}
+		"opt-typed-dup": func(s *ngfwv1.DhcpServer) {
+			s.Subnets["lan"].Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(3), Data: proto.String("10.6.10.2")}}
 		},
-		"subnet-name":   func(s *vrxv1.DhcpServer) { s.Subnets["bad name"] = s.Subnets["lan"] },
-		"subnet-family": func(s *vrxv1.DhcpServer) { s.Subnets["lan"].Subnet = proto.String("fd00::/64") },
-		"pool-outside": func(s *vrxv1.DhcpServer) {
-			s.Subnets["lan"].Pools = []*vrxv1.DhcpPool{{Start: proto.String("10.6.10.1"), End: proto.String("10.6.12.1")}}
+		"subnet-name":   func(s *ngfwv1.DhcpServer) { s.Subnets["bad name"] = s.Subnets["lan"] },
+		"subnet-family": func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].Subnet = proto.String("fd00::/64") },
+		"pool-outside": func(s *ngfwv1.DhcpServer) {
+			s.Subnets["lan"].Pools = []*ngfwv1.DhcpPool{{Start: proto.String("10.6.10.1"), End: proto.String("10.6.12.1")}}
 		},
-		"pool-reversed": func(s *vrxv1.DhcpServer) {
-			s.Subnets["lan"].Pools = []*vrxv1.DhcpPool{{Start: proto.String("10.6.10.9"), End: proto.String("10.6.10.1")}}
+		"pool-reversed": func(s *ngfwv1.DhcpServer) {
+			s.Subnets["lan"].Pools = []*ngfwv1.DhcpPool{{Start: proto.String("10.6.10.9"), End: proto.String("10.6.10.1")}}
 		},
-		"pool-hostile": func(s *vrxv1.DhcpServer) {
-			s.Subnets["lan"].Pools = []*vrxv1.DhcpPool{{Start: proto.String(`10.6.10.1"; rm -rf /`), End: proto.String("10.6.10.9")}}
+		"pool-hostile": func(s *ngfwv1.DhcpServer) {
+			s.Subnets["lan"].Pools = []*ngfwv1.DhcpPool{{Start: proto.String(`10.6.10.1"; rm -rf /`), End: proto.String("10.6.10.9")}}
 		},
-		"gateway-hostile": func(s *vrxv1.DhcpServer) { s.Subnets["lan"].Gateway = proto.String("10.6.10.1\ninclude") },
-		"dns-hostile":     func(s *vrxv1.DhcpServer) { s.Subnets["lan"].DnsServers = []string{"1.1.1.1, 8.8.8.8"} },
-		"domain-hostile":  func(s *vrxv1.DhcpServer) { s.Subnets["lan"].DomainName = proto.String(`x"; rm -rf /`) },
-		"search-unicode":  func(s *vrxv1.DhcpServer) { s.Subnets["lan"].DomainSearch = []string{"bücher.example"} },
-		"mac-hostile": func(s *vrxv1.DhcpServer) {
+		"gateway-hostile": func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].Gateway = proto.String("10.6.10.1\ninclude") },
+		"dns-hostile":     func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].DnsServers = []string{"1.1.1.1, 8.8.8.8"} },
+		"domain-hostile":  func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].DomainName = proto.String(`x"; rm -rf /`) },
+		"search-unicode":  func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].DomainSearch = []string{"bücher.example"} },
+		"mac-hostile": func(s *ngfwv1.DhcpServer) {
 			s.Subnets["lan"].Reservations["printer"].Mac = proto.String(`aa:bb:cc:dd:ee:ff"}`)
 		},
-		"duid-on-v4": func(s *vrxv1.DhcpServer) {
+		"duid-on-v4": func(s *ngfwv1.DhcpServer) {
 			r := s.Subnets["lan"].Reservations["printer"]
 			r.Mac, r.Duid = nil, proto.String("00:01")
 		},
-		"mac-and-duid": func(s *vrxv1.DhcpServer) {
+		"mac-and-duid": func(s *ngfwv1.DhcpServer) {
 			s.Subnets["lan"].Reservations["printer"].Duid = proto.String("00:01")
 		},
-		"res-outside": func(s *vrxv1.DhcpServer) {
+		"res-outside": func(s *ngfwv1.DhcpServer) {
 			s.Subnets["lan"].Reservations["printer"].Ip = proto.String("10.6.99.1")
 		},
-		"res-hostname": func(s *vrxv1.DhcpServer) {
+		"res-hostname": func(s *ngfwv1.DhcpServer) {
 			s.Subnets["lan"].Reservations["printer"].Hostname = proto.String("a\nb")
 		},
 	}
 	for i, h := range hostile {
 		h := h
-		cases["desc-hostile-"+string(rune('a'+i))] = func(s *vrxv1.DhcpServer) { s.Subnets["lan"].Description = proto.String(h) }
-		cases["optdata-hostile-"+string(rune('a'+i))] = func(s *vrxv1.DhcpServer) {
-			s.Options = []*vrxv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(h)}}
+		cases["desc-hostile-"+string(rune('a'+i))] = func(s *ngfwv1.DhcpServer) { s.Subnets["lan"].Description = proto.String(h) }
+		cases["optdata-hostile-"+string(rune('a'+i))] = func(s *ngfwv1.DhcpServer) {
+			s.Options = []*ngfwv1.DhcpOption{{Code: proto.Uint32(66), Data: proto.String(h)}}
 		}
 	}
 	for name, m := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := v4Server()
 			m(s)
-			_, err := newUnit().Render(context.Background(), dhcp(map[string]*vrxv1.DhcpServer{"lan": s}))
+			_, err := newUnit().Render(context.Background(), dhcp(map[string]*ngfwv1.DhcpServer{"lan": s}))
 			if !errors.Is(err, ErrInvalid) {
 				t.Fatalf("want ErrInvalid, got %v", err)
 			}
@@ -286,13 +286,13 @@ func TestRejects(t *testing.T) {
 		a, b := v4Server(), v4Server()
 		b.Vrf = proto.String("blue")
 		b.Subnets = nil
-		_, err := newUnit().Render(context.Background(), dhcp(map[string]*vrxv1.DhcpServer{"a": a, "b": b}))
+		_, err := newUnit().Render(context.Background(), dhcp(map[string]*ngfwv1.DhcpServer{"a": a, "b": b}))
 		if !errors.Is(err, ErrInvalid) {
 			t.Fatalf("want ErrInvalid, got %v", err)
 		}
 	})
 	t.Run("wrong-type", func(t *testing.T) {
-		_, err := newUnit().Render(context.Background(), &vrxv1.NtpService{})
+		_, err := newUnit().Render(context.Background(), &ngfwv1.NtpService{})
 		if !errors.Is(err, ErrInvalid) {
 			t.Fatalf("want ErrInvalid, got %v", err)
 		}
@@ -300,11 +300,11 @@ func TestRejects(t *testing.T) {
 }
 
 func TestSubnetIDsStable(t *testing.T) {
-	one := render(t, newUnit(), dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()}))
+	one := render(t, newUnit(), dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}))
 	s := v4Server()
-	s.Subnets["another"] = &vrxv1.DhcpSubnet{Subnet: proto.String("10.6.12.0/24"),
-		Pools: []*vrxv1.DhcpPool{{Start: proto.String("10.6.12.10"), End: proto.String("10.6.12.20")}}}
-	two := render(t, newUnit(), dhcp(map[string]*vrxv1.DhcpServer{"lan": s}))
+	s.Subnets["another"] = &ngfwv1.DhcpSubnet{Subnet: proto.String("10.6.12.0/24"),
+		Pools: []*ngfwv1.DhcpPool{{Start: proto.String("10.6.12.10"), End: proto.String("10.6.12.20")}}}
+	two := render(t, newUnit(), dhcp(map[string]*ngfwv1.DhcpServer{"lan": s}))
 	ids := func(f renderers.Files) map[string]uint32 {
 		var root dhcp4Root
 		if err := json.Unmarshal(f[unitPaths().Dhcp4Conf()].Content, &root); err != nil {
@@ -312,7 +312,7 @@ func TestSubnetIDsStable(t *testing.T) {
 		}
 		out := map[string]uint32{}
 		for _, sub := range *root.Dhcp4.Subnet4 {
-			out[sub.UserContext.VRX.Subnet] = sub.ID
+			out[sub.UserContext.NGFW.Subnet] = sub.ID
 		}
 		return out
 	}
@@ -327,13 +327,13 @@ func TestSubnetIDsStable(t *testing.T) {
 func TestInterfaceMapperAndPrefix(t *testing.T) {
 	s := v4Server()
 	s.Interfaces = []string{"GigabitEthernet0/8/0"}
-	d := dhcp(map[string]*vrxv1.DhcpServer{"lan": s})
+	d := dhcp(map[string]*ngfwv1.DhcpServer{"lan": s})
 	if _, err := newUnit().Render(context.Background(), d); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("VPP name with the identity mapper: want ErrInvalid, got %v", err)
 	}
 	// product default: no mapper injected → every interface is refused (review L7)
 	plain := New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithLeaseCmdsHook(""))
-	if _, err := plain.Render(context.Background(), dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()})); !errors.Is(err, ErrInvalid) {
+	if _, err := plain.Render(context.Background(), dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()})); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("default mapper: want ErrInvalid, got %v", err)
 	}
 	m := WithInterfaceMapper(func(string) (string, error) { return "w0-a", nil })
@@ -346,7 +346,7 @@ func TestInterfaceMapperAndPrefix(t *testing.T) {
 func TestValidateArgv(t *testing.T) {
 	rr := renderers.NewRecordingRunner().Succeed(Dhcp4Bin, "").Succeed(Dhcp6Bin, "")
 	r := New(rr, WithPaths(unitPaths()), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper))
-	files := render(t, r, dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()}))
+	files := render(t, r, dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}))
 	if err := r.Validate(context.Background(), files); err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +432,7 @@ func tmpPaths(t *testing.T) Paths {
 
 func TestApply(t *testing.T) {
 	ctx := context.Background()
-	d := dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server()})
+	d := dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server()})
 
 	t.Run("config-set on running servers", func(t *testing.T) {
 		p, fc := tmpPaths(t), newFake(4, 6)
@@ -483,7 +483,7 @@ func TestApply(t *testing.T) {
 		}
 		fc.calls = nil
 		fc.failSet[6] = 2 // the second config-set on dhcp6 (the new config) fails
-		err := r.Apply(ctx, render(t, r, dhcp(map[string]*vrxv1.DhcpServer{"lan": v4Server(), "lan6": v6Server()})))
+		err := r.Apply(ctx, render(t, r, dhcp(map[string]*ngfwv1.DhcpServer{"lan": v4Server(), "lan6": v6Server()})))
 		if !errors.Is(err, ErrDaemon) {
 			t.Fatalf("want ErrDaemon, got %v", err)
 		}
@@ -566,12 +566,12 @@ func TestSubnetIDCollision(t *testing.T) {
 	if hashID("lan/vlan957918", 0) != 2851699104 || hashID("lan/vlan1340126", 0) != 2851699104 {
 		t.Fatalf("fixture pair no longer collides: %d %d", hashID("lan/vlan957918", 0), hashID("lan/vlan1340126", 0))
 	}
-	sub := func(n int) *vrxv1.DhcpSubnet {
-		return &vrxv1.DhcpSubnet{Subnet: proto.String(fmt.Sprintf("10.6.%d.0/24", n)),
-			Pools: []*vrxv1.DhcpPool{{Start: proto.String(fmt.Sprintf("10.6.%d.10", n)), End: proto.String(fmt.Sprintf("10.6.%d.20", n))}}}
+	sub := func(n int) *ngfwv1.DhcpSubnet {
+		return &ngfwv1.DhcpSubnet{Subnet: proto.String(fmt.Sprintf("10.6.%d.0/24", n)),
+			Pools: []*ngfwv1.DhcpPool{{Start: proto.String(fmt.Sprintf("10.6.%d.10", n)), End: proto.String(fmt.Sprintf("10.6.%d.20", n))}}}
 	}
-	server := func(subs map[string]*vrxv1.DhcpSubnet) *vrxv1.DhcpService {
-		return dhcp(map[string]*vrxv1.DhcpServer{"lan": {Interfaces: []string{"w0-a"}, Subnets: subs}})
+	server := func(subs map[string]*ngfwv1.DhcpSubnet) *ngfwv1.DhcpService {
+		return dhcp(map[string]*ngfwv1.DhcpServer{"lan": {Interfaces: []string{"w0-a"}, Subnets: subs}})
 	}
 	ids := func(f renderers.Files, p Paths) map[string]uint32 {
 		var root dhcp4Root
@@ -580,7 +580,7 @@ func TestSubnetIDCollision(t *testing.T) {
 		}
 		out := map[string]uint32{}
 		for _, s := range *root.Dhcp4.Subnet4 {
-			out[s.UserContext.VRX.Subnet] = s.ID
+			out[s.UserContext.NGFW.Subnet] = s.ID
 		}
 		return out
 	}
@@ -588,14 +588,14 @@ func TestSubnetIDCollision(t *testing.T) {
 	p := tmpPaths(t)
 	opts := []Option{WithPaths(p), WithController(newFake(4, 6)), WithLeaseCmdsHook(""), WithInterfaceMapper(IdentityMapper)}
 	r := New(renderers.NewRecordingRunner(), opts...)
-	first := render(t, r, server(map[string]*vrxv1.DhcpSubnet{"vlan957918": sub(1)}))
+	first := render(t, r, server(map[string]*ngfwv1.DhcpSubnet{"vlan957918": sub(1)}))
 	if got := ids(first, p)["vlan957918"]; got != 2851699104 {
 		t.Fatalf("first id %d", got)
 	}
 	if err := r.Apply(ctx, first); err != nil {
 		t.Fatal(err)
 	}
-	both := server(map[string]*vrxv1.DhcpSubnet{"vlan957918": sub(1), "vlan1340126": sub(2)})
+	both := server(map[string]*ngfwv1.DhcpSubnet{"vlan957918": sub(1), "vlan1340126": sub(2)})
 	for _, rr := range []*Renderer{r, New(renderers.NewRecordingRunner(), opts...)} { // same renderer, and after an agent restart
 		got := ids(render(t, rr, both), p)
 		if got["vlan957918"] != 2851699104 || got["vlan1340126"] == 2851699104 || got["vlan1340126"] == 0 {

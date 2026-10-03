@@ -197,13 +197,13 @@ function mergePrimitiveUnion(schema: JsonSchema, variants: JsonSchema[], hints: 
   const base = { ...(schema.title ? { title: schema.title } : {}), ...(schema.description ? { description: schema.description } : {}) };
   if (variants.every((v) => v.const !== undefined)) {
     const first = variants[0]!;
-    return { ...base, ...(first.type ? { type: first.type } : {}), enum: variants.map((v) => v.const), 'x-vrx-ui': { ...hintsOf(first), ...hints } };
+    return { ...base, ...(first.type ? { type: first.type } : {}), enum: variants.map((v) => v.const), 'x-ngfw-ui': { ...hintsOf(first), ...hints } };
   }
   const kinds = variants.map((v) => (v.enum || v.const !== undefined ? 'enum' : typeOf(v) === 'integer' ? 'number' : typeOf(v)));
   const kind = kinds[0];
   if (!kind || kind === 'enum' || !PRIMITIVE.has(kind) || kinds.some((k) => k !== kind)) return null;
   const first = variants[0]!;
-  return { ...first, ...base, 'x-vrx-ui': { ...hintsOf(first), ...hints } };
+  return { ...first, ...base, 'x-ngfw-ui': { ...hintsOf(first), ...hints } };
 }
 
 /** One registered field bound to a presentational input. */

@@ -1,6 +1,6 @@
 package subsystems
 
-// F-system-identity: the `system` domain as one singleton descriptor (system.identity/vrx) around the sysident
+// F-system-identity: the `system` domain as one singleton descriptor (system.identity/ngfw) around the sysident
 // renderer. Only the globals owner (D-071: the product agent on a real box) renders into /etc and sets the kernel
 // host name — the box's identity is a singleton like VPP's globals. Every other agent (a test slot, the dev host's
 // main stack) renders into <slot dir>/sysident/etc/… and never touches the host's name, zone, banners or resolver

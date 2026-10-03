@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp/ifsanitize"
@@ -102,11 +102,11 @@ func (m *metrics) sourceError(source, reason string) {
 	m.srcErrs[source+"\x00"+reason]++
 }
 
-func (m *metrics) observe(st vrxv1.ApplyStatus, d time.Duration, s *vrxv1.ApplySummary) {
+func (m *metrics) observe(st ngfwv1.ApplyStatus, d time.Duration, s *ngfwv1.ApplySummary) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.byStatus[st.String()]++
-	if st != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if st != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		m.errors++
 	}
 	sec := d.Seconds()
@@ -183,56 +183,56 @@ func (m *metrics) writeCollectors(ctx context.Context, w io.Writer) {
 		}
 		_, _ = w.Write(buf.Bytes())
 	}
-	_, _ = io.WriteString(w, "# HELP vrx_agent_metrics_collector_errors_total Scrapes on which a feature metrics collector failed (its families were not served).\n# TYPE vrx_agent_metrics_collector_errors_total counter\n")
+	_, _ = io.WriteString(w, "# HELP ngfw_agent_metrics_collector_errors_total Scrapes on which a feature metrics collector failed (its families were not served).\n# TYPE ngfw_agent_metrics_collector_errors_total counter\n")
 	m.collMu.Lock()
 	defer m.collMu.Unlock()
 	for _, c := range cs {
-		_, _ = fmt.Fprintf(w, "vrx_agent_metrics_collector_errors_total{collector=%q} %d\n", c.Name, m.collErrs[c.Name])
+		_, _ = fmt.Fprintf(w, "ngfw_agent_metrics_collector_errors_total{collector=%q} %d\n", c.Name, m.collErrs[c.Name])
 	}
 }
 
 // writeAgent renders the agent's own families.
 func (m *metrics) writeAgent(w io.Writer) {
 	p := func(format string, a ...any) { _, _ = fmt.Fprintf(w, format, a...) }
-	p("# HELP vrx_agent_vpp_connected 1 when the VPP binary API is connected.\n# TYPE vrx_agent_vpp_connected gauge\nvrx_agent_vpp_connected %d\n", b2f(m.vppConnected.Load()))
-	p("# HELP vrx_agent_degraded 1 after a failed rollback until a transaction succeeds.\n# TYPE vrx_agent_degraded gauge\nvrx_agent_degraded %d\n", b2f(m.degraded.Load()))
-	p("# HELP vrx_agent_confirm_pending 1 while a transaction awaits confirmation.\n# TYPE vrx_agent_confirm_pending gauge\nvrx_agent_confirm_pending %d\n", b2f(m.pending.Load()))
-	p("# HELP vrx_agent_objects Desired objects of the last reconcile.\n# TYPE vrx_agent_objects gauge\nvrx_agent_objects %d\n", m.objects.Load())
-	p("# HELP vrx_agent_confirm_reverts_total Confirm timeouts that reverted a transaction.\n# TYPE vrx_agent_confirm_reverts_total counter\nvrx_agent_confirm_reverts_total %d\n", m.reverts.Load())
-	p("# HELP vrx_agent_retrieve_unsupported_descriptors Write-only descriptors (no VPP dump, D-063).\n# TYPE vrx_agent_retrieve_unsupported_descriptors gauge\nvrx_agent_retrieve_unsupported_descriptors %d\n", m.woDescs.Load())
-	p("# HELP vrx_agent_retrieve_unsupported_objects Objects of write-only descriptors applied by this process (D-063).\n# TYPE vrx_agent_retrieve_unsupported_objects gauge\nvrx_agent_retrieve_unsupported_objects %d\n", m.woObjects.Load())
-	p("# HELP vrx_agent_drift_objects Objects of the stored desired state that differ from VPP at the last drift check (a Plan, nothing applied).\n# TYPE vrx_agent_drift_objects gauge\nvrx_agent_drift_objects %d\n", m.drift.Load())
-	p("# HELP vrx_agent_panics_total Panics recovered: in a gRPC handler, a descriptor call, the agent's transaction code, or a wiring hook / the link watcher.\n# TYPE vrx_agent_panics_total counter\n")
+	p("# HELP ngfw_agent_vpp_connected 1 when the VPP binary API is connected.\n# TYPE ngfw_agent_vpp_connected gauge\nngfw_agent_vpp_connected %d\n", b2f(m.vppConnected.Load()))
+	p("# HELP ngfw_agent_degraded 1 after a failed rollback until a transaction succeeds.\n# TYPE ngfw_agent_degraded gauge\nngfw_agent_degraded %d\n", b2f(m.degraded.Load()))
+	p("# HELP ngfw_agent_confirm_pending 1 while a transaction awaits confirmation.\n# TYPE ngfw_agent_confirm_pending gauge\nngfw_agent_confirm_pending %d\n", b2f(m.pending.Load()))
+	p("# HELP ngfw_agent_objects Desired objects of the last reconcile.\n# TYPE ngfw_agent_objects gauge\nngfw_agent_objects %d\n", m.objects.Load())
+	p("# HELP ngfw_agent_confirm_reverts_total Confirm timeouts that reverted a transaction.\n# TYPE ngfw_agent_confirm_reverts_total counter\nngfw_agent_confirm_reverts_total %d\n", m.reverts.Load())
+	p("# HELP ngfw_agent_retrieve_unsupported_descriptors Write-only descriptors (no VPP dump, D-063).\n# TYPE ngfw_agent_retrieve_unsupported_descriptors gauge\nngfw_agent_retrieve_unsupported_descriptors %d\n", m.woDescs.Load())
+	p("# HELP ngfw_agent_retrieve_unsupported_objects Objects of write-only descriptors applied by this process (D-063).\n# TYPE ngfw_agent_retrieve_unsupported_objects gauge\nngfw_agent_retrieve_unsupported_objects %d\n", m.woObjects.Load())
+	p("# HELP ngfw_agent_drift_objects Objects of the stored desired state that differ from VPP at the last drift check (a Plan, nothing applied).\n# TYPE ngfw_agent_drift_objects gauge\nngfw_agent_drift_objects %d\n", m.drift.Load())
+	p("# HELP ngfw_agent_panics_total Panics recovered: in a gRPC handler, a descriptor call, the agent's transaction code, or a wiring hook / the link watcher.\n# TYPE ngfw_agent_panics_total counter\n")
 	for i, w := range panicWhere {
-		p("vrx_agent_panics_total{where=%q} %d\n", w, m.panics[i].Load())
+		p("ngfw_agent_panics_total{where=%q} %d\n", w, m.panics[i].Load())
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	p("# HELP vrx_agent_reconcile_total Reconcile transactions by outcome.\n# TYPE vrx_agent_reconcile_total counter\n")
+	p("# HELP ngfw_agent_reconcile_total Reconcile transactions by outcome.\n# TYPE ngfw_agent_reconcile_total counter\n")
 	statuses := make([]string, 0, len(m.byStatus))
 	for k := range m.byStatus {
 		statuses = append(statuses, k)
 	}
 	sort.Strings(statuses)
 	for _, k := range statuses {
-		p("vrx_agent_reconcile_total{status=%q} %d\n", k, m.byStatus[k])
+		p("ngfw_agent_reconcile_total{status=%q} %d\n", k, m.byStatus[k])
 	}
-	p("# HELP vrx_agent_reconcile_errors_total Reconcile transactions that did not end APPLIED.\n# TYPE vrx_agent_reconcile_errors_total counter\nvrx_agent_reconcile_errors_total %d\n", m.errors)
-	p("# HELP vrx_agent_reconcile_operations_total Object operations by kind.\n# TYPE vrx_agent_reconcile_operations_total counter\n")
+	p("# HELP ngfw_agent_reconcile_errors_total Reconcile transactions that did not end APPLIED.\n# TYPE ngfw_agent_reconcile_errors_total counter\nngfw_agent_reconcile_errors_total %d\n", m.errors)
+	p("# HELP ngfw_agent_reconcile_operations_total Object operations by kind.\n# TYPE ngfw_agent_reconcile_operations_total counter\n")
 	for _, k := range []string{"created", "updated", "deleted", "reverted", "failed"} {
-		p("vrx_agent_reconcile_operations_total{op=%q} %d\n", k, m.ops[k])
+		p("ngfw_agent_reconcile_operations_total{op=%q} %d\n", k, m.ops[k])
 	}
-	p("# HELP vrx_agent_reconcile_duration_seconds Duration of reconcile transactions.\n# TYPE vrx_agent_reconcile_duration_seconds histogram\n")
+	p("# HELP ngfw_agent_reconcile_duration_seconds Duration of reconcile transactions.\n# TYPE ngfw_agent_reconcile_duration_seconds histogram\n")
 	for i, b := range durationBuckets {
-		p("vrx_agent_reconcile_duration_seconds_bucket{le=%q} %d\n", fmtFloat(b), m.buckets[i])
+		p("ngfw_agent_reconcile_duration_seconds_bucket{le=%q} %d\n", fmtFloat(b), m.buckets[i])
 	}
-	p("vrx_agent_reconcile_duration_seconds_bucket{le=\"+Inf\"} %d\n", m.count)
-	p("vrx_agent_reconcile_duration_seconds_sum %s\nvrx_agent_reconcile_duration_seconds_count %d\n", fmtFloat(m.sum), m.count)
+	p("ngfw_agent_reconcile_duration_seconds_bucket{le=\"+Inf\"} %d\n", m.count)
+	p("ngfw_agent_reconcile_duration_seconds_sum %s\nngfw_agent_reconcile_duration_seconds_count %d\n", fmtFloat(m.sum), m.count)
 	if len(m.srcNames) > 0 {
-		p("# HELP vrx_agent_dynamic_source_errors_total Dynamic desired source failures: left out of a transaction, or its own sync failed (reason invalid, panic, rejected, stopped).\n# TYPE vrx_agent_dynamic_source_errors_total counter\n")
+		p("# HELP ngfw_agent_dynamic_source_errors_total Dynamic desired source failures: left out of a transaction, or its own sync failed (reason invalid, panic, rejected, stopped).\n# TYPE ngfw_agent_dynamic_source_errors_total counter\n")
 		for _, n := range m.srcNames {
 			for _, r := range srcReasons {
-				p("vrx_agent_dynamic_source_errors_total{source=%q,reason=%q} %d\n", n, r, m.srcErrs[n+"\x00"+r])
+				p("ngfw_agent_dynamic_source_errors_total{source=%q,reason=%q} %d\n", n, r, m.srcErrs[n+"\x00"+r])
 			}
 		}
 	}

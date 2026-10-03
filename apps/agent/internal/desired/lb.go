@@ -9,7 +9,7 @@ package desired
 //
 // Every lb object is write-only (VPP 26.06 corrupts lb_vip_details, V20, D-063): DryRun notes /services/lb as
 // agent.write-only and Retrieve never reports services.lb; the live view is the LbState RPC (internal/agent/rpc_lb.go).
-// A non-owner agent (VRX_GLOBALS_OWNER=0) never sets lb_conf: settings are reported as agent.unsupported-field there,
+// A non-owner agent (NGFW_GLOBALS_OWNER=0) never sets lb_conf: settings are reported as agent.unsupported-field there,
 // and VIPs use whatever the globals owner configured (D-071).
 
 import (
@@ -17,7 +17,7 @@ import (
 	"net/netip"
 	"strconv"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/lb"
 )
@@ -40,7 +40,7 @@ type LbEnv struct {
 }
 
 // LbVIPOf converts one configured VIP into the descriptor's spec, canonical (masked prefix, lower-case IPv6).
-func LbVIPOf(v *vrxv1.LbVip) (lb.VIPSpec, error) {
+func LbVIPOf(v *ngfwv1.LbVip) (lb.VIPSpec, error) {
 	p, err := netip.ParsePrefix(v.GetPrefix())
 	if err != nil {
 		return lb.VIPSpec{}, fmt.Errorf("prefix %q: %w", v.GetPrefix(), err)
@@ -83,7 +83,7 @@ var errReservedVIP = fmt.Errorf("VIPs in %s are reserved (0.0.0.0/32 is the agen
 
 // Lb emits the lb objects of svc.lb (see the file comment). The agent.unsupported-field notes of other services members
 // come from ServicesUnsupported, called once per projection by agent.project.
-func Lb(s Sink, svc *vrxv1.ServicesConfig, env LbEnv) {
+func Lb(s Sink, svc *ngfwv1.ServicesConfig, env LbEnv) {
 	l := svc.GetLb()
 	if l == nil {
 		return

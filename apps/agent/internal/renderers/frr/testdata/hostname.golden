@@ -1,6 +1,6 @@
 frr version 10.7.1
 frr defaults traditional
-hostname vrx-a
+hostname ngfw-a
 log syslog informational
 service integrated-vtysh-config
 !

@@ -22,10 +22,10 @@ export interface Change {
  * - Identical inputs yield `[]`; two different scalars at the root yield one change with pointer `''`.
  *
  * Arrays stay leaves in contracts-v1 (D-021): a list such as `routing.static` is replaced as a whole. The UI can
- * still show per-item changes by pairing `from`/`to` items on the `x-vrx-ui.itemKey` of the array's schema; an
+ * still show per-item changes by pairing `from`/`to` items on the `x-ngfw-ui.itemKey` of the array's schema; an
  * element-wise diff option can be added later as a third `options` parameter (review L2).
  *
- * Secret leaves (`x-vrx-ui.secret`) are diffed like any other value: callers that show or store a diff pass
+ * Secret leaves (`x-ngfw-ui.secret`) are diffed like any other value: callers that show or store a diff pass
  * `redactSecrets()` documents (D-046).
  */
 export function diff(a: unknown, b: unknown): Change[] {

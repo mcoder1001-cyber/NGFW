@@ -213,7 +213,7 @@ func (d *TableDescriptor) Delete(ctx context.Context, obj proto.Message, meta an
 }
 
 // deleteTable removes table index. The handler validates mask_len == match_n_vectors × 16 on
-// delete too (-7 otherwise, verified on vrx-a), so a consistent dummy geometry is sent along.
+// delete too (-7 otherwise, verified on ngfw-a), so a consistent dummy geometry is sent along.
 func deleteTable(ctx context.Context, c vpp.Client, index uint32) error {
 	req := &classifyapi.ClassifyAddDelTable{IsAdd: false, TableIndex: index, Nbuckets: DefaultNbuckets, MemorySize: DefaultMemorySize,
 		MatchNVectors: DefaultMatchNVectors, MaskLen: VectorSize, Mask: make([]byte, VectorSize), NextTableIndex: NoIndex, MissNextIndex: NoIndex}

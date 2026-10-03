@@ -2,7 +2,7 @@ import Alert from '@mui/material/Alert';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { VRX_STATUSES, type VrxStatus } from '@ngfw/ui-kit';
+import { NGFW_STATUSES, type NgfwStatus } from '@ngfw/ui-kit';
 import type { GridColDef } from '@ngfw/ui-kit/data-grid';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,7 +16,7 @@ import { Sparkline } from './Sparkline';
 
 interface PreviewRow {
   id: string;
-  status: VrxStatus | undefined;
+  status: NgfwStatus | undefined;
   packets: string;
 }
 
@@ -70,7 +70,7 @@ export function KitPreview() {
         {t('dev:kitPreview.statusSection')}
       </Typography>
       <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center" sx={{ mb: 1 }}>
-        {VRX_STATUSES.map((s) => (
+        {NGFW_STATUSES.map((s) => (
           <StatusCell key={s} status={s} />
         ))}
         <StatusCell status={undefined} />

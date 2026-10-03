@@ -58,10 +58,10 @@ func TestGovppSnapshot(t *testing.T) {
 	if err := Collect(context.Background(), fakeSource{snap: snap}, "", &b); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(b.String(), "vrx_interface_link_up{interface=") || strings.Contains(b.String(), "vrx_interface_rx_drops_total{interface=") {
+	if strings.Contains(b.String(), "ngfw_interface_link_up{interface=") || strings.Contains(b.String(), "ngfw_interface_rx_drops_total{interface=") {
 		t.Fatal("invented link/directional state")
 	}
-	if !strings.Contains(b.String(), "vrx_interface_drops_total{interface=\"w1-test\"} 2") {
+	if !strings.Contains(b.String(), "ngfw_interface_drops_total{interface=\"w1-test\"} 2") {
 		t.Fatal(b.String())
 	}
 }
@@ -80,10 +80,10 @@ func TestGovppReadFailureAndCancel(t *testing.T) {
 	s.Close()
 }
 func TestGovppLiveStats(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
 		t.Skip("requires real VPP stats segment")
 	}
-	s := NewGovppSource(os.Getenv("VRX_AGENT_VPP_STATS_SOCKET"))
+	s := NewGovppSource(os.Getenv("NGFW_AGENT_VPP_STATS_SOCKET"))
 	defer s.Close()
 	snap, err := s.Read(context.Background())
 	if err != nil {

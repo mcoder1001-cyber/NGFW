@@ -107,7 +107,7 @@ export class AaaService {
       order: Array.isArray(aaa['order']) ? (aaa['order'] as unknown[]).map(String) : ['local'],
       fallbackLocal: aaa['fallbackLocal'] !== false,
       mfaRequired: req === 'admins' || req === 'all' ? req : 'none',
-      mfaIssuer: typeof mfa['issuer'] === 'string' ? mfa['issuer'] : 'vrx',
+      mfaIssuer: typeof mfa['issuer'] === 'string' ? mfa['issuer'] : 'ngfw',
     };
     this.policyCache = { at: Date.now(), value };
     return value;

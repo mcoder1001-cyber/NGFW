@@ -29,7 +29,7 @@ export class YangController {
 
   @Get(':name')
   @Protected(404)
-  @ApiParam({ name: 'name', schema: { type: 'string' }, description: 'module name, e.g. vrx-interfaces' })
+  @ApiParam({ name: 'name', schema: { type: 'string' }, description: 'module name, e.g. ngfw-interfaces' })
   @ApiOperation({ summary: 'The text of one generated YANG module' })
   @ApiOkResponse({ schema: openapi(ModuleOut, 'output') })
   one(@Param('name') name: string) {

@@ -17,7 +17,7 @@ import (
 	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/memclnt"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/svs"
 	"ngfw/agent/internal/vpp"
@@ -76,7 +76,7 @@ type Query struct {
 
 // Page is the lister's answer.
 type Page struct {
-	Routes []*vrxv1.ListRoutesEntry
+	Routes []*ngfwv1.ListRoutesEntry
 	Total  uint32
 }
 
@@ -313,13 +313,13 @@ var pathTypes = map[fib_types.FibPathType]string{
 	fib_types.FIB_API_PATH_TYPE_CLASSIFY:      "classify",
 }
 
-func convert(e entry, names map[uint8]string, ifs *iface.Table) *vrxv1.ListRoutesEntry {
-	out := &vrxv1.ListRoutesEntry{Prefix: e.prefix.String(), Source: names[e.src], StatsIndex: e.statsIndex}
+func convert(e entry, names map[uint8]string, ifs *iface.Table) *ngfwv1.ListRoutesEntry {
+	out := &ngfwv1.ListRoutesEntry{Prefix: e.prefix.String(), Source: names[e.src], StatsIndex: e.statsIndex}
 	if out.Source == "" {
 		out.Source = fmt.Sprintf("source-%d", e.src)
 	}
 	for _, sp := range e.paths {
-		p := &vrxv1.ListRoutesPath{Type: pathTypes[sp.typ], TableId: sp.tableID, Weight: uint32(sp.weight), Preference: uint32(sp.pref)}
+		p := &ngfwv1.ListRoutesPath{Type: pathTypes[sp.typ], TableId: sp.tableID, Weight: uint32(sp.weight), Preference: uint32(sp.pref)}
 		if p.Type == "" {
 			p.Type = fmt.Sprintf("type-%d", sp.typ)
 		}

@@ -1,0 +1,4 @@
+# ngfw.conf: rendered by ngfw-agent (strongswan renderer); every change is overwritten.
+# Secrets are in ngfw-secrets.conf (mode 0600).
+connections {
+}

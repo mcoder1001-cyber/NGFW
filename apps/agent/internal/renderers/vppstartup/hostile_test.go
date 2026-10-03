@@ -135,7 +135,7 @@ func TestHostile(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			host := vrxA(t)
+			host := ngfwA(t)
 			if c.host != nil {
 				host = *c.host
 			}
@@ -190,7 +190,7 @@ func TestTemplateBackstop(t *testing.T) {
 
 func withCurrent(t *testing.T, cur map[string]bool) *Host {
 	t.Helper()
-	h := vrxA(t)
+	h := ngfwA(t)
 	h.CurrentPlugins = cur
 	return &h
 }

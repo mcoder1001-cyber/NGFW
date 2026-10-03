@@ -1,16 +1,16 @@
 package subsystems
 
 // F-host-acl-nftables: the host firewall family of the `acl` domain (Domains["acl"]): one singleton
-// descriptor, host-acl.nftables/vrx, wrapping the nftables renderer (decision (a): no agent-core
+// descriptor, host-acl.nftables/ngfw, wrapping the nftables renderer (decision (a): no agent-core
 // change). subsystems.go only carries the domain constant, the Domains entry and one registerHostACL call.
 //
 // Where the table goes (nftables.PathsFromEnv):
 //
-//	owner "vrx" + globals owner        table inet vrx      in the root network namespace (mode apply)
-//	owner "vrx", VRX_GLOBALS_OWNER=0   table inet vrx      never loaded: `nft -c` only (mode check; tools/app)
-//	other owners (test slots)          table inet vrx_<o>  never loaded: `nft -c` only (mode check) …
-//	  … with VRX_HOST_ACL_NETNS=ns-…   loaded inside that namespace (mode netns; setns on a locked thread)
-//	VRX_HOST_ACL_MODE=check            validate only, for any owner (a product stack on a shared host)
+//	owner "ngfw" + globals owner        table inet ngfw      in the root network namespace (mode apply)
+//	owner "ngfw", NGFW_GLOBALS_OWNER=0   table inet ngfw      never loaded: `nft -c` only (mode check; tools/app)
+//	other owners (test slots)          table inet ngfw_<o>  never loaded: `nft -c` only (mode check) …
+//	  … with NGFW_HOST_ACL_NETNS=ns-…   loaded inside that namespace (mode netns; setns on a locked thread)
+//	NGFW_HOST_ACL_MODE=check            validate only, for any owner (a product stack on a shared host)
 
 import (
 	"ngfw/agent/internal/desired"

@@ -9,7 +9,7 @@ function io(uid: number | undefined, env: NodeJS.ProcessEnv = {}) {
   return { x, out, err };
 }
 
-describe('vrx-authctl', () => {
+describe('ngfw-authctl', () => {
   it('usage errors → 2 before anything else; --help → 0', async () => {
     for (const argv of [
       [],
@@ -33,35 +33,35 @@ describe('vrx-authctl', () => {
       const t = io(uid);
       expect(await main(['unlock', 'admin'], t.x)).toBe(1);
       expect(t.err).toEqual([
-        'vrx-authctl: root only (the break-glass acts on the database and Valkey directly)',
+        'ngfw-authctl: root only (the break-glass acts on the database and Valkey directly)',
       ]);
     }
   });
 
   it('an unreadable env file names no path content; bad settings name the key, never the value', async () => {
     const t = io(0);
-    expect(await main(['--env-file', '/nonexistent/vrx.env', 'locks'], t.x)).toBe(1);
-    expect(t.err).toEqual(['vrx-authctl: cannot read an --env-file (ENOENT)']);
-    const secret = 'VRX_TEST_PSK_TD10B_not-a-url';
-    const b = io(0, { VRX_VALKEY_DB: secret });
+    expect(await main(['--env-file', '/nonexistent/ngfw.env', 'locks'], t.x)).toBe(1);
+    expect(t.err).toEqual(['ngfw-authctl: cannot read an --env-file (ENOENT)']);
+    const secret = 'NGFW_TEST_PSK_TD10B_not-a-url';
+    const b = io(0, { NGFW_VALKEY_DB: secret });
     expect(await main(['locks'], b.x)).toBe(1);
-    expect(b.err.join('\n')).toMatch(/VRX_VALKEY_DB/);
+    expect(b.err.join('\n')).toMatch(/NGFW_VALKEY_DB/);
     expect(b.err.join('\n')).not.toContain(secret);
   });
 
-  it('parseEnvFile: VRX_ keys only, `export`, quotes and comments', () => {
+  it('parseEnvFile: NGFW_ keys only, `export`, quotes and comments', () => {
     expect(
       parseEnvFile(
         [
           '# comment',
-          'VRX_PG_DSN=postgres://h/db',
-          'export VRX_VALKEY_DB="3"',
-          "VRX_VALKEY_PREFIX='vrx:app:'",
+          'NGFW_PG_DSN=postgres://h/db',
+          'export NGFW_VALKEY_DB="3"',
+          "NGFW_VALKEY_PREFIX='ngfw:app:'",
           'PATH=/tmp',
-          'vrx_lower=1',
+          'ngfw_lower=1',
           '',
         ].join('\n'),
       ),
-    ).toEqual({ VRX_PG_DSN: 'postgres://h/db', VRX_VALKEY_DB: '3', VRX_VALKEY_PREFIX: 'vrx:app:' });
+    ).toEqual({ NGFW_PG_DSN: 'postgres://h/db', NGFW_VALKEY_DB: '3', NGFW_VALKEY_PREFIX: 'ngfw:app:' });
   });
 });

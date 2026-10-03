@@ -1,6 +1,6 @@
 package agent
 
-// TD-11b host proof (VRX_INTEGRATION=1, shared lab lock, slot prefix): attributes of an UNTAGGED
+// TD-11b host proof (NGFW_INTEGRATION=1, shared lab lock, slot prefix): attributes of an UNTAGGED
 // interface — a tap made directly through the binary API, standing in for a DPDK NIC (D-069, as in
 // the DF-1 alias host test) — are ours only through the persisted claim store. A new agent process
 // on the same state dir must still Retrieve them (its first resync creates nothing), and removing
@@ -23,7 +23,7 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	tapapi "ngfw/agent/binapi/tapv2"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -60,8 +60,8 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 	})
 	t.Logf("untagged %s sw_if_index %d (no tag: ours only through a claim)", nic, tapIdx)
 
-	bin := filepath.Join(t.TempDir(), "vrx-agent")
-	build := exec.Command("go", "build", "-o", bin, "ngfw/agent/cmd/vrx-agent") //nolint:gosec // fixed argv, test only
+	bin := filepath.Join(t.TempDir(), "ngfw-agent")
+	build := exec.Command("go", "build", "-o", bin, "ngfw/agent/cmd/ngfw-agent") //nolint:gosec // fixed argv, test only
 	build.Env = append(os.Environ(), "GOFLAGS=-mod=mod")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
@@ -73,8 +73,8 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 		logs = append(logs, logPath)
 		cmd := exec.Command(bin) //nolint:gosec // our own binary
 		cmd.Env = append(os.Environ(),
-			"VRX_AGENT_SOCKET="+cfg.Socket, "VRX_OWNER="+owner, "VRX_AGENT_STATE_DIR="+cfg.StateDir,
-			"VRX_AGENT_VPP_API_SOCKET="+cfg.VPPAPISocket, "VRX_METRICS_ADDR=off", "VRX_SOCKET_GROUP=")
+			"NGFW_AGENT_SOCKET="+cfg.Socket, "NGFW_OWNER="+owner, "NGFW_AGENT_STATE_DIR="+cfg.StateDir,
+			"NGFW_AGENT_VPP_API_SOCKET="+cfg.VPPAPISocket, "NGFW_METRICS_ADDR=off", "NGFW_SOCKET_GROUP=")
 		f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // test temp dir
 		if err != nil {
 			t.Fatal(err)
@@ -99,11 +99,11 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 		}
 		_ = cmd.Wait()
 	}
-	retrieve := func(c vrxv1.DataplaneClient) *vrxv1.DesiredState {
+	retrieve := func(c ngfwv1.DataplaneClient) *ngfwv1.DesiredState {
 		t.Helper()
 		rctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		r, err := c.Retrieve(rctx, &vrxv1.RetrieveRequest{})
+		r, err := c.Retrieve(rctx, &ngfwv1.RetrieveRequest{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -127,11 +127,11 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 	p1 := start(1)
 	c := dialAgent(t, cfg.Socket)
 	waitReady(t, c)
-	desired := doc(t, fmt.Sprintf(`{"system": {"hostname": "vrx-a"}, "interfaces": {%q: {"enabled": true, "mtu": 1400}}}`, nic))
+	desired := doc(t, fmt.Sprintf(`{"system": {"hostname": "ngfw-a"}, "interfaces": {%q: {"enabled": true, "mtu": 1400}}}`, nic))
 	actx, acancel := context.WithTimeout(ctx, 60*time.Second)
 	defer acancel()
-	resp, err := c.Apply(actx, &vrxv1.ApplyRequest{TxnId: owner + "-claims-1", DesiredState: desired, Subsystems: []string{"interfaces"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(actx, &ngfwv1.ApplyRequest{TxnId: owner + "-claims-1", DesiredState: desired, Subsystems: []string{"interfaces"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %v", err, resp)
 	}
 	before := retrieve(c)
@@ -175,8 +175,8 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 	t.Logf("process 2: Retrieve == process 1's, first resync created nothing")
 
 	// 3. removing them through the agent restores the defaults and releases both claims
-	resp, err = c.Apply(actx, &vrxv1.ApplyRequest{TxnId: owner + "-claims-2", Subsystems: []string{"interfaces"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetDeleted() != 2 {
+	resp, err = c.Apply(actx, &ngfwv1.ApplyRequest{TxnId: owner + "-claims-2", Subsystems: []string{"interfaces"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || resp.GetSummary().GetDeleted() != 2 {
 		t.Fatalf("remove: %v %v", err, resp)
 	}
 	if recs := claims(); len(recs) != 0 {

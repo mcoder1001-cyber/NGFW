@@ -1,6 +1,6 @@
 # @ngfw/schema — the configuration contract
 
-Zod source of truth for the whole VRX configuration document (`docs/04-api-datamodel.md`). One definition,
+Zod source of truth for the whole NGFW configuration document (`docs/04-api-datamodel.md`). One definition,
 three consumers: TypeScript types (`tsc`), JSON Schema 2020-12 per domain (UI form renderer) and OpenAPI 3.1
 components (API) — all produced by `pnpm gen` into `dist/`.
 
@@ -16,9 +16,9 @@ Renaming or reshaping an existing field is always a PENDING decision (`docs/deci
 | `src/semantic/<key>.ts` | `<key>Validators: ValidatorDefinition[]` for that domain | same as the domain |
 | `src/semantic/registry.ts`, `semantic/index.ts` | `SemanticRegistry`, `validateSemantics()` → `{ pointer, message }[]` | P02a |
 | `src/semantic/unique.ts` | `duplicateIssues()` — uniqueness of list item keys (use `ipKey`/`prefixKey` for addresses) | P02a |
-| `src/secrets.ts` | `redactSecrets(doc)`, `secretPointers(doc)` driven by `x-vrx-ui.secret` (D-046) | P02a |
+| `src/secrets.ts` | `redactSecrets(doc)`, `secretPointers(doc)` driven by `x-ngfw-ui.secret` (D-046) | P02a |
 | `src/primitives.ts`, `src/ip.ts` | shared field primitives (addresses, prefixes, names, numbers, secrets, time zone) and pure IP arithmetic (`parseCidr`, `prefixesOverlap`, …) | P02a |
-| `src/ui.ts` | `withUi(schema, { title, description, widget, group, order, help, secret, itemKey })` → `x-vrx-ui` hints, merged with the wrapped schema's hints | P02a |
+| `src/ui.ts` | `withUi(schema, { title, description, widget, group, order, help, secret, itemKey })` → `x-ngfw-ui` hints, merged with the wrapped schema's hints | P02a |
 | `src/pointer.ts`, `src/json.ts` | RFC 6901 pointers (escape `/` in VPP interface names!), JSON helpers | P02a |
 | `src/diff.ts`, `src/merge-patch.ts` | structured `diff(a, b)` → `{ op, pointer, from, to }[]`; RFC 7386 `mergePatch`, `mergePatchAt(doc, pointer, patch)` (`MergePatchError` on `__proto__`/`constructor`/`prototype`) | P02a |
 | `src/validate.ts` | `validateConfig(doc)` = tier (a) schema + tier (b) semantic → `{ ok, config }` / `{ ok: false, tier, issues }`; `pointerIssues()` | P02a |
@@ -32,7 +32,7 @@ fixtures. Need a shared primitive that is not here? Add it in your domain file a
 
 ## Conventions
 
-- Every field goes through `withUi()` so the form renderer gets `title` + `x-vrx-ui`; use the primitives.
+- Every field goes through `withUi()` so the form renderer gets `title` + `x-ngfw-ui`; use the primitives.
 - Every modelled object is `z.strictObject` (unknown keys are rejected with a pointer); records validate their keys.
 - Every domain schema must accept `{}` (root `prefault`); model "required" settings as defaults or semantic rules.
 - Protocol / feature blocks that can be off are `.optional()` objects (absent = disabled), not `enabled: false` shells.

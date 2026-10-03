@@ -13,13 +13,13 @@ import { startHarness, type Harness } from '../support/harness.js';
  * TD-10a on PostgreSQL (REVIEW-2026-09-24): 2.4b the commit lock holds across API processes (advisory lock), 2.2 a
  * rollback's secret versions and 2.5 the agent's warnings live in config_pending (migration 0004) and survive an API
  * restart, 2.1 a confirm retried after a lost answer is confirmed, 2.3f a secret delete never leaves running pointing
- * at a deleted secret. Fixture secrets follow VRX_TEST_PSK_<id>.
+ * at a deleted secret. Fixture secrets follow NGFW_TEST_PSK_<id>.
  */
 describe('TD-10a commit engine on PostgreSQL', () => {
   let h: Harness;
   let admin: string;
   const slot = () => Number(/(\d+)$/.exec(h.prefix)?.[1] ?? '5');
-  const psk = (tag: string) => `VRX_TEST_PSK_TD10A_${tag}_${Date.now()}`;
+  const psk = (tag: string) => `NGFW_TEST_PSK_TD10A_${tag}_${Date.now()}`;
 
   beforeAll(async () => {
     h = await startHarness();
@@ -27,7 +27,7 @@ describe('TD-10a commit engine on PostgreSQL', () => {
   });
   afterAll(async () => h?.close());
 
-  /** A second vrx-api process on the same database, JWT key and agent (an upgrade overlap, tools/app + a unit). */
+  /** A second ngfw-api process on the same database, JWT key and agent (an upgrade overlap, tools/app + a unit). */
   async function secondApi(): Promise<NestFastifyApplication> {
     const app = await createApp({ env: h.env, logger: ['error'] });
     await app.init();
@@ -58,7 +58,7 @@ describe('TD-10a commit engine on PostgreSQL', () => {
       const t0 = Date.now();
       const second = await call2(app2, 'POST', '/api/v1/config/commit?comment=second');
       expect(second.status).toBe(409);
-      expect(second.body.type).toBe('https://vrx.dev/problems/commit-busy');
+      expect(second.body.type).toBe('https://ngfw.dev/problems/commit-busy');
       expect(Date.now() - t0).toBeLessThan(2500);
       expect(applies()).toBe(n + 1); // the second process never reached the agent
       const f = await first;

@@ -11,7 +11,7 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// DefaultAPISocket is VPP's binary API socket on the host (docs/lab/host-vrx-a.md).
+// DefaultAPISocket is VPP's binary API socket on the host (docs/lab/host-ngfw-a.md).
 const DefaultAPISocket = "/run/vpp/api.sock"
 
 // hostClient wraps a govpp connection as vpp.Client until P05's client manager lands.

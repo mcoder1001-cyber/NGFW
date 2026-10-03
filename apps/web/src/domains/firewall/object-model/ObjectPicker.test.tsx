@@ -1,4 +1,4 @@
-import { VrxThemeProvider } from '@ngfw/ui-kit';
+import { NgfwThemeProvider } from '@ngfw/ui-kit';
 import { SchemaForm, type JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
@@ -24,12 +24,12 @@ afterEach(async () => {
 describe('ObjectPicker in F-acl attachment forms', () => {
   it('classifies target.zone as zones and leaves attachments[].list unclassified', () => {
     const props = attachmentSchema.properties ?? {};
-    expect(props['list']?.['x-vrx-ui']).toMatchObject({ widget: 'object-picker' });
-    expect(pickerKinds(props['list']?.['x-vrx-ui'] ?? {}, 'list')).toEqual([]);
+    expect(props['list']?.['x-ngfw-ui']).toMatchObject({ widget: 'object-picker' });
+    expect(pickerKinds(props['list']?.['x-ngfw-ui'] ?? {}, 'list')).toEqual([]);
     expect(pickerKinds({ widget: 'object-picker' }, 'target.zone')).toEqual(['zones']);
     for (const kind of ['macipAttachments', 'hostAttachments'] as const) {
       const item = (domainSchemas.acl.properties?.[kind] as { items: JsonSchema }).items;
-      expect(pickerKinds(item.properties?.['list']?.['x-vrx-ui'] ?? {}, 'list'), kind).toEqual([]);
+      expect(pickerKinds(item.properties?.['list']?.['x-ngfw-ui'] ?? {}, 'list'), kind).toEqual([]);
     }
   });
 
@@ -45,14 +45,14 @@ describe('ObjectPicker in F-acl attachment forms', () => {
     render(
       <I18nextProvider i18n={i18n}>
         <QueryClientProvider client={qc}>
-          <VrxThemeProvider mode="light" lang="en" dir="ltr">
+          <NgfwThemeProvider mode="light" lang="en" dir="ltr">
             <SchemaForm
               schema={attachmentSchema}
               widgets={objectModelWidgets}
               value={{ list: 'web-in', target: { kind: 'zone', zone: 'lan' }, direction: 'in', sequence: 1, enabled: true }}
               onSubmit={() => undefined}
             />
-          </VrxThemeProvider>
+          </NgfwThemeProvider>
         </QueryClientProvider>
       </I18nextProvider>,
     );

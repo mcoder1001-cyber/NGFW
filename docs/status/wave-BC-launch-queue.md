@@ -94,8 +94,8 @@ P10 → P14 → F-ab-upgrade → F-backup-restore = 60 h · P11 → F-pki → F-
 - **M7** NAT44-ED IPFIX logging owner. Options: (a) F-ipfix-sflow gap descriptor in `descriptors/ipfix` (recommended) (b) follow-up row (c) have-not.
 - **M8** PENDING-secret-channel parked steps += F-ikev2-native, F-pki, F-ra-vpn, F-snmp, F-ospf, F-isis-rip, F-bfd, F-mpls-ldp, F-host-stack,
   F-vrrp (keepalived auth). New PENDING-cluster-secret-sync (F-vrrp, decision-policy #4).
-- **M9** Log: P10 agent unit AF_NETLINK + ReadWritePaths (#4 agent privileges) · vrx-upgrade trigger (`vrx-upgrade@<op>.service`,
+- **M9** Log: P10 agent unit AF_NETLINK + ReadWritePaths (#4 agent privileges) · ngfw-upgrade trigger (`ngfw-upgrade@<op>.service`,
   P10/F-ab-upgrade/F-backup-restore) · BFD engine per box (F-bfd default) · critical-path bumps P10/P14/F-vrrp.
 - **M10** Before the S5/network rows: `/.scratch/` in .gitignore (SY7); reachability of the mirror, deb.frrouting.org, nodesource, PyPI +
-  DPDK tarball, npm, the Go proxy and download.strongswan.org (else PENDING-network); `/srv/vrx-artifacts/{vpp,apt}`; SY9 ci.sh steps;
+  DPDK tarball, npm, the Go proxy and download.strongswan.org (else PENDING-network); `/srv/ngfw-artifacts/{vpp,apt}`; SY9 ci.sh steps;
   `packages/yang/modules` → GEN_PATHS when F-restconf-yang merges.

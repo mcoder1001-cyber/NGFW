@@ -8,7 +8,7 @@ Independent review agent. Run directly on the host, slot 5 (`w5`).
 | `tools/ci.sh --base main` | first run **failed** in `apps/agent: make lint` with `parallel golangci-lint is running`. That was lock contention with another agent's run and has nothing to do with this branch. The re-run **PASSED** (wall time 3m28s, logs `/root/ngfw-wt/logs/ci/F-sdk-terraform-ansible-20260924-034431-2538904`). It matches the pasted output. |
 | `sdk/test.sh` | 27 passed, 1 skipped (live) · golangci-lint `0 issues.` · `go test` ok (client, provider) |
 | `sdk/gen.sh --check` | full API build → `gen: clean` |
-| live `test/topology/sdk-terraform-ansible/live.sh run …` (Python live + `TestLive`) | both PASS against the real API, vrx-agent and VPP (`loop511`/`loop521`/`loop522` addresses seen in `vppctl`). Teardown was clean: 0 loops left in VPP, 0 `vrx:w5:*` keys, `vrx_w5` dropped, `/run/vrx-test/w5` holds only the pre-existing `df8-globals.lock`. |
+| live `test/topology/sdk-terraform-ansible/live.sh run …` (Python live + `TestLive`) | both PASS against the real API, ngfw-agent and VPP (`loop511`/`loop521`/`loop522` addresses seen in `vppctl`). Teardown was clean: 0 loops left in VPP, 0 `ngfw:w5:*` keys, `ngfw_w5` dropped, `/run/ngfw-test/w5` holds only the pre-existing `df8-globals.lock`. |
 | probes (a `go test -overlay` file in my scratchpad, plus a crafted OpenAPI fed to `gen.py` in the scratchpad; the tree was not modified) | they confirm H1, H2 and L1 below |
 
 Checklist items that raised nothing:
@@ -23,7 +23,7 @@ Checklist items that raised nothing:
 
 ## Findings (by severity)
 
-### H1 — `vrx_config` plan modifiers change planned values of non-computed attributes, which real Terraform rejects; the harness does not model that check
+### H1 — `ngfw_config` plan modifiers change planned values of non-computed attributes, which real Terraform rejects; the harness does not model that check
 `sdk/terraform/internal/provider/config_resource.go:51-57` (`pointer` and `value` are `Required`, not `Computed`) together with
 `semanticJSON` (`:276-292`) and `samePointer` (`:294-310`). Both set `resp.PlanValue = req.StateValue` whenever the config string
 differs from the state string but means the same thing.
@@ -63,7 +63,7 @@ acceptance item "a password hash never appears in plan output, state files" and 
 **Fix.**
 - Call `writeOnlyLeaves` in `ModifyPlan` whenever `value` is known, and again in `body()` before any HTTP call. Return an error in both places.
 - Add a test with an unknown value at validate time.
-- Apply the same guard to `vrx_interface` once its schema gains secret members (today it has none).
+- Apply the same guard to `ngfw_interface` once its schema gains secret members (today it has none).
 
 ### M1 — `partially-applied` / `not-applied` and `notApplied[]` are silently reported as success
 `internal/client/client.go:294-303`: `CommitResult` has no `NotApplied` or `Sync` field. `:369-379`: any non-`pending` status is returned
@@ -71,10 +71,10 @@ as success, and after a confirmed commit only the confirm answer is kept. The AP
 (`apps/api/src/commit/commit.service.ts` `confirm()`); the list of domains the agent does not enforce is only in the
 `pending` answer.
 
-Python has the same gap: `sdk/python/vrx/session.py:193-208` (`commit_confirmed` returns the confirm answer) and
+Python has the same gap: `sdk/python/ngfw/session.py:193-208` (`commit_confirmed` returns the confirm answer) and
 `:234-235` (`transaction` with `confirm=None` accepts `partially-applied`).
 
-**Failure scenario.** A `vrx_config` for a domain this agent build does not implement (P06 review M4) applies cleanly with
+**Failure scenario.** A `ngfw_config` for a domain this agent build does not implement (P06 review M4) applies cleanly with
 revision N. The user believes the change is enforced; it is only stored.
 
 **Fix.**
@@ -120,7 +120,7 @@ committed nothing.
 `internal/provider/jsonvalue.go:65-96` and `config_resource.go:184-192`. State keeps the configured JSON while it is a *subset*
 of live, so any extra object member counts as an "API default".
 
-**Failure scenario.** `vrx_config` manages `/interfaces/loop10` with `{enabled, ipv4}`. An operator adds `description` and
+**Failure scenario.** `ngfw_config` manages `/interfaces/loop10` with `{enabled, ipv4}`. An operator adds `description` and
 `mtu: 9000` in the UI. `terraform plan` shows **No changes**. Later the user changes `ipv4`. The PUT replaces the whole node,
 so `description` and `mtu` revert to their defaults, and the plan never showed that. The subset rule cannot tell a real
 out-of-band member from a schema default.
@@ -136,7 +136,7 @@ config plus defaults.
 - `sdk/terraform/tools/genschema/main.go:72`: the same header problem in a `//` comment.
 - `genschema/main.go:235-260,420-424`: `snake()`/`pascal()` keep arbitrary runes, and property keys become Go identifiers in `gen…Object` helper names.
 
-Probe: `info.title = "VRX\nimport os; PWNED_HEADER = 1\n#"` plus a path `/x"""+str(__import__("os").getpid())+"""` produced
+Probe: `info.title = "NGFW\nimport os; PWNED_HEADER = 1\n#"` plus a path `/x"""+str(__import__("os").getpid())+"""` produced
 `operations.py` that parses with both payloads as live code. The OpenAPI document comes from our own build, and `--check`
 plus review make this hard to exploit, but `gen.sh --openapi <file>` accepts any file.
 
@@ -170,8 +170,8 @@ human discards it.
 recognise its own reverted edits (same pointer, same content) and discard them.
 
 ### L5 — docs and small correctness notes
-- `docs/user/system/sdk-terraform-ansible.md` example `vrx_config "hostname"` on `/system/hostname`: Create refuses any node that already exists in running. If the appliance has a hostname (default or first commit), the documented example fails with "import it". Say "import first" for singleton pointers.
-- `internal/provider/state_datasource.go:346`: the path regex allows `..` segments (`x/../../…`), so `vrx_state` can GET any API route the key can already read. This is not an escalation, but tighten it to known state names.
+- `docs/user/system/sdk-terraform-ansible.md` example `ngfw_config "hostname"` on `/system/hostname`: Create refuses any node that already exists in running. If the appliance has a hostname (default or first commit), the documented example fails with "import it". Say "import first" for singleton pointers.
+- `internal/provider/state_datasource.go:346`: the path regex allows `..` segments (`x/../../…`), so `ngfw_state` can GET any API route the key can already read. This is not an escalation, but tighten it to known state names.
 - `Revision` is `0` for a no-op commit, and `Read` sets `0` after import. That is harmless but undocumented in the attribute description.
 
 ## Summary

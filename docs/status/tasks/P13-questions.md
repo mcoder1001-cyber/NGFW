@@ -9,10 +9,10 @@
    pnpm-lock.yaml importer entry — not my file) (c) leave it manual.
 
 2. **Unix-socket transport with peer-credential check (P13 §1).** The API listens on TCP only; accepting a unix socket
-   and mapping `SO_PEERCRED` (uid 0 / group `vrx-admin`) to a principal is an apps/api change (not my files). The CLI
-   authenticates with login or API key. Proposal for a follow-up (P06-owner or F-aaa): `VRX_HTTP_SOCKET=/run/vrx/api.sock`
-   (0660 root:vrx-admin) + a guard that maps peer uid→local user (role from group) and audits `via: "peercred"`; the
-   CLI then gets `--api unix:/run/vrx/api.sock` (a Dial override in `internal/api`, ~20 lines).
+   and mapping `SO_PEERCRED` (uid 0 / group `ngfw-admin`) to a principal is an apps/api change (not my files). The CLI
+   authenticates with login or API key. Proposal for a follow-up (P06-owner or F-aaa): `NGFW_HTTP_SOCKET=/run/ngfw/api.sock`
+   (0660 root:ngfw-admin) + a guard that maps peer uid→local user (role from group) and audits `via: "peercred"`; the
+   CLI then gets `--api unix:/run/ngfw/api.sock` (a Dial override in `internal/api`, ~20 lines).
 
 3. **No state endpoints for `show bgp summary` / `show ipsec sa`.** Both commands exist and exit 10 (not implemented)
    with the reason; `ping`/`traceroute` call `POST /api/v1/actions/{action}` which answers 501 (P08). They need

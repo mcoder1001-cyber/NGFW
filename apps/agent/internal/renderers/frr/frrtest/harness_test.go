@@ -13,7 +13,7 @@ import (
 )
 
 func TestHarnessArgvScoped(t *testing.T) {
-	h := &Harness{Paths: frr.TestPaths("w12"), Base: "/run/vrx-test/w12/frr", prefix: "w12", NetNS: "ns-w12-frr"}
+	h := &Harness{Paths: frr.TestPaths("w12"), Base: "/run/ngfw-test/w12/frr", prefix: "w12", NetNS: "ns-w12-frr"}
 	for _, d := range FrameworkDaemons {
 		if err := h.assertScopedArgv(h.DaemonArgs(d)); err != nil {
 			t.Errorf("%s: %v", d, err)

@@ -58,12 +58,12 @@ func setConnectHookTimeout(d time.Duration) (restore func()) {
 	return func() { connectHookTimeout = old }
 }
 
-// VRX_AGENT_VPP_REPLY_TIMEOUT reaches the VPP connection; VRX_METRICS_ALLOW_REMOTE opts in to a
+// NGFW_AGENT_VPP_REPLY_TIMEOUT reaches the VPP connection; NGFW_METRICS_ALLOW_REMOTE opts in to a
 // non-loopback /metrics (new settings: no base equivalent).
 func TestConfigReplyTimeoutAndMetricsOptIn(t *testing.T) {
-	t.Setenv("VRX_VPP_ID_RANGE", "all") // TD-8b: no id range refuses start-up
+	t.Setenv("NGFW_VPP_ID_RANGE", "all") // TD-8b: no id range refuses start-up
 	for in, want := range map[string]time.Duration{"": 0, "20": 20 * time.Second, "15500ms": 15500 * time.Millisecond, "2m": 2 * time.Minute} {
-		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
+		t.Setenv("NGFW_AGENT_VPP_REPLY_TIMEOUT", in)
 		c := ConfigFromEnv()
 		c.StateDir = t.TempDir()
 		if err := c.Validate(); err != nil || c.VPPReplyTimeout != want {
@@ -71,17 +71,17 @@ func TestConfigReplyTimeoutAndMetricsOptIn(t *testing.T) {
 		}
 	}
 	for _, in := range []string{"0", "-5s", "abc", "0s", "5"} {
-		t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", in)
-		if err := ConfigFromEnv().Validate(); err == nil || !strings.Contains(err.Error(), "VRX_AGENT_VPP_REPLY_TIMEOUT") {
+		t.Setenv("NGFW_AGENT_VPP_REPLY_TIMEOUT", in)
+		if err := ConfigFromEnv().Validate(); err == nil || !strings.Contains(err.Error(), "NGFW_AGENT_VPP_REPLY_TIMEOUT") {
 			t.Errorf("%q accepted: %v", in, err)
 		}
 	}
-	t.Setenv("VRX_AGENT_VPP_REPLY_TIMEOUT", "70")
-	t.Setenv("VRX_METRICS_ADDR", "0.0.0.0:9171")
+	t.Setenv("NGFW_AGENT_VPP_REPLY_TIMEOUT", "70")
+	t.Setenv("NGFW_METRICS_ADDR", "0.0.0.0:9171")
 	if err := ConfigFromEnv().Validate(); err == nil {
 		t.Fatal("non-loopback metrics without the opt-in")
 	}
-	t.Setenv("VRX_METRICS_ALLOW_REMOTE", "1")
+	t.Setenv("NGFW_METRICS_ALLOW_REMOTE", "1")
 	cfg := ConfigFromEnv()
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("opt-in: %v", err)

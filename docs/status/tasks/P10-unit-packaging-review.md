@@ -9,11 +9,11 @@ Actual independent offline score commands:
 ```text
 systemd-analyze --version
 systemd 255 (255.4-1ubuntu8.17)
-systemd-analyze security --offline=yes deploy/systemd/vrx-api.service
-Overall exposure level for vrx-api.service: 3.0 OK
-systemd-analyze security --offline=yes deploy/systemd/vrx-agent.service
-Overall exposure level for vrx-agent.service: 5.0 MEDIUM
-python3 deploy/debian/vrx/tests/test_packaging.py
+systemd-analyze security --offline=yes deploy/systemd/ngfw-api.service
+Overall exposure level for ngfw-api.service: 3.0 OK
+systemd-analyze security --offline=yes deploy/systemd/ngfw-agent.service
+Overall exposure level for ngfw-agent.service: 5.0 MEDIUM
+python3 deploy/debian/ngfw/tests/test_packaging.py
 Ran 8 tests in 0.993s
 OK
 tools/ci.sh check --base origin/main
@@ -21,7 +21,7 @@ ok: gitleaks — scanned ~127855 bytes (127.86 KB) in 220ms no leaks found
 check PASSED (0m02s)
 ```
 
-Both offline numerical prompt thresholds are met locally. Scores measure configured exposure, not working appliance behavior. Direct `systemd-analyze verify` on actual units could not complete because nftables.service and installed product binaries are absent. Diagnostics specifically reported missing nftables.service, /usr/sbin/vrx-agent and /usr/bin/node; no actual installed dependency graph PASS is claimed. Earlier fixture graph proof remains labelled as fixture proof, not target distro boot.
+Both offline numerical prompt thresholds are met locally. Scores measure configured exposure, not working appliance behavior. Direct `systemd-analyze verify` on actual units could not complete because nftables.service and installed product binaries are absent. Diagnostics specifically reported missing nftables.service, /usr/sbin/ngfw-agent and /usr/bin/node; no actual installed dependency graph PASS is claimed. Earlier fixture graph proof remains labelled as fixture proof, not target distro boot.
 
 Packaging test adaptations rewrite EUID/path checks only in private test copies to permit fixture execution; shipped root/metadata guards remain. No test assertion was weakened and no shipped root bypass introduced.
 

@@ -8,22 +8,22 @@ Slots (D-156): **1–11** developer slots, **12** the CI slot, **13 does not exi
 **14–32** developer slots → **30 developer slots**. `tools/lab env` refuses 0, 13 and anything above 32.
 Derived values, exported by the manager in the envelope and by `tools/lab env <N>`:
 ```
-VRX_SLOT=N
-VRX_TEST_PREFIX=w<N>            # every VPP/DB/daemon object a worker creates carries this prefix
-VRX_HTTP_PORT=3<N>00            # slots 1–12: api dev/test port 3000+100·N (3100 … 4200), never 3000
+NGFW_SLOT=N
+NGFW_TEST_PREFIX=w<N>            # every VPP/DB/daemon object a worker creates carries this prefix
+NGFW_HTTP_PORT=3<N>00            # slots 1–12: api dev/test port 3000+100·N (3100 … 4200), never 3000
                                 # slots 14–32: 10000+100·N (11400 … 13200)
-VRX_WEB_PORT=5<N>00             # slots 1–12: vite dev port 5000+100·N (5100 … 6200), never 5173
+NGFW_WEB_PORT=5<N>00             # slots 1–12: vite dev port 5000+100·N (5100 … 6200), never 5173
                                 # slots 14–32: 14000+100·N (15400 … 17200)
-VRX_METRICS_PORT=$((9100+10*N+1))  # agent prometheus: 9111 … 9221 (slots 1–12), 9241 … 9421 (14–32) — `tools/lab env <N>` computes it
-VRX_AGENT_SOCKET=/run/vrx-test/w<N>/agent.sock
-VRX_PG_DATABASE=vrx_w<N>        # own database in the shared PostgreSQL; own Valkey db index N
-VRX_VPP_TABLE_BASE=<N>000       # VRF/table ids a worker may allocate: N000–N999 (slot 32: 32000–32999)
+NGFW_METRICS_PORT=$((9100+10*N+1))  # agent prometheus: 9111 … 9221 (slots 1–12), 9241 … 9421 (14–32) — `tools/lab env <N>` computes it
+NGFW_AGENT_SOCKET=/run/ngfw-test/w<N>/agent.sock
+NGFW_PG_DATABASE=ngfw_w<N>        # own database in the shared PostgreSQL; own Valkey db index N
+NGFW_VPP_TABLE_BASE=<N>000       # VRF/table ids a worker may allocate: N000–N999 (slot 32: 32000–32999)
 ```
 **Why slots 14–32 have other ports (D-156).** `3000+100·N` for N ≥ 21 is exactly `5<M>00`, the web port of slot M = N−20,
 and the old string-built test ports `"3<N><xx>"` (rsyslog, snmpd, hoststack) meet the numeric `3000+100·N+xx` ports of other
 slots (`4739+N` ipfix vs `3<N>53` unbound for N = 14/17). So slots 1–12 keep every value they had (nothing running changes) and
 slots 14–32 move to their own blocks. **Sub-ports:** a test that needs more ports than the exports takes them from its slot's
-block — `VRX_HTTP_PORT + x` (x = 1…99); in Go `vpptest.SubPort(slot, x, legacy)` keeps the legacy port for slots 1–12 and
+block — `NGFW_HTTP_PORT + x` (x = 1…99); in Go `vpptest.SubPort(slot, x, legacy)` keeps the legacy port for slots 1–12 and
 returns `10000+100·N+x` for 14–32. Never build a port from the slot number by string concatenation in new code.
 **Proof:** `python3 tools/slot-check.py` (run by `tools/ci.sh check` and `quick`) derives every port, id range, database and
 subnet the repo uses for all slots and fails on any collision, on a fixed host port (3000, 5173, 5432, 6379, 8080, 9090, 9100,
@@ -31,19 +31,19 @@ subnet the repo uses for all slots and fails on any collision, on a fixed host p
 there when you add one to a test.
 **Valkey:** db index N needs `databases 33` (or more) in the Valkey config — the default is 16, so slots 16–32 get
 `ERR DB index is out of range` until the host's `/etc/valkey/valkey.conf` is raised (the manager does it once; D-156).
-Ports 3000 / 5173 / 9101 and `/run/vrx/agent.sock` belong to the **integrated main build** only (the manager's integration check).
+Ports 3000 / 5173 / 9101 and `/run/ngfw/agent.sock` belong to the **integrated main build** only (the manager's integration check).
 
 ## 1b. Locks
-`/run/lock/vrx-lab.lock`: integration test harnesses and the rig take a **shared** lock (`flock -s`); `tools/ci.sh full` takes the **exclusive** lock only as a barrier (waits for running tests to finish) and then holds it shared while it runs (D-038); a VPP restart (after handover only) takes an exclusive lock for its whole duration. `/run/lock/vrx-vpp.lock`: manager-only VPP restarts. Prefix length:
-`VRX_TEST_PREFIX` ≤ 6 chars (Linux IFNAMSIZ is 15).
+`/run/lock/ngfw-lab.lock`: integration test harnesses and the rig take a **shared** lock (`flock -s`); `tools/ci.sh full` takes the **exclusive** lock only as a barrier (waits for running tests to finish) and then holds it shared while it runs (D-038); a VPP restart (after handover only) takes an exclusive lock for its whole duration. `/run/lock/ngfw-vpp.lock`: manager-only VPP restarts. Prefix length:
+`NGFW_TEST_PREFIX` ≤ 6 chars (Linux IFNAMSIZ is 15).
 
 ## 2. Shared VPP
-- Create only objects that **carry your prefix** (`VRX_TEST_PREFIX`, e.g. `w3`): loopbacks `loop<N>xx`, host-interfaces `host-<prefix>l0`/`host-<prefix>w0` (the rig's names), veths `<prefix>l0…`, namespaces `ns-<prefix>-lan|wan`, tables in your `VRX_VPP_TABLE_BASE` range, NAT pools and rig addresses in `10.<N>.0.0/16`.
+- Create only objects that **carry your prefix** (`NGFW_TEST_PREFIX`, e.g. `w3`): loopbacks `loop<N>xx`, host-interfaces `host-<prefix>l0`/`host-<prefix>w0` (the rig's names), veths `<prefix>l0…`, namespaces `ns-<prefix>-lan|wan`, tables in your `NGFW_VPP_TABLE_BASE` range, NAT pools and rig addresses in `10.<N>.0.0/16`.
 - Never touch `local0`, the management path, or anything without your prefix. Never `vppctl clear`/`show runtime clear` globally.
 - Every integration test cleans up in `t.Cleanup`; the manager's nightly check deletes leftovers by prefix and files an issue against the slot.
 - Tests that need a plugin that is not loaded (`linux_cp`, `linux_nl`, `npt66`) `t.Skip` with the reason — they must not fail the gate.
 - **Nobody restarts or kills VPP while handover is pending** (D-012). Restart-safety = stop *your* agent, delete *your* prefixed objects, restart *your* agent.
-- Integration tests run only with `VRX_INTEGRATION=1` and under `flock -s /run/lock/vrx-lab.lock`; `pnpm test`/`make test` are unit-only.
+- Integration tests run only with `NGFW_INTEGRATION=1` and under `flock -s /run/lock/ngfw-lab.lock`; `pnpm test`/`make test` are unit-only.
 
 ## 3. Daemons (frr, strongswan, kea, unbound, chrony, snmpd, keepalived)
 Exactly **one** worker at a time owns a daemon (the manager declares it in the envelope: `daemon-owner: frr`). Others mock or skip. The owner leaves the daemon **stopped and disabled** when the task ends. Never edit `/etc/vpp/*` (handover rule).
@@ -54,29 +54,29 @@ Exactly **one** worker at a time owns a daemon (the manager declares it in the e
 
 ## 5. Processes
 - Start dev servers only on your slot ports; stop them by PID (`kill $PID`), **never** `pkill -f <pattern>` — patterns match other workers' shells.
-- No `systemctl restart/kill vpp`, no reboots, no `rm -rf` outside your worktree and `/run/vrx-test/w<N>`.
+- No `systemctl restart/kill vpp`, no reboots, no `rm -rf` outside your worktree and `/run/ngfw-test/w<N>`.
 
 ## 6. Git
 - Only your branch, only your worktree. No `git push`/`pull` (no remote). No history rewriting anywhere. Commit often; the manager merges.
 
 ## 7. VPP-global settings in tests (D-071, D-082)
-Test slots are never the globals owner. A test that must read a VPP-wide setting holds `flock -s /run/lock/vrx-globals.lock`; a test that
-changes one (only behind its opt-in env var, e.g. `VRX_DF7_GLOBALS=1`, `VRX_DF8_GLOBALS=1`) holds `flock -x` on it, saves the previous
-value and restores exactly that value (never VPP defaults). The lab lock (`/run/lock/vrx-lab.lock`) stays the VPP-instance lock.
+Test slots are never the globals owner. A test that must read a VPP-wide setting holds `flock -s /run/lock/ngfw-globals.lock`; a test that
+changes one (only behind its opt-in env var, e.g. `NGFW_DF7_GLOBALS=1`, `NGFW_DF8_GLOBALS=1`) holds `flock -x` on it, saves the previous
+value and restores exactly that value (never VPP defaults). The lab lock (`/run/lock/ngfw-lab.lock`) stays the VPP-instance lock.
 
 ## 8. Slot 12 is reserved for the manager's `tools/ci.sh full` (D-087)
 `tools/ci.sh full` runs the integration suite on main as CI slot 12. Workers are assigned slots 1–11 and 14–32 (D-156); a worker
 never uses slot 12, and there is no slot 13. Tester T3's integration runs use the slot the manager gives it like any worker.
 `test/topology/ipfix-sflow` still checks "w1..w11" itself: give tasks that
 run it a slot from 1–11 until it is widened.
-Host tests run one Go package at a time against the shared VPP (never `go test ./...` with VRX_INTEGRATION=1 in a worker).
+Host tests run one Go package at a time against the shared VPP (never `go test ./...` with NGFW_INTEGRATION=1 in a worker).
 
 ## 9. Shared daemons: owner-prefix scoping (D-089)
 When several slots' tests share one daemon instance (e.g. a charon), renderers operate only on objects carrying their owner prefix
 (`WithOwnerPrefix`); a renderer never unloads, flushes or restarts what another prefix loaded.
 
 ## 10. Lab lock scope (D-094)
-`flock -s /run/lock/vrx-lab.lock` is held only for the duration of an actual integration/E2E run — never by a long-lived dev stack
+`flock -s /run/lock/ngfw-lab.lock` is held only for the duration of an actual integration/E2E run — never by a long-lived dev stack
 (API/agent/vite left running between runs). Workers stop every process they started (by PID) before they finish or pause; a stack left
 running blocks the manager's `tools/ci.sh full` barrier.
 
@@ -99,20 +99,20 @@ full) fails on any trace command or tracedump API call outside docs and the gene
 until VPP carries the NULL guard, and even then the trace buffer stays VPP-global (a single-tenant tool for a per-slot VPP).
 
 ## 12. VPP numeric id ranges: explicit, fail closed (TD-8, TD-8b; D-129 Q3)
-Every vrx-agent on this host has an explicit range for the VPP numeric ids its families allocate: FIB/VRF tables, SPD/SA ids,
+Every ngfw-agent on this host has an explicit range for the VPP numeric ids its families allocate: FIB/VRF tables, SPD/SA ids,
 policy, map and pool ids. No agent owns "every id" by default.
 
 | agent | setting | ids |
 |---|---|---|
-| worker slot N (1–11, 14–32) | `VRX_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
-| CI slot 12 (`tools/ci.sh full`) | `VRX_VPP_TABLE_BASE=12000` | 12000–12999 |
-| `tools/app`: the integrated main build, owner `vrx`, `/run/vrx/agent.sock` | `VRX_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
-| the product agent on a box of its own (P10's unit) | `VRX_VPP_ID_RANGE=all` | every id |
+| worker slot N (1–11, 14–32) | `NGFW_VPP_TABLE_BASE=N000` (`tools/lab env N`) | N000–N999 |
+| CI slot 12 (`tools/ci.sh full`) | `NGFW_VPP_TABLE_BASE=12000` | 12000–12999 |
+| `tools/app`: the integrated main build, owner `ngfw`, `/run/ngfw/agent.sock` | `NGFW_VPP_TABLE_BASE=13000` (reserved; there is no slot 13) | 13000–13999 |
+| the product agent on a box of its own (P10's unit) | `NGFW_VPP_ID_RANGE=all` | every id |
 
-- `VRX_VPP_ID_RANGE=all` is never set on this shared host.
+- `NGFW_VPP_ID_RANGE=all` is never set on this shared host.
 - Neither variable set: the agent refuses to start (`ErrNoIDRange`, which cites this section).
-- Both variables set, a malformed base, or any other `VRX_VPP_ID_RANGE` value: the agent refuses to start.
-- A harness that starts `vrx-agent` with a clean environment passes `VRX_VPP_TABLE_BASE` through (`test/topology/interfaces` does).
+- Both variables set, a malformed base, or any other `NGFW_VPP_ID_RANGE` value: the agent refuses to start.
+- A harness that starts `ngfw-agent` with a clean environment passes `NGFW_VPP_TABLE_BASE` through (`test/topology/interfaces` does).
 - An id-allocating family takes its range only from `w.IDRange()` (never `nil`, never a missing option; df7: `df7.WithIDs(ids.DF7())`),
   and its test asserts that `NoIDs()` owns nothing.
 - Take VRF table ids typed by hand into tools/app from 13000–13999 too. The `vrf` descriptor does not check them.

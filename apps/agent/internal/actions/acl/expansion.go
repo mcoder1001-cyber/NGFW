@@ -20,7 +20,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
 )
 
@@ -28,7 +28,7 @@ import (
 // the contiguous block [First, First+Count) of VPP rules it expanded to.
 type RuleInfo struct {
 	Sequence uint32
-	Status   vrxv1.AclRuleStatus
+	Status   ngfwv1.AclRuleStatus
 	First    uint32
 	Count    uint32
 	// Schedule is the rule's schedule name ("" = always); FQDN the FQDN address objects its
@@ -48,7 +48,7 @@ type Expansion struct {
 	// VPPRules is the number of VPP rules (the sum of the Counts).
 	VPPRules int
 	// Schedules are the definitions of the schedules the rules name (as projected).
-	Schedules map[string]*vrxv1.Schedule
+	Schedules map[string]*ngfwv1.Schedule
 }
 
 // MacipExpansion is how one configured MACIP list became one VPP MACIP ACL.

@@ -124,13 +124,13 @@ func PlanString(p *scheduler.TxnPlan) string {
 
 // descriptorMessages maps each DF-5 descriptor to its desired-state message.
 var descriptorMessages = map[string]string{
-	"ipsec.spd": "vrx.agent.vpn.v1.IpsecSpd", "ipsec.spd-interface": "vrx.agent.vpn.v1.IpsecSpdInterface",
-	"ipsec.spd-entry": "vrx.agent.vpn.v1.IpsecSpdEntry", "ipsec.sa": "vrx.agent.vpn.v1.IpsecSa",
-	"ipsec.tunnel-protect": "vrx.agent.vpn.v1.IpsecTunnelProtect", "ipsec.itf": "vrx.agent.vpn.v1.IpsecItf",
-	"ipsec.backend": "vrx.agent.vpn.v1.IpsecBackend", "ipsec.async-mode": "vrx.agent.vpn.v1.IpsecAsyncMode",
-	"ikev2.profile": "vrx.agent.vpn.v1.Ikev2Profile", "ikev2.local-key": "vrx.agent.vpn.v1.Ikev2LocalKey",
-	"ikev2.sleep-interval": "vrx.agent.vpn.v1.Ikev2SleepInterval", "ikev2.liveness": "vrx.agent.vpn.v1.Ikev2Liveness",
-	"ikev2.responder-hostname": "vrx.agent.vpn.v1.Ikev2ResponderHostname",
-	"wireguard.interface":      "vrx.agent.vpn.v1.WireguardInterface", "wireguard.peer": "vrx.agent.vpn.v1.WireguardPeer",
-	"wireguard.async-mode": "vrx.agent.vpn.v1.WireguardAsyncMode",
+	"ipsec.spd": "ngfw.agent.vpn.v1.IpsecSpd", "ipsec.spd-interface": "ngfw.agent.vpn.v1.IpsecSpdInterface",
+	"ipsec.spd-entry": "ngfw.agent.vpn.v1.IpsecSpdEntry", "ipsec.sa": "ngfw.agent.vpn.v1.IpsecSa",
+	"ipsec.tunnel-protect": "ngfw.agent.vpn.v1.IpsecTunnelProtect", "ipsec.itf": "ngfw.agent.vpn.v1.IpsecItf",
+	"ipsec.backend": "ngfw.agent.vpn.v1.IpsecBackend", "ipsec.async-mode": "ngfw.agent.vpn.v1.IpsecAsyncMode",
+	"ikev2.profile": "ngfw.agent.vpn.v1.Ikev2Profile", "ikev2.local-key": "ngfw.agent.vpn.v1.Ikev2LocalKey",
+	"ikev2.sleep-interval": "ngfw.agent.vpn.v1.Ikev2SleepInterval", "ikev2.liveness": "ngfw.agent.vpn.v1.Ikev2Liveness",
+	"ikev2.responder-hostname": "ngfw.agent.vpn.v1.Ikev2ResponderHostname",
+	"wireguard.interface":      "ngfw.agent.vpn.v1.WireguardInterface", "wireguard.peer": "ngfw.agent.vpn.v1.WireguardPeer",
+	"wireguard.async-mode": "ngfw.agent.vpn.v1.WireguardAsyncMode",
 }

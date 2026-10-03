@@ -6,13 +6,13 @@ import { AuthService } from '../../auth/auth.service.js';
 import { setSessionCookies } from '../../auth/cookies.js';
 import { NoAudit, Public } from '../../auth/decorators.js';
 import { secureTransport, tlsRequired } from '../../auth/transport.js';
-import { sourceIp, type VrxRequest } from '../../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../../common/principal.js';
 import { ProblemError } from '../../common/problem.js';
 import { ApiOut } from '../../common/responses.js';
 import { ENV, type Env } from '../../config.js';
 
 /** review 3: the browser binding of an OIDC login (httpOnly, 10 min, path-scoped to the OIDC routes). */
-const OIDC_COOKIE = 'vrx_oidc';
+const OIDC_COOKIE = 'ngfw_oidc';
 
 const MethodsOut = z.object({
   oidc: z
@@ -47,7 +47,7 @@ export class OidcController {
   @NoAudit()
   @ApiOperation({ summary: 'Start an OpenID Connect login: 302 to the identity provider' })
   @ApiResponse({ status: 302, description: 'redirect to the IdP authorisation endpoint' })
-  async start(@Req() req: VrxRequest, @Res() reply: FastifyReply) {
+  async start(@Req() req: NgfwRequest, @Res() reply: FastifyReply) {
     // review 4: the transport rule answers 403 `tls-required` like login (not a redirect)
     if (!secureTransport(req)) throw tlsRequired();
     try {
@@ -57,7 +57,7 @@ export class OidcController {
         path: '/api/v1/auth/oidc',
         httpOnly: true,
         sameSite: 'lax',
-        secure: this.env.VRX_COOKIE_SECURE,
+        secure: this.env.NGFW_COOKIE_SECURE,
         maxAge: 600,
       });
       return reply.redirect(url, 302);
@@ -77,7 +77,7 @@ export class OidcController {
   async callback(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res() reply: FastifyReply,
   ) {
     if (!secureTransport(req)) throw tlsRequired();
@@ -102,7 +102,7 @@ export class OidcController {
           refreshMaxAge: r.refreshMaxAge,
           accessMaxAge: r.expiresIn,
         },
-        { secure: this.env.VRX_COOKIE_SECURE },
+        { secure: this.env.NGFW_COOKIE_SECURE },
       );
       return reply.redirect('/', 302);
     } catch (e) {

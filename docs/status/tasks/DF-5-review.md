@@ -14,20 +14,20 @@ ok: gitleaks — ... no leaks found
   mode quick · wall time 3m37s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-045501-2831494
 CI GATE PASSED                                   (matches the gate output pasted in DF-5.md)
 
-$ eval "$(tools/lab env 4)"; VRX_INTEGRATION=1 go test -count=1 -run OnHost -v ./internal/descriptors/<pkg>/
+$ eval "$(tools/lab env 4)"; NGFW_INTEGRATION=1 go test -count=1 -run OnHost -v ./internal/descriptors/<pkg>/
 ipsec      NRestarts 5 → 5   --- PASS: TestIpsecOnHost (0.15s)
              agent restart (fresh agent, persisted records): ... 0 create, 0 update, 0 delete, 10 unchanged
              after loss (SA + NIC binding deleted via the API): plan create ipsec.spd-interface/loop402; create ipsec.sa/4002
              charon sweep: deleted SAs [4501], policies 1, in use []; AckRestart calls 1
-ikev2      NRestarts 5 → 5   --- PASS: TestIkev2OnHost (0.18s)   --- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS unset)
+ikev2      NRestarts 5 → 5   --- PASS: TestIkev2OnHost (0.18s)   --- SKIP: TestIkev2GlobalsOwnerOnHost (NGFW_DF5_GLOBALS unset)
 wireguard  NRestarts 5 → 5   --- PASS: TestWireguardOnHost (0.56s)
 ```
 
-VRX_DF5_GLOBALS was not set. No packets were sent. VPP was not restarted. (NRestarts was already 5 when the review started. That is
+NGFW_DF5_GLOBALS was not set. No packets were sent. VPP was not restarted. (NRestarts was already 5 when the review started. That is
 the 04:50 crash in D-095, which DF-5.md also mentions.)
 
-Leak check on my own host-test logs: no raw test vector and no `VRX_TEST_PSK` string. But the logs contain
-`psk: "sha256:3751fdd20365…"`, and `printf VRX_TEST_PSK_DF5_ikev2 | sha256sum` → `3751fdd20365…`, which proves the finding H1 below.
+Leak check on my own host-test logs: no raw test vector and no `NGFW_TEST_PSK` string. But the logs contain
+`psk: "sha256:3751fdd20365…"`, and `printf NGFW_TEST_PSK_DF5_ikev2 | sha256sum` → `3751fdd20365…`, which proves the finding H1 below.
 
 ## Checklist summary
 
@@ -52,7 +52,7 @@ Security points that hold (verified in code):
 * Resolved material is zeroed with `defer` on every Create path (sa.go:86-87 and 268, profile.go:442/450, interface.go:81,
   peer.go:273/277).
 * `MapResolver` sits behind a pointer, so `%+v` on it is safe.
-* Fixtures use `VRX_TEST_PSK_DF5*` or labels hashed from it.
+* Fixtures use `NGFW_TEST_PSK_DF5*` or labels hashed from it.
 * The vppctl evidence is redacted and passed a leak guard. I found no key-shaped hex or base64 in `/root/ngfw-wt/logs/DF-5-*`.
 
 ## Findings (by severity)
@@ -68,7 +68,7 @@ Security points that hold (verified in code):
   * any P08 state or audit output.
 
   Anyone who can read those can run a dictionary attack against an IKEv2 PSK offline. I showed above that the logged `psk:` reference
-  is exactly `sha256(VRX_TEST_PSK_DF5_ikev2)`. D-096 decided: "never a plain sha256 of the secret". DF-5 is named as affected.
+  is exactly `sha256(NGFW_TEST_PSK_DF5_ikev2)`. D-096 decided: "never a plain sha256 of the secret". DF-5 is named as affected.
 * **Fix.**
   * Replace `Ref` with HMAC-SHA256 under an agent-local key: a 0600 file in the state dir, created on first use, injected through
     `Config`/`With…` (no package global). Use the prefix `hmac:<hex>`.

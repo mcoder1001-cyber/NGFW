@@ -16,7 +16,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
-import { StatusChip, useFormatters, type VrxStatus } from '@ngfw/ui-kit';
+import { StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -49,14 +49,14 @@ import {
   useRelayState,
 } from './queries';
 
-const MONO = { fontFamily: (th: Theme) => th.vrx.monoFontFamily, fontSize: 13 } as const;
+const MONO = { fontFamily: (th: Theme) => th.ngfw.monoFontFamily, fontSize: 13 } as const;
 
 // Non-UI literals (statuses, families, document paths) live here, outside JSX (i18next/no-literal-string).
 const V4 = 'ipv4' as const;
 const V6 = 'ipv6' as const;
-const ST_UP: VrxStatus = 'up';
-const ST_DEGRADED: VrxStatus = 'degraded';
-const ST_OFF: VrxStatus = 'adminDown';
+const ST_UP: NgfwStatus = 'up';
+const ST_DEGRADED: NgfwStatus = 'degraded';
+const ST_OFF: NgfwStatus = 'adminDown';
 const SUBNETS = ['subnets'];
 const RESERVATIONS = ['reservations'];
 const serverPath = (name: string) => ['dhcp', 'servers', name];

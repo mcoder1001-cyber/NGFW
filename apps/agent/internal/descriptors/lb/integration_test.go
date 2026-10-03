@@ -12,7 +12,7 @@ import (
 // Host test: VIPs and ASes in this slot's 10.<slot>.30.0/24 / 10.<slot>.31.0/24, the NAT
 // feature on this slot's loopback (loop<slot>30). lb.conf is VPP-wide and has no getter, so
 // its previous value cannot be restored: the subtest runs only for the globals owner
-// (VRX_DF7_GLOBALS=1, D-071). VIPs work without it (the GRE source only matters for traffic).
+// (NGFW_DF7_GLOBALS=1, D-071). VIPs work without it (the GRE source only matters for traffic).
 func TestLBOnHost(t *testing.T) {
 	df7test.LBOptIn(t)
 	h := df7test.StartHost(t)

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -39,7 +39,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ds := &vrxv1.DesiredState{}
+		ds := &ngfwv1.DesiredState{}
 		if err := lenient.Unmarshal(b, ds); err != nil {
 			t.Logf("%s: not a DesiredState (%v) — skipped", base, err)
 			continue
@@ -49,7 +49,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 		for _, is := range pj.issues {
 			// F-unbound-chrony-syslog: secret references are refused until PENDING-secret-channel lands (envelope).
 			// TODO(PENDING-secret-channel): remove this exemption when the API→agent secret channel lands (review L9).
-			if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR && is.rule != "agent.secret-channel-pending" {
+			if is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR && is.rule != "agent.secret-channel-pending" {
 				t.Errorf("%s: %s %s: %s", base, is.pointer, is.rule, is.message)
 			}
 		}

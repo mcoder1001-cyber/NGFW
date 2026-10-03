@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -35,9 +35,9 @@ const vrrpRetrieved = `{"vrrp": {
     "addresses": ["10.7.3.1"], "engine": "vpp"}
 }}`
 
-func vrrpRetrieve(t *testing.T, s *Service) *vrxv1.HaConfig {
+func vrrpRetrieve(t *testing.T, s *Service) *ngfwv1.HaConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "ha"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "ha"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,25 +49,25 @@ func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, vrrpDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, vrrpDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n, run := v.Vrrp().Count(); n != 2 || run != 2 {
 		t.Fatalf("VPP holds %d VRs (%d running), want 2 (2)", n, run)
 	}
-	want := &vrxv1.HaConfig{}
+	want := &ngfwv1.HaConfig{}
 	if err := protojson.Unmarshal([]byte(vrrpRetrieved), want); err != nil {
 		t.Fatal(err)
 	}
 	if got := vrrpRetrieve(t, s); !proto.Equal(got, want) {
 		t.Fatalf("Retrieve ha:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, vrrpDoc)}); changes(r) != 0 {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v2", DesiredState: doc(t, vrrpDoc)}); changes(r) != 0 {
 		t.Fatalf("re-apply changed %d objects", changes(r))
 	}
 
 	// agent restart (same state dir, same VPP): nothing to do, names kept
 	s.Close()
 	s2 := newSvc(t, v, dir)
-	if r := apply(t, s2, &vrxv1.ApplyRequest{TxnId: "v3", DesiredState: doc(t, vrrpDoc)}); changes(r) != 0 {
+	if r := apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "v3", DesiredState: doc(t, vrrpDoc)}); changes(r) != 0 {
 		t.Fatalf("apply after restart changed %d objects: %s", changes(r), protojson.Format(r))
 	}
 	if got := vrrpRetrieve(t, s2); !proto.Equal(got, want) {
@@ -76,14 +76,14 @@ func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
 
 	// VRs lost behind the agent's back (a VPP restart) are re-created and started
 	v.Vrrp().Forget()
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "v4", DesiredState: doc(t, vrrpDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "v4", DesiredState: doc(t, vrrpDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n, run := v.Vrrp().Count(); n != 2 || run != 2 {
 		t.Fatalf("after loss: %d VRs (%d running), want 2 (2)", n, run)
 	}
 
 	// disabled = configured but stopped
 	disabled := strings.Replace(vrrpDoc, `"lan-v4": {`, `"lan-v4": {"enabled": false, `, 1)
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "v5", DesiredState: doc(t, disabled)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "v5", DesiredState: doc(t, disabled)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n, run := v.Vrrp().Count(); n != 2 || run != 1 {
 		t.Fatalf("disabled: %d VRs (%d running), want 2 (1)", n, run)
 	}
@@ -92,7 +92,7 @@ func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
 	}
 
 	// rollback to no VRs: every VR goes, the interfaces stay
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "v6", DesiredState: doc(t, `{"interfaces": {"loop7201": {"ipv4": ["10.7.2.2/24"]}, "loop7202": {"ipv4": ["10.7.3.2/24"]}}, "ha": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "v6", DesiredState: doc(t, `{"interfaces": {"loop7201": {"ipv4": ["10.7.2.2/24"]}, "loop7202": {"ipv4": ["10.7.3.2/24"]}}, "ha": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n, _ := v.Vrrp().Count(); n != 0 {
 		t.Fatalf("rollback left %d VRs", n)
 	}
@@ -103,7 +103,7 @@ func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
 
 func TestVrrpDryRunFindings(t *testing.T) {
 	s := newSvc(t, coretest.New(), t.TempDir())
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
 	  "interfaces": {"loop7201": {}},
 	  "ha": {"vrrp": {
 	    "a": {"interface": "loop7201", "vrId": 5, "addresses": ["10.7.2.1"]},

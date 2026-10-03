@@ -42,7 +42,7 @@ export const appUser = pgTable(
     lastLogin: ts('last_login'),
     failedLogins: integer('failed_logins').notNull().default(0),
     lockedUntil: ts('locked_until'),
-    /** bootstrap (seeded from VRX_BOOTSTRAP_ADMIN_PASSWORD) · config (management.users) */
+    /** bootstrap (seeded from NGFW_BOOTSTRAP_ADMIN_PASSWORD) · config (management.users) */
     source: text('source').notNull().default('config'),
     /**
      * Credential generation (D-097, D-102, TD-2 verify V1): bumped in the same transaction as every password set
@@ -125,7 +125,7 @@ export const configCandidate = pgTable('config_candidate', {
   /**
    * API key holding the lock (TD-2 #5): an API-key session is its own lock owner; null = the interactive sessions of
    * owner_id. No foreign key on purpose: a deleted key's lock must not turn into its user's interactive lock — it
-   * just goes stale (VRX_LOCK_TTL_SEC) or an admin breaks it.
+   * just goes stale (NGFW_LOCK_TTL_SEC) or an admin breaks it.
    */
   ownerKeyId: uuid('owner_key_id'),
   lockedAt: ts('locked_at'),

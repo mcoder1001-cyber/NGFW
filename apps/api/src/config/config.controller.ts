@@ -19,7 +19,7 @@ import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
 import { getAt } from '../common/json.js';
 import { problems } from '../common/problem.js';
-import type { VrxRequest } from '../common/principal.js';
+import type { NgfwRequest } from '../common/principal.js';
 import { ApiOut, Protected, type SameKeys } from '../common/responses.js';
 import { openapi, ref, ZodPipe } from '../common/zod.js';
 import { safeText } from '../common/text.js';
@@ -194,7 +194,7 @@ export class ConfigController {
     private readonly commits: CommitService,
   ) {}
 
-  private edited(req: VrxRequest, r: EditResult, resource = r.pointer || '/'): EditResult {
+  private edited(req: NgfwRequest, r: EditResult, resource = r.pointer || '/'): EditResult {
     // TD-2 #6: a changed secret leaf is marked in the audit row (never its value)
     const marked = markSecretChanges(r.pointer, r.before, r.after, r.secretChanges ?? []);
     req.audit = { resource, before: marked.before, after: marked.after };
@@ -207,7 +207,7 @@ export class ConfigController {
   @ApiOkResponse({ schema: ref('RootConfig') })
   async running(@Res({ passthrough: true }) reply: FastifyReply) {
     const r = await this.ds.getRunning();
-    void reply.header('x-vrx-revision', String(r.revision?.id ?? 0));
+    void reply.header('x-ngfw-revision', String(r.revision?.id ?? 0));
     return r.doc;
   }
 
@@ -226,7 +226,7 @@ export class ConfigController {
   @pathParam
   @ApiOperation({ summary: 'Node of the candidate at a JSON pointer' })
   @ApiOkResponse({ description: 'Any JSON value (the node)', schema: {} })
-  async candidateAt(@Req() req: VrxRequest) {
+  async candidateAt(@Req() req: NgfwRequest) {
     const pointer = pointerFromUrl(req.url, `${PREFIX}/candidate`);
     return this.found(getAt(await this.ds.getCandidate(), pointer), pointer);
   }
@@ -254,7 +254,7 @@ export class ConfigController {
   @Protected()
   @ApiOperation({ summary: 'Admin: break the lock of another user (the candidate is discarded)' })
   @ApiOut(LockOut)
-  async breakLock(@Req() req: VrxRequest) {
+  async breakLock(@Req() req: NgfwRequest) {
     const before = await this.ds.breakLock();
     req.audit = { resource: 'lock', before };
     return before;
@@ -275,7 +275,7 @@ export class ConfigController {
       notApplied: z.array(z.string()),
     }),
   )
-  validate(@Req() req: VrxRequest) {
+  validate(@Req() req: NgfwRequest) {
     return this.commits.validateCandidate(req.principal!);
   }
 
@@ -295,7 +295,7 @@ export class ConfigController {
   @ApiOut(CommitOut)
   async commit(
     @Query(new ZodPipe(CommitQuery)) q: z.output<typeof CommitQuery>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const r = await this.commits.commit(req.principal!, {
       ...(q.confirm !== undefined ? { confirmSec: q.confirm } : {}),
@@ -315,7 +315,7 @@ export class ConfigController {
     summary: 'Confirm the pending commit (cancels the auto-revert) and persist its revision',
   })
   @ApiOut(CommitOut)
-  async confirm(@Req() req: VrxRequest) {
+  async confirm(@Req() req: NgfwRequest) {
     const r = await this.commits.confirm(req.principal!);
     req.audit = { resource: 'commit/confirm', after: { txnId: r.txnId, revision: r.revision?.id } };
     return r;
@@ -334,7 +334,7 @@ export class ConfigController {
   @Protected(409)
   @ApiOperation({ summary: 'Drop the candidate and release the lock' })
   @ApiOut(z.object({ discarded: z.boolean() }))
-  async discard(@Req() req: VrxRequest) {
+  async discard(@Req() req: NgfwRequest) {
     const r = await this.ds.discard(req.principal!);
     req.audit = { resource: 'candidate', after: r };
     return r;
@@ -393,7 +393,7 @@ export class ConfigController {
   async rollback(
     @Param('rev', new ZodPipe(Rev)) rev: number,
     @Query(new ZodPipe(CommitQuery)) q: z.output<typeof CommitQuery>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const r = await this.commits.rollback(req.principal!, rev, {
       ...(q.confirm !== undefined ? { confirmSec: q.confirm } : {}),
@@ -408,7 +408,7 @@ export class ConfigController {
 
   @Get('export')
   @Protected()
-  @Header('content-disposition', 'attachment; filename="vrx-config.json"')
+  @Header('content-disposition', 'attachment; filename="ngfw-config.json"')
   @ApiOperation({ summary: 'Running configuration as a download (redacted)' })
   @ApiOkResponse({ schema: ref('RootConfig') })
   async export() {
@@ -421,7 +421,7 @@ export class ConfigController {
   @ApiOperation({ summary: 'Replace the candidate with a document (schema-checked; not applied)' })
   @ApiBody({ schema: ref('RootConfig') })
   @ApiOut(EditOut)
-  async import(@Body() body: unknown, @Req() req: VrxRequest) {
+  async import(@Body() body: unknown, @Req() req: NgfwRequest) {
     return this.edited(req, await this.ds.importCandidate(req.principal!, body), 'import');
   }
 
@@ -432,7 +432,7 @@ export class ConfigController {
   @ApiOperation({ summary: 'RFC 7386 merge patch of the whole candidate' })
   @ApiBody({ schema: { type: 'object' } })
   @ApiOut(EditOut)
-  async patchRoot(@Body() body: unknown, @Req() req: VrxRequest) {
+  async patchRoot(@Body() body: unknown, @Req() req: NgfwRequest) {
     return this.edited(req, await this.ds.patchCandidate(req.principal!, '', body));
   }
 
@@ -443,7 +443,7 @@ export class ConfigController {
   @pathParam
   @ApiOperation({ summary: 'Node of the running configuration at a JSON pointer' })
   @ApiOkResponse({ description: 'Any JSON value (the node)', schema: {} })
-  async runningAt(@Req() req: VrxRequest) {
+  async runningAt(@Req() req: NgfwRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     return this.found(getAt((await this.ds.getRunning()).doc, pointer), pointer);
   }
@@ -454,7 +454,7 @@ export class ConfigController {
   @ApiOperation({ summary: 'RFC 7386 merge patch of the candidate node at a JSON pointer' })
   @ApiBody({ schema: {} })
   @ApiOut(EditOut)
-  async patchAt(@Body() body: unknown, @Req() req: VrxRequest) {
+  async patchAt(@Body() body: unknown, @Req() req: NgfwRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     return this.edited(req, await this.ds.patchCandidate(req.principal!, pointer, body));
   }
@@ -465,7 +465,7 @@ export class ConfigController {
   @ApiOperation({ summary: 'Replace the candidate node at a JSON pointer' })
   @ApiBody({ schema: {} })
   @ApiOut(EditOut)
-  async putAt(@Body() body: unknown, @Req() req: VrxRequest) {
+  async putAt(@Body() body: unknown, @Req() req: NgfwRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     if (body === undefined) throw problems.badRequest('PUT needs a JSON body');
     return this.edited(req, await this.ds.putCandidate(req.principal!, pointer, body));
@@ -476,7 +476,7 @@ export class ConfigController {
   @pathParam
   @ApiOperation({ summary: 'Remove the candidate node at a JSON pointer' })
   @ApiOut(EditOut)
-  async deleteAt(@Req() req: VrxRequest) {
+  async deleteAt(@Req() req: NgfwRequest) {
     const pointer = pointerFromUrl(req.url, PREFIX);
     return this.edited(req, await this.ds.deleteCandidate(req.principal!, pointer));
   }

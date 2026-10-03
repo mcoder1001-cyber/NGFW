@@ -17,7 +17,7 @@ func TestMkdirSharedModes(t *testing.T) {
 	}
 	old := syscall.Umask(0o077)
 	defer syscall.Umask(old)
-	dir := filepath.Join(existing, "vrx-test", "w1")
+	dir := filepath.Join(existing, "ngfw-test", "w1")
 	if err := mkdirShared(dir); err != nil {
 		t.Fatal(err)
 	}

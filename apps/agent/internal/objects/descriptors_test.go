@@ -12,13 +12,13 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
 // kvsOf is what the desired-state builder produces for an objects document: one single-entry
 // value per object.
-func kvsOf(t *testing.T, doc *vrxv1.ObjectsConfig) []scheduler.KV {
+func kvsOf(t *testing.T, doc *ngfwv1.ObjectsConfig) []scheduler.KV {
 	t.Helper()
 	var out []scheduler.KV
 	for _, k := range Kinds {
@@ -34,9 +34,9 @@ func kvsOf(t *testing.T, doc *vrxv1.ObjectsConfig) []scheduler.KV {
 }
 
 // assembleDoc merges retrieved values back into one document (what the agent's assembler does).
-func assembleDoc(t *testing.T, kvs []scheduler.KV) *vrxv1.ObjectsConfig {
+func assembleDoc(t *testing.T, kvs []scheduler.KV) *ngfwv1.ObjectsConfig {
 	t.Helper()
-	out := &vrxv1.ObjectsConfig{}
+	out := &ngfwv1.ObjectsConfig{}
 	for _, kv := range kvs {
 		proto.Merge(out, kv.Value)
 	}
@@ -107,10 +107,10 @@ func TestFamilyApplyRetrieveRollbackRestart(t *testing.T) {
 	}
 
 	// a transaction that also changes web2, deletes the zone and fails elsewhere: nothing changes
-	next := proto.Clone(want).(*vrxv1.ObjectsConfig)
+	next := proto.Clone(want).(*ngfwv1.ObjectsConfig)
 	next.Addresses["web2"].Address = ptr("192.0.2.99")
 	delete(next.Zones, "lan")
-	kvs := append(kvsOf(t, next), scheduler.KV{Key: "test.fail/x", Value: &vrxv1.Tag{}})
+	kvs := append(kvsOf(t, next), scheduler.KV{Key: "test.fail/x", Value: &ngfwv1.Tag{}})
 	res = sched.ApplyWith(ctx, kvs, scheduler.Only(append(DescriptorNames(), "test.fail")...), scheduler.ApplyOptions{})
 	if res.Outcome != scheduler.OutcomeRolledBack {
 		t.Fatalf("want a rollback: %v %v", res.Outcome, res.Err)
@@ -144,7 +144,7 @@ func TestFamilyValueShape(t *testing.T) {
 	d := &descriptor{kind: KindAddresses}
 	two := objectsDoc(t, `{"addresses": {"a": {"type": "host", "address": "192.0.2.1"}, "b": {"type": "host", "address": "192.0.2.2"}}}`)
 	wrongKind := objectsDoc(t, `{"tags": {"a": {}}}`)
-	for name, v := range map[string]proto.Message{"two entries": two, "wrong kind": wrongKind, "not ObjectsConfig": &vrxv1.Tag{}} {
+	for name, v := range map[string]proto.Message{"two entries": two, "wrong kind": wrongKind, "not ObjectsConfig": &ngfwv1.Tag{}} {
 		if _, err := d.Create(context.Background(), v); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%s: %v", name, err)
 		}
@@ -152,7 +152,7 @@ func TestFamilyValueShape(t *testing.T) {
 			t.Errorf("%s: key %q", name, k)
 		}
 	}
-	g, _ := Value(KindAddressGroups, "g", &vrxv1.AddressGroup{Members: []string{"a", "h"}, Tags: []string{"prod"}})
+	g, _ := Value(KindAddressGroups, "g", &ngfwv1.AddressGroup{Members: []string{"a", "h"}, Tags: []string{"prod"}})
 	var deps []string
 	for _, dep := range (&descriptor{kind: KindAddressGroups}).Dependencies(g) {
 		if !dep.Optional {
@@ -163,7 +163,7 @@ func TestFamilyValueShape(t *testing.T) {
 	if strings.Join(deps, " ") != "objects.address/a objects.address-group/a objects.address/h objects.address-group/h objects.tag/prod" {
 		t.Fatalf("deps %v", deps)
 	}
-	if _, err := Value(KindTags, "x", &vrxv1.AddressObject{}); !errors.Is(err, ErrInvalid) {
+	if _, err := Value(KindTags, "x", &ngfwv1.AddressObject{}); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("Value with the wrong message: %v", err)
 	}
 }
@@ -207,7 +207,7 @@ func TestStoreCorruptMovedAside(t *testing.T) {
 	}
 	var metrics strings.Builder
 	WriteMetrics(&metrics)
-	if !strings.Contains(metrics.String(), "vrx_agent_objects_store_corrupt_total ") {
+	if !strings.Contains(metrics.String(), "ngfw_agent_objects_store_corrupt_total ") {
 		t.Fatalf("metrics:\n%s", metrics.String())
 	}
 	t.Logf("log: %s", strings.TrimSpace(lb.String()))

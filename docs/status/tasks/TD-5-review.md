@@ -92,7 +92,7 @@ liveness gap well below 64. L1–L3 are for the manager to decide. Nothing here 
 ### Nits
 - N1 `guard_test.go:113`: the CLI check matches only the exact literal `delete host-interface`. VPP's CLI accepts unique prefixes
   (`del host-int name …`), and a `Sprintf` or concatenation gets past it. The agent has `CliInband` callers (`ifsanitize/preflight.go:166`,
-  `cmd/vrx-vppcheck`). A regex such as `(?i)\bdel\w*\s+host-int` on literals would catch these.
+  `cmd/ngfw-vppcheck`). A regex such as `(?i)\bdel\w*\s+host-int` on literals would catch these.
 - N2 `guard_test.go:126-129`: "quiesce before delete" checks only source position, so `_ = d.quiesce(...)` passes. Require that the quiesce
   error is checked (`if err := …quiesce(…); err != nil { return … }`).
 - N3 `quiesce.go:81`: treating ENODEV as "gone, go ahead" assumes the agent and VPP share a netns. VPP resolves the name in its own netns
@@ -134,7 +134,7 @@ reports exactly 1 permitted site and 0 violations. The planted tree flags all 7 
 $ eval "$(tools/lab env 2)"; date -Is; systemctl show vpp -p NRestarts
 2026-09-24T14:58:30+03:30
 NRestarts=0
-$ cd apps/agent && VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+$ cd apps/agent && NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
 === RUN   TestHostInterfaceOnHost
 2026/09/24 14:58:37 INFO interface sanitized (VPP V19/V21 inherited state) interface=w2-af50 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=26 rereads=3 reset="[…]" skipped=[]
     integration_test.go:97: timing: Create af-packet.host-interface/w2-af50 took 1.312s (err <nil>)

@@ -39,7 +39,7 @@ describe('F-snmp semantic rules', () => {
     const bad = (snmp: unknown): boolean => !RootConfig.safeParse({ services: { snmp } }).success;
     expect(bad({ views: { v: { include: ['1.3.x'] } } })).toBe(true);
     expect(bad({ views: { v: { include: [] } } })).toBe(true);
-    expect(bad({ communities: { c: { secretRef: 'password/c', view: 'vrx_all' } } })).toBe(true);
+    expect(bad({ communities: { c: { secretRef: 'password/c', view: 'ngfw_all' } } })).toBe(true);
     expect(bad({ monitors: { disks: [{ path: '/var/../etc' }] } })).toBe(true);
     expect(bad({ sysServices: 128 })).toBe(true);
     expect(bad({ monitors: { load: { max1: 1, max5: 1 } } })).toBe(true);

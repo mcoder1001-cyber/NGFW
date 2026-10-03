@@ -144,7 +144,7 @@ Full agent module: `go vet ./...` is clean, and `golangci-lint run` on scheduler
 `go test -race -count=1 ./...` passes with every package ok.
 
 ### Host proof (slot 10, one package, shared lab lock; no packets, no trace/classify commands, D-126/D-128)
-`VRX_INTEGRATION=1 go test -run TestUntaggedNICClaimsOnHost -v ./internal/subsystems/`. The product af_packet descriptor creates
+`NGFW_INTEGRATION=1 go test -run TestUntaggedNICClaimsOnHost -v ./internal/subsystems/`. The product af_packet descriptor creates
 `host-w10-u0` on the w10 veth (sanitized, TD-3/TD-5) and its owner tag is removed. From then on it is a pre-existing NIC. The
 product wiring (`subsystems.Register` → core with the persisted IfaceClaims, the DF-1 alias, the scheduler) applies VRF 10011 + binding +
 10.10.0.1/24 on it. Teardown re-tags the interface and deletes it through the descriptor (quiesced). The test cannot go through the

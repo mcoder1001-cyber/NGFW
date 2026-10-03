@@ -72,7 +72,7 @@ export interface ChannelLike {
 }
 
 export interface SessionOptions {
-  /** Cross-tab channel; defaults to `BroadcastChannel('vrx-auth')` when available. `null` disables it. */
+  /** Cross-tab channel; defaults to `BroadcastChannel('ngfw-auth')` when available. `null` disables it. */
   channel?: ChannelLike | null;
   /** What happens when another tab signs in as a different user (default: reload this tab). */
   onForeignLogin?: () => void;
@@ -81,8 +81,8 @@ export interface SessionOptions {
 }
 
 export const AUTH_PREFIX = '/api/v1/auth/';
-const REFRESH_LOCK = 'vrx-auth-refresh';
-const CHANNEL = 'vrx-auth';
+const REFRESH_LOCK = 'ngfw-auth-refresh';
+const CHANNEL = 'ngfw-auth';
 
 type Fetch = (input: Request) => Promise<Response>;
 type RefreshOutcome = 'ok' | 'refused' | 'unavailable';
@@ -363,5 +363,5 @@ export const session = new Session();
 /** Sub-protocols for `WS /api/v1/stream` (P06 D-P06-9); `undefined` while signed out keeps the socket closed. */
 export function streamProtocols(s: Session = session): string[] | undefined {
   const t = s.accessToken;
-  return t ? ['vrx.v1', `bearer.${t}`] : undefined;
+  return t ? ['ngfw.v1', `bearer.${t}`] : undefined;
 }

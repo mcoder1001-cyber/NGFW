@@ -169,7 +169,7 @@ describe('Neighbours screen', () => {
       api.on('POST /api/v1/actions/arp-flush', {
         status: 400,
         body: {
-          type: 'https://vrx.dev/problems/bad-request',
+          type: 'https://ngfw.dev/problems/bad-request',
           title: 'Bad request',
           status: 400,
           detail: 'agent: interface "loop301" is tagged "w3:loop301"',
@@ -229,11 +229,11 @@ describe('Neighbours screen', () => {
     );
     const props = localized.properties as Record<
       string,
-      { title?: string; 'x-vrx-ui'?: { group?: string } }
+      { title?: string; 'x-ngfw-ui'?: { group?: string } }
     >;
     expect(props['ipv6Ra']).toMatchObject({
       title: 'اعلان‌های مسیریاب IPv6',
-      'x-vrx-ui': { group: 'IPv6 RA و proxy ARP/ND' },
+      'x-ngfw-ui': { group: 'IPv6 RA و proxy ARP/ND' },
     });
     expect(props['proxyArp']?.title).toBe('Proxy ARP');
     expect(props['proxyNd']?.title).toBe('آدرس‌های proxy ND (آزمایشی)');

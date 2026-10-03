@@ -17,7 +17,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/svs"
 	"ngfw/agent/internal/scheduler"
 )
@@ -25,7 +25,7 @@ import (
 // VrfStaticEcmp projects the feature's leaves of ds for the domains in `in`: `vrfs` → svs objects. viaFrr routes are
 // FRR's (desired.FRR, P12: rendered by the frr.config stage, or one notice per route when the agent drives no FRR).
 // vrfID resolves a VRF name to its table id; rng is where svs table ids come from.
-func VrfStaticEcmp(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), rng svs.Range) {
+func VrfStaticEcmp(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), rng svs.Range) {
 	if in["vrfs"] {
 		sourceSelect(s, ds, vrfID, rng)
 	}
@@ -37,7 +37,7 @@ type selectEntry struct {
 	pointer            string
 }
 
-func sourceSelect(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bool), rng svs.Range) {
+func sourceSelect(s Sink, ds *ngfwv1.DesiredState, vrfID func(string) (uint32, bool), rng svs.Range) {
 	var entries []selectEntry
 	firstPtr := map[string]string{} // interface → pointer of its first entry
 	for _, name := range sortedKeys(ds.GetVrfs()) {
@@ -95,7 +95,7 @@ func sourceSelect(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bo
 // AssembleVrfStaticEcmp adds `vrfs.<vrf>.sourceSelect` to ds from the retrieved svs objects: an svs route belongs to the
 // interface whose enablement uses its table and to the VRF of its selected table (nameOf). Entries whose selected table
 // is unknown (no applied-once record for the running VPP) are left out: they are re-programmed by the next reconcile.
-func AssembleVrfStaticEcmp(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(id uint32) string) {
+func AssembleVrfStaticEcmp(ds *ngfwv1.DesiredState, kvs []scheduler.KV, nameOf func(id uint32) string) {
 	ifaceOf := map[uint32]string{}
 	for _, kv := range kvs {
 		if v, ok := kv.Value.(*svs.Interface); ok {
@@ -113,17 +113,17 @@ func AssembleVrfStaticEcmp(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf fu
 		}
 		vrf := nameOf(r.GetSourceTableId())
 		if ds.Vrfs == nil {
-			ds.Vrfs = map[string]*vrxv1.Vrf{}
+			ds.Vrfs = map[string]*ngfwv1.Vrf{}
 		}
 		v := ds.Vrfs[vrf]
 		if v == nil {
-			v = &vrxv1.Vrf{}
+			v = &ngfwv1.Vrf{}
 			if r.GetSourceTableId() == 0 {
 				v.Id = proto.Uint32(0) // `default`: VPP's table 0 always exists
 			}
 			ds.Vrfs[vrf] = v
 		}
-		v.SourceSelect = append(v.SourceSelect, &vrxv1.VrfSourceSelect{Prefix: proto.String(r.GetPrefix()), Interface: proto.String(n)})
+		v.SourceSelect = append(v.SourceSelect, &ngfwv1.VrfSourceSelect{Prefix: proto.String(r.GetPrefix()), Interface: proto.String(n)})
 	}
 	for _, v := range ds.GetVrfs() {
 		sort.Slice(v.SourceSelect, func(i, j int) bool {

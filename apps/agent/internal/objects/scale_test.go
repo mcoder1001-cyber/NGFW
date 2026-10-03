@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -29,7 +29,7 @@ func createN(t *testing.T, dir string, n int) time.Duration {
 	start := time.Now()
 	for i := 0; i < n; i++ {
 		name := fmt.Sprintf("h%05d", i)
-		v, err := Value(KindAddresses, name, &vrxv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)), Tags: []string{}})
+		v, err := Value(KindAddresses, name, &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)), Tags: []string{}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,12 +44,12 @@ func createN(t *testing.T, dir string, n int) time.Duration {
 	return time.Since(start)
 }
 
-// F1 (review): the cost of one transaction of N objects. VRX_OBJECTS_SCALE="1000,2000,4000" prints the times (the
-// before/after evidence); VRX_OBJECTS_SCALE_DIR runs it in that directory (a disk, not tmpfs).
+// F1 (review): the cost of one transaction of N objects. NGFW_OBJECTS_SCALE="1000,2000,4000" prints the times (the
+// before/after evidence); NGFW_OBJECTS_SCALE_DIR runs it in that directory (a disk, not tmpfs).
 func TestStoreScaleReport(t *testing.T) {
-	sizes := os.Getenv("VRX_OBJECTS_SCALE")
+	sizes := os.Getenv("NGFW_OBJECTS_SCALE")
 	if sizes == "" {
-		t.Skip("set VRX_OBJECTS_SCALE=1000,2000,4000 to print the transaction cost per store size")
+		t.Skip("set NGFW_OBJECTS_SCALE=1000,2000,4000 to print the transaction cost per store size")
 	}
 	for _, s := range strings.Split(sizes, ",") {
 		n, err := strconv.Atoi(strings.TrimSpace(s))
@@ -57,7 +57,7 @@ func TestStoreScaleReport(t *testing.T) {
 			t.Fatal(err)
 		}
 		dir := t.TempDir()
-		if base := os.Getenv("VRX_OBJECTS_SCALE_DIR"); base != "" {
+		if base := os.Getenv("NGFW_OBJECTS_SCALE_DIR"); base != "" {
 			if dir, err = os.MkdirTemp(base, "objects-scale-"); err != nil {
 				t.Fatal(err)
 			}
@@ -94,7 +94,7 @@ func TestStoreWritesCoalescedAndFQDNOnlyOnChange(t *testing.T) {
 	Register(reg, rt)
 	d, _ := reg.Get(AddressName)
 	ctx := context.Background()
-	put := func(name string, a *vrxv1.AddressObject) {
+	put := func(name string, a *ngfwv1.AddressObject) {
 		t.Helper()
 		v, _ := Value(KindAddresses, name, a)
 		if _, err := d.Create(ctx, v); err != nil {
@@ -103,7 +103,7 @@ func TestStoreWritesCoalescedAndFQDNOnlyOnChange(t *testing.T) {
 	}
 	path := dir + "/objects-w3.json"
 	for i := 0; i < 50; i++ {
-		put(fmt.Sprintf("h%d", i), &vrxv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("192.0.2.%d", i))})
+		put(fmt.Sprintf("h%d", i), &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("192.0.2.%d", i))})
 	}
 	if _, err := os.Stat(path); err == nil || !rt.Store().Dirty() {
 		t.Fatal("a Create wrote the store (want: memory only until the flush)")
@@ -121,17 +121,17 @@ func TestStoreWritesCoalescedAndFQDNOnlyOnChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	// an FQDN object is tracked; changing its name moves it; a type change untracks it
-	put("cdn", &vrxv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr("cdn.w3.test")})
-	put("cdn", &vrxv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr("cdn2.w3.test")})
+	put("cdn", &ngfwv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr("cdn.w3.test")})
+	put("cdn", &ngfwv1.AddressObject{Type: ptr("fqdn"), Fqdn: ptr("cdn2.w3.test")})
 	if st := rt.FQDNStates(); len(st) != 1 || st[0].FQDN != "cdn2.w3.test" {
 		t.Fatalf("tracked: %+v", st)
 	}
-	put("cdn", &vrxv1.AddressObject{Type: ptr("host"), Address: ptr("192.0.2.200")})
+	put("cdn", &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr("192.0.2.200")})
 	if st := rt.FQDNStates(); len(st) != 0 {
 		t.Fatalf("still tracked after the type change: %+v", st)
 	}
 	// without a Retrieve the timer writes within FlushDelay
-	put("late", &vrxv1.AddressObject{Type: ptr("host"), Address: ptr("192.0.2.201")})
+	put("late", &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr("192.0.2.201")})
 	deadline := time.Now().Add(5 * time.Second)
 	for rt.Store().Dirty() && time.Now().Before(deadline) {
 		time.Sleep(20 * time.Millisecond)
@@ -142,11 +142,11 @@ func TestStoreWritesCoalescedAndFQDNOnlyOnChange(t *testing.T) {
 }
 
 // The same through the scheduler (plan Retrieve → N Creates → verification Retrieve): what one commit of the objects
-// domain costs in the agent. VRX_OBJECTS_SCALE as above.
+// domain costs in the agent. NGFW_OBJECTS_SCALE as above.
 func TestStoreScaleSchedulerReport(t *testing.T) {
-	sizes := os.Getenv("VRX_OBJECTS_SCALE")
+	sizes := os.Getenv("NGFW_OBJECTS_SCALE")
 	if sizes == "" {
-		t.Skip("set VRX_OBJECTS_SCALE=1000,2000,4000")
+		t.Skip("set NGFW_OBJECTS_SCALE=1000,2000,4000")
 	}
 	for _, s := range strings.Split(sizes, ",") {
 		n, _ := strconv.Atoi(strings.TrimSpace(s))
@@ -156,9 +156,9 @@ func TestStoreScaleSchedulerReport(t *testing.T) {
 		}
 		reg := scheduler.NewRegistry()
 		Register(reg, rt)
-		doc := &vrxv1.ObjectsConfig{Addresses: map[string]*vrxv1.AddressObject{}}
+		doc := &ngfwv1.ObjectsConfig{Addresses: map[string]*ngfwv1.AddressObject{}}
 		for i := 0; i < n; i++ {
-			doc.Addresses[fmt.Sprintf("h%05d", i)] = &vrxv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)), Tags: []string{}}
+			doc.Addresses[fmt.Sprintf("h%05d", i)] = &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr(fmt.Sprintf("10.%d.%d.%d", i/65536, i/256%256, i%256)), Tags: []string{}}
 		}
 		kvs := kvsOf(t, doc)
 		start := time.Now()

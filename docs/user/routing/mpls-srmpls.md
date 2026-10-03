@@ -1,6 +1,6 @@
 # MPLS and SR-MPLS
 
-VRX switches labelled packets in the data plane (VPP): static label routes (LSP hops), label ↔ IP-prefix bindings,
+NGFW switches labelled packets in the data plane (VPP): static label routes (LSP hops), label ↔ IP-prefix bindings,
 MPLS tunnels (head-end LSPs) and SR-MPLS policies with steering. Everything lives under `routing.mpls` of the
 configuration and goes through the usual candidate → diff → commit → rollback. LDP (dynamic label distribution) is a
 separate feature (F-mpls-ldp) and adds `routing.mpls.ldp` later.
@@ -55,7 +55,7 @@ of a policy differ.
 ## Example: a static LSP transit hop and an SR-MPLS policy
 
 ```
-vrx configure
+ngfw configure
 merge /routing {"mpls": {"interfaces": ["TenGigabitEthernet0/0/0"], "labelRoutes": [{"label": 1001, "paths": [{"nextHop": "192.0.2.2", "interface": "TenGigabitEthernet0/0/0", "outLabels": [2001]}]}]}}
 merge /routing/mpls/sr {"policies": {"5001": {"segmentLists": [{"labels": [16001, 16002]}]}}, "steering": [{"prefix": "203.0.113.0/24", "bsid": 5001}]}
 set routing mpls interfaces TenGigabitEthernet0/0/1
@@ -70,12 +70,12 @@ configuration candidate routing mpls set` prints the section as `set` commands.)
 The same with the REST API (a merge patch of `routing`; arrays are replaced whole, `null` removes a member):
 
 ```
-curl -X PATCH https://vrx/api/v1/config/routing -H 'content-type: application/merge-patch+json' \
+curl -X PATCH https://ngfw/api/v1/config/routing -H 'content-type: application/merge-patch+json' \
   -d '{"mpls": {"interfaces": ["TenGigabitEthernet0/0/0"],
                "labelRoutes": [{"label": 1001, "paths": [{"nextHop": "192.0.2.2", "interface": "TenGigabitEthernet0/0/0", "outLabels": [2001]}]}],
                "sr": {"policies": {"5001": {"segmentLists": [{"labels": [16001, 16002]}]}},
                       "steering": [{"prefix": "203.0.113.0/24", "bsid": 5001}]}}}'
-curl -X POST 'https://vrx/api/v1/config/commit?comment=mpls'
+curl -X POST 'https://ngfw/api/v1/config/commit?comment=mpls'
 ```
 
 Removing everything MPLS: `delete routing mpls` (CLI) or `{"mpls": null}` (merge patch), then commit. The agent removes

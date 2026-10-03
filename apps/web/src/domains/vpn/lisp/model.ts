@@ -1,6 +1,6 @@
 import type { paths } from '@ngfw/api-client';
 import type { LispConfig } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
 
@@ -13,7 +13,7 @@ export type { LispConfig };
 /** Pointer of `tunnels.lisp` in the document (server problems are mapped relative to it). */
 export const LISP_POINTER = '/tunnels/lisp';
 
-/** Sub-tabs of the LISP tab and the `tunnels.lisp` keys each one edits (the schema's `x-vrx-ui.group`). */
+/** Sub-tabs of the LISP tab and the `tunnels.lisp` keys each one edits (the schema's `x-ngfw-ui.group`). */
 export const SECTIONS = [
   { id: 'locators', keys: ['enabled', 'gpe', 'locatorSets'] },
   { id: 'eids', keys: ['localEids', 'eidTables'] },
@@ -62,7 +62,7 @@ export interface StatusRow {
   id: string;
   detail: string;
   /** up = VPP has it; down = configured, not in VPP; degraded = cannot be read back (V13, only its VNI is visible). */
-  status: VrxStatus;
+  status: NgfwStatus;
   labelKey: 'status.applied' | 'status.missing' | 'status.writeOnly';
 }
 

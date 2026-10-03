@@ -221,7 +221,7 @@ func TestGarbageCollect(t *testing.T) {
 	if err := GarbageCollect(t.Context(), f); err == nil || !strings.Contains(err.Error(), "unknown input") {
 		t.Fatal(err)
 	}
-	// success = the sentinel existed and was deleted: impossible for VRX, loud
+	// success = the sentinel existed and was deleted: impossible for NGFW, loud
 	f.Reply("cli_inband", &vlib.CliInbandReply{})
 	if err := GarbageCollect(t.Context(), f); err == nil {
 		t.Fatal("a deleted sentinel VIP must be reported")

@@ -1,6 +1,6 @@
 # P08 — WIP log (vertical slice: interfaces end to end)
 
-Slot 1 (`w1`, API 3100, web 5100, metrics 9111, `/run/vrx-test/w1/agent.sock`, DB `vrx_w1`, tables 1000–1999,
+Slot 1 (`w1`, API 3100, web 5100, metrics 9111, `/run/ngfw-test/w1/agent.sock`, DB `ngfw_w1`, tables 1000–1999,
 rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 5.
 
 ## Plan (work order from the manager)
@@ -24,7 +24,7 @@ rig 10.1.{1,2}.0/24). Runs directly on the host (no wt.sh). NRestarts at start: 
 - 07:50–08:00 screenshots (TestInterfacesScreenshots, prod build) → docs/user/interfaces; basics.md, vertical-slice.md, P08.md.
 - 08:00 ci.sh #1 failed on agent lint (coretest G115/revive + my IKEv2Options comment) → fixed 390b409; merged main (F-startup-apply); ci.sh #3 running.
 - 08:05 ci.sh #3 PASSED (after lint fix + main merge). 08:12 topology re-run green after merge (trace matching made run-unique; agent built in-test when no binary given).
-- 08:17 final ci.sh --base main PASSED @82d699d; cleanup done (bin/dist/run dir removed, vrx_w1 dropped, rig down, lock free, NRestarts 6). DONE except TD-3 Release wiring (pending its merge).
+- 08:17 final ci.sh --base main PASSED @82d699d; cleanup done (bin/dist/run dir removed, ngfw_w1 dropped, rig down, lock free, NRestarts 6). DONE except TD-3 Release wiring (pending its merge).
 
 ## Fix round 1 (manager ngfw-46, envelope P08.fix1-envelope.md; review BLOCK 6022f0d) — started 14:22, time box 4 h
 - 14:23 step 0: merged main a8d1efb (TD-3 ifsanitize); one conflict coretest/fakevpp.go (kept installIfExt + sanitizetest.Clean);

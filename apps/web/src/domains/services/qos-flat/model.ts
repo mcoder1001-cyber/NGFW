@@ -84,12 +84,12 @@ export function localize(schema: JsonSchema, t: Translate, base: string): JsonSc
 function localizeNode(schema: JsonSchema, t: Translate, path: string, root: boolean): JsonSchema {
   const out: Record<string, unknown> = { ...schema };
   if (!root) {
-    const hints = isObject(schema['x-vrx-ui']) ? schema['x-vrx-ui'] : {};
+    const hints = isObject(schema['x-ngfw-ui']) ? schema['x-ngfw-ui'] : {};
     const help = t(`help.${path}`, {
       defaultValue: typeof hints['help'] === 'string' ? hints['help'] : '',
     });
     out['title'] = t(`label.${path}`, { defaultValue: schema.title ?? path });
-    out['x-vrx-ui'] = { ...hints, ...(help ? { help } : {}) };
+    out['x-ngfw-ui'] = { ...hints, ...(help ? { help } : {}) };
   }
   if (isObject(schema.properties)) {
     out['properties'] = Object.fromEntries(

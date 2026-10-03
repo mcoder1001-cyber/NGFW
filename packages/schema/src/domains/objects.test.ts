@@ -55,9 +55,9 @@ describe('ObjectsSchema', () => {
   it('exposes UI hints and key patterns in JSON Schema', () => {
     const js = z.toJSONSchema(ObjectsSchema, { target: 'draft-2020-12', io: 'input' });
     expect(js.title).toBe('Objects');
-    expect(js['x-vrx-ui']).toMatchObject({ order: 70 });
+    expect(js['x-ngfw-ui']).toMatchObject({ order: 70 });
     const props = js.properties as Record<string, Record<string, unknown>>;
-    expect(props.addresses?.['x-vrx-ui']).toMatchObject({ group: 'Addresses', order: 1 });
+    expect(props.addresses?.['x-ngfw-ui']).toMatchObject({ group: 'Addresses', order: 1 });
     expect(props.addresses?.propertyNames).toMatchObject({ pattern: expect.any(String) });
   });
 });
@@ -253,7 +253,7 @@ describe('ScheduleSchema / ZoneSchema / TagSchema', () => {
 
 type JsonNode = Record<string, unknown>;
 
-/** JSON pointers of every node that carries `x-vrx-ui` and an address/prefix `format` but no `widget` (review H1). */
+/** JSON pointers of every node that carries `x-ngfw-ui` and an address/prefix `format` but no `widget` (review H1). */
 function leavesWithoutWidget(root: unknown): string[] {
   const out: string[] = [];
   const walk = (n: unknown, path: string): void => {
@@ -263,7 +263,7 @@ function leavesWithoutWidget(root: unknown): string[] {
       return;
     }
     const node = n as JsonNode;
-    const ui = node['x-vrx-ui'] as { widget?: string } | undefined;
+    const ui = node['x-ngfw-ui'] as { widget?: string } | undefined;
     const anyOf = node.anyOf as JsonNode[] | undefined;
     const formatted =
       typeof node.format === 'string' ||
@@ -286,15 +286,15 @@ describe('objects leaf UI hints survive re-wrapping (review H1)', () => {
 
   it('keeps widget/help of re-wrapped primitives on leaf fields', () => {
     expect(
-      at(js, '/properties/addresses/additionalProperties/oneOf/0/properties/address')['x-vrx-ui'],
+      at(js, '/properties/addresses/additionalProperties/oneOf/0/properties/address')['x-ngfw-ui'],
       '/properties/addresses/additionalProperties/oneOf/0/properties/address',
     ).toMatchObject({ widget: 'ip' });
     expect(
-      at(js, '/properties/addresses/additionalProperties/oneOf/1/properties/prefix')['x-vrx-ui'],
+      at(js, '/properties/addresses/additionalProperties/oneOf/1/properties/prefix')['x-ngfw-ui'],
       '/properties/addresses/additionalProperties/oneOf/1/properties/prefix',
     ).toMatchObject({ widget: 'cidr', help: expect.any(String) });
     expect(
-      at(js, '/properties/addresses/additionalProperties/oneOf/2/properties/start')['x-vrx-ui'],
+      at(js, '/properties/addresses/additionalProperties/oneOf/2/properties/start')['x-ngfw-ui'],
       '/properties/addresses/additionalProperties/oneOf/2/properties/start',
     ).toMatchObject({ widget: 'ip' });
   });

@@ -2,7 +2,7 @@ import type { i18n as I18n } from 'i18next';
 import { productEngineLabels, productWording } from '../i18n/product-wording.js';
 
 /**
- * Per-path texts of a schema-driven form (I18N-1). The schema's English `title`/`description`/`x-vrx-ui` stay the
+ * Per-path texts of a schema-driven form (I18N-1). The schema's English `title`/`description`/`x-ngfw-ui` stay the
  * source of truth; when `<SchemaForm i18nPrefix>` is set, these keys (in the app's own namespaces) win:
  *
  * ```
@@ -11,7 +11,7 @@ import { productEngineLabels, productWording } from '../i18n/product-wording.js'
  * <prefix>.<propPath>.placeholder   placeholder
  * <prefix>.<propPath>.enum          { "<value>": "label" }      enum selects, arrays of enums, table cells, summaries
  * <prefix>.<propPath>.variant       { "<discriminator>": "…" }  oneOf/anyOf picker (discriminator const, else index)
- * <prefix>.<propPath>.group         { "<group>": "label" }      `x-vrx-ui.group` of this object's properties
+ * <prefix>.<propPath>.group         { "<group>": "label" }      `x-ngfw-ui.group` of this object's properties
  * <prefix>.group                    { "<group>": "label" }      root object's groups, and fallback for every object
  * <prefix>.<propPath>.itemTitle     title of one array item / record value
  * <prefix>.<propPath>.keyTitle      label of a record's key
@@ -23,7 +23,7 @@ import { productEngineLabels, productWording } from '../i18n/product-wording.js'
  */
 export interface SchemaText {
   title(propPath: string, fallback: string): string;
-  /** Per-path help, else `x-vrx-ui.help` (itself an i18n key when it exists), else the schema description. */
+  /** Per-path help, else `x-ngfw-ui.help` (itself an i18n key when it exists), else the schema description. */
   help(propPath: string, hintHelp: string | undefined, description: string | undefined): string | undefined;
   placeholder(propPath: string, fallback: string | undefined): string | undefined;
   enumLabels(propPath: string): Readonly<Record<string, string>> | undefined;

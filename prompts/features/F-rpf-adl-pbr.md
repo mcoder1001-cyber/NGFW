@@ -17,7 +17,7 @@ uRPF/ADL/ABF). Reference: TNSR "Policy-based routing, uRPF"; VPP `urpf`, `adl`, 
 - LOG D-063 + D-076 (write-only types: idempotent Create or a persisted applied-once record keyed by the D-080 boot identity), D-066
   (ACL naming), D-071 (auto_sdl is a global), `docs/vpp-code-track.md` **V19** (classify/ADL per-interface state survives interface
   deletion → fallback: clear the settings before deleting an interface; tests reset inherited state) — TD-3 (merged) adds
-  `apps/agent/internal/vpp/ifsanitize` (Acquire on create, BeforeDelete, `vrx-vpp-preflight`): use it, do not re-implement it
+  `apps/agent/internal/vpp/ifsanitize` (Acquire on create, BeforeDelete, `ngfw-vpp-preflight`): use it, do not re-implement it
 - `docs/vpp-code-track.md` **V23 (a)**: `feature_is_enabled` answers true for every VPP error, and DF-2's `adl.interface` Retrieve trusts
   it → a fresh interface can read as "ADL on". Your projection relies on that Retrieve, so fix it in `descriptors/adl` (you own it):
   confirm a "true" with a control query that cannot be on, or report unknown; fake + host test. V23 (b): ABF attachments are not
@@ -27,7 +27,7 @@ uRPF/ADL/ABF). Reference: TNSR "Policy-based routing, uRPF"; VPP `urpf`, `adl`, 
   policy-id range is the slot range `N000–N999` on the shared host, nil (= all) only for the product agent; `adl.RegisterWriteOnly` for
   `adl.allowlist`; anything classify-backed takes `Wiring.ClassifyStore()`
 - `auto_sdl_config{enable, threshold (default 5), remove_timeout (default 300)}` has no getter and is VPP-global; it acts on the session
-  layer's SDL table. If it fails on vrx-a because the session layer / SDL backend is not enabled (that is startup.conf =
+  layer's SDL table. If it fails on ngfw-a because the session layer / SDL backend is not enabled (that is startup.conf =
   handover-gated), keep it fake-tested, make the host test skip-unless-supported with the reason, and write it in the questions file —
   never enable the session layer on the shared VPP
 

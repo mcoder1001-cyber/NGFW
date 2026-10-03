@@ -39,7 +39,7 @@ Files you own: see the envelope (`renderers/frr/{isis,rip}/**`, `descriptors/lcp
 1. **Schema** (contract commits): IS-IS NET unique system id; interface exists (existing rule); `circuitType` compatible with `level`
    (level-1 IS cannot run a level-2 circuit); RIP networks IPv4 only, RIPng IPv6 only; interfaces exist; redistribute route maps exist in
    `routing.policy.routeMaps` (existing rule — mirror for `ripng`).
-2. **Agent**: sections `isis` (`router isis vrx [vrf]`, `net`, `is-type`, per-interface `ip router isis vrx` / `ipv6 router isis vrx`,
+2. **Agent**: sections `isis` (`router isis ngfw [vrf]`, `net`, `is-type`, per-interface `ip router isis ngfw` / `ipv6 router isis ngfw`,
    metric, circuit type, p2p, passive, auth via `rc.Secret`), `rip` (`router rip`, `version 2`, network, passive-interface, default-metric,
    redistribute) and `ripng` (`router ripng`); the `lcp.osi-proto` global (above). State readers: `show isis neighbor json`,
    `show isis database json` (paged), `show ip rip status` (text → parsed; JSON where FRR 10 has it), `show ipv6 ripng status`; adjacency

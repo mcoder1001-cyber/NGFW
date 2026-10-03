@@ -51,9 +51,9 @@ export const SystemDnsSchema = z.strictObject({
 
 export const SystemSchema = withUi(
   z.strictObject({
-    hostname: withUi(hostname.default('vrx'), {
+    hostname: withUi(hostname.default('ngfw'), {
       title: 'Hostname',
-      help: 'RFC 1123 host name, e.g. vrx-a or vrx-a.lab.example',
+      help: 'RFC 1123 host name, e.g. ngfw-a or ngfw-a.lab.example',
       group: 'identity',
       order: 1,
     }),

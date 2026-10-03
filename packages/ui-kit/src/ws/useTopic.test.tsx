@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
-import { VrxWsClient, type WebSocketLike } from './client.js';
+import { NgfwWsClient, type WebSocketLike } from './client.js';
 import { useTopic } from './useTopic.js';
 import { WsProvider, useWsStatus } from './WsProvider.js';
 
@@ -32,7 +32,7 @@ class FakeSocket implements WebSocketLike {
 
 function setup() {
   const sockets: FakeSocket[] = [];
-  const client = new VrxWsClient({
+  const client = new NgfwWsClient({
     url: 'ws://unit/api/v1/stream',
     factory: () => {
       const s = new FakeSocket();

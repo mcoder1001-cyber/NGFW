@@ -6,15 +6,15 @@ worktree `/root/ngfw-wt/RF-4`, run directly on the host, slot 8.
 ## What I ran
 - `tools/ci.sh --base main` myself → **CI GATE PASSED** (quick, ~1m01s, log
   `/root/ngfw-wt/logs/ci/RF-4-20260924-022333-1997412`). Matches the output pasted in `RF-4.md`.
-- `VRX_INTEGRATION=1 go test -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/` on
+- `NGFW_INTEGRATION=1 go test -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/` on
   slot 8 under the lab lock → all three PASS (snmpd 3.99s, keepalived 9.92s, rsyslog 7.39s). SNMP
   reply, `vi1.state` MASTER, RFC-5424 line and impstats all reproduced; the three "apply without a
   reload/restart is refused and rolled back" cases fired.
 - Hygiene after the runs: `/etc/snmp`, `/etc/keepalived`, `/etc/rsyslog.conf`, `/etc/rsyslog.d`
   byte-for-byte unchanged (stat diff empty); `snmpd`/`keepalived` inactive, host `rsyslog` still
-  `active` MainPID **1014 unchanged**; no `ns-w8-*`, `/run/vrx-test/w8` empty, no stray snmpd/
+  `active` MainPID **1014 unchanged**; no `ns-w8-*`, `/run/ngfw-test/w8` empty, no stray snmpd/
   keepalived/rsyslogd under `/proc`.
-- Adversarial probe of my own: a staged snmpd (my temp dir under `/run/vrx-test/w8`, killed and
+- Adversarial probe of my own: a staged snmpd (my temp dir under `/run/ngfw-test/w8`, killed and
   removed) with `agentaddress udp:127.0.0.1:3862`, then edited to `3863` + SIGHUP. Result below.
 
 ## Findings, ranked by severity
@@ -61,7 +61,7 @@ restarts the host's own system logger and loses messages. Violates D-076 (idempo
 
 ### M3 — rsyslog product file loads `impstats` inside an include of the host rsyslog; a second impstats load fails the whole logger
 `rsyslog/templates/rsyslog.conf.tmpl` emits `module(load="impstats" …)` and the product config is
-`/etc/rsyslog.d/50-vrx-export.conf`, an include of the host's `/etc/rsyslog.conf` (`README:10`). If the
+`/etc/rsyslog.d/50-ngfw-export.conf`, an include of the host's `/etc/rsyslog.conf` (`README:10`). If the
 base config or another drop-in already loads impstats, `rsyslogd` errors on module re-load and, after
 the Apply restart, the host logger does not come back. `rsyslogd -N1` runs on the staged file alone and
 cannot see the conflict. **Fix (P10/F-logging):** own impstats once globally, or detect the host's
@@ -89,7 +89,7 @@ rate-limiting the dump.
 
 ## Checks that passed (no finding)
 - **Injection (task focus 6):** snmpd template emits **no** `exec`/`extend`/`pass` directive at all;
-  keepalived renders only our shipped `vrx-keepalived-notify` and allow-listed checks
+  keepalived renders only our shipped `ngfw-keepalived-notify` and allow-listed checks
   (`model.go:196-200`, `checkRe` + `o.Checks`), never `include`/`$VAR`/`vrrp_strict`/`use_vmac`/user
   script text; rsyslog emits only `omfwd`, never `omprog`/`omshell`/`omusrmsg`/`omfile`/`$IncludeConfig`/
   `include()`. Every free-text value passes a typed validator in `BuildModel` **and** a strict template
@@ -100,7 +100,7 @@ rate-limiting the dump.
 - **Secrets:** resolved only at Render, written only to `Secret` files (snmpd 0600, keepalived 0640,
   rsyslog key 0640 `root:syslog`); gosnmp keeps communities/passphrases off every argv; keepalived
   dump `auth_data` never surfaces (whitelisted + deleted, `state.go:376-498`); gitleaks clean;
-  `VRX_TEST_PSK`/`RF4tpsk*` absent from the integration log.
+  `NGFW_TEST_PSK`/`RF4tpsk*` absent from the integration log.
 - **Convergence + rollback (7):** all three prove daemon-side state before success (SNMP GET; SIGJSON
   dump instance/iface/vrid/base-priority; impstats action names stamped after the restart) — except
   the snmpd **listen** case in H1. Rollback runs on a fresh context (`rfkit/apply.go:205`).

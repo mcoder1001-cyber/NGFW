@@ -1,11 +1,11 @@
 package wireguard_test
 
-// Host checks against the shared VPP (VRX_INTEGRATION=1, shared lab lock, slot prefix), through
+// Host checks against the shared VPP (NGFW_INTEGRATION=1, shared lab lock, slot prefix), through
 // P05's reconciler (vpntest.Agent) including the restart simulation. The interface is wg<table base + 1> tagged "<prefix>:wg…", its listen port is
 // 20000+100*slot+10 (DF-5 port scheme, never 51820), addresses are in 10.<slot>.0.0/16, and every
 // key is a documented test vector derived from the slot (VPP requires peer public keys to be unique
 // VPP-wide, so slots must not share them). No peer exists: configuration is asserted, not
-// handshakes. VRX_DF5_PAUSE=<seconds> holds the objects before cleanup so CLI show evidence can be
+// handshakes. NGFW_DF5_PAUSE=<seconds> holds the objects before cleanup so CLI show evidence can be
 // captured.
 
 import (
@@ -30,9 +30,9 @@ import (
 
 func pauseForEvidence(t *testing.T) {
 	t.Helper()
-	if s := os.Getenv("VRX_DF5_PAUSE"); s != "" {
+	if s := os.Getenv("NGFW_DF5_PAUSE"); s != "" {
 		n, _ := strconv.Atoi(s)
-		t.Logf("VRX_DF5_PAUSE: holding objects for %ds", n)
+		t.Logf("NGFW_DF5_PAUSE: holding objects for %ds", n)
 		time.Sleep(time.Duration(n) * time.Second)
 	}
 }

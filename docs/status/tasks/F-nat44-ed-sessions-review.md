@@ -1,6 +1,6 @@
 # F-nat44-ed-sessions — review
 
-Reviewer: vrx-bot (review agent), 2026-09-24. Branch `task/F-nat44-ed-sessions` @ `acc1877`. The diff base is the old W-seed
+Reviewer: ngfw-bot (review agent), 2026-09-24. Branch `task/F-nat44-ed-sessions` @ `acc1877`. The diff base is the old W-seed
 tip `df67a8e`, which the branch merged. `task/W-seed` was re-cut during this review as `a303f0b` on main after the P08
 squash, so `task/W-seed...task/F-nat44-ed-sessions` now also shows P08 and W-seed history.
 Read: 00-CONTEXT, REVIEW-PROMPT, the feature prompt, the envelope, wave-A-hotspots (§0, §2), wave-BC-numbers (NAT rows), the

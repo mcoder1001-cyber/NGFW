@@ -816,8 +816,8 @@ func TestClaimRule(t *testing.T) {
 	if apply(t, w9.InterfaceFeature, in) != 1 || apply(t, w9.AddressPool, pool) != 1 {
 		t.Fatal("w9 objects")
 	}
-	// the production owner "vrx" (default config) sees none of w9's objects and cannot touch them
-	prod := nat44ed.New(f, "vrx")
+	// the production owner "ngfw" (default config) sees none of w9's objects and cannot touch them
+	prod := nat44ed.New(f, "ngfw")
 	if len(retrieveKeys(t, prod.InterfaceFeature)) != 0 || len(retrieveKeys(t, prod.AddressPool)) != 0 {
 		t.Fatal("production owner must not claim a slot's objects")
 	}

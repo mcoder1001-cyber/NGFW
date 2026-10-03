@@ -3,7 +3,7 @@
 1. **Should host-stack configuration ship in the 21-day scope at all (T3)?** List it as *partial* in STATUS-FINAL:
    - nothing is host-verified;
    - namespaces, the TCP pool and http_static are write-only.
-2. **http_static cannot be disabled via the API.** It is kept opt-in (`VRX_HOSTSTACK_HTTP_STATIC=1`, globals owner only,
+2. **http_static cannot be disabled via the API.** It is kept opt-in (`NGFW_HOSTSTACK_HTTP_STATIC=1`, globals owner only,
    and DryRun refuses it otherwise). Options: (a) keep it opt-in (current); (b) drop the descriptor and the schema leaf.
 3. **Which session rt engine does the product's globals owner select?** rule-table serves session rules; sdl serves
    F-rpf-adl-pbr's Auto-SDL. Current behaviour:

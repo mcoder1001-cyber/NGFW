@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -50,12 +50,12 @@ func TestPnatDomainOnFake(t *testing.T) {
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	withPnat := doc(t, strings.Replace(natIfDoc, "%s", pnatPart, 1))
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: withPnat}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: withPnat}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	want := doc(t, `{"nat":`+canonicalPnat+`}`).GetNat()
 	if got := natNat(t, s); !proto.Equal(got, want) {
 		t.Fatalf("Retrieve nat != canonical:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
-	if resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p2", DesiredState: withPnat}); len(resp.GetResults()) != 0 {
+	if resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p2", DesiredState: withPnat}); len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
 
@@ -77,8 +77,8 @@ func TestPnatDomainOnFake(t *testing.T) {
 		t.Fatalf("after resync: %d bindings, %d flows (want 2, 3)", b, f)
 	}
 
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "p3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)}),
-		vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "p3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)}),
+		ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := natNat(t, s2); proto.Size(got) != 0 {
 		t.Fatalf("Retrieve after rollback: %s", protojson.Format(got))
 	}

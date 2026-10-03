@@ -16,7 +16,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -39,16 +39,16 @@ var hostile = []string{
 	"} table ip filter { chain input { drop",
 }
 
-func doc(t *testing.T, js string) *vrxv1.DesiredState {
+func doc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("document: %v", err)
 	}
 	return ds
 }
 
-func fixture(t *testing.T) *vrxv1.DesiredState {
+func fixture(t *testing.T) *ngfwv1.DesiredState {
 	t.Helper()
 	raw, err := os.ReadFile("../../../../../packages/proto/test/fixtures/host-acl-nftables-basic.json")
 	if err != nil {
@@ -110,7 +110,7 @@ func fqdn(name string) ([]netip.Addr, bool) {
 	return nil, false
 }
 
-func build(t *testing.T, ds *vrxv1.DesiredState) (*HostTable, []Issue) {
+func build(t *testing.T, ds *ngfwv1.DesiredState) (*HostTable, []Issue) {
 	t.Helper()
 	return Build(Input{ACL: ds.GetAcl(), Objects: ds.GetObjects(), FQDN: fqdn})
 }
@@ -163,7 +163,7 @@ func TestGoldenBasic(t *testing.T) {
 	if len(issues) != 0 {
 		t.Fatalf("issues: %+v", issues)
 	}
-	text, err := RenderText("vrx_w9", v)
+	text, err := RenderText("ngfw_w9", v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +192,7 @@ func TestGoldenFull(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("warnings:\n got %q\nwant %q", got, want)
 	}
-	text, err := RenderText("vrx_w9", v)
+	text, err := RenderText("ngfw_w9", v)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,12 +207,12 @@ func TestGoldenEmptyAndRemoved(t *testing.T) {
 	if len(issues) != 0 || v == nil || len(v.GetChains()) != 0 {
 		t.Fatalf("settings only: value %v issues %+v", v, issues)
 	}
-	text, err := RenderText("vrx_w9", v)
+	text, err := RenderText("ngfw_w9", v)
 	if err != nil {
 		t.Fatal(err)
 	}
 	golden(t, "empty", text)
-	removed, err := RenderText("vrx_w9", nil)
+	removed, err := RenderText("ngfw_w9", nil)
 	if err != nil || !bytes.Equal(removed, text) {
 		t.Errorf("Render(nil) must equal the empty rendering: %v\n%s", err, removed)
 	}
@@ -228,26 +228,26 @@ func TestBuildIsDeterministicAndCarriesConfig(t *testing.T) {
 	if !proto.Equal(a, b) {
 		t.Fatal("Build is not deterministic")
 	}
-	want := &vrxv1.AclConfig{Host: ds.GetAcl().GetHost(), HostAttachments: ds.GetAcl().GetHostAttachments(), HostSettings: ds.GetAcl().GetHostSettings()}
+	want := &ngfwv1.AclConfig{Host: ds.GetAcl().GetHost(), HostAttachments: ds.GetAcl().GetHostAttachments(), HostSettings: ds.GetAcl().GetHostSettings()}
 	if !proto.Equal(a.GetConfig(), want) {
 		t.Error("the value's config must be acl.host* of the document")
 	}
 	// A description change changes only the config, never the rendering.
 	ds.GetAcl().GetHost()["local-in"].Description = proto.String("changed")
 	c, _ := build(t, ds)
-	ta, _ := RenderText("vrx", a)
-	tc, _ := RenderText("vrx", c)
+	ta, _ := RenderText("ngfw", a)
+	tc, _ := RenderText("ngfw", c)
 	if !bytes.Equal(ta, tc) || proto.Equal(a, c) {
 		t.Error("description: same rendering, different value")
 	}
 }
 
 func TestHostileInput(t *testing.T) {
-	base := func() *vrxv1.DesiredState {
+	base := func() *ngfwv1.DesiredState {
 		return doc(t, `{"acl": {"host": {"l": {"rules": [{"sequence": 1, "action": "drop", "interface": "eth0"}]}}, "hostAttachments": [{"list": "l", "chain": "input"}]}}`)
 	}
 	clean, cleanIssues := build(t, base())
-	cleanText, _ := RenderText("vrx", clean)
+	cleanText, _ := RenderText("ngfw", clean)
 	for _, h := range hostile {
 		// descriptions: never rendered
 		ds := base()
@@ -255,7 +255,7 @@ func TestHostileInput(t *testing.T) {
 		ds.GetAcl().GetHost()["l"].GetRules()[0].Description = proto.String(h)
 		ds.GetAcl().GetHostAttachments()[0].Description = proto.String(h)
 		v, issues := build(t, ds)
-		text, err := RenderText("vrx", v)
+		text, err := RenderText("ngfw", v)
 		if !slices.Equal(issues, cleanIssues) || err != nil || !bytes.Equal(text, cleanText) {
 			t.Errorf("description %q changed the rendering (%v, %+v)", h, err, issues)
 		}
@@ -270,25 +270,25 @@ func TestHostileInput(t *testing.T) {
 		expectRefused(t, ds, ptr("acl", "host", h), h)
 		// object names and anti-lockout interfaces: refused
 		ds = base()
-		ds.GetAcl().GetHost()["l"].GetRules()[0].Source = &vrxv1.AddressMatch{Kind: proto.String("object"), Name: proto.String(h)}
+		ds.GetAcl().GetHost()["l"].GetRules()[0].Source = &ngfwv1.AddressMatch{Kind: proto.String("object"), Name: proto.String(h)}
 		expectRefused(t, ds, "/acl/host/l/rules/0/source/name", h)
 		ds = base()
-		ds.GetAcl().HostSettings = &vrxv1.HostAclSettings{AntiLockout: &vrxv1.HostAclAntiLockout{Interfaces: []string{h}}}
+		ds.GetAcl().HostSettings = &ngfwv1.HostAclSettings{AntiLockout: &ngfwv1.HostAclAntiLockout{Interfaces: []string{h}}}
 		expectRefused(t, ds, "/acl/hostSettings/antiLockout/interfaces/0", h)
 		ds = base()
-		ds.GetAcl().GetHost()["l"].GetRules()[0].Source = &vrxv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String("10.0.0.0/8 " + h)}
+		ds.GetAcl().GetHost()["l"].GetRules()[0].Source = &ngfwv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String("10.0.0.0/8 " + h)}
 		expectRefused(t, ds, "/acl/host/l/rules/0/source/prefix", h)
 	}
 }
 
-func expectRefused(t *testing.T, ds *vrxv1.DesiredState, pointer, h string) {
+func expectRefused(t *testing.T, ds *ngfwv1.DesiredState, pointer, h string) {
 	t.Helper()
 	v, issues := build(t, ds)
 	errs := errorsOf(issues)
 	if len(errs) == 0 || errs[0].Pointer != pointer {
 		t.Errorf("%q: want an error at %s, got %+v", h, pointer, issues)
 	}
-	if text, err := RenderText("vrx", v); err != nil || bytes.Contains(text, []byte(h)) {
+	if text, err := RenderText("ngfw", v); err != nil || bytes.Contains(text, []byte(h)) {
 		t.Errorf("%q reached the rendering (%v)", h, err)
 	}
 }
@@ -310,7 +310,7 @@ func TestRenderRefusesHostileValues(t *testing.T) {
 		"chain hook":      func(v *HostTable) { v.Chains[0].Hook = "output" },
 		"chain policy":    func(v *HostTable) { v.Chains[0].Policy = "accept; flush ruleset" },
 		"chain priority":  func(v *HostTable) { v.Chains[0].Priority = 501 },
-		"rule comment":    func(v *HostTable) { v.Chains[0].Rules[0].Comment = `vrx:@x/0:00000000" accept` },
+		"rule comment":    func(v *HostTable) { v.Chains[0].Rules[0].Comment = `ngfw:@x/0:00000000" accept` },
 		"rule newline":    func(v *HostTable) { v.Chains[0].Rules[0].Text = "counter accept\nflush ruleset" },
 		"rule semicolon":  func(v *HostTable) { v.Chains[0].Rules[0].Text = "counter accept; flush ruleset; counter accept" },
 		"rule hash":       func(v *HostTable) { v.Chains[0].Rules[0].Text = "counter accept # x" },
@@ -322,11 +322,11 @@ func TestRenderRefusesHostileValues(t *testing.T) {
 	for name, mutate := range cases {
 		v := ok()
 		mutate(v)
-		if _, err := RenderText("vrx", v); !errors.Is(err, renderers.ErrUnsafe) {
+		if _, err := RenderText("ngfw", v); !errors.Is(err, renderers.ErrUnsafe) {
 			t.Errorf("%s: accepted (%v)", name, err)
 		}
 	}
-	if _, err := RenderText("vrx; flush ruleset", ok()); !errors.Is(err, renderers.ErrUnsafe) {
+	if _, err := RenderText("ngfw; flush ruleset", ok()); !errors.Is(err, renderers.ErrUnsafe) {
 		t.Errorf("table name accepted: %v", err)
 	}
 }

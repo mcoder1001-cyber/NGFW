@@ -4,7 +4,7 @@
 `?tab=rules&list=<name>`). **REST:** the generic configuration routes under `/api/v1/config/acl/…`, plus
 `GET /api/v1/state/acl/lists`, `GET /api/v1/state/acl/lists/{name}/rules`, `GET /api/v1/state/acl/attachments`,
 `POST /api/v1/actions/acl/import`, `GET /api/v1/actions/acl/export.csv`, `POST /api/v1/actions/acl/lists/{name}/rules/bulk`.
-**CLI:** `vrx set|merge|delete acl …`, `vrx show configuration acl`, `vrx commit` (`docs/user/cli/reference.md`); the
+**CLI:** `ngfw set|merge|delete acl …`, `ngfw show configuration acl`, `ngfw commit` (`docs/user/cli/reference.md`); the
 state and CSV routes have no dedicated CLI command yet — use REST (below).
 
 An access list is an ordered list of rules evaluated by **sequence** (lowest first, first match wins). The box renders
@@ -123,9 +123,9 @@ The existing `description` is the comment.
 - **Commit check:** a new rule, or a changed `expiresAt`, that is already in the past is refused
   (`rule.expires-in-past`, 400 with the pointer). An expired rule whose expiry you do not change stays valid, and a
   rollback restores an old revision as it was.
-- **Warnings:** a `RULE_EXPIRING` system event (warning) 3 days before (`VRX_RULE_EXPIRY_WARN_DAYS`) and a
+- **Warnings:** a `RULE_EXPIRING` system event (warning) 3 days before (`NGFW_RULE_EXPIRY_WARN_DAYS`) and a
   `RULE_EXPIRED` event (info) at expiry, once per rule and date; the scan runs every 5 minutes
-  (`VRX_RULE_EXPIRY_CHECK_SEC`). The drift view does not report an expired rule as missing (`rule.expired`).
+  (`NGFW_RULE_EXPIRY_CHECK_SEC`). The drift view does not report an expired rule as missing (`rule.expired`).
 
 ```json
 {"sequence": 15, "action": "permit", "source": {"kind": "prefix", "prefix": "198.51.100.7/32"},
@@ -167,7 +167,7 @@ MACIP guard on the WAN port:
 ### The same with REST
 
 ```
-B=https://vrx-a/api/v1; T=<access token>
+B=https://ngfw-a/api/v1; T=<access token>
 curl -s -X PATCH -H "authorization: Bearer $T" -H 'content-type: application/merge-patch+json' "$B/config/acl" -d @acl.json
 curl -s -X POST -H "authorization: Bearer $T" "$B/config/commit?comment=acl"
 curl -s -H "authorization: Bearer $T" "$B/state/acl/lists"                                   # lists + live status
@@ -186,13 +186,13 @@ curl -s -X POST -H "authorization: Bearer $T" "$B/config/rollback/1?comment=undo
 ### The same with the CLI
 
 ```
-vrx merge acl lists '{"lan-in":{"rules":[{"sequence":30,"action":"deny","ipVersion":"ipv4"}]}}'
-vrx merge acl '{"attachments":[{"list":"lan-in","target":{"kind":"zone","zone":"lan"},"direction":"in","sequence":10}]}'
-vrx set acl lists lan-in rules 0 enabled false
-vrx show configuration acl
-vrx validate
-vrx commit comment "acl"
-vrx show drift
+ngfw merge acl lists '{"lan-in":{"rules":[{"sequence":30,"action":"deny","ipVersion":"ipv4"}]}}'
+ngfw merge acl '{"attachments":[{"list":"lan-in","target":{"kind":"zone","zone":"lan"},"direction":"in","sequence":10}]}'
+ngfw set acl lists lan-in rules 0 enabled false
+ngfw show configuration acl
+ngfw validate
+ngfw commit comment "acl"
+ngfw show drift
 ```
 
 ## What happens on the box

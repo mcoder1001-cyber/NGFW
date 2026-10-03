@@ -34,10 +34,10 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
   let base: string;
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_ACCESS_TTL_SEC: '8' });
+    h = await startHarness({ NGFW_ACCESS_TTL_SEC: '8' });
     token = await h.login('admin', h.adminPassword);
-    await h.app.listen({ port: h.env.VRX_HTTP_PORT, host: '127.0.0.1' });
-    base = `ws://127.0.0.1:${h.env.VRX_HTTP_PORT}/api/v1/stream`;
+    await h.app.listen({ port: h.env.NGFW_HTTP_PORT, host: '127.0.0.1' });
+    base = `ws://127.0.0.1:${h.env.NGFW_HTTP_PORT}/api/v1/stream`;
     await h.call(token, 'PUT', '/api/v1/config/interfaces/loop110', { ipv4: ['10.1.110.1/24'] });
     await h.call(token, 'POST', '/api/v1/config/commit');
   });
@@ -62,15 +62,15 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
     res.resume();
     expect(res.statusCode).toBe(401);
     expect(res.headers['content-type']).toMatch(/problem\+json/);
-    const bad = connect(base, ['vrx.v1', 'bearer.a.b.c']);
+    const bad = connect(base, ['ngfw.v1', 'bearer.a.b.c']);
     await expect(bad.opened).rejects.toThrow();
   });
 
   it('per-connection topics, counters, events, heartbeats', async () => {
-    const a = connect(base, ['vrx.v1', `bearer.${token}`]);
-    const b = connect(base, ['vrx.v1', `bearer.${token}`]);
+    const a = connect(base, ['ngfw.v1', `bearer.${token}`]);
+    const b = connect(base, ['ngfw.v1', `bearer.${token}`]);
     await Promise.all([a.opened, b.opened]);
-    expect(a.ws.protocol).toBe('vrx.v1');
+    expect(a.ws.protocol).toBe('ngfw.v1');
     await a.until((m) => m.type === 'welcome');
     a.send({ subscribe: ['iface.counters', 'reconcile.events', 'commit.events'] });
     b.send({ subscribe: ['link.events'] });
@@ -131,9 +131,9 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
     const t = l.body.accessToken as string;
     const cookie = [l.headers['set-cookie']]
       .flat()
-      .find((c) => String(c).startsWith('vrx_refresh=')) as string;
-    const s1 = connect(base, ['vrx.v1', `bearer.${t}`]);
-    const s2 = connect(base, ['vrx.v1', `bearer.${t}`]);
+      .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
+    const s1 = connect(base, ['ngfw.v1', `bearer.${t}`]);
+    const s2 = connect(base, ['ngfw.v1', `bearer.${t}`]);
     await Promise.all([s1.opened, s2.opened]);
     const c1 = closed(s1);
     expect(
@@ -144,9 +144,9 @@ describe('telemetry relay e2e (WS /api/v1/stream)', () => {
       ).status,
     ).toBe(204);
     expect(await c1).toBe(4403);
-    // a fresh login's socket closes by itself when its access token expires (VRX_ACCESS_TTL_SEC=8 here)
+    // a fresh login's socket closes by itself when its access token expires (NGFW_ACCESS_TTL_SEC=8 here)
     const t2 = await h.login('admin', h.adminPassword);
-    const s3 = connect(base, ['vrx.v1', `bearer.${t2}`]);
+    const s3 = connect(base, ['ngfw.v1', `bearer.${t2}`]);
     await s3.opened;
     const t0 = Date.now();
     expect(await closed(s3)).toBe(4401);

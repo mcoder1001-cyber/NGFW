@@ -15,7 +15,7 @@
 //	                  l3xc or MAC filter of this slot is left (binapi dumps and Retrieve)
 //	  cleanup         interfaces deleted through the API → nothing with the prefix remains
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
 // checked before and after. Build and run: test/topology/bridge-l2/run.sh.
 package bridgel2
 
@@ -90,8 +90,8 @@ func (n names) l2Patch() (ifs map[string]any, routing map[string]any) {
 }
 
 func TestBridgeL2OnHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-bridge-l2 topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-bridge-l2 topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -188,7 +188,7 @@ func TestBridgeL2OnHost(t *testing.T) {
 		var tStart, tResync time.Time
 		for i, l := range lines {
 			switch {
-			case l.Msg == "vrx-agent starting" && tStart.IsZero():
+			case l.Msg == "ngfw-agent starting" && tStart.IsZero():
 				tStart = l.Time
 				t.Log("agent log: " + raw[i])
 			case l.Msg == "resync finished" && tResync.IsZero():

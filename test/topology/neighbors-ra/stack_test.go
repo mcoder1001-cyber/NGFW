@@ -1,7 +1,7 @@
 package neighborsra
 
-// The stack under test (harness copied from P08's test/topology/interfaces, which is not this task's): the real vrx-agent
-// binary (built from this tree, owner = VRX_TEST_PREFIX) and the real vrx-api (apps/api/dist, slot port) on a throwaway
+// The stack under test (harness copied from P08's test/topology/interfaces, which is not this task's): the real ngfw-agent
+// binary (built from this tree, owner = NGFW_TEST_PREFIX) and the real ngfw-api (apps/api/dist, slot port) on a throwaway
 // slot database and the host VPP. Every process is started by this test and stopped by PID; every object carries the
 // slot prefix.
 
@@ -26,7 +26,7 @@ import (
 	"time"
 )
 
-const labLock = "/run/lock/vrx-lab.lock"
+const labLock = "/run/lock/ngfw-lab.lock"
 
 type slot struct {
 	prefix      string
@@ -34,7 +34,7 @@ type slot struct {
 	httpPort    string
 	metricsPort string
 	valkeyDB    string
-	runDir      string // /run/vrx-test/<prefix>
+	runDir      string // /run/ngfw-test/<prefix>
 	socket      string
 	repo        string
 	lab         string
@@ -42,10 +42,10 @@ type slot struct {
 
 func slotFromEnv(t *testing.T) slot {
 	t.Helper()
-	p := os.Getenv("VRX_TEST_PREFIX")
+	p := os.Getenv("NGFW_TEST_PREFIX")
 	m := regexp.MustCompile(`^w([0-9]{1,2})$`).FindStringSubmatch(p)
 	if m == nil {
-		t.Fatalf("VRX_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
 	env := func(k, def string) string {
@@ -57,13 +57,13 @@ func slotFromEnv(t *testing.T) slot {
 	s := slot{
 		prefix:      p,
 		num:         n,
-		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(3000+100*n)),
-		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
-		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
-		runDir:      "/run/vrx-test/" + p,
+		httpPort:    env("NGFW_HTTP_PORT", strconv.Itoa(3000+100*n)),
+		metricsPort: env("NGFW_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
+		valkeyDB:    env("NGFW_VALKEY_DB", strconv.Itoa(n)),
+		runDir:      "/run/ngfw-test/" + p,
 		repo:        repoRoot(t),
 	}
-	s.socket = env("VRX_AGENT_SOCKET", s.runDir+"/agent.sock")
+	s.socket = env("NGFW_AGENT_SOCKET", s.runDir+"/agent.sock")
 	s.lab = filepath.Join(s.repo, "tools", "lab")
 	return s
 }
@@ -99,8 +99,8 @@ func sharedLock(t *testing.T) {
 	t.Cleanup(func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); _ = f.Close() })
 }
 
-// mkdirShared creates dir and any missing parent as 0755 whatever the umask (the slot run dir /run/vrx-test/<prefix>
-// and /run/vrx-test must stay traversable for the frr/_chrony test daemons, D-106/D-107). An existing directory is
+// mkdirShared creates dir and any missing parent as 0755 whatever the umask (the slot run dir /run/ngfw-test/<prefix>
+// and /run/ngfw-test must stay traversable for the frr/_chrony test daemons, D-106/D-107). An existing directory is
 // never re-moded; only the test's own work dir below it is private (0700).
 func mkdirShared(dir string) error {
 	if fi, err := os.Stat(dir); err == nil {

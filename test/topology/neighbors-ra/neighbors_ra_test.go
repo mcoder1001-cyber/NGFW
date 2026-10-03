@@ -15,7 +15,7 @@
 //	  rollback        to the base revision → Retrieve has none of the leaves, vppctl shows nothing
 //	  cleanup         interfaces and VRF deleted through the API → nothing with the prefix remains
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock (only for the run,
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock (only for the run,
 // D-094); every process it starts is stopped by PID; the slot database is created and dropped by deploy/dev/pg-test.sh.
 // VPP is never restarted (D-012); NRestarts is checked before and after and the test fails if it rises (D-064).
 package neighborsra
@@ -34,7 +34,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"ngfw/agent/binapi/ip_neighbor"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // names of this slot's objects
@@ -60,7 +60,7 @@ func newNames(s slot) names {
 }
 
 // retrieve calls the agent's Retrieve (the acceptance's "Retrieve output") and returns protobuf JSON of our objects.
-func retrieve(t *testing.T, s slot, nm names) (*vrxv1.DesiredState, string) {
+func retrieve(t *testing.T, s slot, nm names) (*ngfwv1.DesiredState, string) {
 	t.Helper()
 	cc, err := grpc.NewClient("unix:"+s.socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -69,12 +69,12 @@ func retrieve(t *testing.T, s slot, nm names) (*vrxv1.DesiredState, string) {
 	defer cc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	r, err := vrxv1.NewDataplaneClient(cc).Retrieve(ctx, &vrxv1.RetrieveRequest{Owner: s.prefix, Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	r, err := ngfwv1.NewDataplaneClient(cc).Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: s.prefix, Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil {
 		t.Fatalf("Retrieve: %v", err)
 	}
 	ds := r.GetDesiredState()
-	mine := &vrxv1.DesiredState{Routing: ds.GetRouting(), Vrfs: map[string]*vrxv1.Vrf{}, Interfaces: map[string]*vrxv1.Interface{}}
+	mine := &ngfwv1.DesiredState{Routing: ds.GetRouting(), Vrfs: map[string]*ngfwv1.Vrf{}, Interfaces: map[string]*ngfwv1.Interface{}}
 	if v, ok := ds.GetVrfs()[nm.vrf]; ok {
 		mine.Vrfs[nm.vrf] = v
 	}
@@ -87,8 +87,8 @@ func retrieve(t *testing.T, s slot, nm names) (*vrxv1.DesiredState, string) {
 }
 
 func TestNeighborsRaHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-neighbors-ra host check: set VRX_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-neighbors-ra host check: set NGFW_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (VPP API socket, vppctl)")
@@ -288,7 +288,7 @@ func TestNeighborsRaHost(t *testing.T) {
 }
 
 // checkApplied asserts Retrieve carries every committed leaf in canonical form.
-func checkApplied(t *testing.T, got *vrxv1.DesiredState, nm names) {
+func checkApplied(t *testing.T, got *ngfwv1.DesiredState, nm names) {
 	t.Helper()
 	l1 := got.GetInterfaces()[nm.lo1]
 	ra := l1.GetIpv6Ra()

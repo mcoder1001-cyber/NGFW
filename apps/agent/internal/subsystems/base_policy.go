@@ -17,7 +17,7 @@ import (
 )
 
 // EnvBasePolicy explicitly activates the appliance dynamic admission adapter.
-const EnvBasePolicy = "VRX_BASE_POLICY"
+const EnvBasePolicy = "NGFW_BASE_POLICY"
 
 type basePolicyRuntime struct {
 	config    basepolicy.Config
@@ -32,7 +32,7 @@ func registerBasePolicy(reg scheduler.Registry, w *Wiring) error {
 	if os.Getenv(EnvBasePolicy) != "1" {
 		return nil
 	}
-	if w.env.Owner != "vrx" || !w.env.GlobalsOwner {
+	if w.env.Owner != "ngfw" || !w.env.GlobalsOwner {
 		return errors.New("basepolicy: explicit activation requires appliance globals owner")
 	}
 	config, err := basepolicy.LoadConfig(basepolicy.ProductConfig)

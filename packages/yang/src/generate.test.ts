@@ -8,12 +8,12 @@ const generatedDir = new URL('../generated/', import.meta.url);
 describe('YANG generator', () => {
   it('emits one module per root key', () => {
     const mods = generateModules();
-    expect(Object.keys(mods).sort()).toEqual(ROOT_KEYS.map((k) => `vrx-${k}`).sort());
+    expect(Object.keys(mods).sort()).toEqual(ROOT_KEYS.map((k) => `ngfw-${k}`).sort());
   });
 
   it('matches the checked-in generated modules (run `pnpm --filter @ngfw/yang gen` on drift)', () => {
     for (const key of ROOT_KEYS) {
-      const name = `vrx-${key}`;
+      const name = `ngfw-${key}`;
       const onDisk = readFileSync(new URL(`${name}.yang`, generatedDir), 'utf8');
       expect(generateModule(key), name).toBe(onDisk);
     }
@@ -22,9 +22,9 @@ describe('YANG generator', () => {
   it('each module is a valid-looking YANG 1.1 module with a namespace and a top container', () => {
     for (const key of ROOT_KEYS) {
       const m = generateModule(key);
-      expect(m).toContain(`module vrx-${key} {`);
+      expect(m).toContain(`module ngfw-${key} {`);
       expect(m).toContain('yang-version 1.1;');
-      expect(m).toContain(`namespace "urn:vrx:${key}";`);
+      expect(m).toContain(`namespace "urn:ngfw:${key}";`);
       // the top node is a container (strictObject) or a list (a record root, e.g. interfaces/vrfs)
       expect(m, key).toMatch(new RegExp(`(container|list) ${key} \\{`));
       // balanced braces, ignoring any inside quoted strings (patterns/descriptions carry literal { } )
@@ -87,7 +87,7 @@ describe('YANG generator', () => {
   it('lists modules for ietf-yang-library', () => {
     const list = moduleList();
     expect(list).toHaveLength(ROOT_KEYS.length);
-    expect(list[0]).toMatchObject({ name: 'vrx-system', namespace: 'urn:vrx:system' });
+    expect(list[0]).toMatchObject({ name: 'ngfw-system', namespace: 'urn:ngfw:system' });
   });
 });
 

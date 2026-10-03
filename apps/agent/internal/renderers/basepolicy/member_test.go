@@ -26,7 +26,7 @@ func (f *memberNft) Run(ctx context.Context, c renderers.Command) (renderers.Out
 	if len(f.calls) > 2 && ctx.Err() != nil {
 		f.recoveryCanceled = true
 	}
-	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "vrx_base", "dynamic_punt_interfaces"}) {
+	if slices.Equal(c.Args, []string{"-j", "list", "set", "inet", "ngfw_base", "dynamic_punt_interfaces"}) {
 		f.reads++
 		if f.mutations > 0 && f.reads == 2 && (f.mode == "compensate" || f.mode == "unknown" || f.mode == "unconfirmed") {
 			return renderers.Output{}, errors.New("EIO readback")

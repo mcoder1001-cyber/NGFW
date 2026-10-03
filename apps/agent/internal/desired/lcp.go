@@ -8,7 +8,7 @@ package desired
 // always set ("tap" default), netns is left out when empty (the linux-cp default namespace).
 
 import (
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/lcpmap"
@@ -16,7 +16,7 @@ import (
 )
 
 // Lcp projects `interfaces.<n>.lcp` of the parent interfaces into lcp.itf-pair objects.
-func Lcp(s Sink, ifs map[string]*vrxv1.Interface) {
+func Lcp(s Sink, ifs map[string]*ngfwv1.Interface) {
 	for _, name := range sortedKeys(ifs) {
 		l := ifs[name].GetLcp()
 		if ifs[name].Lcp == nil {
@@ -45,7 +45,7 @@ func Lcp(s Sink, ifs map[string]*vrxv1.Interface) {
 
 // AssembleLcp adds `interfaces.<n>.lcp` from the retrieved lcp.itf-pair objects (an interface the assembled document
 // does not list yet gets an entry of its own).
-func AssembleLcp(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleLcp(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() != lcp.NameItfPair {
 			continue
@@ -54,7 +54,7 @@ func AssembleLcp(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 		if err := dfkit.Decode(kv.Value, &p); err != nil || p.Interface == "" {
 			continue
 		}
-		l := &vrxv1.InterfaceLcp{HostIfType: strPtr(p.HostIfType)}
+		l := &ngfwv1.InterfaceLcp{HostIfType: strPtr(p.HostIfType)}
 		if p.HostIfName != p.Interface {
 			l.HostIfName = strPtr(p.HostIfName)
 		}
@@ -62,11 +62,11 @@ func AssembleLcp(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 			l.Netns = strPtr(p.Netns)
 		}
 		if ds.Interfaces == nil {
-			ds.Interfaces = map[string]*vrxv1.Interface{}
+			ds.Interfaces = map[string]*ngfwv1.Interface{}
 		}
 		itf := ds.Interfaces[p.Interface]
 		if itf == nil {
-			itf = &vrxv1.Interface{}
+			itf = &ngfwv1.Interface{}
 			ds.Interfaces[p.Interface] = itf
 		}
 		itf.Lcp = l

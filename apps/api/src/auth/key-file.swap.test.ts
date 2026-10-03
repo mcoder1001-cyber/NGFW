@@ -19,7 +19,7 @@ vi.mock('node:fs', async (importOriginal) => {
 });
 
 describe('key file: check and read are one descriptor (review L7)', () => {
-  const dir = fs.mkdtempSync(join(tmpdir(), 'vrx-td10b-swap-'));
+  const dir = fs.mkdtempSync(join(tmpdir(), 'ngfw-td10b-swap-'));
   afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   it('a file swapped in after a clean check by path is refused', () => {
@@ -34,7 +34,7 @@ describe('key file: check and read are one descriptor (review L7)', () => {
       String(p) === swapped ? real(clean) : real(p, o as never)) as typeof fs.lstatSync);
     // … and the file that is actually read is group/world-readable
     expect(
-      () => new TokensService(testEnv({ VRX_JWT_KEY_FILE: swapped }), {} as Valkey, new Bus()),
+      () => new TokensService(testEnv({ NGFW_JWT_KEY_FILE: swapped }), {} as Valkey, new Bus()),
     ).toThrow(/mode 0644 lets group\/others access it/);
   });
 });

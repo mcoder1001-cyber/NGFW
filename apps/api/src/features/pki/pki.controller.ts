@@ -4,7 +4,7 @@ import { PkiKeySpecSchema, pkiDistinguishedName, pkiSubjectAltName } from '@ngfw
 import { z } from 'zod';
 import { AuditUnavailableDoc } from '../../audit/audit.interceptor.js';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { problems } from '../../common/problem.js';
 import { ApiOut, Protected, type Out } from '../../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../../common/zod.js';
@@ -120,7 +120,7 @@ export class PkiController {
   @ApiOut(PkiCaOut)
   ca(
     @Body(new ZodPipe(CaBody)) b: z.output<typeof CaBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiCaOut>> {
     return run(async () => {
       const r = await this.pki.createCa(b, req.principal!);
@@ -149,7 +149,7 @@ export class PkiController {
   @ApiOut(PkiCsrOut)
   csr(
     @Body(new ZodPipe(CsrBody)) b: z.output<typeof CsrBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiCsrOut>> {
     return run(async () => {
       const r = await this.pki.createCsr(b, req.principal!);
@@ -174,7 +174,7 @@ export class PkiController {
   @ApiOut(PkiSignOut)
   sign(
     @Body(new ZodPipe(SignBody)) b: z.output<typeof SignBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiSignOut>> {
     return run(async () => {
       const r = await this.pki.sign(b, req.principal!);
@@ -204,7 +204,7 @@ export class PkiController {
   @ApiOut(PkiImportOut)
   import(
     @Body(new ZodPipe(ImportIn)) b: z.output<typeof ImportIn>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiImportOut>> {
     return run(async () => {
       const r = await this.pki.import(b as ImportBody, req.principal!);
@@ -250,7 +250,7 @@ export class PkiController {
   @ApiOut(PkiCrlOut)
   crl(
     @Body(new ZodPipe(CrlBody)) b: z.output<typeof CrlBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiCrlOut>> {
     return run(async () => {
       const r = await this.pki.refreshCrl(b.ca, req.principal!);
@@ -273,7 +273,7 @@ export class PkiController {
   @ApiOut(PkiOcspOut)
   ocsp(
     @Body(new ZodPipe(OcspBody)) b: z.output<typeof OcspBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<Out<typeof PkiOcspOut>> {
     return run(async () => {
       const r = await this.pki.checkOcsp(b.certificate);

@@ -25,7 +25,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestVrfStaticEcmpOnHost is the F-vrf-static-ecmp host check (VRX_INTEGRATION=1, shared lab lock, slot-prefixed objects
+// TestVrfStaticEcmpOnHost is the F-vrf-static-ecmp host check (NGFW_INTEGRATION=1, shared lab lock, slot-prefixed objects
 // only): weighted ECMP, blackhole, next hops resolved in another VRF and source VRF select on the real VPP. After Apply
 // Retrieve == desired and `vppctl show …` reflects it; a simulated loss is recreated; the rollback removes routes before
 // tables and leaves no stray entry (V15), proved by re-creating the table id and dumping it.
@@ -255,7 +255,7 @@ func nRestarts(t *testing.T) string {
 
 func dialVPP(t *testing.T) *vpp.Conn {
 	t.Helper()
-	path := os.Getenv("VRX_VPP_API_SOCKET")
+	path := os.Getenv("NGFW_VPP_API_SOCKET")
 	if path == "" {
 		path = "/run/vpp/api.sock"
 	}

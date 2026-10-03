@@ -1,0 +1,4 @@
+# NGFW SDK OSPF current-main regeneration envelope
+
+Own worktree work/NGFW-sdk-ospf-regen, branch codex/ngfw-sdk-ospf-regen-20261003, base436252eebe6bdbe19334cad2b28d5f6016ea4d29/tree481fe2e7c1a9626f75cba20ad37bf70db634add6. Root preserved newmain OSPF read-only route alongside atomic NGFW rename. Own SDK/** and uniqueSDK-OSPF status only; no API/deployment/rootdocs edits.
+Wait for root successful freshlygeneratedOpenAPI and externallyprovidedSHA from exact436 integration source; do notuseold148operation input. Canonical SDK regenerate/check, actual Pythonunit35+existingliveguard and Terraformrace/vet/build verification as relevant; preserve nestedreservednameguard/rstrip/injection protections. No dependencyinstalls, hostservices/infra/migration/authoverrides. Rootpublishes checkpoints, independentlyreviews andrunsfinalcurrent-main exactfullgate. No selfapproval/merge.

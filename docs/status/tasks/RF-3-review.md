@@ -10,7 +10,7 @@ ALLOWLIST.md edit (Q7) merges without conflict and `TestAllowlistDocumented` pas
 | check | result |
 |---|---|
 | `tools/ci.sh --base main` (my run, log `/root/ngfw-wt/logs/ci/RF-3-20260924-013205-1399558`) | `CI GATE PASSED`, wall time 0m55s. Contract guard: "no contract files changed in the 11 commit(s)". gitleaks: "no leaks found". kea, unbound and chrony all `ok`. Matches the run pasted in `RF-3.md` |
-| `VRX_INTEGRATION=1 go test -run Integration` for kea, unbound and chrony (slot 6) | all PASS (kea 1.4 s, unbound 7.7 s, chrony 1.8 s). Same steps as pasted: config-get diff = 0 before, after the change and after rollback. `list_forwards` shows `corp.example.test.`. `net.Resolver` resolves the local-data name. Client `tracking` shows stratum 11. Both chronyd logs say "Disabled control of system clock" |
+| `NGFW_INTEGRATION=1 go test -run Integration` for kea, unbound and chrony (slot 6) | all PASS (kea 1.4 s, unbound 7.7 s, chrony 1.8 s). Same steps as pasted: config-get diff = 0 before, after the change and after rollback. `list_forwards` shows `corp.example.test.`. `net.Resolver` resolves the local-data name. Client `tracking` shows stratum 11. Both chronyd logs say "Disabled control of system clock" |
 | My throw-away probes (`zz_review_probe_test.go` in unbound/ and kea/, deleted afterwards, never committed) | findings H1 and M1 below |
 | After all runs | `stat` of every file under `/etc/kea`, `/etc/unbound` and `/etc/chrony` (22 entries) is identical before and after. `systemctl is-active`: kea-dhcp4-server, kea-dhcp6-server, kea-ctrl-agent and unbound are `inactive`; chrony is `active` (the host timesync, PIDs 1034/1153, the same before and after). No kea, unbound or test chronyd process is left. No `ns-w6-*`. Worktree clean |
 
@@ -78,7 +78,7 @@ Do the same in unbound (H1) and in Kea's `start` case.
 
 The DHCP servers' unix sockets are protected by `/run/kea` 0750 `_kea`. The rendered ctrl-agent, however, accepts anything on `127.0.0.1:8000`, with no `authentication` block. Any local process under any UID can then POST `{"command":"config-set","service":["dhcp4"],…}`: the Node API, snmpd, unbound's user, or a compromised web process. That process can make the DHCP server hand out a rogue router or DNS server to the whole LAN (a LAN-wide MITM), or load any hook from the hooks directory.
 
-Kea 3.0.3 itself logs `CTRL_AGENT_IS_DEPRECATED … Its function has been moved to Kea servers` (seen in `/run/vrx-test/w6/kea/log/kea-ctrl-agent.log`). The renderer's own apply and retrieve paths use the unix sockets only. The ctrl-agent is used only to reload itself and, in the test, to prove the round trip. The prompt says the ctrl-agent is needed "only where the product needs the remote path", and no product consumer exists yet. The version decision ("decide per installed version, record it") is also missing from the decision table.
+Kea 3.0.3 itself logs `CTRL_AGENT_IS_DEPRECATED … Its function has been moved to Kea servers` (seen in `/run/ngfw-test/w6/kea/log/kea-ctrl-agent.log`). The renderer's own apply and retrieve paths use the unix sockets only. The ctrl-agent is used only to reload itself and, in the test, to prove the round trip. The prompt says the ctrl-agent is needed "only where the product needs the remote path", and no product consumer exists yet. The version decision ("decide per installed version, record it") is also missing from the decision table.
 
 Fix, either:
 - (a) Do not render or ship `kea-ctrl-agent.conf` in `ProductPaths()` (keep it for tests, or behind an explicit option). Record a D-RF3 decision "Kea 3.0: ctrl-agent deprecated, unix sockets only".
@@ -115,7 +115,7 @@ The rollback runs on the caller's context in `unbound/renderer.go:254`, `kea/ren
 `kea/state.go:72`. That is 100 control round trips, and tens of MB of `structpb`, per `Retrieve`. `Retrieve` is the drift/reconcile read, and leases are not desired state. The lease browser is F-dhcp. Make leases opt-in (`State(ctx, WithLeases)`), and report only counts from `statistic-get` in `Retrieve`.
 
 ### L4: shared-host hygiene: the worker's manual experiment directories are left in the slot
-`/run/vrx-test/w6/c1/` and `/run/vrx-test/w6/x/` (hand-written chrony.conf, ub.conf, k4.json, a `chronyd.pid` for a dead PID) and a stale `/run/vrx-test/w6/unbound/unbound.ctl` are all still there. Both chronyd runs in them logged "Disabled control of system clock", so there was no clock risk. `ns-w6-a` is also unknown to `tools/lab rig gc`: after a SIGKILLed run, the next Kea test fails fatally ("already exists") until someone deletes it by hand. Remove the leftovers, and add `ns-<P>-a` to `rig gc` (P04/P09 follow-up, like RF-1 L3).
+`/run/ngfw-test/w6/c1/` and `/run/ngfw-test/w6/x/` (hand-written chrony.conf, ub.conf, k4.json, a `chronyd.pid` for a dead PID) and a stale `/run/ngfw-test/w6/unbound/unbound.ctl` are all still there. Both chronyd runs in them logged "Disabled control of system clock", so there was no clock risk. `ns-w6-a` is also unknown to `tools/lab rig gc`: after a SIGKILLed run, the next Kea test fails fatally ("already exists") until someone deletes it by hand. Remove the leftovers, and add `ns-<P>-a` to `rig gc` (P04/P09 follow-up, like RF-1 L3).
 
 ### L5: an idle Unbound config binds `127.0.0.1@53` even in tests
 `unbound/build.go:277` (`Port: 53`) and `templates/unbound.conf.tmpl:24`. With no enabled resolver, the rendered file listens on `127.0.0.1:53`. That is outside the slot's `36xx` range and could collide with a host resolver if a test ever starts or restarts Unbound on an idle document. Use the slot port in `TestPaths` (for example `Paths.IdlePort`), or render `interface: 127.0.0.1@<last port>`.
@@ -128,7 +128,7 @@ The rollback runs on the caller's context in `unbound/renderer.go:254`, `kea/ren
 
 ### I1: host chrony.service (Q1)
 chrony.service is the host's own timesync (active and enabled since boot, PIDs unchanged across my runs, currently stratum 0 because it has no upstream). The test instances are fully separate:
-- own `pidfile`, `bindcmdaddress` socket, `driftfile` and `logdir` under `/run/vrx-test/w6`
+- own `pidfile`, `bindcmdaddress` socket, `driftfile` and `logdir` under `/run/ngfw-test/w6`
 - `cmdport 0`, `-x`
 - server on 127.0.0.1:3623, client with `port 0`
 - no `rtcsync`/`rtcfile`

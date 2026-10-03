@@ -1,5 +1,5 @@
---- a/packages/proto/vrx/v1/dataplane.proto
-+++ b/packages/proto/vrx/v1/dataplane.proto
+--- a/packages/proto/ngfw/v1/dataplane.proto
++++ b/packages/proto/ngfw/v1/dataplane.proto
 @@ -970,12 +970,14 @@
    optional string name = 1;
    // Free-text description.

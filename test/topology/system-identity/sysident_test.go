@@ -3,9 +3,9 @@ package sysid
 // F-system-identity end to end on a test slot (shared-host rules: the host's hostname, time zone, /etc/issue,
 // /etc/motd and resolver are never touched — docs/lab/shared-host-rules.md):
 //
-//	real vrx-agent (owner = slot prefix, VRX_GLOBALS_OWNER=0 → renders into /run/vrx-test/<prefix>/sysident/etc/…,
+//	real ngfw-agent (owner = slot prefix, NGFW_GLOBALS_OWNER=0 → renders into /run/ngfw-test/<prefix>/sysident/etc/…,
 //	               never calls sethostname)
-//	real vrx-api (slot port, slot database) — `system` through the generic pointer routes, commit
+//	real ngfw-api (slot port, slot database) — `system` through the generic pointer routes, commit
 //
 // Evidence: the rendered files under the rig root match testdata/*.golden and /etc/localtime points at the zone;
 // an unknown zone and a banner with an escape sequence are refused with 400 problem+json naming the pointer; an agent
@@ -35,7 +35,7 @@ type stack struct {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		c, err := net.Dial("unix", st.s.socket)
 		if err == nil {
@@ -44,17 +44,17 @@ func (st *stack) startAgent(t *testing.T) {
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }
 
 func newStack(t *testing.T, s slot) *stack {
 	t.Helper()
-	bin := os.Getenv("VRX_SYSID_AGENT_BIN")
+	bin := os.Getenv("NGFW_SYSID_AGENT_BIN")
 	if bin == "" {
-		bin = filepath.Join(t.TempDir(), "vrx-agent")
-		if out, err := run("go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent"); err != nil {
-			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+		bin = filepath.Join(t.TempDir(), "ngfw-agent")
+		if out, err := run("go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-agent"); err != nil {
+			t.Fatalf("go build ngfw-agent: %v\n%s", err, out)
 		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
@@ -82,26 +82,26 @@ func newStack(t *testing.T, s slot) *stack {
 	pg := readEnvFile(t, filepath.Join(s.runDir, "pg.env"))
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: a slot never owns globals
-		"VRX_AGENT_STATE_DIR="+filepath.Join(work, "agent-state"), "VRX_METRICS_PORT="+s.metricsPort,
-		"VRX_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num), "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=debug")
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: a slot never owns globals
+		"NGFW_AGENT_STATE_DIR="+filepath.Join(work, "agent-state"), "NGFW_METRICS_PORT="+s.metricsPort,
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num), "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=debug")
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 	adminPW := secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":sysid:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":sysid:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(60*time.Second, func() bool {
 		return st.apiProc.exited() || st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", adminPW)
 	return st
@@ -113,7 +113,7 @@ func hostIdentity(t *testing.T) string {
 	h, _ := os.Hostname()
 	var b strings.Builder
 	b.WriteString("kernel=" + h)
-	for _, f := range []string{"/etc/hostname", "/etc/issue", "/etc/motd", "/etc/systemd/resolved.conf.d/vrx.conf"} {
+	for _, f := range []string{"/etc/hostname", "/etc/issue", "/etc/motd", "/etc/systemd/resolved.conf.d/ngfw.conf"} {
 		raw, err := os.ReadFile(f) //nolint:gosec // fixed host paths, read only
 		b.WriteString(" " + f + "=" + strconv.Quote(string(raw)) + "/" + strconv.FormatBool(err == nil))
 	}
@@ -123,8 +123,8 @@ func hostIdentity(t *testing.T) string {
 }
 
 func TestSystemIdentity(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-system-identity topology test: set VRX_INTEGRATION=1 (run.sh does)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-system-identity topology test: set NGFW_INTEGRATION=1 (run.sh does)")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (the slot run directory)")
@@ -171,7 +171,7 @@ func TestSystemIdentity(t *testing.T) {
 
 	// ---- commit and compare the rendering with the goldens ---------------------------------------------------
 	a.must(200, "PUT", "/api/v1/config/system", map[string]any{
-		"hostname": "vrx-sysid.lab.example",
+		"hostname": "ngfw-sysid.lab.example",
 		"timezone": "Asia/Tehran",
 		"banner":   map[string]any{"login": "Authorised access only.\n\tSlot rig (F-system-identity)", "motd": "Welcome to the lab rig."},
 		"dns":      map[string]any{"servers": []string{"192.0.2.53", "2001:db8::53"}, "searchDomains": []string{"lab.example"}},
@@ -180,7 +180,7 @@ func TestSystemIdentity(t *testing.T) {
 	t.Logf("commit sysid-1 → %v", c1["status"])
 	files := map[string]string{
 		"hostname.golden": filepath.Join(rig, "etc/hostname"), "issue.golden": filepath.Join(rig, "etc/issue"),
-		"motd.golden": filepath.Join(rig, "etc/motd"), "resolved-vrx.conf.golden": filepath.Join(rig, "etc/systemd/resolved.conf.d/vrx.conf"),
+		"motd.golden": filepath.Join(rig, "etc/motd"), "resolved-ngfw.conf.golden": filepath.Join(rig, "etc/systemd/resolved.conf.d/ngfw.conf"),
 	}
 	mtimes := map[string]time.Time{}
 	for golden, path := range files {
@@ -190,7 +190,7 @@ func TestSystemIdentity(t *testing.T) {
 		}
 		want, _ := os.ReadFile(filepath.Join("testdata", golden)) //nolint:gosec // testdata
 		have := string(got)
-		if golden == "resolved-vrx.conf.golden" { // the embedded render input line is the agent's own bookkeeping
+		if golden == "resolved-ngfw.conf.golden" { // the embedded render input line is the agent's own bookkeeping
 			var keep []string
 			for _, l := range strings.Split(have, "\n") {
 				if !strings.HasPrefix(l, "#") {

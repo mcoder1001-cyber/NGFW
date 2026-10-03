@@ -29,7 +29,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/vpn"
@@ -60,7 +60,7 @@ const (
 
 // Wireguard emits the objects of vpn.wireguard (see the file comment). in is the set of domains of the
 // transaction; vrfID maps a VRF name to its table id (false: unknown).
-func Wireguard(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv) {
+func Wireguard(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv) {
 	if !in["vpn"] {
 		return
 	}
@@ -92,7 +92,7 @@ type wgEndpoint struct {
 }
 
 // wireguardEndpoints lists every peer endpoint of every WireGuard interface (the route-loop check, review F1).
-func wireguardEndpoints(ifs map[string]*vrxv1.WireguardInterface) []wgEndpoint {
+func wireguardEndpoints(ifs map[string]*ngfwv1.WireguardInterface) []wgEndpoint {
 	var out []wgEndpoint
 	for _, name := range sortedKeys(ifs) {
 		w := ifs[name]
@@ -133,7 +133,7 @@ func vrfName(n string) string {
 	return n
 }
 
-func wireguardInterface(s Sink, name string, w *vrxv1.WireguardInterface, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv, eps []wgEndpoint) {
+func wireguardInterface(s Sink, name string, w *ngfwv1.WireguardInterface, in map[string]bool, vrfID func(string) (uint32, bool), env WireguardEnv, eps []wgEndpoint) {
 	pt := Ptr("vpn", "wireguard", "interfaces", name)
 	if w.Instance == nil {
 		s.Errorf(pt+"/instance", ruleWireguardInstance, "WireGuard interface %q has no instance", name)
@@ -206,7 +206,7 @@ func wireguardInterface(s Sink, name string, w *vrxv1.WireguardInterface, in map
 	}
 }
 
-func wireguardPeer(s Sink, ipt, wg, name string, p *vrxv1.WireguardPeer, underlay, overlay uint32, routes bool, env WireguardEnv, loops []wgEndpoint) {
+func wireguardPeer(s Sink, ipt, wg, name string, p *ngfwv1.WireguardPeer, underlay, overlay uint32, routes bool, env WireguardEnv, loops []wgEndpoint) {
 	pt := ipt + "/peers/" + Ptr(name)[1:]
 	pub := p.GetPublicKey()
 	if raw, err := base64.StdEncoding.DecodeString(pub); err != nil || len(raw) != vpn.X25519KeyLen {
@@ -285,7 +285,7 @@ func WireguardRouteNextHop(prefix string) (string, error) {
 // descriptions and secret references come from wireguard.meta (D-073b: VPP cannot hold them) for
 // objects that exist in VPP; an object without metadata is named by its VPP identity (wg<N>, the
 // public key), which the drift view shows. tableName names a FIB table.
-func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*vrxv1.Interface) {
+func AssembleWireguard(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*ngfwv1.Interface) {
 	itfs := map[string]*vpnpb.WireguardInterface{}
 	peers := map[string][]*vpnpb.WireguardPeer{}
 	metas := map[string]wireguard.MetaSpec{}
@@ -321,7 +321,7 @@ func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 		return
 	}
 	autoRoute := map[string]bool{} // routes that are wg allowed-IP routes (removed from routing.static)
-	out := map[string]*vrxv1.WireguardInterface{}
+	out := map[string]*ngfwv1.WireguardInterface{}
 	for _, wg := range sortedKeys(itfs) {
 		w := itfs[wg]
 		m, hasMeta := metas[wg]
@@ -339,7 +339,7 @@ func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 			}
 			return 0
 		})
-		wi := &vrxv1.WireguardInterface{Instance: proto.Uint32(w.GetInstance()), ListenPort: proto.Uint32(w.GetPort())}
+		wi := &ngfwv1.WireguardInterface{Instance: proto.Uint32(w.GetInstance()), ListenPort: proto.Uint32(w.GetPort())}
 		if w.GetSrcIp() != "" {
 			wi.ListenAddress = proto.String(w.GetSrcIp())
 		}
@@ -377,10 +377,10 @@ func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 			if pHas {
 				pname = pm.Name
 			}
-			wp := &vrxv1.WireguardPeer{PublicKey: proto.String(p.GetPublicKey()), AllowedIps: append([]string(nil), p.GetAllowedIps()...),
+			wp := &ngfwv1.WireguardPeer{PublicKey: proto.String(p.GetPublicKey()), AllowedIps: append([]string(nil), p.GetAllowedIps()...),
 				PersistentKeepaliveSec: proto.Uint32(p.GetPersistentKeepalive())}
 			if p.GetEndpoint() != "" {
-				wp.Endpoint = &vrxv1.WireguardPeer_Endpoint{Address: proto.String(p.GetEndpoint()), Port: proto.Uint32(p.GetPort())}
+				wp.Endpoint = &ngfwv1.WireguardPeer_Endpoint{Address: proto.String(p.GetEndpoint()), Port: proto.Uint32(p.GetPort())}
 			}
 			if pHas && pm.Description != "" {
 				wp.Description = proto.String(pm.Description)
@@ -393,7 +393,7 @@ func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 				}
 			}
 			if wi.Peers == nil {
-				wi.Peers = map[string]*vrxv1.WireguardPeer{}
+				wi.Peers = map[string]*ngfwv1.WireguardPeer{}
 			}
 			wi.Peers[pname] = wp
 			if hasMeta && m.RouteAllowedIps {
@@ -412,9 +412,9 @@ func AssembleWireguard(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 	}
 	if in["vpn"] && len(out) > 0 { // nothing retrieved: the domain stays unset (empty and absent are the same, proto.md §5)
 		if ds.Vpn == nil {
-			ds.Vpn = &vrxv1.VpnConfig{}
+			ds.Vpn = &ngfwv1.VpnConfig{}
 		}
-		ds.Vpn.Wireguard = &vrxv1.WireguardConfig{Interfaces: out}
+		ds.Vpn.Wireguard = &ngfwv1.WireguardConfig{Interfaces: out}
 	}
 	// what P08's assemblers derived from WireGuard objects belongs to vpn.wireguard
 	for wg := range itfs {

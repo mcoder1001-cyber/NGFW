@@ -22,8 +22,8 @@ describe('TOTP (RFC 6238)', () => {
 
   it('produces a scannable otpauth URI and distinct recovery codes', () => {
     const s = generateSecret();
-    const uri = otpauthUri(s, 'alice', 'vrx');
-    expect(uri).toContain('otpauth://totp/vrx%3Aalice?');
+    const uri = otpauthUri(s, 'alice', 'ngfw');
+    expect(uri).toContain('otpauth://totp/ngfw%3Aalice?');
     expect(uri).toContain(`secret=${s}`);
     const codes = recoveryCodes(10);
     expect(new Set(codes).size).toBe(10);

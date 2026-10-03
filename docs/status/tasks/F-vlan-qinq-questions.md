@@ -21,7 +21,7 @@ My first reading below ("V24 or the packet path, dot1ad frames") was wrong and i
 
 - **What changed on the branch (fix round 1):** no `trace add` / `show trace` in any test of mine (abe6d50); the packet
   phase proves the dot1q and dot1q-in-dot1q path with the answered ping plus the rx/tx packet counter deltas of exactly the
-  pinged sub-interface (`vppctl show interface <sub>`, never cleared). It stays opt-in (`VRX_QINQ_PACKETS=1`, D-126/D-128),
+  pinged sub-interface (`vppctl show interface <sub>`, never cleared). It stays opt-in (`NGFW_QINQ_PACKETS=1`, D-126/D-128),
   and it still sends no 802.1ad frame — because such a frame cannot reach a dot1ad sub-interface on af_packet (V-new
   (F-vlan-qinq), a lab limit), **not** as a safety measure.
 - **The VPP-code item** (`format_vlib_trace` NULL guard) belongs to TD-20: its envelope owns that `docs/vpp-code-track.md`
@@ -35,7 +35,7 @@ Original timeline (18:41, slot 5), kept as recorded:
   18:41:26 (new pid 2006833). Core kept by systemd-coredump (`coredumpctl list` → pid 8760, 38.6M); the manager keeps a
   copy in `/root/ngfw-wt/logs/crash-20260924-1841/`.
 - **Timeline (run 2 started 18:38:40):** 18:40:38 rig hand-over (veths down, D-101, then `af_packet_delete host-w5w0`);
-  18:40:43 agent starts; 18:40:55–59 commits (parent, then the three sub-interfaces); V19 guard + `vrx-vpp-preflight` OK;
+  18:40:43 agent starts; 18:40:55–59 commits (parent, then the three sub-interfaces); V19 guard + `ngfw-vpp-preflight` OK;
   veths up; VLAN devices in `ns-w5-wan`; ping over `.100` answered and its `show trace` returned; then the dot1ad ping
   (no reply; run 1 showed such frames dropped as `unknown vlan`) and the phase's second `show trace` → VPP dead at
   18:41:08 (the core cannot name the CLI session; the review matches the timing to this call).

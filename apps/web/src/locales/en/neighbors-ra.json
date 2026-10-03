@@ -89,7 +89,7 @@
       },
       "proxyNd": {
         "title": "Proxy ND addresses (experimental)",
-        "help": "experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1"
+        "help": "experimental and off by default: applied only by an agent started with NGFW_DF2_PROXY_ND=1"
       }
     }
   }

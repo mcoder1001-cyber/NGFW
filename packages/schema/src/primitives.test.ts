@@ -244,8 +244,8 @@ const stringCases: [string, z.ZodType, string[], string[]][] = [
     'hostname',
     hostname,
     [
-      'vrx-a',
-      'vrx-a.lab.example',
+      'ngfw-a',
+      'ngfw-a.lab.example',
       'a',
       '1router',
       'a.b.c.d',
@@ -255,9 +255,9 @@ const stringCases: [string, z.ZodType, string[], string[]][] = [
       '1.a',
     ],
     [
-      '-vrx',
-      'vrx-',
-      'vrx_a',
+      '-ngfw',
+      'ngfw-',
+      'ngfw_a',
       'a..b',
       '.a',
       'a.',
@@ -265,8 +265,8 @@ const stringCases: [string, z.ZodType, string[], string[]][] = [
       `${HOST253}a`,
       '123',
       'a.123',
-      'vrx a',
-      'vrx.a-',
+      'ngfw a',
+      'ngfw.a-',
       `${UMLAUT_U}n`,
       'a/b',
       'a:b',
@@ -364,7 +364,7 @@ const stringCases: [string, z.ZodType, string[], string[]][] = [
       '$6$rounds=5000$saltsalt$abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./abcdefghijklmnopqrstuv',
       '$argon2id$v=19$m=65536,t=3,p=4$c2FsdHNhbHQ$aGFzaGhhc2hoYXNoaGFzaA',
       '$2b$12$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012345',
-      '$vrx-test$VRX_TEST_HASH_admin',
+      '$ngfw-test$NGFW_TEST_HASH_admin',
     ],
     [
       'plaintext',
@@ -463,15 +463,15 @@ describe('primitive JSON Schema output', () => {
   it('marks the password hash write-only and CIDRs with the cidr widget', () => {
     expect(z.toJSONSchema(passwordHash)).toMatchObject({
       writeOnly: true,
-      'x-vrx-ui': { secret: true, widget: 'password' },
+      'x-ngfw-ui': { secret: true, widget: 'password' },
     });
     expect(z.toJSONSchema(ipv4Cidr)).toMatchObject({
       format: 'cidrv4',
-      'x-vrx-ui': { widget: 'cidr' },
+      'x-ngfw-ui': { widget: 'cidr' },
     });
     expect(z.toJSONSchema(ipNetwork)).toMatchObject({
       anyOf: [expect.anything(), expect.anything()],
-      'x-vrx-ui': { widget: 'cidr' },
+      'x-ngfw-ui': { widget: 'cidr' },
     });
   });
 });

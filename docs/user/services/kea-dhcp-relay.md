@@ -4,8 +4,8 @@
 *Relays* and *Leases*. The DHCP **client** of an interface is configured in the interface drawer (*Interfaces*, field
 *DHCP client*). **REST:** configuration through the generic routes under `/api/v1/config/services/dhcp` and
 `/api/v1/config/interfaces/<name>/dhcpClient`; state under `/api/v1/state/dhcp/leases`, `/api/v1/state/dhcp/relays`
-and `/api/v1/state/interfaces/<name>/dhcp-client`. **CLI:** `vrx set|merge|delete services dhcp …`, `vrx commit`,
-`vrx show configuration services dhcp`, `vrx show drift` (a dedicated `show dhcp leases` command is not in this release —
+and `/api/v1/state/interfaces/<name>/dhcp-client`. **CLI:** `ngfw set|merge|delete services dhcp …`, `ngfw commit`,
+`ngfw show configuration services dhcp`, `ngfw show drift` (a dedicated `show dhcp leases` command is not in this release —
 use the REST route; its operation ids `KeaDhcpRelay_leases`, `KeaDhcpRelay_relays`, `KeaDhcpRelay_client` are in the
 CLI's generated operation table).
 
@@ -49,10 +49,10 @@ curl -s -X POST -H "authorization: Bearer $T" 'http://127.0.0.1:3000/api/v1/conf
 ```
 
 ```
-vrx merge services dhcp servers '{"lan":{"vrf":"default","interfaces":["GigabitEthernet0/8/0"],"subnets":{"lan":{"subnet":"192.168.10.0/24","pools":[{"start":"192.168.10.100","end":"192.168.10.199"}],"gateway":"192.168.10.1"}}}}'
-vrx set services dhcp servers lan leaseTimeSec 3600
-vrx show configuration diff
-vrx commit comment lan-dhcp
+ngfw merge services dhcp servers '{"lan":{"vrf":"default","interfaces":["GigabitEthernet0/8/0"],"subnets":{"lan":{"subnet":"192.168.10.0/24","pools":[{"start":"192.168.10.100","end":"192.168.10.199"}],"gateway":"192.168.10.1"}}}}'
+ngfw set services dhcp servers lan leaseTimeSec 3600
+ngfw show configuration diff
+ngfw commit comment lan-dhcp
 ```
 
 Rules checked before anything is applied (a violation is a 400 `application/problem+json` whose `errors[].pointer`
@@ -66,7 +66,7 @@ names the field; the screen shows it on that field):
 
 ```
 $ curl … -X PATCH …/config/services -d '{"dhcp":{"servers":{"bad":{…"pools":[{"start":"10.99.0.10","end":"10.99.0.20"}]…}}}}'
-400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,
+400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,
      "errors":[{"pointer":"/services/dhcp/servers/bad/subnets/lan/pools/0/start","message":"10.99.0.10 is outside 10.2.1.0/24"},…]}
 ```
 
@@ -97,8 +97,8 @@ VRF:
 ```
 
 ```
-vrx merge services dhcp relays '{"to-core":{"vrf":"branch","serverVrf":"core","interfaces":["GigabitEthernet0/9/0"],"servers":["10.0.0.10","10.0.0.11"],"sourceAddress":"10.0.5.1"}}'
-vrx commit comment relay
+ngfw merge services dhcp relays '{"to-core":{"vrf":"branch","serverVrf":"core","interfaces":["GigabitEthernet0/9/0"],"servers":["10.0.0.10","10.0.0.11"],"sourceAddress":"10.0.5.1"}}'
+ngfw commit comment relay
 ```
 
 VPP keeps **one source address per client VRF and family**: two relays of one client VRF must use the same
@@ -111,8 +111,8 @@ lists the same relays.
 ## Example 3 — a WAN interface as DHCP client
 
 ```
-vrx merge interfaces GigabitEthernet0/a/0 '{"enabled":true,"dhcpClient":{"hostname":"vrx-edge"}}'
-vrx commit comment wan-dhcp
+ngfw merge interfaces GigabitEthernet0/a/0 '{"enabled":true,"dhcpClient":{"hostname":"ngfw-edge"}}'
+ngfw commit comment wan-dhcp
 ```
 
 The state (DISCOVER / REQUEST / BOUND, leased address, router, DNS servers) is on
@@ -150,8 +150,8 @@ that the older revision does not contain; the Kea daemon goes back to an idle co
 ## Lab (test slots)
 
 The topology test (`test/topology/kea-dhcp-relay`, `run.sh`) runs a slot-local `kea-dhcp4` in `ns-<p>-wan`
-(`/run/vrx-test/<p>/kea`, its own unix socket) and the agent with `VRX_KEA_MODE=test`, `VRX_KEA_NETNS=ns-<p>-wan`,
-`VRX_KEA_IFMAP=host-<p>l0=<p>w1` — the server configured for the LAN interface `host-<p>l0` is Kea on `<p>w1`, reached
+(`/run/ngfw-test/<p>/kea`, its own unix socket) and the agent with `NGFW_KEA_MODE=test`, `NGFW_KEA_NETNS=ns-<p>-wan`,
+`NGFW_KEA_IFMAP=host-<p>l0=<p>w1` — the server configured for the LAN interface `host-<p>l0` is Kea on `<p>w1`, reached
 through VPP's relay; `dhclient` in `ns-<p>-lan` gets its lease through that path.
 
 Not in this release: DHCP failover / HA, DDNS, client classes, shared networks, SQL lease back ends, option-82 policy

@@ -11,14 +11,14 @@ feature tasks will wire up later.
 - `apps/agent/internal/descriptors/README.md` and one merged example (e.g. `interface/`)
 - `apps/agent/binapi/<plugin>/` for each plugin — **the only source of message names and fields**
 - VPP 26.06 docs for the plugin(s): https://s3-docs.fd.io/vpp/26.06/
-- `docs/lab/host-vrx-a.md` — which plugins are loaded on the host (some, like linux_cp/npt66, are not — write the code, mark the integration test `skip-unless-plugin-loaded`)
+- `docs/lab/host-ngfw-a.md` — which plugins are loaded on the host (some, like linux_cp/npt66, are not — write the code, mark the integration test `skip-unless-plugin-loaded`)
 
 ## Scope — build exactly this
 For each object type in <plugin list> (enumerate them in `docs/status/tasks/DF-<n>.md` first):
 1. Descriptor in `apps/agent/internal/descriptors/<plugin>/<object>.go`: `KeyOf`, `Dependencies`, `Create`, `Update` (or `ErrRecreate`), `Delete`, `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it → delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range** (`docs/lab/shared-host-rules.md`); Retrieve-based assertions filter by your prefix (other workers' objects exist on the same VPP). Use loopbacks/tables/dummy objects; never touch `local0` or anything unprefixed; clean up in `t.Cleanup`.
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it → delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range** (`docs/lab/shared-host-rules.md`); Retrieve-based assertions filter by your prefix (other workers' objects exist on the same VPP). Use loopbacks/tables/dummy objects; never touch `local0` or anything unprefixed; clean up in `t.Cleanup`.
 5. `docs/agent/descriptors/<plugin>.md`: table object type ↔ VPP messages ↔ notes/limitations.
 
 ## Rules

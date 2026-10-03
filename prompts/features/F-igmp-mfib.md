@@ -18,7 +18,7 @@ commercial demand").
 - IGMP descriptors (DF-7, **merged**): `docs/agent/descriptors/igmp.md` + `apps/agent/internal/descriptors/igmp/` on main — `igmp.interface`
   (write-only), `igmp.listen` (INCLUDE only, ≥ 1 source — VPP 26.06 has no EXCLUDE), global `igmp.group-prefix` (write-only,
   `igmp.RegisterGlobals`, globals owner only, D-071), `igmp.proxy-device`, `igmp.proxy-downstream` (write-only), `igmp.WatchEvents`;
-  V20: `igmp_group_prefix_dump` answers with the wrong id. **The IGMP host test is opt-in** (`VRX_DF7_IGMP_HOST=1`, alone, manager window —
+  V20: `igmp_group_prefix_dump` answers with the wrong id. **The IGMP host test is opt-in** (`NGFW_DF7_IGMP_HOST=1`, alone, manager window —
   D-087/D-090: IGMP router-alert packets on loopbacks crashed VPP in `ip4_options_node_fn`, V22b).
 - VPP 26.06 source facts (read-only): `src/plugins/igmp/igmp_input.c:441` — the igmp plugin claims IP protocol 2 for all local delivery,
   drops IGMP on interfaces without igmp config and handles only IGMPv3, so FRR pimd's own IGMP querier behind linux-cp never sees
@@ -30,7 +30,7 @@ commercial demand").
   with Retrieve from `ip_mroute_dump` filtered to your owner's tables/claims (D-071 claim store; use `descriptors/dfkit`).
 - RF-1 FRR framework (`renderers/frr/README.md`, `section.go`, `state.go`, `frrtest`), D-056 (FRR part needs RF-1). `frrsync/pim` translates
   OIL interfaces (Linux names) to VPP logical names through **P12's** LCP mapping (`internal/lcpmap`, reverse direction in an adapter in
-  your package) and the VRX-side pimd runs over P12's LCP pairs — without P12 on main, build the translation against a fake mapper and keep
+  your package) and the NGFW-side pimd runs over P12's LCP pairs — without P12 on main, build the translation against a fake mapper and keep
   the netns PIM step open (the prep report proposes P12 as a board dep). `docs/vpp-code-track.md` V5, V20, V22.
 - Seam S1 (`docs/status/wave-BC-numbers.md`): the generic "plan and apply a scoped KV set under the transaction lock" hook, shared with
   F-mpls-ldp. `agent.go`/`service.go` are agent core — do not edit them; if the manager has not seeded the seam, keep the sync loop behind

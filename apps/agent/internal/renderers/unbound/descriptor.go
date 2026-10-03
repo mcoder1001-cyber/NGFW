@@ -12,14 +12,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
 // The Unbound renderer inside the agent (F-unbound-chrony-syslog; D-109 d — no renderer stage in the agent core,
 // so the renderer is one singleton scheduler descriptor):
 //
-//	unbound.config/vrx   Value = Input(services.dns) (*vrxv1.DnsService: the resolvers)
+//	unbound.config/ngfw   Value = Input(services.dns) (*ngfwv1.DnsService: the resolvers)
 //	Create / Update      Render → Validate (unbound-checkconf on a staged copy) → Apply (atomic write → reload_keep_cache
 //	                     + convergence check, or a start/restart request: D-079)
 //	Delete               the idle configuration (loopback only, no resolver)
@@ -36,7 +36,7 @@ import (
 // Descriptor name and singleton object id.
 const (
 	Name     = "unbound.config"
-	ObjectID = "vrx"
+	ObjectID = "ngfw"
 )
 
 // Key is the key of the singleton object.
@@ -80,9 +80,9 @@ func (d *Descriptor) Dependencies(proto.Message) []scheduler.Dependency { return
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*vrxv1.DnsService)
+	in, ok := obj.(*ngfwv1.DnsService)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *vrx.v1.DnsService", ErrInvalid, Name, obj)
+		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.DnsService", ErrInvalid, Name, obj)
 	}
 	return nil, d.apply(ctx, in)
 }
@@ -97,7 +97,7 @@ func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	return d.apply(ctx, nil)
 }
 
-func (d *Descriptor) apply(ctx context.Context, in *vrxv1.DnsService) error {
+func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.DnsService) error {
 	if d.prepare != nil {
 		if err := d.prepare(); err != nil {
 			return err

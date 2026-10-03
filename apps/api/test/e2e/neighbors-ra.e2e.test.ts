@@ -94,7 +94,7 @@ describe('neighbors-ra e2e (PostgreSQL + fake agent)', () => {
     expect(c.body).toMatchObject({
       status: 400,
       tier: 'semantic',
-      type: 'https://vrx.dev/problems/validation',
+      type: 'https://ngfw.dev/problems/validation',
     });
     expect(c.body.errors).toContainEqual({
       pointer: '/routing/neighbors/static/1/ip',

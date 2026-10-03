@@ -30,7 +30,7 @@ function routeBodyPipe(controller: Type, method: string, flag: '0' | '1'): PipeT
     | (new (env: ReturnType<typeof loadEnv>) => PipeTransform)
     | undefined;
   if (Pipe === undefined) throw new Error(`${controller.name}.${method}: no EnvZodPipe on the body`);
-  return new Pipe(loadEnv({ VRX_DEV_WEAK_PASSWORDS: flag }));
+  return new Pipe(loadEnv({ NGFW_DEV_WEAK_PASSWORDS: flag }));
 }
 const authPipe = (flag: '0' | '1') => routeBodyPipe(AuthController, 'password', flag);
 const usersPipe = (flag: '0' | '1') => routeBodyPipe(UsersController, 'setPassword', flag);

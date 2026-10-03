@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # sdk/test.sh — the unit gate of the automation clients (not part of tools/ci.sh yet; ~15 s):
-#   Python SDK: venv from the hash-pinned lock, pytest (mocked HTTP; the live test skips without VRX_INTEGRATION)
+#   Python SDK: venv from the hash-pinned lock, pytest (mocked HTTP; the live test skips without NGFW_INTEGRATION)
 #   Terraform provider: gofmt, go vet, golangci-lint (when installed), go test (httptest fake API + protocol harness)
 # Live runs against a real API/agent/VPP: test/topology/sdk-terraform-ansible/live.sh run … (see that script).
 set -euo pipefail

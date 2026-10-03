@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/nat44_ei"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/nat44ei"
@@ -267,7 +267,7 @@ func TestNat44EIRoundTripNonOwner(t *testing.T) {
 	// the canonical document projects to the same objects (no drift on re-apply)
 	canon := natDoc(t, eiCanonicalSlot)
 	canon.InsideVrf, canon.Forwarding, canon.ConnectionTracking = proto.String("cust"), proto.Bool(true), proto.Bool(true)
-	canon.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(120)}
+	canon.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(120)}
 	s2 := newSink()
 	desired.Nat(s2, canon, vrfID)
 	if len(s2.errs)+len(s2.warns) != 0 || strings.Join(s2.keys(), ",") != strings.Join(s.keys(), ",") {
@@ -300,7 +300,7 @@ func TestNat44EIRoundTripGlobalsOwner(t *testing.T) {
 	want := natDoc(t, eiCanonicalSlot)
 	want.Enabled, want.InsideVrf, want.Forwarding = proto.Bool(true), proto.String("cust"), proto.Bool(true)
 	want.StaticMappingOnly, want.ConnectionTracking = proto.Bool(false), proto.Bool(true)
-	want.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(120), TcpEstablished: proto.Uint32(7440), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
+	want.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(120), TcpEstablished: proto.Uint32(7440), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
 	if !proto.Equal(got, want) {
 		t.Fatalf("Retrieve != canonical desired:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}

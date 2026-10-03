@@ -98,7 +98,7 @@ func TestReadHost(t *testing.T) {
 }
 
 func TestHostCheckRequiresEveryFact(t *testing.T) {
-	full := vrxA(t)
+	full := ngfwA(t)
 	if err := full.Check(); err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestHostCheckRequiresEveryFact(t *testing.T) {
 		"plugins":         func(h *Host) { h.Plugins = nil },
 		"current plugins": func(h *Host) { h.CurrentPlugins = nil },
 	} {
-		h := vrxA(t)
+		h := ngfwA(t)
 		mut(&h)
 		if _, _, err := Generate(parseDoc(t, `{}`), h, DefaultSettings()); !errors.Is(err, ErrHost) {
 			t.Errorf("%s missing: err = %v", name, err)
@@ -182,11 +182,11 @@ func TestCPUPlacementExplicit(t *testing.T) {
 
 // TestManagementFromHost: F1 regressions — the reviewer's repro and the empty document.
 func TestManagementFromHost(t *testing.T) {
-	_, _, err := Generate(parseDoc(t, `{"dataplane":{"managementPci":["0000:04:00.0"],"devices":{"0000:0b:00.0":{"name":"lan"}}}}`), vrxA(t), DefaultSettings())
+	_, _, err := Generate(parseDoc(t, `{"dataplane":{"managementPci":["0000:04:00.0"],"devices":{"0000:0b:00.0":{"name":"lan"}}}}`), ngfwA(t), DefaultSettings())
 	if !errors.Is(err, ErrInput) || !strings.Contains(err.Error(), "does not match the host's management NIC(s) 0000:0b:00.0") {
 		t.Fatalf("reviewer repro: %v", err)
 	}
-	out, _, err := Generate(parseDoc(t, `{}`), vrxA(t), DefaultSettings())
+	out, _, err := Generate(parseDoc(t, `{}`), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,12 +194,12 @@ func TestManagementFromHost(t *testing.T) {
 		t.Fatalf("empty document lost the blacklist:\n%s", out)
 	}
 	// document agrees with the host: fine, and still exactly one blacklist line
-	out, _, err = Generate(parseDoc(t, `{"dataplane":{"managementPci":["0000:0B:00.0"],"devices":{"0000:04:00.0":{"name":"wan"}}}}`), vrxA(t), DefaultSettings())
+	out, _, err = Generate(parseDoc(t, `{"dataplane":{"managementPci":["0000:0B:00.0"],"devices":{"0000:04:00.0":{"name":"wan"}}}}`), ngfwA(t), DefaultSettings())
 	if err != nil || strings.Count(string(out), "blacklist") != 1 {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	// a second host management NIC is protected even though the document never names it
-	h := vrxA(t)
+	h := ngfwA(t)
 	h.ManagementPCI = append(h.ManagementPCI, "0000:1c:00.0")
 	if _, _, err := Generate(parseDoc(t, `{"dataplane":{"devices":{"0000:1c:00.0":{"name":"sync"}}}}`), h, DefaultSettings()); !errors.Is(err, ErrInput) {
 		t.Fatalf("second host mgmt NIC accepted: %v", err)
@@ -219,7 +219,7 @@ func TestPluginSemantics(t *testing.T) {
 		return n
 	}
 	// absent: D-060 block kept
-	out, m, err := Generate(parseDoc(t, `{"dataplane":{"mainCore":1}}`), vrxA(t), DefaultSettings())
+	out, m, err := Generate(parseDoc(t, `{"dataplane":{"mainCore":1}}`), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestPluginSemantics(t *testing.T) {
 	}
 
 	// present: exactly the listed switches
-	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"npt66_plugin.so":false,"acl_plugin.so":true}}}}`), vrxA(t), DefaultSettings())
+	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"npt66_plugin.so":false,"acl_plugin.so":true}}}}`), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ func TestPluginSemantics(t *testing.T) {
 	}
 
 	// present and empty: no plugins block at all, warnings for all three D-060 plugins
-	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{}}}`), vrxA(t), DefaultSettings())
+	out, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{}}}`), ngfwA(t), DefaultSettings())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestPluginSemantics(t *testing.T) {
 	}
 
 	// present, listing the D-060 set: no warnings
-	_, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), vrxA(t), DefaultSettings())
+	_, m, err = Generate(parseDoc(t, `{"dataplane":{"mainCore":1,"plugins":{"switches":{"linux_cp_plugin.so":true,"linux_nl_plugin.so":true,"npt66_plugin.so":true}}}}`), ngfwA(t), DefaultSettings())
 	if err != nil || len(m.Warnings) != 0 {
 		t.Errorf("present, D-060 listed: %v %q", err, m.Warnings)
 	}
@@ -352,7 +352,7 @@ func TestManagementPaths(t *testing.T) {
 	}
 	// the reviewer's case: the ssh NIC 0c only carries a connected subnet — handing it to DPDK is refused
 	h.OnlineCPUs, h.NUMANodes, h.HugepageBytes = []uint32{0, 1, 2, 3}, 1, 2<<30
-	h.Plugins = vrxA(t).Plugins
+	h.Plugins = ngfwA(t).Plugins
 	h.CurrentPlugins = map[string]bool{}
 	if _, _, err := Generate(parseDoc(t, `{"dataplane":{"devices":{"0000:0c:00.0":{"name":"lan"}}}}`), h, DefaultSettings()); !errors.Is(err, ErrInput) ||
 		!strings.Contains(err.Error(), "0000:0c:00.0 is the host's management NIC") {

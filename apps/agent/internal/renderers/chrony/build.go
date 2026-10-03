@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -48,22 +48,22 @@ func keyID(ref string) uint32 {
 const MaxKeyBytes = 128
 
 // SecretResolver returns the secret value of a reference ("key/ntp-upstream"). Production:
-// the agent's secret store; tests: a fixture map with VRX_TEST_PSK_<id> values.
+// the agent's secret store; tests: a fixture map with NGFW_TEST_PSK_<id> values.
 type SecretResolver func(ref string) ([]byte, error)
 
 type input struct {
-	ntp *vrxv1.NtpService
+	ntp *ngfwv1.NtpService
 }
 
 func extract(desired proto.Message) (input, error) {
 	switch d := desired.(type) {
 	case nil:
 		return input{}, nil
-	case *vrxv1.DesiredState:
+	case *ngfwv1.DesiredState:
 		return input{ntp: d.GetServices().GetNtp()}, nil
-	case *vrxv1.ServicesConfig:
+	case *ngfwv1.ServicesConfig:
 		return input{ntp: d.GetNtp()}, nil
-	case *vrxv1.NtpService:
+	case *ngfwv1.NtpService:
 		return input{ntp: d}, nil
 	default:
 		return input{}, fmt.Errorf("%w: unsupported desired type %T", ErrInvalid, desired)
@@ -100,7 +100,7 @@ type source struct {
 	NTS     bool
 }
 
-// sourcesData is the vrx.sources template model: the embedded render input and the server/pool lines.
+// sourcesData is the ngfw.sources template model: the embedded render input and the server/pool lines.
 type sourcesData struct {
 	Input   string
 	Sources []source

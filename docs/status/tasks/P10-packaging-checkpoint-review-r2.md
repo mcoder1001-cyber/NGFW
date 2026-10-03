@@ -4,8 +4,8 @@ Reviewed frozen review SHA `b7ca10b7e4facfacbe1d39c00cce1b472b46827f`; product c
 
 ## Findings resolved
 
-1. Narrow agent ReadWritePaths now includes actual capture `/var/lib/vrx/captures` and rsyslog TLS `/etc/vrx/rsyslog-tls`. Postinst provisions both root-owned with 0700/0750 respectively; existing privilege/capability/address-family restrictions remain. Regression checks compare against actual consumer defaults. Original missing-path MAJOR resolved by source inspection; installed sandbox execution remains acceptance not run.
-2. Debian install mappings now place startupgen and vppcheck under `/usr/lib/vrx/bin`, exactly matching shipped apply-startup product default. The agent stays `/usr/sbin/vrx-agent`; staging locations do not change runtime mapping. Regression reads the actual product script default. Original tool-discovery MAJOR resolved.
+1. Narrow agent ReadWritePaths now includes actual capture `/var/lib/ngfw/captures` and rsyslog TLS `/etc/ngfw/rsyslog-tls`. Postinst provisions both root-owned with 0700/0750 respectively; existing privilege/capability/address-family restrictions remain. Regression checks compare against actual consumer defaults. Original missing-path MAJOR resolved by source inspection; installed sandbox execution remains acceptance not run.
+2. Debian install mappings now place startupgen and vppcheck under `/usr/lib/ngfw/bin`, exactly matching shipped apply-startup product default. The agent stays `/usr/sbin/ngfw-agent`; staging locations do not change runtime mapping. Regression reads the actual product script default. Original tool-discovery MAJOR resolved.
 
 ## TLS/proxy delta review
 
@@ -16,7 +16,7 @@ R1/R2/R7/R8: **APPROVE this checkpoint**; no unresolved BLOCKER/MAJOR in reviewe
 ## Actual independent verification
 
 ```text
-python3 deploy/debian/vrx/tests/test_packaging.py
+python3 deploy/debian/ngfw/tests/test_packaging.py
 Ran 7 tests in 0.851s
 OK
 ```
@@ -24,7 +24,7 @@ OK
 Those tests execute real OpenSSL first-run generation in a private reviewer temporary directory, retry without replacement, verify 0600 key permissions and preserve the key when an incomplete pair is rejected. They do not start nginx or use /etc.
 
 ```text
-bash -n deploy/debian/vrx/prepare.sh deploy/debian/vrx/assets/tls-bootstrap.sh
+bash -n deploy/debian/ngfw/prepare.sh deploy/debian/ngfw/assets/tls-bootstrap.sh
 exit 0
 tools/ci.sh check --base origin/main
 ok: gitleaks — scanned ~24193 bytes (24.19 KB) in 155ms no leaks found

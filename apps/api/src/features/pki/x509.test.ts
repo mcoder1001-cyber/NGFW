@@ -29,14 +29,14 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
       const s = scratch();
       try {
         const caKey = generateKey(normaliseKeySpec(spec.ca));
-        const ca = selfSignedCa(parseDn('CN=w5 root CA, O=VRX test, C=CH'), caKey, 3650);
+        const ca = selfSignedCa(parseDn('CN=w5 root CA, O=NGFW test, C=CH'), caKey, 3650);
         expect(ca.facts.ca).toBe(true);
-        expect(ca.facts.subject).toBe('CN=w5 root CA, O=VRX test, C=CH');
+        expect(ca.facts.subject).toBe('CN=w5 root CA, O=NGFW test, C=CH');
         expect(ca.facts.issuer).toBe(ca.facts.subject);
 
         const leafKey = generateKey(normaliseKeySpec(spec.leaf));
         const csrDer = buildCsr(
-          parseDn('CN=gw.w5.example, O=VRX test'),
+          parseDn('CN=gw.w5.example, O=NGFW test'),
           ['gw.w5.example', '10.5.250.1', '2001:db8:5::1', '*.vpn.w5.example'],
           leafKey,
         );
@@ -49,7 +49,7 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
         expect(openssl(['req', '-in', csrFile, '-noout', '-text'])).toContain('DNS:gw.w5.example');
 
         const parsed = parseCsr(csrPem);
-        expect(parsed.subject).toBe('CN=gw.w5.example, O=VRX test');
+        expect(parsed.subject).toBe('CN=gw.w5.example, O=NGFW test');
         expect(parsed.san).toEqual([
           'DNS:gw.w5.example',
           'IP:10.5.250.1',
@@ -106,7 +106,7 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
         '-keyout',
         keyFile,
         '-subj',
-        '/CN=peer.w5.example/O=VRX test',
+        '/CN=peer.w5.example/O=NGFW test',
         '-addext',
         'subjectAltName=DNS:peer.w5.example',
         '-out',
@@ -114,7 +114,7 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
       ]);
       const csrPem = openssl(['req', '-in', s.dir + '/peer.csr']);
       const parsed = parseCsr(csrPem);
-      expect(parsed.subject).toBe('CN=peer.w5.example, O=VRX test');
+      expect(parsed.subject).toBe('CN=peer.w5.example, O=NGFW test');
       expect(parsed.san).toEqual(['DNS:peer.w5.example']);
       const caKey = generateKey({ type: 'ecdsa', curve: 'p256' });
       const ca = selfSignedCa(parseDn('CN=w5 interop CA'), caKey, 30);
@@ -166,7 +166,7 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
         '-keyout',
         keyFile,
         '-subj',
-        '/C=CH/O=VRX test/CN=w5-openssl-ca',
+        '/C=CH/O=NGFW test/CN=w5-openssl-ca',
         '-days',
         '30',
         '-addext',
@@ -176,7 +176,7 @@ describe('F-pki X.509: CA → CSR → sign, verified by openssl', () => {
       ]);
       const pem = openssl(['x509', '-in', certFile]);
       const f = certFacts(pemBlocks(pem)[0]!.der);
-      expect(f.subject).toBe('C=CH, O=VRX test, CN=w5-openssl-ca');
+      expect(f.subject).toBe('C=CH, O=NGFW test, CN=w5-openssl-ca');
       expect(f.ca).toBe(true);
       expect(f.keySpec).toEqual({ type: 'rsa', bits: 2048 });
       const fp = openssl(['x509', '-in', certFile, '-noout', '-fingerprint', '-sha256'])

@@ -3,7 +3,7 @@ id: F-vpp-debs   branch: task/F-vpp-debs   worktree: /root/ngfw-wt/F-vpp-debs   
 title: VPP package build pipeline: pinned 26.06 source, patch series, reproducible .deb build script (D0.2)
 prompt: prompts/features/F-vpp-debs.md
 merged deps you can rely on: P01, P09 (CI)
-slot: 2 → VRX_SLOT=2 VRX_TEST_PREFIX=w2 VRX_HTTP_PORT=3200 VRX_WEB_PORT=5200 VRX_METRICS_PORT=9121 VRX_AGENT_SOCKET=/run/vrx-test/w2/agent.sock VRX_PG_DATABASE=vrx_w2 VRX_VALKEY_DB=2 VRX_VPP_TABLE_BASE=2000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock 
+slot: 2 → NGFW_SLOT=2 NGFW_TEST_PREFIX=w2 NGFW_HTTP_PORT=3200 NGFW_WEB_PORT=5200 NGFW_METRICS_PORT=9121 NGFW_AGENT_SOCKET=/run/ngfw-test/w2/agent.sock NGFW_PG_DATABASE=ngfw_w2 NGFW_VALKEY_DB=2 NGFW_VPP_TABLE_BASE=2000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
 daemon-owner: none
 /root/vpp is OWNED BY THE BRING-UP AGENT (D-012): read-only for you (git log/status, file reads, `git clone --reference` / `git worktree add` into your own .build dir are fine; never checkout/reset/clean/build inside /root/vpp itself)
 resources: a full VPP build is heavy — use at most 8 parallel jobs (`make pkg-deb` with -j8 / MAKEFLAGS=-j8) so 11 other workers keep running; disk budget ≤ 40 GB under your worktree's .build (git-ignored)

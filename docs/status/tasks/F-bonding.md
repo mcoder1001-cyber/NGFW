@@ -110,7 +110,7 @@ interface name   sw_if_index  mode          load balance  active members members
 
 - [x] **Member already in another bond → 400 problem+json with `pointer` to the second membership**
 ```
-commit with tap6001 in two bonds → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,
+commit with tap6001 in two bonds → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,
   "tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit",
   "errors":[{"pointer":"/interfaces/BondEthernet6001/bond/members/tap6001",
              "message":"'tap6001' is already a member of BondEthernet6000 (/interfaces/BondEthernet6000/bond/members/tap6001); an interface belongs to at most one bond"}]}
@@ -172,7 +172,7 @@ CI GATE PASSED
 | `packages/schema/src/domains/interfaces.ts` | import of `interfaceBondField` (top of file, tagged `// wave-A: F-bonding`; no import anchor exists) + `bond: interfaceBondField,` |
 | `packages/schema/src/index.ts` | `export * from './domains/ext/bonding.js';` |
 | `packages/schema/src/semantic/index.ts` | import `bondingValidators` + `...bondingValidators,` |
-| `packages/proto/vrx/v1/dataplane.proto` | `rpc BondState` (service anchor), `Bond bond = 13;` (Interface anchor), `// ----- F-bonding -----` messages |
+| `packages/proto/ngfw/v1/dataplane.proto` | `rpc BondState` (service anchor), `Bond bond = 13;` (Interface anchor), `// ----- F-bonding -----` messages |
 | `docs/contracts/proto.md` | `### F-bonding: BondState (+ Interface.bond 13)` |
 | `apps/api/src/testing/fake-agent.ts` | `bondState` UNIMPLEMENTED stub (real fake: `features/bonding/fake.ts`, `installBondingFake`) |
 | `apps/api/src/app.module.ts` | import `bondingFeature` + `...bondingFeature.controllers,` + `...bondingFeature.providers,` |
@@ -205,8 +205,8 @@ vs the agent's sanitizer; Q4 sub-interface removal ordering (TD-11c); Q5 CLI `sh
 vppctl show bond                              → header only (no BondEthernet6xxx)
 vppctl show interface | grep tap60xx/BondEthernet6xxx → none
 ip -o link | grep ': w6'                      → none (fixture taps' host devices gone)
-processes (vrx-agent / vrx-api / vite preview of slot 6) → none (all stopped by PID by the test)
-vrx_w6 database/role                          → dropped by pg-test.sh ("nothing named vrx_w6 / vrx_w6 remains")
+processes (ngfw-agent / ngfw-api / vite preview of slot 6) → none (all stopped by PID by the test)
+ngfw_w6 database/role                          → dropped by pg-test.sh ("nothing named ngfw_w6 / ngfw_w6 remains")
 lab lock                                      → released (held only during the runs, D-094)
 systemctl show vpp -p NRestarts               → 1 before and after every host run of this task
 apps/agent/bin, */dist                        → removed at the end

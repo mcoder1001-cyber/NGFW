@@ -62,9 +62,9 @@ type Paths struct {
 // stats file lives in its spool directory).
 func ProductPaths() Paths {
 	return Paths{
-		ConfFile:    "/etc/rsyslog.d/50-vrx-export.conf",
-		StatsFile:   "/var/spool/rsyslog/vrx-impstats.json",
-		TLSDir:      "/etc/vrx/rsyslog-tls",
+		ConfFile:    "/etc/rsyslog.d/50-ngfw-export.conf",
+		StatsFile:   "/var/spool/rsyslog/ngfw-impstats.json",
+		TLSDir:      "/etc/ngfw/rsyslog-tls",
 		ModuleDir:   ModuleDirProduct,
 		HostConfigs: []string{"/etc/rsyslog.conf", "/etc/rsyslog.d/*.conf"},
 		FileOwner:   "root:root",
@@ -74,10 +74,10 @@ func ProductPaths() Paths {
 }
 
 // TestPaths are the test-scoped paths for a slot prefix: everything under
-// /run/vrx-test/<prefix>/rsyslog, a standalone config with imuxsock on <dir>/log.sock and
+// /run/ngfw-test/<prefix>/rsyslog, a standalone config with imuxsock on <dir>/log.sock and
 // (tcpPort > 0) imtcp on 127.0.0.1:tcpPort.
 func TestPaths(prefix string, tcpPort uint32) Paths {
-	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "rsyslog"), tcpPort)
+	return PathsUnder(filepath.Join("/run/ngfw-test", prefix, "rsyslog"), tcpPort)
 }
 
 // PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance

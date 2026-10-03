@@ -7,7 +7,7 @@ The open questions are in `TD-8b-questions.md`.
 |---|---|
 | `26bf0ae0` | V1 per-key quarantine, V3 SyncFunc doc, V4 fair verify blame, L7 sync deadline; tests G, H and others |
 | `b5e42a90` | Q3 flip: start-up is refused without an id range (V5 citation pinned), V2 `df7.WithIDs`, `tools/app` env line, topology passthrough, §12, FEATURE-TEMPLATE rule, P10 note |
-| `be0a1184` | topology harness: `VRX_P08_PG_NAME` override (Q2 of the questions file), questions file |
+| `be0a1184` | topology harness: `NGFW_P08_PG_NAME` override (Q2 of the questions file), questions file |
 | (this commit) | self-review fix: a key retry while VPP is disconnected backs off and re-arms (§1b); TD-8b.md |
 
 **How the pre-fix failures were produced.**
@@ -37,7 +37,7 @@ The open questions are in `TD-8b-questions.md`.
 - It is still declarative: only desired KVs change, and no imperative VPP call is made.
 - The source stays in sync. `leaveOutLocked` records the key in `ds.quarantine` and reports it as before: a SKIPPED result
   with the source and cause, an ERROR event with source/reason/key, and
-  `vrx_agent_dynamic_source_errors_total{reason="rejected"}`.
+  `ngfw_agent_dynamic_source_errors_total{reason="rejected"}`.
 - Every later transaction desires the held value until a sync applies the source's own:
   - each key has its own backoff (`retryMin` doubling to `retryMax`) and a key-retry timer;
   - a sync also releases at once a key whose source value changed;
@@ -134,14 +134,14 @@ $ (this commit)        --- PASS
   - A `Config` built in code still owns no id (fail closed), as before.
 - `df7.WithIDs(*IDRange)` takes a copy of the range: nil = every id, empty = none.
 - `IDRange`'s doc shows `df7.WithIDs(ids.DF7())`.
-- `tools/app`: `VRX_VPP_TABLE_BASE=13000` on the agent's env line. Only the file was edited: not run, nothing restarted,
-  ports 3000/8080/9101 and `/run/vrx/agent.sock` untouched.
-- `test/topology/interfaces` passes `VRX_VPP_TABLE_BASE` to the agent. The default is the slot's `N000`.
+- `tools/app`: `NGFW_VPP_TABLE_BASE=13000` on the agent's env line. Only the file was edited: not run, nothing restarted,
+  ports 3000/8080/9101 and `/run/ngfw/agent.sock` untouched.
+- `test/topology/interfaces` passes `NGFW_VPP_TABLE_BASE` to the agent. The default is the slot's `N000`.
 - `docs/lab/shared-host-rules.md` §12 is the TD-8.md text, renumbered, with "neither set: the agent refuses to start"
   and the family rule.
 - `prompts/FEATURE-TEMPLATE.md`, Scope 2, has the rule: "an id-allocating family takes its range only from
   `w.IDRange()`, never `nil` or a missing option; its test asserts `NoIDs()` owns nothing".
-- `docs/tech-debt.md`: a P10 row for the packaged unit (`VRX_VPP_ID_RANGE=all`, plus a packaging test).
+- `docs/tech-debt.md`: a P10 row for the packaged unit (`NGFW_VPP_ID_RANGE=all`, plus a packaging test).
 - `docs/agent/README.md` id-range row updated.
 - Other agent launchers already inherit the variable from `tools/lab env` / `tools/ci.sh slot_env`:
   `apps/api/test/integration/agent.int.test.ts` (`...process.env`), `apps/cli/test/devstack.sh`,
@@ -158,7 +158,7 @@ internal/subsystems/seams_test.go:141:44: undefined: df7.WithIDs                
 
 ## 6. Unit proof, TD-11c compatibility
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/... ./internal/descriptors/df7/...
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/... ./internal/descriptors/df7/...
 ok  	ngfw/agent/internal/agent	14.084s
 ok  	ngfw/agent/internal/subsystems	6.749s
 ok  	ngfw/agent/internal/descriptors/df7	1.200s
@@ -176,24 +176,24 @@ ok  	ngfw/agent/internal/descriptors/df7	1.158s
 - On the merged tree: `go vet ./internal/agent/` is clean;
   `go test -race ./internal/agent/ ./internal/subsystems/` gives `ok … 13.605s` and `ok … 16.683s`.
 
-## 7. The topology/interfaces run (slot 5, `tools/lab lock shared`, VRX_VPP_TABLE_BASE passed through)
-The environment of the run. TD-10b owns `vrx_w5`, Valkey 5 and port 3500, so the API/DB side moved to free resources;
+## 7. The topology/interfaces run (slot 5, `tools/lab lock shared`, NGFW_VPP_TABLE_BASE passed through)
+The environment of the run. TD-10b owns `ngfw_w5`, Valkey 5 and port 3500, so the API/DB side moved to free resources;
 see questions Q2.
 ```
-eval "$(tools/lab env 5)"; VRX_HTTP_PORT=3590 VRX_VALKEY_DB=15 VRX_AGENT_SOCKET=/run/vrx-test/w5/td8b-agent.sock \
-VRX_METRICS_PORT=9159 VRX_P08_PG_NAME=w5_td8b TMPDIR=/tmp/g-td8b test/topology/interfaces/run.sh
+eval "$(tools/lab env 5)"; NGFW_HTTP_PORT=3590 NGFW_VALKEY_DB=15 NGFW_AGENT_SOCKET=/run/ngfw-test/w5/td8b-agent.sock \
+NGFW_METRICS_PORT=9159 NGFW_P08_PG_NAME=w5_td8b TMPDIR=/tmp/g-td8b test/topology/interfaces/run.sh
 ```
 Excerpts from `/root/ngfw-wt/logs/TD-8b-topology-2.log`:
 ```
 before: NRestarts=2 at 04:50:44
     interfaces_test.go:211: systemctl show vpp -p NRestarts (before) = 2
     interfaces_test.go:224: rig up w5 (slot 5, path af_packet)
-    interfaces_test.go:234: create role vrx_w5_td8b / create database vrx_w5_td8b (owner vrx_w5_td8b)
-    interfaces_test.go:234: started vrx-agent pid 3788935 (log /run/vrx-test/w5/p08/agent.log)
+    interfaces_test.go:234: create role ngfw_w5_td8b / create database ngfw_w5_td8b (owner ngfw_w5_td8b)
+    interfaces_test.go:234: started ngfw-agent pid 3788935 (log /run/ngfw-test/w5/p08/agent.log)
     interfaces_test.go:345: host-w5w0 rx (echo replies in): +5 frames +6260 bytes → ok
     interfaces_test.go:512: agent started at +0s; interfaces back in VPP at +0.24s; ping OK at +1.57s (no config API call)
     interfaces_test.go:533: reconcile after simulated loss: … = 0.293s (agent log timestamps)
-    interfaces_test.go:153: pg-test drop w5_td8b: <nil>   (drop database vrx_w5_td8b, drop role vrx_w5_td8b)
+    interfaces_test.go:153: pg-test drop w5_td8b: <nil>   (drop database ngfw_w5_td8b, drop role ngfw_w5_td8b)
     interfaces_test.go:214: systemctl show vpp -p NRestarts (after) = 2
 --- PASS: TestInterfacesVerticalSlice (29.80s)
     --- PASS: TestInterfacesVerticalSlice/topology (13.86s)
@@ -203,7 +203,7 @@ ok  	ngfw/test/topology/interfaces	29.828s
 exit=0
 after: NRestarts=2 at 04:51:41
 ```
-The agent under test read its range through the passthrough (`/run/vrx-test/w5/p08/agent.log`, both starts):
+The agent under test read its range through the passthrough (`/run/ngfw-test/w5/p08/agent.log`, both starts):
 ```
 {"time":"2026-09-25T04:51:14.57…","level":"INFO","msg":"subsystems wired","owner":"w5",…,"vpp_ids":"5000-5999"}
 {"time":"2026-09-25T04:51:36.80…","level":"INFO","msg":"subsystems wired","owner":"w5",…,"vpp_ids":"5000-5999"}
@@ -217,7 +217,7 @@ The agent under test read its range through the passthrough (`/run/vrx-test/w5/p
   was 2 → 2. I built the dependencies (`turbo run build --filter=@ngfw/api^...`) and made the one real run above.
 - Cleanup:
   - the database was dropped by the harness;
-  - the 4 keys the API left in Valkey db 15 under this run's own prefix `vrx:w5:p08:126fd5:` were deleted (db 15 was
+  - the 4 keys the API left in Valkey db 15 under this run's own prefix `ngfw:w5:p08:126fd5:` were deleted (db 15 was
     empty before and after);
   - ports 3590 and 9159 were released;
   - the processes were stopped by PID by the harness.
@@ -274,5 +274,5 @@ CI GATE PASSED
 3. **Sync deadline (L7).** 5 min, local until TD-9's `txnTimeout` lands.
 4. **Id range (Q3).** `ConfigFromEnv` refuses start-up without a range. A code-built `Config` stays fail-closed.
    `tools/app` takes the reserved 13000–13999. §12 is the host rule.
-5. **Topology harness.** `VRX_P08_PG_NAME` (default: the prefix), so that a slot shared between an API/DB task and a
+5. **Topology harness.** `NGFW_P08_PG_NAME` (default: the prefix), so that a slot shared between an API/DB task and a
    VPP-side run keeps its database (questions Q2).

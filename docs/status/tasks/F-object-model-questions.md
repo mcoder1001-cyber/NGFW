@@ -15,7 +15,7 @@ Querying the resolv.conf servers with `golang.org/x/net/dns/dnsmessage` makes `g
 gate) move `golang.org/x/net` from `// indirect` to a direct requirement, i.e. a change to `apps/agent/go.mod`, which this
 envelope does not let me touch (D4). Options: (a) dnsmessage + go.mod change by the manager; (b) Go's `net.Resolver`
 (PreferGo, the system resolver) with a fixed refresh interval clamped to [30 s, 1 h]. **Taken: (b)**, default 60 s,
-`VRX_OBJECTS_FQDN_REFRESH_SEC` overrides it. The resolver's lookup is an interface returning `(addresses, ttl)`; a TTL of 0
+`NGFW_OBJECTS_FQDN_REFRESH_SEC` overrides it. The resolver's lookup is an interface returning `(addresses, ttl)`; a TTL of 0
 means "unknown → fixed interval", so (a) is a drop-in follow-up (a dnsmessage lookup that returns TTLs; the clamp to
 [30 s, 1 h] is already applied to whatever it returns) once x/net is promoted on main.
 
@@ -67,8 +67,8 @@ variable first). Meanwhile I re-ran `tools/ci.sh --base main` until the guard wa
   through `objects.RuntimeFor`, because agent core does not hand the Wiring to the gRPC server. An in-process re-open still
   closes the previous runtime (unit tests that build a Service without `Agent.Stop`).
 - **Metrics (manager: "bump a metric"):** `agent/metrics.go` gets one line, `objects.WriteMetrics(w)`, next to
-  `ifsanitize.WriteMetrics(w)`. It adds `vrx_agent_objects_store_corrupt_total`,
-  `vrx_agent_objects_store_persist_errors_total` and `vrx_agent_objects_fqdn_stale_expired_total`.
+  `ifsanitize.WriteMetrics(w)`. It adds `ngfw_agent_objects_store_corrupt_total`,
+  `ngfw_agent_objects_store_persist_errors_total` and `ngfw_agent_objects_fqdn_stale_expired_total`.
 - **F5:** see R1. On the merge I take main's version of the two `service_test.go` lines if main has one.
 
 ## Q9 — the scheduler's own cost per operation is O(N² log N) (P05 core, not changed here)
@@ -80,7 +80,7 @@ the first domain with thousands of objects.
 **Proposal (P05 owner/manager):** build the dependents index once per transaction, and use a heap for `ready`.
 
 ## Q10 — follow-ups from the review that stay open
-- **F4 follow-up (P02b/manager):** put explicit `x-vrx-ui.objectKinds` on every `object-picker` field in
+- **F4 follow-up (P02b/manager):** put explicit `x-ngfw-ui.objectKinds` on every `object-picker` field in
   `objects.ts`/`acl.ts`. The widget honours it already, and parsing the English help text is brittle.
 - **F4 low companion:** while the objects query loads, or when a reference dangles, the single-value select can show
   blank. `WidgetProps` carries no value and ui-kit exports no form hook, so the fix needs a ui-kit change: either pass

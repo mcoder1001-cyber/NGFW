@@ -2,13 +2,13 @@ ip prefix-list pl-low description peer low half
 ip prefix-list pl-low seq 5 permit 10.8.64.0/18 le 25
 ipv6 prefix-list pl-v6 seq 5 deny 2001:db8::/32 ge 48 le 64
 ipv6 prefix-list pl-v6 seq 10 permit ::/0 le 128
-bgp community-list standard vrx-rm-all-5 seq 5 permit 65000:100
-bgp as-path access-list vrx-rm-all-5 seq 5 permit ^65081_
+bgp community-list standard ngfw-rm-all-5 seq 5 permit 65000:100
+bgp as-path access-list ngfw-rm-all-5 seq 5 permit ^65081_
 route-map rm-all permit 5
  match ip next-hop prefix-list pl-low
  match interface w8-l0
- match community vrx-rm-all-5
- match as-path vrx-rm-all-5
+ match community ngfw-rm-all-5
+ match as-path ngfw-rm-all-5
  match metric 7
  match tag 9
  set as-path prepend 65080 65080
@@ -40,7 +40,7 @@ router bgp 65080
  neighbor pg timers 3 9
  neighbor 10.8.9.2 peer-group pg
  neighbor 10.8.9.2 description peer one
- neighbor 10.8.9.2 password VRX_TEST_PSK_P12_1
+ neighbor 10.8.9.2 password NGFW_TEST_PSK_P12_1
  neighbor 10.8.9.2 update-source w8-l0
  neighbor 10.8.9.77 remote-as 65099
  neighbor 10.8.9.77 ebgp-multihop

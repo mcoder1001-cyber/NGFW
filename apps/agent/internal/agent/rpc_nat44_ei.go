@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	binnat64 "ngfw/agent/binapi/nat64"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	natsessions "ngfw/agent/internal/actions/nat44-ed-sessions"
 	natvariants "ngfw/agent/internal/actions/nat44-ei-64-66-nptv6"
 	"ngfw/agent/internal/descriptors/nat44ei"
@@ -29,8 +29,8 @@ import (
 
 // natVariantOf reports whether a variant is served by this file: EI, NAT64 and any value this build does not know
 // (answered INVALID_ARGUMENT here, review L3); unset and ED stay F-nat44-ed-sessions'.
-func natVariantOf(v vrxv1.NatSessionVariant) bool {
-	return v != vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_UNSPECIFIED && v != vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_ED
+func natVariantOf(v ngfwv1.NatSessionVariant) bool {
+	return v != ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_UNSPECIFIED && v != ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_ED
 }
 
 // natSessionsVariant serves NatSessions for the EI and NAT64 tables. The walk takes F-nat44-ed-sessions' per-agent walk
@@ -41,12 +41,12 @@ func natVariantOf(v vrxv1.NatSessionVariant) bool {
 // nat64.Sessions materialises every owner's rows; only offset+limit rows are kept) plus, when the page has rows, one
 // nat64_bib_dump of all protocols for the port correction. Streaming the ST dump and dumping the BIB only for the
 // page's protocols is the follow-up.
-func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
+func (s *Service) natSessionsVariant(ctx context.Context, req *ngfwv1.NatSessionsRequest) (*ngfwv1.NatSessionsResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
 	switch req.GetVariant() {
-	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
+	case ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI, ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "unknown NAT session variant %d", req.GetVariant())
 	}
@@ -62,7 +62,7 @@ func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessions
 	case limit > natsessions.MaxLimit:
 		return nil, status.Errorf(codes.InvalidArgument, "limit %d > %d", limit, natsessions.MaxLimit)
 	}
-	if req.GetVariant() == vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64 {
+	if req.GetVariant() == ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64 {
 		return s.natSessionsNat64(ctx, req, limit)
 	}
 	f, err := s.natFilter(req.GetFilter())
@@ -73,12 +73,12 @@ func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessions
 	if err != nil {
 		return nil, natErr("nat44-ei sessions", err)
 	}
-	resp := &vrxv1.NatSessionsResponse{
+	resp := &ngfwv1.NatSessionsResponse{
 		NextOffset: page.Next, TotalUsers: page.TotalUsers, TotalSessions: page.TotalSessions, Truncated: page.Truncated,
-		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), Variant: vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum(),
+		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), Variant: ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI.Enum(),
 	}
 	for _, r := range page.Rows {
-		resp.Sessions = append(resp.Sessions, &vrxv1.NatSession{
+		resp.Sessions = append(resp.Sessions, &ngfwv1.NatSession{
 			InsideAddress: r.Inside.IP, InsidePort: r.Inside.Port, OutsideAddress: r.Outside.IP, OutsidePort: r.Outside.Port,
 			ExternalAddress: r.ExtHost.IP, ExternalPort: r.ExtHost.Port, ExternalNatAddress: r.ExtHostNAT.IP, ExternalNatPort: r.ExtHostNAT.Port,
 			Protocol: r.Protocol, Vrf: s.tableName(r.VRF), TableId: r.VRF, Static: r.Static,
@@ -90,10 +90,10 @@ func (s *Service) natSessionsVariant(ctx context.Context, req *vrxv1.NatSessions
 
 // natSessionsNat64 pages the NAT64 session table; only filter.protocol applies (the other filter fields are IPv4
 // NAT44 fields).
-func (s *Service) natSessionsNat64(ctx context.Context, req *vrxv1.NatSessionsRequest, limit int) (*vrxv1.NatSessionsResponse, error) {
+func (s *Service) natSessionsNat64(ctx context.Context, req *ngfwv1.NatSessionsRequest, limit int) (*ngfwv1.NatSessionsResponse, error) {
 	f := req.GetFilter()
 	if f == nil {
-		f = &vrxv1.NatSessionFilter{}
+		f = &ngfwv1.NatSessionFilter{}
 	}
 	if f.InsideAddress != nil || f.OutsideAddress != nil || f.ExternalAddress != nil || f.Port != nil || f.Vrf != nil {
 		return nil, status.Error(codes.InvalidArgument, "NAT64 sessions accept only filter.protocol")
@@ -110,12 +110,12 @@ func (s *Service) natSessionsNat64(ctx context.Context, req *vrxv1.NatSessionsRe
 	if err != nil {
 		return nil, natErr("nat64 sessions", err)
 	}
-	resp := &vrxv1.NatSessionsResponse{
+	resp := &ngfwv1.NatSessionsResponse{
 		NextOffset: page.Next, TotalUsers: page.TotalUsers, TotalSessions: page.TotalSessions, Truncated: page.Truncated,
-		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), Variant: vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64.Enum(),
+		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), Variant: ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64.Enum(),
 	}
 	for _, r := range page.Rows {
-		resp.Sessions = append(resp.Sessions, &vrxv1.NatSession{
+		resp.Sessions = append(resp.Sessions, &ngfwv1.NatSession{
 			InsideAddress: r.InsideLocal, InsidePort: r.InsidePort, OutsideAddress: r.OutsideLocal, OutsidePort: r.OutsidePort,
 			ExternalAddress: r.OutsideRemote, ExternalPort: r.RemotePort, ExternalNatAddress: r.InsideRemote, ExternalNatPort: r.RemotePort,
 			Protocol: r.Protocol, Vrf: s.tableName(r.VRF), TableId: r.VRF,
@@ -147,10 +147,10 @@ func (b nat64BIB) InsidePorts(ctx context.Context) (map[natvariants.BIBKey]uint3
 
 // natSessionKillVariant runs the EI kill (NAT64 has no session delete in VPP 26.06: INVALID_ARGUMENT). Same stream
 // contract as the ED kill: validation errors before any output, then exactly one `done`.
-func (s *Service) natSessionKillVariant(ctx context.Context, a *vrxv1.NatSessionKillAction, send func(*vrxv1.ActionOutput) error) error {
+func (s *Service) natSessionKillVariant(ctx context.Context, a *ngfwv1.NatSessionKillAction, send func(*ngfwv1.ActionOutput) error) error {
 	switch a.GetVariant() {
-	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_EI:
-	case vrxv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
+	case ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_EI:
+	case ngfwv1.NatSessionVariant_NAT_SESSION_VARIANT_NAT64:
 		return status.Error(codes.InvalidArgument, "NAT64 sessions cannot be deleted: VPP 26.06 has no NAT64 session delete")
 	default:
 		return status.Errorf(codes.InvalidArgument, "unknown NAT session variant %d", a.GetVariant())
@@ -165,10 +165,10 @@ func (s *Service) natSessionKillVariant(ctx context.Context, a *vrxv1.NatSession
 	}
 	code, summary := k.Do(ctx, nat44ei.New(s.vpp, s.owner))
 	s.log.Info("nat session kill", "variant", "ei", "protocol", k.Protocol, "inside", k.Inside.String(), "table", k.Table, "exit_code", code, "summary", summary)
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: summary, ExitCode: int32(code), Stats: k.Stats()}}}) //nolint:gosec // 0–2
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: summary, ExitCode: int32(code), Stats: k.Stats()}}}) //nolint:gosec // 0–2
 }
 
 // natSessionKillVariantStream adapts the Action stream (the variant dispatch in server.go's nat_session_kill case).
-func (g *server) natSessionKillVariantStream(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) natSessionKillVariantStream(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	return g.svc.natSessionKillVariant(stream.Context(), req.GetNatSessionKill(), stream.Send)
 }

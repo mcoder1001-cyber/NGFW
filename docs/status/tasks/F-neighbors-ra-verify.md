@@ -25,12 +25,12 @@ ok  ngfw/agent/internal/actions/neighbors-ra 1.119s · ok internal/agent 10.626s
 ok  internal/descriptors/ip_neighbor 1.158s · ok internal/desired 1.212s
 $ npx vitest run src/features/neighbors-ra            ✓ neighbors-ra.controller.test.ts (7 tests)
 $ eval "$(tools/lab env 9)"; npx vitest run -c vitest.e2e.config.ts test/e2e/neighbors-ra.e2e.test.ts
-create role vrx_w9 · create database vrx_w9 · ✓ test/e2e/neighbors-ra.e2e.test.ts (4 tests) 3434ms · Tests 4 passed (4)
-drop database vrx_w9 · drop role vrx_w9
+create role ngfw_w9 · create database ngfw_w9 · ✓ test/e2e/neighbors-ra.e2e.test.ts (4 tests) 3434ms · Tests 4 passed (4)
+drop database ngfw_w9 · drop role ngfw_w9
 ```
 The worker's CI claim is corroborated by the step logs in `/root/ngfw-wt/logs/ci/F-neighbors-ra-20260924-232824-533285`:
 turbo 30/30, `07-agent.log` 91 ok / 0 issues, and all four apply-startup shards `101 passed, 0 failed`.
-Cleanup: the `packages/{schema,proto}/dist` I built for the API tests were removed; `vrx_w9` was dropped by the
+Cleanup: the `packages/{schema,proto}/dist` I built for the API tests were removed; `ngfw_w9` was dropped by the
 harness; the scratch copy for the negative controls lives only under `/tmp/g-rv9`; the worktree is clean apart from
 this file.
 

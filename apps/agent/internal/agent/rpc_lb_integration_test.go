@@ -1,13 +1,13 @@
 package agent
 
 // F-lb host tests on the shared VPP — opt-in (every run leaves "removed" VIPs and the ASes' recursive /32s in table 0
-// until a garbage collection or a VPP restart, V20; DF-7 precedent VRX_DF7_LB=1):
+// until a garbage collection or a VPP restart, V20; DF-7 precedent NGFW_DF7_LB=1):
 //
-//	TestLbOnHost          VRX_INTEGRATION=1 VRX_LB_HOST=1 — in-process slot agent (not the globals owner): apply
+//	TestLbOnHost          NGFW_INTEGRATION=1 NGFW_LB_HOST=1 — in-process slot agent (not the globals owner): apply
 //	                      services.lb → `show lb vips verbose` + LbState; flush; agent-restart simulation (re-applied
 //	                      without duplicates, intf-nat applied once); simulated loss of a VIP while the agent is down
 //	                      → re-created within 30 s; removal (delete messages; the VIPs listed as removed, V20).
-//	TestLbGarbageCollectOnHost  + VRX_LB_GLOBALS=1 — VPP-global (D-082): flock -x /run/lock/vrx-globals.lock, manager
+//	TestLbGarbageCollectOnHost  + NGFW_LB_GLOBALS=1 — VPP-global (D-082): flock -x /run/lock/ngfw-globals.lock, manager
 //	                      window only; one lb.GarbageCollect after the removal frees this slot's removed VIPs.
 //
 // Objects: VIPs 10.<slot>.250.0/24, application servers 10.<slot>.2.0/24, the NAT feature on the slot's loopback.
@@ -26,7 +26,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"ngfw/agent/binapi/vlib"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	lbd "ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/vpp"
@@ -36,8 +36,8 @@ import (
 func lbOptIn(t *testing.T) {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
-	if os.Getenv("VRX_LB_HOST") != "1" {
-		t.Skip("lb host test is opt-in (VRX_LB_HOST=1): every run leaves removed VIPs until the lb garbage collection (V20)")
+	if os.Getenv("NGFW_LB_HOST") != "1" {
+		t.Skip("lb host test is opt-in (NGFW_LB_HOST=1): every run leaves removed VIPs until the lb garbage collection (V20)")
 	}
 }
 
@@ -55,7 +55,7 @@ func lbShow(t *testing.T, c vpp.Client, cmd string) string {
 }
 
 // lbHostDoc is the slot's lb document on loopback loop<N>31.
-func lbHostDoc(t *testing.T) (*vrxv1.DesiredState, string, int) {
+func lbHostDoc(t *testing.T) (*ngfwv1.DesiredState, string, int) {
 	t.Helper()
 	n := vpptest.Slot(t)
 	loop := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 31))
@@ -110,13 +110,13 @@ func TestLbOnHost(t *testing.T) {
 	t.Logf("before: show lb vips:\n%s", before)
 
 	// 1. commit → APPLIED; VPP lists the VIPs with their ASes and encapsulation
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-lb-1", DesiredState: desired})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-lb-1", DesiredState: desired})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v %v", err, resp)
 	}
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
 	t.Logf("after commit: show lb vips verbose:\n%s", lbShow(t, raw, "show lb vips verbose"))
-	st, err := c.LbState(ctx, &vrxv1.LbStateRequest{})
+	st, err := c.LbState(ctx, &ngfwv1.LbStateRequest{})
 	if err != nil || len(st.GetVips()) != 3 {
 		t.Fatalf("LbState: %v %v", err, st)
 	}
@@ -128,7 +128,7 @@ func TestLbOnHost(t *testing.T) {
 	}
 
 	// 2. flush (an IPv4 VIP: the ip46 layout)
-	fr, err := c.LbFlushVip(ctx, &vrxv1.LbFlushVipRequest{Name: "web"})
+	fr, err := c.LbFlushVip(ctx, &ngfwv1.LbFlushVipRequest{Name: "web"})
 	if err != nil {
 		t.Fatalf("flush: %v", err)
 	}
@@ -179,15 +179,15 @@ func TestLbOnHost(t *testing.T) {
 	stopped = false
 	c = dialAgent(t, cfg.Socket)
 	waitReady(t, c)
-	st, err = c.LbState(ctx, &vrxv1.LbStateRequest{Names: []string{"web"}})
+	st, err = c.LbState(ctx, &ngfwv1.LbStateRequest{Names: []string{"web"}})
 	if err != nil || !st.GetVips()[0].GetApplied() || st.GetVips()[0].GetServers()[0].GetInUse() != true {
 		t.Fatalf("lost VIP not re-created: %v %v", err, st)
 	}
 	t.Logf("loss: re-created in %s: %s", time.Since(t0).Round(time.Millisecond), protojson.Format(st.GetVips()[0]))
 
 	// 5. removal: delete messages; VPP keeps the VIPs as removed until a garbage collection (V20)
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-lb-2", DesiredState: doc(t, fmt.Sprintf(`{"interfaces": {%q: {"ipv4": ["10.%d.31.1/24"]}}, "services": {}}`, loop, n))})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-lb-2", DesiredState: doc(t, fmt.Sprintf(`{"interfaces": {%q: {"ipv4": ["10.%d.31.1/24"]}}, "services": {}}`, loop, n))})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("remove: %v %v", err, resp)
 	}
 	for _, r := range resp.GetResults() {
@@ -198,8 +198,8 @@ func TestLbOnHost(t *testing.T) {
 		t.Fatalf("NAT feature still enabled: %d", got)
 	}
 	t.Logf("show lb:\n%s", lbShow(t, raw, "show lb"))
-	resp, err = c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-lb-3", Subsystems: []string{"interfaces", "services"}})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-lb-3", Subsystems: []string{"interfaces", "services"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("cleanup apply: %v %v", err, resp)
 	}
 }
@@ -215,15 +215,15 @@ func ownedLoop(t *testing.T, c vpp.Client, owner, name string) uint32 {
 	return idx
 }
 
-// TestLbGarbageCollectOnHost runs VPP's lb garbage collection once (D-090) — VPP-global: opt-in VRX_LB_GLOBALS=1,
+// TestLbGarbageCollectOnHost runs VPP's lb garbage collection once (D-090) — VPP-global: opt-in NGFW_LB_GLOBALS=1,
 // exclusive globals lock, manager window only (D-082). It changes no lb_conf value (nothing to restore).
 func TestLbGarbageCollectOnHost(t *testing.T) {
 	lbOptIn(t)
-	if os.Getenv("VRX_LB_GLOBALS") != "1" {
-		t.Skip("the lb garbage collection is VPP-global: opt-in VRX_LB_GLOBALS=1, manager window only (D-082)")
+	if os.Getenv("NGFW_LB_GLOBALS") != "1" {
+		t.Skip("the lb garbage collection is VPP-global: opt-in NGFW_LB_GLOBALS=1, manager window only (D-082)")
 	}
 	vpptest.LockLab(t)
-	lock, err := os.OpenFile("/run/lock/vrx-globals.lock", os.O_CREATE|os.O_RDWR, 0o644) //nolint:gosec // the shared globals lock of every slot (flock), readable by all
+	lock, err := os.OpenFile("/run/lock/ngfw-globals.lock", os.O_CREATE|os.O_RDWR, 0o644) //nolint:gosec // the shared globals lock of every slot (flock), readable by all
 	if err != nil {
 		t.Fatal(err)
 	}

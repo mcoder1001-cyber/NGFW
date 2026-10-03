@@ -147,8 +147,8 @@ type Bond struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Id            uint32                 `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	Mode          Mode                   `protobuf:"varint,3,opt,name=mode,proto3,enum=vrx.agent.bond.Mode" json:"mode,omitempty"`
-	Lb            LoadBalance            `protobuf:"varint,4,opt,name=lb,proto3,enum=vrx.agent.bond.LoadBalance" json:"lb,omitempty"`
+	Mode          Mode                   `protobuf:"varint,3,opt,name=mode,proto3,enum=ngfw.agent.bond.Mode" json:"mode,omitempty"`
+	Lb            LoadBalance            `protobuf:"varint,4,opt,name=lb,proto3,enum=ngfw.agent.bond.LoadBalance" json:"lb,omitempty"`
 	NumaOnly      bool                   `protobuf:"varint,5,opt,name=numa_only,json=numaOnly,proto3" json:"numa_only,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -292,12 +292,12 @@ var File_bond_model_proto protoreflect.FileDescriptor
 
 const file_bond_model_proto_rawDesc = "" +
 	"\n" +
-	"\x10bond_model.proto\x12\x0evrx.agent.bond\"\x9e\x01\n" +
+	"\x10bond_model.proto\x12\x0fngfw.agent.bond\"\xa0\x01\n" +
 	"\x04Bond\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\rR\x02id\x12(\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x14.vrx.agent.bond.ModeR\x04mode\x12+\n" +
-	"\x02lb\x18\x04 \x01(\x0e2\x1b.vrx.agent.bond.LoadBalanceR\x02lb\x12\x1b\n" +
+	"\x02id\x18\x02 \x01(\rR\x02id\x12)\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x15.ngfw.agent.bond.ModeR\x04mode\x12,\n" +
+	"\x02lb\x18\x04 \x01(\x0e2\x1c.ngfw.agent.bond.LoadBalanceR\x02lb\x12\x1b\n" +
 	"\tnuma_only\x18\x05 \x01(\bR\bnumaOnly\"w\n" +
 	"\x06Member\x12\x12\n" +
 	"\x04bond\x18\x01 \x01(\tR\x04bond\x12\x1c\n" +
@@ -334,14 +334,14 @@ func file_bond_model_proto_rawDescGZIP() []byte {
 var file_bond_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_bond_model_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_bond_model_proto_goTypes = []any{
-	(Mode)(0),        // 0: vrx.agent.bond.Mode
-	(LoadBalance)(0), // 1: vrx.agent.bond.LoadBalance
-	(*Bond)(nil),     // 2: vrx.agent.bond.Bond
-	(*Member)(nil),   // 3: vrx.agent.bond.Member
+	(Mode)(0),        // 0: ngfw.agent.bond.Mode
+	(LoadBalance)(0), // 1: ngfw.agent.bond.LoadBalance
+	(*Bond)(nil),     // 2: ngfw.agent.bond.Bond
+	(*Member)(nil),   // 3: ngfw.agent.bond.Member
 }
 var file_bond_model_proto_depIdxs = []int32{
-	0, // 0: vrx.agent.bond.Bond.mode:type_name -> vrx.agent.bond.Mode
-	1, // 1: vrx.agent.bond.Bond.lb:type_name -> vrx.agent.bond.LoadBalance
+	0, // 0: ngfw.agent.bond.Bond.mode:type_name -> ngfw.agent.bond.Mode
+	1, // 1: ngfw.agent.bond.Bond.lb:type_name -> ngfw.agent.bond.LoadBalance
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

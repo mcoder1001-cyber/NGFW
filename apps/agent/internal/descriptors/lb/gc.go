@@ -93,9 +93,9 @@ func GarbageCollect(ctx context.Context, c vpp.Client) error {
 		return nil // the collection ran; the sentinel VIP does not exist (as intended)
 	}
 	if err == nil {
-		// VPP answered success: the sentinel VIP existed and was deleted — impossible for a VRX VIP (the projection
+		// VPP answered success: the sentinel VIP existed and was deleted — impossible for a NGFW VIP (the projection
 		// refuses GCSentinelRange); report it loudly
-		return fmt.Errorf("lb: %q deleted an existing VIP 0.0.0.0/32 (not created by VRX)", GCCommand)
+		return fmt.Errorf("lb: %q deleted an existing VIP 0.0.0.0/32 (not created by NGFW)", GCCommand)
 	}
 	reply := ""
 	if rep != nil {

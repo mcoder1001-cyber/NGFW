@@ -14,7 +14,7 @@
 //	  cleanup      taps out of the configuration, fixture taps deleted, no bond of the slot range left in VPP
 //
 // No packet is sent (LACP has no partner on taps; its evidence is configuration + `show lacp`), nothing is traced
-// (D-128), no binding is swept (D-126). Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under
+// (D-128), no binding is swept (D-126). Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under
 // flock -s on the lab lock; every process it starts is stopped by PID; NRestarts is checked before and after.
 package bonding
 
@@ -45,8 +45,8 @@ func bondLeaf(item map[string]any, view string) map[string]any {
 }
 
 func TestBondingOnHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-bonding topology test: set VRX_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-bonding topology test: set NGFW_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (VPP API socket, tap host devices)")
@@ -158,7 +158,7 @@ func TestBondingOnHost(t *testing.T) {
 	}
 	a.must(200, "POST", "/api/v1/config/discard", nil)
 
-	if shots, out := os.Getenv("VRX_F_BONDING_SHOTS"), os.Getenv("VRX_F_BONDING_SHOTS_OUT"); shots != "" && out != "" {
+	if shots, out := os.Getenv("NGFW_F_BONDING_SHOTS"), os.Getenv("NGFW_F_BONDING_SHOTS_OUT"); shots != "" && out != "" {
 		screenshots(t, st, shots, out, b0)
 	}
 
@@ -230,12 +230,12 @@ func TestBondingOnHost(t *testing.T) {
 // `vite preview` of the production web build on the slot web port, with a pending change for the "pending" mark.
 func screenshots(t *testing.T, st *stack, script, out, bond string) {
 	t.Helper()
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(st.s.repo, "apps", "web")
-	env := append(os.Environ(), "VRX_HTTP_PORT="+st.s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+st.s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.s.runDir, "f-bonding-vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	defer pv.stop(t)
 	st.api.patch("/interfaces/"+bond+"/bond", map[string]any{"numaOnly": true}) // pending

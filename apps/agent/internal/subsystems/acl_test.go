@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
@@ -70,14 +70,14 @@ func TestACLWatcher(t *testing.T) {
 	t.Cleanup(rt.Close)
 	rules := []descacl.Rule{{Action: descacl.ActionPermit, Src: descacl.AnyV4, Dst: descacl.AnyV4, SrcPortLast: 65535, DstPortLast: 65535}}
 	fp := aclstate.Fingerprint(rules)
-	office := &vrxv1.Schedule{Type: proto.String("recurring"), Days: []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}, Start: proto.String("08:00"), End: proto.String("18:00")}
-	cfg := &vrxv1.AclList{Description: proto.String("applied")}
+	office := &ngfwv1.Schedule{Type: proto.String("recurring"), Days: []string{"mon", "tue", "wed", "thu", "fri", "sat", "sun"}, Start: proto.String("08:00"), End: proto.String("18:00")}
+	cfg := &ngfwv1.AclList{Description: proto.String("applied")}
 	if _, err := rt.ConfigDescriptor().Create(context.Background(), aclstate.ConfigList("l", cfg)); err != nil {
 		t.Fatal(err)
 	}
-	rec.PutACL(&aclstate.Expansion{Name: "l", Fingerprint: fp, ConfigHash: aclstate.ConfigHash(cfg), VPPRules: 1, Schedules: map[string]*vrxv1.Schedule{"office": office}, Rules: []aclstate.RuleInfo{
-		{Sequence: 10, Status: vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 1, Schedule: "office"},
-		{Sequence: 20, Status: vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 0, FQDN: []string{"cdn"}},
+	rec.PutACL(&aclstate.Expansion{Name: "l", Fingerprint: fp, ConfigHash: aclstate.ConfigHash(cfg), VPPRules: 1, Schedules: map[string]*ngfwv1.Schedule{"office": office}, Rules: []aclstate.RuleInfo{
+		{Sequence: 10, Status: ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 1, Schedule: "office"},
+		{Sequence: 20, Status: ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED, Count: 0, FQDN: []string{"cdn"}},
 	}})
 	trackApplied(t, rt, "l", fp)
 

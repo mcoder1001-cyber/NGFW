@@ -89,7 +89,7 @@ describe('resolveNode', () => {
   it('honours hidden nodes reached through references, records and arrays', () => {
     const hidden: JsonSchema = {
       type: 'object',
-      'x-vrx-ui': { widget: 'hidden' },
+      'x-ngfw-ui': { widget: 'hidden' },
       properties: { name: { type: 'string' } },
     };
     const domain: JsonSchema = {
@@ -132,12 +132,12 @@ describe('withoutChildValues (the diff base for a node\'s own form, review: chil
   });
 
   it('a merge patch of the projected base against the form value never nulls the child container', () => {
-    const base = { hostname: 'vrx', timezone: 'UTC', banner: { login: 'hi' }, dns: { servers: [] } };
-    const formValue = { hostname: 'vrx-a', timezone: 'UTC' }; // the form never carries banner/dns (they are child nodes)
+    const base = { hostname: 'ngfw', timezone: 'UTC', banner: { login: 'hi' }, dns: { servers: [] } };
+    const formValue = { hostname: 'ngfw-a', timezone: 'UTC' }; // the form never carries banner/dns (they are child nodes)
     const naive = createMergePatch(base, formValue);
-    expect(naive).toEqual({ hostname: 'vrx-a', banner: null, dns: null }); // the bug this projection avoids
+    expect(naive).toEqual({ hostname: 'ngfw-a', banner: null, dns: null }); // the bug this projection avoids
     const patch = createMergePatch(withoutChildValues(base, ['banner', 'dns']), formValue);
-    expect(patch).toEqual({ hostname: 'vrx-a' });
+    expect(patch).toEqual({ hostname: 'ngfw-a' });
   });
 
   it('passes non-object values and an empty child-key list through unchanged', () => {
@@ -150,7 +150,7 @@ describe('withoutChildValues (the diff base for a node\'s own form, review: chil
     const childKeys = childPropertyKeys(item, domainSchemas.interfaces);
     expect(childKeys).not.toContain('lcp');
     expect(childKeys).toContain('subinterfaces');
-    expect(withoutChildProperties(item, childKeys).properties?.lcp?.['x-vrx-ui']?.widget).toBe(
+    expect(withoutChildProperties(item, childKeys).properties?.lcp?.['x-ngfw-ui']?.widget).toBe(
       'hidden',
     );
     const pair = { hostIfName: 'route0', hostIfType: 'tap' };

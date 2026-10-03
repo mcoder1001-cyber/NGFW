@@ -17,13 +17,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // Integration: two real chronyd children with test-scoped paths under
-// /run/vrx-test/<prefix>/chrony/{server,client}, both started with -x (never touch the host
+// /run/ngfw-test/<prefix>/chrony/{server,client}, both started with -x (never touch the host
 // clock): the server serves local stratum 10 on 127.0.0.1:3<slot>23, the client (port 0, no
 // server socket) syncs from it. Never the system unit, never /etc/chrony.
 
@@ -116,26 +116,26 @@ func TestChronyIntegration(t *testing.T) {
 	ctx := context.Background()
 	secrets := func(ref string) ([]byte, error) {
 		if ref == "key/rig" {
-			return []byte("VRX_TEST_PSK_RF3_rig"), nil
+			return []byte("NGFW_TEST_PSK_RF3_rig"), nil
 		}
 		return nil, errors.New("unknown")
 	}
 
 	srv := prepare(t, prefix, "server", 0, secrets)
 	cli := prepare(t, prefix, "client", port, secrets)
-	srvDesired := &vrxv1.NtpService{
+	srvDesired := &ngfwv1.NtpService{
 		Enabled: proto.Bool(true), LocalStratum: proto.Uint32(10),
 		Allow: []string{"127.0.0.1/32"}, Listen: []string{"127.0.0.1"}, Port: proto.Uint32(uint32(port)),
 	}
-	cliDesired := func(extra bool) *vrxv1.DesiredState {
-		n := &vrxv1.NtpService{
+	cliDesired := func(extra bool) *ngfwv1.DesiredState {
+		n := &ngfwv1.NtpService{
 			Enabled: proto.Bool(true), Port: proto.Uint32(0),
-			Servers: []*vrxv1.NtpService_Server{{Address: proto.String("127.0.0.1"), MinPoll: proto.Int32(-2), MaxPoll: proto.Int32(0)}},
+			Servers: []*ngfwv1.NtpService_Server{{Address: proto.String("127.0.0.1"), MinPoll: proto.Int32(-2), MaxPoll: proto.Int32(0)}},
 		}
 		if extra {
-			n.Servers = append(n.Servers, &vrxv1.NtpService_Server{Address: proto.String("192.0.2.123"), KeyRef: proto.String("key/rig")})
+			n.Servers = append(n.Servers, &ngfwv1.NtpService_Server{Address: proto.String("192.0.2.123"), KeyRef: proto.String("key/rig")})
 		}
-		return &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Ntp: n}}
+		return &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Ntp: n}}
 	}
 
 	sf, err := srv.r.Render(ctx, srvDesired)
@@ -171,7 +171,7 @@ func TestChronyIntegration(t *testing.T) {
 			t.Fatalf("Validate: %v", err)
 		}
 	}
-	t.Log("chronyd -p (chrony.conf + vrx.sources): accepted for server and client")
+	t.Log("chronyd -p (chrony.conf + ngfw.sources): accepted for server and client")
 	bad := renderers.Files{}
 	for p, f := range cf {
 		bad[p] = f

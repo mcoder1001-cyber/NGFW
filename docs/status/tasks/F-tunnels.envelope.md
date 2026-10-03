@@ -7,13 +7,13 @@ merged deps you can rely on: P08, DF-6, F-bridge-l2
   - P08: desired/ (Sink, Ptr, `interface/<name>` aliases, Assemble), subsystems.Register/Domains + Wiring.IfaceClaims()/BootStore(), projection.go, the InterfaceState state-RPC pattern (tunnels already appear in `/state/interfaces`), core `interface-ip` / `interface.mtu` / `interface-ip.table` descriptors
   - DF-6: descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe} + shared df6 (claims = iface.ClaimStore, keyed claims, bypass toggles, write-only singletons, dump-first guards); TD-3's sanitizer runs in df6/ifdesc.go
   - F-bridge-l2: the L2 container + bridge-domain builder (numeric BD ids, the ids `tunnels.*.bridgeDomain` already uses) on DF-1's l2.bridge-domain / bridge-domain-member
-  - also on main: W-seed (anchors/seams), TD-3 (V19 sanitizer + cmd/vrx-vpp-preflight), TD-2
+  - also on main: W-seed (anchors/seams), TD-3 (V19 sanitizer + cmd/ngfw-vpp-preflight), TD-2
 read first: prompts/features/F-tunnels.md · docs/status/wave-A-hotspots.md (§0 rules, A1 A2 A6 A7 C2–C7 P1 P4 P5 W1–W3) · docs/status/wave-BC-numbers.md (section F-tunnels) · docs/agent/descriptors/df6.md (first), gre.md, ipip.md, vxlan.md, vxlan_gpe.md, gtpu.md, l2tp.md, pppoe.md · docs/status/tasks/DF-6.md + DF-6-questions.md (Q1, Q5, Q10) · docs/status/tasks/F-bridge-l2.md · docs/status/vertical-slice.md · docs/vpp-code-track.md V8, V14, V19, V21 · docs/decisions/LOG.md D-063, D-064, D-065, D-069, D-071, D-074, D-076, D-080, D-082, D-095, D-101, D-113
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: <SLOT> → NGFW_SLOT=<SLOT> NGFW_TEST_PREFIX=w<SLOT> NGFW_HTTP_PORT=3000+100·<SLOT> NGFW_WEB_PORT=5000+100·<SLOT> NGFW_METRICS_PORT=9100+10·<SLOT>+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w<SLOT>/agent.sock NGFW_PG_DATABASE=ngfw_w<SLOT> NGFW_VALKEY_DB=<SLOT> NGFW_VPP_TABLE_BASE=<SLOT>000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env <SLOT>)"`
   - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; tunnel src/dst on w<SLOT> loopbacks inside 10.<SLOT>.0.0/16 (IPv6 only inside fd00:<SLOT hex>::/32)
   - tunnel `instance` numbers, VNIs, GTP-U TEIDs, PPPoE session ids and L2TPv3 session ids from <SLOT>000–<SLOT>999 (VPP-wide interface names gre<n>/ipip<n>/vxlan_tunnel<n>); VRFs/tables and bridge-domain ids in <SLOT>000–<SLOT>999
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
@@ -22,7 +22,7 @@ obligations:
   - D-071 globals: `l2tp.lookup-key` and `pppoe.cp` are VPP-wide → only the globals owner sets them; slot agents require or skip
   - D-063/D-076/D-080: write-only kinds (`ipip.sixrd`, bypass toggles, singletons) re-apply once per VPP boot identity from the persisted BootStore / IfaceClaims (Wiring), never an in-memory store; Retrieve never echoes desired state
   - V21: vxlan bypass = disable before enable (DF-6 does it; keep it)
-  - V14: L2TPv3 has no delete → create only behind `VRX_DF6_L2TP_CREATE=1`-style opt-in, rollback documented as the V14 exception
+  - V14: L2TPv3 has no delete → create only behind `NGFW_DF6_L2TP_CREATE=1`-style opt-in, rollback documented as the V14 exception
   - D-065/D-069: every tunnel is also `interface/<name>` (logical name) so addresses, MTU, VRF, VRRP/LLDP/IPFIX refs resolve through the alias
   - L2 membership: `tunnels.<kind>.<name>.bridgeDomain` → one DF-1 `l2.bridge-domain-member` object per tunnel interface (depends on F-bridge-l2's `l2.bridge-domain/<id>`); a semantic rule refuses the same tunnel also being a member through F-bridge-l2's per-interface leaf (never two programmers)
   - GTP-U forwarding entries (VPP-wide per type, DF-6 review M2): default drop from the model — write the question
@@ -43,7 +43,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A7 docs/vpp-code-track.md: `### V-new (F-tunnels)` only for a new gap; the manager numbers it
   - C2 packages/schema/src/semantic/index.ts: only if you add a new rule file (tunnels.ts is already spread) · C3 packages/schema/src/index.ts: new exports only
   - C4 packages/schema/examples/ + packages/proto/test/fixtures/: your `tunnels-*.json` (the existing tunnels-gre-vxlan-ipip.json / tunnels-semantic-source-not-configured.json are yours to extend) plus new files; all-domains.json, group-a-full.json and invalid-tunnels-vxlan-vni.json are read-only
-  - C5 packages/proto/vrx/v1/dataplane.proto: rpc `TunnelState` under the service anchor; the new kind messages (VxlanGpeTunnel, GtpuTunnel, L2tpv3Tunnel, PppoeSession, IpipSixrd, TunnelState*) in a `// ----- F-tunnels -----` section at the end
+  - C5 packages/proto/ngfw/v1/dataplane.proto: rpc `TunnelState` under the service anchor; the new kind messages (VxlanGpeTunnel, GtpuTunnel, L2tpv3Tunnel, PppoeSession, IpipSixrd, TunnelState*) in a `// ----- F-tunnels -----` section at the end
   - allocated numbers (docs/status/wave-BC-numbers.md, a merge blocker if reused): **TunnelsConfig 4 `vxlan_gpe`, 5 `gtpu`, 6 `l2tpv3`, 7 `pppoe`** (8–9 unallocated, 10 = F-lisp — the `TunnelsConfig` block is an anchor site shared with F-lisp), **IpipTunnel 14 `sixrd`**; GreTunnel 14 and VxlanTunnel 17 only for a proven gap; no ActionRequest, no EventKind
   - C6 docs/contracts/proto.md: `### F-tunnels: TunnelState` · C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
   - P1 apps/api/src/app.module.ts · P4 apps/api/src/agent/agent.client.ts (`tunnelState`) · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub under the anchor on the contract commit)
@@ -59,17 +59,17 @@ files you must not touch:
   - agent core (A5): apps/agent/internal/agent/{agent,service,state,ifstate}.go, apps/agent/cmd/**; apps/agent/internal/desired/interfaces.go (A3); apps/agent/internal/vpp/ifsanitize/** (TD-3); apps/api/src/state/** (P08)
 host rules:
   - VPP SAFETY (D-064): `systemctl show vpp -p NRestarts` before and after every host run (pasted); on a rise, disable the test behind an opt-in env var at once and record the message (A7)
-  - the ONE host integration check covers gre + ipip + vxlan + vxlan-gpe only; gtpu stays opt-in (`VRX_DF6_GTPU_HOST=1` pattern, V8), l2tp create opt-in (V14), pppoe host steps opt-in (needs a learnt client MAC) — fakes cover them
-  - V19 SAFETY (D-095): before ANY packet through the rig or a tunnel, `go -C apps/agent run ./cmd/vrx-vpp-preflight` must exit 0 (TD-3). Stop if it does not
+  - the ONE host integration check covers gre + ipip + vxlan + vxlan-gpe only; gtpu stays opt-in (`NGFW_DF6_GTPU_HOST=1` pattern, V8), l2tp create opt-in (V14), pppoe host steps opt-in (needs a learnt client MAC) — fakes cover them
+  - V19 SAFETY (D-095): before ANY packet through the rig or a tunnel, `go -C apps/agent run ./cmd/ngfw-vpp-preflight` must exit 0 (TD-3). Stop if it does not
   - delete order: bridge membership, addresses and routes before the tunnel; tunnels before the loopbacks/tables carrying src/dst (D-095c, V15)
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged); af_packet rings per D-113
-  - with VRX_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
+  - with NGFW_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
 coordination: F-bridge-l2 owns bridge domains (you only emit members for tunnel interfaces) · P11 (may be running) names `tunnels.ipip.<name>` in `routeBased.ipipInterface` — the ipip projection is yours; GRE-over-IPsec is a docs pointer only · F-loopback-bvi-gso-lldp-span owns ERSPAN mirror sessions (you create the ERSPAN GRE tunnel) · F-srv6, F-lisp, F-mpls-srmpls own their DF-6 families; F-lisp (may run in parallel) shares `Domains["tunnels"]`, `TunnelsSchema` and `TunnelsConfig` with you through anchors
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: Tunnels page per kind, advanced toggle) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-tunnels.md with what is left (gtpu/l2tp/pppoe are the first to drop)
 WIP: commit at least every 45 min; keep docs/status/tasks/F-tunnels-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-tunnels.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w<SLOT> dropped · no w<SLOT> tunnels, bypass toggles, addresses or tables left (dumps pasted; L2TPv3 leftovers listed as V14) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · ngfw_w<SLOT> dropped · no w<SLOT> tunnels, bypass toggles, addresses or tables left (dumps pasted; L2TPv3 leftovers listed as V14) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-tunnels-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

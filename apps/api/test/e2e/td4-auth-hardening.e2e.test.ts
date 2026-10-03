@@ -40,12 +40,12 @@ const MAX_FAILURES = 3;
 function cookieOf(headers: Record<string, unknown>): string {
   const raw = [headers['set-cookie']]
     .flat()
-    .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
   return raw.split(';')[0]!;
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const withKey = (key: string) => ({ authorization: `ApiKey ${key}` });
-const TLS = 'https://vrx.dev/problems/tls-required';
+const TLS = 'https://ngfw.dev/problems/tls-required';
 
 describe('TD-4 auth hardening e2e (D-100)', () => {
   let h: Harness;
@@ -73,9 +73,9 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
       }) as typeof stream.write;
     }
     h = await startHarness({
-      VRX_LOGIN_MAX_FAILURES: String(MAX_FAILURES),
-      VRX_LOGIN_RATE_PER_MIN: '1000',
-      VRX_PASSWORD_RATE_PER_MIN: '1000',
+      NGFW_LOGIN_MAX_FAILURES: String(MAX_FAILURES),
+      NGFW_LOGIN_RATE_PER_MIN: '1000',
+      NGFW_PASSWORD_RATE_PER_MIN: '1000',
     });
     h.app.useLogger({
       log: record('log'),
@@ -174,7 +174,7 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
     expect((await login('tlsuser', `wrong-${runSecret()}`)).status).toBe(401);
     expect(await fails('127.0.0.1')).toBe('1');
     const wrong = `wrong-${runSecret()}`;
-    // more attempts than VRX_LOGIN_MAX_FAILURES, right and wrong passwords alike
+    // more attempts than NGFW_LOGIN_MAX_FAILURES, right and wrong passwords alike
     for (let i = 0; i < MAX_FAILURES + 2; i++) {
       const r = await remote('/api/v1/auth/login', {
         username: 'tlsuser',
@@ -267,14 +267,14 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
       }
       console.log(`(2) wrong current ×${MAX_FAILURES}: ${JSON.stringify(seen)}`);
       expect(seen).toEqual([
-        { status: 403, type: 'https://vrx.dev/problems/forbidden', failed: 1, locked: false },
-        { status: 403, type: 'https://vrx.dev/problems/forbidden', failed: 2, locked: false },
+        { status: 403, type: 'https://ngfw.dev/problems/forbidden', failed: 1, locked: false },
+        { status: 403, type: 'https://ngfw.dev/problems/forbidden', failed: 2, locked: false },
         // registerFailure: the failure that reaches the maximum locks and resets the counter
-        { status: 403, type: 'https://vrx.dev/problems/locked', failed: 0, locked: true },
+        { status: 403, type: 'https://ngfw.dev/problems/locked', failed: 0, locked: true },
       ]);
       const right = await createKey(tok, { name: 'while-locked', current: PW['locker']! });
       expect(right.status).toBe(403);
-      expect(right.body).toMatchObject({ type: 'https://vrx.dev/problems/locked' });
+      expect(right.body).toMatchObject({ type: 'https://ngfw.dev/problems/locked' });
       expect(await keyRows('locker')).toBe(0);
       // review H1: the guess that caused the lock (argon2 ran) and a guess refused while locked (no argon2): ONE body
       expect(lockingRaw).toBe(right.raw);
@@ -320,7 +320,7 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
         const a = await createKey('', { name: 'k-current', current }, withKey(k0.body.key));
         expect(a.status).toBe(400);
         expect(a.body).toMatchObject({
-          type: 'https://vrx.dev/problems/current-not-allowed-with-api-key',
+          type: 'https://ngfw.dev/problems/current-not-allowed-with-api-key',
           errors: [{ pointer: '/current', message: 'not allowed with Authorization: ApiKey' }],
         });
         answers.push(a.raw);
@@ -408,14 +408,14 @@ describe('TD-4 auth hardening e2e (D-100)', () => {
   // ------------------------------------------------------------------------------------------------ (3)
   describe('(3) disabling an account through the config API ends its sessions at once', () => {
     it('commit disabled: true → access token, refresh, WebSocket and API key end now; one audit row; re-enable → login 200, the old token stays dead, the key works again', async () => {
-      await h.app.listen({ port: h.env.VRX_HTTP_PORT, host: '127.0.0.1' });
+      await h.app.listen({ port: h.env.NGFW_HTTP_PORT, host: '127.0.0.1' });
       const l = await login('dis');
       const tok = l.body.accessToken as string;
       const cookie = cookieOf(l.headers);
       const k = await createKey(tok, { name: 'dis-key', current: PW['dis']! });
       expect(k.status).toBe(201);
-      const ws = new WebSocket(`ws://127.0.0.1:${h.env.VRX_HTTP_PORT}/api/v1/stream`, [
-        'vrx.v1',
+      const ws = new WebSocket(`ws://127.0.0.1:${h.env.NGFW_HTTP_PORT}/api/v1/stream`, [
+        'ngfw.v1',
         `bearer.${tok}`,
       ]);
       await within(

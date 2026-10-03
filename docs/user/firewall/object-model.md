@@ -3,7 +3,7 @@
 **Screen:** *Firewall → Objects* (`/firewall/objects`, one tab per kind: `?tab=addresses|addressGroups|services|
 serviceGroups|schedules|zones|tags`). **REST:** the generic configuration routes under `/api/v1/config/objects/<kind>/<name>`,
 plus `GET /api/v1/state/objects/fqdn` (FQDN resolution) and `GET /api/v1/state/objects/usage?name=` (where-used).
-**CLI:** `vrx set|merge|delete objects …`, `vrx show configuration objects` (`docs/user/cli/reference.md`).
+**CLI:** `ngfw set|merge|delete objects …`, `ngfw show configuration objects` (`docs/user/cli/reference.md`).
 
 Objects are named, reusable building blocks that ACL rules (and later NAT policies) refer to **by name**, so a change to
 one object changes every rule that uses it at the next commit.
@@ -51,11 +51,11 @@ The screen is fully available in Persian (right-to-left):
 The agent on the box resolves every `fqdn` address itself (A and AAAA, through the box's resolver configuration) and
 uses the answers wherever the object is referenced:
 
-- It refreshes each name every **60 s** (the service setting `VRX_OBJECTS_FQDN_REFRESH_SEC`, 30 s – 1 h).
+- It refreshes each name every **60 s** (the service setting `NGFW_OBJECTS_FQDN_REFRESH_SEC`, 30 s – 1 h).
 - If a refresh fails (resolver unreachable, NXDOMAIN), the **last good answers stay in use for up to 24 h**; the
   *Resolution* column shows *Last good answer kept* with the error, and the agent retries after 30 s, then less often.
   After 24 h without an answer they are dropped (the object then matches nothing) and the agent logs a warning; the
-  service setting `VRX_OBJECTS_FQDN_MAX_STALE_SEC` changes the 24 h (60 s – 30 days).
+  service setting `NGFW_OBJECTS_FQDN_MAX_STALE_SEC` changes the 24 h (60 s – 30 days).
 - A name that has **never** resolved matches nothing (a rule using it matches no traffic) — a warning, not an error.
 - The answers survive an agent restart: the agent reloads them and only re-queries what is due, spread over 30 s.
 
@@ -113,17 +113,17 @@ curl -s -X POST -H "authorization: Bearer $T" "$B/config/rollback/1?comment=undo
 ### The same with the CLI
 
 ```
-vrx merge objects '{"addresses":{"web1":{"type":"host","address":"192.0.2.10"},"web2":{"type":"host","address":"192.0.2.11"}}}'
-vrx merge objects addressGroups '{"web-servers":{"members":["web1","web2"]}}'
-vrx set objects addressGroups web-servers members web3        # appends to the member list
-vrx merge objects schedules '{"office-hours":{"type":"recurring","days":["mon","tue","wed","thu","fri"],"start":"08:00","end":"18:00"}}'
-vrx merge objects zones '{"lan":{"interfaces":["host-w3l0"]}}'
-vrx delete objects addressGroups web-servers members web3
-vrx show configuration objects
-vrx commit comment "objects"
+ngfw merge objects '{"addresses":{"web1":{"type":"host","address":"192.0.2.10"},"web2":{"type":"host","address":"192.0.2.11"}}}'
+ngfw merge objects addressGroups '{"web-servers":{"members":["web1","web2"]}}'
+ngfw set objects addressGroups web-servers members web3        # appends to the member list
+ngfw merge objects schedules '{"office-hours":{"type":"recurring","days":["mon","tue","wed","thu","fri"],"start":"08:00","end":"18:00"}}'
+ngfw merge objects zones '{"lan":{"interfaces":["host-w3l0"]}}'
+ngfw delete objects addressGroups web-servers members web3
+ngfw show configuration objects
+ngfw commit comment "objects"
 ```
 
-The CLI has no dedicated command for FQDN state and where-used yet; use the REST calls above (`vrx --json` output of
+The CLI has no dedicated command for FQDN state and where-used yet; use the REST calls above (`ngfw --json` output of
 the configuration commands is the API's answer).
 
 ## What happens on the box

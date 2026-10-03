@@ -47,10 +47,10 @@
   },
   "upload": {
     "heading": "Install a licence",
-    "help": "Choose the .vrxlic file you received from support. It is verified before it is stored.",
+    "help": "Choose the .ngfwlic file you received from support. It is verified before it is stored.",
     "button": "Upload licence file",
     "done": "Licence installed.",
-    "notJson": "This file is not a VRX licence file.",
+    "notJson": "This file is not a NGFW licence file.",
     "link": "Install a licence"
   },
   "banner": {

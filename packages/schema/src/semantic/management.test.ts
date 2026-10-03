@@ -5,7 +5,7 @@ import { managementValidators } from './management.js';
 const run = (name: string, doc: RootConfigInput) =>
   managementValidators.find((v) => v.name === name)!.validate(RootConfig.parse(doc));
 
-const HASH = '$vrx-test$VRX_TEST_HASH_x';
+const HASH = '$ngfw-test$NGFW_TEST_HASH_x';
 const KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeKeyForFixturesOnly0000000000000000000000';
 const NO_ADMIN = {
   pointer: '/management/users',

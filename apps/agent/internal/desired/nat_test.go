@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -48,9 +48,9 @@ func (s *sink) keys() []string {
 	return out
 }
 
-func natDoc(t *testing.T, js string) *vrxv1.NatConfig {
+func natDoc(t *testing.T, js string) *ngfwv1.NatConfig {
 	t.Helper()
-	n := &vrxv1.NatConfig{}
+	n := &ngfwv1.NatConfig{}
 	if err := protojson.Unmarshal([]byte(js), n); err != nil {
 		t.Fatalf("nat doc: %v", err)
 	}
@@ -364,7 +364,7 @@ func TestNatRoundTripNonOwner(t *testing.T) {
 	s2 := newSink()
 	canon := natDoc(t, canonicalFullSlot)
 	canon.Enabled, canon.InsideVrf, canon.SessionLimit = proto.Bool(true), proto.String("cust"), proto.Uint32(20000)
-	canon.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(120)}
+	canon.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(120)}
 	desired.Nat(s2, canon, vrfID)
 	if len(s2.errs)+len(s2.warns) != 0 || strings.Join(s2.keys(), ",") != strings.Join(s.keys(), ",") {
 		t.Fatalf("canonical document projects differently:\n%v\n%v\n%v %v", s2.keys(), s.keys(), s2.errs, s2.warns)
@@ -395,7 +395,7 @@ func TestNatRoundTripGlobalsOwner(t *testing.T) {
 	got := desired.AssembleNat(retrieve(t, reg), tableName)
 	want := natDoc(t, canonicalFullSlot)
 	want.Enabled, want.InsideVrf, want.SessionLimit = proto.Bool(true), proto.String("cust"), proto.Uint32(20000)
-	want.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(120), TcpEstablished: proto.Uint32(7440), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
+	want.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(120), TcpEstablished: proto.Uint32(7440), TcpTransitory: proto.Uint32(240), Icmp: proto.Uint32(60)}
 	if !proto.Equal(got, want) {
 		t.Fatalf("Retrieve != canonical desired:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}

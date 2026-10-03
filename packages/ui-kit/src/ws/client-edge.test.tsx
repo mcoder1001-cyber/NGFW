@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { VrxWsClient, type TopicMessage, type VrxWsClientOptions, type WebSocketLike } from './client.js';
+import { NgfwWsClient, type TopicMessage, type NgfwWsClientOptions, type WebSocketLike } from './client.js';
 import { useTopic } from './useTopic.js';
 import { WsProvider } from './WsProvider.js';
 
@@ -35,9 +35,9 @@ class FakeSocket implements WebSocketLike {
   }
 }
 
-function make(opts: Partial<VrxWsClientOptions> = {}) {
+function make(opts: Partial<NgfwWsClientOptions> = {}) {
   const sockets: FakeSocket[] = [];
-  const client = new VrxWsClient({
+  const client = new NgfwWsClient({
     url: 'ws://unit/api/v1/stream',
     factory: () => {
       const s = new FakeSocket();
@@ -51,7 +51,7 @@ function make(opts: Partial<VrxWsClientOptions> = {}) {
   return { sockets, client };
 }
 
-describe('VrxWsClient edge cases (review L6)', () => {
+describe('NgfwWsClient edge cases (review L6)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 

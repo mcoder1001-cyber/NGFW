@@ -12,7 +12,7 @@ What I read:
 * VPP (read-only): `/root/vpp/src/vnet/ipsec/ipsec_spd.c` and `ipsec_spd_policy.c`.
 
 I ran everything on the host, slot 4 (`eval "$(tools/lab env 4)"`), one package at a time. The lab lock was held only
-during each run (`vpntest.Connect`). No packets were sent, VPP was not restarted, and `VRX_DF5_GLOBALS` was not set.
+during each run (`vpntest.Connect`). No packets were sent, VPP was not restarted, and `NGFW_DF5_GLOBALS` was not set.
 
 ## N1 — FIXED
 

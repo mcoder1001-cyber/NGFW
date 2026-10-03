@@ -28,7 +28,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/sr"
 	"ngfw/agent/internal/scheduler"
 )
@@ -95,7 +95,7 @@ func canonIP6(s string) (string, bool) {
 }
 
 // Srv6 projects routing.srv6 (when the routing domain is authoritative).
-func Srv6(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
+func Srv6(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
 	if !in["routing"] {
 		return
 	}
@@ -330,7 +330,7 @@ func Srv6(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string)
 // Retrieve), in canonical form: every leaf VPP reports is set (psp, vrf, type, encap, weight), the
 // optional ones only when the object carries them; steering sorted — L3 by VRF name then prefix, then
 // L2 by interface (the UI saves it in this order). The globals are write-only and never reported.
-func AssembleSrv6(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, env Srv6Env) {
+func AssembleSrv6(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, env Srv6Env) {
 	if !in["routing"] {
 		return
 	}
@@ -338,7 +338,7 @@ func AssembleSrv6(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 	if env.EncapSource != nil {
 		applied = env.EncapSource()
 	}
-	out := &vrxv1.Srv6Config{}
+	out := &ngfwv1.Srv6Config{}
 	for _, kv := range kvs {
 		switch v := kv.Value.(type) {
 		case *sr.LocalSid:
@@ -346,7 +346,7 @@ func AssembleSrv6(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 			if name == "" {
 				continue
 			}
-			l := &vrxv1.Srv6LocalSid{Behavior: proto.String(name), Psp: proto.Bool(v.GetEndPsp()), Vrf: proto.String(tableName(v.GetFibTable()))}
+			l := &ngfwv1.Srv6LocalSid{Behavior: proto.String(name), Psp: proto.Bool(v.GetEndPsp()), Vrf: proto.String(tableName(v.GetFibTable()))}
 			if v.GetInterface() != "" {
 				l.Interface = proto.String(v.GetInterface())
 			}
@@ -357,23 +357,23 @@ func AssembleSrv6(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 				l.LookupVrf = proto.String(tableName(v.GetLookupTable()))
 			}
 			if out.LocalSids == nil {
-				out.LocalSids = map[string]*vrxv1.Srv6LocalSid{}
+				out.LocalSids = map[string]*ngfwv1.Srv6LocalSid{}
 			}
 			out.LocalSids[v.GetSid()] = l
 		case *sr.Policy:
-			p := &vrxv1.Srv6Policy{Type: proto.String(Srv6PolicyTypeName(v.GetType())), Encap: proto.Bool(v.GetEncap()), Vrf: proto.String(tableName(v.GetFibTable()))}
+			p := &ngfwv1.Srv6Policy{Type: proto.String(Srv6PolicyTypeName(v.GetType())), Encap: proto.Bool(v.GetEncap()), Vrf: proto.String(tableName(v.GetFibTable()))}
 			if v.GetEncap() && v.GetEncapSrc() != "" && v.GetEncapSrc() != applied {
 				p.EncapSource = proto.String(v.GetEncapSrc())
 			}
 			for _, l := range v.GetSidLists() {
-				p.SidLists = append(p.SidLists, &vrxv1.Srv6SidList{Sids: append([]string(nil), l.GetSids()...), Weight: proto.Uint32(l.GetWeight())})
+				p.SidLists = append(p.SidLists, &ngfwv1.Srv6SidList{Sids: append([]string(nil), l.GetSids()...), Weight: proto.Uint32(l.GetWeight())})
 			}
 			if out.Policies == nil {
-				out.Policies = map[string]*vrxv1.Srv6Policy{}
+				out.Policies = map[string]*ngfwv1.Srv6Policy{}
 			}
 			out.Policies[v.GetBsid()] = p
 		case *sr.Steering:
-			st := &vrxv1.Srv6Steering{Bsid: proto.String(v.GetBsid())}
+			st := &ngfwv1.Srv6Steering{Bsid: proto.String(v.GetBsid())}
 			if v.GetTrafficType() == sr.SteerType_L2 {
 				st.Type, st.Interface = proto.String("l2"), proto.String(v.GetInterface())
 			} else {
@@ -387,13 +387,13 @@ func AssembleSrv6(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 		return
 	}
 	if ds.Routing == nil {
-		ds.Routing = &vrxv1.RoutingConfig{}
+		ds.Routing = &ngfwv1.RoutingConfig{}
 	}
 	ds.Routing.Srv6 = out
 }
 
 // steeringLess orders L3 entries (by VRF, then prefix) before L2 entries (by interface).
-func steeringLess(a, b *vrxv1.Srv6Steering) bool {
+func steeringLess(a, b *ngfwv1.Srv6Steering) bool {
 	if a.GetType() != b.GetType() {
 		return a.GetType() == "l3"
 	}

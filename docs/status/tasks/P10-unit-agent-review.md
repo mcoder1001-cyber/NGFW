@@ -24,7 +24,7 @@ Both are documented in `docs/decisions/PENDING-P10-agent-file-ownership.md`. Thi
 
 ## Verification personally executed
 
-`python3 -m unittest discover -s deploy/debian/vrx/tests -p 'test_packaging.py'`
+`python3 -m unittest discover -s deploy/debian/ngfw/tests -p 'test_packaging.py'`
 
 ```
 ........

@@ -1,7 +1,7 @@
 # F-vlan-qinq — 802.1Q sub-interfaces and QinQ (802.1ad)
 
 Branch `task/F-vlan-qinq` (worktree `/root/ngfw-wt/F-vlan-qinq`), slot 5 (`w5`, API 3500, web 5500, metrics 9151, DB
-`vrx_w5`, rig 10.5.{1,2}.0/24; fix round 1 on slot 12 `w12`, D-128 — see "Fix round 1" at the end), data path
+`ngfw_w5`, rig 10.5.{1,2}.0/24; fix round 1 on slot 12 `w12`, D-128 — see "Fix round 1" at the end), data path
 **af_packet** (D-010). Base: `task/W-seed`@8b7558e (speculative, D-114/D-120);
 `task/W-seed`@df67a8e (TD-5 rings/quiesce, D-113 rig, P08 fix round 2) merged at 18:12 on the manager's A1 instruction,
 before any host run. Worked 17:27–19:15; fix round 1 19:38–19:50 and (after a usage-limit stop at 20:57) 22:41–23:05.
@@ -42,7 +42,7 @@ before any host run. Worked 17:27–19:15; fix round 1 19:38–19:50 and (after 
 - Packet level (optional): dot1q and dot1q-in-dot1q answered pings through VPP (run 1); dot1ad cannot work on the
   af_packet path (VPP bug, V-new). **VPP crashed once during my second run's packet phase (Q0): the trigger was the
   test's own `vppctl show trace`** (NULL formatter of a recycled interface tx node, review H1, D-128), not the frames.
-  Fix round 1 removed every packet-trace call; the opt-in phase (`VRX_QINQ_PACKETS=1`, D-126/D-128) proves the path with
+  Fix round 1 removed every packet-trace call; the opt-in phase (`NGFW_QINQ_PACKETS=1`, D-126/D-128) proves the path with
   ping + per-sub-interface counter deltas and sends no 802.1ad frame (lab limit, V-new).
 
 ### Host run 1 — `test/topology/vlan-qinq/run.sh -run TestVlanQinqTopology` (18:20, NRestarts 0 → 0, VPP pid 8760)
@@ -56,11 +56,11 @@ NRestarts before: 0 pid 8760 18:20:27.519141885
     qinq_test.go:273: rig up w5 (slot 5, path af_packet)          (…)
     qinq_test.go:273: rig wan side handed to the agent: sw_interface_add_del_address sw_if_index=7 (host-w5w0) del_all=true → ok
     qinq_test.go:273: rig wan side handed to the agent: af_packet_delete host_if_name=w5w0 (tag "") → ok
-    qinq_test.go:273: started vrx-agent pid 1872471 (log /run/vrx-test/w5/qinq/agent.log)
-    qinq_test.go:273: started vrx-api pid 1872554 (log /run/vrx-test/w5/qinq/api.log)
+    qinq_test.go:273: started ngfw-agent pid 1872471 (log /run/ngfw-test/w5/qinq/agent.log)
+    qinq_test.go:273: started ngfw-api pid 1872554 (log /run/ngfw-test/w5/qinq/api.log)
 === RUN   TestVlanQinqTopology/commit
     qinq_test.go:291: commit parent → applied revision 1
-    qinq_test.go:300: commit with a duplicate tag stack → 400 content-type problem+json; body {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w5w0/subinterfaces/201/vlanId","message":"VLAN dot1ad 200.100 is already used by sub-interface host-w5w0.200"}]}
+    qinq_test.go:300: commit with a duplicate tag stack → 400 content-type problem+json; body {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w5w0/subinterfaces/201/vlanId","message":"VLAN dot1ad 200.100 is already used by sub-interface host-w5w0.200"}]}
     qinq_test.go:308: candidate diff: {"baseRevision":1,"changes":[{"op":"add","pointer":"/interfaces/host-w5w0/subinterfaces/100","to":{"vrf":"default","ipv4":["10.5.100.1/24"],"ipv6":[],"dot1ad":false,"vlanId":100,"enabled":true,"description":"dot1q 100"}},{"op":"add","pointer":"/interfaces/host-w5w0/subinterfaces/200","to":{"vrf":"default","ipv4":["10.5.200.1/24"],"ipv6":[],"dot1ad":true,"vlanId":200,"enabled":true,"description":"QinQ dot1ad 200 + dot1q 100","innerVlanId":100}},{"op":"add","pointer":"/interfaces/host-w5w0/subinterfaces/300","to":{…,"dot1ad":false,"vlanId":300,…,"innerVlanId":30}}]}
     qinq_test.go:310: commit sub-interfaces → applied revision 2 txn 589e0014-27e0-41dd-8fb1-cd025caeeb8e
     qinq_test.go:311: results (12, in order) summary={"created":12,"deleted":0,"failed":0,"reverted":0,"unchanged":4,"updated":0}:
@@ -99,7 +99,7 @@ NRestarts before: 0 pid 8760 18:20:27.519141885
     qinq_test.go:362: V19 guard: acl_interface_list_dump host-w5w0.200: 0 ACLs          (… the same for host-w5w0, .100, .300)
     qinq_test.go:362: V19 guard: ipsec_spd_interface_dump: no SPD on the rig interfaces
     qinq_test.go:362: V19 guard: reset write-only ip4/ip6 classify table and l2 in/out tables of host-w5w0.200 to ~0   (… all four)
-    qinq_test.go:364: vrx-vpp-preflight: exit <nil>
+    qinq_test.go:364: ngfw-vpp-preflight: exit <nil>
         V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
     qinq_test.go:367: netns ns-w5-wan: w5w1.100 (802.1Q 100) 10.5.100.2/24
     qinq_test.go:367: netns ns-w5-wan: w5w1.200.100 (802.1ad 200 + 802.1Q 100) 10.5.200.2/24
@@ -148,7 +148,7 @@ NRestarts before: 0 pid 8760 18:20:27.519141885
           host-w5w0.300 flags 0x23180005
           IP4: 02:fe:52:b9:ec:0a -> 02:4f:57:07:18:8f 802.1q vlan 300 802.1q vlan 30
 === RUN   TestVlanQinqTopology/restart-safety
-    stack_test.go:199: stopped vrx-agent pid 1872471
+    stack_test.go:199: stopped ngfw-agent pid 1872471
     qinq_test.go:399: simulated loss: sw_interface_add_del_address sw_if_index=3 (host-w5w0.100) del_all=true → ok
     qinq_test.go:399: simulated loss: sw_interface_add_del_address sw_if_index=5 (host-w5w0.200) del_all=true → ok
     qinq_test.go:399: simulated loss: sw_interface_add_del_address sw_if_index=1 (host-w5w0.300) del_all=true → ok
@@ -156,10 +156,10 @@ NRestarts before: 0 pid 8760 18:20:27.519141885
     qinq_test.go:399: simulated loss: delete_subif sw_if_index=5 (host-w5w0.200, tag "w5:host-w5w0.200") → ok
     qinq_test.go:399: simulated loss: delete_subif sw_if_index=1 (host-w5w0.300, tag "w5:host-w5w0.300") → ok
     qinq_test.go:407: sw_interface_dump after the loss: none of [host-w5w0.100 host-w5w0.200 host-w5w0.300] exists; host-w5w0 stays (sw_if_index 7)
-    qinq_test.go:409: GET /state/interfaces while the agent is stopped → 503 {"type":"https://vrx.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"grpcCode":"UNAVAILABLE",…
-    qinq_test.go:413: started vrx-agent pid 1876723 (log /run/vrx-test/w5/qinq/agent.log)
+    qinq_test.go:409: GET /state/interfaces while the agent is stopped → 503 {"type":"https://ngfw.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"grpcCode":"UNAVAILABLE",…
+    qinq_test.go:413: started ngfw-agent pid 1876723 (log /run/ngfw-test/w5/qinq/agent.log)
     qinq_test.go:428: agent started at +0s; all three sub-interfaces back in VPP with their addresses at +1.46s (no config API call)
-    qinq_test.go:435: agent log: {"time":"2026-09-24T18:21:47.290456151+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":1876723,"owner":"w5","socket":"/run/vrx-test/w5/agent.sock","vpp_api":"/run/vpp/api.sock"}
+    qinq_test.go:435: agent log: {"time":"2026-09-24T18:21:47.290456151+03:30","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":1876723,"owner":"w5","socket":"/run/ngfw-test/w5/agent.sock","vpp_api":"/run/vpp/api.sock"}
     qinq_test.go:440: agent log: {"time":"2026-09-24T18:21:47.623855557+03:30","level":"INFO","msg":"VPP boot identity","owner":"w5","component":"subsystems","identity":"a93c0e7a-40b7-4755-9b0b-07eefa24137d/8760/1176214","complete":true,"expired_claims":0}
     qinq_test.go:440: agent log: {"time":"2026-09-24T18:21:48.622361238+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing"],"status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:4","reapplied":0,"duration":997968186,"err":""}
     qinq_test.go:438: agent log: {"time":"2026-09-24T18:21:48.622480353+03:30","level":"INFO","msg":"resync finished","owner":"w5","status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:4"}
@@ -197,12 +197,12 @@ NRestarts before: 0 pid 8760 18:20:27.519141885
     qinq_test.go:526: commit (parent deleted) → applied revision 4
     qinq_test.go:537: sw_interface_dump, everything with prefix w5 after the cleanup commit (rig down removes the rig's own lan side): [host-w5l0 (tag "")]
 === NAME  TestVlanQinqTopology
-    stack_test.go:199: stopped vrx-api pid 1872554
-    stack_test.go:199: stopped vrx-agent pid 1876723
+    stack_test.go:199: stopped ngfw-api pid 1872554
+    stack_test.go:199: stopped ngfw-agent pid 1876723
     qinq_test.go:188: pg-test drop w5: <nil>
-        drop   database vrx_w5
-        drop   role vrx_w5
-        ok     nothing named vrx_w5 / vrx_w5 remains
+        drop   database ngfw_w5
+        drop   role ngfw_w5
+        ok     nothing named ngfw_w5 / ngfw_w5 remains
     qinq_test.go:255: rig down: <nil>
         rig down w5
           delete vpp host-w5l0
@@ -222,12 +222,12 @@ NRestarts after: 0 pid 8760 18:21:55.79288362
 ```
 The packet phase of run 1 used the first version of the test (dot1ad devices included, IPv6 still on the VLAN devices,
 hence `ip6` drops in the counters, and **`vppctl show trace`**, which the committed test no longer calls: that command
-crashed VPP in run 2, Q0/D-128). The committed phase is opt-in (`VRX_QINQ_PACKETS=1`), sends no 802.1ad frame and
+crashed VPP in run 2, Q0/D-128). The committed phase is opt-in (`NGFW_QINQ_PACKETS=1`), sends no 802.1ad frame and
 asserts per-sub-interface rx/tx counter deltas instead of a trace; the committed test's host run is in "Fix round 1".
 
 ### CLI equivalent — the same test, run 2 (18:40, commit step passed before the crash of Q0)
 ```
-    qinq_test.go:383: $ vrx configure show interfaces host-w5w0 subinterfaces set
+    qinq_test.go:383: $ ngfw configure show interfaces host-w5w0 subinterfaces set
         set interfaces host-w5w0 subinterfaces 100 description "dot1q 100"
         set interfaces host-w5w0 subinterfaces 100 dot1ad false
         …
@@ -240,7 +240,7 @@ asserts per-sub-interface rx/tx counter deltas instead of a trace; the committed
         set interfaces host-w5w0 subinterfaces 200 vlanId 200
         set interfaces host-w5w0 subinterfaces 200 vrf default
         …
-    qinq_test.go:383: $ vrx show interfaces host-w5w0.200
+    qinq_test.go:383: $ ngfw show interfaces host-w5w0.200
         Interface host-w5w0.200 (retrieved 2026-09-24T15:11:05.412Z)
           description "QinQ dot1ad 200 + dot1q 100";
           dot1ad true;
@@ -313,8 +313,8 @@ $ eval "$(tools/lab env 5)"; cd apps/api && npx vitest run -c vitest.e2e.config.
    ✓ … > a duplicate (dot1ad, vlanId, innerVlanId) on one parent is a 400 problem+json with the pointer to the second entry  389ms
    ✓ … > a rollback to the revision without sub-interfaces removes both rows; the parent stays  357ms
       Tests  4 passed (4)
-drop   database vrx_w5
-ok     nothing named vrx_w5 / vrx_w5 remains
+drop   database ngfw_w5
+ok     nothing named ngfw_w5 / ngfw_w5 remains
 
 $ cd apps/web && npx vitest run src/domains/interfaces src/locales
  ✓ src/locales/locales.test.ts (12 tests)
@@ -332,7 +332,7 @@ host load ~35 two timeouts in unchanged files (`packages/schema/src/semantic/acl
 uncommitted), untrimmed except the per-package `ok` lists:
 ```
 $ TMPDIR=/tmp/g-w5 tools/ci.sh --base main
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /root/ngfw-wt/F-vlan-qinq
 branch    task/F-vlan-qinq @ c06785c   (base: main)
 tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
@@ -342,11 +342,11 @@ WARN uncommitted changes in the worktree — the gate checks the working tree, b
 
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main:
-  apps/agent/gen/vrx/v1/dataplane.pb.go
-  apps/agent/gen/vrx/v1/dataplane_grpc.pb.go
+  apps/agent/gen/ngfw/v1/dataplane.pb.go
+  apps/agent/gen/ngfw/v1/dataplane_grpc.pb.go
   packages/api-client/src/generated/schema.d.ts
-  packages/proto/gen/ts/vrx/v1/dataplane.ts
-  packages/proto/vrx/v1/dataplane.proto
+  packages/proto/gen/ts/ngfw/v1/dataplane.ts
+  packages/proto/ngfw/v1/dataplane.proto
   packages/schema/src/domains/interfaces.ts
   packages/schema/src/domains/routing.ts
   packages/schema/src/domains/services.ts
@@ -377,7 +377,7 @@ ok: gitleaks — scanned ~738179 bytes (738.18 KB) in 2.9s no leaks found
 Tasks:    30 successful, 30 total Cached:    22 cached, 30 total Time:    5m16.74s
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	1.901s; ok  	ngfw/agent/cmd/vrx-vppcheck	1.850s; ok  	ngfw/agent/internal/agent	10.735s; …
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.901s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.850s; ok  	ngfw/agent/internal/agent	10.735s; …
 
 == apps/cli: make lint test build ==
 ok  	ngfw/cli/internal/api	1.468s; ok  	ngfw/cli/internal/cli	2.084s; … ok  	ngfw/cli/test/e2e	1.124s;
@@ -427,24 +427,24 @@ TD-20's (D-128). Timeline in `F-vlan-qinq-questions.md` Q0.
 ## Cleanup
 Checked 19:12 (after the last host run at 18:41 and the CI gate):
 ```
-processes of slot 5 (vrx-agent / vrx-api / vite on 3500/5500, VRX_OWNER=w5): 0      (every one stopped by PID in the test cleanups)
+processes of slot 5 (ngfw-agent / ngfw-api / vite on 3500/5500, NGFW_OWNER=w5): 0      (every one stopped by PID in the test cleanups)
 lab lock holders: F-object-model's topology run only (pids of /root/ngfw-wt/F-object-model/…) — none of mine
-deploy/dev/pg-test.sh list | grep w5: 0                                              (vrx_w5 dropped by every run: "ok nothing named vrx_w5 / vrx_w5 remains")
+deploy/dev/pg-test.sh list | grep w5: 0                                              (ngfw_w5 dropped by every run: "ok nothing named ngfw_w5 / ngfw_w5 remains")
 ip netns list | grep ns-w5: 0 · ip -br link | grep ^w5: 0                             (rig down in every run)
 vppctl show interface | grep w5: 0 — VPP (restarted at 18:41:26, pid 2006833, NRestarts=1) shows only local0 for me
 ```
-`apps/{agent,cli}/bin`, `apps/{api,web}/dist` and `packages/*/dist` removed. `/run/vrx-test/w5` stays `drwxr-xr-x`; I left
-`/run/vrx-test/w5/qinq/{agent,api}.log` of the crashed run for Q0 (0600, no secrets; the CLI password file removed, and the
+`apps/{agent,cli}/bin`, `apps/{api,web}/dist` and `packages/*/dist` removed. `/run/ngfw-test/w5` stays `drwxr-xr-x`; I left
+`/run/ngfw-test/w5/qinq/{agent,api}.log` of the crashed run for Q0 (0600, no secrets; the CLI password file removed, and the
 test now deletes it itself). Scratch only (my scratchpad, never in the worktree): the Chrome-for-Testing copy, run logs.
 
-## Fix round 1 (review 674b03e: H1, M1, M2, L1, L2) — slot 12 (`w12`, API 4200, metrics 9221, DB `vrx_w12`, rig 10.12/16; D-128)
+## Fix round 1 (review 674b03e: H1, M1, M2, L1, L2) — slot 12 (`w12`, API 4200, metrics 9221, DB `ngfw_w12`, rig 10.12/16; D-128)
 
 | item | what I did | commit |
 |---|---|---|
-| H1 | `test/topology/vlan-qinq`: no `trace add` / `show trace` anywhere (grep below). The opt-in packet phase (`VRX_QINQ_PACKETS=1`) now proves the dot1q and dot1q-in-dot1q path with the answered ping **plus the rx/tx packet counter deltas of exactly the pinged sub-interface** (`vppctl show interface <subs>` before/after, parsed by `parseIfCounters`, unit-tested by `TestParseIfCounters`; counters are never cleared on the shared VPP). Q0, the test header, the Acceptance line, the run-1 note, the Incident section and D-VQ-4 now name the real trigger (`show trace` → `format_vlib_trace` NULL formatter of a recycled interface tx node), not 802.1ad frames / V24 | abe6d50, this docs commit |
+| H1 | `test/topology/vlan-qinq`: no `trace add` / `show trace` anywhere (grep below). The opt-in packet phase (`NGFW_QINQ_PACKETS=1`) now proves the dot1q and dot1q-in-dot1q path with the answered ping **plus the rx/tx packet counter deltas of exactly the pinged sub-interface** (`vppctl show interface <subs>` before/after, parsed by `parseIfCounters`, unit-tested by `TestParseIfCounters`; counters are never cleared on the shared VPP). Q0, the test header, the Acceptance line, the run-1 note, the Incident section and D-VQ-4 now name the real trigger (`show trace` → `format_vlib_trace` NULL formatter of a recycled interface tx node), not 802.1ad frames / V24 | abe6d50, this docs commit |
 | H1 V-item | **not added by me**: TD-20's envelope owns the `docs/vpp-code-track.md` V-new for the `format_vlib_trace` NULL guard (plus the `tools/ci.sh` ban and `shared-host-rules.md` §11); a second row from this branch would duplicate it at merge (FR1-a below). TD-20's ban patterns (`task/TD-20:tools/ci.sh` `do_trace_ban`), run over the 20 non-doc files this branch changed since W-seed: 0 hits | — |
 | M1 | nothing on the branch (fix envelope). Main has D-128b since 7e2c272 (22:41): the guard drops `*.test.ts` / `_test.go` from the changed contract files. Simulated with that filter on the review's case (W-seed as the base): raw `git diff --name-only df67a8e HEAD -- <CONTRACT_PATHS>` = only `packages/schema/src/semantic/interfaces-qinq.test.ts`; after the filter **empty** → "no contract files changed". Against main today the branch's own guard passes through W-seed/P08's `contract(…)` commits in `mb..HEAD` (CI below). No fake contract commit | — |
-| M2 | the committed test ran once on the host, packet-free (`VRX_QINQ_PACKETS` unset), at abe6d50: PASS, NRestarts 1 → 1 (below). Test code is unchanged since then (`git diff --stat abe6d50 HEAD`: `tagStack.ts` + my two status files only), so I did not run it again. CI at the final HEAD (below) | — |
+| M2 | the committed test ran once on the host, packet-free (`NGFW_QINQ_PACKETS` unset), at abe6d50: PASS, NRestarts 1 → 1 (below). Test code is unchanged since then (`git diff --stat abe6d50 HEAD`: `tagStack.ts` + my two status files only), so I did not run it again. CI at the final HEAD (below) | — |
 | L1 | the unreachable `proto = "802.1ad"` branch removed; `vlanDevices` builds only 802.1Q stacks and says why (V-new, a lab limit) | abe6d50 |
 | L2 | `TagStackFields` = `Loose<Pick<SubinterfaceConfig, 'vlanId' \| 'innerVlanId' \| 'dot1ad'>>`, `TagStackRow` = `Pick<LiveState, 'vlanId' \| 'innerVlanId'>` + `Loose<Pick<InterfaceItem, 'config' \| 'running'>>` — a contract rename breaks the build | 5cd5010 |
 | L3 | nothing on this branch (the fake's `innerVlanId`, Q2, belongs to the P5 owner) | — |
@@ -469,7 +469,7 @@ the rig's key/value print lines, the `/state` rows' repeated fields and `running
 body (`…`); nothing else edited. The 3 `ip6` drops on `host-w12l0` are the rig's own lan-side link-local noise between
 `rig up` and the test setting the peers down — no packet was sent by the test.
 ```
-NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS=<unset>
+NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 NGFW_QINQ_PACKETS=<unset>
 === RUN   TestVlanQinqTopology
     qinq_test.go:309: systemctl show vpp -p NRestarts (before) = 1
     qinq_test.go:309: rig up w12 (slot 12, path af_packet)
@@ -484,15 +484,15 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
         rig: up
     qinq_test.go:309: rig wan side handed to the agent: sw_interface_add_del_address sw_if_index=1 (host-w12w0) del_all=true → ok
     qinq_test.go:309: rig wan side handed to the agent: af_packet_delete host_if_name=w12w0 (tag "") → ok
-    qinq_test.go:309: create role vrx_w12
-        create database vrx_w12 (owner vrx_w12)
-        check  vrx_w12 as vrx_w12 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-        ok     env /run/vrx-test/w12/pg.env (0600) · DSN postgres://vrx_w12:<redacted>@127.0.0.1:5432/vrx_w12
-    qinq_test.go:309: started vrx-agent pid 2902187 (log /run/vrx-test/w12/qinq/agent.log)
-    qinq_test.go:309: started vrx-api pid 2902216 (log /run/vrx-test/w12/qinq/api.log)
+    qinq_test.go:309: create role ngfw_w12
+        create database ngfw_w12 (owner ngfw_w12)
+        check  ngfw_w12 as ngfw_w12 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w12/pg.env (0600) · DSN postgres://ngfw_w12:<redacted>@127.0.0.1:5432/ngfw_w12
+    qinq_test.go:309: started ngfw-agent pid 2902187 (log /run/ngfw-test/w12/qinq/agent.log)
+    qinq_test.go:309: started ngfw-api pid 2902216 (log /run/ngfw-test/w12/qinq/api.log)
 === RUN   TestVlanQinqTopology/commit
     qinq_test.go:327: commit parent → applied revision 1
-    qinq_test.go:336: commit with a duplicate tag stack → 400 content-type problem+json; body {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w12w0/subinterfaces/201/vlanId","message":"VLAN dot1ad 200.100 is already used by sub-interface host-w12w0.200"}]}
+    qinq_test.go:336: commit with a duplicate tag stack → 400 content-type problem+json; body {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w12w0/subinterfaces/201/vlanId","message":"VLAN dot1ad 200.100 is already used by sub-interface host-w12w0.200"}]}
     qinq_test.go:344: candidate diff: {"baseRevision":1,"changes":[{"op":"add","pointer":"/interfaces/host-w12w0/subinterfaces/100","to":{"vrf":"default","ipv4":["10.12.100.1/24"],"ipv6":[],"dot1ad":false,"vlanId":100,"enabled":true,"description":"dot1q 100"}},{"op":"add",… (the three adds, as in run 1)
     qinq_test.go:346: commit sub-interfaces → applied revision 2 txn 16ff3b11-c8dd-4952-b768-a994a22c251b
     qinq_test.go:347: results (12, in order) summary={"created":12,"deleted":0,"failed":0,"reverted":0,"unchanged":4,"updated":0}:
@@ -528,7 +528,7 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
           L3 10.12.200.1/24
         host-w12w0.300 (up):
           L3 10.12.30.1/24
-    qinq_test.go:394: $ vrx configure show interfaces host-w12w0 subinterfaces set
+    qinq_test.go:394: $ ngfw configure show interfaces host-w12w0 subinterfaces set
         set interfaces host-w12w0 subinterfaces 200 description "QinQ dot1ad 200 + dot1q 100"
         set interfaces host-w12w0 subinterfaces 200 dot1ad true
         set interfaces host-w12w0 subinterfaces 200 enabled true
@@ -538,7 +538,7 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
         set interfaces host-w12w0 subinterfaces 200 vlanId 200
         set interfaces host-w12w0 subinterfaces 200 vrf default
         …  (the same seven lines for 100 and 300)
-    qinq_test.go:394: $ vrx show interfaces host-w12w0.200
+    qinq_test.go:394: $ ngfw show interfaces host-w12w0.200
         Interface host-w12w0.200 (retrieved 2026-09-24T16:14:36.840Z)
           description "QinQ dot1ad 200 + dot1q 100";
           dot1ad true;
@@ -559,9 +559,9 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
           txBytes 0;
           txPackets 0;
 === RUN   TestVlanQinqTopology/packets
-    qinq_test.go:404: packet phase is opt-in: VRX_QINQ_PACKETS=1 (D-126/D-128)
+    qinq_test.go:404: packet phase is opt-in: NGFW_QINQ_PACKETS=1 (D-126/D-128)
 === RUN   TestVlanQinqTopology/restart-safety
-    stack_test.go:199: stopped vrx-agent pid 2902187
+    stack_test.go:199: stopped ngfw-agent pid 2902187
     qinq_test.go:450: simulated loss: sw_interface_add_del_address sw_if_index=9 (host-w12w0.100) del_all=true → ok
     qinq_test.go:450: simulated loss: sw_interface_add_del_address sw_if_index=10 (host-w12w0.200) del_all=true → ok
     qinq_test.go:450: simulated loss: sw_interface_add_del_address sw_if_index=4 (host-w12w0.300) del_all=true → ok
@@ -569,10 +569,10 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
     qinq_test.go:450: simulated loss: delete_subif sw_if_index=10 (host-w12w0.200, tag "w12:host-w12w0.200") → ok
     qinq_test.go:450: simulated loss: delete_subif sw_if_index=4 (host-w12w0.300, tag "w12:host-w12w0.300") → ok
     qinq_test.go:458: sw_interface_dump after the loss: none of [host-w12w0.100 host-w12w0.200 host-w12w0.300] exists; host-w12w0 stays (sw_if_index 1)
-    qinq_test.go:460: GET /state/interfaces while the agent is stopped → 503 {"type":"https://vrx.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"grpcCode":"UNAVAILABLE","detail":"agent: No connection establishe…
-    qinq_test.go:464: started vrx-agent pid 2906345 (log /run/vrx-test/w12/qinq/agent.log)
+    qinq_test.go:460: GET /state/interfaces while the agent is stopped → 503 {"type":"https://ngfw.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"grpcCode":"UNAVAILABLE","detail":"agent: No connection establishe…
+    qinq_test.go:464: started ngfw-agent pid 2906345 (log /run/ngfw-test/w12/qinq/agent.log)
     qinq_test.go:479: agent started at +0s; all three sub-interfaces back in VPP with their addresses at +0.41s (no config API call)
-    qinq_test.go:486: agent log: {"time":"2026-09-24T19:44:39.088056045+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":2906345,"owner":"w12","socket":"/run/vrx-test/w12/agent.sock","vpp_api":"/run/vpp/api.sock"}
+    qinq_test.go:486: agent log: {"time":"2026-09-24T19:44:39.088056045+03:30","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":2906345,"owner":"w12","socket":"/run/ngfw-test/w12/agent.sock","vpp_api":"/run/vpp/api.sock"}
     qinq_test.go:491: agent log: {"time":"2026-09-24T19:44:39.113332783+03:30","level":"INFO","msg":"VPP boot identity","owner":"w12","component":"subsystems","identity":"a93c0e7a-40b7-4755-9b0b-07eefa24137d/2006833/3203894",…
     qinq_test.go:491: agent log: {"time":"2026-09-24T19:44:39.342589091+03:30","level":"INFO","msg":"reconcile done","owner":"w12","mode":"resync","status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:4","reapplied":0,"duration":229088337,"err":""}
     qinq_test.go:489: agent log: {"time":"2026-09-24T19:44:39.342645494+03:30","level":"INFO","msg":"resync finished","owner":"w12","status":"APPLY_STATUS_APPLIED","summary":"created:12  unchanged:4"}
@@ -613,12 +613,12 @@ NRestarts before: 1 pid 2006833 19:43:48.505195089 HEAD abe6d50 VRX_QINQ_PACKETS
     qinq_test.go:577: commit (parent deleted) → applied revision 4
     qinq_test.go:588: sw_interface_dump, everything with prefix w12 after the cleanup commit (rig down removes the rig's own lan side): [host-w12l0 (tag "")]
 === NAME  TestVlanQinqTopology
-    stack_test.go:199: stopped vrx-api pid 2902216
-    stack_test.go:199: stopped vrx-agent pid 2906345
+    stack_test.go:199: stopped ngfw-api pid 2902216
+    stack_test.go:199: stopped ngfw-agent pid 2906345
     qinq_test.go:196: pg-test drop w12: <nil>
-        drop   database vrx_w12
-        drop   role vrx_w12
-        ok     nothing named vrx_w12 / vrx_w12 remains
+        drop   database ngfw_w12
+        drop   role ngfw_w12
+        ok     nothing named ngfw_w12 / ngfw_w12 remains
     qinq_test.go:291: rig down: <nil>
         rig down w12
           delete vpp host-w12l0
@@ -645,7 +645,7 @@ vppctl show interface | grep -c w12: 0
 ip netns | grep -c w12: 0
 ip -br link | grep -c ^w12: 0
 pg-test list w12: 0
-procs VRX_OWNER=w12 / port 4200: 0
+procs NGFW_OWNER=w12 / port 4200: 0
 ```
 
 ### CI gate at the final code HEAD — `TMPDIR=/tmp/g-w12 tools/ci.sh --base main` (22:45, HEAD fd604b2)
@@ -655,7 +655,7 @@ in the contract guard with "CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT" al
 (`git show main:tools/ci.sh`, main @ 7e2c272, with D-128b) on this worktree. It also runs main's deploy/vpp step. Untrimmed
 except the per-package `ok` lists:
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /root/ngfw-wt/F-vlan-qinq
 branch    task/F-vlan-qinq @ fd604b2   (base: main)
 tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
@@ -663,11 +663,11 @@ logs      /root/ngfw-wt/logs/ci/F-vlan-qinq-20260924-224514-3284573
 
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main:
-  apps/agent/gen/vrx/v1/dataplane.pb.go
-  apps/agent/gen/vrx/v1/dataplane_grpc.pb.go
+  apps/agent/gen/ngfw/v1/dataplane.pb.go
+  apps/agent/gen/ngfw/v1/dataplane_grpc.pb.go
   packages/api-client/src/generated/schema.d.ts
-  packages/proto/gen/ts/vrx/v1/dataplane.ts
-  packages/proto/vrx/v1/dataplane.proto
+  packages/proto/gen/ts/ngfw/v1/dataplane.ts
+  packages/proto/ngfw/v1/dataplane.proto
   packages/schema/src/domains/interfaces.ts
   packages/schema/src/domains/routing.ts
   packages/schema/src/domains/services.ts
@@ -705,7 +705,7 @@ ok: gitleaks — scanned ~827513 bytes (827.51 KB) in 1.87s no leaks found
 Tasks:    30 successful, 30 total Cached:    20 cached, 30 total Time:    4m42.982s
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	1.582s; ok  	ngfw/agent/cmd/vrx-vppcheck	1.876s; ok  	ngfw/agent/internal/agent	10.550s; …
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.582s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.876s; ok  	ngfw/agent/internal/agent	10.550s; …
 
 == apps/cli: make lint test build ==
 ok  	ngfw/cli/internal/api	2.414s; ok  	ngfw/cli/internal/cli	2.909s; …
@@ -714,7 +714,7 @@ ok  	ngfw/cli/internal/api	2.414s; ok  	ngfw/cli/internal/cli	2.909s; …
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.019s;
 test/topology/interfaces: gofmt ok · go vet ok · ok  	ngfw/test/topology/interfaces	0.025s;
 test/topology/vlan-qinq: gofmt ok · go vet ok · ok  	ngfw/test/topology/vlan-qinq	0.018s;
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 
 == deploy/vpp: shellcheck + apply-startup fake-host harness ==
 shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
@@ -737,5 +737,5 @@ worktree: my `rm -rf` of them was not permitted in this session.
 |---|---|---|---|
 | FR1-a | No `format_vlib_trace` V-item from this branch | (a) leave it to TD-20 (b) append a second V-new as the review asked | the fix envelope (wins on scope) does not list it and TD-20's envelope owns exactly that append; (b) would put two rows for one bug into the manager's merge |
 | FR1-b | Counter proof via `vppctl show interface <subs>` deltas | (a) parse `show interface` (b) govpp stats client on `/run/vpp/stats.sock` (c) tcpdump in the netns | (a) is read-only, already used by the test for evidence, and counts on the sub-interface's own sw_if_index, so it shows that ethernet-input classified the frames onto that exact tag stack; (b) adds a new client path to the test module; (c) proves only the netns side |
-| FR1-c | Packet phase stays opt-in and was not run | — | fix envelope M2: `VRX_QINQ_PACKETS=1` is not set in this round; the counter assertions compile and the parser is unit-tested, their first host execution is for whoever enables the phase |
+| FR1-c | Packet phase stays opt-in and was not run | — | fix envelope M2: `NGFW_QINQ_PACKETS=1` is not set in this round; the counter assertions compile and the parser is unit-tested, their first host execution is for whoever enables the phase |
 | FR1-d | CI at the final HEAD with main's `tools/ci.sh` (7e2c272) | (a) main's copy after the branch copy's guard flake (b) re-run the branch copy until the guard passes | D-127 says to run main's copy when the branch copy fails in the guard. Main's copy is also the one the pre-merge hook runs, and it includes D-128b |

@@ -5,7 +5,7 @@ import { runSecret, startHarness, type Harness } from '../support/harness.js';
 import { cookieAttrs, cookieOf } from '../support/proxy.js';
 
 /**
- * TD-10b review 2.3d on the host PostgreSQL + Valkey: a login session has an ABSOLUTE lifetime (VRX_SESSION_MAX_SEC,
+ * TD-10b review 2.3d on the host PostgreSQL + Valkey: a login session has an ABSOLUTE lifetime (NGFW_SESSION_MAX_SEC,
  * here 4 s) next to the sliding refresh TTL (7 days): refreshes do not extend it, the cookies and the access token
  * never outlive it, the refused refresh is audited as `session-expired`.
  */
@@ -14,11 +14,11 @@ const PW = runSecret();
 const maxAge = (headers: Record<string, unknown>, name: string) =>
   Number(/max-age=(\d+)/.exec(cookieAttrs(headers, name) ?? '')?.[1]);
 
-describe('TD-10b 2.3d VRX_SESSION_MAX_SEC', () => {
+describe('TD-10b 2.3d NGFW_SESSION_MAX_SEC', () => {
   let h: Harness;
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_SESSION_MAX_SEC: String(MAX), VRX_LOGIN_RATE_PER_MIN: '1000' });
+    h = await startHarness({ NGFW_SESSION_MAX_SEC: String(MAX), NGFW_LOGIN_RATE_PER_MIN: '1000' });
     const admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [{ username: 'u', role: 'operator', password: PW }]);
   });
@@ -36,21 +36,21 @@ describe('TD-10b 2.3d VRX_SESSION_MAX_SEC', () => {
     const first = {
       expiresIn: l.body.expiresIn as number,
       tokenLife: exp! - iat!,
-      refreshCookie: maxAge(l.headers, 'vrx_refresh'),
-      docsCookie: maxAge(l.headers, 'vrx_docs'),
+      refreshCookie: maxAge(l.headers, 'ngfw_refresh'),
+      docsCookie: maxAge(l.headers, 'ngfw_docs'),
     };
     await new Promise((r) => setTimeout(r, 1_200));
     const r1 = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-      cookie: cookieOf(l.headers, 'vrx_refresh')!,
+      cookie: cookieOf(l.headers, 'ngfw_refresh')!,
     });
     expect(r1.status).toBe(200);
     const second = {
       expiresIn: r1.body.expiresIn as number,
-      refreshCookie: maxAge(r1.headers, 'vrx_refresh'),
+      refreshCookie: maxAge(r1.headers, 'ngfw_refresh'),
     };
     await new Promise((r) => setTimeout(r, Math.max(0, t0 + MAX * 1000 + 700 - Date.now())));
     const r2 = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
-      cookie: cookieOf(r1.headers, 'vrx_refresh')!,
+      cookie: cookieOf(r1.headers, 'ngfw_refresh')!,
     });
     console.log(
       `2.3d max ${MAX}s: login ${JSON.stringify(first)}; refresh at +1.2 s ${r1.status} ${JSON.stringify(second)}; refresh at +${MAX}.7 s ${r2.status}`,

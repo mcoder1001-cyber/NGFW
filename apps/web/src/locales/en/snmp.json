@@ -8,14 +8,14 @@
   "yes": "yes",
   "no": "no",
   "adminOnly": "Only an administrator can write community strings and passphrases.",
-  "mibHint": "The private MIB (VRX-MIB: engine interface counters, agent health) is in deploy/snmp/VRX-MIB.txt.",
+  "mibHint": "The private MIB (NGFW-MIB: engine interface counters, agent health) is in deploy/snmp/NGFW-MIB.txt.",
   "state": {
     "title": "State",
     "configured": "Configured: {{value}}",
     "reachable": "Agent answers: {{value}}",
     "sysName": "sysName: {{value}}",
     "credential": "Read back with: {{value}}",
-    "subagent": "VRX-MIB subagent: {{value}}",
+    "subagent": "NGFW-MIB subagent: {{value}}",
     "registered": "registered",
     "notRegistered": "not registered",
     "pending": "snmpd needs an action before the change is fully active: {{action}}"
@@ -27,7 +27,7 @@
     "sysLocation": "sysLocation",
     "sysContact": "sysContact",
     "engineId": "Engine id (hex)",
-    "subagent": "Serve VRX-MIB (engine interface counters)"
+    "subagent": "Serve NGFW-MIB (engine interface counters)"
   },
   "communities": {
     "title": "Communities (v2c, read-only)",

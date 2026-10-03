@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	"io"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/promexport"
 	"ngfw/agent/internal/scheduler"
@@ -19,7 +19,7 @@ type PrometheusStage struct {
 	mu       sync.Mutex
 	listener promexport.Listener
 	source   promexport.StatsSource
-	value    *vrxv1.ManagementPrometheus
+	value    *ngfwv1.ManagementPrometheus
 }
 
 // NewPrometheusStage creates an external listener descriptor.
@@ -43,7 +43,7 @@ func (s *PrometheusStage) Create(ctx context.Context, obj proto.Message) (any, e
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	v, ok := obj.(*vrxv1.ManagementPrometheus)
+	v, ok := obj.(*ngfwv1.ManagementPrometheus)
 	if !ok || v == nil || !v.GetEnabled() {
 		return nil, fmt.Errorf("enabled ManagementPrometheus required")
 	}
@@ -58,7 +58,7 @@ func (s *PrometheusStage) Create(ctx context.Context, obj proto.Message) (any, e
 	if err := s.listener.Start(addr, promexport.NewHandler(s.source, "", allow)); err != nil {
 		return nil, err
 	}
-	s.value = proto.Clone(v).(*vrxv1.ManagementPrometheus)
+	s.value = proto.Clone(v).(*ngfwv1.ManagementPrometheus)
 	return nil, nil
 }
 

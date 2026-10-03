@@ -11,7 +11,7 @@ resurrect and cap paragraphs, which the manager can apply or hand to a docs task
 > that freed index is brought back: placeholders pop the classify pool's LIFO free list down to it, and are deleted in reverse
 > order. The pool ends exactly as it was (TD-25). At most `MaxPlaceholders` (64) placeholders per run. A deeper binding is
 > unclearable (`ErrCapped` + `ErrUnclearable`); the index is quarantined and the create retried on another index.
-> `vrx_agent_iface_sanitize_placeholders_total{phase}` counts placeholders (one per run when nothing is inherited).
+> `ngfw_agent_iface_sanitize_placeholders_total{phase}` counts placeholders (one per run when nothing is inherited).
 
 ## Q2. There is no "placeholder-free method" of reading the free list
 The envelope asked for a before/after probe "via the placeholder-free method you implement". VPP 26.06 has none:

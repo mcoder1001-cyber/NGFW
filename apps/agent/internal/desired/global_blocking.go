@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/objects"
@@ -91,7 +91,7 @@ type gbPlan struct {
 
 // globalBlocking emits the block-list ACLs of ds.acl.globalBlocking and returns what they add to the
 // bindings. A list with an error emits nothing (the transaction fails on the error anyway).
-func (x *aclExpander) globalBlocking(ds *vrxv1.DesiredState) *gbPlan {
+func (x *aclExpander) globalBlocking(ds *ngfwv1.DesiredState) *gbPlan {
 	g := ds.GetAcl().GetGlobalBlocking()
 	plan := &gbPlan{in: map[string][]string{}, out: map[string][]string{}, acls: map[string][]descacl.Rule{}, pointer: map[string]string{}}
 	if g == nil {
@@ -264,7 +264,7 @@ func splitGlobalBlocking(b descacl.InterfaceBinding) (user, gbPart descacl.Inter
 
 // reconstructGlobalBlocking turns block-list ACLs and bindings no recorded projection explains into
 // block lists (entries from the rules, interfaces from the bindings), so the difference shows as drift.
-func reconstructGlobalBlocking(acls map[string][]descacl.Rule, parts []descacl.InterfaceBinding) *vrxv1.GlobalBlocking {
+func reconstructGlobalBlocking(acls map[string][]descacl.Rule, parts []descacl.InterfaceBinding) *ngfwv1.GlobalBlocking {
 	type acc struct {
 		entries map[string]bool
 		in, out bool
@@ -305,7 +305,7 @@ func reconstructGlobalBlocking(acls map[string][]descacl.Rule, parts []descacl.I
 	if len(lists) == 0 {
 		return nil
 	}
-	g := &vrxv1.GlobalBlocking{Lists: map[string]*vrxv1.GlobalBlockingList{}}
+	g := &ngfwv1.GlobalBlocking{Lists: map[string]*ngfwv1.GlobalBlockingList{}}
 	for name, a := range lists {
 		dir := "both"
 		switch {
@@ -325,8 +325,8 @@ func reconstructGlobalBlocking(acls map[string][]descacl.Rule, parts []descacl.I
 		}
 		sort.Strings(ifs)
 		t, f := true, false
-		g.Lists[name] = &vrxv1.GlobalBlockingList{
-			Enabled: &t, Source: &vrxv1.GlobalBlockingSource{Kind: strPtr("upload")}, AllInterfaces: &f, Interfaces: ifs,
+		g.Lists[name] = &ngfwv1.GlobalBlockingList{
+			Enabled: &t, Source: &ngfwv1.GlobalBlockingSource{Kind: strPtr("upload")}, AllInterfaces: &f, Interfaces: ifs,
 			Direction: &dir, ProtectHost: &f, Log: &f, Entries: entries,
 		}
 	}
@@ -334,7 +334,7 @@ func reconstructGlobalBlocking(acls map[string][]descacl.Rule, parts []descacl.I
 }
 
 // recordGlobalBlocking records the block-list set and emits the applied-configuration object.
-func (x *aclExpander) recordGlobalBlocking(g *vrxv1.GlobalBlocking, plan *gbPlan, parts []descacl.InterfaceBinding) {
+func (x *aclExpander) recordGlobalBlocking(g *ngfwv1.GlobalBlocking, plan *gbPlan, parts []descacl.InterfaceBinding) {
 	if g == nil {
 		return
 	}

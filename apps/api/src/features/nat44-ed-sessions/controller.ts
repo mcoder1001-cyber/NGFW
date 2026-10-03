@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { z } from 'zod';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { KillBody, KillOut, MAX_PAGE_SIZE, SessionsOut, SessionsQuery, SummaryOut } from './dto.js';
@@ -65,7 +65,7 @@ export class Nat44EdSessionsController {
   })
   @ApiBody({ schema: openapi(KillBody) })
   @ApiOkResponse({ schema: openapi(KillOut, 'output') })
-  async kill(@Body(new ZodPipe(KillBody)) body: z.output<typeof KillBody>, @Req() req: VrxRequest) {
+  async kill(@Body(new ZodPipe(KillBody)) body: z.output<typeof KillBody>, @Req() req: NgfwRequest) {
     const vrf = body.vrf ?? 'default';
     req.audit = {
       resource: `nat/sessions/${body.protocol}/${body.insideAddress}:${body.insidePort}/${body.externalAddress}:${body.externalPort}/${vrf}`,

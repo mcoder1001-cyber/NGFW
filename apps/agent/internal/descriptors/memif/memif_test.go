@@ -28,7 +28,7 @@ type fakeMemif struct {
 }
 
 func newFake() *fakeMemif {
-	f := &fakeMemif{VPP: ifacetest.New(), sockets: map[uint32]string{0: "/run/vpp/memif.sock", 3001: "/run/vrx-test/w3/memif/w3-a.sock"}, memifs: map[uint32]*memifapi.MemifDetails{}}
+	f := &fakeMemif{VPP: ifacetest.New(), sockets: map[uint32]string{0: "/run/vpp/memif.sock", 3001: "/run/ngfw-test/w3/memif/w3-a.sock"}, memifs: map[uint32]*memifapi.MemifDetails{}}
 	f.On("memif_socket_filename_add_del_v2", func(req api.Message) ([]api.Message, error) {
 		r := req.(*memifapi.MemifSocketFilenameAddDelV2)
 		if r.IsAdd {
@@ -89,7 +89,7 @@ func TestSocketAndMemif(t *testing.T) {
 	if kvs, _ := sd.Retrieve(ctx); len(kvs) != 0 {
 		t.Fatalf("default socket and the other owner's socket must be invisible: %+v", kvs)
 	}
-	for _, bad := range []*memif.Socket{{Id: 0, Filename: filepath.Join(dir, "x")}, {Id: 5, Filename: "/run/vrx-test/w3/memif/x.sock"}, {Id: 5, Filename: filepath.Join(dir, "sub", "x.sock")}} {
+	for _, bad := range []*memif.Socket{{Id: 0, Filename: filepath.Join(dir, "x")}, {Id: 5, Filename: "/run/ngfw-test/w3/memif/x.sock"}, {Id: 5, Filename: filepath.Join(dir, "sub", "x.sock")}} {
 		if _, err := sd.Create(ctx, bad); err == nil {
 			t.Fatalf("accepted %v", bad)
 		}

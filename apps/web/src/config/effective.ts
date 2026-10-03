@@ -16,7 +16,7 @@ import { refineChanges } from './refine';
  *   2. the candidate lock held by me with no visible change means a hidden (write-only) change exists.
  * Both are marked `synthetic`. Server-reported redacted entries win over synthetic ones for the same pointer.
  */
-const KEY = 'vrx.secretEdits';
+const KEY = 'ngfw.secretEdits';
 const listeners = new Set<() => void>();
 
 function load(): string[] {

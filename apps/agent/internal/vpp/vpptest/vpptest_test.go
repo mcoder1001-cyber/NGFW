@@ -30,7 +30,7 @@ func TestSlotDerivedValues(t *testing.T) {
 	t.Setenv(EnvTableBase, "7000")
 	t.Setenv(EnvSlot, "7")
 	if TableBase(t) != 7000 || Slot(t) != 7 {
-		t.Fatal("explicit VRX_VPP_TABLE_BASE / VRX_SLOT must win")
+		t.Fatal("explicit NGFW_VPP_TABLE_BASE / NGFW_SLOT must win")
 	}
 }
 
@@ -41,7 +41,7 @@ func TestUnitDefaultsWithoutEnv(t *testing.T) {
 		t.Fatalf("unit default prefix = %q", Prefix(t))
 	}
 	if Integration() {
-		t.Fatal("Integration() true without VRX_INTEGRATION=1")
+		t.Fatal("Integration() true without NGFW_INTEGRATION=1")
 	}
 }
 

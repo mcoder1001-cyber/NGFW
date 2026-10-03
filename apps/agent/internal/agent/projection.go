@@ -1,6 +1,6 @@
 package agent
 
-// Projection between the configuration document (vrx.v1.DesiredState) and the scheduler's
+// Projection between the configuration document (ngfw.v1.DesiredState) and the scheduler's
 // per-object KVs of the core descriptors, in both directions:
 //
 //	project:  DesiredState --(authoritative domains)--> []KV + JSON pointers + validation issues
@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/renderers/frr"
@@ -94,7 +94,7 @@ func scopeOf(domains []string) scheduler.Scope {
 // domains a non-empty map).
 func protoName(key string) protoreflect.Name { return protoreflect.Name(key) }
 
-func domainPresent(ds *vrxv1.DesiredState, key string) bool {
+func domainPresent(ds *ngfwv1.DesiredState, key string) bool {
 	if ds == nil {
 		return false
 	}
@@ -108,11 +108,11 @@ func domainPresent(ds *vrxv1.DesiredState, key string) bool {
 	return fd != nil && ds.ProtoReflect().Has(fd)
 }
 
-// issue is a projection finding (becomes a vrx.v1.ValidationIssue).
+// issue is a projection finding (becomes a ngfw.v1.ValidationIssue).
 type issue struct {
 	pointer  string
 	message  string
-	severity vrxv1.IssueSeverity
+	severity ngfwv1.IssueSeverity
 	rule     string
 }
 
@@ -149,20 +149,20 @@ func (p *projected) Warnf(pointer, rule, format string, a ...any) {
 
 // Infof implements desired.InfoSink (F-det44-map-dslite-cnat: ISSUE_SEVERITY_INFO notices).
 func (p *projected) Infof(pointer, rule, format string, a ...any) {
-	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_INFO, message: fmt.Sprintf(format, a...)})
+	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: ngfwv1.IssueSeverity_ISSUE_SEVERITY_INFO, message: fmt.Sprintf(format, a...)})
 }
 
 func (p *projected) errorf(pointer, rule, format string, a ...any) {
-	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, message: fmt.Sprintf(format, a...)})
+	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR, message: fmt.Sprintf(format, a...)})
 }
 
 func (p *projected) warnf(pointer, rule, format string, a ...any) {
-	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING, message: fmt.Sprintf(format, a...)})
+	p.issues = append(p.issues, issue{pointer: pointer, rule: rule, severity: ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING, message: fmt.Sprintf(format, a...)})
 }
 
 func (p *projected) hasErrors() bool {
 	for _, is := range p.issues {
-		if is.severity == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			return true
 		}
 	}
@@ -185,7 +185,7 @@ type vrfResolver func(name string) (uint32, bool)
 // project turns the authoritative domains of ds into KVs. resolve maps VRF names that are not in
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
 // netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
-func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind) *projected {
+func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -407,27 +407,27 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 // handled whether this build renders it (FRR sections registered by the protocol's task).
 type routingLeaf struct {
 	name    string
-	present func(*vrxv1.RoutingConfig) bool
+	present func(*ngfwv1.RoutingConfig) bool
 	handled bool
 }
 
 // routingLeaves lists the routing-protocol leaves; a leaf that is set but not handled is an agent.unsupported-field
 // warning. A task that renders a leaf sets handled on its own row (one line each, under its anchor).
 var routingLeaves = []routingLeaf{
-	{name: "bgp", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBgp() != nil }, handled: true},       // P12
-	{name: "policy", present: func(r *vrxv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
+	{name: "bgp", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBgp() != nil }, handled: true},       // P12
+	{name: "policy", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
 	// wave-BC: F-ospf
-	{name: "ospf", present: func(r *vrxv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
+	{name: "ospf", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
 	// wave-BC: F-isis-rip
-	{name: "isis", present: func(r *vrxv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
-	{name: "rip", present: func(r *vrxv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
+	{name: "isis", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
+	{name: "rip", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution
-	{name: "bfd", present: func(r *vrxv1.RoutingConfig) bool { return r.GetBfd() != nil }},
+	{name: "bfd", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBfd() != nil }},
 }
 
 // isEmptyDomain reports whether a present domain message carries nothing (the API sends all 13
 // domains, most of them prefaulted to {}); only non-empty unimplemented domains are worth a warning.
-func isEmptyDomain(ds *vrxv1.DesiredState, key string) bool {
+func isEmptyDomain(ds *ngfwv1.DesiredState, key string) bool {
 	fd := ds.ProtoReflect().Descriptor().Fields().ByName(protoName(key))
 	if fd == nil || fd.Message() == nil {
 		return true
@@ -438,8 +438,8 @@ func isEmptyDomain(ds *vrxv1.DesiredState, key string) bool {
 // assemble builds the DesiredState of the given domains from retrieved KVs. names maps table ids
 // to VRF names for tables that are not among the retrieved VRFs (e.g. `vrfs` not requested); stored
 // is the agent's stored `interfaces` document and live the interface table (P08, desired.Assemble).
-func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (string, bool), stored map[string]*vrxv1.Interface, live desired.Live) *vrxv1.DesiredState {
-	ds := &vrxv1.DesiredState{}
+func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (string, bool), stored map[string]*ngfwv1.Interface, live desired.Live) *ngfwv1.DesiredState {
+	ds := &ngfwv1.DesiredState{}
 	in := map[string]bool{}
 	for _, d := range domains {
 		in[d] = true
@@ -470,9 +470,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		case *core.Table:
 			if in["vrfs"] {
 				if ds.Vrfs == nil {
-					ds.Vrfs = map[string]*vrxv1.Vrf{}
+					ds.Vrfs = map[string]*ngfwv1.Vrf{}
 				}
-				ds.Vrfs[v.GetVrf()] = &vrxv1.Vrf{Id: proto.Uint32(v.GetId())}
+				ds.Vrfs[v.GetVrf()] = &ngfwv1.Vrf{Id: proto.Uint32(v.GetId())}
 			}
 		case *core.Route:
 			if in["routing"] {
@@ -491,7 +491,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		}
 	}
 	if in["routing"] {
-		ds.Routing = &vrxv1.RoutingConfig{}
+		ds.Routing = &ngfwv1.RoutingConfig{}
 		sort.Slice(routes, func(a, b int) bool {
 			na, nb := nameOf(routes[a].GetTableId()), nameOf(routes[b].GetTableId())
 			if na != nb {
@@ -500,12 +500,12 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 			return routes[a].GetPrefix() < routes[b].GetPrefix()
 		})
 		for _, r := range routes {
-			sr := &vrxv1.StaticRoute{Prefix: proto.String(r.GetPrefix()), Vrf: proto.String(nameOf(r.GetTableId())), Blackhole: proto.Bool(len(r.GetPaths()) == 0)}
+			sr := &ngfwv1.StaticRoute{Prefix: proto.String(r.GetPrefix()), Vrf: proto.String(nameOf(r.GetTableId())), Blackhole: proto.Bool(len(r.GetPaths()) == 0)}
 			if r.GetPreference() != 0 {
 				sr.Distance = proto.Uint32(r.GetPreference())
 			}
 			for _, p := range r.GetPaths() {
-				nh := &vrxv1.NextHop{Weight: proto.Uint32(p.GetWeight())}
+				nh := &ngfwv1.NextHop{Weight: proto.Uint32(p.GetWeight())}
 				if p.GetAddress() != "" {
 					nh.Address = proto.String(p.GetAddress())
 				}
@@ -618,7 +618,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 // noLive is the empty desired.Live (unit tests without an interface table).
 type noLive struct{}
 
-func (noLive) State(string) (*vrxv1.InterfaceState, bool) { return nil, false }
+func (noLive) State(string) (*ngfwv1.InterfaceState, bool) { return nil, false }
 
 func sortedMapKeys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))

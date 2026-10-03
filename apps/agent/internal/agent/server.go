@@ -16,12 +16,12 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // newGRPCServer is the agent's gRPC server with panic recovery on every unary and streaming handler
 // (TD-9, review 1.1d): a handler panic answers INTERNAL, is logged with its stack and counted in
-// vrx_agent_panics_total{where="grpc"}, and never takes the agent down. A panic inside a transaction is
+// ngfw_agent_panics_total{where="grpc"}, and never takes the agent down. A panic inside a transaction is
 // contained by the service itself (it also reloads the state and owes a resync, Service.containLocked),
 // and a descriptor's by the scheduler (ErrDescriptorPanic): the transaction rolls back.
 func newGRPCServer(log *slog.Logger, m *metrics) *grpc.Server {
@@ -50,37 +50,37 @@ func newGRPCServer(log *slog.Logger, m *metrics) *grpc.Server {
 	)
 }
 
-// server adapts Service to the generated vrx.v1.Dataplane gRPC service.
+// server adapts Service to the generated ngfw.v1.Dataplane gRPC service.
 type server struct {
-	vrxv1.UnimplementedDataplaneServer
+	ngfwv1.UnimplementedDataplaneServer
 	svc   *Service
 	stats statsSource
 	log   *slog.Logger
 }
 
-var _ vrxv1.DataplaneServer = (*server)(nil)
+var _ ngfwv1.DataplaneServer = (*server)(nil)
 
-func (g *server) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (*vrxv1.ApplyResponse, error) {
+func (g *server) Apply(ctx context.Context, req *ngfwv1.ApplyRequest) (*ngfwv1.ApplyResponse, error) {
 	return g.svc.Apply(ctx, req)
 }
 
-func (g *server) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vrxv1.RetrieveResponse, error) {
+func (g *server) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*ngfwv1.RetrieveResponse, error) {
 	return g.svc.Retrieve(ctx, req)
 }
 
-func (g *server) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.ValidationReport, error) {
+func (g *server) DryRun(ctx context.Context, req *ngfwv1.DryRunRequest) (*ngfwv1.ValidationReport, error) {
 	return g.svc.DryRun(ctx, req)
 }
 
-func (g *server) Health(context.Context, *vrxv1.HealthRequest) (*vrxv1.HealthResponse, error) {
+func (g *server) Health(context.Context, *ngfwv1.HealthRequest) (*ngfwv1.HealthResponse, error) {
 	return g.svc.Health(), nil
 }
 
-func (g *server) InterfaceState(ctx context.Context, req *vrxv1.InterfaceStateRequest) (*vrxv1.InterfaceStateResponse, error) {
+func (g *server) InterfaceState(ctx context.Context, req *ngfwv1.InterfaceStateRequest) (*ngfwv1.InterfaceStateResponse, error) {
 	return g.svc.InterfaceState(ctx, req)
 }
 
-func (g *server) StreamStats(req *vrxv1.StreamStatsRequest, stream grpc.ServerStreamingServer[vrxv1.StatsBatch]) error {
+func (g *server) StreamStats(req *ngfwv1.StreamStatsRequest, stream grpc.ServerStreamingServer[ngfwv1.StatsBatch]) error {
 	if iv := req.GetIntervalMs(); iv != 0 && (iv < 200 || iv > 60000) {
 		return status.Errorf(codes.InvalidArgument, "interval_ms %d outside 200–60000", iv)
 	}
@@ -94,7 +94,7 @@ func (g *server) StreamStats(req *vrxv1.StreamStatsRequest, stream grpc.ServerSt
 	return err
 }
 
-func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.ServerStreamingServer[vrxv1.Event]) error {
+func (g *server) StreamEvents(req *ngfwv1.StreamEventsRequest, stream grpc.ServerStreamingServer[ngfwv1.Event]) error {
 	sub := g.svc.events().subscribe(req)
 	defer g.svc.events().unsubscribe(sub)
 	for {
@@ -110,41 +110,41 @@ func (g *server) StreamEvents(req *vrxv1.StreamEventsRequest, stream grpc.Server
 	}
 }
 
-// Action dispatches on the requested action. Each feature adds its `case *vrxv1.ActionRequest_<Member>:`
+// Action dispatches on the requested action. Each feature adds its `case *ngfwv1.ActionRequest_<Member>:`
 // under its anchor and implements it in its own internal/agent/rpc_<slug>.go; every other action is
 // Unimplemented (wave-A-hotspots A4).
-func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) Action(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	switch req.GetAction().(type) {
 	// wave-BC: F-det44-map-dslite-cnat
-	case *vrxv1.ActionRequest_Det44SessionClose:
+	case *ngfwv1.ActionRequest_Det44SessionClose:
 		return g.det44SessionClose(req, stream)
 	// wave-BC: F-det44-map-dslite-cnat
-	case *vrxv1.ActionRequest_CnatSessionPurge:
+	case *ngfwv1.ActionRequest_CnatSessionPurge:
 		return g.cnatSessionPurge(req, stream)
 	// wave-BC: F-ikev2-native
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync
 	// wave-BC: F-capture-trace
-	case *vrxv1.ActionRequest_Capture:
+	case *ngfwv1.ActionRequest_Capture:
 		return g.actionCapture(req.GetCapture(), stream)
 	// wave-BC: F-backup-restore
 	// wave-A: F-vrf-static-ecmp
-	case *vrxv1.ActionRequest_Ping:
+	case *ngfwv1.ActionRequest_Ping:
 		return g.actionPing(req.GetPing(), stream)
-	case *vrxv1.ActionRequest_Traceroute:
+	case *ngfwv1.ActionRequest_Traceroute:
 		return g.actionTraceroute(req.GetTraceroute())
 	// wave-A: F-neighbors-ra
-	case *vrxv1.ActionRequest_ArpFlush:
+	case *ngfwv1.ActionRequest_ArpFlush:
 		return g.arpFlush(req.GetArpFlush(), stream)
 	// wave-A: F-nat44-ed-sessions
-	case *vrxv1.ActionRequest_NatSessionKill:
+	case *ngfwv1.ActionRequest_NatSessionKill:
 		// wave-A: F-nat44-ei-64-66-nptv6 — variant dispatch (EI, NAT64: rpc_nat44_ei.go); unset / ED below
 		if natVariantOf(req.GetNatSessionKill().GetVariant()) {
 			return g.natSessionKillVariantStream(req, stream)
 		}
 		return g.natSessionKill(req, stream)
 	// wave-A: F-unbound-chrony-syslog
-	case *vrxv1.ActionRequest_DnsLookup:
+	case *ngfwv1.ActionRequest_DnsLookup:
 		return g.dnsLookup(req.GetDnsLookup(), stream)
 	default:
 		return status.Error(codes.Unimplemented, "actions (ping, traceroute, capture) are implemented by P08/F-*")
@@ -152,7 +152,7 @@ func (g *server) Action(req *vrxv1.ActionRequest, stream grpc.ServerStreamingSer
 }
 
 // listenUnix creates the agent socket: parent dir 0750, stale socket removed, socket 0660 with
-// group VRX_SOCKET_GROUP (the process's primary group when that group does not exist — the agent
+// group NGFW_SOCKET_GROUP (the process's primary group when that group does not exist — the agent
 // never creates groups).
 func listenUnix(path, group string, log *slog.Logger) (net.Listener, error) {
 	if log == nil {

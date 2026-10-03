@@ -104,7 +104,7 @@ State and actions (not descriptors — nothing retrieves them into desired state
 * **Plugin-wide state** — liveness, local key and sleep interval are shared by every profile and
   (on the dev host) every worker. The host test reads the sleep interval under the shared globals
   lock (shared-host-rules §7) and requires it as a non-owner; the owner's setters of the getter-less
-  liveness / local key run only in `TestIkev2GlobalsOwnerOnHost` behind `VRX_DF5_GLOBALS=1`
+  liveness / local key run only in `TestIkev2GlobalsOwnerOnHost` behind `NGFW_DF5_GLOBALS=1`
   (exclusive globals lock, a manager window — their previous values cannot be read back).
 
 ## Tests
@@ -119,9 +119,9 @@ State and actions (not descriptors — nothing retrieves them into desired state
 * Host: `TestIkev2OnHost` runs through **P05's reconciler** (`vpntest.Agent`, persisted record
   store): non-owner globals (sleep interval required, liveness / local key refused) → apply psk
   profile with every part + rsa-sig profile + responder hostname (throwaway cert under
-  `/run/vrx-test/<prefix>/`) → Retrieve == desired → in-place change = 1 Update → same desired
+  `/run/ngfw-test/<prefix>/`) → Retrieve == desired → in-place change = 1 Update → same desired
   state = empty plan → **restart simulation** (fresh connection + descriptors, same store): empty
   plan except the write-only hostname re-apply (skipped in VPP by its record) → profile deleted via
   the API → plan = exactly its create → re-applied → empty → SA helper (0 SAs) → the empty desired
-  state deletes our profiles. `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show ikev2
+  state deletes our profiles. `NGFW_DF5_PAUSE=<s>` holds the objects for `vppctl show ikev2
   profile` (which prints the PSK: evidence goes through a redaction filter).

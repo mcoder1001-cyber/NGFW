@@ -218,7 +218,7 @@ export class StateController {
     ]);
     return {
       api: {
-        version: process.env['VRX_VERSION'] ?? '0.1.0-dev',
+        version: process.env['NGFW_VERSION'] ?? '0.1.0-dev',
         startedAt: startedAt.toISOString(),
         wsClients: this.relay.clientCount,
       },

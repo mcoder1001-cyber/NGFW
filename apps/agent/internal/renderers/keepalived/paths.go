@@ -14,10 +14,10 @@ const (
 	KeepalivedBin = "/usr/sbin/keepalived"
 	// NotifyHelperProduct is the shipped notify target (P10 packages it); keepalived runs it,
 	// the agent never does.
-	NotifyHelperProduct = "/usr/libexec/vrx/vrx-keepalived-notify"
+	NotifyHelperProduct = "/usr/libexec/ngfw/ngfw-keepalived-notify"
 	// ChecksDirProduct holds the shipped track-script executables (the only scripts a
 	// vrrp_script may name).
-	ChecksDirProduct = "/usr/libexec/vrx/checks"
+	ChecksDirProduct = "/usr/libexec/ngfw/checks"
 )
 
 // Binaries is the allowlist of the production SystemRunner (keepalived for -t/--signum,
@@ -31,7 +31,7 @@ type Paths struct {
 	ConfFile string
 	// StateDir is where the notify helper writes <instance>.state (the state/event channel).
 	StateDir string
-	// NotifyHelper is the absolute path of vrx-keepalived-notify.
+	// NotifyHelper is the absolute path of ngfw-keepalived-notify.
 	NotifyHelper string
 	// ChecksDir holds the shipped track-script executables.
 	ChecksDir string
@@ -50,7 +50,7 @@ type Paths struct {
 func ProductPaths() Paths {
 	return Paths{
 		ConfFile:     "/etc/keepalived/keepalived.conf",
-		StateDir:     "/run/vrx/keepalived",
+		StateDir:     "/run/ngfw/keepalived",
 		NotifyHelper: NotifyHelperProduct,
 		ChecksDir:    ChecksDirProduct,
 		DumpDir:      "/tmp",
@@ -60,14 +60,14 @@ func ProductPaths() Paths {
 }
 
 // TestPaths are the test-scoped paths for a slot prefix: config and state under
-// /run/vrx-test/<prefix>/keepalived, executables in binDir (it cannot be under /run, which is
+// /run/ngfw-test/<prefix>/keepalived, executables in binDir (it cannot be under /run, which is
 // mounted noexec), the daemon inside netns.
 func TestPaths(prefix, binDir, netns string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "keepalived")
+	base := filepath.Join("/run/ngfw-test", prefix, "keepalived")
 	return Paths{
 		ConfFile:     filepath.Join(base, "keepalived.conf"),
 		StateDir:     filepath.Join(base, "state"),
-		NotifyHelper: filepath.Join(binDir, "vrx-keepalived-notify"),
+		NotifyHelper: filepath.Join(binDir, "ngfw-keepalived-notify"),
 		ChecksDir:    filepath.Join(binDir, "checks"),
 		DumpDir:      filepath.Join(base, "tmp"),
 		NetNS:        netns,

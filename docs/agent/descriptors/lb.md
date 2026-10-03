@@ -47,7 +47,7 @@ convert (`TestVIPEnumOrder`).
 Every VIP delete — and so every VIP change, which is ErrRecreate = delete + add — leaves one "removed" VIP plus the
 recursive-resolution `/32` of each of its ASes in VPP until a global GC (`lb vip|as|conf` CLI) or a VPP restart.
 The API cannot collect them. Product answer: the globals owner runs the GC (DF-7-questions Q1). The host test is
-opt-in (`VRX_DF7_LB=1`) so CI runs stop adding leftovers.
+opt-in (`NGFW_DF7_LB=1`) so CI runs stop adding leftovers.
 
 ## F-lb additions (gap-only, each named by a test in `gaps_test.go`)
 

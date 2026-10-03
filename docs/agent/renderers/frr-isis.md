@@ -8,15 +8,15 @@ the `isis` section, the `isis` interface-lines producer (S2), the state reader `
 ## Canonical form
 ```
 interface <linux-if>
- ip router isis vrx
- ipv6 router isis vrx
+ ip router isis ngfw
+ ipv6 router isis ngfw
  isis circuit-type level-1|level-2-only|level-1-2   (when circuitType is set)
  isis network point-to-point                       (networkType point-to-point; broadcast renders nothing)
  isis metric <1-16777215>
  isis passive
  isis bfd
 exit
-router isis vrx [vrf <name>]
+router isis ngfw [vrf <name>]
  is-type level-1|level-2-only|level-1-2            (level, default level-1-2)
  net <NET, lower case>
  metric-style wide

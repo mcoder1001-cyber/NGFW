@@ -141,7 +141,7 @@ describe('state/interfaces QinQ e2e (PostgreSQL + fake agent)', () => {
       expect(r.body).toMatchObject({
         status: 400,
         tier: 'semantic',
-        type: 'https://vrx.dev/problems/validation',
+        type: 'https://ngfw.dev/problems/validation',
       });
       expect(r.body.errors).toContainEqual(
         expect.objectContaining({

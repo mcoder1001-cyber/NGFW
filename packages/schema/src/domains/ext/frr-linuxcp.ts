@@ -7,7 +7,7 @@ import { withUi } from '../../ui.js';
  * `wave-A: P12` anchor; the shapes live here. Cross-object rules are in `../../semantic/bgp.ts`.
  */
 
-/** `x-vrx-ui` group of every field this task adds (group = task slug, C1). */
+/** `x-ngfw-ui` group of every field this task adds (group = task slug, C1). */
 const GROUP = 'frr-linuxcp';
 
 /**

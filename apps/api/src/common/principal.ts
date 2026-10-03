@@ -25,12 +25,12 @@ export interface AuditDetail {
   after?: unknown;
 }
 
-export interface VrxRequestExtras {
+export interface NgfwRequestExtras {
   principal?: Principal;
   audit?: AuditDetail;
 }
 
-export type VrxRequest = FastifyRequest & VrxRequestExtras;
+export type NgfwRequest = FastifyRequest & NgfwRequestExtras;
 
 export const ROLE_RANK: Record<Role, number> = { readonly: 1, operator: 2, admin: 3 };
 
@@ -44,7 +44,7 @@ export function lowerRole(a: Role, b: Role): Role {
 
 /**
  * The client's address (TD-10b, review 2.3b): Fastify walks X-Forwarded-For from the socket peer back through the
- * trusted proxies (VRX_TRUST_PROXY, default loopback: the product nginx, the vite proxy) and stops at the first
+ * trusted proxies (NGFW_TRUST_PROXY, default loopback: the product nginx, the vite proxy) and stops at the first
  * untrusted address — so behind the proxy every client has its own address, and a remote client cannot forge one.
  * Rate limits, the lockout, the audit log and the transport rule all use this one address.
  */

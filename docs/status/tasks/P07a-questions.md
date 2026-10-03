@@ -17,7 +17,7 @@
 5. **Schema titles are English strings inside the schema.** `<SchemaForm translateLabel>` and `nav:domains.<key>` provide
    translation hooks; a `schema` i18n namespace keyed by property path (`interfaces.mtu.title`) is the proposed home for
    fa titles once the domain schemas exist — owner to decide (P02a/b/c vs. P07b).
-6. **`x-vrx-ui.dependsOn`** is consumed by the renderer (`string | { field, value?, values? }`, sibling name or absolute `/path`)
+6. **`x-ngfw-ui.dependsOn`** is consumed by the renderer (`string | { field, value?, values? }`, sibling name or absolute `/path`)
    but `packages/schema/src/ui.ts` `UiHints` does not declare it yet (P07 prompt lists it). Adding the optional field is an
    additive contract change for the schema owner; the demo passes it via `as UiMeta`.
 7. **Root `eslint.config.js` is shared** (not owned by P07a), so the i18n rule lives in `apps/web/eslint.config.js` and

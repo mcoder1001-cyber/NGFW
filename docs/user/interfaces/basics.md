@@ -1,7 +1,7 @@
 # Interfaces — basics
 
 **Screen:** *Interfaces → Interfaces* (`/interfaces`). **REST:** `/api/v1/state/interfaces` (live) and the generic
-configuration routes under `/api/v1/config/interfaces`. **CLI:** `vrx show interfaces`, `vrx set interfaces …`
+configuration routes under `/api/v1/config/interfaces`. **CLI:** `ngfw show interfaces`, `ngfw set interfaces …`
 (`docs/user/cli/reference.md`).
 
 The screen shows the **live interface table of the data plane**, as the agent reads it from VPP (not the configuration):
@@ -79,16 +79,16 @@ curl -s -X POST -H "authorization: Bearer $T" 'http://127.0.0.1:3000/api/v1/conf
 ## The same with the CLI
 
 ```
-vrx show interfaces
-vrx show interfaces host-w1l0
-vrx set interfaces host-w1l0 enabled true
-vrx set interfaces host-w1l0 ipv4 10.1.1.1/24          # appends to the address list
-vrx set interfaces host-w1w0 mtu 1400
-vrx merge interfaces host-w1w0 subinterfaces '{"100":{"vlanId":100,"enabled":true,"ipv4":["10.1.100.1/24"]}}'
-vrx show configuration diff
-vrx commit confirm 120 comment "interfaces"
-vrx confirm
-vrx rollback 1
+ngfw show interfaces
+ngfw show interfaces host-w1l0
+ngfw set interfaces host-w1l0 enabled true
+ngfw set interfaces host-w1l0 ipv4 10.1.1.1/24          # appends to the address list
+ngfw set interfaces host-w1w0 mtu 1400
+ngfw merge interfaces host-w1w0 subinterfaces '{"100":{"vlanId":100,"enabled":true,"ipv4":["10.1.100.1/24"]}}'
+ngfw show configuration diff
+ngfw commit confirm 120 comment "interfaces"
+ngfw confirm
+ngfw rollback 1
 ```
 
 ## What happens on the data plane

@@ -12,7 +12,7 @@ not against mocks. The generated outputs regenerate byte-identical. Nothing regr
 
 ### H1: per-account budget before argon2, one `locked` body, concurrency e2e — FIXED
 - **Order** (`apps/api/src/auth/auth.service.ts:306-329`). The request is checked in this order: transport → 400 `current-not-allowed-with-api-key` →
-  400 missing `/current` → `tokens.hit('pwset:<user id>', 60) > VRX_PASSWORD_RATE_PER_MIN` → 429 → `checkCurrent`. The budget is spent
+  400 missing `/current` → `tokens.hit('pwset:<user id>', 60) > NGFW_PASSWORD_RATE_PER_MIN` → 429 → `checkCurrent`. The budget is spent
   before the stale-session check, before the `locked_until` read and before argon2. It is a Valkey `MULTI INCR` on
   `rl:pwset:<id>:<minute>`, so it holds for parallel requests. The key is the account id, the same key as `setPassword`
   (`users/users.service.ts:64`, `pwset:${caller.id}`). Both routes that check a current password therefore share one budget, and a
@@ -35,14 +35,14 @@ not against mocks. The generated outputs regenerate byte-identical. Nothing regr
 - **Re-run by me (slot 8, load 31):**
   ```
   $ eval "$(tools/lab env 8)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration test/e2e/td4-stepup-burst.e2e.test.ts
-  H1 step-up burst (right guess at #20, MAX_FAILURES 3, VRX_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
+  H1 step-up burst (right guess at #20, MAX_FAILURES 3, NGFW_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
     2× 403 forbidden | the current password is wrong  ← #0,1
     3× 403 locked | the account is locked after too many failed password checks  ← #2,3,4
     25× 429 rate-limited | too many password checks; try again in a minute  ← #5,…,29
   H1 summary: {"argon2Checks":5,"rateLimited":25,"lockedAnswers":3,"distinctLockedBodies":1,"rightGuess":"429 rate-limited","keyRows":0} (budget 5)
    ✓ test/e2e/td4-stepup-burst.e2e.test.ts (1 test) 4236ms
    Test Files  1 passed (1) · Tests  1 passed (1)
-  ok     nothing named vrx_w8 / vrx_w8 remains                                 exit=0 (19:26:42–19:27:17)
+  ok     nothing named ngfw_w8 / ngfw_w8 remains                                 exit=0 (19:26:42–19:27:17)
   ```
   The output is identical to the worker's 18:42 and 19:16 pastes. #3 and #4 ran argon2 after the lock and answer with the same `locked` body as #2.
 
@@ -69,9 +69,9 @@ I compiled the API with `tsc --outDir <scratch>`, then ran `node dist/openapi.js
 copy). Results:
 ```
 schema.d.ts (openapi-typescript + prettier --config .prettierrc)  : IDENTICAL
-apps/cli/internal/api/operations_gen.go (vrx-opgen)               : IDENTICAL
-docs/user/cli/reference.md (vrx-docgen)                           : IDENTICAL
-sdk/python/vrx/_generated (gen.py; diff -r -x __pycache__)        : IDENTICAL
+apps/cli/internal/api/operations_gen.go (ngfw-opgen)               : IDENTICAL
+docs/user/cli/reference.md (ngfw-docgen)                           : IDENTICAL
+sdk/python/ngfw/_generated (gen.py; diff -r -x __pycache__)        : IDENTICAL
 sdk/terraform/internal/provider/zz_{interface_schema,secrets}_gen.go : IDENTICAL
 ```
 
@@ -85,7 +85,7 @@ sdk/terraform/internal/provider/zz_{interface_schema,secrets}_gen.go : IDENTICAL
 
 ## Info (no change asked on this branch)
 - **V-I1: residual timing.** A `locked` answer that ran argon2 is slower than one refused at read. This tells "checked" from "unchecked",
-  never right from wrong, and the budget caps it at `VRX_PASSWORD_RATE_PER_MIN` per account per minute. It is acceptable, and the review
+  never right from wrong, and the budget caps it at `NGFW_PASSWORD_RATE_PER_MIN` per account per minute. It is acceptable, and the review
   asked only for one body.
 - **V-I2: Q9 agreed.** `UsersService.setPassword` (TD-2 code) still has the two `locked` texts. It is already bounded by `pwset:` before
   argon2, so it is a follow-up row (a two-line change), not a TD-4 blocker. **Q10** is resolved on main by D-127 and arrives with the merge.
@@ -98,7 +98,7 @@ sdk/terraform/internal/provider/zz_{interface_schema,secrets}_gen.go : IDENTICAL
   them afterwards.
 
 ## Cleanup
-Valkey `vrx:w8:*` = 0, `/run/vrx-test/w8` absent, no `vrx_w8` database or role, and the worktree has no tracked changes except this file.
+Valkey `ngfw:w8:*` = 0, `/run/ngfw-test/w8` absent, no `ngfw_w8` database or role, and the worktree has no tracked changes except this file.
 No pkill was used, and ports 3000/8080/9101 were not touched.
 
 **APPROVE**

@@ -8,16 +8,16 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-: "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
-[[ "$VRX_TEST_PREFIX" =~ ^w([0-9]{1,2})$ ]] || { echo "run.sh: VRX_TEST_PREFIX must be w<N>" >&2; exit 1; }
-RUN="/run/vrx-test/$VRX_TEST_PREFIX"
-[[ -d /run/vrx-test ]] || install -d -m 0755 /run/vrx-test
+: "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
+[[ "$NGFW_TEST_PREFIX" =~ ^w([0-9]{1,2})$ ]] || { echo "run.sh: NGFW_TEST_PREFIX must be w<N>" >&2; exit 1; }
+RUN="/run/ngfw-test/$NGFW_TEST_PREFIX"
+[[ -d /run/ngfw-test ]] || install -d -m 0755 /run/ngfw-test
 [[ -d "$RUN" ]] || install -d -m 0755 "$RUN"
-( cd "$ROOT/apps/agent" && go build -o bin/vrx-agent ./cmd/vrx-agent && go build -o bin/vrx-vpp-preflight ./cmd/vrx-vpp-preflight )
+( cd "$ROOT/apps/agent" && go build -o bin/ngfw-agent ./cmd/ngfw-agent && go build -o bin/ngfw-vpp-preflight ./cmd/ngfw-vpp-preflight )
 ( cd "$ROOT/apps/api" && pnpm build >/dev/null )
 # the screenshot run serves the production web build (vite preview)
-[[ -z "${VRX_NAT_SHOTS_OUT:-}" ]] || ( cd "$ROOT" && pnpm --filter @ngfw/web build >/dev/null )
-"$ROOT/apps/agent/bin/vrx-vpp-preflight"
-export VRX_NAT_AGENT_BIN="$ROOT/apps/agent/bin/vrx-agent" VRX_PREFLIGHT_BIN="$ROOT/apps/agent/bin/vrx-vpp-preflight" VRX_INTEGRATION=1
+[[ -z "${NGFW_NAT_SHOTS_OUT:-}" ]] || ( cd "$ROOT" && pnpm --filter @ngfw/web build >/dev/null )
+"$ROOT/apps/agent/bin/ngfw-vpp-preflight"
+export NGFW_NAT_AGENT_BIN="$ROOT/apps/agent/bin/ngfw-agent" NGFW_PREFLIGHT_BIN="$ROOT/apps/agent/bin/ngfw-vpp-preflight" NGFW_INTEGRATION=1
 cd "$HERE"
 exec "$ROOT/tools/lab" lock shared go test -count=1 -v -timeout 20m "$@" .

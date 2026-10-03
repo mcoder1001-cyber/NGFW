@@ -7,10 +7,10 @@ import (
 )
 
 // GlobalsLock is the VPP-globals lock of docs/lab/shared-host-rules.md §7 (D-082).
-const GlobalsLock = "/run/lock/vrx-globals.lock"
+const GlobalsLock = "/run/lock/ngfw-globals.lock"
 
 // LockGlobals holds GlobalsLock until the test ends: shared to read a VPP-wide setting, exclusive
-// (only behind VRX_DF5_GLOBALS=1) to change one.
+// (only behind NGFW_DF5_GLOBALS=1) to change one.
 func LockGlobals(t testing.TB, exclusive bool) {
 	t.Helper()
 	f, err := os.OpenFile(GlobalsLock, os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // shared lock file, no content
@@ -32,10 +32,10 @@ func LockGlobals(t testing.TB, exclusive bool) {
 }
 
 // SkipUnlessGlobals skips a test that changes a getter-less VPP-global (its previous value cannot
-// be read back and restored) unless VRX_DF5_GLOBALS=1 — a manager window only (§7, D-082).
+// be read back and restored) unless NGFW_DF5_GLOBALS=1 — a manager window only (§7, D-082).
 func SkipUnlessGlobals(t testing.TB, what string) {
 	t.Helper()
-	if os.Getenv("VRX_DF5_GLOBALS") != "1" {
-		t.Skipf("%s changes a getter-less VPP-global; set VRX_DF5_GLOBALS=1 in a manager window", what)
+	if os.Getenv("NGFW_DF5_GLOBALS") != "1" {
+		t.Skipf("%s changes a getter-less VPP-global; set NGFW_DF5_GLOBALS=1 in a manager window", what)
 	}
 }

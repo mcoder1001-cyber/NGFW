@@ -2,8 +2,8 @@
 
 **Screens:** *Routing → VRFs* (`/routing/vrfs`) and *Routing → Routing* (`/routing`, tabs *Static routes*, *FIB browser*,
 *Ping*). **REST:** the generic configuration routes under `/api/v1/config/vrfs` and `/api/v1/config/routing`, the live FIB
-`GET /api/v1/state/routes` and `POST /api/v1/actions/ping`. **CLI:** `vrx show ip route [<vrf>]`, `vrx set vrfs …`,
-`vrx set routing …` (`docs/user/cli/reference.md`).
+`GET /api/v1/state/routes` and `POST /api/v1/actions/ping`. **CLI:** `ngfw show ip route [<vrf>]`, `ngfw set vrfs …`,
+`ngfw set routing …` (`docs/user/cli/reference.md`).
 
 ## VRFs
 
@@ -102,12 +102,12 @@ lists the interfaces with source VRF select.
 **CLI equivalent** (`docs/user/cli/reference.md`: one word per JSON-pointer segment, `merge` = RFC 7386):
 
 ```sh
-vrx set vrfs red id 21
-vrx set interfaces loop21 vrf red
-vrx merge routing '{"static": [{"prefix": "0.0.0.0/0", "vrf": "red", "nextHops": [{"address": "10.21.0.2", "weight": 3}, {"address": "10.21.0.3", "weight": 1}]}]}'
-vrx commit
-vrx show ip route red          # the FIB pages of red (GET /api/v1/state/routes)
-vrx ping 192.0.2.1             # POST /api/v1/actions/ping (see F-vrf-static-ecmp-questions Q9: the CLI must send the target)
+ngfw set vrfs red id 21
+ngfw set interfaces loop21 vrf red
+ngfw merge routing '{"static": [{"prefix": "0.0.0.0/0", "vrf": "red", "nextHops": [{"address": "10.21.0.2", "weight": 3}, {"address": "10.21.0.3", "weight": 1}]}]}'
+ngfw commit
+ngfw show ip route red          # the FIB pages of red (GET /api/v1/state/routes)
+ngfw ping 192.0.2.1             # POST /api/v1/actions/ping (see F-vrf-static-ecmp-questions Q9: the CLI must send the target)
 ```
 
 ## Persian (RTL)

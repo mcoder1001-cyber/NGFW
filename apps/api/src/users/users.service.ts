@@ -63,8 +63,8 @@ export class UsersService {
     req: FastifyRequest,
   ): Promise<SetPasswordResult> {
     // defence in depth (the route pipes apply the same rule): first, so a short password costs no rate-limit hit
-    assertPasswordPolicy(input.password, this.env.VRX_DEV_WEAK_PASSWORDS);
-    const limit = this.env.VRX_PASSWORD_RATE_PER_MIN;
+    assertPasswordPolicy(input.password, this.env.NGFW_DEV_WEAK_PASSWORDS);
+    const limit = this.env.NGFW_PASSWORD_RATE_PER_MIN;
     if ((await this.tokens.hit(`pwset:${caller.id}`, 60)) > limit) {
       throw problems.tooMany('too many password changes; try again in a minute');
     }

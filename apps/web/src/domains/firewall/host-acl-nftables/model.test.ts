@@ -34,7 +34,7 @@ const rule = (sequence: number, action: HostRule['action'] = 'accept'): HostRule
 });
 
 const state = (over: Partial<HostAclState> = {}): HostAclState => ({
-  table: 'vrx_w9',
+  table: 'ngfw_w9',
   mode: 'netns',
   present: true,
   inSync: true,
@@ -99,7 +99,7 @@ describe('host ACL model (F-host-acl-nftables)', () => {
     expect(r.properties?.['enabled']?.title).toBe('Enabled (shared)');
     const variants = r.properties?.['source']?.anyOf ?? r.properties?.['source']?.oneOf ?? [];
     const objectVariant = variants.find((v) => v.properties?.['kind']?.const === 'object');
-    const hints = objectVariant?.properties?.['name']?.['x-vrx-ui'] as Record<string, unknown>;
+    const hints = objectVariant?.properties?.['name']?.['x-ngfw-ui'] as Record<string, unknown>;
     expect(hints['objectKinds']).toEqual(['addresses', 'addressGroups']);
     expect(hints['help']).toBeUndefined();
   });

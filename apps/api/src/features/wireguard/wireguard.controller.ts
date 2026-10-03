@@ -5,7 +5,7 @@ import { generateKeyPairSync } from 'node:crypto';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
@@ -205,7 +205,7 @@ export class WireguardController {
   @ApiOkResponse({ schema: openapi(KeypairOut, 'output') })
   async keypair(
     @Body(new ZodPipe(KeypairBody)) body: z.output<typeof KeypairBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const kp = wireguardKeypair();
     const r = await this.secrets.put('key', body.name, kp.privateKey, {

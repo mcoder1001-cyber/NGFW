@@ -1,4 +1,4 @@
-//go:build !vrxtestsecrets
+//go:build !ngfwtestsecrets
 
 package subsystems
 

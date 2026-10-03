@@ -237,7 +237,7 @@ func (r *Renderer) dropDumpCache() {
 	r.cacheMu.Unlock()
 }
 
-// StateRecord is one <instance>.state file written by vrx-keepalived-notify.
+// StateRecord is one <instance>.state file written by ngfw-keepalived-notify.
 type StateRecord struct {
 	Name  string `json:"name"`
 	Type  string `json:"type"`

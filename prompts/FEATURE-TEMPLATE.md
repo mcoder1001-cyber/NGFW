@@ -6,7 +6,7 @@ Reference behaviour: TNSR "<TNSR feature name>" and VPP feature/plugin "<vpp fea
 
 ## Inputs to read first
 - `packages/schema/src/domains/<domain>.ts` — extend additively (contract rule below), do not fork
-- `packages/proto/vrx/v1/dataplane.proto` — the `<Subsystem>` message you fill
+- `packages/proto/ngfw/v1/dataplane.proto` — the `<Subsystem>` message you fill
 - `apps/agent/internal/descriptors/<plugin>/` (built by DF-<n>) — reuse; if something is missing, add it there (you own it for this task)
 - `apps/agent/binapi/<plugin>/` — **the only source of VPP API names** (manager-owned; missing plugin → questions file)
 - `docs/lab/shared-host-rules.md` — your slot prefix, ports, table range; daemon ownership
@@ -20,7 +20,7 @@ branch against those changes — do not wait. Renaming/reshaping existing fields
 ## Scope — build exactly this
 1. **Schema**: Zod model for `<config path>` with semantic rules: <list>.
 2. **Agent**: wire descriptors for `<objects>` into the `<subsystem>` apply path; `Retrieve` covers every object; unit tests with the fake
-   client; ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects): after Apply `Retrieve()` == desired and
+   client; ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, prefixed objects): after Apply `Retrieve()` == desired and
    `vppctl show <x>` contains it; after rollback nothing remains; agent-restart simulation recreates it.
    An id-allocating family takes its range only from `w.IDRange()`, never `nil` or a missing option (df7: `df7.WithIDs(ids.DF7())`);
    its test asserts that `NoIDs()` owns nothing (`docs/lab/shared-host-rules.md` §12).

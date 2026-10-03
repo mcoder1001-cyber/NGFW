@@ -1,8 +1,8 @@
 # strongSwan renderer — desired state ↔ rendered directives (RF-2)
 
 Code: `apps/agent/internal/renderers/strongswan` (README there: files, escaping, VICI apply,
-govici limits, test harness). Files: `/etc/strongswan.conf` and `/etc/swanctl/conf.d/vrx.conf`
-(0640 root:root), `/etc/swanctl/conf.d/vrx-secrets.conf` (**0600** root:root), written atomically;
+govici limits, test harness). Files: `/etc/strongswan.conf` and `/etc/swanctl/conf.d/ngfw.conf`
+(0640 root:root), `/etc/swanctl/conf.d/ngfw-secrets.conf` (**0600** root:root), written atomically;
 applied over VICI (`load-*` / `unload-*`, then a convergence check against `list-conns`/`get-shared`/
 `get-pools`); validated structurally (strongSwan has no offline checker; strict round-trip parser +
 semantic checks); state from `list-conns`/`list-sas`/`stats`/`version`; events from
@@ -52,7 +52,7 @@ them yet.
 ## strongswan.conf
 
 `charon { load_modular = no; load = "<DaemonConfig.Plugins>"; install_routes; [port; port_nat_t];
-plugins { vici { socket = unix://<Paths.ViciSocket> } }; [filelog { vrx { path; default ≤ 1 } }];
+plugins { vici { socket = unix://<Paths.ViciSocket> } }; [filelog { ngfw { path; default ≤ 1 } }];
 [journal/syslog default = -1] }` and `swanctl { load = "…"; socket = unix://<Paths.ViciSocket> }`.
 P11 sets the plugin list (kernel-vpp); charon-systemd reads the `charon` section by fallback.
 

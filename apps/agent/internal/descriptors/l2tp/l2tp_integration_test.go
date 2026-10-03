@@ -13,7 +13,7 @@ import (
 // EnvCreate opts in to creating an L2TPv3 tunnel on the host. VPP 26.06 has no delete
 // message, so the tunnel interface stays until VPP restarts; on the shared host this is only
 // done deliberately (before a planned restart), never by default.
-const EnvCreate = "VRX_DF6_L2TP_CREATE"
+const EnvCreate = "NGFW_DF6_L2TP_CREATE"
 
 func TestL2tpOnHost(t *testing.T) {
 	h := df6test.Connect(t)

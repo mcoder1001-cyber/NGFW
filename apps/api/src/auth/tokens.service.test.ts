@@ -8,7 +8,7 @@ import { TokensService } from './tokens.service.js';
 // Revocation itself (Valkey generation + Lua scripts) is covered by the e2e on the host Valkey (td2*.e2e.test.ts).
 describe('TokensService access tokens carry the credential generation (D-097)', () => {
   const tokens = new TokensService(
-    testEnv({ VRX_JWT_SECRET: randomBytes(24).toString('hex') }),
+    testEnv({ NGFW_JWT_SECRET: randomBytes(24).toString('hex') }),
     {} as Valkey,
     new Bus(),
   );
@@ -38,7 +38,7 @@ describe('TokensService revocation order (TD-2 verify V1/V3)', () => {
       },
     } as unknown as Valkey;
     const t = new TokensService(
-      testEnv({ VRX_JWT_SECRET: randomBytes(24).toString('hex') }),
+      testEnv({ NGFW_JWT_SECRET: randomBytes(24).toString('hex') }),
       failing,
       bus,
     );
@@ -52,7 +52,7 @@ describe('TokensService revocation order (TD-2 verify V1/V3)', () => {
 
   it('sessionCurrent: current generation, or the session a self-service change kept — nothing else', async () => {
     const t = new TokensService(
-      testEnv({ VRX_JWT_SECRET: randomBytes(24).toString('hex') }),
+      testEnv({ NGFW_JWT_SECRET: randomBytes(24).toString('hex') }),
       { eval: async () => 1, smembers: async () => [] } as unknown as Valkey,
       new Bus(),
     );

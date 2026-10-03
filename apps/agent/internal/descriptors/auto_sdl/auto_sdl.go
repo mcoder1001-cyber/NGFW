@@ -51,7 +51,7 @@ const (
 )
 
 // ErrSessionSDLDisabled is returned (wrapped) when VPP refuses the call because the session
-// layer's SDL backend is off (startup.conf; handover-gated on vrx-a). Host tests skip on it.
+// layer's SDL backend is off (startup.conf; handover-gated on ngfw-a). Host tests skip on it.
 var ErrSessionSDLDisabled = errors.New("auto_sdl needs the session layer's SDL backend (startup.conf session { rt-backend sdl })")
 
 // Config is the auto-sdl.config singleton (auto_sdl_config).

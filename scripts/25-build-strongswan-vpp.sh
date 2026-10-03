@@ -28,7 +28,7 @@ make -j"$(nproc)"
 
 echo
 echo "Build complete. Package it rather than 'make install':"
-echo "  checkinstall --pkgname=vrx-strongswan --pkgversion=${SSWAN_VER} --provides=strongswan"
+echo "  checkinstall --pkgname=ngfw-strongswan --pkgversion=${SSWAN_VER} --provides=strongswan"
 echo "or write a proper debian/ directory - the product needs a signed, versioned package"
 echo "so that A/B upgrade and rollback work (work item D0.5)."
 echo

@@ -64,11 +64,11 @@ configures DPDK), so they can change the DPDK objects that go into `vpp-plugin-d
 ### H2 — The default build output is demo-patched but carries the host's exact version, and the README installs that directory
 The default `build.sh` applies the whole series, which today is only the DEMO patch. It asserts `26.06-release` (`VERSION:10`,
 `build.sh:140-143`) and writes to `out/26.06-release/`. `README.md:122-129` (manager install procedure) then runs `dpkg -i` from
-exactly that directory. A manager who follows the README after handover would install the **demo** V16 patch on vrx-a, and
+exactly that directory. A manager who follows the README after handover would install the **demo** V16 patch on ngfw-a, and
 `dpkg -l` could not tell it apart from the upstream build. That contradicts the scope ("demonstration, not applied to the
-host") and D-089, which says patched builds get the local suffix `+vrx<N>`. The rollback note in `README.md:136`
+host") and D-089, which says patched builds get the local suffix `+ngfw<N>`. The rollback note in `README.md:136`
 ("same version → dpkg -i reinstalls") exists only because of this ambiguity.
-- Fix: (1) implement D-089. Any build with a non-empty applied series gets version `26.06-release+vrx<N>`, with `N` from
+- Fix: (1) implement D-089. Any build with a non-empty applied series gets version `26.06-release+ngfw<N>`, with `N` from
   `VERSION` (`VPP_LOCAL_REV`). Upstream `src/scripts/version` reads `src/scripts/.version` when present, or you can set
   `debian/changelog` with `dch`. Update `VPP_DEB_VERSION`/verify.sh and the output dir name to match. (2) Leave `Status: demo`
   patches out of the default build unless `--with-demo` is given, and put `demo` in the output dir name and the manifest when
@@ -90,7 +90,7 @@ which is wrong. After a tag bump, a patch can land in the wrong place, and `--pr
   `--out /root/vpp/build-root` wipe that directory.
 - Fix: always refuse (a) `/root/vpp`, whatever `--reference` says, (b) any path whose realpath is `/`, `$HOME`, the repo
   toplevel or inside a git work tree other than `$SRC`, and (c) an existing `$SRC` that is not a git repo created by us (use a
-  marker file such as `.build/.vrx-owned`). Before emptying `OUT_DIR`, require that it is new or contains only our artefact
+  marker file such as `.build/.ngfw-owned`). Before emptying `OUT_DIR`, require that it is new or contains only our artefact
   names plus `SHA256SUMS`/`manifest.json`.
 
 ### M3 — The build-dependency check reports "all satisfied" when apt fails
@@ -122,7 +122,7 @@ The budget is honoured in practice (3.4 GB used), but `build.sh` has no `df` pre
 
 ### L4 — Not yet aligned with D-089 on artefact location and the shipped set
 The default `--out` is still under the worktree (`build.sh:69`), and `README.md:113-114` still describes the old location.
-D-089 decided `/srv/vrx-artifacts`. README P10 guidance (`:106-110`) still calls the shipped set "P10's call", but D-089 now
+D-089 decided `/srv/ngfw-artifacts`. README P10 guidance (`:106-110`) still calls the shipped set "P10's call", but D-089 now
 says neither `vpp-dbg` nor `vpp-dev` ships. Update the README, and optionally add `"ship": bool` per package in the manifest,
 derived from a `VPP_PACKAGES_SHIP` list in VERSION. Q1–Q4 in the questions file are answered by D-089 and should be marked
 answered.

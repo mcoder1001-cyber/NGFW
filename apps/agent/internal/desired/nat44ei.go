@@ -1,7 +1,7 @@
 package desired
 
 // F-nat44-ei-64-66-nptv6: `nat` with `mode: "ei"` onto DF-3's nat44-ei descriptors (docs/agent/descriptors/nat44-ei.md,
-// nat-common.md), and the assembler back to vrx.v1.NatConfig. Called from nat.go under this task's anchors.
+// nat-common.md), and the assembler back to ngfw.v1.NatConfig. Called from nat.go under this task's anchors.
 //
 //	nat (NAT44 on, D-062 Nat44Enabled)      → nat44-ei.enable/global {inside/outside VRF, static-mapping-only, connection-tracking}
 //	nat.timeouts (≠ VPP defaults)           → nat44-ei.timeouts/global
@@ -25,7 +25,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/nat44ei"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -35,7 +35,7 @@ import (
 // ruleModeEDFeatures is the schema rule id of ED-only leaves in mode "ei" (packages/schema semantic/nat.ts).
 const ruleModeEDFeatures = "nat.mode-ed-features"
 
-func nat44EI(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
+func nat44EI(s Sink, nat *ngfwv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	en := nat44ei.EnableSpec{StaticMappingOnly: nat.GetStaticMappingOnly(), ConnectionTracking: nat.GetConnectionTracking()}
 	okIn, okOut := true, true
 	if nat.InsideVrf != nil {
@@ -102,7 +102,7 @@ func (p eiPools) contains(a netip.Addr) bool {
 	return false
 }
 
-func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bool)) eiPools {
+func nat44EIPools(s Sink, pools []*ngfwv1.NatPool, vrfID func(string) (uint32, bool)) eiPools {
 	refs := map[string]natPoolRef{}
 	out := eiPools{refs: refs}
 	for i, p := range pools {
@@ -150,7 +150,7 @@ func nat44EIPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bo
 // (nat44_ei_reserve_port; NO_SUCH_ENTRY otherwise), unless static-mapping-only is on.
 const ruleEIPortForwardPool = "nat.ei-port-forward-pool"
 
-func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
+func nat44EIStatic(s Sink, m *ngfwv1.NatStaticMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "staticMappings", strconv.Itoa(i))
 	bad := false
 	for _, f := range []struct {
@@ -218,7 +218,7 @@ func nat44EIStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools eiPools, stat
 	natAdd(s, nat44ei.NameStaticMapping, spec.Name, &spec, pt)
 }
 
-func nat44EIIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
+func nat44EIIdentity(s Sink, m *ngfwv1.NatIdentityMapping, i int, pools eiPools, staticOnly bool, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "identityMappings", strconv.Itoa(i))
 	if (m.Ip == nil) == (m.Interface == nil) {
 		s.Errorf(pt, "nat.identity-mappings", "exactly one of ip or interface is required")
@@ -258,7 +258,7 @@ func nat44EIIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, pools eiPools, 
 
 // ---- assembler ------------------------------------------------------------------------------------------------
 
-func assembleNat44EI(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
+func assembleNat44EI(out *ngfwv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
 	var (
 		any44                  bool
 		enable                 *nat44ei.EnableSpec
@@ -330,7 +330,7 @@ func assembleNat44EI(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 		if timeouts != nil {
 			t = *timeouts
 		}
-		out.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
+		out.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
 	} else if forwarding {
 		out.Forwarding = proto.Bool(true)
 	}
@@ -351,19 +351,19 @@ func assembleNat44EI(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 		if p.Last != p.First {
 			r += "-" + p.Last
 		}
-		out.Pools = append(out.Pools, &vrxv1.NatPool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName), TwiceNat: proto.Bool(false)})
+		out.Pools = append(out.Pools, &ngfwv1.NatPool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName), TwiceNat: proto.Bool(false)})
 	}
 	sort.Strings(ifPools)
 	for _, ifName := range ifPools {
-		out.Pools = append(out.Pools, &vrxv1.NatPool{Interface: proto.String(ifName), TwiceNat: proto.Bool(false)})
+		out.Pools = append(out.Pools, &ngfwv1.NatPool{Interface: proto.String(ifName), TwiceNat: proto.Bool(false)})
 	}
 
 	sort.Slice(statics, func(a, b int) bool { return statics[a].Name < statics[b].Name })
 	for _, m := range statics {
-		sm := &vrxv1.NatStaticMapping{
+		sm := &ngfwv1.NatStaticMapping{
 			Name:     proto.String(m.Name),
-			Local:    &vrxv1.NatStaticMapping_Local{Ip: proto.String(m.Local.IP)},
-			External: &vrxv1.NatStaticMapping_External{},
+			Local:    &ngfwv1.NatStaticMapping_Local{Ip: proto.String(m.Local.IP)},
+			External: &ngfwv1.NatStaticMapping_External{},
 			Vrf:      natVRFName(m.VRF, tableName),
 			TwiceNat: proto.Bool(false), SelfTwiceNat: proto.Bool(false), Out2InOnly: proto.Bool(false),
 		}
@@ -385,7 +385,7 @@ func assembleNat44EI(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 	}
 	sort.Slice(idents, func(a, b int) bool { return key(idents[a]) < key(idents[b]) })
 	for _, m := range idents {
-		im := &vrxv1.NatIdentityMapping{Vrf: natVRFName(m.VRF, tableName)}
+		im := &ngfwv1.NatIdentityMapping{Vrf: natVRFName(m.VRF, tableName)}
 		if m.Interface != "" {
 			im.Interface = proto.String(m.Interface)
 		} else {

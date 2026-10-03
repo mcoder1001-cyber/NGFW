@@ -72,7 +72,7 @@
   "services": {
     "lldp": {
       "enabled": true,
-      "systemName": "vrx-lab",
+      "systemName": "ngfw-lab",
       "txHold": 4,
       "txIntervalSec": 30,
       "interfaces": [

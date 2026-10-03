@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// data "vrx_state" — live, read-only state (`GET /api/v1/state/<path>`) as JSON.
+// data "ngfw_state" — live, read-only state (`GET /api/v1/state/<path>`) as JSON.
 type stateDataSource struct{ p *providerData }
 
 type stateModel struct {

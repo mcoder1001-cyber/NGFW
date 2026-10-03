@@ -30,7 +30,7 @@ below: `show bridge-domain 7750 detail` → `BVI-Intf loop775`, restart and roll
 | C1 | `packages/schema/src/domains/services.ts` | `nsim` key line; **one import line at the top (no import anchor)** |
 | C2 | `packages/schema/src/semantic/index.ts` | one import, one spread |
 | C3 | `packages/schema/src/index.ts` | one export |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | RPC under the service anchor; `gso` 20, `mirror` 21 under the Interface anchor; `nsim` 9 under the ServicesConfig anchor; messages in `// ----- F-loopback-bvi-gso-lldp-span -----` |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | RPC under the service anchor; `gso` 20, `mirror` 21 under the Interface anchor; `nsim` 9 under the ServicesConfig anchor; messages in `// ----- F-loopback-bvi-gso-lldp-span -----` |
 | C6 | `docs/contracts/proto.md` | `### F-loopback-bvi-gso-lldp-span: LldpNeighbors` |
 | C7 | generated | `pnpm gen && make -C apps/cli gen docs` (never hand-edited) |
 | P1 | `apps/api/src/app.module.ts` | one import, one spread in controllers, one in providers |
@@ -105,10 +105,10 @@ gone, then the loopbacks), validation pointers, globals owner (lldp.global + nsi
 reconfigure; a changed model reconfigures once; rollback removes cross-connect and output), the LldpNeighbors RPC (paging,
 foreign owner's interface not reported, limit 1001 → INVALID_ARGUMENT, disconnected → UNAVAILABLE).
 
-### Host checks (descriptor level, `VRX_INTEGRATION=1`)
-`VRX_INTEGRATION=1 go test -run 'TestERSPANOnHost|TestSpanOnHost|TestLLDPOnHost' ./internal/descriptors/{span,lldp}` and
+### Host checks (descriptor level, `NGFW_INTEGRATION=1`)
+`NGFW_INTEGRATION=1 go test -run 'TestERSPANOnHost|TestSpanOnHost|TestLLDPOnHost' ./internal/descriptors/{span,lldp}` and
 `-run TestGSO ./internal/descriptors/gso` (03:52, NRestarts 1 → 1). ERSPAN uses DF-6's `gre.tunnel` descriptor directly; the
-nsim host test is opt-in (`VRX_NSIM_HOST=1`, globals lock exclusive) and was **not** run (no manager window) — the default
+nsim host test is opt-in (`NGFW_NSIM_HOST=1`, globals lock exclusive) and was **not** run (no manager window) — the default
 gate's nsim evidence is the fake client.
 ```
 === RUN   TestERSPANOnHost
@@ -171,7 +171,7 @@ PASS
 ok  	ngfw/agent/internal/descriptors/span	0.528s
 === RUN   TestLLDPOnHost
 === RUN   TestLLDPOnHost/global_(write-only,_globals_owner_only)
-    integration_test.go:23: skip: lldp.global is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
+    integration_test.go:23: skip: lldp.global is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
 === RUN   TestLLDPOnHost/interface_(write-only,_verified_via_lldp_dump)
 === NAME  TestLLDPOnHost
     integration_test.go:33: created loop750 sw_if_index 10 (tagged true, up true)
@@ -215,7 +215,7 @@ NRestarts=1
 ### The ONE host integration check through the real API + agent + VPP (`test/topology/loopback-bvi-gso-lldp-span`)
 `eval "$(tools/lab env 7)"; test/topology/loopback-bvi-gso-lldp-span/run.sh -run TestLoopbackBviGsoLldpSpanOnHost` at c97508f3
 (04:30; shared lab lock during the run only; the long `show interface features` / L2 feature lists are condensed — only
-the arcs with a feature are kept). The agent runs as a slot agent (`VRX_GLOBALS_OWNER=0`). LLDP runs on `loop780`, a
+the arcs with a feature are kept). The agent runs as a slot agent (`NGFW_GLOBALS_OWNER=0`). LLDP runs on `loop780`, a
 loopback the test found with sw_if_index == hw_if_index (V20) and handed to the agent by its owner tag; the ERSPAN
 fixture `gre778` is created with the same two messages DF-6's descriptor sends (`gre_tunnel_add_del_v2` + owner tag —
 `apps/agent/internal/**` cannot be imported from a test module; the descriptor itself is the ERSPAN host check above).
@@ -227,15 +227,15 @@ The `/state/drift` entry for `/services/lldp` is the write-only leaf: it disappe
     lbgs_test.go:113: ERSPAN fixture gre778 (sw_if_index 2, tag w7:gre778): gre_tunnel_add_del_v2 type=erspan p2p 10.7.78.1 → 10.7.78.2 session 7
     lbgs_test.go:114: LLDP probe loop780: sw_if_index 4 hw_if_index 4 (found true)
     lbgs_test.go:117: LLDP interface: loop780 (sw_if_index 4 == hw_if_index): created untagged, tagged w7:loop780 right before rev A names it (the agent adopts it by its tag)
-    lbgs_test.go:122: create role vrx_w7
-        create database vrx_w7 (owner vrx_w7)
-        check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-        ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@127.0.0.1:5432/vrx_w7
-    lbgs_test.go:122: started vrx-agent pid 3554973 (log /run/vrx-test/w7/lbgs/agent.log)
-    lbgs_test.go:122: started vrx-api pid 3555048 (log /run/vrx-test/w7/lbgs/api.log)
+    lbgs_test.go:122: create role ngfw_w7
+        create database ngfw_w7 (owner ngfw_w7)
+        check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w7/pg.env (0600) · DSN postgres://ngfw_w7:<redacted>@127.0.0.1:5432/ngfw_w7
+    lbgs_test.go:122: started ngfw-agent pid 3554973 (log /run/ngfw-test/w7/lbgs/agent.log)
+    lbgs_test.go:122: started ngfw-api pid 3555048 (log /run/ngfw-test/w7/lbgs/api.log)
     lbgs_test.go:128: commit rev 0 (the ERSPAN fixture gre778 named, nothing else) → applied revision 1
 === RUN   TestLoopbackBviGsoLldpSpanOnHost/validation
-    lbgs_test.go:134: commit of a mirror loop775 → loop775 → 400; body {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/loop775/mirror/0/destination","message":"a mirror session cannot copy loop775 to itself"}]}
+    lbgs_test.go:134: commit of a mirror loop775 → loop775 → 400; body {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/loop775/mirror/0/destination","message":"a mirror session cannot copy loop775 to itself"}]}
 === RUN   TestLoopbackBviGsoLldpSpanOnHost/loopbacks
     lbgs_test.go:156: commit rev A (loopbacks + BVI) → applied revision 2
     lbgs_test.go:165: vppctl show interface:
@@ -293,7 +293,7 @@ The `/state/drift` entry for `/services/lldp` is the write-only leaf: it disappe
     lbgs_test.go:188: GET /state/lldp/neighbors → {"retrievedAt":"2026-09-25T01:00:20.940Z","page":1,"pageSize":100,"total":1,"items":[{"interface":"loop780","swIfIndex":4,"heard":true,"chassisId":"de:ad:00:00:00:0c","chassisIdSubtype":"mac-address","portId":"loop780","portIdSubtype":"interface-name","ttl":121,"lastHeardSecAgo":0.3918577522780424,"lastSentSecAgo":0.3919705991084186,"configured":true,"portDescription"
     lbgs_test.go:188: GET /state/drift → {"subsystems":["interfaces","vrfs","routing","services"],"changes":[{"op":"remove","pointer":"/services/lldp","from":{"enabled":true,"txHold":4,"txIntervalSec":30,"interfaces":[{"interface":"loop780","portDescription":"w7 lab uplink"}]}}],"ignored":[{"pointer":"/management","rule":"agent.unimplemented-domain"},{"pointer":"/nat","rule":"agent.unimplemented-domain"},{"pointer":"
 === RUN   TestLoopbackBviGsoLldpSpanOnHost/restart-safety
-    stack_test.go:200: stopped vrx-agent pid 3554973
+    stack_test.go:200: stopped ngfw-agent pid 3554973
     lbgs_test.go:198: simulated loss: sw_interface_span_enable_disable 5→2 l2=false state=disabled → ok
     lbgs_test.go:198: simulated loss: sw_interface_span_enable_disable 5→6 l2=false state=disabled → ok
     lbgs_test.go:198: simulated loss: feature_gso_enable_disable loop775 (5) enable=false → ok
@@ -302,8 +302,8 @@ The `/state/drift` entry for `/services/lldp` is the write-only leaf: it disappe
     lbgs_test.go:198: simulated loss: delete_loopback loop776 (sw_if_index 6, tag "w7:loop776") → ok
     lbgs_test.go:202: simulated loss: sw_interface_set_lldp loop780 (4) enable=false → ok (the aligned loopback itself stays: V20)
     lbgs_test.go:208: vppctl show interface span (after the loss):
-    lbgs_test.go:211: started vrx-agent pid 3559068 (log /run/vrx-test/w7/lbgs/agent.log)
-    lbgs_test.go:230: agent log: {"time":"2026-09-25T04:30:23.2194281+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":3559068,"owner":"w7","socket":"/run/vrx-test/w7/agent.sock","vpp_api":"/run/vpp/api.sock"}
+    lbgs_test.go:211: started ngfw-agent pid 3559068 (log /run/ngfw-test/w7/lbgs/agent.log)
+    lbgs_test.go:230: agent log: {"time":"2026-09-25T04:30:23.2194281+03:30","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":3559068,"owner":"w7","socket":"/run/ngfw-test/w7/agent.sock","vpp_api":"/run/vpp/api.sock"}
     lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.220717596+03:30","level":"INFO","msg":"not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)","owner":"w7","component":"subsystems"}
     lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.285328025+03:30","level":"INFO","msg":"reconcile start","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","services"]}
     lbgs_test.go:235: agent log: {"time":"2026-09-25T04:30:23.647355319+03:30","level":"INFO","msg":"reconcile done","owner":"w7","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","services"],"status":"APPLY_STATUS_APPLIED","summary":"created:13  unchanged:4","reapplied":0,"duration":362054284,"err":""}
@@ -375,12 +375,12 @@ The `/state/drift` entry for `/services/lldp` is the write-only leaf: it disappe
         loop1053                          1      up          9000/0/0/0
         loop789                           3     down         9000/0/0/0
 === NAME  TestLoopbackBviGsoLldpSpanOnHost
-    stack_test.go:200: stopped vrx-api pid 3555048
-    stack_test.go:200: stopped vrx-agent pid 3559068
+    stack_test.go:200: stopped ngfw-api pid 3555048
+    stack_test.go:200: stopped ngfw-agent pid 3559068
     stack_test.go:507: pg-test drop w7: <nil>
-        drop   database vrx_w7
-        drop   role vrx_w7
-        ok     nothing named vrx_w7 / vrx_w7 remains
+        drop   database ngfw_w7
+        drop   role ngfw_w7
+        ok     nothing named ngfw_w7 / ngfw_w7 remains
     vpp_test.go:275: fixture gre778 deleted
     lbgs_test.go:111: leftover check (loop775 loop776 gre778, loop780–loop789 and sub-interfaces, bridge domain 7750): []; all mirror sessions in VPP: []
     lbgs_test.go:104: systemctl show vpp -p NRestarts (after) = 2
@@ -402,10 +402,10 @@ GSO, mirroring, LLDP and nsim (running defaults, `/state/interfaces` config carr
 pageSize 1001 → 400, the API's own owner in the RPC); readonly cannot PATCH; rollback clears everything.
 ```
 RUN  v3.2.7 /root/ngfw-wt/F-loopback-bvi-gso-lldp-span/apps/api
-create role vrx_w7
-create database vrx_w7 (owner vrx_w7)
-check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@127.0.0.1:5432/vrx_w7
+create role ngfw_w7
+create database ngfw_w7 (owner ngfw_w7)
+check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w7/pg.env (0600) · DSN postgres://ngfw_w7:<redacted>@127.0.0.1:5432/ngfw_w7
  ✓ test/e2e/loopback-bvi-gso-lldp-span.e2e.test.ts (5 tests) 5672ms
    ✓ loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent) > commits a loopback BVI with GSO, mirroring, LLDP and nsim; state shows them  647ms
    ✓ loopback / GSO / LLDP / mirroring / nsim e2e (PostgreSQL + fake agent) > the readonly role cannot change LLDP; rollback removes every leaf  329ms
@@ -413,10 +413,10 @@ ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@12
       Tests  5 passed (5)
    Start at  04:30:29
    Duration  30.82s (transform 12.08s, setup 0ms, collect 21.93s, tests 5.67s, environment 1ms, prepare 488ms)
-e2e teardown: deleted 7 Valkey keys vrx:w7:e2e:* in db 7
-drop   database vrx_w7
-drop   role vrx_w7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 7 Valkey keys ngfw:w7:e2e:* in db 7
+drop   database ngfw_w7
+drop   role ngfw_w7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 
 ### UI — screenshots against the real endpoint (`TestLoopbackBviGsoLldpSpanScreenshots`)
@@ -520,9 +520,9 @@ $ systemctl show vpp -p NRestarts
 NRestarts=2
 ```
 Processes: every agent / API / vite preview started by the tests was stopped by PID (logs above); no process of slot 7 is
-running; the lab lock is not held; database `vrx_w7` dropped by the harness ("nothing named vrx_w7 / vrx_w7 remains");
+running; the lab lock is not held; database `ngfw_w7` dropped by the harness ("nothing named ngfw_w7 / ngfw_w7 remains");
 no rig was used; GSO / LLDP disabled on everything enabled (rollbacks + leftover check); `dist/` and `apps/agent/bin`
-removed; the test work dir /run/vrx-test/w7/lbgs (logs, agent state) is left in the slot run dir. nsim was never applied
+removed; the test work dir /run/ngfw-test/w7/lbgs (logs, agent state) is left in the slot run dir. nsim was never applied
 on the shared VPP (slot agent; opt-in host test not run).
 
 ## Fix round 1 (review 777f629f, APPROVE WITH CHANGES)
@@ -535,12 +535,12 @@ rebase round only swaps names.
 | item | what changed | tests (all pass at HEAD) | on the old code |
 |---|---|---|---|
 | M1 wheel bound | `nsim.Config.WheelSlots()` (VPP's own formula: `floor(delay·bw/8 + 0.5) / packetSize + 1`) and `WheelSlotsMax = 2^20` (same as the schema's `NSIM_WHEEL_SLOTS_MAX`); `Validate` refuses a larger model with `dfkit.ErrSpec`, so `nsim_configure2` is never sent (VPP NULL-derefs a failed wheel mmap) | `nsim.TestConfigWheelBound` (schema maxima refused, largest model under the bound accepted) | probe `TestProbeOldWheelBound` fails: a >10^9-slot model reaches `nsim_configure2` |
-| M2 (a) workers | `nsim.config` Create asks `show_threads` first; with worker threads and no `WithPollMainThread(true)` it returns `nsim.ErrWorkerThreads` before any nsim call (the main thread has no wheel). The operator asserts `nsim { poll-main-thread }` in startup.conf with `VRX_NSIM_POLL_MAIN_THREAD=1` | `nsim.TestConfigRefusesWorkerThreads` | probe `TestProbeOldWorkerThreads` fails: `nsim_configure2` sent on a 3-thread VPP |
-| M2 (b) lab gate | agent: nsim descriptors are registered only on the globals owner **and** `VRX_NSIM=lab` (off by default; `LoopbackBviGsoLldpSpanEnv().Nsim`); otherwise `services.nsim` is reported `agent.unsupported-field` with the reason. API: `NsimGateInterceptor` (feature provider, `APP_INTERCEPTOR`) answers a commit or a rollback whose document carries `services.nsim` with 409 problem+json `nsim-disabled`, pointer `/services/nsim`, unless `VRX_NSIM=lab` (read per request) | `subsystems.TestNsimLabGate` (owner × env), `desired.TestNsimProjection` (owner without the gate), e2e `a commit carrying services.nsim is 409 … unless VRX_NSIM=lab` (409 + pointer, no Apply; accepted with lab; commit and rollback refused again with the gate off) | probe `TestProbeOldNsimLabGate` fails: nsim registered on the globals owner without the opt-in; the e2e 409 test fails by construction (no gate existed) |
+| M2 (a) workers | `nsim.config` Create asks `show_threads` first; with worker threads and no `WithPollMainThread(true)` it returns `nsim.ErrWorkerThreads` before any nsim call (the main thread has no wheel). The operator asserts `nsim { poll-main-thread }` in startup.conf with `NGFW_NSIM_POLL_MAIN_THREAD=1` | `nsim.TestConfigRefusesWorkerThreads` | probe `TestProbeOldWorkerThreads` fails: `nsim_configure2` sent on a 3-thread VPP |
+| M2 (b) lab gate | agent: nsim descriptors are registered only on the globals owner **and** `NGFW_NSIM=lab` (off by default; `LoopbackBviGsoLldpSpanEnv().Nsim`); otherwise `services.nsim` is reported `agent.unsupported-field` with the reason. API: `NsimGateInterceptor` (feature provider, `APP_INTERCEPTOR`) answers a commit or a rollback whose document carries `services.nsim` with 409 problem+json `nsim-disabled`, pointer `/services/nsim`, unless `NGFW_NSIM=lab` (read per request) | `subsystems.TestNsimLabGate` (owner × env), `desired.TestNsimProjection` (owner without the gate), e2e `a commit carrying services.nsim is 409 … unless NGFW_NSIM=lab` (409 + pointer, no Apply; accepted with lab; commit and rollback refused again with the gate off) | probe `TestProbeOldNsimLabGate` fails: nsim registered on the globals owner without the opt-in; the e2e 409 test fails by construction (no gate existed) |
 | M2 (c) docs | user guide, `docs/agent/descriptors/nsim.md`, UI warning (en + fa): lab opt-in, 409, worker refusal, bound, and that configuring nsim leaves the `nsim-wheel` input node polling the main thread until VPP restarts | — | — |
 | M3 claim first | gso, nsim (cross-connect, output), span and lldp Creates claim the untagged interface before the first VPP write; a failed write releases a claim they took; gso and nsim disable again when the boot record cannot be written (no enable without a record). lldp keeps the claim when the neighbour dump fails after the enable (V20: no disable), and releases it on `ErrIndexMismatch`. Local `claimFirst` helper in each package — replaced by `tg.ClaimFirst` at the rebase (mechanical) | `{gso,nsim,span}.TestCreateClaimsFirst`, `{gso,nsim}.TestCreateUndoesEnableWithoutRecord`, `span.TestCreateReleasesClaimOnFailure`, `lldp.TestInterfaceClaimsFirst`, `lldp.TestInterfaceMismatchReleasesClaim` | against the pre-M3 sources: `TestCreateClaimsFirst` fails in all four packages ("2 GSO calls before the claim", "2 nsim enables before the claim", "a mirror was written before the claim", "LLDP enabled before the claim"), `TestCreateUndoesEnableWithoutRecord` fails in gso and nsim ("GSO left enabled (1) without a record", "enables left without a record: cross 1 output map[4:1]") |
 | M5 LLDP mismatch | a refusal before any VPP call is impossible (the binapi exposes no hw_if_index for an interface). The user guide, `lldp.md` and a warning on the LLDP page now say what happens: DF-7 enables LLDP first, then the agent reads the index back, reports `ErrIndexMismatch`, and the interface stays in drift until VPP's indexes line up | — (text) | — |
-| M6 form submits | LLDP and nsim SchemaForms submitted in tests; the nsim cross-connect is its own switch (an absent optional object is no longer materialised; `withoutProps`), so a model without a pair is saved without one and switching it off sends `crossConnect: null` | `pages.test.tsx` › form submits: LLDP edit → `{lldp:{systemName:'vrx-lab'}}`; nsim delay → `{nsim:{delayMs:35}}`; cross-connect off → `{nsim:{crossConnect:null}}` | old pages (`NsimPage.tsx`, `LldpPage.tsx`, `model.ts` from 777f629f): both nsim tests fail ("expected undefined to deeply equal { nsim: { delayMs: 35 } }": the materialised empty cross-connect kept the form from saving; no switch to turn it off); the LLDP test passes (M6 was missing coverage there, not a bug) |
+| M6 form submits | LLDP and nsim SchemaForms submitted in tests; the nsim cross-connect is its own switch (an absent optional object is no longer materialised; `withoutProps`), so a model without a pair is saved without one and switching it off sends `crossConnect: null` | `pages.test.tsx` › form submits: LLDP edit → `{lldp:{systemName:'ngfw-lab'}}`; nsim delay → `{nsim:{delayMs:35}}`; cross-connect off → `{nsim:{crossConnect:null}}` | old pages (`NsimPage.tsx`, `LldpPage.tsx`, `model.ts` from 777f629f): both nsim tests fail ("expected undefined to deeply equal { nsim: { delayMs: 35 } }": the materialised empty cross-connect kept the form from saving; no switch to turn it off); the LLDP test passes (M6 was missing coverage there, not a bug) |
 | L1 | schema help "Empty keeps VPP's current system name (VPP starts without one)" (`contract(schema)`, generation unchanged); lldp.go comment | — | — |
 | L3 | guide quotes the evidence: +0.61 s, reconcile 0.428 s | — | — |
 | M4 | **after TD-23** (not on main at 09:58: `git log main` head `1d3ccf31`, no TD-23 merge). At the rebase: merge main, drop the fakevpp.go hook hunk, `RegisterExtension("loopback-bvi-gso-lldp-span", …)` in `coretest/loopback_bvi_gso_lldp_span.go`, the `gso-ip4` answer through `RegisterFeatureIsEnabled`, the replicated mactime branch deleted; the core dispatcher untouched | — | — |
@@ -556,7 +556,7 @@ row itself, like the AuthGuard's 403 row: `failure`, status 409, `after: { reaso
 `POST /api/v1/config/commit` or `POST /api/v1/config/rollback/:rev`, user and source address, written before the 409 is
 answered. `app.module.ts` is not touched.
 - `nsim-gate.test.ts` (new API unit test): a refused commit → 409, handler not run, exactly one row with that content; a
-  refused rollback → one row under `/rollback/:rev`; a commit without nsim, or with `VRX_NSIM=lab`, writes nothing here.
+  refused rollback → one row under `/rollback/:rev`; a commit without nsim, or with `NGFW_NSIM=lab`, writes nothing here.
   On the old gate: 2 failed | 1 passed ("expected [] to deeply equal [ Array(1) ]").
 - e2e: both 409 cases now read `audit_log` rows written after the refusal and expect exactly one
   `{action, username admin, failure, 409, after.reason nsim-disabled}`. On the old gate: 2 failed | 5 passed
@@ -567,7 +567,7 @@ Old-code probes (`TestProbeOld*`, only pre-fix symbols; the review-round sources
 ```
 --- FAIL: TestProbeOldWheelBound       M1: a >1e9-slot wheel was not refused: err=<nil>, nsim_configure2 sent 1 times
 --- FAIL: TestProbeOldWorkerThreads    M2(a): worker box without poll-main-thread: err=<nil>, nsim_configure2 sent 1 times
---- FAIL: TestProbeOldNsimLabGate      M2(b): nsim registered on the globals owner without VRX_NSIM=lab
+--- FAIL: TestProbeOldNsimLabGate      M2(b): nsim registered on the globals owner without NGFW_NSIM=lab
 HEAD: ok ngfw/agent/internal/descriptors/nsim · ok ngfw/agent/internal/subsystems (same probes)
 web at 777f629f: 2 failed | 1 passed (form submits); at HEAD: 3 passed
 ```

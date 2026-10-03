@@ -19,7 +19,7 @@ class ProvisionOrder(unittest.TestCase):
 [ "$1" = --check-artifacts ] || exit 90
 printf 'preflight\\n' >> "$CALL_LOG"
 [ "$VERIFY_STATUS" = 0 ] || exit "$VERIFY_STATUS"
-printf '{"version":"26.06-release+vrx1","packages":[{"file":"a.deb"},{"file":"b.deb"},{"file":"c.deb"},{"file":"d.deb"},{"file":"e.deb"},{"file":"f.deb"},{"file":"g.deb"}]}\\n'
+printf '{"version":"26.06-release+ngfw1","packages":[{"file":"a.deb"},{"file":"b.deb"},{"file":"c.deb"},{"file":"d.deb"},{"file":"e.deb"},{"file":"f.deb"},{"file":"g.deb"}]}\\n'
 ''')
             preflight.chmod(0o755)
             text = (ROOT / 'tools/lab').read_text()
@@ -32,7 +32,7 @@ c_yel= c_off= c_grn=
 is_local(){ return 1; }
 is_planned(){ return 1; }
 inv_file(){ return 0; }
-inv_get(){ case "$2" in role) echo vrx;; mgmt) echo 192.0.2.1;; vpp.source) echo "$ROOT/artifacts";; *) echo "${3:-fixture}";; esac; }
+inv_get(){ case "$2" in role) echo ngfw;; mgmt) echo 192.0.2.1;; vpp.source) echo "$ROOT/artifacts";; *) echo "${3:-fixture}";; esac; }
 remote_ip(){ echo 192.0.2.1; }
 inv_nics(){ :; }
 render_startup_conf(){ echo 'dpdk { no-pci }'; }
@@ -42,9 +42,9 @@ die(){ echo "$*" >&2; exit 1; }
 run_on(){ printf 'remote:%s\\n' "$*" >> "$CALL_LOG"; return 29; }
 scp(){ printf 'scp\\n' >> "$CALL_LOG"; return 99; }
 ssh(){ printf 'ssh\\n' >> "$CALL_LOG"; return 99; }
-''' + command + '\ncmd_provision vrx-b --apply\n'
+''' + command + '\ncmd_provision ngfw-b --apply\n'
             env = dict(os.environ, ROOT=str(root), CALL_LOG=str(root / 'calls'),
-                       VERIFY_STATUS=str(verifier_status), VRX_LAB_REMOTE_APPLY='1' if confirmed else '0')
+                       VERIFY_STATUS=str(verifier_status), NGFW_LAB_REMOTE_APPLY='1' if confirmed else '0')
             result = subprocess.run(['bash', '-c', harness], env=env, capture_output=True)
             log = (root / 'calls').read_text().splitlines() if (root / 'calls').exists() else []
             self.assertNotEqual(result.returncode, 0)

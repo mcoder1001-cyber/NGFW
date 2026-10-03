@@ -39,11 +39,11 @@ func TestTableZeroRequiredByNonOwner(t *testing.T) {
 	if n := len(f.CallsNamed("mpls_table_add_del")); n != 0 {
 		t.Fatalf("a non-owner sent %d mpls_table_add_del", n)
 	}
-	tables[0] = "vrx:0" // the globals owner's table 0
+	tables[0] = "ngfw:0" // the globals owner's table 0
 	if _, err := d.Create(ctx, zero.Value); err != nil {
 		t.Fatal(err)
 	}
-	if n := len(f.CallsNamed("mpls_table_add_del")); n != 0 || tables[0] != "vrx:0" {
+	if n := len(f.CallsNamed("mpls_table_add_del")); n != 0 || tables[0] != "ngfw:0" {
 		t.Fatalf("the requirement must not add a lock or rename table 0: %d calls, name %q", n, tables[0])
 	}
 	own := df7test.Desired(d, df7.Encode(Table{ID: 101}))
@@ -93,7 +93,7 @@ func TestRouteTableZeroOfTheGlobalsOwner(t *testing.T) {
 	f, tables, _, routes, _ := fakeMPLS()
 	ctx := t.Context()
 	df7.SetBootStore(df7test.Owner, nil)
-	tables[0] = "vrx:0"
+	tables[0] = "ngfw:0"
 	routes[rkey{0, 20001, 1}] = mpls.MplsRoute{MrTableID: 0, MrLabel: 20001, MrEos: 1} // another feature's
 	d := NewRoute(f, df7test.Owner)
 	r := Route{Table: 0, Label: 50016, EOS: true, EOSProto: PayloadIP4, Paths: paths(t, df7.Path{Type: df7.PathDrop})}

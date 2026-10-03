@@ -256,7 +256,7 @@ type BridgeDomainMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BridgeDomain  uint32                 `protobuf:"varint,1,opt,name=bridge_domain,json=bridgeDomain,proto3" json:"bridge_domain,omitempty"`
 	Interface     string                 `protobuf:"bytes,2,opt,name=interface,proto3" json:"interface,omitempty"` // full scheduler key of the interface
-	PortType      PortType               `protobuf:"varint,3,opt,name=port_type,json=portType,proto3,enum=vrx.agent.l2.PortType" json:"port_type,omitempty"`
+	PortType      PortType               `protobuf:"varint,3,opt,name=port_type,json=portType,proto3,enum=ngfw.agent.l2.PortType" json:"port_type,omitempty"`
 	Shg           uint32                 `protobuf:"varint,4,opt,name=shg,proto3" json:"shg,omitempty"` // split-horizon group, 0 = none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -569,7 +569,7 @@ func (x *Flags) GetBridgeDomain() uint32 {
 type VlanTagRewrite struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Interface string                 `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
-	Op        VtrOp                  `protobuf:"varint,2,opt,name=op,proto3,enum=vrx.agent.l2.VtrOp" json:"op,omitempty"`
+	Op        VtrOp                  `protobuf:"varint,2,opt,name=op,proto3,enum=ngfw.agent.l2.VtrOp" json:"op,omitempty"`
 	PushDot1Q bool                   `protobuf:"varint,3,opt,name=push_dot1q,json=pushDot1q,proto3" json:"push_dot1q,omitempty"` // pushed tags are 802.1q (true) or 802.1ad (false)
 	Tag1      uint32                 `protobuf:"varint,4,opt,name=tag1,proto3" json:"tag1,omitempty"`
 	Tag2      uint32                 `protobuf:"varint,5,opt,name=tag2,proto3" json:"tag2,omitempty"`
@@ -665,7 +665,7 @@ var File_l2_model_proto protoreflect.FileDescriptor
 
 const file_l2_model_proto_rawDesc = "" +
 	"\n" +
-	"\x0el2_model.proto\x12\fvrx.agent.l2\"\xe2\x01\n" +
+	"\x0el2_model.proto\x12\rngfw.agent.l2\"\xe2\x01\n" +
 	"\fBridgeDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
 	"\x05flood\x18\x02 \x01(\bR\x05flood\x12\x19\n" +
@@ -675,11 +675,11 @@ const file_l2_model_proto_rawDesc = "" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
 	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12\x17\n" +
 	"\amac_age\x18\b \x01(\rR\x06macAge\x12\x12\n" +
-	"\x04name\x18\t \x01(\tR\x04name\"\x9e\x01\n" +
+	"\x04name\x18\t \x01(\tR\x04name\"\x9f\x01\n" +
 	"\x12BridgeDomainMember\x12#\n" +
 	"\rbridge_domain\x18\x01 \x01(\rR\fbridgeDomain\x12\x1c\n" +
-	"\tinterface\x18\x02 \x01(\tR\tinterface\x123\n" +
-	"\tport_type\x18\x03 \x01(\x0e2\x16.vrx.agent.l2.PortTypeR\bportType\x12\x10\n" +
+	"\tinterface\x18\x02 \x01(\tR\tinterface\x124\n" +
+	"\tport_type\x18\x03 \x01(\x0e2\x17.ngfw.agent.l2.PortTypeR\bportType\x12\x10\n" +
 	"\x03shg\x18\x04 \x01(\rR\x03shg\"*\n" +
 	"\bXconnect\x12\x0e\n" +
 	"\x02rx\x18\x01 \x01(\tR\x02rx\x12\x0e\n" +
@@ -699,10 +699,10 @@ const file_l2_model_proto_rawDesc = "" +
 	"\buu_flood\x18\x05 \x01(\bR\auuFlood\x12\x19\n" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
 	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12#\n" +
-	"\rbridge_domain\x18\b \x01(\rR\fbridgeDomain\"\xdb\x01\n" +
+	"\rbridge_domain\x18\b \x01(\rR\fbridgeDomain\"\xdc\x01\n" +
 	"\x0eVlanTagRewrite\x12\x1c\n" +
-	"\tinterface\x18\x01 \x01(\tR\tinterface\x12#\n" +
-	"\x02op\x18\x02 \x01(\x0e2\x13.vrx.agent.l2.VtrOpR\x02op\x12\x1d\n" +
+	"\tinterface\x18\x01 \x01(\tR\tinterface\x12$\n" +
+	"\x02op\x18\x02 \x01(\x0e2\x14.ngfw.agent.l2.VtrOpR\x02op\x12\x1d\n" +
 	"\n" +
 	"push_dot1q\x18\x03 \x01(\bR\tpushDot1q\x12\x12\n" +
 	"\x04tag1\x18\x04 \x01(\rR\x04tag1\x12\x12\n" +
@@ -739,18 +739,18 @@ func file_l2_model_proto_rawDescGZIP() []byte {
 var file_l2_model_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_l2_model_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_l2_model_proto_goTypes = []any{
-	(PortType)(0),              // 0: vrx.agent.l2.PortType
-	(VtrOp)(0),                 // 1: vrx.agent.l2.VtrOp
-	(*BridgeDomain)(nil),       // 2: vrx.agent.l2.BridgeDomain
-	(*BridgeDomainMember)(nil), // 3: vrx.agent.l2.BridgeDomainMember
-	(*Xconnect)(nil),           // 4: vrx.agent.l2.Xconnect
-	(*FibEntry)(nil),           // 5: vrx.agent.l2.FibEntry
-	(*Flags)(nil),              // 6: vrx.agent.l2.Flags
-	(*VlanTagRewrite)(nil),     // 7: vrx.agent.l2.VlanTagRewrite
+	(PortType)(0),              // 0: ngfw.agent.l2.PortType
+	(VtrOp)(0),                 // 1: ngfw.agent.l2.VtrOp
+	(*BridgeDomain)(nil),       // 2: ngfw.agent.l2.BridgeDomain
+	(*BridgeDomainMember)(nil), // 3: ngfw.agent.l2.BridgeDomainMember
+	(*Xconnect)(nil),           // 4: ngfw.agent.l2.Xconnect
+	(*FibEntry)(nil),           // 5: ngfw.agent.l2.FibEntry
+	(*Flags)(nil),              // 6: ngfw.agent.l2.Flags
+	(*VlanTagRewrite)(nil),     // 7: ngfw.agent.l2.VlanTagRewrite
 }
 var file_l2_model_proto_depIdxs = []int32{
-	0, // 0: vrx.agent.l2.BridgeDomainMember.port_type:type_name -> vrx.agent.l2.PortType
-	1, // 1: vrx.agent.l2.VlanTagRewrite.op:type_name -> vrx.agent.l2.VtrOp
+	0, // 0: ngfw.agent.l2.BridgeDomainMember.port_type:type_name -> ngfw.agent.l2.PortType
+	1, // 1: ngfw.agent.l2.VlanTagRewrite.op:type_name -> ngfw.agent.l2.VtrOp
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

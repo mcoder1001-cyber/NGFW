@@ -7,7 +7,7 @@ package subsystems
 // Whose daemons (decision, see docs/status/tasks/F-unbound-chrony-syslog.md): only the globals owner (D-071: the
 // product agent on a real box) renders into the product paths (/etc/unbound, /etc/chrony, /etc/rsyslog.d) — the
 // box's resolver, clock and syslog are box-wide singletons like VPP's globals. Every other agent (a test slot, the
-// dev host's main stack with VRX_GLOBALS_OWNER=0) renders into its own path space /run/vrx-test/<owner>/{unbound,
+// dev host's main stack with NGFW_GLOBALS_OWNER=0) renders into its own path space /run/ngfw-test/<owner>/{unbound,
 // chrony/agent,rsyslog} with loopback-only listeners, and never restarts or signals a daemon: start/restart requests
 // are recorded (D-079) and reported by the state RPCs; the slot harness runs the slot instances. The host's own
 // chrony.service and rsyslog.service are never touched by such an agent.
@@ -67,15 +67,15 @@ func slotOf(owner string) int {
 }
 
 // EnvHostServicesDir overrides the base directory of an agent that is not the globals owner (default
-// /run/vrx-test/<owner>; unit tests point it at a temporary directory).
-const EnvHostServicesDir = "VRX_HOST_SERVICES_DIR"
+// /run/ngfw-test/<owner>; unit tests point it at a temporary directory).
+const EnvHostServicesDir = "NGFW_HOST_SERVICES_DIR"
 
 // slotRunDir is the base directory of a non-owner agent's host-service instances.
 func slotRunDir(owner string) string {
 	if d := os.Getenv(EnvHostServicesDir); d != "" && filepath.IsAbs(d) {
 		return filepath.Clean(d)
 	}
-	return filepath.Join("/run/vrx-test", owner)
+	return filepath.Join("/run/ngfw-test", owner)
 }
 
 // mkdirShared creates dir and its missing parents 0755 (never re-modes an existing directory: the slot run dir

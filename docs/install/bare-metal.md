@@ -8,24 +8,24 @@ unsigned/insecure APT options. Use Ubuntu 26.04 amd64 and product VPP packages
 verified from deploy/vpp, not FD.io/upstream unsuffixed packages.
 
 1. Provision the reviewed public archive keyring as
-   `/usr/share/keyrings/vrx-archive-keyring.gpg` and configure the product repository
+   `/usr/share/keyrings/ngfw-archive-keyring.gpg` and configure the product repository
    with `Signed-By` pointing to that file. Install only a tested release with
-   `apt-get install vrx-meta`; the installer must not start VPP before firstboot.
-2. Create `/etc/vrx/bootstrap.env` as root, mode 0600, using a local secure editor.
-   It contains `VRX_BOOTSTRAP_ADMIN_USER` and `VRX_BOOTSTRAP_ADMIN_PASSWORD` in
-   systemd EnvironmentFile syntax. Also specify `VRX_BOOTSTRAP_MGMT_IF` as the
+   `apt-get install ngfw-meta`; the installer must not start VPP before firstboot.
+2. Create `/etc/ngfw/bootstrap.env` as root, mode 0600, using a local secure editor.
+   It contains `NGFW_BOOTSTRAP_ADMIN_USER` and `NGFW_BOOTSTRAP_ADMIN_PASSWORD` in
+   systemd EnvironmentFile syntax. Also specify `NGFW_BOOTSTRAP_MGMT_IF` as the
    explicit existing management interface and optional comma-separated
-   `VRX_BOOTSTRAP_PUNT_IFS` as existing VPP/Linux-CP interfaces (no wildcard).
+   `NGFW_BOOTSTRAP_PUNT_IFS` as existing VPP/Linux-CP interfaces (no wildcard).
    Early firewall generation persists these nonsecret interface inputs separately
    before the database/bootstrap phase. Passwords must meet the current API policy.
    Do not put credentials in command arguments, repository files or logs.
 3. Provision hugepages and management networking independently before boot.
    Startup generation deliberately refuses missing host facts instead of claiming
    a safe configuration. The default dataplane document has no PCI devices.
-4. Firstboot creates the fixed local `vrx` database/role, runs application Drizzle
+4. Firstboot creates the fixed local `ngfw` database/role, runs application Drizzle
    migrations and existing admin seeding, verifies the persisted expected admin
    password, and generates stable secret/JWT keys. It creates a self-signed TLS
-   pair, renders startup.conf with vrx-startupgen and validates nginx.
+   pair, renders startup.conf with ngfw-startupgen and validates nginx.
 5. The durable completion marker is published before bootstrap credentials are
    deleted. If interrupted at that boundary, the next unit execution completes
    credential cleanup. Failures preserve the bootstrap file; inspect the fixed,
@@ -40,7 +40,7 @@ and JWT-key fields. Configure optional runtime overrides after provisioning, pre
 the effective key precedence documented by the API.
 
 The API package provisions `/data`, `/data/backups`, `/data/updates` and
-`/data/support` as `vrx:vrx`, mode 0750. Package reconfiguration reapplies these
+`/data/support` as `ngfw:ngfw`, mode 0750. Package reconfiguration reapplies these
 directory permissions without changing the ownership, contents or permissions of
 existing files inside them. These paths reserve storage for backup, update and
 support operations; provisioning them does not imply those features are complete.
@@ -56,9 +56,9 @@ No installation is declared accepted until the deferred appliance campaign recor
 actual command outputs and results. Later VPP startup changes use the reviewed
 `apply-startup.sh --mode product` approval/recovery procedure, not firstboot.
 
-The product agent unit sets `VRX_VPP_ID_RANGE=all` for its dedicated appliance.
+The product agent unit sets `NGFW_VPP_ID_RANGE=all` for its dedicated appliance.
 Never start this unit on the shared development host: workers there must use their
-allocated `VRX_VPP_TABLE_BASE`. Do not set both variables in `agent.env`; the agent
+allocated `NGFW_VPP_TABLE_BASE`. Do not set both variables in `agent.env`; the agent
 refuses ambiguous ID ownership instead of starting.
 
 The runtime-dependency installer temporarily denies package-driven service starts and
@@ -69,8 +69,8 @@ restore the retained original start-policy backup through the local console.
 
 
 Dynamic punt admission is enabled explicitly by the product agent unit with
-`VRX_BASE_POLICY=1`, only for the `vrx` globals owner. The agent loads root-owned
-regular 0600 `/etc/vrx/base-policy.env` without shell evaluation. Bootstrap
+`NGFW_BASE_POLICY=1`, only for the `ngfw` globals owner. The agent loads root-owned
+regular 0600 `/etc/ngfw/base-policy.env` without shell evaluation. Bootstrap
 permanent interfaces stay in `punt_interfaces`; the separate typed
 `dynamic_punt_interfaces` starts empty and is reconstructed by agent resync from
 owned root-namespace LCP pairs. Combined permanent/dynamic limit is 64;

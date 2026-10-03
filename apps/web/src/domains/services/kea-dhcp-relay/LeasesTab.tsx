@@ -63,7 +63,7 @@ export function LeasesTab() {
         flex: 1,
         sortable: false,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
             {p.row.prefixLen ? `${p.row.address}/${p.row.prefixLen}` : p.row.address}
           </Box>
         ),
@@ -79,7 +79,7 @@ export function LeasesTab() {
           <Box
             component="span"
             dir="ltr"
-            sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12 }}
+            sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}
           >
             {p.value as string}
           </Box>

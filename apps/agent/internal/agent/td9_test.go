@@ -27,7 +27,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/memclnt"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -216,12 +216,12 @@ func TestApplyReturnsWhenVPPNeverReplies(t *testing.T) {
 	s := newSvcWith(t, bounded(fv, replyTimeout), t.TempDir())
 	fv.releaseAtEnd(t)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	fv.hangOn(tableAdd(7002, true)) // VPP creates blue's IPv6 table, then never answers
-	blue := &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}
-	resp, took := within(t, replyTimeout+5*time.Second, "Apply", func() *vrxv1.ApplyResponse { return apply(t, s, blue) })
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+	blue := &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}
+	resp, took := within(t, replyTimeout+5*time.Second, "Apply", func() *ngfwv1.ApplyResponse { return apply(t, s, blue) })
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED)
 	if took < replyTimeout || !strings.Contains(resp.GetMessage(), "outcome of that operation is unknown") {
 		t.Fatalf("after %s: %q", took, resp.GetMessage())
 	}
@@ -238,11 +238,11 @@ func TestApplyReturnsWhenVPPNeverReplies(t *testing.T) {
 	}
 	// VPP answers again: the retry with the same txn_id runs the transaction (nothing was stored).
 	fv.hangOn(nil)
-	mustStatus(t, apply(t, s, blue), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, blue), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !fv.HasTable(7002, false) || !fv.HasTable(7002, true) || s.Health().GetLastTxnId() != "t2" {
 		t.Fatalf("retry of t2 not applied: health %v", s.Health())
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 }
 
 // Review 1.4: the caller's deadline bounds only the wait for the lock. A transaction that started runs
@@ -252,19 +252,19 @@ func TestCallerDeadlineDoesNotCutTheTransaction(t *testing.T) {
 	s := newSvcWith(t, fv, t.TempDir())
 	fv.releaseAtEnd(t)
 	fv.set(func(f *flakyVPP) { f.slow, f.delay = tableAdd(7001, false), 400*time.Millisecond })
-	red := &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}
+	red := &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	resp, err := s.Apply(ctx, red)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !fv.HasTable(7001, false) {
 		t.Fatal("not applied")
 	}
 	n := len(fv.CallsNamed("ip_table_add_del"))
-	mustStatus(t, apply(t, s, red), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED) // the retry: the stored response
+	mustStatus(t, apply(t, s, red), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED) // the retry: the stored response
 	if len(fv.CallsNamed("ip_table_add_del")) != n {
 		t.Fatal("the retry re-applied instead of returning the stored response")
 	}
@@ -272,13 +272,13 @@ func TestCallerDeadlineDoesNotCutTheTransaction(t *testing.T) {
 	_ = s.lock(context.Background())
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel2()
-	blue := &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}
+	blue := &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)}
 	_, err = s.Apply(ctx2, blue)
 	s.unlock()
 	if grpcCode(err) != codes.DeadlineExceeded {
 		t.Fatalf("waiting for the lock: %v", err)
 	}
-	mustStatus(t, apply(t, s, blue), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, blue), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !fv.HasTable(7002, false) {
 		t.Fatal("t2 retry not applied")
 	}
@@ -294,13 +294,13 @@ func TestResyncAndRevertHaveTheirOwnDeadline(t *testing.T) {
 	fv.releaseAtEnd(t)
 	setTxnTimeout(s, txn)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "base", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	// Resync: red's IPv4 table was lost; VPP re-creates it and never answers.
 	fv.DeleteTable(7001, false)
 	fv.hangOn(tableAdd(7001, false))
-	resp, took := within(t, txn+5*time.Second, "Resync", func() *vrxv1.ApplyResponse { return s.Resync(context.Background()) })
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED)
+	resp, took := within(t, txn+5*time.Second, "Resync", func() *ngfwv1.ApplyResponse { return s.Resync(context.Background()) })
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED)
 	if took < txn || !s.Health().GetDegraded() {
 		t.Fatalf("resync after %s, health %v", took, s.Health())
 	}
@@ -308,7 +308,7 @@ func TestResyncAndRevertHaveTheirOwnDeadline(t *testing.T) {
 	eventuallyWithin(t, 5*time.Second, "the owed resync converged", func() bool { return !s.Health().GetDegraded() && fv.HasTable(7001, false) })
 
 	// Confirm revert: p1 adds blue; at the deadline the revert deletes it and VPP never answers.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`), ConfirmTimeoutSec: 1}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`), ConfirmTimeoutSec: 1}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	fv.hangOn(tableDel(7002))
 	eventuallyWithin(t, 1*time.Second+txn+5*time.Second, "the revert gave up and the agent is DEGRADED", func() bool {
 		h := s.Health()
@@ -317,7 +317,7 @@ func TestResyncAndRevertHaveTheirOwnDeadline(t *testing.T) {
 	// The lock is free between attempts: a late confirm is answered, not left waiting.
 	cctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if _, err := s.Apply(cctx, &vrxv1.ApplyRequest{ConfirmTxnId: "p1"}); grpcCode(err) != codes.FailedPrecondition {
+	if _, err := s.Apply(cctx, &ngfwv1.ApplyRequest{ConfirmTxnId: "p1"}); grpcCode(err) != codes.FailedPrecondition {
 		t.Fatalf("late confirm while the revert is owed: %v", err)
 	}
 	fv.hangOn(nil)
@@ -334,12 +334,12 @@ func TestOwedResyncRetriedWithBackoff(t *testing.T) {
 	s := newSvcWith(t, fv, t.TempDir())
 	fv.releaseAtEnd(t)
 	setRetry(s, 50*time.Millisecond, 200*time.Millisecond)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_START}})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_START}})
 	defer s.events().unsubscribe(sub)
 	fv.set(func(f *flakyVPP) { f.failDumps = true })
 	fv.DeleteTable(7001, false) // lost while VPP cannot even be read
-	if resp := s.Resync(context.Background()); resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || !s.Health().GetDegraded() {
+	if resp := s.Resync(context.Background()); resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || !s.Health().GetDegraded() {
 		t.Fatalf("resync against an unreadable VPP: %v", resp)
 	}
 	evs := collect(t, sub, 4) // the failed resync + 3 retries
@@ -371,12 +371,12 @@ func TestOwedResyncTakesTheAgentsResyncPath(t *testing.T) {
 	}
 	t.Cleanup(a.Stop)
 	fc.releaseAtEnd(t)
-	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
+	sub := a.svc.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	defer a.svc.events().unsubscribe(sub)
 	fc.states <- vpp.ConnState{Connected: true}
 	collect(t, sub, 1)
 	setRetry(a.svc, 50*time.Millisecond, 200*time.Millisecond)
-	mustStatus(t, apply(t, a.svc, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, a.svc, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	fc.set(func(f *flakyVPP) { f.failDumps = true })
 	fc.DeleteTable(7001, true)
 	a.wiring.RequestResync()
@@ -392,9 +392,9 @@ func TestOwedResyncTakesTheAgentsResyncPath(t *testing.T) {
 func TestConfirmAndApplyWhileVPPDownConfirmsNothing(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`), ConfirmTimeoutSec: 60}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`), ConfirmTimeoutSec: 60}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.SetConnected(false)
-	_, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "t2", ConfirmTxnId: "p1", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
+	_, err := s.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: "t2", ConfirmTxnId: "p1", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
 	if grpcCode(err) != codes.Unavailable {
 		t.Fatalf("confirm-and-apply with VPP down: %v", err)
 	}
@@ -402,8 +402,8 @@ func TestConfirmAndApplyWhileVPPDownConfirmsNothing(t *testing.T) {
 		t.Fatalf("the confirm half ran although the apply half could not: %v", h)
 	}
 	v.SetConnected(true)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", ConfirmTxnId: "p1", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", ConfirmTxnId: "p1", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if h := s.Health(); h.GetPendingConfirmTxnId() != "" || h.GetLastTxnId() != "t2" {
 		t.Fatalf("after the retry: %v", h)
 	}
@@ -414,30 +414,30 @@ func TestConfirmAndApplyWhileVPPDownConfirmsNothing(t *testing.T) {
 func TestApplyAnswersCarryWarnings(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	warned := func(resp *vrxv1.ApplyResponse) bool {
+	warned := func(resp *ngfwv1.ApplyResponse) bool {
 		rep := resp.GetValidation()
 		return rep.GetOk() && len(rep.GetErrors()) == 1 && rep.GetErrors()[0].GetRule() == "agent.unimplemented-domain" &&
-			rep.GetErrors()[0].GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING && rep.GetErrors()[0].GetPointer() == "/dataplane"
+			rep.GetErrors()[0].GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING && rep.GetErrors()[0].GetPointer() == "/dataplane"
 	}
-	withDataplane := func() *vrxv1.DesiredState { // "dataplane" is not implemented by the agent (F-system-identity implements "system")
+	withDataplane := func() *ngfwv1.DesiredState { // "dataplane" is not implemented by the agent (F-system-identity implements "system")
 		d := doc(t, sampleDoc)
-		d.Dataplane = &vrxv1.DataplaneConfig{Workers: proto.Uint32(2)}
+		d.Dataplane = &ngfwv1.DataplaneConfig{Workers: proto.Uint32(2)}
 		return d
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: withDataplane()})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: withDataplane()})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !warned(resp) {
 		t.Fatalf("APPLIED without the warning: %v", resp.GetValidation())
 	}
 	bad := withDataplane()
-	bad.Interfaces["loop703"] = &vrxv1.Interface{Vrf: proto.String("red"), Ipv4: []string{"10.7.1.2/24"}}
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: bad})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	bad.Interfaces["loop703"] = &ngfwv1.Interface{Vrf: proto.String("red"), Ipv4: []string{"10.7.1.2/24"}}
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: bad})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	if !warned(resp) {
 		t.Fatalf("ROLLED_BACK without the warning: %v", resp.GetValidation())
 	}
 	// No warning, no report: an answer without warnings is unchanged.
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)})
 	if resp.GetValidation() != nil {
 		t.Fatalf("validation without warnings: %v", resp.GetValidation())
 	}
@@ -450,8 +450,8 @@ func TestConfirmWindowStartsAtAppliedAt(t *testing.T) {
 	s := newSvcWith(t, fv, t.TempDir())
 	fv.releaseAtEnd(t)
 	fv.set(func(f *flakyVPP) { f.slow, f.delay = tableAdd(7001, false), 300*time.Millisecond })
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`), ConfirmTimeoutSec: 2})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`), ConfirmTimeoutSec: 2})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := resp.GetConfirmDeadline().AsTime().Sub(resp.GetAppliedAt().AsTime()); got != 2*time.Second {
 		t.Fatalf("confirm_deadline − applied_at = %s, want 2s", got)
 	}
@@ -466,8 +466,8 @@ func TestFailedApplyKeepsTheOwedRevert(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
 	other := revertObstacle(t, v, s)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "bad", DesiredState: doc(t, `{"routing":{"static":[{"prefix":"10.7.67.0/24","blackhole":false}]}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "bad", DesiredState: doc(t, `{"routing":{"static":[{"prefix":"10.7.67.0/24","blackhole":false}]}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	if h := s.Health(); h.GetPendingConfirmTxnId() != "p1" || !h.GetDegraded() || !s.st.meta.Reverting {
 		t.Fatalf("a failed apply dropped the owed revert: %v reverting=%v", h, s.st.meta.Reverting)
 	}
@@ -491,7 +491,7 @@ func TestFailedApplyKeepsTheOwedRevert(t *testing.T) {
 func TestGRPCHandlerPanicAnswersInternal(t *testing.T) {
 	m := newMetrics()
 	g := newRecoveringServer(nil, m)
-	vrxv1.RegisterDataplaneServer(g, &server{svc: nil, log: nil}) // every handler dereferences svc
+	ngfwv1.RegisterDataplaneServer(g, &server{svc: nil, log: nil}) // every handler dereferences svc
 	sock := filepath.Join(t.TempDir(), "agent.sock")
 	l, err := listenUnix(sock, "", nil)
 	if err != nil {
@@ -504,20 +504,20 @@ func TestGRPCHandlerPanicAnswersInternal(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = cc.Close() }()
-	c := vrxv1.NewDataplaneClient(cc)
+	c := ngfwv1.NewDataplaneClient(cc)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if _, err := c.Health(ctx, &vrxv1.HealthRequest{}); grpcCode(err) != codes.Internal {
+	if _, err := c.Health(ctx, &ngfwv1.HealthRequest{}); grpcCode(err) != codes.Internal {
 		t.Fatalf("unary panic: %v", err)
 	}
-	st, err := c.StreamEvents(ctx, &vrxv1.StreamEventsRequest{})
+	st, err := c.StreamEvents(ctx, &ngfwv1.StreamEventsRequest{})
 	if err == nil {
 		_, err = st.Recv()
 	}
 	if grpcCode(err) != codes.Internal {
 		t.Fatalf("stream panic: %v", err)
 	}
-	if out := scrape(m); !strings.Contains(out, `vrx_agent_panics_total{where="grpc"} 2`) {
+	if out := scrape(m); !strings.Contains(out, `ngfw_agent_panics_total{where="grpc"} 2`) {
 		t.Fatalf("panics not counted:\n%s", out)
 	}
 }
@@ -528,7 +528,7 @@ func TestPanicInATransactionIsContained(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	_ = s.lock(context.Background())
 	before := s.beforeTxn
 	s.beforeTxn = func() { panic("agent bug") }
@@ -540,7 +540,7 @@ func TestPanicInATransactionIsContained(t *testing.T) {
 				t.Fatalf("Apply panicked: %v", r)
 			}
 		}()
-		_, err = s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
+		_, err = s.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{"vrfs":{"blue":{"id":7002}}}`)})
 	}()
 	if grpcCode(err) != codes.Internal || !s.Health().GetDegraded() {
 		t.Fatalf("err %v health %v", err, s.Health())
@@ -548,10 +548,10 @@ func TestPanicInATransactionIsContained(t *testing.T) {
 	_ = s.lock(context.Background())
 	s.beforeTxn = before
 	s.unlock()
-	resp, _ := within(t, 5*time.Second, "the next Apply", func() *vrxv1.ApplyResponse {
-		return apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)})
+	resp, _ := within(t, 5*time.Second, "the next Apply", func() *ngfwv1.ApplyResponse {
+		return apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"vrfs":{"red":{"id":7001},"blue":{"id":7002}}}`)})
 	})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if s.Health().GetDegraded() {
 		t.Fatal("still degraded after a successful apply over every managed domain")
 	}
@@ -565,7 +565,7 @@ func TestLinkEventsWatcherRestarts(t *testing.T) {
 	v.Fail("want_interface_events", errors.New("vpp busy"))
 	fc := &fakeConn{VPP: v, states: make(chan vpp.ConnState, 4)}
 	a := &Agent{log: s.log, conn: fc, svc: s, metrics: s.metrics}
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE, vrxv1.EventKind_EVENT_KIND_LINK_UP}})
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE, ngfwv1.EventKind_EVENT_KIND_LINK_UP}})
 	defer s.events().unsubscribe(sub)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -578,7 +578,7 @@ func TestLinkEventsWatcherRestarts(t *testing.T) {
 	eventuallyWithin(t, 3*time.Second, "the link watcher came back", func() bool {
 		return v.Emit(&interfaces.SwInterfaceEvent{SwIfIndex: 0, Flags: interface_types.IF_STATUS_API_FLAG_ADMIN_UP | interface_types.IF_STATUS_API_FLAG_LINK_UP}) > 0
 	})
-	if evs := collect(t, sub, 1); evs[0].GetKind() != vrxv1.EventKind_EVENT_KIND_LINK_UP || evs[0].GetInterface() != "local0" {
+	if evs := collect(t, sub, 1); evs[0].GetKind() != ngfwv1.EventKind_EVENT_KIND_LINK_UP || evs[0].GetInterface() != "local0" {
 		t.Fatalf("event %v", evs)
 	}
 }
@@ -602,7 +602,7 @@ func TestConnectHookHasItsOwnDeadline(t *testing.T) {
 	}
 	t.Cleanup(a.Stop)
 	fc.releaseAtEnd(t)
-	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
+	sub := a.svc.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	defer a.svc.events().unsubscribe(sub)
 	fc.states <- vpp.ConnState{Connected: true}
 	collect(t, sub, 1) // collect fails after 5 s
@@ -612,11 +612,11 @@ func TestConnectHookHasItsOwnDeadline(t *testing.T) {
 func TestDriftCheckIsPlanOnly(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_ERROR, vrxv1.EventKind_EVENT_KIND_RECONCILE_START}})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_ERROR, ngfwv1.EventKind_EVENT_KIND_RECONCILE_START}})
 	defer s.events().unsubscribe(sub)
 	checkDrift(s)
-	if out := scrape(s.metrics); !strings.Contains(out, "vrx_agent_drift_objects 0\n") {
+	if out := scrape(s.metrics); !strings.Contains(out, "ngfw_agent_drift_objects 0\n") {
 		t.Fatalf("no drift expected:\n%s", out)
 	}
 	v.DeleteInterface("loop702") // lost behind the agent's back
@@ -624,10 +624,10 @@ func TestDriftCheckIsPlanOnly(t *testing.T) {
 	checkDrift(s)
 	evs := collect(t, sub, 1)
 	n, _ := strconv.Atoi(evs[0].GetAttributes()["objects"])
-	if evs[0].GetKind() != vrxv1.EventKind_EVENT_KIND_ERROR || evs[0].GetAttributes()["reason"] != "drift" || n == 0 {
+	if evs[0].GetKind() != ngfwv1.EventKind_EVENT_KIND_ERROR || evs[0].GetAttributes()["reason"] != "drift" || n == 0 {
 		t.Fatalf("drift event %v", evs[0])
 	}
-	if out := scrape(s.metrics); !strings.Contains(out, "vrx_agent_drift_objects "+strconv.Itoa(n)+"\n") {
+	if out := scrape(s.metrics); !strings.Contains(out, "ngfw_agent_drift_objects "+strconv.Itoa(n)+"\n") {
 		t.Fatalf("gauge:\n%s", out)
 	}
 	if v.Snapshot() != before {
@@ -638,7 +638,7 @@ func TestDriftCheckIsPlanOnly(t *testing.T) {
 	s.Resync(context.Background())
 	collect(t, sub, 1) // RECONCILE_START of the resync
 	checkDrift(s)
-	if out := scrape(s.metrics); !strings.Contains(out, "vrx_agent_drift_objects 0\n") {
+	if out := scrape(s.metrics); !strings.Contains(out, "ngfw_agent_drift_objects 0\n") {
 		t.Fatalf("drift after the resync:\n%s", out)
 	}
 }
@@ -646,14 +646,14 @@ func TestDriftCheckIsPlanOnly(t *testing.T) {
 // Review 1.5c/1.5e: an unknown log level and an unauthenticated /metrics on a non-loopback address
 // refuse to start.
 func TestConfigRefusesUnknownLogLevelAndRemoteMetrics(t *testing.T) {
-	base := Config{Owner: "w7", Socket: "/run/vrx-test/w7/agent.sock", StateDir: t.TempDir(), LogLevel: "info", MetricsAddr: "127.0.0.1:9171"}
+	base := Config{Owner: "w7", Socket: "/run/ngfw-test/w7/agent.sock", StateDir: t.TempDir(), LogLevel: "info", MetricsAddr: "127.0.0.1:9171"}
 	if err := base.Validate(); err != nil {
 		t.Fatal(err)
 	}
 	for _, lvl := range []string{"verbose", "information", "trace"} {
 		c := base
 		c.LogLevel = lvl
-		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "VRX_LOG_LEVEL") {
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "NGFW_LOG_LEVEL") {
 			t.Errorf("log level %q: %v", lvl, err)
 		}
 	}
@@ -667,7 +667,7 @@ func TestConfigRefusesUnknownLogLevelAndRemoteMetrics(t *testing.T) {
 	for _, addr := range []string{"0.0.0.0:9171", ":9171", "172.30.126.195:9171", "[::]:9171"} {
 		c := base
 		c.MetricsAddr = addr
-		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "VRX_METRICS_ALLOW_REMOTE") {
+		if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "NGFW_METRICS_ALLOW_REMOTE") {
 			t.Errorf("metrics %q: %v", addr, err)
 		}
 	}

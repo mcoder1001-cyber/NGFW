@@ -51,9 +51,9 @@ globals owner only). FRR 10.7.1 is installed, `frr.service` disabled — never e
    is F-vrf-static-ecmp's FIB browser: add the FRR-source annotation / `proto` filter through it (shared hunk), do not build a second one.
 5. **API/UI**: BGP global + neighbours (state, uptime, prefixes rx/tx, flaps), prefix-list and
    route-map editors (SchemaForm with array widgets), redistribution toggles; en+fa.
-6. **Topology test** (single host): VRX ↔ two FRR instances running in network namespaces on the veth rig (`frrtest` harness: `-N <prefix>`
+6. **Topology test** (single host): NGFW ↔ two FRR instances running in network namespaces on the veth rig (`frrtest` harness: `-N <prefix>`
    pathspace, own config dirs — never the system FRR unit), eBGP, each announcing 100 prefixes. Before the first host run write the
-   linux-nl plan into `P12-questions.md`: the VRX-side FRR's kernel routes reach VPP only from the namespace `linux_nl` listens in (root
+   linux-nl plan into `P12-questions.md`: the NGFW-side FRR's kernel routes reach VPP only from the namespace `linux_nl` listens in (root
    today) — BGP routes must never land in the root namespace's main table (management path on ens192): use a slot kernel VRF/table in
    `<N>000–<N>999`, or ask the manager for a globals window that sets `lcp default netns`; after
    commit: `vppctl show ip fib` contains all 200; withdraw on peer → gone from VPP within 5 s;

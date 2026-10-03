@@ -20,7 +20,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -48,7 +48,7 @@ func infof(s Sink, pointer, rule, format string, a ...any) {
 
 var cnatPolicies = map[string]string{"none": cnat.PolicyNone, "interface": cnat.PolicyIfPfx, "k8s": cnat.PolicyK8s}
 
-func cnatBuild(s Sink, n *vrxv1.NatConfig) {
+func cnatBuild(s Sink, n *ngfwv1.NatConfig) {
 	c := n.GetCnat()
 	if c == nil {
 		return
@@ -148,7 +148,7 @@ func cnatBuild(s Sink, n *vrxv1.NatConfig) {
 	}
 }
 
-func cnatTranslation(s Sink, t *vrxv1.CnatTranslation, i int) {
+func cnatTranslation(s Sink, t *ngfwv1.CnatTranslation, i int) {
 	pt := Ptr("nat", "cnat", "translations", strconv.Itoa(i))
 	vip, err := netip.ParseAddr(t.GetVip().GetIp())
 	if err != nil {
@@ -175,7 +175,7 @@ func cnatTranslation(s Sink, t *vrxv1.CnatTranslation, i int) {
 // assembleCnat builds `nat.cnat` from retrieved objects: translations (names are configuration-only and never
 // invented) and, for the globals owner, the SNAT addresses. The policy, policy interfaces and excluded prefixes are
 // write-only (D-063) and never retrieved.
-func assembleCnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleCnat(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var (
 		trs  []cnat.TranslationSpec
 		addr *cnat.SnatAddressesSpec
@@ -195,7 +195,7 @@ func assembleCnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 	if len(trs) == 0 && addr == nil {
 		return
 	}
-	c := &vrxv1.CnatConfig{}
+	c := &ngfwv1.CnatConfig{}
 	sort.Slice(trs, func(a, b int) bool {
 		if trs[a].VIP != trs[b].VIP {
 			return natAddrLess(trs[a].VIP, trs[b].VIP)
@@ -206,14 +206,14 @@ func assembleCnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		return trs[a].Port < trs[b].Port
 	})
 	for _, t := range trs {
-		ct := &vrxv1.CnatTranslation{Protocol: proto.String(t.Proto), Vip: &vrxv1.CnatEndpoint{Ip: proto.String(t.VIP), Port: proto.Uint32(t.Port)}, LbType: proto.String(t.LBType)}
+		ct := &ngfwv1.CnatTranslation{Protocol: proto.String(t.Proto), Vip: &ngfwv1.CnatEndpoint{Ip: proto.String(t.VIP), Port: proto.Uint32(t.Port)}, LbType: proto.String(t.LBType)}
 		for _, p := range t.Paths {
-			ct.Backends = append(ct.Backends, &vrxv1.CnatEndpoint{Ip: proto.String(p.Dst), Port: proto.Uint32(p.DstPort)})
+			ct.Backends = append(ct.Backends, &ngfwv1.CnatEndpoint{Ip: proto.String(p.Dst), Port: proto.Uint32(p.DstPort)})
 		}
 		c.Translations = append(c.Translations, ct)
 	}
 	if addr != nil {
-		a := &vrxv1.CnatConfig_Snat_Addresses{}
+		a := &ngfwv1.CnatConfig_Snat_Addresses{}
 		if addr.IP4 != "" {
 			a.Ipv4 = proto.String(addr.IP4)
 		}
@@ -223,7 +223,7 @@ func assembleCnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		if addr.Interface != "" {
 			a.Interface = proto.String(addr.Interface)
 		}
-		c.Snat = &vrxv1.CnatConfig_Snat{Addresses: a}
+		c.Snat = &ngfwv1.CnatConfig_Snat{Addresses: a}
 	}
 	out.Cnat = c
 }

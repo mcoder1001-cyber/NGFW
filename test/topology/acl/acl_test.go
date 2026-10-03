@@ -1,23 +1,23 @@
 // Package acl is F-acl's topology test: ACLs end to end against the REAL host VPP through the af_packet veth/netns rig
-// (path: af_packet, D-010), the real vrx-agent and vrx-api on the slot.
+// (path: af_packet, D-010), the real ngfw-agent and ngfw-api on the slot.
 //
 //	TestACLTopology
 //	  commit          rig interfaces (rev 1) → a foreign owner's ACL planted on the lan port (D-066) → objects + L3/L4 list
 //	                  on a zone + MACIP list on the wan port (rev 2) → `vppctl show acl-plugin acl|interface|macip …`,
-//	                  Retrieve (vrx-agentctl) == running, /state/drift clean under /acl, /state/acl/* live views
+//	                  Retrieve (ngfw-agentctl) == running, /state/drift clean under /acl, /state/acl/* live views
 //	  traffic         V19 pre-flight → ping lan→wan permitted (rule 10), ping to the wan gateway denied (rule 30); with the
-//	                  counters flag on (opt-in VRX_ACL_STATS_GLOBALS=1: flock -x on the globals lock, the previous value
+//	                  counters flag on (opt-in NGFW_ACL_STATS_GLOBALS=1: flock -x on the globals lock, the previous value
 //	                  saved and restored exactly at the end, flock -s while relied on — shared-host rules §7) the API's
 //	                  per-rule counters rise by exactly the echo requests sent
 //	  validation      a rule naming an empty address group → 400 problem+json with the rule's pointer, nothing applied
 //	  restart-safety  stop the agent → unbind + delete our ACL and MACIP ACL via binapi (foreign ACL kept) → start → back
 //	                  within 30 s, foreign ACL still first and unchanged, ping works
-//	  scale           opt-in VRX_ACL_SCALE=<rules> (10000 first, then 100000 in a manager window, NRestarts around each):
+//	  scale           opt-in NGFW_ACL_SCALE=<rules> (10000 first, then 100000 in a manager window, NRestarts around each):
 //	                  raw acl_add_replace time, CSV import + commit time, first-page latency of the rule editor route
 //	  rollback        to rev 1 → Retrieve has no acl, VPP has none of our ACLs/bindings, the foreign ACL alone remains
 //	  cleanup         foreign ACL unbound + deleted, interfaces deleted through the API (veths down first, D-101)
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process it
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process it
 // starts is stopped by PID; the slot database is created and dropped by deploy/dev/pg-test.sh. VPP is never restarted
 // (D-012); NRestarts is checked before and after. No packet trace (D-128), no classify sweep (D-126).
 package acl
@@ -119,7 +119,7 @@ func (r rig) peerMAC(t *testing.T) string {
 	return m[1]
 }
 
-// stack is vrx-agent (owner = prefix, not the globals owner) + vrx-api on the slot ports and database.
+// stack is ngfw-agent (owner = prefix, not the globals owner) + ngfw-api on the slot ports and database.
 type stack struct {
 	s                slot
 	agentBin, ctlBin string
@@ -167,9 +167,9 @@ func newStack(t *testing.T, s slot) *stack {
 	t.Cleanup(func() { _ = os.RemoveAll(work) })
 	st := &stack{
 		s: s, work: work, stateDir: filepath.Join(work, "agent-state"), agentLog: filepath.Join(work, "agent.log"),
-		agentBin:     buildBin(t, "VRX_ACL_AGENT_BIN", s.repo, "./cmd/vrx-agent"),
-		ctlBin:       buildBin(t, "VRX_ACL_AGENTCTL_BIN", s.repo, "./cmd/vrx-agentctl"),
-		preflightBin: buildBin(t, "VRX_ACL_PREFLIGHT_BIN", s.repo, "./cmd/vrx-vpp-preflight"),
+		agentBin:     buildBin(t, "NGFW_ACL_AGENT_BIN", s.repo, "./cmd/ngfw-agent"),
+		ctlBin:       buildBin(t, "NGFW_ACL_AGENTCTL_BIN", s.repo, "./cmd/ngfw-agentctl"),
+		preflightBin: buildBin(t, "NGFW_ACL_PREFLIGHT_BIN", s.repo, "./cmd/ngfw-vpp-preflight"),
 	}
 	t.Log(mustRun(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "create", s.prefix))
 	t.Cleanup(func() {
@@ -179,27 +179,27 @@ func newStack(t *testing.T, s slot) *stack {
 	pg := readEnvFile(t, filepath.Join(s.runDir, "pg.env"))
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071
-		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info",
-		"VRX_VPP_TABLE_BASE="+strconv.Itoa(s.num*1000), "VRX_OBJECTS_DNS_SERVERS=127.0.0.1:9")
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071
+		"NGFW_AGENT_STATE_DIR="+st.stateDir, "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info",
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(s.num*1000), "NGFW_OBJECTS_DNS_SERVERS=127.0.0.1:9")
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 
 	st.adminPW = secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":acl:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=600000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":acl:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=600000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(90*time.Second, func() bool {
 		return st.apiProc.exited() || st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", st.adminPW)
 	return st
@@ -207,13 +207,13 @@ func newStack(t *testing.T, s slot) *stack {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		_, err := os.Stat(st.s.socket)
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }
 
@@ -221,18 +221,18 @@ func (st *stack) startAgent(t *testing.T) {
 func (st *stack) preflight(t *testing.T) {
 	t.Helper()
 	out, err := run(t, st.preflightBin)
-	t.Logf("vrx-vpp-preflight: %v\n%s", errOK(err), strings.TrimSpace(out))
+	t.Logf("ngfw-vpp-preflight: %v\n%s", errOK(err), strings.TrimSpace(out))
 	if err != nil {
 		t.Fatal("V19 pre-flight did not exit 0 — no packet is sent")
 	}
 }
 
-// retrieveACL asks the agent itself (vrx-agentctl retrieve = the gRPC Retrieve RPC) for the acl domain.
+// retrieveACL asks the agent itself (ngfw-agentctl retrieve = the gRPC Retrieve RPC) for the acl domain.
 func (st *stack) retrieveACL(t *testing.T) map[string]any {
 	t.Helper()
 	out, err := run(t, st.ctlBin, "-s", st.s.socket, "retrieve", "-subsystems", "acl")
 	if err != nil {
-		t.Fatalf("vrx-agentctl retrieve: %v\n%s", err, out)
+		t.Fatalf("ngfw-agentctl retrieve: %v\n%s", err, out)
 	}
 	var r struct {
 		DesiredState struct {
@@ -314,8 +314,8 @@ func packetsOf(live map[string]any) float64 {
 }
 
 func TestACLTopology(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-acl topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-acl topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -459,7 +459,7 @@ func TestACLTopology(t *testing.T) {
 		if js(got) != js(want) {
 			t.Fatalf("Retrieve(acl) != running acl:\n got  %s\n want %s", js(got), js(want))
 		}
-		t.Logf("vrx-agentctl retrieve -subsystems acl == running acl (%d bytes of JSON)", len(js(got)))
+		t.Logf("ngfw-agentctl retrieve -subsystems acl == running acl (%d bytes of JSON)", len(js(got)))
 		d := a.must(200, "GET", "/api/v1/state/drift", nil)
 		for _, ch := range d.body["changes"].([]any) {
 			if p := ch.(map[string]any)["pointer"].(string); strings.HasPrefix(p, "/acl") {
@@ -486,7 +486,7 @@ func TestACLTopology(t *testing.T) {
 	t.Run("traffic-and-counters", func(t *testing.T) {
 		a.t = t
 		// shared-host rules §7: the flag is VPP-wide; save, (opt-in) switch on, rely under flock -s, restore exactly
-		countersOn := countersScope(t, conn, os.Getenv("VRX_ACL_STATS_GLOBALS") == "1")
+		countersOn := countersScope(t, conn, os.Getenv("NGFW_ACL_STATS_GLOBALS") == "1")
 		t.Logf("VPP counters flag (show acl-plugin tables mask): %v", countersOn)
 		st.preflight(t)
 		r.peers(t, true)
@@ -510,7 +510,7 @@ func TestACLTopology(t *testing.T) {
 			if page1["countersAvailable"] != false || !strings.Contains(fmt.Sprint(page1["countersReason"]), "D-071") {
 				t.Fatalf("counters off in VPP: the API must say unavailable with the reason: %v", page1)
 			}
-			t.Log("counters flag off (not the globals owner, VRX_ACL_STATS_GLOBALS not set): the API reports them unavailable — hit assertions skipped")
+			t.Log("counters flag off (not the globals owner, NGFW_ACL_STATS_GLOBALS not set): the API reports them unavailable — hit assertions skipped")
 			return
 		}
 		if page0["countersAvailable"] != true || page1["countersAvailable"] != true {
@@ -606,9 +606,9 @@ func TestACLTopology(t *testing.T) {
 
 	t.Run("scale", func(t *testing.T) {
 		a.t = t
-		n, _ := strconv.Atoi(os.Getenv("VRX_ACL_SCALE"))
+		n, _ := strconv.Atoi(os.Getenv("NGFW_ACL_SCALE"))
 		if n <= 0 {
-			t.Skip("opt-in: VRX_ACL_SCALE=<rules> (10000 first, then 100000 in a manager window; D-064)")
+			t.Skip("opt-in: NGFW_ACL_SCALE=<rules> (10000 first, then 100000 in a manager window; D-064)")
 		}
 		scaleStep(t, st, conn, s, n)
 	})
@@ -631,7 +631,7 @@ func TestACLTopology(t *testing.T) {
 		if n != 1 || len(acls) != 1 || acls[0] != foreign {
 			t.Fatalf("after rollback %s has n_input %d %v, want only the foreign %d", r.lanIf, n, acls, foreign)
 		}
-		t.Logf("after rollback: vrx-agentctl retrieve -subsystems acl → {} ; %s input = [foreign %d] only", r.lanIf, foreign)
+		t.Logf("after rollback: ngfw-agentctl retrieve -subsystems acl → {} ; %s input = [foreign %d] only", r.lanIf, foreign)
 		t.Log("vppctl show acl-plugin acl (this slot):\n" + showOwnACLs(vppctl(t, "show", "acl-plugin", "acl"), owner+":", foreignTag))
 	})
 

@@ -36,7 +36,7 @@ func edFixture(c *nattest.Conn, p *nat44ed.Plugin) nattest.Plugin {
 }
 
 // TestNat44EdOnHost is the one integration check per object type against the host VPP
-// (VRX_INTEGRATION=1, shared lab lock, slot prefix). The slot is NOT the globals owner
+// (NGFW_INTEGRATION=1, shared lab lock, slot prefix). The slot is NOT the globals owner
 // (D-071): the plugin is a fixture (enabled if off, previous state restored), and the global
 // descriptors (enable, timeouts, forwarding) are exercised as requirements only — they never
 // set, reset or disable anything. Every object carries the slot: loopbacks loop<N>xx, pool
@@ -163,7 +163,7 @@ func TestNat44EdOnHost(t *testing.T) {
 	t.Logf("nat44-ed session users on host: %d (asserted for shape only)", len(users))
 
 	// --- delete everything (reverse order), Retrieve shows nothing of ours --------------------
-	nattest.Pause(t, "nat44ed") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
+	nattest.Pause(t, "nat44ed") // evidence hook (NGFW_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.VRFTable)
 	nattest.DeleteAll(ctx, t, p.LBStaticMapping)
 	nattest.DeleteAll(ctx, t, p.IdentityMapping)

@@ -13,12 +13,12 @@
      same relay pattern D-100 (1) forbids for the product nginx (P10): the D-100 assumption "every local relay is
      TLS-terminated" does not hold for `tools/app`. Not changed here (out of scope). Suggest: `tools/app` gets TLS
      (self-signed) or binds the web UI to 127.0.0.1 by default, or D-100 records `tools/app` as a lab-only exception.
-   - `tools/app` with `VRX_APP_API_HOST=0.0.0.0` exposes the API directly on plain HTTP: remote logins, password sets and
+   - `tools/app` with `NGFW_APP_API_HOST=0.0.0.0` exposes the API directly on plain HTTP: remote logins, password sets and
      JWT key creations now get **403 `tls-required`**.
    - CLI `--insecure-http` to a remote host: login now gets 403 `tls-required` (the CLI refuses remote `http://` without
      that flag anyway).
    - Not affected (all loopback): the api e2e harness (`app.inject`, 127.0.0.1), `apps/cli/test/devstack.sh` + the REPL
-     e2e, `test/topology/sdk-terraform-ansible/live.sh` (`http://127.0.0.1:$VRX_HTTP_PORT`), the Playwright flow
+     e2e, `test/topology/sdk-terraform-ansible/live.sh` (`http://127.0.0.1:$NGFW_HTTP_PORT`), the Playwright flow
      (`apps/web/test/e2e/flow.e2e.mjs`, vite on 127.0.0.1 proxying to 127.0.0.1). The SDK and the Terraform provider use
      API keys only (no login, no key creation).
 

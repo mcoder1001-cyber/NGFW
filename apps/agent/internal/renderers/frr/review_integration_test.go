@@ -42,7 +42,7 @@ func (s secretSection) Render(rc *frr.RenderContext) ([]string, error) {
 	return []string{"password " + v}, nil
 }
 
-const plantedSecret = "VRX_TEST_PSK_RF1" //nolint:gosec // test placeholder (00-CONTEXT fixture convention)
+const plantedSecret = "NGFW_TEST_PSK_RF1" //nolint:gosec // test placeholder (00-CONTEXT fixture convention)
 
 func startFRR(t *testing.T) (*frrtest.Harness, string, int) {
 	t.Helper()

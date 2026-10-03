@@ -13,7 +13,7 @@ deliberately not a workspace package):
 - `lib/locales.mjs` — `createTranslator(webRoot, langs)` → `tr(lang, "ns:dotted.path", vars)` over the app's own
   locale JSON, so a script's selectors always match what the UI renders (never a hand-typed string).
 - `lib/browser.mjs` — `launchBrowser(opts)`, `newPage(browser, { lang, mode, persianDigits, dense })`: seeds
-  `localStorage['vrx.ui.settings']` before first load and collects every `pageerror` into an array plus
+  `localStorage['ngfw.ui.settings']` before first load and collects every `pageerror` into an array plus
   `assertNoPageErrors()`, which throws (failing the run) if any fired.
 - `lib/auth.mjs` — `login()`, `signOut()` through the real form/menu.
 - `lib/nav.mjs` — `nav(page, tr, lang, key)`: clicks a left-nav entry, opening its collapsed group first if needed
@@ -78,24 +78,24 @@ $ npx turbo run test --filter=@ngfw/web
 (includes the App.test.tsx D-117 collapsed-group tests, unaffected by this task — nothing in `apps/web/src` changed.)
 
 ### Real-stack proof — slot 11, `172.30.126.195`
-vrx-agent from this tree (owner `w11`, `/run/vrx-test/w11/agent.sock`, host VPP), vrx-api on `127.0.0.1:4100`
-(db `vrx_w11`, Valkey db 11), `vite preview` of this tree's build on `127.0.0.1:6100` — the same procedure
+ngfw-agent from this tree (owner `w11`, `/run/ngfw-test/w11/agent.sock`, host VPP), ngfw-api on `127.0.0.1:4100`
+(db `ngfw_w11`, Valkey db 11), `vite preview` of this tree's build on `127.0.0.1:6100` — the same procedure
 `ui-nav-collapse` used. Headless Chrome-for-Testing 154.0.8037.57 (`chrome-headless-shell`, already unpacked in the
 session scratch dir, missing shared libs already extracted from `apt-get download` .debs, `LD_LIBRARY_PATH` only —
-nothing installed) and `playwright-core` 1.63.0 from the existing npx cache. `flock -s /run/lock/vrx-lab.lock` held
+nothing installed) and `playwright-core` 1.63.0 from the existing npx cache. `flock -s /run/lock/ngfw-lab.lock` held
 for each run only. No af_packet / host-interface created; no `show trace`/`trace add` used anywhere in this task.
 
 ```
 $ eval "$(tools/lab env 11)"
 $ deploy/dev/pg-test.sh create w11
-create role vrx_w11
-create database vrx_w11 (owner vrx_w11)
-check  vrx_w11 as vrx_w11 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-ok     env /run/vrx-test/w11/pg.env (0600) · DSN postgres://vrx_w11:<redacted>@127.0.0.1:5432/vrx_w11
+create role ngfw_w11
+create database ngfw_w11 (owner ngfw_w11)
+check  ngfw_w11 as ngfw_w11 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w11/pg.env (0600) · DSN postgres://ngfw_w11:<redacted>@127.0.0.1:5432/ngfw_w11
 $ make -C apps/agent build
-$ flock -s /run/lock/vrx-lab.lock apps/cli/test/devstack.sh start
-agent  pid 1706784 owner w11 socket /run/vrx-test/w11/agent.sock
-api    pid 1706846 http://127.0.0.1:4100 (admin password in /run/vrx-test/w11/admin.pw)
+$ flock -s /run/lock/ngfw-lab.lock apps/cli/test/devstack.sh start
+agent  pid 1706784 owner w11 socket /run/ngfw-test/w11/agent.sock
+api    pid 1706846 http://127.0.0.1:4100 (admin password in /run/ngfw-test/w11/admin.pw)
 $ npx turbo run build --filter=@ngfw/web
 ✓ built in 30.85s
 bundle-budget: initial   339.5 kB gzipped of   600.0 kB budget; 12 lazy chunk(s)
@@ -107,7 +107,7 @@ $ pnpm --filter @ngfw/web preview &        # 127.0.0.1:6100, proxies /api to 127
 #### `shots.mjs` — Interfaces + System › Users, en + fa
 ```
 $ node apps/web/test/e2e/shots.mjs --base http://127.0.0.1:6100 --screens interfaces,users \
-    --out <dir> --langs en,fa --admin-password-file /run/vrx-test/w11/admin.pw
+    --out <dir> --langs en,fa --admin-password-file /run/ngfw-test/w11/admin.pw
 ok   [interfaces/en] signed in as admin
 ok   [interfaces/en/light] [en/light] interfaces grid is visible
 shot interfaces-en-light-1-grid.png  (ltr/en)  /interfaces
@@ -134,7 +134,7 @@ Screenshot list (`<slug>-<lang>-<theme>-<step>.png`, 1366×860, light):
 
 #### `flow.e2e.mjs` — 43/43, migrated onto the library
 ```
-$ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots <dir>     # fresh db vrx_w11
+$ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots <dir>     # fresh db ngfw_w11
 ok   [en] protected route redirects to /login?next=%2Fsystem%2Fusers
 shot 01-login-en.png  (ltr/en)  /login?next=%2Fsystem%2Fusers
 ok   [en] signed in as admin, returned to /system/users
@@ -214,16 +214,16 @@ $ kill <vite preview pid + its child>          # port 6100 closed
 $ apps/cli/test/devstack.sh stop
 api stopped (pid 1706846)
 agent stopped (pid 1706784)
-removed slot secrets and logs from /run/vrx-test/w11 (use stop --keep to keep them)
+removed slot secrets and logs from /run/ngfw-test/w11 (use stop --keep to keep them)
 $ deploy/dev/pg-test.sh drop w11
-drop   database vrx_w11
-drop   role vrx_w11
-ok     nothing named vrx_w11 / vrx_w11 remains
+drop   database ngfw_w11
+drop   role ngfw_w11
+ok     nothing named ngfw_w11 / ngfw_w11 remains
 $ valkey-cli -h 127.0.0.1 -n 11 flushdb
 OK
 ```
-Verified after teardown: `ss -ltnp` shows nothing on 4100/6100/9211; `/run/vrx-test/w11` no longer exists;
-`vrx_w11` database/role gone; Valkey db 11 `dbsize` = 0; no `w11`-owned process left running.
+Verified after teardown: `ss -ltnp` shows nothing on 4100/6100/9211; `/run/ngfw-test/w11` no longer exists;
+`ngfw_w11` database/role gone; Valkey db 11 `dbsize` = 0; no `w11`-owned process left running.
 
 One wrinkle worth recording: `pnpm --filter @ngfw/web preview` forks vite's actual server as a **child** process —
 killing the PID captured from `$!` only stops the pnpm wrapper, leaving the real listener on the port orphaned.
@@ -250,11 +250,11 @@ Addressed M1, M2 and the L about `shot.mjs`'s dir logging / unused `shotName()`.
 and in the teardown block, that `pnpm preview` forks the real vite listener as a **child** of the `$!` PID. The
 teardown snippet now finds the actual listener from the port itself and kills that (no `pkill`):
 ```bash
-WEB_LISTEN_PID=$(ss -ltnp "sport = :$VRX_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
+WEB_LISTEN_PID=$(ss -ltnp "sport = :$NGFW_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
 [ -n "$WEB_LISTEN_PID" ] && kill "$WEB_LISTEN_PID"
 kill "$WEB_PID" 2>/dev/null   # the pnpm wrapper, if it's still around
 ...
-ss -ltn "sport = :$VRX_WEB_PORT" | grep -q LISTEN && echo "WARNING: $VRX_WEB_PORT still open" || echo "port $VRX_WEB_PORT closed"
+ss -ltn "sport = :$NGFW_WEB_PORT" | grep -q LISTEN && echo "WARNING: $NGFW_WEB_PORT still open" || echo "port $NGFW_WEB_PORT closed"
 ```
 "Rules this harness follows" updated to match. Proven live during this round's own teardown (below): the listener's
 PID (`3412046`) was a different process from the wrapper PID captured at start time, confirming the wrinkle is real
@@ -263,7 +263,7 @@ and that the new snippet finds and stops the right one.
 ### M2 — setTheme/setLanguage never exercised against a live browser
 `screens/_example.mjs` now calls both after its normal nav+shot steps, against real DOM state (no polling/sleep —
 a direct `page.evaluate()` read before and after each toggle), and `check()`s that something actually changed:
-- **Theme**: `VrxThemeProvider` (`packages/ui-kit`) sets `document.documentElement.style.colorScheme` to the
+- **Theme**: `NgfwThemeProvider` (`packages/ui-kit`) sets `document.documentElement.style.colorScheme` to the
   resolved mode — the toggle target is picked as whichever mode is NOT already active (a hardcoded `'dark'` target
   would be a no-op on the pass that starts already dark under `--themes light,dark`; caught by the real run below,
   fixed before this round's evidence was taken).
@@ -287,15 +287,15 @@ into `shots.mjs`'s `ctx.shot()`, so every screen (including the two proof screen
 `shotName()` is now actually called from `shots.mjs` (`shotName({ slug, lang, theme, step })`) instead of the name
 being rebuilt inline — one source of truth for the naming convention, as originally intended.
 
-### Verified — real stack, slot 11 (checked free first: `ss -ltn 'sport = :4100'` empty, `/run/vrx-test/w11` absent)
+### Verified — real stack, slot 11 (checked free first: `ss -ltn 'sport = :4100'` empty, `/run/ngfw-test/w11` absent)
 Same procedure as the original proof (agent+API owner `w11`, `vite preview` of this tree's build on `127.0.0.1:6100`,
-`flock -s /run/lock/vrx-lab.lock` for each run, Chrome-for-Testing 154.0.8037.57 + playwright-core 1.63.0, no
+`flock -s /run/lock/ngfw-lab.lock` for each run, Chrome-for-Testing 154.0.8037.57 + playwright-core 1.63.0, no
 `show trace`/`trace add`). Reused this session's already-fresh build (`apps/web/dist`, `apps/api/dist/main.js`,
-`apps/agent/bin/vrx-agent` — none touched by this fix round; no product code changed).
+`apps/agent/bin/ngfw-agent` — none touched by this fix round; no product code changed).
 
 ```
 $ node apps/web/test/e2e/shots.mjs --base http://127.0.0.1:6100 --screens _example,interfaces,users \
-    --out <dir> --langs en,fa --themes light,dark --admin-password-file /run/vrx-test/w11/admin.pw
+    --out <dir> --langs en,fa --themes light,dark --admin-password-file /run/ngfw-test/w11/admin.pw
 ok   [_example/en] signed in as admin
 ok   [_example/en/light] [en/light] dashboard heading is visible
 shot _example-en-light-1-loaded.png  (ltr/en)  /
@@ -376,7 +376,7 @@ EXIT: 0
 
 ### Teardown
 ```
-$ ss -ltnp "sport = :$VRX_WEB_PORT"
+$ ss -ltnp "sport = :$NGFW_WEB_PORT"
 LISTEN ... 127.0.0.1:6100 ... pid=3412046   # the CHILD — different from the pnpm wrapper's PID captured at start
 $ kill 3412046                              # found via the new README snippet, not pkill
 $ kill "$WEB_PID" 2>/dev/null               # wrapper, already gone
@@ -384,14 +384,14 @@ port 6100 closed
 $ apps/cli/test/devstack.sh stop
 api stopped (pid 3404343)
 agent stopped (pid 3404250)
-removed slot secrets and logs from /run/vrx-test/w11 (use stop --keep to keep them)
+removed slot secrets and logs from /run/ngfw-test/w11 (use stop --keep to keep them)
 $ deploy/dev/pg-test.sh drop w11
-ok     nothing named vrx_w11 / vrx_w11 remains
+ok     nothing named ngfw_w11 / ngfw_w11 remains
 $ valkey-cli -h 127.0.0.1 -n 11 flushdb
 OK
 ```
-Verified after teardown: `ss -ltnp` nothing on 4100/6100/9211; `/run/vrx-test/w11` empty then removed entirely;
-`vrx_w11` db/role gone; Valkey db 11 `dbsize` = 0.
+Verified after teardown: `ss -ltnp` nothing on 4100/6100/9211; `/run/ngfw-test/w11` empty then removed entirely;
+`ngfw_w11` db/role gone; Valkey db 11 `dbsize` = 0.
 
 ## Questions
 None.

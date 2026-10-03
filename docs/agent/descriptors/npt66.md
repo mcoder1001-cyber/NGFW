@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims and write-only re-application: see [nat-common.md](nat-common.md).**
 
 Package `apps/agent/internal/descriptors/npt66`, binapi `apps/agent/binapi/npt66` (plugin `npt66_plugin.so`, loaded on
-vrx-a since D-060; `default_disabled` in VPP, enabled in startup.conf). Entry point
+ngfw-a since D-060; `default_disabled` in VPP, enabled in startup.conf). Entry point
 `npt66.Register(registry, client, owner, natcommon.WithClaims(…))`; projected from `nat.nptv6.bindings[]` by
 `internal/desired/nptv6.go`. NPTv6 is RFC 6296: stateless, checksum-neutral IPv6-to-IPv6 prefix translation.
 

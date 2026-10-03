@@ -36,14 +36,14 @@ exit "${VERIFY_FAILURE:-0}"
 ''')
         for command in ['apt-get', 'curl', 'ssh', 'scp', 'systemctl']:
             executable('bin/' + command, 'printf "forbidden command\\n" >> "$HOST_LOG"\nexit 99\n')
-        version = '26.06-release+vrx1'
+        version = '26.06-release+ngfw1'
         packages = [dict(package=name, file=f'{name}_{version}_amd64.deb', version=version,
                          architecture='amd64', ship=True, sha256='a' * 64) for name in SHIP]
         packages.append(dict(package='vpp-dev', ship=False, file='vpp-dev.deb'))
         for package in packages:
             (root / 'artifacts' / package['file']).write_bytes(b'nonrelease selection fixture')
         (root / 'artifacts/SHA256SUMS').write_text('fixture metadata; original verifier is modeled')
-        manifest = dict(schema='vrx.vpp-debs.manifest/v2', version=version, packages=packages)
+        manifest = dict(schema='ngfw.vpp-debs.manifest/v2', version=version, packages=packages)
         env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
                    VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'))
         return root, entry, manifest, env
@@ -58,7 +58,7 @@ exit "${VERIFY_FAILURE:-0}"
             selection = json.loads(result.stdout)
             self.assertEqual({p['package'] for p in selection['packages']}, set(SHIP))
             self.assertEqual(len(selection['packages']), 7)
-            self.assertEqual(selection['version'], '26.06-release+vrx1')
+            self.assertEqual(selection['version'], '26.06-release+ngfw1')
             self.assertTrue((root / 'verify-log').exists())
             self.assertFalse((root / 'host-log').exists())
 
@@ -66,8 +66,8 @@ exit "${VERIFY_FAILURE:-0}"
         with tempfile.TemporaryDirectory() as directory:
             root, entry, manifest, env = self.fixture(directory)
             (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))
-            env.update(VRX_VPP_ARTIFACTS=str(root / 'artifacts'), VERIFY_FAILURE='17',
-                       VRX_FRR_KEY_FINGERPRINTS='A' * 40, VRX_NODESOURCE_KEY_FINGERPRINTS='B' * 40)
+            env.update(NGFW_VPP_ARTIFACTS=str(root / 'artifacts'), VERIFY_FAILURE='17',
+                       NGFW_FRR_KEY_FINGERPRINTS='A' * 40, NGFW_NODESOURCE_KEY_FINGERPRINTS='B' * 40)
             result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
             self.assertEqual(result.returncode, 17)
             self.assertTrue((root / 'verify-log').exists())
@@ -76,10 +76,10 @@ exit "${VERIFY_FAILURE:-0}"
     def test_missing_artifacts_blocks_repo_setup_before_host_commands(self):
         with tempfile.TemporaryDirectory() as directory:
             root, entry, _, env = self.fixture(directory)
-            env.pop('VRX_VPP_ARTIFACTS', None)
+            env.pop('NGFW_VPP_ARTIFACTS', None)
             result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn(b'VRX_VPP_ARTIFACTS required', result.stderr)
+            self.assertIn(b'NGFW_VPP_ARTIFACTS required', result.stderr)
             self.assertFalse((root / 'host-log').exists())
 
     def test_unsafe_or_nonproduct_selection_refuses(self):
@@ -105,7 +105,7 @@ exit "${VERIFY_FAILURE:-0}"
             self.assertIn(b'cannot read', result.stdout + result.stderr)
 
     def test_foreign_symlink_inputs_refuse_before_original_verifier(self):
-        for name in ['manifest.json', 'SHA256SUMS', 'vpp_26.06-release+vrx1_amd64.deb']:
+        for name in ['manifest.json', 'SHA256SUMS', 'vpp_26.06-release+ngfw1_amd64.deb']:
             with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
                 root, entry, manifest, env = self.fixture(directory)
                 (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))

@@ -21,7 +21,7 @@ import {
  * (sharing ratio = 2^(outLen − inLen), ports per host = 64512 / ratio, first port = 1024 + ports × (offset mod ratio));
  * sessions are seeded by tests through `det44MapFake(fake)`. Contract as the agent's rpc_det44.go / rpc_cnat.go: owner
  * check, limit 0 = 100, > 1000 INVALID_ARGUMENT, NOT_FOUND for an unmapped user, the purge only for the globals owner
- * (owner "vrx").
+ * (owner "ngfw").
  */
 export interface Det44MapFakeState {
   det44Sessions: Map<string, Det44Session[]>;
@@ -146,7 +146,7 @@ const purgeAction: ActionHandler = (call) => {
     call.emit('error', err(status.UNAVAILABLE, 'fake agent: no cnat fake'));
     return;
   }
-  if (fake.owner !== 'vrx') {
+  if (fake.owner !== 'ngfw') {
     call.emit(
       'error',
       err(

@@ -1,6 +1,6 @@
 # Wave B/C (+S5) number allocation — continues `docs/status/wave-A-hotspots.md` §2
 
-Prep for the envelopes after wave A (branch `task/prep-rest`, 2026-09-24). Base: P08's `packages/proto/vrx/v1/dataplane.proto` maxima plus
+Prep for the envelopes after wave A (branch `task/prep-rest`, 2026-09-24). Base: P08's `packages/proto/ngfw/v1/dataplane.proto` maxima plus
 every number wave-A §2 allocated **or proposed** (ServicesConfig 8 `auto_sdl`, 9 `nsim`; ActionRequest 4–8; EventKind 10–15; Interface 13–22;
 StaticRoute 7–8; NextHop 4; AclConfig 7–8; WireguardInterface 12; SyslogTarget 6–9; DesiredState 14 only via PENDING).
 
@@ -158,8 +158,8 @@ slot; `frr.service` has no owner and stays disabled; nothing under `/etc/frr`. T
 `IgmpMfibController`, `Srv6Controller`, `LispController`; locale namespace = slug; WS topics `ospf.events`, `isis-rip.events`,
 `bfd-redistribution.events`, `mpls-ldp.events`, `igmp-mfib.events`; validator ids `routing.<slug>-…` (`tunnels.lisp-…` for F-lisp; never
 re-add the existing `routing.ospf-area-exists`, `routing.interface-exists`, `routing.route-map-exists`, `routing.bfd-session-unique`).
-Test secrets use `VRX_TEST_PSK_<id>_<n>`, shortened where the protocol caps the length (D-086 precedent): OSPF MD5 ≤ 16 chars →
-`VRXTPSKospf<n>`, BFD keyed SHA1 ≤ 20 bytes → `VRXTPSKbfd<n>`.
+Test secrets use `NGFW_TEST_PSK_<id>_<n>`, shortened where the protocol caps the length (D-086 precedent): OSPF MD5 ≤ 16 chars →
+`NGFWTPSKospf<n>`, BFD keyed SHA1 ≤ 20 bytes → `NGFWTPSKbfd<n>`.
 
 **EventKind for this pack: 20–25, spare 26–29.** 16–19 are left unallocated for other wave-B/C sections (VRRP, HA sync, alarms …).
 **RoutingConfig for this pack: 13–17, spare 18–19.** 12 is left for P12 (its "routing-level LCP leaf" option); unused, it stays reserved.
@@ -259,8 +259,8 @@ anchor exists, insert at the end of the block and list the hunk under "Shared hu
 | SY2 | `apps/api/src/app.ts` `configureApp` content-type parsers (8 MiB body limit) | F-restconf-yang (`application/yang-data+json`), F-backup-restore (streamed upload) | register from the feature's own module first (`HttpAdapterHost` in `onModuleInit`, before `ready`); only if impossible, one line under the anchor |
 | SY3 | `apps/api/src/db/schema.ts` + `apps/api/migrations/**` | F-aaa (`f_aaa_mfa`), F-backup-restore (`f_backup_restore`) | the Drizzle protocol under "DB migrations" in the wave-C section above: tables under the anchor, `pnpm -C apps/api db:generate --name <slug>`, regenerated on top of main at the D-112 rebase / merge, never hand-merged |
 | SY4 | `packages/schema/src/domains/management.ts` | `ManagementSchema`: F-backup-restore, F-dashboard-prom-alarms · `AaaSchema`: F-aaa only (in-place widening of `AuthMethod` and `order.max(3)` + key lines) · `SyslogTargetSchema`: F-unbound-chrony-syslog | C1: sub-schemas in `domains/ext/<slug>.ts`, one key line under the anchor |
-| SY5 | `apps/agent/internal/renderers/ALLOWLIST.md` (read by the source-scanning allowlist test) | F-backup-restore (`vrx-upgrade`, `vrx-support-collect`); also P11, F-host-acl-nftables, F-unbound-chrony-syslog | one row per binary under the anchor, fixed argv documented |
-| SY6 | `deploy/debian/vrx/**` install lists (exist after P10 merges) | F-ab-upgrade, F-hardening-lite, F-backup-restore | P10 seeds `# wave-BC: <id>` for these three in its install files (P10 envelope obligation) |
+| SY5 | `apps/agent/internal/renderers/ALLOWLIST.md` (read by the source-scanning allowlist test) | F-backup-restore (`ngfw-upgrade`, `ngfw-support-collect`); also P11, F-host-acl-nftables, F-unbound-chrony-syslog | one row per binary under the anchor, fixed argv documented |
+| SY6 | `deploy/debian/ngfw/**` install lists (exist after P10 merges) | F-ab-upgrade, F-hardening-lite, F-backup-restore | P10 seeds `# wave-BC: <id>` for these three in its install files (P10 envelope obligation) |
 | SY7 | root `.gitignore` (`/.scratch/`) | P10, P14, F-ab-upgrade, F-images, F-hardening-lite | the manager adds the line once; until then never `git add -A` |
 | SY8 | `pnpm-lock.yaml` (= wave-A D4) | F-restconf-yang (new workspace package `packages/yang`), F-aaa (e.g. `ldapts`, `openid-client`, a QR helper), F-backup-restore (e.g. `ssh2`) | questions file first; the worker runs `pnpm install` once and commits the lockfile; the manager re-resolves on main at merge, never hand-merges. New packages need the npm registry |
 | SY9 | `tools/ci.sh` (= wave-A D3, manager only) | F-restconf-yang (`packages/yang/modules` → `GEN_PATHS`), P10/P14/F-ab-upgrade/F-images/F-hardening-lite/F-backup-restore (a `deploy/<dir>` shellcheck + `tests/run.sh` step like TD-6's deploy/vpp step; P14's `iso` target) | workers ask; the manager edits |
@@ -288,41 +288,41 @@ mirrored, like `RadiusServer.secret_ref`. Names: `AaaController`, rule ids `mana
 | RPC / EventKind | none (progress = `ActionOutput.line`) |
 | DB | migration `f_backup_restore` (schedules, run log, templates if a table), SY3 |
 Names: `BackupRestoreController`, rule ids `management.backup-restore-…`, locale namespace `backup-restore`, nav items `backup-restore` and
-`upgrade`, agent package `internal/actions/backup-restore`, ALLOWLIST rows `vrx-upgrade` and `vrx-support-collect`, paths `/data/backups`,
+`upgrade`, agent package `internal/actions/backup-restore`, ALLOWLIST rows `ngfw-upgrade` and `ngfw-support-collect`, paths `/data/backups`,
 `/data/updates`, `/data/support` (created by P10; the api user may write them).
 
 ### F-restconf-yang
 No schema, proto, RPC or EventKind change: YANG hints live in a `packages/yang` side table keyed by JSON pointer. The generated
-`packages/yang/modules/*.yang` join C7 and `GEN_PATHS` (SY9). Proposal (open question in the prompt): module `vrx-<root-key>`, namespace
-`urn:vrx:yang:<root-key>`, plus `vrx-operations` for `commit|rollback|confirm`. Names: `RestconfYangController`
+`packages/yang/modules/*.yang` join C7 and `GEN_PATHS` (SY9). Proposal (open question in the prompt): module `ngfw-<root-key>`, namespace
+`urn:ngfw:yang:<root-key>`, plus `ngfw-operations` for `commit|rollback|confirm`. Names: `RestconfYangController`
 (`@ApiExcludeController()` by default), locale namespace `restconf-yang`, nav item `restconf-yang`.
 
 ### P10
-No numbers. Source package `deploy/debian/vrx/` → `vrx-agent`, `vrx-api`, `vrx-web`, `vrx-meta` (P11 builds `vrx-strongswan`
-separately). Units `vrx-agent.service`, `vrx-api.service`, `vrx-firstboot.service`, nginx site `vrx`. User/group `vrx`. Directories
-`/etc/vrx`, `/var/lib/vrx/{agent,api}`, `/run/vrx`, `/data/{backups,updates,support}`. nftables: static table **`inet vrx_base`** (never
-`inet vrx`: F-host-acl-nftables, D-057). APT suite `resolute`, component `main`; the repo is published by the manager to
-`/srv/vrx-artifacts/apt/`; the key lives in `~/.config/ngfw/apt-signing/`. VPP artefacts go to `/srv/vrx-artifacts/vpp/<version>/` (D-089).
-sysctl files: `60-vrx-netlink.conf` (linux_nl `rmem_max`, PENDING-vpp-host-hardening B). Seeds the SY6 anchors.
+No numbers. Source package `deploy/debian/ngfw/` → `ngfw-agent`, `ngfw-api`, `ngfw-web`, `ngfw-meta` (P11 builds `ngfw-strongswan`
+separately). Units `ngfw-agent.service`, `ngfw-api.service`, `ngfw-firstboot.service`, nginx site `ngfw`. User/group `ngfw`. Directories
+`/etc/ngfw`, `/var/lib/ngfw/{agent,api}`, `/run/ngfw`, `/data/{backups,updates,support}`. nftables: static table **`inet ngfw_base`** (never
+`inet ngfw`: F-host-acl-nftables, D-057). APT suite `resolute`, component `main`; the repo is published by the manager to
+`/srv/ngfw-artifacts/apt/`; the key lives in `~/.config/ngfw/apt-signing/`. VPP artefacts go to `/srv/ngfw-artifacts/vpp/<version>/` (D-089).
+sysctl files: `60-ngfw-netlink.conf` (linux_nl `rmem_max`, PENDING-vpp-host-hardening B). Seeds the SY6 anchors.
 
 ### P14
 No numbers. `deploy/image/iso/`, `deploy/image/common/` (read-only for F-images), `deploy/image/build-iso.sh`; output
-`vrx-<version>.iso` + `.sha256` + `.asc` under `.scratch/`. **Partition labels** (F-ab-upgrade and F-images use the same ones):
-`VRX-EFI`, `vrx-rootA`, `vrx-rootB`, `vrx-log`, `vrx-pg`, `vrx-data`. Appliance marker `/etc/vrx/appliance`, written by the installer and
-checked by `vrx-upgrade` before it touches the running system.
+`ngfw-<version>.iso` + `.sha256` + `.asc` under `.scratch/`. **Partition labels** (F-ab-upgrade and F-images use the same ones):
+`NGFW-EFI`, `ngfw-rootA`, `ngfw-rootB`, `ngfw-log`, `ngfw-pg`, `ngfw-data`. Appliance marker `/etc/ngfw/appliance`, written by the installer and
+checked by `ngfw-upgrade` before it touches the running system.
 
 ### F-ab-upgrade
-No numbers. CLI `vrx-upgrade` (`status [--json]` | `stage <bundle>` | `activate` | `confirm` | `rollback`; argv, exit codes and JSON are
-F-backup-restore's contract). Unit `vrx-upgrade-health.service`. Bundle `vrx-update-<version>.tar`. Default key: dedicated Ed25519 in
-`~/.config/ngfw/upgrade-signing/`. GRUB entries `vrx-rootA` and `vrx-rootB` (proposal).
+No numbers. CLI `ngfw-upgrade` (`status [--json]` | `stage <bundle>` | `activate` | `confirm` | `rollback`; argv, exit codes and JSON are
+F-backup-restore's contract). Unit `ngfw-upgrade-health.service`. Bundle `ngfw-update-<version>.tar`. Default key: dedicated Ed25519 in
+`~/.config/ngfw/upgrade-signing/`. GRUB entries `ngfw-rootA` and `ngfw-rootB` (proposal).
 
 ### F-images
-No numbers. Outputs `vrx-<version>.{qcow2,vmdk,ova,vhdx}` + `SHA256SUMS` + `manifest.json` under `.scratch/`. Builder
+No numbers. Outputs `ngfw-<version>.{qcow2,vmdk,ova,vhdx}` + `SHA256SUMS` + `manifest.json` under `.scratch/`. Builder
 `deploy/image/vm/build.sh`, cloud profiles `deploy/image/cloud/{aws,azure,gcp}/`. P14's partition labels.
 
 ### F-hardening-lite
-No numbers. Drop-ins `deploy/hardening/systemd/<unit>.d/10-vrx-hardening.conf`; sysctl `70-vrx-hardening.conf` (after P10's
-`60-vrx-netlink.conf`, so hardening cannot silently lower `rmem_max`); sshd `sshd_config.d/50-vrx.conf`; tool `deploy/hardening/check.sh`.
+No numbers. Drop-ins `deploy/hardening/systemd/<unit>.d/10-ngfw-hardening.conf`; sysctl `70-ngfw-hardening.conf` (after P10's
+`60-ngfw-netlink.conf`, so hardening cannot silently lower `rmem_max`); sshd `sshd_config.d/50-ngfw.conf`; tool `deploy/hardening/check.sh`.
 
 **Next free after this pack:** `ManagementConfig` 9 · `ManagementAaa` 10 · `ActionOutput` 5 · `ActionRequest`: 20–24 are this pack's,
 25+ after it; for 13–19 see the last "Next free" line in this file (later sections take from there).
@@ -371,7 +371,7 @@ F-vrrp-config-sync cluster node B API, 61 F-pki local CRL/OCSP responder.
 **Names:** controllers `Det44MapDsliteCnatController`, `TunnelsController`, `Ikev2NativeController`, `PkiController`, `RaVpnController`,
 `VrrpConfigSyncController`, `HaStateSyncController`; locale namespace = slug; validator ids `nat.det44-map-dslite-cnat-…`, `tunnels.…`
 (domain owner), `vpn.ikev2-native-…`, `vpn.pki-…`, `vpn.ra-vpn-…`, `ha.vrrp-config-sync-…`, `ha.ha-state-sync-…`. Test secrets
-`VRX_TEST_PSK_FIKEV2_<n>`, `VRX_TEST_PSK_FRAVPN_<n>`; VRRPv2 PASS keys ≤ 8 chars → `FVRtpsk<n>` (D-086 precedent).
+`NGFW_TEST_PSK_FIKEV2_<n>`, `NGFW_TEST_PSK_FRAVPN_<n>`; VRRPv2 PASS keys ≤ 8 chars → `FVRtpsk<n>` (D-086 precedent).
 
 ### F-det44-map-dslite-cnat
 | message | allocation |

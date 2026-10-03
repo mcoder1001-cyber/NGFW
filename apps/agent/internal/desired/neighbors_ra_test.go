@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/arp"
 	ip6nd "ngfw/agent/internal/descriptors/ip6_nd"
 	ipneighbor "ngfw/agent/internal/descriptors/ip_neighbor"
@@ -45,9 +45,9 @@ func (s *nraSink) keys() []string {
 	return out
 }
 
-func parse(t *testing.T, js string) *vrxv1.DesiredState {
+func parse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestNeighborsRaProjectionNonOwner(t *testing.T) {
 	}
 	// the host-w9l0 RA object holds only defaults = VPP's fresh state: no object (DF-2 Retrieve omits it)
 	wantIssues := []string{
-		"W /interfaces/loop901/proxyNd agent.unsupported-field proxy ND is experimental and off in this agent (start it with VRX_DF2_PROXY_ND=1; VPP V12): not applied",
+		"W /interfaces/loop901/proxyNd agent.unsupported-field proxy ND is experimental and off in this agent (start it with NGFW_DF2_PROXY_ND=1; VPP V12): not applied",
 		"W /routing/neighbors/ipv4Limits agent.unsupported-field neighbour-table limits are VPP-wide: only the globals owner applies them (D-071); not applied by this agent",
 		"W /routing/neighbors/dad agent.unsupported-field duplicate address detection is VPP-wide: only the globals owner applies it (D-071); not applied by this agent",
 	}
@@ -174,13 +174,13 @@ func TestNeighborsRaAssembleRoundTrip(t *testing.T) {
 	in := parse(t, nraDoc)
 	s := &nraSink{}
 	NeighborsRa(s, in, all, vrfID)
-	ds := &vrxv1.DesiredState{
-		Vrfs: map[string]*vrxv1.Vrf{"red": {Id: proto.Uint32(9001)}},
-		Interfaces: map[string]*vrxv1.Interface{
+	ds := &ngfwv1.DesiredState{
+		Vrfs: map[string]*ngfwv1.Vrf{"red": {Id: proto.Uint32(9001)}},
+		Interfaces: map[string]*ngfwv1.Interface{
 			"loop901":   {Enabled: proto.Bool(false)},
-			"host-w9l0": {Enabled: proto.Bool(false), Subinterfaces: map[string]*vrxv1.Subinterface{"100": {VlanId: proto.Uint32(100)}}},
+			"host-w9l0": {Enabled: proto.Bool(false), Subinterfaces: map[string]*ngfwv1.Subinterface{"100": {VlanId: proto.Uint32(100)}}},
 		},
-		Routing: &vrxv1.RoutingConfig{},
+		Routing: &ngfwv1.RoutingConfig{},
 	}
 	names := func(id uint32) string {
 		if id == 9001 {
@@ -210,13 +210,13 @@ func TestNeighborsRaAssembleRoundTrip(t *testing.T) {
 		t.Fatalf("assembled\n%s", protojson.Format(ds))
 	}
 	// nothing retrieved and nothing stored: nothing added (existing documents keep their exact shape)
-	empty := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"loop1": {Enabled: proto.Bool(false)}}, Routing: &vrxv1.RoutingConfig{}}
+	empty := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"loop1": {Enabled: proto.Bool(false)}}, Routing: &ngfwv1.RoutingConfig{}}
 	AssembleNeighborsRa(empty, nil, all, nil, names)
-	if !proto.Equal(empty, &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"loop1": {Enabled: proto.Bool(false)}}, Routing: &vrxv1.RoutingConfig{}}) {
+	if !proto.Equal(empty, &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"loop1": {Enabled: proto.Bool(false)}}, Routing: &ngfwv1.RoutingConfig{}}) {
 		t.Fatalf("empty %s", protojson.Format(empty))
 	}
 	// VPP-default limits are "absent"
-	ds = &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{}}
+	ds = &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{}}
 	AssembleNeighborsRa(ds, []scheduler.KV{{Key: "ip-neighbor.config/ipv4", Value: &ipneighbor.Config{MaxNumber: 50000}}}, all, nil, names)
 	if ds.GetRouting().GetNeighbors() != nil {
 		t.Fatalf("defaults reported: %v", ds.GetRouting())
@@ -225,10 +225,10 @@ func TestNeighborsRaAssembleRoundTrip(t *testing.T) {
 }
 
 func TestIsDefaultRaConfig(t *testing.T) {
-	if !IsDefaultRaConfig(RaConfigOf("x", &vrxv1.Ipv6Ra{})) {
+	if !IsDefaultRaConfig(RaConfigOf("x", &ngfwv1.Ipv6Ra{})) {
 		t.Fatal("empty ipv6Ra = VPP fresh state")
 	}
-	for _, ra := range []*vrxv1.Ipv6Ra{{Suppress: proto.Bool(false)}, {Managed: proto.Bool(true)}, {MaxIntervalSec: proto.Uint32(300)}, {LifetimeSec: proto.Uint32(0)}} {
+	for _, ra := range []*ngfwv1.Ipv6Ra{{Suppress: proto.Bool(false)}, {Managed: proto.Bool(true)}, {MaxIntervalSec: proto.Uint32(300)}, {LifetimeSec: proto.Uint32(0)}} {
 		if IsDefaultRaConfig(RaConfigOf("x", ra)) {
 			t.Fatalf("%v is not the default", ra)
 		}

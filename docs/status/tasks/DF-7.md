@@ -66,10 +66,10 @@ D-076 duplicate adds (`policer.interface` / `lb.intf-nat` feature stacking stays
 after `Reboot()`, no un-apply after a restart), index reuse on delete (policer at a reused pool index of another
 owner is not deleted), event decoding (bfd/vrrp/igmp).
 
-### Host run (VRX_INTEGRATION=1, shared lab lock, slot 10) — `systemctl show vpp -p NRestarts` 2 before and after
+### Host run (NGFW_INTEGRATION=1, shared lab lock, slot 10) — `systemctl show vpp -p NRestarts` 2 before and after
 
 ```
-$ VRX_INTEGRATION=1 go test -count=1 -v -run OnHost ./internal/descriptors/{policer,qos,lb,span,lldp,bfd,vrrp,igmp,mpls}/
+$ NGFW_INTEGRATION=1 go test -count=1 -v -run OnHost ./internal/descriptors/{policer,qos,lb,span,lldp,bfd,vrrp,igmp,mpls}/
 --- PASS: TestPolicerOnHost (0.06s)
     --- PASS: TestPolicerOnHost/update_in_place (0.00s)
     --- PASS: TestPolicerOnHost/interface_attach_(write-only) (0.01s)
@@ -127,12 +127,12 @@ Skip reasons (pasted from the same log):
 
 ```
 skip: no workers on host (policer_bind → policer.bind: policer_bind w10:gold worker 0 enable=true: VPPApiError: Invalid worker thread (-89))
-skip: lb.conf is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
-skip: lldp.global is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
-skip: bfd.echo-source is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
-skip: igmp.group-prefix (the SSM range list) is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
+skip: lb.conf is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
+skip: lldp.global is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
+skip: bfd.echo-source is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
+skip: igmp.group-prefix (the SSM range list) is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
 mpls-interface Create without MPLS table 0: mpls-interface: sw_interface_set_mpls_enable 15 enable=true: VPPApiError: No such FIB / VRF (-3)
-skip: MPLS table 0 (created/locked by mpls enable and label bindings) is VPP-global — only the globals owner sets it (D-071); VRX_DF7_GLOBALS=1 to opt in
+skip: MPLS table 0 (created/locked by mpls enable and label bindings) is VPP-global — only the globals owner sets it (D-071); NGFW_DF7_GLOBALS=1 to opt in
 ```
 
 Every host test does: create → Retrieve == desired (empty re-apply plan) → update in place → **restart simulation**
@@ -180,7 +180,7 @@ lb_vip_dump: {Prefix:10.10.30.3/32 Port:8080 Encap:nat4 DSCP:0 TargetPort:20480 
 (earlier run) igmp_group_prefix_dump (why it is not used): 0 details, err unexpected message: *igmp.IgmpDetails &{1 0.232.0.0 0.0.0.0}
 ```
 
-### `vppctl show …` while the prefixed objects exist, then after delete (VRX_DF7_EVIDENCE_HOLD)
+### `vppctl show …` while the prefixed objects exist, then after delete (NGFW_DF7_EVIDENCE_HOLD)
 
 ```
 --- vppctl show policer (objects present)
@@ -343,7 +343,7 @@ CI GATE PASSED
 
 - API, UI, schema, F-* wiring, keepalived VRRP (RF-4), FRR BFD/PIM, multicast FIB routes, BIER, HQoS.
 - Host runs of the VPP-global objects (`lb.conf`, `lldp.global`, `bfd.echo-source`, `igmp.group-prefix`) and of
-  the objects needing MPLS table 0 — only with `VRX_DF7_GLOBALS=1` (D-071); unit-tested.
+  the objects needing MPLS table 0 — only with `NGFW_DF7_GLOBALS=1` (D-071); unit-tested.
 - `policer.bind` host run: no worker threads on the host (`INVALID_WORKER`, skip reason above).
 - MPLS paths of proto mpls with a via-label / lookup table and uniform-mode labels: not reported by VPP's path
   encoder → rejected as non-canonical / pipe mode only.
@@ -358,7 +358,7 @@ CI GATE PASSED
 3. Ownership: owner tag in name/tag fields (policer, MPLS table/tunnel, tunnel interface), interface ownership with
    the D-071 claim keyed by the object key for per-interface objects, id range for QoS egress maps and BFD conf keys.
 4. Globals (D-071): `lb.conf`, `lldp.global`, `bfd.echo-source`, `igmp.group-prefix` only via `RegisterGlobals` /
-   `registry.Config.GlobalsOwner`; host tests opt-in (`VRX_DF7_GLOBALS=1`). MPLS table 0 treated as global (Q5).
+   `registry.Config.GlobalsOwner`; host tests opt-in (`NGFW_DF7_GLOBALS=1`). MPLS table 0 treated as global (Q5).
 5. D-076/D-080: `policer.interface` and `lb.intf-nat` (feature stacking) apply once per D-080 boot identity and
    `<sw_if_index>/<name>` (`df7.ApplyOnce`, `dfkit.BootStore`, `df7.SetBootStore` for P05); reference-counted
    enables (qos record/store, mpls-interface) enable only when the dump does not list them; lb VIPs/ASes and MPLS
@@ -387,15 +387,15 @@ ip-classify binding, Q4 interface-ip deps, Q5 MPLS table 0, Q6 V-item candidates
 | H2 mpls table 0 | `mpls-route` in table 0: Create refuses an existing label without our record (`ErrNotOurs`), records after its add; Update/Delete/Retrieve only for recorded labels | `TestRouteSharedTable0`: SR-MPLS BSID, mpls-ip-bind, FRR/linux-cp, reserved entries neither reported nor deleted; Create/Update refused; failed add unrecorded; record expires with the VPP instance |
 | M1 claim after add, no adoption | claims via `dfkit.Target.Claim` only after VPP accepted (policer, qos, span, lldp, bfd, vrrp, igmp, mpls, lb.intf-nat); "already exists" paths use `Target.Adopt` (ours only when tagged/claimed) | `TestInterfacesAndClaims`, `TestRecordStore`, `TestInterface` (mpls), `TestMirrorNoAdopt`, `TestInterfaceMismatchUndo` (lldp), `TestSessionFailedAddNoClaim` (bfd EEXIST), `TestVRExistsNoClaim` (vrrp ENTRY_ALREADY_EXISTS), `TestInterfaceNoAdopt` (igmp -1) |
 | M2 lb enum order | after each add `lb_vip_dump` must show the requested type; otherwise delete, switch byte order, retry once, else `ErrEnumOrder` | `TestVIPEnumOrder` (fake with ntohl → adapts; wrong type in both orders → `ErrEnumOrder`, VIP removed, unrecorded) |
-| M3 lb leftovers | lb host test opt-in `VRX_DF7_LB=1`; Q1 numbers corrected (26 removed VIPs, `#vips: 27 #ass: 24`, `10.10.31.1` refs:8 — wiped by the 02:23 restart); per-update leak in `lb.md` | host run below: `SKIP: TestLBOnHost` |
+| M3 lb leftovers | lb host test opt-in `NGFW_DF7_LB=1`; Q1 numbers corrected (26 removed VIPs, `#vips: 27 #ass: 24`, `10.10.31.1` refs:8 — wiped by the 02:23 restart); per-update leak in `lb.md` | host run below: `SKIP: TestLBOnHost` |
 | M4 lb adoption / delete | VIP/AS `VALUE_EXIST` = success only with our record, else `ErrNotOurs`; Delete only of recorded objects; `NO_SUCH_ENTRY` = success | `TestVIP`, `TestASAndNat` |
 | M5 policer index | Update re-verifies the stored index by name (`currentIndex`); `Reset(ctx, c, owner, name)` looks the index up | `TestPolicerLifecycle` (Meta index 0 reused by another owner → update goes to 7; gone → error) |
 | M6 LLDP mismatch | **investigated, not undoable**: VPP's disable looks up `hw(arg)->sw_if_index`, so a disable with our index removes another interface's entry; Create now sends no disable, claims nothing, fails loudly (`ErrIndexMismatch … NOT undone`) — the first version of this fix sent that disable and was removed | `TestInterfaceMismatchUndo`; DF-7-questions Q8 |
 | L1 counters | qos record/store, mpls-interface: one disable (mpls only while the dump lists it); Create never adds a second reference | `TestRecordStore`, `TestInterface` (mpls) |
 | L2 / L4 / L3 | documented (`vrrp.md` accept-mode addresses + IGMP join, `igmp.md` mode drift; VRRP walk kept) | docs |
 | L5 / L6 | not changed in this round: L5 proof gaps remain where host tests are opt-in (globals, lb, vrrp, igmp); L6 key ambiguity with `/` in names is open — no validation of `/` in interface / policer names added (needs a rule for all factories; proposal: reject `/` in spec validation) | — |
-| Manager: D-082 | `df7test.GlobalsOptIn` holds `/run/lock/vrx-globals.lock` exclusively for the (sub)test | `df7/df7test/host.go` |
-| Manager: VPP crash (D-087) | host tests one package at a time; `TestVRRPOnHost` / `TestIGMPOnHost` opt-in (`VRX_DF7_VRRP_HOST`, `VRX_DF7_IGMP_HOST`); trigger + backtrace in Q9 | below |
+| Manager: D-082 | `df7test.GlobalsOptIn` holds `/run/lock/ngfw-globals.lock` exclusively for the (sub)test | `df7/df7test/host.go` |
+| Manager: VPP crash (D-087) | host tests one package at a time; `TestVRRPOnHost` / `TestIGMPOnHost` opt-in (`NGFW_DF7_VRRP_HOST`, `NGFW_DF7_IGMP_HOST`); trigger + backtrace in Q9 | below |
 | Manager: TD-1 | fake answers `control_ping` (vpe_pid) and sets `dfkit.IdentitySource` to a `bootid.Identity`; no `iface.VPPIdentity` | build + tests |
 
 ### Unit tests
@@ -427,16 +427,16 @@ First attempt (02:23, all nine packages in one `go test`, i.e. in parallel): VPP
 see Q9; I ran it that way, the crash came during my run. Re-run one package at a time, NRestarts checked around each:
 
 ```
-$ for p in policer qos span lldp bfd mpls lb vrrp igmp; do NRestarts before; VRX_INTEGRATION=1 go test -count=1 -p 1 -v -run OnHost ./internal/descriptors/$p/; NRestarts after; done
+$ for p in policer qos span lldp bfd mpls lb vrrp igmp; do NRestarts before; NGFW_INTEGRATION=1 go test -count=1 -p 1 -v -run OnHost ./internal/descriptors/$p/; NRestarts after; done
 == policer NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestPolicerOnHost (0.05s)  (bind: skip, no workers)
 == qos     NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestQoSOnHost (0.13s)
 == span    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestSpanOnHost (0.07s)
 == lldp    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestLLDPOnHost (0.02s)   (global: opt-in skip)
 == bfd     NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestBFDOnHost (0.07s)    (echo-source: opt-in skip)
 == mpls    NRestarts before=4 … rc=0 NRestarts after=4   --- PASS: TestMPLSOnHost (0.20s)   (table 0: opt-in skip)
-== lb      NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestLBOnHost  (VRX_DF7_LB=1 to opt in)
-== vrrp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestVRRPOnHost (VRX_DF7_VRRP_HOST=1, D-087)
-== igmp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestIGMPOnHost (VRX_DF7_IGMP_HOST=1, D-087)
+== lb      NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestLBOnHost  (NGFW_DF7_LB=1 to opt in)
+== vrrp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestVRRPOnHost (NGFW_DF7_VRRP_HOST=1, D-087)
+== igmp    NRestarts before=4 … rc=0 NRestarts after=4   --- SKIP: TestIGMPOnHost (NGFW_DF7_IGMP_HOST=1, D-087)
 $ vppctl show interface | grep -c 'loop10[0-9][0-9]'; vppctl show ip fib | grep -c '10\.10\.'; vppctl show lb vips
 0
 0

@@ -27,7 +27,7 @@ describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
       password: PW[u],
     });
     expect(r.status).toBe(200);
-    return { token: r.body.accessToken as string, cookie: cookieOf(r.headers, 'vrx_refresh')! };
+    return { token: r.body.accessToken as string, cookie: cookieOf(r.headers, 'ngfw_refresh')! };
   };
   const me = async (tok: string) => (await h.call(tok, 'GET', '/api/v1/auth/me')).status;
   const refresh = (cookie: string) =>
@@ -55,7 +55,7 @@ describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
     expect((await h.call(admin, 'POST', '/api/v1/config/commit?comment=td10b')).status).toBe(200);
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '1000' });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: '1000' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op', role: 'operator', password: PW['op']! },
@@ -108,7 +108,7 @@ describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
   it('a forged `<family>.<junk>` logs nobody out (before: anyone knowing a family id ended that session)', async () => {
     const s = await login('op');
     const family = s.cookie.split('=')[1]!.split('.')[0]!;
-    const forged = `vrx_refresh=${family}.${randomBytes(32).toString('base64url')}`;
+    const forged = `ngfw_refresh=${family}.${randomBytes(32).toString('base64url')}`;
     expect((await logout({ cookie: forged })).status).toBe(204);
     const r = await refresh(s.cookie);
     console.log(
@@ -151,7 +151,7 @@ describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
       refresh: r!.status,
       oldToken: await me(s.token),
       newChain:
-        r!.status === 200 ? (await refresh(cookieOf(r!.headers, 'vrx_refresh')!)).status : 401,
+        r!.status === 200 ? (await refresh(cookieOf(r!.headers, 'ngfw_refresh')!)).status : 401,
       newToken: r!.status === 200 ? await me(r!.body.accessToken as string) : 401,
     };
     console.log(`L4 logout racing a refresh: ${JSON.stringify(after)}`);
@@ -177,10 +177,10 @@ describe('TD-10b sessions: per-sid logout, audited refresh/logout', () => {
 
   it('2.3e refresh failures carry their reason; junk is aggregated; no cookie at all writes nothing', async () => {
     const before = (await audit('auth.refresh')).length;
-    expect((await refresh('vrx_refresh=')).status).toBe(401);
+    expect((await refresh('ngfw_refresh=')).status).toBe(401);
     expect((await h.call(undefined, 'POST', '/api/v1/auth/refresh')).status).toBe(401);
     expect((await audit('auth.refresh')).length).toBe(before);
-    const junk = `vrx_refresh=${randomBytes(12).toString('base64url')}.${randomBytes(32).toString('base64url')}`;
+    const junk = `ngfw_refresh=${randomBytes(12).toString('base64url')}.${randomBytes(32).toString('base64url')}`;
     for (let i = 0; i < 12; i++) expect((await refresh(junk)).status).toBe(401);
     const agg = await eventually(async () => {
       const rows = await audit('auth.refresh', sql`and after->>'reason' = 'unknown-token'`);

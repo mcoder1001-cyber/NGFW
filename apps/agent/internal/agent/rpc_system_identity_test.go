@@ -4,7 +4,7 @@ import (
 	"context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/subsystems"
 	"os"
@@ -16,7 +16,7 @@ import (
 func TestSystemIdentityStateOwnerAndWiredPaths(t *testing.T) {
 	svc := newSvc(t, coretest.New(), t.TempDir())
 	g := &server{svc: svc}
-	if _, err := g.SystemIdentityState(context.Background(), &vrxv1.SystemIdentityStateRequest{Owner: "foreign"}); status.Code(err) != codes.InvalidArgument {
+	if _, err := g.SystemIdentityState(context.Background(), &ngfwv1.SystemIdentityStateRequest{Owner: "foreign"}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("owner guard: %v", err)
 	}
 	d := subsystems.SystemIdentityOf(testOwner)
@@ -30,7 +30,7 @@ func TestSystemIdentityStateOwnerAndWiredPaths(t *testing.T) {
 	if err := os.WriteFile(p.Hostname, []byte("test-slot-identity\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	st, err := g.SystemIdentityState(context.Background(), &vrxv1.SystemIdentityStateRequest{Owner: testOwner})
+	st, err := g.SystemIdentityState(context.Background(), &ngfwv1.SystemIdentityStateRequest{Owner: testOwner})
 	if err != nil {
 		t.Fatal(err)
 	}

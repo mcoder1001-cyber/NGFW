@@ -1,4 +1,4 @@
-import { VrxThemeProvider } from '@ngfw/ui-kit';
+import { NgfwThemeProvider } from '@ngfw/ui-kit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -20,9 +20,9 @@ function view() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <VrxThemeProvider mode="light" lang={i18n.language} dir={i18n.language.startsWith('fa') ? 'rtl' : 'ltr'}>
+      <NgfwThemeProvider mode="light" lang={i18n.language} dir={i18n.language.startsWith('fa') ? 'rtl' : 'ltr'}>
         <NotificationsTab />
-      </VrxThemeProvider>
+      </NgfwThemeProvider>
     </QueryClientProvider>,
   );
 }

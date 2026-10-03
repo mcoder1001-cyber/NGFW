@@ -19,7 +19,7 @@ func testRenderer() *Renderer { return New(WithPaths(PathsUnder("/srv"))) }
 func fullSession() Session {
 	return Session{ //nolint:gosec // G101: test fixture, not a real credential
 		Iface: "GigabitEthernet0/0/0", HostIf: "wan0",
-		Username: "alice@isp", Password: "s3cr#t \"x", ServiceName: "vrx-fiber", //nolint:gosec // G101: test data, not a real credential
+		Username: "alice@isp", Password: "s3cr#t \"x", ServiceName: "ngfw-fiber", //nolint:gosec // G101: test data, not a real credential
 		MTU: 1492, MSSClamp: true, DefaultRoute: true, DNSFromPeer: true, IPv6: "slaac",
 		HoldoffSec: 5, MaxFail: 0,
 	}
@@ -88,7 +88,7 @@ func TestSecretsAreSecretAndNotInPeerFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	peer := files["/srv/etc/ppp/peers/vrx-wan0"]
+	peer := files["/srv/etc/ppp/peers/ngfw-wan0"]
 	if strings.Contains(string(peer.Content), "s3cr") {
 		t.Fatal("the password leaked into the peer file")
 	}
@@ -97,7 +97,7 @@ func TestSecretsAreSecretAndNotInPeerFile(t *testing.T) {
 		if !f.Secret || f.Mode != 0o600 {
 			t.Fatalf("%s must be Secret 0600, got secret=%v mode=%v", p, f.Secret, f.Mode)
 		}
-		if !strings.Contains(string(f.Content), `"alice@isp" vrx-wan0 "s3cr#t \"x" *`) {
+		if !strings.Contains(string(f.Content), `"alice@isp" ngfw-wan0 "s3cr#t \"x" *`) {
 			t.Fatalf("%s missing the secrets line:\n%s", p, f.Content)
 		}
 	}

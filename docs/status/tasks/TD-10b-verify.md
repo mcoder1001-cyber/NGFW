@@ -13,8 +13,8 @@ the new cases. Nothing regressed. The hand-offs are sound. One new nit (N1) is n
 
 | item | result | where |
 |---|---|---|
-| **C1** | Correct. The API line in tools/app gains only `VRX_TRUST_PROXY=none`, plus a comment naming PENDING-tools-app-transport. The banner now says passwords cross the LAN in clear and offers the tunnel. With `none`, Fastify's `trustProxy=false`, `req.ips` is undefined, the protocol comes from the socket and the client is vite's 127.0.0.1. That is exactly what main does today, so remote lab logins are accepted as before (unit test "review C1" with vite 7's real appended headers). The rate-limit and lockout keys are also 127.0.0.1 for every lab browser, as on main. The one difference is an improvement: the last admin is now throttled instead of locked. | `tools/app:115-119`, `:144-148`; `transport.test.ts` "review C1" |
-| **C2 / M1** | Correct. The file may belong to root or `VRX_API_USER` (default `vrx`, read from /etc/passwd), the owner and group are kept, and the mode stays 0600. Everything else is still refused: a foreign owner (unit test: `owned by uid 65534; it must belong to root or the API user 'td10b-no-such-user'`), a symlink (`O_NOFOLLOW` → ELOOP → "is a symbolic link"), and group/other bits (`mode 0620 … refused`). A dangling symlink is replaced by `rename`, never written through. `VRX_API_USER` comes only from root's environment or env file. The test ran as root here: `M1: … {"keys":2,"uid":65534,"mode":"600"}`. | `break-glass.ts:170-211`, `key-file.ts:20-99` |
+| **C1** | Correct. The API line in tools/app gains only `NGFW_TRUST_PROXY=none`, plus a comment naming PENDING-tools-app-transport. The banner now says passwords cross the LAN in clear and offers the tunnel. With `none`, Fastify's `trustProxy=false`, `req.ips` is undefined, the protocol comes from the socket and the client is vite's 127.0.0.1. That is exactly what main does today, so remote lab logins are accepted as before (unit test "review C1" with vite 7's real appended headers). The rate-limit and lockout keys are also 127.0.0.1 for every lab browser, as on main. The one difference is an improvement: the last admin is now throttled instead of locked. | `tools/app:115-119`, `:144-148`; `transport.test.ts` "review C1" |
+| **C2 / M1** | Correct. The file may belong to root or `NGFW_API_USER` (default `ngfw`, read from /etc/passwd), the owner and group are kept, and the mode stays 0600. Everything else is still refused: a foreign owner (unit test: `owned by uid 65534; it must belong to root or the API user 'td10b-no-such-user'`), a symlink (`O_NOFOLLOW` → ELOOP → "is a symbolic link"), and group/other bits (`mode 0620 … refused`). A dangling symlink is replaced by `rename`, never written through. `NGFW_API_USER` comes only from root's environment or env file. The test ran as root here: `M1: … {"keys":2,"uid":65534,"mode":"600"}`. | `break-glass.ts:170-211`, `key-file.ts:20-99` |
 | **L5** | Correct. `auth.jwt-key-rotated` writes an audit row with `username: root (break-glass)` holding the file, the key count, the kid and the owner uid, plus a `JWT_KEY_RING_ROTATED` system_event. The e2e asserts that the key is not in the row. A failed audit write leaves the rotation standing and prints a warning. | `break-glass.ts:217-245`, `break-glass-cli.ts` rotate branch; lockout e2e "review L5" |
 | **L1** | Correct. `pg_advisory_xact_lock(7310100001)` sits in the transaction before the UPDATE, so the `NOT EXISTS` sees the other admin's committed lock. The single-bigint key space does not overlap TD-10a's two-int keys (PostgreSQL documents the two spaces as disjoint). Both callers run outside any transaction, so it cannot deadlock against a held row lock. e2e: `1,1,1,1,1,1,1,1,1,1`; the worker's pre-fix run gave `2,2,1,2,…`. | `auth.service.ts:22`, `:223-241` |
 | **L4** | Correct. `CONSUME_SCRIPT` does GET, DEL and SET rtused in one step. The family comes from the token prefix, which is authentic because `rt:<hash>` exists only for tokens the API issued. A racing logout always finds one of the two keys, and a refresh cannot recreate a deleted `rtfam`, because ISSUE_SCRIPT continues a chain only if it exists. e2e: `{"logout":204,"refresh":200,"oldToken":401,"newChain":401,"newToken":401}`. | `tokens.service.ts:311-333`, `:552-563` |
@@ -28,7 +28,7 @@ the new cases. Nothing regressed. The hand-offs are sound. One new nit (N1) is n
 `key-file.ts:73` calls `openSync(path, O_RDONLY | O_NOFOLLOW)` with no `O_NONBLOCK`. `TokensService.refreshRing`
 (`tokens.service.ts:165`) runs `checkKeyFile` on the request path at most every 5 s. If the key path is ever replaced by a named pipe,
 `open` blocks the event loop and the API hangs. The old lstat-first code would have refused the FIFO before reading. The precondition is
-write access to the key's directory (root or `vrx`), so the risk is low.
+write access to the key's directory (root or `ngfw`), so the risk is low.
 
 **Fix (one flag):** add `constants.O_NONBLOCK`, which is harmless for regular files, together with a unit test that uses `mkfifo`.
 
@@ -39,13 +39,13 @@ HEAD c9f5d296 — apps/api: vitest run → Test Files 16 passed (16), Tests 134 
 reverted (merge-tree tree 6da55256 = HEAD minus cb74843d, exported to scratch):
   vitest run → Test Files 16 passed (16), Tests 134 passed (134); tsc --noEmit exit 0
   git diff --quiet c05183a6 6da55256 -- apps/api/src/datastore → identical
-e2e: tools/lab lock shared … test:integration td10b-{lockout,session,session-revocation,audit} (VRX_TEST_PREFIX=w5b, port 3550)
+e2e: tools/lab lock shared … test:integration td10b-{lockout,session,session-revocation,audit} (NGFW_TEST_PREFIX=w5b, port 3550)
   2.3b 7 logins from P: 401,401,401,401,401,401,429; then one from Q: 401
   L1 admins locked account-wide per trial (2 parallel failures at MAX-1): 1,1,1,1,1,1,1,1,1,1
   L5 rotate: exit 0; rotated …/jwt.keys: 1 key(s), new signing key <kid> first, owner uid 65534; the API reloads it within 5 s
   L4 logout racing a refresh: {"logout":204,"refresh":200,"oldToken":401,"newChain":401,"newToken":401}
   demotion: {"demoMe":401,"demoRefresh":401,"promoMe":200} · deletion: … → 401
-  Test Files 4 passed (4) · Tests 23 passed (23) · ok nothing named vrx_w5b / vrx_w5b remains
+  Test Files 4 passed (4) · Tests 23 passed (23) · ok nothing named ngfw_w5b / ngfw_w5b remains
 ```
 Cleanup: I removed the `dist/` directories I built and the scratch copy. The worktree is clean apart from this file. Nothing named `w5b`
 is left, and I did not touch tools/app or ports 3000/8080/9101.

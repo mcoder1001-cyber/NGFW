@@ -71,7 +71,7 @@ def export_helpers(output):
     # Reuse the transport exporter's pinned destination and no-replace policy.
     output = EXPORT.destination(ROOT, ROOT / LAUNCHER, output)
     parent = EXPORT.directory_fd(output.parent)
-    temporary = '.vrx-helpers-' + EXPORT.secrets.token_hex(16)
+    temporary = '.ngfw-helpers-' + EXPORT.secrets.token_hex(16)
     created = False
     published = False
     try:
@@ -115,7 +115,7 @@ def export_helpers(output):
         if created:
             os.unlink(temporary, dir_fd=parent)
         os.close(parent)
-    return {'schema': 'vrx.recipient-helpers/v1', 'source_commit': commit,
+    return {'schema': 'ngfw.recipient-helpers/v1', 'source_commit': commit,
             'archive_bytes': size, 'sha256': digest,
             'launcher': {'size': len(launcher), 'sha256': hashlib.sha256(launcher).hexdigest()},
             'files': {name: {'size': len(data), 'sha256': hashlib.sha256(data).hexdigest(), 'mode': mode}

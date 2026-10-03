@@ -31,7 +31,7 @@ RFC 5798 (VRRPv3) has no authentication; keepalived 2.3.4 says "VRRP version 3 d
 Ignoring." and `-t` fails. Options: (a) an instance with `authRef` is rendered `version 2` + PASS (IPv4, whole
 seconds, key ≤ 8 characters) — **chosen**; (b) refuse authentication entirely; (c) global `vrrp_version 2`.
 PASS is cleartext on the wire (misconfiguration guard only) — F-vrrp should say so in the UI.
-**Fixture exception:** an 8-character key cannot hold the `VRX_TEST_PSK_<id>` literal; the tests use `RF4tpskA`,
+**Fixture exception:** an 8-character key cannot hold the `NGFW_TEST_PSK_<id>` literal; the tests use `RF4tpskA`,
 `RF4tpskB`, `RF4tpsk8` (obviously fake, no secret shape; gitleaks clean). Please accept or name another rule.
 
 ## Q4 — `acceptMode: false` is not enforced for keepalived instances
@@ -64,9 +64,9 @@ Options: (a) parse run — **chosen**; (b) structural only; (c) `snmpd -H` token
 agent; the renderer detects both and refuses the legacy form. snmpd is restarted by the engine on a restart request
 (listen changes): the unit's ExecReload (SIGHUP) is not enough for those.
 
-`/usr/libexec/vrx/vrx-keepalived-notify` (+ `checks/`), `TMPDIR` for keepalived.service (dump files hold
-`auth_data`), dirs `/run/vrx/keepalived`, `/run/vrx/snmpd`, `/etc/vrx/rsyslog-tls`, logrotate (or the agent's
-truncation) for `/var/spool/rsyslog/vrx-impstats.json`, package `rsyslog-openssl`. The Ubuntu snmpd unit reads the
+`/usr/libexec/ngfw/ngfw-keepalived-notify` (+ `checks/`), `TMPDIR` for keepalived.service (dump files hold
+`auth_data`), dirs `/run/ngfw/keepalived`, `/run/ngfw/snmpd`, `/etc/ngfw/rsyslog-tls`, logrotate (or the agent's
+truncation) for `/var/spool/rsyslog/ngfw-impstats.json`, package `rsyslog-openssl`. The Ubuntu snmpd unit reads the
 persistent store (no `-C`) — keep it that way (engineBoots persistence matters for USM).
 
 ## Q9 — non-default VRFs rejected

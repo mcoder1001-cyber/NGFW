@@ -29,7 +29,7 @@ No packet was sent by me at any time (loopbacks only, admin-down, no address).
   kind of interface (output pasted in TD-3.md). So the CLI itself is an unlikely cause, but its timing matches: the command
   printed nothing, which is what vppctl does when VPP dies under it.
 - 10 s earlier slot 1 (P08, `host-w1l0`/`host-w1w0`) deleted af_packet interfaces; `af_packet_delete_if` closes the fds
-  before `clib_file_del_by_index` (`plugins/af_packet/af_packet.c:895-900` then `:827`) — the errno 9 lines. `host-vrx-a.md`
+  before `clib_file_del_by_index` (`plugins/af_packet/af_packet.c:895-900` then `:827`) — the errno 9 lines. `host-ngfw-a.md`
   calls that "harmless log noise"; a NULL read_function called from the file poller when a new file (e.g. a vppctl CLI socket)
   reuses fd 24/25 would also give PC 0x0. This is a hypothesis for the manager/VPP track (worth a V-item), not a finding.
 - No core dump (`coredumpctl list` empty), no backtrace in the journal.
@@ -47,7 +47,7 @@ fd reuse)? I cannot prove it and did not try to reproduce (that would mean crash
 (host-tested). Calling it periodically / at agent start belongs in `apps/agent/internal/agent` (P08 is wiring interface
 creation there; not my files). Proposal: call it once after the initial reconcile and on every full resync. Until then a
 quarantine holder stays until something calls Release — harmless (admin-down, never used, it owns the dirty index so no creator
-gets it), counted in `vrx_agent_iface_quarantined` by the process that made it (the gauge restarts at 0 with the agent; the
+gets it), counted in `ngfw_agent_iface_quarantined` by the process that made it (the gauge restarts at 0 with the agent; the
 pre-flight still reports every holder as WARN).
 
 ## Fix round 2 (2026-09-24 08:xx)
@@ -69,7 +69,7 @@ then the range is documented as reserved in `docs/agent/descriptors/interface.md
 
 The envelope says "fail closed (ErrNoCleanIndex → quarantine path) on cap". Implemented:
 - `MaxPlaceholders` = 16 per create. A create-phase run that reaches it before proving the pool's free list empty returns
-  `ErrCapped` (wraps `ErrNoCleanIndex`) and is counted in `vrx_agent_iface_sanitize_capped_total{phase="create"}`.
+  `ErrCapped` (wraps `ErrNoCleanIndex`) and is counted in `ngfw_agent_iface_sanitize_capped_total{phase="create"}`.
 - `Acquire` deletes the interface and fails the Create. It quarantines the index **only if the run also proved a binding
   unclearable** (`ErrUnclearable`, e.g. an input ACL naming a freed table the cap kept us from reaching) — and then does
   **not** retry.

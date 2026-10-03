@@ -17,8 +17,8 @@ import (
 // restore"). EnvLISPUpTo limits the run to the first N object types (stepwise bring-up on a
 // shared VPP, manager rule after the gtpu incident).
 const (
-	EnvLISPHost = "VRX_DF6_LISP_HOST"
-	EnvLISPUpTo = "VRX_DF6_LISP_UPTO"
+	EnvLISPHost = "NGFW_DF6_LISP_HOST"
+	EnvLISPUpTo = "NGFW_DF6_LISP_UPTO"
 )
 
 func TestLISPOnHost(t *testing.T) {

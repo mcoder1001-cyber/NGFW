@@ -16,7 +16,7 @@ import (
 	"ngfw/sdk/terraform/internal/client"
 )
 
-// vrx_config — the generic resource: one JSON value at one JSON pointer of the configuration document. Works for
+// ngfw_config — the generic resource: one JSON value at one JSON pointer of the configuration document. Works for
 // every schema domain without provider changes (the API validates it). Each apply is its own confirmed commit.
 type configResource struct{ p *providerData }
 
@@ -48,8 +48,8 @@ func (r *configResource) Metadata(_ context.Context, req resource.MetadataReques
 
 func (r *configResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "One JSON value at a JSON pointer of the VRX configuration (`PUT /api/v1/config/{pointer}`), " +
-			"committed with confirmation on every apply. Import with the pointer: `terraform import vrx_config.x /interfaces/loop1`.",
+		MarkdownDescription: "One JSON value at a JSON pointer of the NGFW configuration (`PUT /api/v1/config/{pointer}`), " +
+			"committed with confirmation on every apply. Import with the pointer: `terraform import ngfw_config.x /interfaces/loop1`.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{Computed: true, MarkdownDescription: "The pointer.",
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
@@ -189,7 +189,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 	}
 	ptr, body, err := r.body(plan, cfg)
 	if err != nil {
-		resp.Diagnostics.AddError("invalid vrx_config", err.Error())
+		resp.Diagnostics.AddError("invalid ngfw_config", err.Error())
 		return
 	}
 	res, err := r.p.apply(ctx, "create "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
@@ -205,7 +205,7 @@ func (r *configResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 	if res.Status == "unchanged" {
-		resp.Diagnostics.AddError("VRX: nothing was committed for create "+ptr, concurrentHint)
+		resp.Diagnostics.AddError("NGFW: nothing was committed for create "+ptr, concurrentHint)
 		return
 	}
 	plan.ID = types.StringValue(ptr)
@@ -271,7 +271,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 	}
 	ptr, body, err := r.body(plan, cfg)
 	if err != nil {
-		resp.Diagnostics.AddError("invalid vrx_config", err.Error())
+		resp.Diagnostics.AddError("invalid ngfw_config", err.Error())
 		return
 	}
 	res, err := r.p.apply(ctx, "update "+ptr, client.Edit{Pointer: ptr, Want: body, Do: func(ctx context.Context) error {
@@ -282,7 +282,7 @@ func (r *configResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 	if res.Status == "unchanged" && r.changesDocument(ctx, ptr, prior, plan, cfg) {
-		resp.Diagnostics.AddError("VRX: nothing was committed for update "+ptr, concurrentHint)
+		resp.Diagnostics.AddError("NGFW: nothing was committed for update "+ptr, concurrentHint)
 		return
 	}
 	plan.ID = types.StringValue(ptr)
@@ -310,7 +310,7 @@ func (r *configResource) changesDocument(ctx context.Context, ptr string, prior,
 func (r *configResource) rememberNode(ctx context.Context, ptr string, set func(context.Context, string, []byte) diag.Diagnostics, d *diag.Diagnostics) {
 	live, err := r.p.client.Running(ctx, ptr)
 	if err != nil {
-		d.AddWarning("VRX: could not read back "+ptr, err.Error())
+		d.AddWarning("NGFW: could not read back "+ptr, err.Error())
 		return
 	}
 	d.Append(set(ctx, privateNode, []byte(canonicalJSON(normalizeNumbers(live))))...)

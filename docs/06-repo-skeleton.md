@@ -1,7 +1,7 @@
 # Monorepo skeleton and tooling
 
 ```
-vrx/
+ngfw/
 ├─ apps/
 │  ├─ web/              React 19 + Vite + MUI v7           (TypeScript)
 │  ├─ api/              NestJS + Fastify                    (TypeScript)
@@ -41,7 +41,7 @@ vrx/
 - **Commits:** Conventional Commits → changelog → package versions.
 - **CI (GitHub Actions or GitLab CI):**
   `lint → unit → build → integration(vpp container) → package(.deb) → e2e(playwright) → nightly topology+perf`.
-- **Release:** signed `.deb`s to an APT repo + a signed offline bundle (`.vrxupd`) for
+- **Release:** signed `.deb`s to an APT repo + a signed offline bundle (`.ngfwupd`) for
   air-gapped sites, containing packages, checksums, signature and a manifest.
 
 ## Upgrade design (decide early, it constrains packaging)

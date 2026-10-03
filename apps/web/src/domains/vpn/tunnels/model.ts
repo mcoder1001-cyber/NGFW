@@ -1,4 +1,4 @@
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { InterfaceItem } from '../../interfaces/model';
 import { linkStatus } from '../../interfaces/model';
 
@@ -31,7 +31,7 @@ export function vppName(kind: KindKey, item: TunnelItem | undefined): string | u
 }
 
 /** Link status of the tunnel interface from `/state/interfaces` (undefined: not in the data plane). */
-export function tunnelStatus(items: readonly InterfaceItem[] | undefined, name: string | undefined): VrxStatus | undefined {
+export function tunnelStatus(items: readonly InterfaceItem[] | undefined, name: string | undefined): NgfwStatus | undefined {
   if (!name || !items) return undefined;
   const it = items.find((i) => i.name === name || i.state?.vppName === name);
   return linkStatus(it?.state);

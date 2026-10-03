@@ -111,7 +111,7 @@ func (r *Renderer) check() error {
 }
 
 // Render implements renderers.Renderer: the complete frr.conf (all sections) and vtysh.conf.
-// No I/O except the injected secret resolver. desired is a *vrxv1.DesiredState or (D-055
+// No I/O except the injected secret resolver. desired is a *ngfwv1.DesiredState or (D-055
 // stand-in) a *structpb.Struct holding the configuration document. When a section resolved a
 // secret, frr.conf is marked Secret (Files.Redacted hides it) and the value is remembered so
 // every later output of this renderer masks it.

@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dfkit"
@@ -88,9 +88,9 @@ func tempPaths(t *testing.T) frr.Paths {
 	return p
 }
 
-func frrDoc(t *testing.T, js string) *vrxv1.DesiredState {
+func frrDoc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestFRRConfigLifecycle(t *testing.T) {
 	doc := frrDoc(t, `{"interfaces":{"host-w8l0":{"ipv4":["10.8.1.1/24"],"lcp":{"hostIfName":"w8-l0"}}},
 	  "routing":{"bgp":{"asn":65080,"neighbors":{"10.8.1.2":{"remoteAs":65081,"updateSource":"host-w8l0"}}}}}`)
 	v := desired.FRRValue(doc, desired.FRRApplied)
-	if d.KeyOf(v) != "frr.config/vrx" {
+	if d.KeyOf(v) != "frr.config/ngfw" {
 		t.Fatal(d.KeyOf(v))
 	}
 	if deps := d.Dependencies(v); len(deps) != 0 { // review H1: no (cascading) dependency on the pairs
@@ -183,13 +183,13 @@ func TestFRRConfigLifecycle(t *testing.T) {
 
 func TestEventOf(t *testing.T) {
 	ev := EventOf(frr.Event{Poller: bgp.PollerNeighbors, Key: "default|10.8.1.2", Old: "Established", New: "Idle"})
-	if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED || ev.GetAttributes()["peer"] != "10.8.1.2" ||
+	if ev.GetKind() != ngfwv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED || ev.GetAttributes()["peer"] != "10.8.1.2" ||
 		ev.GetAttributes()["vrf"] != "default" || ev.GetAttributes()["old"] != "Established" || ev.GetAttributes()["new"] != "Idle" {
 		t.Fatalf("%v", ev)
 	}
 	ribKey := strings.Join([]string{"ipv4", "default", "bgp"}, "/") // family/vrf/protocol (built: gitleaks reads `Key: "…"` as a token)
 	ev = EventOf(frr.Event{Poller: frr.PollerRoutes, Key: ribKey, Old: "", New: "200"})
-	if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_ROUTING_CHANGED || ev.GetAttributes()["protocol"] != "bgp" ||
+	if ev.GetKind() != ngfwv1.EventKind_EVENT_KIND_ROUTING_CHANGED || ev.GetAttributes()["protocol"] != "bgp" ||
 		ev.GetAttributes()["old"] != "0" || ev.GetAttributes()["new"] != "200" || ev.GetAttributes()["family"] != "ipv4" {
 		t.Fatalf("%v", ev)
 	}
@@ -218,8 +218,8 @@ func TestEventsArePublished(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(paths.SocketDir(), "zebra.vty"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	got := make(chan *vrxv1.Event, 16)
-	rt := newFRRAt(Env{Owner: "w8", Publish: func(ev *vrxv1.Event) { got <- ev }}, f, paths, true)
+	got := make(chan *ngfwv1.Event, 16)
+	rt := newFRRAt(Env{Owner: "w8", Publish: func(ev *ngfwv1.Event) { got <- ev }}, f, paths, true)
 	defer rt.Close()
 	if err := rt.apply(context.Background(), frrDoc(t, `{"routing":{"bgp":{"asn":65080}}}`)); err != nil {
 		t.Fatal(err)
@@ -230,7 +230,7 @@ func TestEventsArePublished(t *testing.T) {
 	mu.Unlock()
 	select {
 	case ev := <-got:
-		if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED || ev.GetAttributes()["new"] != "Established" {
+		if ev.GetKind() != ngfwv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED || ev.GetAttributes()["new"] != "Established" {
 			t.Fatalf("%v", ev)
 		}
 	case <-time.After(5 * time.Second):
@@ -264,22 +264,22 @@ func TestTapGatedPairs(t *testing.T) {
 func TestFRRPathsByOwner(t *testing.T) {
 	t.Setenv(EnvFRR, "")
 	t.Setenv(EnvFRRPathspace, "")
-	if p, ok := frrPaths("vrx"); !ok || p.ConfDir != "/etc/frr" {
+	if p, ok := frrPaths("ngfw"); !ok || p.ConfDir != "/etc/frr" {
 		t.Fatal("product owner → product paths", p)
 	}
 	if _, ok := frrPaths("w8"); ok {
-		t.Fatal("a slot owner drives no FRR without VRX_FRR_PATHSPACE")
+		t.Fatal("a slot owner drives no FRR without NGFW_FRR_PATHSPACE")
 	}
 	t.Setenv(EnvFRRPathspace, "w8")
-	if p, ok := frrPaths("w8"); !ok || p.Namespace != "w8" || !strings.HasPrefix(p.ConfDir, "/run/vrx-test/w8/") {
+	if p, ok := frrPaths("w8"); !ok || p.Namespace != "w8" || !strings.HasPrefix(p.ConfDir, "/run/ngfw-test/w8/") {
 		t.Fatal("slot pathspace", p)
 	}
-	if _, ok := frrPaths("vrx"); !ok {
+	if _, ok := frrPaths("ngfw"); !ok {
 		t.Fatal("the pathspace wins for any owner")
 	}
 	t.Setenv(EnvFRR, "off")
-	if _, ok := frrPaths("vrx"); ok {
-		t.Fatal("VRX_FRR=off")
+	if _, ok := frrPaths("ngfw"); ok {
+		t.Fatal("NGFW_FRR=off")
 	}
 }
 

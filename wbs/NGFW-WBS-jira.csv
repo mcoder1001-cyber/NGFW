@@ -1,0 +1,666 @@
+Issue Type,Summary,Description,Epic Name,Epic Link,Labels,Labels,Labels,Original Estimate,Component,Due Date
+Epic,D0 Foundation & Platform,Domain D0: Foundation & Platform,D0 Foundation & Platform,,D0,,,,,
+Epic,D1 Interfaces & L2,Domain D1: Interfaces & L2,D1 Interfaces & L2,,D1,,,,,
+Epic,"D2 L3, MPLS & Multicast","Domain D2: L3, MPLS & Multicast","D2 L3, MPLS & Multicast",,D2,,,,,
+Epic,D3 Dynamic Routing,Domain D3: Dynamic Routing,D3 Dynamic Routing,,D3,,,,,
+Epic,D4 NAT & CGNAT,Domain D4: NAT & CGNAT,D4 NAT & CGNAT,,D4,,,,,
+Epic,D5 Firewall & ACL,Domain D5: Firewall & ACL,D5 Firewall & ACL,,D5,,,,,
+Epic,D6 VPN & Tunnels,Domain D6: VPN & Tunnels,D6 VPN & Tunnels,,D6,,,,,
+Epic,"D7 Services, QoS & Host Stack","Domain D7: Services, QoS & Host Stack","D7 Services, QoS & Host Stack",,D7,,,,,
+Epic,D8 Observability & Ops,Domain D8: Observability & Ops,D8 Observability & Ops,,D8,,,,,
+Epic,D9 High Availability,Domain D9: High Availability,D9 High Availability,,D9,,,,,
+Epic,D10 Multi-tenancy & AAA,Domain D10: Multi-tenancy & AAA,D10 Multi-tenancy & AAA,,D10,,,,,
+Epic,D11 Cloud & Virtualization,Domain D11: Cloud & Virtualization,D11 Cloud & Virtualization,,D11,,,,,
+Epic,"D12 Hardening, QA, Docs & Release","Domain D12: Hardening, QA, Docs & Release","D12 Hardening, QA, Docs & Release",,D12,,,,,
+Story,"[D0.1] Monorepo, CI/CD, codegen pipeline (Zod -> OpenAPI -> client -> proto -> binapi)","Monorepo, CI/CD, codegen pipeline (Zod -> OpenAPI -> client -> proto -> binapi)
+
+Note: CI must fail on dirty generated output
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q1. Owning squad: Platform & Release.",,D0 Foundation & Platform,T1,D0,S6,200h,Platform & Release,2026-12-31
+Story,"[D0.2] Pinned VPP fork, patch management, VPP package build","Pinned VPP fork, patch management, VPP package build
+
+Depends on: D0.1
+
+Note: Track a stable release branch, never master
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: Platform & Release.",,D0 Foundation & Platform,T1,D0,S6,240h,Platform & Release,2027-03-31
+Story,[D0.3] OS image: Ubuntu 24.04 autoinstall + installer ISO,"OS image: Ubuntu 24.04 autoinstall + installer ISO
+
+Depends on: D0.2
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q3. Owning squad: Platform & Release.",,D0 Foundation & Platform,T1,D0,S6,360h,Platform & Release,2027-06-30
+Story,"[D0.4] Debian packaging, signed APT repository","Debian packaging, signed APT repository
+
+Depends on: D0.1
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: Platform & Release.",,D0 Foundation & Platform,T1,D0,S6,200h,Platform & Release,2027-03-31
+Story,[D0.5] A/B image upgrade with automatic rollback,"A/B image upgrade with automatic rollback
+
+Depends on: D0.3
+
+Note: Required for GA-1
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Platform & Release.",,D0 Foundation & Platform,T1,D0,S6,320h,Platform & Release,2028-03-31
+Story,"[D0.6] startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, PCI whitelist","startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, PCI whitelist
+
+Depends on: D0.2
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q2. Owning squad: Dataplane & Agent.",,D0 Foundation & Platform,T1,D0,S1,240h,Dataplane & Agent,2027-03-31
+Story,"[D0.7] Agent core: govpp connection, stats reader, reconciler/KVScheduler, dependency graph","Agent core: govpp connection, stats reader, reconciler/KVScheduler, dependency graph
+
+Depends on: D0.2
+
+Note: CRITICAL PATH - everything depends on this
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: Dataplane & Agent.",,D0 Foundation & Platform,T1,D0,S1,560h,Dataplane & Agent,2027-03-31
+Story,"[D0.8] API core: NestJS, candidate/running datastore, atomic commit, confirmed-commit, revisions, rollback","API core: NestJS, candidate/running datastore, atomic commit, confirmed-commit, revisions, rollback
+
+Depends on: D0.1
+
+Note: CRITICAL PATH
+
+Estimate: 75 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: Control Plane.",,D0 Foundation & Platform,T1,D0,S4,600h,Control Plane,2027-03-31
+Story,"[D0.9] Auth, RBAC, audit log, API keys, TLS, TPM-backed secret store","Auth, RBAC, audit log, API keys, TLS, TPM-backed secret store
+
+Depends on: D0.8
+
+Estimate: 55 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q2. Owning squad: Control Plane.",,D0 Foundation & Platform,T1,D0,S4,440h,Control Plane,2027-03-31
+Story,"[D0.10] UI shell: theme, layout, i18n en/fa + RTL, SchemaForm renderer, DataGrid wrapper, WS client","UI shell: theme, layout, i18n en/fa + RTL, SchemaForm renderer, DataGrid wrapper, WS client
+
+Depends on: D0.8
+
+Estimate: 80 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: Frontend.",,D0 Foundation & Platform,T1,D0,S5,640h,Frontend,2027-03-31
+Story,"[D0.11] Interactive CLI (clixon-like: config mode, completion, show commands)","Interactive CLI (clixon-like: config mode, completion, show commands)
+
+Depends on: D0.8
+
+Note: TNSR's primary interface
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q7. Owning squad: Control Plane.",,D0 Foundation & Platform,T1,D0,S4,720h,Control Plane,2028-06-30
+Story,[D0.12] Telemetry pipeline: stats -> gRPC stream -> WS fan-out -> Prometheus -> history,"Telemetry pipeline: stats -> gRPC stream -> WS fan-out -> Prometheus -> history
+
+Depends on: D0.7
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q3. Owning squad: Control Plane.",,D0 Foundation & Platform,T1,D0,S4,400h,Control Plane,2027-06-30
+Story,"[D0.13] Test infra: containerlab/QEMU lab, Robot Framework, TRex harness, Playwright","Test infra: containerlab/QEMU lab, Robot Framework, TRex harness, Playwright
+
+Depends on: D0.1
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q1-Q2. Owning squad: QA / Lab.",,D0 Foundation & Platform,T1,D0,QA,560h,QA / Lab,2027-03-31
+Story,"[D1.1] NIC inventory and driver binding: dpdk, rdma, af_xdp, af_packet, vmxnet3, virtio, vhost-user, tap-v2, netmap, memif, pipe, Marvell mGig","NIC inventory and driver binding: dpdk, rdma, af_xdp, af_packet, vmxnet3, virtio, vhost-user, tap-v2, netmap, memif, pipe, Marvell mGig
+
+Depends on: D0.6
+
+Note: Fix a supported-hardware matrix; refuse 'any NIC'
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q3. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,560h,Dataplane & Agent,2027-06-30
+Story,"[D1.2] Interface basics: admin state, MTU, MAC, promisc, rx-mode, rx/tx queues, worker placement","Interface basics: admin state, MTU, MAC, promisc, rx-mode, rx/tx queues, worker placement
+
+Depends on: D0.7
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q2. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,280h,Dataplane & Agent,2027-03-31
+Story,[D1.3] IPv4/IPv6 addressing + IP unnumbered,"IPv4/IPv6 addressing + IP unnumbered
+
+Depends on: D1.2
+
+Estimate: 20 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q2. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,160h,Dataplane & Agent,2027-03-31
+Story,[D1.4] 802.1q sub-interfaces + QinQ/802.1ad stacking,"802.1q sub-interfaces + QinQ/802.1ad stacking
+
+Depends on: D1.2
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q2. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,200h,Dataplane & Agent,2027-03-31
+Story,"[D1.5] Bonding: LACP, XOR, round-robin, active-backup","Bonding: LACP, XOR, round-robin, active-backup
+
+Depends on: D1.2
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q3. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,240h,Dataplane & Agent,2027-06-30
+Story,"[D1.6] L2: bridge domains, cross-connect, L2XC, L3XC, split-horizon, MAC aging, time-range MAC filter","L2: bridge domains, cross-connect, L2XC, L3XC, split-horizon, MAC aging, time-range MAC filter
+
+Depends on: D1.2
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q2-Q3. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,360h,Dataplane & Agent,2027-06-30
+Story,[D1.7] LLDP,"LLDP
+
+Depends on: D1.2
+
+Estimate: 12 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T2,D1,S1,96h,Dataplane & Agent,2027-06-30
+Story,"[D1.8] VNET GSO, checksum offload, jumbo frames","VNET GSO, checksum offload, jumbo frames
+
+Depends on: D1.2
+
+Estimate: 20 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q4. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,160h,Dataplane & Agent,2027-09-30
+Story,[D1.9] Network Delay Simulator (nsim),"Network Delay Simulator (nsim)
+
+Depends on: D1.2
+
+Note: Test tool, not a product feature
+
+Estimate: 8 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T3,D1,S1,64h,Dataplane & Agent,2029-03-31
+Story,[D1.10] SPAN / ERSPAN mirroring,"SPAN / ERSPAN mirroring
+
+Depends on: D1.6
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T2,D1,S1,200h,Dataplane & Agent,2028-06-30
+Story,[D1.11] Loopback / BVI interfaces,"Loopback / BVI interfaces
+
+Depends on: D1.6
+
+Estimate: 10 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Dataplane & Agent.",,D1 Interfaces & L2,T1,D1,S1,80h,Dataplane & Agent,2027-06-30
+Story,[D2.1] VRF/table management + Source VRF Select,"VRF/table management + Source VRF Select
+
+Depends on: D1.3
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T1,D2,S2,240h,Routing & L3,2027-06-30
+Story,"[D2.2] Static routes v4/v6, ECMP, weighted paths, DPO/adjacency view","Static routes v4/v6, ECMP, weighted paths, DPO/adjacency view
+
+Depends on: D2.1
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T1,D2,S2,280h,Routing & L3,2027-06-30
+Story,"[D2.3] Neighbour DB: ARP, ND, proxy-ND, IPv6 RA, IPv6 DAD (new in 26.06)","Neighbour DB: ARP, ND, proxy-ND, IPv6 RA, IPv6 DAD (new in 26.06)
+
+Depends on: D1.3
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Dataplane & Agent.",,"D2 L3, MPLS & Multicast",T1,D2,S1,240h,Dataplane & Agent,2027-06-30
+Story,"[D2.4] RPF strict/loose, ADL allow/deny lists, Auto-SDL","RPF strict/loose, ADL allow/deny lists, Auto-SDL
+
+Depends on: D2.2
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T2,D2,S2,240h,Routing & L3,2028-12-31
+Story,[D2.5] FIB browser with server-side pagination (1M+ routes),"FIB browser with server-side pagination (1M+ routes)
+
+Depends on: D2.2
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q4. Owning squad: Frontend.",,"D2 L3, MPLS & Multicast",T1,D2,S5,200h,Frontend,2027-09-30
+Story,"[D2.6] Tools: ping, traceroute, ARP flush","Tools: ping, traceroute, ARP flush
+
+Depends on: D2.2
+
+Estimate: 20 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Control Plane.",,"D2 L3, MPLS & Multicast",T1,D2,S4,160h,Control Plane,2027-06-30
+Story,"[D2.7] Classifier/classify tables, IP session redirect, ACL-Based Forwarding (PBR)","Classifier/classify tables, IP session redirect, ACL-Based Forwarding (PBR)
+
+Depends on: D2.2
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T2,D2,S2,360h,Routing & L3,2027-12-31
+Story,"[D2.8] MPLS: label operations, LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS","MPLS: label operations, LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS
+
+Depends on: D3.3
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q10. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T2,D2,S2,720h,Routing & L3,2029-03-31
+Story,"[D2.9] Multicast: IGMPv3, PIM via FRR, mfib, BIER","Multicast: IGMPv3, PIM via FRR, mfib, BIER
+
+Depends on: D3.2
+
+Note: BIER has near-zero commercial demand
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q10. Owning squad: Routing & L3.",,"D2 L3, MPLS & Multicast",T3,D2,S2,560h,Routing & L3,2029-03-31
+Story,"[D3.1] linux-cp / linux-nl hardening: interface pairs, state/MTU sync, VRF mapping, IPv6, full-table performance","linux-cp / linux-nl hardening: interface pairs, state/MTU sync, VRF mapping, IPv6, full-table performance
+
+Depends on: D1.2
+
+Note: CRITICAL PATH - prototype in Q3, not Q5
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q4. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,720h,Routing & L3,2027-09-30
+Story,"[D3.2] FRR lifecycle: renderer framework, JSON state readers, safe reload, dry-run","FRR lifecycle: renderer framework, JSON state readers, safe reload, dry-run
+
+Depends on: D3.1
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q4. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,480h,Routing & L3,2027-09-30
+Story,"[D3.3] BGP: core, AFI/SAFI v4/v6, communities, route-maps, prefix-lists, AS-path filters, peer-groups, RR, confederation, graceful restart, BGP Roles (RFC 9234), add-path, VPNv4/VPNv6","BGP: core, AFI/SAFI v4/v6, communities, route-maps, prefix-lists, AS-path filters, peer-groups, RR, confederation, graceful restart, BGP Roles (RFC 9234), add-path, VPNv4/VPNv6
+
+Depends on: D3.2
+
+Estimate: 140 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,1120h,Routing & L3,2027-12-31
+Story,[D3.4] OSPFv2,"OSPFv2
+
+Depends on: D3.2
+
+Estimate: 55 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,440h,Routing & L3,2027-12-31
+Story,[D3.5] OSPFv3,"OSPFv3
+
+Depends on: D3.2
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Routing & L3.",,D3 Dynamic Routing,T2,D3,S2,320h,Routing & L3,2028-09-30
+Story,[D3.6] IS-IS,"IS-IS
+
+Depends on: D3.2
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Routing & L3.",,D3 Dynamic Routing,T2,D3,S2,360h,Routing & L3,2028-06-30
+Story,[D3.7] RIPv2 / RIPng,"RIPv2 / RIPng
+
+Depends on: D3.2
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Routing & L3.",,D3 Dynamic Routing,T2,D3,S2,200h,Routing & L3,2028-09-30
+Story,[D3.8] BFD (native VPP plugin + FRR integration),"BFD (native VPP plugin + FRR integration)
+
+Depends on: D3.2
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,280h,Routing & L3,2027-12-31
+Story,[D3.9] Policy-based routing in API/UI,"Policy-based routing in API/UI
+
+Depends on: D2.7
+
+Estimate: 20 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Routing & L3.",,D3 Dynamic Routing,T2,D3,S2,160h,Routing & L3,2028-03-31
+Story,[D3.10] Redistribution matrix and route-policy UX,"Redistribution matrix and route-policy UX
+
+Depends on: D3.3
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q6. Owning squad: Routing & L3.",,D3 Dynamic Routing,T1,D3,S2,240h,Routing & L3,2028-03-31
+Story,"[D4.1] NAT44-ED: sessions, pools, twice-NAT, port-forward, 1:1, interface NAT, hairpinning, session helpers/ALGs","NAT44-ED: sessions, pools, twice-NAT, port-forward, 1:1, interface NAT, hairpinning, session helpers/ALGs
+
+Depends on: D2.2
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q4. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T1,D4,S3,720h,Security & VPN,2027-09-30
+Story,[D4.2] NAT44-EI,"NAT44-EI
+
+Depends on: D4.1
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T2,D4,S3,200h,Security & VPN,2028-06-30
+Story,"[D4.3] NAT64, NAT66, NPTv6","NAT64, NAT66, NPTv6
+
+Depends on: D4.1
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T2,D4,S3,400h,Security & VPN,2028-09-30
+Story,[D4.4] DET44 deterministic CGNAT + CGNAT logging/IPFIX,"DET44 deterministic CGNAT + CGNAT logging/IPFIX
+
+Depends on: D4.1
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T2,D4,S3,360h,Security & VPN,2028-06-30
+Story,"[D4.5] DS-Lite, MAP-E, MAP-T, LW4o6 BR, 464XLAT","DS-Lite, MAP-E, MAP-T, LW4o6 BR, 464XLAT
+
+Depends on: D4.3
+
+Estimate: 75 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q8. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T2,D4,S3,600h,Security & VPN,2028-09-30
+Story,"[D4.6] CNAT: policy 1:1, SNAT/DNAT policy (new in 26.06), load-balanced translation","CNAT: policy 1:1, SNAT/DNAT policy (new in 26.06), load-balanced translation
+
+Depends on: D4.1
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T2,D4,S3,360h,Security & VPN,2028-09-30
+Story,[D4.7] Session browser at 1M+ scale with server-side filter and kill-session,"Session browser at 1M+ scale with server-side filter and kill-session
+
+Depends on: D4.1
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q4. Owning squad: Security & VPN.",,D4 NAT & CGNAT,T1,D4,S3,280h,Security & VPN,2027-09-30
+Story,"[D5.1] Object model: addresses, groups, FQDN, services, schedules, zones, tags","Object model: addresses, groups, FQDN, services, schedules, zones, tags
+
+Depends on: D0.8
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Control Plane.",,D5 Firewall & ACL,T1,D5,S4,400h,Control Plane,2027-12-31
+Story,"[D5.2] ACL plugin: L2 MACIP, L3/L4 stateless and stateful, per-interface in/out, hit counters","ACL plugin: L2 MACIP, L3/L4 stateless and stateful, per-interface in/out, hit counters
+
+Depends on: D5.1
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Security & VPN.",,D5 Firewall & ACL,T1,D5,S3,560h,Security & VPN,2027-12-31
+Story,[D5.3] Host/local-in ACL for management-plane protection + nftables host firewall,"Host/local-in ACL for management-plane protection + nftables host firewall
+
+Depends on: D5.2
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Security & VPN.",,D5 Firewall & ACL,T1,D5,S3,240h,Security & VPN,2028-03-31
+Story,"[D5.4] Rule editor UI for 100,000 rules (virtualised, CSV bulk, reorder, search)","Rule editor UI for 100,000 rules (virtualised, CSV bulk, reorder, search)
+
+Depends on: D5.2
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Frontend.",,D5 Firewall & ACL,T1,D5,S5,480h,Frontend,2028-03-31
+Story,[D5.5] ADL / Auto-SDL integration,"ADL / Auto-SDL integration
+
+Depends on: D5.2
+
+Note: Largely covered by ACLs
+
+Estimate: 15 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Security & VPN.",,D5 Firewall & ACL,T3,D5,S3,120h,Security & VPN,2029-03-31
+Story,[D5.6] Stateful policy state synchronisation for HA (TNSR VPF state sync equivalent),"Stateful policy state synchronisation for HA (TNSR VPF state sync equivalent)
+
+Depends on: D9.2
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Security & VPN.",,D5 Firewall & ACL,T2,D5,S3,360h,Security & VPN,2028-09-30
+Story,"[D6.1] IPsec core: SA/SPD, tunnel and transport mode, ESP/AH, async crypto, native/ipsecmb/openssl engines, QAT offload","IPsec core: SA/SPD, tunnel and transport mode, ESP/AH, async crypto, native/ipsecmb/openssl engines, QAT offload
+
+Depends on: D1.3
+
+Estimate: 80 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q3. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T1,D6,S3,640h,Security & VPN,2027-06-30
+Story,"[D6.2] strongSwan + kernel-vpp/socket-vpp, swanctl.conf renderer, IKEv1/IKEv2, full cipher and DH 1-24/31 matrix, NAT-T, DPD, MOBIKE","strongSwan + kernel-vpp/socket-vpp, swanctl.conf renderer, IKEv1/IKEv2, full cipher and DH 1-24/31 matrix, NAT-T, DPD, MOBIKE
+
+Depends on: D6.1
+
+Estimate: 100 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q4. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T1,D6,S3,800h,Security & VPN,2027-09-30
+Story,[D6.3] Native VPP IKEv2 plugin path + 26.06 crypto enhancements,"Native VPP IKEv2 plugin path + 26.06 crypto enhancements
+
+Depends on: D6.1
+
+Note: Alternative to strongSwan for responder-only cases
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T2,D6,S3,320h,Security & VPN,2029-03-31
+Story,"[D6.4] PKI: CA, CSR, import/export, CRL/OCSP, ACME, expiry alerts, PKCS#11/HSM","PKI: CA, CSR, import/export, CRL/OCSP, ACME, expiry alerts, PKCS#11/HSM
+
+Depends on: D6.2
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T1,D6,S3,480h,Security & VPN,2028-06-30
+Story,[D6.5] WireGuard,"WireGuard
+
+Depends on: D6.1
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T1,D6,S3,280h,Security & VPN,2028-06-30
+Story,"[D6.6] Tunnels: GRE (L2/L3), IPIP, VXLAN, VXLAN-GPE, GTP-U, L2TPv3, PPPoE, Tunnel Infra, Packet Vector Tunnel","Tunnels: GRE (L2/L3), IPIP, VXLAN, VXLAN-GPE, GTP-U, L2TPv3, PPPoE, Tunnel Infra, Packet Vector Tunnel
+
+Depends on: D2.2
+
+Note: GTP-U/L2TPv3/PPPoE are T3-value; schedule last
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q7. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T1,D6,S3,720h,Security & VPN,2028-06-30
+Story,"[D6.7] SRv6: core, network programming, service chaining proxies, SRv6-mobile GTP functions","SRv6: core, network programming, service chaining proxies, SRv6-mobile GTP functions
+
+Depends on: D2.8
+
+Note: Only large mobile operators need this
+
+Estimate: 110 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q10. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T3,D6,S3,880h,Security & VPN,2029-03-31
+Story,[D6.8] LISP and LISP-GPE,"LISP and LISP-GPE
+
+Depends on: D2.2
+
+Note: Effectively dead technology
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T3,D6,S3,320h,Security & VPN,2029-03-31
+Story,[D6.9] Remote-access VPN: IKEv2 + EAP + client pools (optional OpenVPN/SSL-VPN),"Remote-access VPN: IKEv2 + EAP + client pools (optional OpenVPN/SSL-VPN)
+
+Depends on: D6.4
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Security & VPN.",,D6 VPN & Tunnels,T2,D6,S3,480h,Security & VPN,2028-12-31
+Story,"[D6.10] Tunnel dashboards, SA/SPI inspection, rekey history, per-tunnel telemetry","Tunnel dashboards, SA/SPI inspection, rekey history, per-tunnel telemetry
+
+Depends on: D6.2
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Frontend.",,D6 VPN & Tunnels,T1,D6,S5,280h,Frontend,2028-03-31
+Story,"[D7.1] Kea DHCPv4/v6 server, reservations, option sets, lease DB and UI","Kea DHCPv4/v6 server, reservations, option sets, lease DB and UI
+
+Depends on: D1.3
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T1,D7,S4,480h,Control Plane,2027-12-31
+Story,[D7.2] DHCP relay/proxy (VPP plugin) + DHCP client,"DHCP relay/proxy (VPP plugin) + DHCP client
+
+Depends on: D7.1
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T1,D7,S4,240h,Control Plane,2027-12-31
+Story,[D7.3] DNS: Unbound resolver/forwarder/DNSSEC/views + VPP caching DNS plugin,"DNS: Unbound resolver/forwarder/DNSSEC/views + VPP caching DNS plugin
+
+Depends on: D1.3
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T1,D7,S4,400h,Control Plane,2027-12-31
+Story,"[D7.4] NTP via chrony (client/server), optional PTP","NTP via chrony (client/server), optional PTP
+
+Depends on: D0.9
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T1,D7,S4,200h,Control Plane,2027-12-31
+Story,[D7.5] SNMP v2c/v3 via net-snmp + private MIB,"SNMP v2c/v3 via net-snmp + private MIB
+
+Depends on: D0.12
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T2,D7,S4,360h,Control Plane,2028-03-31
+Story,[D7.6] IPFIX/NetFlow (flowprobe) + sFlow,"IPFIX/NetFlow (flowprobe) + sFlow
+
+Depends on: D0.12
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Dataplane & Agent.",,"D7 Services, QoS & Host Stack",T2,D7,S1,400h,Dataplane & Agent,2028-09-30
+Story,[D7.7] Syslog export + log explorer,"Syslog export + log explorer
+
+Depends on: D0.12
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Control Plane.",,"D7 Services, QoS & Host Stack",T1,D7,S4,280h,Control Plane,2028-12-31
+Story,"[D7.8] QoS: policer, shaper, QoS record/map/mark, DSCP/dot1p, hierarchical HQoS, per-interface queues","QoS: policer, shaper, QoS record/map/mark, DSCP/dot1p, hierarchical HQoS, per-interface queues
+
+Depends on: D1.2
+
+Estimate: 85 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q8. Owning squad: Dataplane & Agent.",,"D7 Services, QoS & Host Stack",T2,D7,S1,680h,Dataplane & Agent,2028-09-30
+Story,[D7.9] Load Balancer plugin (GRE/NAT/L3DSR/maglev),"Load Balancer plugin (GRE/NAT/L3DSR/maglev)
+
+Depends on: D4.1
+
+Note: Solved outside the product by HAProxy/nginx
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Dataplane & Agent.",,"D7 Services, QoS & Host Stack",T3,D7,S1,320h,Dataplane & Agent,2029-03-31
+Story,"[D7.10] Host Stack: session layer, TCP/UDP tuning, VCL, TLS engines, QUIC/quicly, HTTP static server, HTTP/3 CONNECT + UDP proxying, SRTP, HSI","Host Stack: session layer, TCP/UDP tuning, VCL, TLS engines, QUIC/quicly, HTTP static server, HTTP/3 CONNECT + UDP proxying, SRTP, HSI
+
+Depends on: D0.7
+
+Note: No router customer asks for this
+
+Estimate: 130 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q11. Owning squad: Dataplane & Agent.",,"D7 Services, QoS & Host Stack",T3,D7,S1,1040h,Dataplane & Agent,2029-06-30
+Story,[D7.11] Packet generator (PG) + pcap tooling in UI,"Packet generator (PG) + pcap tooling in UI
+
+Depends on: D8.2
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q7. Owning squad: Dataplane & Agent.",,"D7 Services, QoS & Host Stack",T2,D7,S1,200h,Dataplane & Agent,2028-06-30
+Story,"[D8.1] Dashboard, charts, per-worker CPU, queue/buffer stats, buffers monitoring, buffer metadata tracker","Dashboard, charts, per-worker CPU, queue/buffer stats, buffers monitoring, buffer metadata tracker
+
+Depends on: D0.12
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q3-Q6. Owning squad: Frontend.",,D8 Observability & Ops,T1,D8,S5,480h,Frontend,2028-03-31
+Story,"[D8.2] Packet capture: pcap rx/tx/drop, BPF Trace Filter, trace node, Trace Path plugin (new 26.06), G2 export","Packet capture: pcap rx/tx/drop, BPF Trace Filter, trace node, Trace Path plugin (new 26.06), G2 export
+
+Depends on: D0.7
+
+Estimate: 55 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q8. Owning squad: Dataplane & Agent.",,D8 Observability & Ops,T1,D8,S1,440h,Dataplane & Agent,2028-09-30
+Story,[D8.3] Prometheus exporter (VPP prom plugin + own metrics) + Grafana dashboards,"Prometheus exporter (VPP prom plugin + own metrics) + Grafana dashboards
+
+Depends on: D0.12
+
+Estimate: 35 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Control Plane.",,D8 Observability & Ops,T1,D8,S4,280h,Control Plane,2028-03-31
+Story,"[D8.4] Event and alarm engine, thresholds, email/webhook/SNMP traps","Event and alarm engine, thresholds, email/webhook/SNMP traps
+
+Depends on: D0.12
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q5. Owning squad: Control Plane.",,D8 Observability & Ops,T1,D8,S4,360h,Control Plane,2027-12-31
+Story,"[D8.5] Backup/restore, scheduled export, config templates, bulk provisioning","Backup/restore, scheduled export, config templates, bulk provisioning
+
+Depends on: D0.8
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q5-Q5. Owning squad: Control Plane.",,D8 Observability & Ops,T1,D8,S4,320h,Control Plane,2027-12-31
+Story,[D8.6] Support bundle / sysdump,"Support bundle / sysdump
+
+Depends on: D0.12
+
+Estimate: 20 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Platform & Release.",,D8 Observability & Ops,T1,D8,S6,160h,Platform & Release,2028-12-31
+Story,[D8.7] Upgrade UI and staged rollout,"Upgrade UI and staged rollout
+
+Depends on: D0.5
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Frontend.",,D8 Observability & Ops,T1,D8,S5,200h,Frontend,2028-03-31
+Story,[D8.8] RESTCONF/NETCONF compatibility layer + YANG models,"RESTCONF/NETCONF compatibility layer + YANG models
+
+Depends on: D0.8
+
+Note: Needed for TNSR API parity
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q7-Q8. Owning squad: Control Plane.",,D8 Observability & Ops,T2,D8,S4,720h,Control Plane,2028-09-30
+Story,"[D8.9] Terraform provider, Ansible collection, Python SDK","Terraform provider, Ansible collection, Python SDK
+
+Depends on: D0.8
+
+Estimate: 55 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q10. Owning squad: Control Plane.",,D8 Observability & Ops,T2,D8,S4,440h,Control Plane,2029-03-31
+Story,[D9.1] VRRPv3 (native VPP plugin) + keepalived path,"VRRPv3 (native VPP plugin) + keepalived path
+
+Depends on: D1.3
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q6. Owning squad: Dataplane & Agent.",,D9 High Availability,T1,D9,S1,360h,Dataplane & Agent,2028-03-31
+Story,"[D9.2] Config synchronisation between peers, cluster membership","Config synchronisation between peers, cluster membership
+
+Depends on: D0.8
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q6-Q7. Owning squad: Control Plane.",,D9 High Availability,T1,D9,S4,400h,Control Plane,2028-06-30
+Story,[D9.3] State sync: NAT/ACL sessions and IPsec SAs,"State sync: NAT/ACL sessions and IPsec SAs
+
+Depends on: D9.2
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Security & VPN.",,D9 High Availability,T2,D9,S3,480h,Security & VPN,2028-09-30
+Story,[D9.4] Failover test automation and convergence tuning,"Failover test automation and convergence tuning
+
+Depends on: D9.3
+
+Estimate: 30 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: QA / Lab.",,D9 High Availability,T1,D9,QA,240h,QA / Lab,2028-09-30
+Story,[D9.5] Cluster view in UI,"Cluster view in UI
+
+Depends on: D9.2
+
+Estimate: 25 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q8-Q8. Owning squad: Frontend.",,D9 High Availability,T2,D9,S5,200h,Frontend,2028-09-30
+Story,"[D10.1] VDOM/tenant model, per-tenant RBAC and API scoping","VDOM/tenant model, per-tenant RBAC and API scoping
+
+Depends on: D0.9
+
+Note: Changes the data model - decide in Q1 whether it is in scope
+
+Estimate: 70 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q11. Owning squad: Control Plane.",,D10 Multi-tenancy & AAA,T2,D10,S4,560h,Control Plane,2029-06-30
+Story,"[D10.2] AAA: RADIUS, TACACS+, LDAP, SAML, OIDC + MFA","AAA: RADIUS, TACACS+, LDAP, SAML, OIDC + MFA
+
+Depends on: D0.9
+
+Estimate: 55 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Control Plane.",,D10 Multi-tenancy & AAA,T2,D10,S4,440h,Control Plane,2028-12-31
+Story,"[D11.1] Cloud images AWS/Azure/GCP + marketplace, cloud-init, ENA/Hyper-V drivers, cloud routing integration","Cloud images AWS/Azure/GCP + marketplace, cloud-init, ENA/Hyper-V drivers, cloud routing integration
+
+Depends on: D0.3
+
+Estimate: 90 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q10-Q11. Owning squad: Platform & Release.",,D11 Cloud & Virtualization,T2,D11,S6,720h,Platform & Release,2029-06-30
+Story,[D11.2] KVM/VMware/Hyper-V/Proxmox images + SR-IOV and PCI passthrough,"KVM/VMware/Hyper-V/Proxmox images + SR-IOV and PCI passthrough
+
+Depends on: D0.3
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q9. Owning squad: Platform & Release.",,D11 Cloud & Virtualization,T1,D11,S6,320h,Platform & Release,2028-12-31
+Story,"[D12.1] CIS hardening, secure boot, package signing, offline (air-gapped) update bundle","CIS hardening, secure boot, package signing, offline (air-gapped) update bundle
+
+Depends on: D0.4
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q11-Q11. Owning squad: Platform & Release.",,"D12 Hardening, QA, Docs & Release",T1,D12,S6,480h,Platform & Release,2029-06-30
+Story,[D12.2] Licensing and entitlement enforcement,"Licensing and entitlement enforcement
+
+Depends on: D0.9
+
+Estimate: 40 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q11-Q11. Owning squad: Control Plane.",,"D12 Hardening, QA, Docs & Release",T1,D12,S4,320h,Control Plane,2029-06-30
+Story,[D12.3] Independent penetration test + remediation,"Independent penetration test + remediation
+
+Depends on: D12.1
+
+Estimate: 45 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q12-Q12. Owning squad: QA / Lab.",,"D12 Hardening, QA, Docs & Release",T1,D12,QA,360h,QA / Lab,2029-09-30
+Story,[D12.4] Full user documentation (~400 pages) + CLI reference + API reference,"Full user documentation (~400 pages) + CLI reference + API reference
+
+Note: Technical writer from M12
+
+Estimate: 120 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q9-Q12. Owning squad: Technical writer.",,"D12 Hardening, QA, Docs & Release",T1,D12,Writer,960h,Technical writer,2029-09-30
+Story,"[D12.5] QA: regression suite growth, nightly topology, perf CI, interop matrix (Cisco/Juniper/FortiGate/strongSwan/AWS VGW)","QA: regression suite growth, nightly topology, perf CI, interop matrix (Cisco/Juniper/FortiGate/strongSwan/AWS VGW)
+
+Depends on: D0.13
+
+Note: Continuous from Q4 to GA
+
+Estimate: 160 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q4-Q12. Owning squad: QA / Lab.",,"D12 Hardening, QA, Docs & Release",T1,D12,QA,1280h,QA / Lab,2029-09-30
+Story,"[D12.6] Soak and chaos: kill -9, link flap, 72h at line rate","Soak and chaos: kill -9, link flap, 72h at line rate
+
+Depends on: D12.5
+
+Estimate: 50 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q11-Q12. Owning squad: QA / Lab.",,"D12 Hardening, QA, Docs & Release",T1,D12,QA,400h,QA / Lab,2029-09-30
+Story,[D12.7] Certification preparation (Common Criteria / local standards),"Certification preparation (Common Criteria / local standards)
+
+Depends on: D12.1
+
+Note: Get the requirement list before end of Q2
+
+Estimate: 60 net person-days (includes tests, docs, UI, API and audit - the nine DoD conditions).
+Planned window: Q11-Q12. Owning squad: Platform & Release.",,"D12 Hardening, QA, Docs & Release",T2,D12,S6,480h,Platform & Release,2029-09-30

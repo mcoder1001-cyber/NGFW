@@ -23,8 +23,8 @@ jobs:
       GOTOOLCHAIN: local
       GOMAXPROCS: '2'
       GOFLAGS: -p=2
-      VRX_CI_APPLY_SHARDS: '2'
-      VRX_CI_TASK_CONCURRENCY: '2'
+      NGFW_CI_APPLY_SHARDS: '2'
+      NGFW_CI_TASK_CONCURRENCY: '2'
     steps:
       - name: Checkout complete history
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -47,21 +47,21 @@ jobs:
           npm install --global pnpm@12.5.1
           sudo apt-get update
           sudo apt-get install --yes shellcheck
-          export VRX_CI_TOOLS_DIR="$RUNNER_TEMP/ngfw-tools"
-          echo "VRX_CI_TOOLS_DIR=$VRX_CI_TOOLS_DIR" >> "$GITHUB_ENV"
-          echo "VRX_CI_LOG_DIR=$RUNNER_TEMP/ngfw-ci" >> "$GITHUB_ENV"
-          mkdir -p "$VRX_CI_TOOLS_DIR"
-          echo "$VRX_CI_TOOLS_DIR" >> "$GITHUB_PATH"
-          export PATH="$VRX_CI_TOOLS_DIR:$PATH"
+          export NGFW_CI_TOOLS_DIR="$RUNNER_TEMP/ngfw-tools"
+          echo "NGFW_CI_TOOLS_DIR=$NGFW_CI_TOOLS_DIR" >> "$GITHUB_ENV"
+          echo "NGFW_CI_LOG_DIR=$RUNNER_TEMP/ngfw-ci" >> "$GITHUB_ENV"
+          mkdir -p "$NGFW_CI_TOOLS_DIR"
+          echo "$NGFW_CI_TOOLS_DIR" >> "$GITHUB_PATH"
+          export PATH="$NGFW_CI_TOOLS_DIR:$PATH"
           tools/ci.sh install-tools
           buf_release=https://github.com/bufbuild/buf/releases/download/v1.73.0
-          curl --fail --silent --show-error --location --retry 3 "$buf_release/buf-Linux-x86_64" -o "$VRX_CI_TOOLS_DIR/buf-Linux-x86_64"
+          curl --fail --silent --show-error --location --retry 3 "$buf_release/buf-Linux-x86_64" -o "$NGFW_CI_TOOLS_DIR/buf-Linux-x86_64"
           curl --fail --silent --show-error --location --retry 3 "$buf_release/sha256.txt" -o "$RUNNER_TEMP/buf-sha256.txt"
-          (cd "$VRX_CI_TOOLS_DIR" && awk '$2 == "buf-Linux-x86_64" || $2 == "*buf-Linux-x86_64"' "$RUNNER_TEMP/buf-sha256.txt" | sha256sum --check --strict)
-          mv "$VRX_CI_TOOLS_DIR/buf-Linux-x86_64" "$VRX_CI_TOOLS_DIR/buf"
-          chmod +x "$VRX_CI_TOOLS_DIR/buf"
-          GOBIN="$VRX_CI_TOOLS_DIR" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
-          GOBIN="$VRX_CI_TOOLS_DIR" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          (cd "$NGFW_CI_TOOLS_DIR" && awk '$2 == "buf-Linux-x86_64" || $2 == "*buf-Linux-x86_64"' "$RUNNER_TEMP/buf-sha256.txt" | sha256sum --check --strict)
+          mv "$NGFW_CI_TOOLS_DIR/buf-Linux-x86_64" "$NGFW_CI_TOOLS_DIR/buf"
+          chmod +x "$NGFW_CI_TOOLS_DIR/buf"
+          GOBIN="$NGFW_CI_TOOLS_DIR" go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          GOBIN="$NGFW_CI_TOOLS_DIR" go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
       - name: Run repository gate
         shell: bash
         env:

@@ -10,7 +10,7 @@ Parent CI manager requested current primary evidence before further code.
 ## Existing source and acceptance boundary
 
 `scripts/00-add-repos.sh` requires administrator-provided exact primary sets
-`VRX_FRR_KEY_FINGERPRINTS` and `VRX_NODESOURCE_KEY_FINGERPRINTS` before network/APT.
+`NGFW_FRR_KEY_FINGERPRINTS` and `NGFW_NODESOURCE_KEY_FINGERPRINTS` before network/APT.
 Its reviewed parser rejects duplicate/unmatched primaries and unsupported
 validity, checks secret packets, and validates both downloads before keyring
 writes. Original BLOCK and corrected current-main composition reviews remain

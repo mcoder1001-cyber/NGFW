@@ -106,7 +106,7 @@ open drawer. Not a performance task (FAST MODE), just a cheap safeguard.
 envelope says "touch only w7/owner-prefixed devices" (D-071, shared table). The behaviour is right for the product (the single
 owner schedules a device VPP already learned) but wrong for a test slot on the shared host.
 
-**Fix:** adopt only when this agent is the globals owner (`VRX_GLOBALS_OWNER=1`). Otherwise return `ErrNotOurs`. Mention this in
+**Fix:** adopt only when this agent is the globals owner (`NGFW_GLOBALS_OWNER=1`). Otherwise return `ErrNotOurs`. Mention this in
 `mactime.md`.
 
 ### 7. LOW — cross-domain coupling of `routing.l2` with the `interfaces` scope

@@ -1,10 +1,10 @@
 # NAT44 (endpoint-dependent): outbound PAT, 1:1, port forwards and the session browser
 
-VRX translates IPv4 with VPP's **NAT44-ED** plugin (`nat44-ed`, endpoint-dependent: every session is keyed by the full
+NGFW translates IPv4 with VPP's **NAT44-ED** plugin (`nat44-ed`, endpoint-dependent: every session is keyed by the full
 5-tuple, so one outside address and port can serve many destinations). The configuration lives under `nat` in the
 configuration document and goes through the usual candidate → diff → commit → rollback cycle; live sessions, pool
 usage and the session kill are separate state and action routes. **UI:** *Firewall → NAT* (tabs Outbound, Static &
-port forwards, Pools, Sessions). **CLI:** `vrx set nat …` / `vrx merge nat …` (see below).
+port forwards, Pools, Sessions). **CLI:** `ngfw set nat …` / `ngfw merge nat …` (see below).
 
 This page covers `mode: "ed"`. NAT44-EI, NAT64, NAT66, NPTv6, DET44/CGNAT, DS-Lite, MAP and CNAT have their own pages;
 until those features ship, the agent reports their subtrees as *not applied* (`agent.unsupported-field` warnings in
@@ -25,7 +25,7 @@ validation) and programs nothing for them.
 | `sessionLimit`, `insideVrf`, `outsideVrf`, `timeouts` | Plugin-wide VPP settings (see "Plugin-wide settings"). |
 | `enabled` | Optional. Omitted = on as soon as any interface, pool or mapping is configured; `false` keeps the configuration but programs nothing. |
 
-Traffic that matches no pool and no mapping is **dropped** by VPP unless `forwarding` is on (VPP's default; VRX adds no
+Traffic that matches no pool and no mapping is **dropped** by VPP unless `forwarding` is on (VPP's default; NGFW adds no
 policy of its own).
 
 Rules checked before anything is applied (a violation is a `400 application/problem+json` with a JSON `pointer`):
@@ -88,19 +88,19 @@ different destinations); the NAT summary behind it is refreshed every 30 s.
 
 ```sh
 # one page (page, pageSize ≤ 256) and filters
-curl -s -H "Authorization: Bearer $TOKEN" 'https://vrx/api/v1/state/nat/sessions?page=1&pageSize=100&protocol=tcp&inside=10.4.1.2'
+curl -s -H "Authorization: Bearer $TOKEN" 'https://ngfw/api/v1/state/nat/sessions?page=1&pageSize=100&protocol=tcp&inside=10.4.1.2'
 # {"page":1,"pageSize":100,"total":1,"totalUsers":1,"truncated":false,"items":[{"insideAddress":"10.4.1.2","insidePort":40001,
 #   "outsideAddress":"10.4.2.101","outsidePort":1024,"externalAddress":"10.4.2.2","externalPort":8000,"protocol":"tcp","vrf":"default",…}]}
 
 # totals and per-pool usage (joined with the pool names of the running configuration)
-curl -s -H "Authorization: Bearer $TOKEN" https://vrx/api/v1/state/nat/summary
+curl -s -H "Authorization: Bearer $TOKEN" https://ngfw/api/v1/state/nat/summary
 
 # kill one session: its 5-tuple and the inside VRF (default "default"); 404 when it is already gone.
 # externalAddress/Port = the remote end as the inside host addresses it: for a twice-NAT session its
 # externalNatAddress/Port (the UI does this for you)
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"protocol":"tcp","insideAddress":"10.4.1.2","insidePort":40001,"externalAddress":"10.4.2.2","externalPort":8000}' \
-  https://vrx/api/v1/actions/nat/sessions/kill
+  https://ngfw/api/v1/actions/nat/sessions/kill
 ```
 
 Reading sessions needs the `readonly` role, killing one `operator`; every kill is in the audit log (resource
@@ -133,10 +133,10 @@ seconds.
 ```sh
 curl -s -X PATCH -H "Authorization: Bearer $TOKEN" -H 'content-type: application/merge-patch+json' \
   -d '{"inside":["host-w4l0"],"outside":["host-w4w0"],"pools":[{"name":"pat","range":"10.4.2.100-10.4.2.103"}]}' \
-  https://vrx/api/v1/config/nat
-curl -s -H "Authorization: Bearer $TOKEN" https://vrx/api/v1/config/diff
-curl -s -X POST -H "Authorization: Bearer $TOKEN" 'https://vrx/api/v1/config/commit?confirm=120&comment=nat'
-curl -s -X POST -H "Authorization: Bearer $TOKEN" https://vrx/api/v1/config/commit/confirm
+  https://ngfw/api/v1/config/nat
+curl -s -H "Authorization: Bearer $TOKEN" https://ngfw/api/v1/config/diff
+curl -s -X POST -H "Authorization: Bearer $TOKEN" 'https://ngfw/api/v1/config/commit?confirm=120&comment=nat'
+curl -s -X POST -H "Authorization: Bearer $TOKEN" https://ngfw/api/v1/config/commit/confirm
 ```
 
 Lists (`pools`, `staticMappings`, …) are replaced as a whole by a merge patch; send the complete list.
@@ -144,14 +144,14 @@ Lists (`pools`, `staticMappings`, …) are replaced as a whole by a merge patch;
 ## The same with the CLI
 
 ```text
-vrx set nat inside host-w4l0
-vrx set nat outside host-w4w0
-vrx merge nat '{"pools":[{"name":"pat","range":"10.4.2.100-10.4.2.103"}]}'
-vrx merge nat '{"staticMappings":[{"name":"web","protocol":"tcp","local":{"ip":"10.4.1.2","port":80},"external":{"ip":"10.4.2.110","port":8080}}]}'
-vrx show configuration diff
-vrx commit confirm 120 comment "nat"
-vrx confirm
-vrx show configuration nat
+ngfw set nat inside host-w4l0
+ngfw set nat outside host-w4w0
+ngfw merge nat '{"pools":[{"name":"pat","range":"10.4.2.100-10.4.2.103"}]}'
+ngfw merge nat '{"staticMappings":[{"name":"web","protocol":"tcp","local":{"ip":"10.4.1.2","port":80},"external":{"ip":"10.4.2.110","port":8080}}]}'
+ngfw show configuration diff
+ngfw commit confirm 120 comment "nat"
+ngfw confirm
+ngfw show configuration nat
 ```
 
 The CLI has no session command yet (`show nat sessions` is not in the command registry); use the REST calls above or

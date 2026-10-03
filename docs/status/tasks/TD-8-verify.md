@@ -14,7 +14,7 @@ throw-away probes, run through `go test -overlay` or in `git archive` copies in 
 ## Evidence
 
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
 ok  	ngfw/agent/internal/agent	13.942s
 ok  	ngfw/agent/internal/subsystems	1.115s
 $ go test -race -count=5 -run 'TestDynamicSource|TestRequestedResyncs|TestMetricsCollectors|TestStartWires|TestWiringIDRange|TestSlotIDRange' ./internal/agent/ ./internal/subsystems/
@@ -65,7 +65,7 @@ On `95d7dde` all of them pass (the runs above).
   - `applySources` + `culprit` (`dynsource.go:214-285`) run the transaction once more without the sources.
   - No rerun after DEGRADED or after a cancelled ctx.
   - Reporting: a SKIPPED `ObjectResult`, an `ERROR` event with `source`/`reason`/`key`, and
-    `vrx_agent_dynamic_source_errors_total{source,reason}`.
+    `ngfw_agent_dynamic_source_errors_total{source,reason}`.
   - Retry: backoff `retryMin` 5 s doubling to `retryMax` 60 s, one timer per source, stopped by `Close`.
   - Probes A and B: APPLIED. The granularity of this fix is V1.
 - **R3 fixed.**

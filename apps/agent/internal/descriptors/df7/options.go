@@ -81,7 +81,7 @@ func WithIDRange(lo, hi uint32) Option {
 
 // WithIDs sets the numeric id range of untagged objects to a copy of r, as the agent's wiring hands
 // it over (subsystems.Wiring.IDRange converted with DF7, TD-8b / TD-8 verify V2): nil = every id
-// (VRX_VPP_ID_RANGE=all), an empty range (Lo > Hi, subsystems.NoIDs) = no id. A family registers
+// (NGFW_VPP_ID_RANGE=all), an empty range (Lo > Hi, subsystems.NoIDs) = no id. A family registers
 // with WithIDs(ids.DF7()), never with a missing option.
 func WithIDs(r *IDRange) Option {
 	return func(o *Options) {

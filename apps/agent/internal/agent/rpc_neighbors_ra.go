@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	neighborsra "ngfw/agent/internal/actions/neighbors-ra"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/vpp"
@@ -35,7 +35,7 @@ func neighborsError(what string, err error) error {
 }
 
 // ListNeighbors implements the ListNeighbors RPC: the live ARP/ND table of every interface this agent can name.
-func (g *server) ListNeighbors(ctx context.Context, req *vrxv1.ListNeighborsRequest) (*vrxv1.ListNeighborsResponse, error) {
+func (g *server) ListNeighbors(ctx context.Context, req *ngfwv1.ListNeighborsRequest) (*ngfwv1.ListNeighborsResponse, error) {
 	s := g.svc
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
@@ -51,9 +51,9 @@ func (g *server) ListNeighbors(ctx context.Context, req *vrxv1.ListNeighborsRequ
 	if err != nil {
 		return nil, neighborsError("list neighbours", err)
 	}
-	resp := &vrxv1.ListNeighborsResponse{Owner: s.owner, Total: uint32(page.Total), RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // G115: a neighbour table is far below 2^32 rows
+	resp := &ngfwv1.ListNeighborsResponse{Owner: s.owner, Total: uint32(page.Total), RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // G115: a neighbour table is far below 2^32 rows
 	for _, e := range page.Entries {
-		resp.Neighbors = append(resp.Neighbors, &vrxv1.NeighborEntry{
+		resp.Neighbors = append(resp.Neighbors, &ngfwv1.NeighborEntry{
 			Interface: e.Interface, Ip: e.IP.String(), Mac: e.MAC, Family: e.Family, State: e.State(),
 			NoFibEntry: e.NoFibEntry, AgeSec: e.Age, Vrf: e.VRF, TableId: e.TableID,
 		})
@@ -78,7 +78,7 @@ func (s *Service) configuredInterfaces() []string {
 }
 
 // arpFlush runs the arp_flush action (ActionRequest 4): delete learned ARP/ND entries, static ones stay.
-func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) arpFlush(req *ngfwv1.ArpFlushAction, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	s := g.svc
 	fam, err := neighborsra.ParseFamily(req.GetFamily())
 	if err != nil {
@@ -129,7 +129,7 @@ func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreaming
 	var sendErr error
 	line := func(l string) {
 		if sendErr == nil {
-			sendErr = stream.Send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: l}})
+			sendErr = stream.Send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: l}})
 		}
 	}
 	res, err := neighborsra.Flush(ctx, s.vpp, s.owner, names, fam, line)
@@ -138,7 +138,7 @@ func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreaming
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		g.log.Warn("arp flush failed", "interface", req.GetInterface(), "deleted", res.Deleted, "err", err)
-		return stream.Send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+		return stream.Send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 			Summary: err.Error(), ExitCode: 1,
 			Stats: map[string]string{"deleted": strconv.Itoa(res.Deleted), "interfaces": strconv.Itoa(res.Interfaces)},
 		}}})
@@ -147,7 +147,7 @@ func (g *server) arpFlush(req *vrxv1.ArpFlushAction, stream grpc.ServerStreaming
 		return sendErr
 	}
 	g.log.Info("arp flush", "interface", req.GetInterface(), "family", req.GetFamily(), "deleted", res.Deleted, "interfaces", res.Interfaces)
-	return stream.Send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+	return stream.Send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 		Summary: "deleted " + strconv.Itoa(res.Deleted) + " learned entries on " + strconv.Itoa(res.Interfaces) + " interfaces",
 		Stats:   map[string]string{"deleted": strconv.Itoa(res.Deleted), "interfaces": strconv.Itoa(res.Interfaces)},
 	}}})

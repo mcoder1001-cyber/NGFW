@@ -73,3 +73,26 @@ true; historical and new placeholder allowed, generic token not allowlisted.
 - Bash syntax and warning/error shellcheck test-fast.sh: PASS.
 Full intake11/stage23 suites in progress; exact results pending.
 VPP build recipe remains frozen from prior checkpoint; no host changes.
+
+P11 continuation final actual results on product checkpoint
+ deb12c10d112e8dff632a092490932a0ea596703 (recipe frozen):
+```text
+PYTHONDONTWRITEBYTECODE=1 python3 deploy/strongswan/test_verify_inputs.py
+Ran 11 tests in 104.845s
+OK
+PYTHONDONTWRITEBYTECODE=1 python3 deploy/strongswan/test_prepare_stage.py
+Ran 23 tests in 148.753s
+OK
+bash deploy/vpp/tests/run.sh
+72 passed, 0 failed
+```
+Both P11 suites additionally execute the real unchanged VPP test script through
+verified_snapshot's clean environment: 72 passed, 0 failed; then complete
+VPP static verify via VERIFY.run: tests/run.sh 72 passed, 0 failed; verify.sh OK.
+These are host-independent real verifier/fixture checks, not an actual new VPP
+binary build or successful synthetic provenance acceptance. Negative real gate
+fixtures reject the synthetic build, as required. No skips reported.
+The exact required five-file recovery and namespace/static/fixture checks are
+complete. Root publication, applicable independent integration reviews and
+unchanged full combined-tree quick gate remain pending. Recipe frozen for root's
+fresh +ngfw VPP and NGFW package build. No migration/install/service action.

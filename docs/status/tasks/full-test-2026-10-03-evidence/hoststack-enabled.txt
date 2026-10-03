@@ -1,0 +1,12 @@
+DISPOSABLE_VPP pid=590317 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-590315
+{"Time":"2026-10-03T13:50:43.183650885+03:30","Action":"start","Package":"ngfw/agent/internal/descriptors/hoststack"}
+{"Time":"2026-10-03T13:50:43.268641513+03:30","Action":"run","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost"}
+{"Time":"2026-10-03T13:50:43.268902749+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost","Output":"=== RUN   TestHostStackOnHost\n"}
+{"Time":"2026-10-03T13:50:43.282241915+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost","Output":"    integration_test.go:24: plugin session loaded: 3 message(s) compatible\n"}
+{"Time":"2026-10-03T13:50:43.312410977+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost","Output":"    integration_test.go:58: rule w8-r4: session_rule_add_del(w8:w8-r4, add=true): VPPApiError: Unspecified Error (-1)\n"}
+{"Time":"2026-10-03T13:50:43.320690873+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost","Output":"--- FAIL: TestHostStackOnHost (0.05s)\n"}
+{"Time":"2026-10-03T13:50:43.320808222+03:30","Action":"fail","Package":"ngfw/agent/internal/descriptors/hoststack","Test":"TestHostStackOnHost","Elapsed":0.05}
+{"Time":"2026-10-03T13:50:43.320843717+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Output":"FAIL\n"}
+{"Time":"2026-10-03T13:50:43.339348959+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/hoststack","Output":"FAIL\tngfw/agent/internal/descriptors/hoststack\t0.154s\n"}
+{"Time":"2026-10-03T13:50:43.339468244+03:30","Action":"fail","Package":"ngfw/agent/internal/descriptors/hoststack","Elapsed":0.156}
+DISPOSABLE_VPP_STOPPED pid=590317

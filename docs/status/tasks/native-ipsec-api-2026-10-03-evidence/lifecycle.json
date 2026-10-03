@@ -1,0 +1,78 @@
+[
+  {
+    "phase": "test-license",
+    "feature": "ipsec",
+    "limit": 1,
+    "signed": true,
+    "isolatedTrustRoot": true
+  },
+  {
+    "phase": "logical-route-readback",
+    "logicalInterface": "site",
+    "runtimeInterface": "ipip6001",
+    "prefix": "10.6.20.0/24",
+    "apiRetrieveVppAgree": true,
+    "vppFib": "ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]\r\n10.6.20.0/24 fib:0 index:11 locks:2\r\n  API refs:1 src-flags:added,contributing,active,\r\n    path-list:[17] locks:2 flags:shared, uPRF-list:11 len:1 itfs:[2, ]\r\n      path:[21] pl-index:17 ip4 weight=1 pref=1 attached-nexthop: \r\n        198.18.63.2 ipip6001 (p2p)\r\n      [@0]: ipv4 via 0.0.0.0 ipip6001: mtu:9000 next:5 flags:[fixup-ip4o4 ] 45000000000000004004e2d2c6120601c6120602\r\n             stacked-on:\r\n               [@0]: dpo-drop ip4\r\n\r\n forwarding:   unicast-ip4-chain\r\n  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:11 to:[0:0]]\r\n    [0] [@0]: dpo-drop ip4"
+  },
+  {
+    "phase": "commit-v1",
+    "revision": 1,
+    "version": 1,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "logical-route-readback",
+    "logicalInterface": "site",
+    "runtimeInterface": "ipip6001",
+    "prefix": "10.6.20.0/24",
+    "apiRetrieveVppAgree": true,
+    "vppFib": "ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]\r\n10.6.20.0/24 fib:0 index:11 locks:2\r\n  API refs:1 src-flags:added,contributing,active,\r\n    path-list:[17] locks:2 flags:shared, uPRF-list:11 len:1 itfs:[2, ]\r\n      path:[21] pl-index:17 ip4 weight=1 pref=1 attached-nexthop: \r\n        198.18.63.2 ipip6001 (p2p)\r\n      [@0]: ipv4 via 0.0.0.0 ipip6001: mtu:9000 next:5 flags:[fixup-ip4o4 ] 45000000000000004004e2d2c6120601c6120602\r\n             stacked-on:\r\n               [@0]: dpo-drop ip4\r\n\r\n forwarding:   unicast-ip4-chain\r\n  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:11 to:[0:0]]\r\n    [0] [@0]: dpo-drop ip4"
+  },
+  {
+    "phase": "restart-recreate",
+    "sameSealedSnapshot": true,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "logical-route-readback",
+    "logicalInterface": "site",
+    "runtimeInterface": "ipip6001",
+    "prefix": "10.6.20.0/24",
+    "apiRetrieveVppAgree": true,
+    "vppFib": "ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]\r\n10.6.20.0/24 fib:0 index:11 locks:2\r\n  API refs:1 src-flags:added,contributing,active,\r\n    path-list:[17] locks:2 flags:shared, uPRF-list:11 len:1 itfs:[2, ]\r\n      path:[21] pl-index:17 ip4 weight=1 pref=1 attached-nexthop: \r\n        198.18.63.2 ipip6001 (p2p)\r\n      [@0]: ipv4 via 0.0.0.0 ipip6001: mtu:9000 next:5 flags:[fixup-ip4o4 ] 45000000000000004004e2d2c6120601c6120602\r\n             stacked-on:\r\n               [@0]: dpo-drop ip4\r\n\r\n forwarding:   unicast-ip4-chain\r\n  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:11 to:[0:0]]\r\n    [0] [@0]: dpo-drop ip4"
+  },
+  {
+    "phase": "commit-v2",
+    "revision": 2,
+    "version": 2,
+    "nativePskMatches": true,
+    "newSealedSnapshot": true
+  },
+  {
+    "phase": "logical-route-readback",
+    "logicalInterface": "site",
+    "runtimeInterface": "ipip6001",
+    "prefix": "10.6.20.0/24",
+    "apiRetrieveVppAgree": true,
+    "vppFib": "ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]\r\n10.6.20.0/24 fib:0 index:11 locks:2\r\n  API refs:1 src-flags:added,contributing,active,\r\n    path-list:[17] locks:2 flags:shared, uPRF-list:11 len:1 itfs:[2, ]\r\n      path:[21] pl-index:17 ip4 weight=1 pref=1 attached-nexthop: \r\n        198.18.63.2 ipip6001 (p2p)\r\n      [@0]: ipv4 via 0.0.0.0 ipip6001: mtu:9000 next:5 flags:[fixup-ip4o4 ] 45000000000000004004e2d2c6120601c6120602\r\n             stacked-on:\r\n               [@0]: dpo-drop ip4\r\n\r\n forwarding:   unicast-ip4-chain\r\n  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:11 to:[0:0]]\r\n    [0] [@0]: dpo-drop ip4"
+  },
+  {
+    "phase": "rollback-v1",
+    "revision": 3,
+    "version": 1,
+    "originalSealedSnapshot": true,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "noecho",
+    "apiAgentAuditSealedCache": true
+  },
+  {
+    "phase": "noecho-shutdown",
+    "passed": true
+  },
+  {
+    "phase": "valkey-cleanup",
+    "ownPrefixOnly": true
+  }
+]

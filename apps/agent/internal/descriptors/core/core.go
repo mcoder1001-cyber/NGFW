@@ -30,7 +30,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.fd.io/govpp/api"
+	"google.golang.org/protobuf/proto"
 	"io"
+	"log/slog"
 	"net/netip"
 	"regexp"
 	"strconv"
@@ -118,8 +121,28 @@ func Register(r scheduler.Registry, env Env) {
 	r.Register(&VRFDescriptor{env})
 	r.Register(&LoopbackDescriptor{env})
 	r.Register(&InterfaceTableDescriptor{env})
-	r.Register(&InterfaceAddrDescriptor{env})
+	r.Register(&idempotentAddrDescriptor{&InterfaceAddrDescriptor{Env: env}})
 	r.Register(&RouteDescriptor{env})
+}
+
+type idempotentAddrDescriptor struct{ *InterfaceAddrDescriptor }
+
+func (d *idempotentAddrDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+	err := d.InterfaceAddrDescriptor.Delete(ctx, obj, meta)
+	if !errors.Is(err, api.ADDRESS_NOT_FOUND_FOR_INTERFACE) {
+		return err
+	}
+	v := asIfAddr(obj)
+	slog.Info("interface-ip: address already absent in VPP on delete; treated as deleted",
+		"interface", v.GetInterface(), "prefix", v.GetPrefix(), "err", err)
+	t, terr := dumpInterfaces(ctx, d.Client, d.Owner)
+	if terr != nil {
+		return terr
+	}
+	if in, terr := d.target(t, v.GetInterface()); terr == nil && in.Untagged {
+		return d.release(in.VPPName, AddrHolder(v.GetPrefix()))
+	}
+	return nil
 }
 
 // Names returns the core descriptor names in registration order.

@@ -1,0 +1,23 @@
+DISPOSABLE_VPP pid=715756 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-715753
+create role vrx_w5
+create database vrx_w5 (owner vrx_w5)
+check  vrx_w5 as vrx_w5 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w5/pg.env (0600) · DSN <redacted-dsn>
+live: agent up (pid 715813, owner w5, socket /run/vrx-test/w5/agent.sock)
+live: api up (pid 715836, http://127.0.0.1:3500)
+live: API key 'sdk-live' role=admin id=d624c975-a710-4b7c-860d-5ab001e73100 → /run/vrx-test/w5/sdk-apikey (0600, not printed)
+{"Time":"2026-10-03T14:22:39.719768052+03:30","Action":"start","Package":"ngfw/test/integration/reachability"}
+{"Time":"2026-10-03T14:22:39.800938376+03:30","Action":"run","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback"}
+{"Time":"2026-10-03T14:22:39.80107135+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Output":"=== RUN   TestReachabilityLoopback\n"}
+{"Time":"2026-10-03T14:22:41.424903591+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Output":"--- PASS: TestReachabilityLoopback (1.62s)\n"}
+{"Time":"2026-10-03T14:22:41.425016729+03:30","Action":"pass","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Elapsed":1.62}
+{"Time":"2026-10-03T14:22:41.4250669+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Output":"PASS\n"}
+{"Time":"2026-10-03T14:22:42.441047912+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Output":"ok  \tngfw/test/integration/reachability\t2.720s\n"}
+{"Time":"2026-10-03T14:22:42.441203905+03:30","Action":"pass","Package":"ngfw/test/integration/reachability","Elapsed":2.722}
+live: api stopped (pid 715836)
+live: agent stopped (pid 715813)
+live: deleted 7 Valkey keys vrx:w5:sdk:* in db 5
+drop   database vrx_w5
+drop   role vrx_w5
+ok     nothing named vrx_w5 / vrx_w5 remains
+DISPOSABLE_VPP_STOPPED pid=715756

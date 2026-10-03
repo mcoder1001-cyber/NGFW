@@ -1,7 +1,10 @@
-import { serviceText } from '../../../product-text';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import Checkbox from '@mui/material/Checkbox';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import LinearProgress from '@mui/material/LinearProgress';
@@ -26,6 +29,7 @@ import {
   useCaptures,
   useDeleteCapture,
   useStartCapture,
+  useStopCapture,
   type CaptureFile,
   type CaptureRequest,
 } from './queries';
@@ -168,6 +172,8 @@ export function CapturePage() {
   const del = useDeleteCapture();
   const [tab, setTab] = useState<(typeof TABS)[number]>(TABS[0]);
   const [dlError, setDlError] = useState<unknown>(null);
+  const stop = useStopCapture();
+  const [stopId, setStopId] = useState<string | null>(null);
   const running = q.data?.captures.find((c) => c.state === 'running');
   return (
     <Box>
@@ -188,20 +194,41 @@ export function CapturePage() {
       {q.isPending && <LinearProgress aria-label={t('loading')} />}
       {tab === 'trace' && (
         <Alert severity="warning" data-testid="trace-unavailable">
-          {t('notAvailable')} {serviceText(q.data?.trace.reason ?? '')}
+          {t('trace.reasonBanned')}
         </Alert>
       )}
       {tab === 'pg' && (
         <Alert severity="warning" data-testid="pg-unavailable">
-          {t('notAvailable')} {serviceText(q.data?.pg.reason ?? '')}
+          {t('pg.reasonNoApi')}
         </Alert>
       )}
+      <Dialog
+        open={stopId !== null}
+        onClose={() => setStopId(null)}
+        aria-labelledby="capture-stop-title"
+      >
+        <DialogTitle id="capture-stop-title">{t('stop')}</DialogTitle>
+        <DialogContent>{t('stopConfirm')}</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStopId(null)}>{t('cancel')}</Button>
+          <Button
+            disabled={stop.isPending}
+            onClick={() => {
+              if (stopId) stop.mutate(stopId);
+              setStopId(null);
+            }}
+          >
+            {t('stop')}
+          </Button>
+        </DialogActions>
+      </Dialog>
       {tab === 'capture' && (
         <>
           {running && <Running c={running} />}
           <CaptureForm disabled={!perms.editConfig || Boolean(running)} />
           {dlError !== null && <ProblemAlert error={dlError} sx={{ mt: 2 }} />}
           {del.isError && <ProblemAlert error={del.error} sx={{ mt: 2 }} />}
+          {stop.isError && <ProblemAlert error={stop.error} sx={{ mt: 2 }} />}
           <Typography variant="h6" component="h2" sx={{ mt: 3, mb: 1 }}>
             {t('files', { max: q.data?.maxFiles ?? 0 })}
           </Typography>
@@ -222,6 +249,15 @@ export function CapturePage() {
                   <TableCell>{c.packets}</TableCell>
                   <TableCell>{c.size}</TableCell>
                   <TableCell>
+                    {admin && c.state === 'running' && (
+                      <Button
+                        size="small"
+                        disabled={stop.isPending}
+                        onClick={() => setStopId(c.id)}
+                      >
+                        {t('stop')}
+                      </Button>
+                    )}
                     {admin && c.state !== 'running' && c.size !== '0' && (
                       <Button size="small" onClick={() => downloadCapture(c.id).catch(setDlError)}>
                         {t('download')}

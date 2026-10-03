@@ -1,0 +1,12 @@
+DISPOSABLE_VPP pid=590201 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-590199
+{"Time":"2026-10-03T13:50:38.151057745+03:30","Action":"start","Package":"ngfw/agent/internal/descriptors/auto_sdl"}
+{"Time":"2026-10-03T13:50:38.238075163+03:30","Action":"run","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost"}
+{"Time":"2026-10-03T13:50:38.238198465+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost","Output":"=== RUN   TestAutoSdlOnHost\n"}
+{"Time":"2026-10-03T13:50:38.253684858+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost","Output":"    integration_test.go:25: plugin auto_sdl loaded: 2 message(s) compatible\n"}
+{"Time":"2026-10-03T13:50:38.264265228+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost","Output":"    integration_test.go:44: auto-sdl enabled (threshold 6, remove-timeout 300), re-applied without a call, disabled\n"}
+{"Time":"2026-10-03T13:50:38.26622394+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost","Output":"--- PASS: TestAutoSdlOnHost (0.03s)\n"}
+{"Time":"2026-10-03T13:50:38.266326177+03:30","Action":"pass","Package":"ngfw/agent/internal/descriptors/auto_sdl","Test":"TestAutoSdlOnHost","Elapsed":0.03}
+{"Time":"2026-10-03T13:50:38.266650547+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Output":"PASS\n"}
+{"Time":"2026-10-03T13:50:39.283699176+03:30","Action":"output","Package":"ngfw/agent/internal/descriptors/auto_sdl","Output":"ok  \tngfw/agent/internal/descriptors/auto_sdl\t1.128s\n"}
+{"Time":"2026-10-03T13:50:39.283841067+03:30","Action":"pass","Package":"ngfw/agent/internal/descriptors/auto_sdl","Elapsed":1.133}
+DISPOSABLE_VPP_STOPPED pid=590201

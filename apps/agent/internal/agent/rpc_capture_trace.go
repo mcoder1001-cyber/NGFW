@@ -30,6 +30,8 @@ type captureEntry struct {
 	err  error
 }
 
+// captureGlobalsOwner is retained for the existing CNAT RPCs. Capture itself uses
+// the role resolved at agent startup, not this legacy environment lookup.
 func captureGlobalsOwner(owner string) bool {
 	g := owner == "ngfw"
 	switch strings.ToLower(os.Getenv("NGFW_GLOBALS_OWNER")) {
@@ -47,11 +49,14 @@ func (g *server) captures() (*capturetrace.Manager, error) {
 	e.once.Do(func() {
 		files, _ := strconv.Atoi(os.Getenv("NGFW_CAPTURE_MAX_FILES"))
 		bytes, _ := strconv.ParseInt(os.Getenv("NGFW_CAPTURE_MAX_BYTES"), 10, 64)
-		e.m, e.err = capturetrace.New(capturetrace.Config{
-			Client: g.svc.vpp, Owner: g.svc.owner, GlobalsOwner: captureGlobalsOwner(g.svc.owner),
-			Dir: os.Getenv("NGFW_CAPTURE_DIR"), VPPDir: os.Getenv("NGFW_CAPTURE_VPP_DIR"),
-			MaxFiles: files, MaxBytes: bytes,
-		})
+		cfg := g.svc.captureConfig
+		cfg.Client, cfg.Owner, cfg.Logger = g.svc.vpp, g.svc.owner, g.svc.log
+		if dir := os.Getenv("NGFW_CAPTURE_DIR"); dir != "" {
+			cfg.Dir = dir
+		}
+		cfg.VPPDir = os.Getenv("NGFW_CAPTURE_VPP_DIR")
+		cfg.MaxFiles, cfg.MaxBytes, cfg.OwnedFilter = files, bytes, g.svc.ownedTraceFilter
+		e.m, e.err = capturetrace.New(cfg)
 	})
 	if e.err != nil {
 		return nil, status.Error(codes.FailedPrecondition, e.err.Error())
@@ -137,4 +142,17 @@ func captureStatus(err error) error {
 		return status.Error(codes.Canceled, err.Error())
 	}
 	return status.Error(codes.Internal, err.Error())
+}
+
+// recoverCaptures initializes and repairs interrupted captures before any RPC is needed.
+func (s *Service) recoverCaptures(ctx context.Context) error {
+	m, err := (&server{svc: s}).captures()
+	if err != nil {
+		return err
+	}
+	return m.Recover(ctx)
+}
+
+func (s *Service) ownedTraceFilter(context.Context) (bpf, filterFunction string) {
+	return "", ""
 }

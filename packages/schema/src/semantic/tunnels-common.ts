@@ -186,9 +186,13 @@ function collectAddresses(entry: unknown): Cidr[] {
 /**
  * Every interface a group-(c) object may refer to: `interfaces` (plus sub-interfaces as `<parent>.<key>` and
  * `<parent>.<vlanId>`), tunnels with an explicit `instance` (`gre<i>`, `ipip<i>`, `vxlan_tunnel<i>`) and WireGuard
- * interfaces (`wg<instance>`). A tunnel without `instance` gets its VPP name at runtime and cannot be referenced.
+ * interfaces (`wg<instance>`). Static routing requests may additionally include declared tunnel names,
+ * which remain stable when the runtime instance is allocated. Other callers retain one entry per interface.
  */
-export function interfaceIndex(config: unknown): Map<string, InterfaceInfo> {
+export function interfaceIndex(
+  config: unknown,
+  includeLogicalTunnelNames = false,
+): Map<string, InterfaceInfo> {
   const index = new Map<string, InterfaceInfo>();
   const put = (name: string, vrf: string | undefined, addresses: Cidr[]): void => {
     if (!index.has(name)) index.set(name, { name, vrf: vrf ?? DEFAULT_VRF, addresses });
@@ -211,7 +215,8 @@ export function interfaceIndex(config: unknown): Map<string, InterfaceInfo> {
     ['vxlan', 'vxlan_tunnel'],
   ];
   for (const [kind, prefix] of kinds) {
-    for (const entry of Object.values(asRecord(tunnels[kind]))) {
+    for (const [name, entry] of Object.entries(asRecord(tunnels[kind]))) {
+      if (includeLogicalTunnelNames) put(name, stringField(entry, 'vrf'), collectAddresses(entry));
       const instance = numberField(entry, 'instance');
       if (instance !== undefined) {
         put(`${prefix}${instance}`, stringField(entry, 'vrf'), collectAddresses(entry));

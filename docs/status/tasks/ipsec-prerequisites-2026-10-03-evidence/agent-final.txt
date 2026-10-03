@@ -1,0 +1,10 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c cd apps/agent && go test ./internal/agent ./internal/subsystems ./internal/desired ./internal/descriptors/ikev2 ./internal/descriptors/interface ./internal/descriptors/core/coretest ./internal/secretchannel ./internal/descriptors/ip6_nd -count=1
+heavy: slot 1 after 190s
+ok  	ngfw/agent/internal/agent	37.689s
+ok  	ngfw/agent/internal/subsystems	13.153s
+ok  	ngfw/agent/internal/desired	8.236s
+ok  	ngfw/agent/internal/descriptors/ikev2	0.036s
+ok  	ngfw/agent/internal/descriptors/interface	0.039s
+ok  	ngfw/agent/internal/descriptors/core/coretest	0.018s
+ok  	ngfw/agent/internal/secretchannel	0.106s
+ok  	ngfw/agent/internal/descriptors/ip6_nd	0.027s

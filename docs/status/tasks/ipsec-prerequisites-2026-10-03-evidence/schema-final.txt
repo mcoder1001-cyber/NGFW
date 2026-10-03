@@ -1,0 +1,92 @@
+$ vitest run
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/packages/schema
+
+ ✓ src/semantic/tunnels-common.test.ts (10 tests) 70ms
+ ✓ src/primitives.test.ts (417 tests) 290ms
+ ✓ src/domains/services.test.ts (137 tests) 219ms
+ ✓ src/domains/ext/global-blocking-parse.test.ts (4 tests) 2552ms
+   ✓ F-global-blocking block-list parser > parses 200 000 entries quickly  2524ms
+ ✓ src/validate.test.ts (5 tests) 185ms
+ ✓ src/semantic/services.test.ts (14 tests) 219ms
+ ✓ src/semantic/det44-map-dslite-cnat.test.ts (10 tests) 261ms
+ ✓ src/semantic/wireguard.test.ts (7 tests) 218ms
+ ✓ src/semantic/bridge-l2.test.ts (19 tests) 267ms
+ ✓ src/semantic/acl.test.ts (13 tests) 253ms
+ ✓ src/semantic/kea-dhcp-relay.test.ts (10 tests) 251ms
+ ✓ src/semantic/objects.test.ts (20 tests) 249ms
+ ✓ src/semantic/neighbors-ra.test.ts (16 tests) 267ms
+ ✓ src/semantic/index.test.ts (7 tests) 269ms
+ ✓ src/semantic/lisp.test.ts (16 tests) 266ms
+ ✓ src/semantic/mpls-srmpls.test.ts (18 tests) 311ms
+ ✓ src/semantic/nat-objects-acl-examples.test.ts (14 tests) 346ms
+ ✓ src/semantic/unbound-chrony-syslog.test.ts (23 tests) 303ms
+ ✓ src/secrets.test.ts (5 tests) 362ms
+   ✓ secretPointers / redactSecrets (D-046, review M4) > finds every password hash and nothing else (secretRefs are references, not secrets)  339ms
+ ✓ src/semantic/srv6.test.ts (23 tests) 343ms
+ ✓ src/semantic/vrf-static-ecmp.test.ts (12 tests) 293ms
+ ✓ src/semantic/tunnels.test.ts (16 tests) 318ms
+ ✓ src/semantic/nat.test.ts (29 tests) 344ms
+ ✓ src/semantic/snmp.test.ts (5 tests) 226ms
+ ✓ src/semantic/bonding.test.ts (15 tests) 356ms
+ ✓ src/semantic/loopback-bvi-gso-lldp-span.test.ts (24 tests) 378ms
+ ✓ src/semantic/host-stack.test.ts (17 tests) 420ms
+ ✓ src/semantic/routing.test.ts (22 tests) 395ms
+ ✓ src/domains/group-a.test.ts (26 tests) 388ms
+ ✓ src/semantic/vpn.test.ts (28 tests) 438ms
+ ✓ src/domains/ext/lb.test.ts (16 tests) 417ms
+ ✓ src/examples.test.ts (15 tests) 505ms
+   ✓ examples (group a) > minimal.json is accepted, semantically clean, idempotent and free of secret leaves  363ms
+ ✓ src/domains/domains.test.ts (44 tests) 536ms
+ ✓ src/generate.test.ts (4 tests) 423ms
+   ✓ generateSchemas > is deterministic (gen twice → identical output)  395ms
+ ✓ src/semantic/qos-flat.test.ts (7 tests) 194ms
+ ✓ src/domains/vpn.test.ts (87 tests) 130ms
+ ✓ src/domains/objects.test.ts (12 tests) 141ms
+ ✓ src/domains/nat.test.ts (33 tests) 154ms
+ ✓ src/domains/acl.test.ts (12 tests) 111ms
+ ✓ src/domains/tunnels.test.ts (41 tests) 126ms
+ ✓ src/merge-patch.test.ts (35 tests) 73ms
+ ✓ src/ip.test.ts (78 tests) 42ms
+ ✓ src/ui.test.ts (8 tests) 29ms
+ ✓ src/domains/ha.test.ts (33 tests) 77ms
+ ✓ src/semantic/nat44-ed-sessions.test.ts (9 tests) 238ms
+ ✓ src/semantic/nat46.test.ts (9 tests) 209ms
+ ✓ src/semantic/bgp.test.ts (10 tests) 216ms
+ ✓ src/semantic/interfaces.test.ts (14 tests) 137ms
+ ✓ src/semantic/rpf-adl-pbr.test.ts (10 tests) 177ms
+ ✓ src/semantic/ipfix-sflow.test.ts (7 tests) 227ms
+ ✓ src/semantic/ipsec.test.ts (6 tests) 173ms
+ ✓ src/domains/security.test.ts (8 tests) 144ms
+ ✓ src/semantic/ha.test.ts (8 tests) 291ms
+ ✓ src/semantic/isis-rip.test.ts (3 tests) 120ms
+ ✓ src/semantic/pppoe.test.ts (5 tests) 150ms
+ ✓ src/semantic/host-acl-nftables.test.ts (5 tests) 254ms
+ ✓ src/semantic/mpls-ldp.test.ts (7 tests) 152ms
+ ✓ src/semantic/interfaces-qinq.test.ts (9 tests) 234ms
+ ✓ src/semantic/aaa.test.ts (3 tests) 84ms
+ ✓ src/index.test.ts (5 tests) 128ms
+ ✓ src/semantic/global-blocking.test.ts (3 tests) 185ms
+ ✓ src/semantic/management.test.ts (8 tests) 161ms
+ ✓ src/semantic/multiwan.test.ts (3 tests) 153ms
+ ✓ src/semantic/system.test.ts (3 tests) 81ms
+ ✓ src/semantic/dashboard-prom-alarms.test.ts (3 tests) 123ms
+ ✓ src/semantic/dataplane.test.ts (12 tests) 174ms
+ ✓ src/pointer.test.ts (5 tests) 14ms
+ ✓ src/semantic/igmp-mfib.test.ts (5 tests) 103ms
+ ✓ src/domains/system-hostname.test.ts (3 tests) 25ms
+ ✓ src/json.test.ts (9 tests) 24ms
+ ✓ src/diff.test.ts (6 tests) 30ms
+ ✓ src/domains/ext/mpls-ldp.test.ts (6 tests) 142ms
+ ✓ src/domains/ext/rule-expiry.test.ts (3 tests) 27ms
+ ✓ src/semantic/vrfs.test.ts (3 tests) 77ms
+ ✓ src/semantic/auto-block.test.ts (4 tests) 140ms
+ ✓ src/semantic/default-vpp-nics.test.ts (10 tests) 126ms
+ ✓ src/domains/ext/igmp-mfib.test.ts (6 tests) 126ms
+ ✓ src/semantic/aaa-oidc.test.ts (3 tests) 33ms
+
+ Test Files  78 passed (78)
+      Tests  1620 passed (1620)
+   Start at  15:11:52
+   Duration  11.66s (transform 16.79s, setup 0ms, collect 223.67s, tests 18.69s, environment 40ms, prepare 21.21s)
+

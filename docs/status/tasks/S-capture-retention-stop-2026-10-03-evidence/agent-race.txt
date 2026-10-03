@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c cd apps/agent && go test -race ./internal/actions/capture-trace -count=1 && go test -race ./internal/agent -run Capture -count=1
+heavy: slot 1 after 10s
+ok  	ngfw/agent/internal/actions/capture-trace	13.771s
+ok  	ngfw/agent/internal/agent	1.348s

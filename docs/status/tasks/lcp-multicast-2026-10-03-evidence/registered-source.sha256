@@ -1,0 +1,5 @@
+5943249b0d72b43b1945e594554f6abbdf0b4321dd05e398b3c73daff3a66d31  deploy/vpp/patches/0003-lcp-multicast-reconcile.patch
+5c508ab62328a5791a571143086d2dd2f7d72771f65f3f743a5176916c9236a3  deploy/vpp/patches/series
+f39e23191a69b4977257fdbac0b42641c62ee964a619131d16392f502346392f  deploy/vpp/VERSION
+563a42986da7775e437df6fa87031cc1f982b0585d3a8b0bb8158ecceae4ef67  test/topology/build-lcp-multicast-plugin.py
+a8553607f6b4528dc8003e0319d93bc1ec75214763b97404a8da62dd7652e50c  test/topology/lcp-multicast-reconcile.py

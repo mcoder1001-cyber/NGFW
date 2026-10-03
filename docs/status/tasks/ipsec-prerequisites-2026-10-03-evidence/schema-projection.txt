@@ -1,0 +1,5 @@
+=== RUN   TestProjectSchemaExamples
+    projection_test.go:83: projected 15 example documents
+--- PASS: TestProjectSchemaExamples (0.09s)
+PASS
+ok  	ngfw/agent/internal/agent	0.173s

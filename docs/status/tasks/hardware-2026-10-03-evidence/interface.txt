@@ -1,0 +1,30 @@
+=== RUN   TestAttributesOnHost
+2026/10/03 13:02:28 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-tap1 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+=== RUN   TestAttributesOnHost/admin-state
+    integration_test.go:90: interface.admin-state: Retrieve == desired: interface.admin-state/loop3201 interface:"interface/loop3201"
+=== RUN   TestAttributesOnHost/mtu
+    integration_test.go:100: interface.mtu: Retrieve == desired: interface.mtu/loop3201 interface:"interface/loop3201" mtu:1500 ip4:1400
+=== RUN   TestAttributesOnHost/mac-address
+    integration_test.go:103: interface.mac-address: Retrieve == desired: interface.mac-address/loop3201 interface:"interface/loop3201" mac:"02:02:00:00:c9:01"
+=== RUN   TestAttributesOnHost/promisc
+    integration_test.go:106: interface.promisc: Retrieve == desired: interface.promisc/w32-tap1 interface:"interface/w32-tap1"
+=== RUN   TestAttributesOnHost/rx-mode
+    integration_test.go:109: interface.rx-mode: Retrieve == desired: interface.rx-mode/w32-tap1 interface:"interface/w32-tap1" mode:RX_MODE_KIND_INTERRUPT
+=== RUN   TestAttributesOnHost/rx-placement
+    integration_test.go:113: skip: no workers on host (startup.conf cpu { } runs the main core only; sw_interface_set_rx_placement needs a worker)
+=== RUN   TestAttributesOnHost/subinterface
+2026/10/03 13:02:28 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop3201.100 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:118: interface.subinterface: Retrieve == desired: interface.subinterface/loop3201.100 parent:"interface/loop3201" sub_id:100 outer_vlan:100 exact_match:true
+2026/10/03 13:02:28 INFO interface sanitized (VPP V19/V21 inherited state) interface=sub-interface sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:02:28 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:02:28 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- PASS: TestAttributesOnHost (0.22s)
+    --- PASS: TestAttributesOnHost/admin-state (0.00s)
+    --- PASS: TestAttributesOnHost/mtu (0.00s)
+    --- PASS: TestAttributesOnHost/mac-address (0.00s)
+    --- PASS: TestAttributesOnHost/promisc (0.00s)
+    --- PASS: TestAttributesOnHost/rx-mode (0.00s)
+    --- SKIP: TestAttributesOnHost/rx-placement (0.00s)
+    --- PASS: TestAttributesOnHost/subinterface (0.05s)
+PASS
+ok  	ngfw/agent/internal/descriptors/interface	0.248s

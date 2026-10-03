@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c cd apps/agent && go test -race ./internal/agent ./internal/secretchannel -run "TestRoutingOnlyApply|Secret|EmptyBundle|Retain" -count=1
+heavy: slot 1 after 70s
+ok  	ngfw/agent/internal/agent	2.269s
+ok  	ngfw/agent/internal/secretchannel	1.149s

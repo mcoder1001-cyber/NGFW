@@ -54,6 +54,26 @@ afterEach(async () => {
 });
 
 describe('Tools → Packet capture (F-capture-trace)', () => {
+  it('requires confirmation before stopping an active capture', async () => {
+    const fake = installFakeApi('admin');
+    const active = structuredClone(STATE);
+    active.captures[0]!.state = 'running';
+    fake.on('GET /api/v1/state/captures', () => ({ body: active }));
+    let stopped = false;
+    fake.on('POST /api/v1/actions/capture/ngfw-20260927T100000-1/stop', () => {
+      stopped = true;
+      active.captures[0]!.state = 'done';
+      return { status: 202, body: { id: active.captures[0]!.id } };
+    });
+    await signIn();
+    render(app('/tools/capture'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop capture' }));
+    expect(stopped).toBe(false);
+    const buttons = screen.getAllByRole('button', { name: 'Stop capture' });
+    fireEvent.click(buttons[buttons.length - 1]!);
+    await waitFor(() => expect(stopped).toBe(true));
+  });
+
   it('replaces the Tools "not available" item', () => {
     const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
     expect(items.find((i) => i.id === 'capture')).toMatchObject({
@@ -86,10 +106,14 @@ describe('Tools → Packet capture (F-capture-trace)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start capture' }));
     expect(await screen.findByText('not owned')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Trace' }));
-    expect(screen.getByTestId('trace-unavailable')).toHaveTextContent(/D-128/);
+    expect(screen.getByTestId('trace-unavailable')).toHaveTextContent(
+      /Packet tracing is unavailable/,
+    );
     fireEvent.click(screen.getByRole('tab', { name: 'Packet generator' }));
     await waitFor(() =>
-      expect(screen.getByTestId('pg-unavailable')).toHaveTextContent(/no stream API/),
+      expect(screen.getByTestId('pg-unavailable')).toHaveTextContent(
+        /Packet generation is unavailable/,
+      ),
     );
   });
 });

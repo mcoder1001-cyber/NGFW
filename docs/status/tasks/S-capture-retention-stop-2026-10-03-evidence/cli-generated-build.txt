@@ -1,0 +1,7 @@
+make: Entering directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'
+go run ./cmd/vrx-opgen -in ../../packages/api-client/openapi.json -out internal/api/operations_gen.go
+vrx-opgen: internal/api/operations_gen.go written
+make: Leaving directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'
+make: Entering directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=5848a73c-dirty" -o bin/vrx ./cmd/vrx
+make: Leaving directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'

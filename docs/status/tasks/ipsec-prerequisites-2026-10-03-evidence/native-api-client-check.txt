@@ -1,0 +1,4 @@
+$ tsc -p tsconfig.json && node scripts/copy-types.mjs
+api-client: copied src/generated/schema.d.ts → dist/generated/schema.d.ts
+$ node scripts/copy-types.mjs --check && tsc -p test/tsconfig.json
+api-client: dist/generated/schema.d.ts present

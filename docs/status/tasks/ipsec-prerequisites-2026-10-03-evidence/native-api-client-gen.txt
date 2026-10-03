@@ -1,0 +1,16 @@
+$ pnpm --filter "@ngfw/api^..." run build && pnpm --filter @ngfw/api openapi && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+Scope: 3 of 8 workspace projects
+../schema build$ tsc -p tsconfig.json
+../schema build: Done
+../proto build$ tsc -p tsconfig.build.json
+../yang build$ tsc -p tsconfig.json
+../yang build: Done
+../proto build: Done
+$ tsc -p tsconfig.build.json && node dist/openapi.js ../../packages/api-client/openapi.json
+api: OpenAPI written to ../../packages/api-client/openapi.json
+✨ openapi-typescript 7.13.0
+ ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1state~1captures~1{id}/delete/responses
+ ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1start/get/responses
+ ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1callback/get/responses
+🚀 openapi.json → src/generated/schema.d.ts [2.4s]
+src/generated/schema.d.ts 9969ms

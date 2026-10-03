@@ -1,0 +1,186 @@
+DISPOSABLE_VPP pid=453434 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-453387
+['help', 'create', 'tap']
+create tap {id <if-id>} [hw-addr <mac-address>] [if-name <if-name>] [num-rx-queues <n>] [num-tx-queues <n>] [rx-ring-size <size>] [tx-ring-size <size>] [host-ns <netns>] [host-bridge <bridge-name>] [host-ip4-addr <ip4addr/mask>] [host-ip6-addr <ip6-addr>] [host-ip4-gw <ip4-addr>] [host-ip6-gw <ip6-addr>] [host-mac-addr <host-mac-address>] [host-if-name <name>] [host-mtu-size <size>] [no-gso|gso [gro-coalesce]|csum-offload] [persist] [attach] [tun] [packed] [in-order]
+['create', 'tap', 'id', '3288', 'host-if-name', 'hwprobe0']
+tap3288
+['show', 'logging']
+2026/10/03 13:33:15:265 notice     plugin/load    Plugin disabled (default): auto_sdl_unittest_plugin.so
+2026/10/03 13:33:15:365 notice     plugin/load    Plugin disabled (default): fateshare_plugin.so
+2026/10/03 13:33:15:369 notice     plugin/load    Plugin disabled (default): http_unittest_plugin.so
+2026/10/03 13:33:15:369 notice     plugin/load    Plugin disabled (default): idpf_plugin.so
+2026/10/03 13:33:15:370 notice     plugin/load    Plugin disabled (default): ip6_dad_autoremove_plugin.so
+2026/10/03 13:33:15:371 notice     plugin/load    Plugin disabled (default): linux_cp_unittest_plugin.so
+2026/10/03 13:33:15:375 notice     plugin/load    Plugin disabled (default): lisp_unittest_plugin.so
+2026/10/03 13:33:15:401 notice     plugin/load    Loaded plugin: abf_plugin.so (Access Control List (ACL) Based Forwarding)
+2026/10/03 13:33:15:405 notice     plugin/load    Loaded plugin: acl_plugin.so (Access Control Lists (ACL))
+2026/10/03 13:33:15:406 notice     plugin/load    Loaded plugin: adl_plugin.so (Allow/deny list plugin)
+2026/10/03 13:33:15:406 notice     plugin/load    Loaded plugin: af_packet_plugin.so (af-packet)
+2026/10/03 13:33:15:411 notice     plugin/load    Loaded plugin: af_xdp_plugin.so (AF_XDP Device Plugin)
+2026/10/03 13:33:15:411 notice     plugin/load    Loaded plugin: arping_plugin.so (Arping (arping))
+2026/10/03 13:33:15:411 notice     plugin/load    Loaded plugin: auto_sdl_plugin.so (Auto SDL)
+2026/10/03 13:33:15:412 notice     plugin/load    Plugin disabled (default): auto_sdl_unittest_plugin.so
+2026/10/03 13:33:15:417 notice     plugin/load    Loaded plugin: bpf_trace_filter_plugin.so (BPF Trace Filter Plugin)
+2026/10/03 13:33:15:417 notice     plugin/load    Loaded plugin: cdp_plugin.so (Cisco Discovery Protocol (CDP))
+2026/10/03 13:33:15:419 notice     plugin/load    Loaded plugin: cnat_plugin.so (CNat Translate)
+2026/10/03 13:33:15:419 notice     plugin/load    Loaded plugin: crypto_sw_scheduler_plugin.so (SW Scheduler Crypto Async Engine plugin)
+2026/10/03 13:33:15:419 notice     plugin/load    Loaded plugin: ct6_plugin.so (IPv6 Connection Tracker)
+2026/10/03 13:33:15:423 notice     plugin/load    Loaded plugin: det44_plugin.so (Deterministic NAT (CGN))
+2026/10/03 13:33:15:424 notice     plugin/load    Loaded plugin: dhcp_plugin.so (Dynamic Host Configuration Protocol (DHCP))
+2026/10/03 13:33:15:424 notice     plugin/load    Loaded plugin: dma_intel_plugin.so (Intel DSA Backend)
+2026/10/03 13:33:15:424 notice     plugin/load    Loaded plugin: dns_plugin.so (Simple DNS name resolver)
+2026/10/03 13:33:15:476 notice     plugin/load    Loaded plugin: dpdk_plugin.so (Data Plane Development Kit (DPDK))
+2026/10/03 13:33:15:477 notice     plugin/load    Loaded plugin: dslite_plugin.so (Dual-Stack Lite)
+2026/10/03 13:33:15:477 notice     plugin/load    Plugin disabled (default): fateshare_plugin.so
+2026/10/03 13:33:15:477 notice     plugin/load    Loaded plugin: flowprobe_plugin.so (Flow per Packet)
+2026/10/03 13:33:15:478 notice     plugin/load    Loaded plugin: geneve_plugin.so (GENEVE Tunnels)
+2026/10/03 13:33:15:478 notice     plugin/load    Loaded plugin: gre_plugin.so (Generic Routing Encapsulation (GRE) plugin)
+2026/10/03 13:33:15:478 notice     plugin/load    Loaded plugin: gtpu_plugin.so (GPRS Tunnelling Protocol, User Data (GTPv1-U))
+2026/10/03 13:33:15:479 notice     plugin/load    Loaded plugin: hs_apps_plugin.so (Host Stack Applications)
+2026/10/03 13:33:15:479 notice     plugin/load    Loaded plugin: hsi_plugin.so (Host Stack Intercept (HSI))
+2026/10/03 13:33:15:480 notice     plugin/load    Loaded plugin: http_plugin.so (Hypertext Transfer Protocol (HTTP))
+2026/10/03 13:33:15:480 notice     plugin/load    Loaded plugin: http_static_plugin.so (HTTP Static Server)
+2026/10/03 13:33:15:480 notice     plugin/load    Plugin disabled (default): http_unittest_plugin.so
+2026/10/03 13:33:15:481 notice     plugin/load    Plugin disabled (default): idpf_plugin.so
+2026/10/03 13:33:15:481 notice     plugin/load    Loaded plugin: igmp_plugin.so (Internet Group Management Protocol (IGMP))
+2026/10/03 13:33:15:482 notice     plugin/load    Loaded plugin: ikev2_plugin.so (Internet Key Exchange (IKEv2) Protocol)
+2026/10/03 13:33:15:482 notice     plugin/load    Loaded plugin: ila_plugin.so (Identifier Locator Addressing (ILA) for IPv6)
+2026/10/03 13:33:15:482 notice     plugin/load    Loaded plugin: ioam_plugin.so (Inbound Operations, Administration, and Maintenance (OAM))
+2026/10/03 13:33:15:483 notice     plugin/load    Plugin disabled (default): ip6_dad_autoremove_plugin.so
+2026/10/03 13:33:15:483 notice     plugin/load    Loaded plugin: ip_session_redirect_plugin.so (IP session redirect)
+2026/10/03 13:33:15:483 notice     plugin/load    Loaded plugin: l2tp_plugin.so (Layer 2 Tunneling Protocol v3 (L2TP))
+2026/10/03 13:33:15:484 notice     plugin/load    Loaded plugin: l3xc_plugin.so (L3 Cross-Connect (L3XC))
+2026/10/03 13:33:15:484 notice     plugin/load    Loaded plugin: lacp_plugin.so (Link Aggregation Control Protocol (LACP))
+2026/10/03 13:33:15:484 notice     plugin/load    Loaded plugin: lb_plugin.so (Load Balancer (LB))
+2026/10/03 13:33:15:485 notice     plugin/load    Loaded plugin: linux_cp_plugin.so (Linux Control Plane - Interface Mirror)
+2026/10/03 13:33:15:485 notice     plugin/load    Plugin disabled (default): linux_cp_unittest_plugin.so
+2026/10/03 13:33:15:485 notice     plugin/load    Loaded plugin: linux_nl_plugin.so (linux Control Plane - Netlink listener)
+2026/10/03 13:33:15:486 notice     plugin/load    Loaded plugin: lisp_plugin.so (Locator ID Separation Protocol (LISP))
+2026/10/03 13:33:15:486 notice     plugin/load    Plugin disabled (default): lisp_unittest_plugin.so
+2026/10/03 13:33:15:487 notice     plugin/load    Loaded plugin: lldp_plugin.so (Link Layer Discovery Protocol (LLDP))
+2026/10/03 13:33:15:487 notice     plugin/load    Loaded plugin: mactime_plugin.so (Time-based MAC Source Address Filter)
+2026/10/03 13:33:15:487 notice     plugin/load    Loaded plugin: map_plugin.so (Mapping of Address and Port (MAP))
+2026/10/03 13:33:15:488 notice     plugin/load    Loaded plugin: mdata_plugin.so (Buffer metadata change tracker.)
+2026/10/03 13:33:15:489 notice     plugin/load    Loaded plugin: memif_plugin.so (Packet Memory Interface (memif) -- Experimental)
+2026/10/03 13:33:15:489 notice     plugin/load    Loaded plugin: mss_clamp_plugin.so (TCP MSS clamping plugin)
+2026/10/03 13:33:15:490 notice     plugin/load    Loaded plugin: nat44_ei_plugin.so (IPv4 Endpoint-Independent NAT (NAT44 EI))
+2026/10/03 13:33:15:490 notice     plugin/load    Loaded plugin: nat64_plugin.so (NAT64)
+2026/10/03 13:33:15:490 notice     plugin/load    Loaded plugin: nat66_plugin.so (NAT66)
+2026/10/03 13:33:15:491 notice     plugin/load    Loaded plugin: nat_plugin.so (Network Address Translation (NAT))
+2026/10/03 13:33:15:492 notice     plugin/load    Loaded plugin: npol_plugin.so (Network Policy)
+2026/10/03 13:33:15:492 notice     plugin/load    Loaded plugin: npt66_plugin.so (NPTv6)
+2026/10/03 13:33:15:492 notice     plugin/load    Loaded plugin: nsh_plugin.so (Network Service Header (NSH))
+2026/10/03 13:33:15:493 notice     plugin/load    Loaded plugin: nsim_plugin.so (Network Delay Simulator)
+2026/10/03 13:33:15:493 notice     plugin/load    Loaded plugin: osi_plugin.so (OSI plugin)
+2026/10/03 13:33:15:493 notice     plugin/load    Loaded plugin: ping_plugin.so (Ping (ping))
+2026/10/03 13:33:15:494 notice     plugin/load    Loaded plugin: pnat_plugin.so (Policy 1:1 NAT)
+2026/10/03 13:33:15:494 notice     plugin/load    Loaded plugin: policer_plugin.so (Policer)
+2026/10/03 13:33:15:494 notice     plugin/load    Loaded plugin: ppp_plugin.so (Point-to-Point Protocol (PPP) plugin)
+2026/10/03 13:33:15:495 notice     plugin/load    Loaded plugin: pppoe_plugin.so (PPP over Ethernet (PPPoE))
+2026/10/03 13:33:15:496 notice     plugin/load    Loaded plugin: prom_plugin.so (Prometheus Stats Exporter)
+2026/10/03 13:33:15:496 notice     plugin/load    Loaded plugin: pvti_plugin.so (Packet Vector Tunnel Interface plugin)
+2026/10/03 13:33:15:497 notice     plugin/load    Loaded plugin: quic_plugin.so (QUIC transport protocol)
+2026/10/03 13:33:15:498 notice     plugin/load    Loaded plugin: quic_quicly_plugin.so (Quicly QUIC Engine)
+2026/10/03 13:33:15:500 notice     plugin/load    Loaded plugin: rdma_plugin.so (RDMA IBverbs Device Driver)
+2026/10/03 13:33:15:500 notice     plugin/load    Loaded plugin: sasc_plugin.so (Session Aware Service Chaining (sasc))
+2026/10/03 13:33:15:500 notice     plugin/load    Loaded plugin: selog_plugin.so (sFlow random packet sampling)
+2026/10/03 13:33:15:501 notice     plugin/load    Loaded plugin: sfdp_services_plugin.so (SFDP Services Plugin)
+2026/10/03 13:33:15:501 notice     plugin/load    Loaded plugin: sflow_plugin.so (sFlow random packet sampling)
+2026/10/03 13:33:15:502 notice     plugin/load    Loaded plugin: soft_rss_plugin.so (Software RSS feature arc template)
+2026/10/03 13:33:15:502 notice     plugin/load    Loaded plugin: srmpls_plugin.so (Segment Routing for MPLS plugin)
+2026/10/03 13:33:15:502 notice     plugin/load    Loaded plugin: srv6ad_plugin.so (Dynamic Segment Routing for IPv6 (SRv6) Proxy)
+2026/10/03 13:33:15:503 notice     plugin/load    Loaded plugin: srv6adflow_plugin.so (Dynamic Segment Routing for IPv6 (SRv6) Proxy)
+2026/10/03 13:33:15:503 notice     plugin/load    Loaded plugin: srv6am_plugin.so (Masquerading Segment Routing for IPv6 (SRv6) Proxy)
+2026/10/03 13:33:15:503 notice     plugin/load    Loaded plugin: srv6as_plugin.so (Static Segment Routing for IPv6 (SRv6) Proxy)
+2026/10/03 13:33:15:504 notice     plugin/load    Loaded plugin: srv6mobile_plugin.so (SRv6 GTP Endpoint Functions)
+2026/10/03 13:33:15:504 notice     plugin/load    Loaded plugin: stn_plugin.so (VPP Steals the NIC (STN) for Container Integration)
+2026/10/03 13:33:15:504 notice     plugin/load    Loaded plugin: svs_plugin.so (Source Virtual Routing and Forwarding (VRF) Select)
+2026/10/03 13:33:15:505 notice     plugin/load    Loaded plugin: tap_plugin.so (TAP/TUN device (virtio backend))
+2026/10/03 13:33:15:505 notice     plugin/load    Loaded plugin: tlsopenssl_plugin.so (Transport Layer Security (TLS) Engine, OpenSSL Based)
+2026/10/03 13:33:15:505 notice     plugin/load    Loaded plugin: tlspicotls_plugin.so (Transport Layer Security (TLS) Engine, Picotls Based)
+2026/10/03 13:33:15:506 notice     plugin/load    Loaded plugin: udp_echo_plugin.so (UDP Echo Plugin)
+2026/10/03 13:33:15:506 notice     plugin/load    Loaded plugin: urpf_plugin.so (Unicast Reverse Path Forwarding (uRPF))
+2026/10/03 13:33:15:507 notice     plugin/load    Loaded plugin: vhost_plugin.so (Vhost-User)
+2026/10/03 13:33:15:508 notice     plugin/load    Loaded plugin: vmxnet3_plugin.so (VMWare Vmxnet3 Device Driver)
+2026/10/03 13:33:15:508 notice     plugin/load    Loaded plugin: vrrp_plugin.so (VRRP v3 (RFC 5798))
+2026/10/03 13:33:15:509 notice     plugin/load    Loaded plugin: vxlan-gpe_plugin.so (VxLan GPE Tunnels)
+2026/10/03 13:33:15:509 notice     plugin/load    Loaded plugin: vxlan_plugin.so (VxLan Tunnels)
+2026/10/03 13:33:15:509 notice     plugin/load    Loaded plugin: wireguard_plugin.so (Wireguard Protocol)
+2026/10/03 13:33:15:849 notice     ip6/dad        IPv6 DAD initialized (disabled by default)
+2026/10/03 13:33:16:165 notice     sflow/all      linux-cp found - using LIP vif_index, where available
+2026/10/03 13:33:16:194 notice     dpdk           EAL init args: --no-pci --in-memory --no-telemetry --file-prefix vpp 
+2026/10/03 13:33:16:420 notice     vat-plug/load  Loaded plugin: srmpls_test_plugin.so
+2026/10/03 13:33:16:420 notice     vat-plug/load  Loaded plugin: vnet_interface_test_plugin.so
+2026/10/03 13:33:16:421 notice     vat-plug/load  Loaded plugin: vnet_ip6_nd_test_plugin.so
+2026/10/03 13:33:16:421 notice     vat-plug/load  Loaded plugin: ip_session_redirect_test_plugin.so
+2026/10/03 13:33:16:422 notice     vat-plug/load  Loaded plugin: cdp_test_plugin.so
+2026/10/03 13:33:16:422 error      vat-plug/load  vat_plugin_register: idpf plugin not loaded...
+2026/10/03 13:33:16:425 notice     vat-plug/load  Loaded plugin: flowprobe_test_plugin.so
+2026/10/03 13:33:16:425 notice     vat-plug/load  Loaded plugin: tlsopenssl_test_plugin.so
+2026/10/03 13:33:16:426 notice     vat-plug/load  Loaded plugin: lacp_test_plugin.so
+2026/10/03 13:33:16:426 notice     vat-plug/load  Loaded plugin: af_xdp_test_plugin.so
+2026/10/03 13:33:16:427 notice     vat-plug/load  Loaded plugin: lldp_test_plugin.so
+2026/10/03 13:33:16:428 notice     vat-plug/load  Loaded plugin: lb_test_plugin.so
+2026/10/03 13:33:16:428 notice     vat-plug/load  Loaded plugin: mdata_test_plugin.so
+2026/10/03 13:33:16:429 notice     vat-plug/load  Loaded plugin: vnet_ip_test_plugin.so
+2026/10/03 13:33:16:430 notice     vat-plug/load  Loaded plugin: geneve_test_plugin.so
+2026/10/03 13:33:16:431 notice     vat-plug/load  Loaded plugin: vnet_tm_test_plugin.so
+2026/10/03 13:33:16:432 notice     vat-plug/load  Loaded plugin: ioam_test_plugin.so
+2026/10/03 13:33:16:432 notice     vat-plug/load  Loaded plugin: arping_test_plugin.so
+2026/10/03 13:33:16:433 notice     vat-plug/load  Loaded plugin: vnet_arp_test_plugin.so
+2026/10/03 13:33:16:433 notice     vat-plug/load  Loaded plugin: vnet_ipsec_test_plugin.so
+2026/10/03 13:33:16:433 notice     vat-plug/load  Loaded plugin: adl_test_plugin.so
+2026/10/03 13:33:16:434 notice     vat-plug/load  Loaded plugin: dns_test_plugin.so
+2026/10/03 13:33:16:434 notice     vat-plug/load  Loaded plugin: vnet_session_test_plugin.so
+2026/10/03 13:33:16:435 notice     vat-plug/load  Loaded plugin: lisp_test_plugin.so
+2026/10/03 13:33:16:436 notice     vat-plug/load  Loaded plugin: vnet_l2_test_plugin.so
+2026/10/03 13:33:16:436 notice     vat-plug/load  Loaded plugin: stn_test_plugin.so
+2026/10/03 13:33:16:437 notice     vat-plug/load  Loaded plugin: pppoe_test_plugin.so
+2026/10/03 13:33:16:437 notice     vat-plug/load  Loaded plugin: vlib_vlibapi_test_plugin.so
+2026/10/03 13:33:16:438 notice     vat-plug/load  Loaded plugin: nsim_test_plugin.so
+2026/10/03 13:33:16:438 notice     vat-plug/load  Loaded plugin: vrrp_test_plugin.so
+2026/10/03 13:33:16:439 notice     vat-plug/load  Loaded plugin: vmxnet3_test_plugin.so
+2026/10/03 13:33:16:439 notice     vat-plug/load  Loaded plugin: http_static_test_plugin.so
+2026/10/03 13:33:16:440 notice     vat-plug/load  Loaded plugin: acl_test_plugin.so
+2026/10/03 13:33:16:440 notice     vat-plug/load  Loaded plugin: rdma_test_plugin.so
+2026/10/03 13:33:16:440 notice     vat-plug/load  Loaded plugin: memif_test_plugin.so
+2026/10/03 13:33:16:441 notice     vat-plug/load  Loaded plugin: sflow_test_plugin.so
+2026/10/03 13:33:16:442 notice     vat-plug/load  Loaded plugin: nsh_test_plugin.so
+2026/10/03 13:33:16:442 notice     vat-plug/load  Loaded plugin: ikev2_test_plugin.so
+2026/10/03 13:33:16:442 notice     vat-plug/load  Loaded plugin: gtpu_test_plugin.so
+2026/10/03 13:33:16:443 notice     vat-plug/load  Loaded plugin: vpp_api_test_plugin.so
+2026/10/03 13:33:16:443 notice     vat-plug/load  Loaded plugin: ct6_test_plugin.so
+2026/10/03 13:33:16:443 notice     vat-plug/load  Loaded plugin: l2tp_test_plugin.so
+2026/10/03 13:33:16:444 notice     vat-plug/load  Loaded plugin: mactime_test_plugin.so
+2026/10/03 13:33:16:444 notice     vat-plug/load  Loaded plugin: dhcp_test_plugin.so
+2026/10/03 13:33:16:449 notice     dpdk           EAL: Detected CPU lcores: 32
+2026/10/03 13:33:16:449 notice     dpdk           EAL: Detected NUMA nodes: 1
+2026/10/03 13:33:16:449 notice     dpdk           EAL: Detected static linkage of DPDK
+2026/10/03 13:33:16:449 notice     dpdk           EAL: Selected IOVA mode 'PA'
+2026/10/03 13:33:16:449 notice     dpdk           EAL: No free 1048576 kB hugepages reported on node 0
+2026/10/03 13:33:16:449 notice     dpdk           EAL: VFIO support initialized
+['show', 'hardware-interfaces']
+              Name                Idx   Link  Hardware
+local0                             0    down  local0
+  Link speed: unknown
+  local
+tap3288                            1     up   tap3288
+  Link speed: unknown
+  RX Queues:
+    queue thread         mode      
+    0     vpp_wk_0 (1)   polling   
+  TX Queues:
+    TX Hash: [name: hash-eth-l34 priority: 50 description: Hash ethernet L34 headers]
+    queue shared thread(s)      
+    0     no     0
+    1     no     1
+    2     no     2
+  Ethernet address 02:fe:8f:ec:f9:62
+  VIRTIO interface
+     instance 0
+       RX QUEUE : Total Packets
+              0 : 0
+       TX QUEUE : Total Packets
+              0 : 0
+              1 : 0
+              2 : 0
+DISPOSABLE_VPP_STOPPED pid=453434

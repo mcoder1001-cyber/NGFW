@@ -1,0 +1,26 @@
+[
+  {
+    "label": "acl-scale-janitor",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/acl",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "15m",
+      "-run",
+      "TestACLTopology|TestACLJanitor",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 94.11,
+    "tests": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    }
+  }
+]

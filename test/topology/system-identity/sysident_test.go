@@ -7,15 +7,19 @@ package sysid
 //	               never calls sethostname)
 //	real ngfw-api (slot port, slot database) — `system` through the generic pointer routes, commit
 //
-// Evidence: the rendered files under the rig root match testdata/*.golden and /etc/localtime points at the zone;
-// an unknown zone and a banner with an escape sequence are refused with 400 problem+json naming the pointer; an agent
-// restart with nothing changed rewrites nothing (mtimes and the agent log); the host's own identity is unchanged.
+// Evidence: the rendered files under the rig root match testdata/*.golden (`diff -u`, pasted) and /etc/localtime
+// points at the zone; an unknown zone and a banner carrying ESC, CR, a C1 control or a bidi override are refused
+// with 400 problem+json naming the pointer; an agent restart with nothing changed rewrites nothing (mtimes and the
+// agent log: no "system identity applied", so no SetHostname/SetTimezone); the host's own identity is unchanged.
 
 import (
+	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -122,6 +126,47 @@ func hostIdentity(t *testing.T) string {
 	return b.String()
 }
 
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// exitCode of a finished command (0 on success, -1 when it did not run).
+func exitCode(err error) int {
+	var ee *exec.ExitError
+	switch {
+	case err == nil:
+		return 0
+	case errors.As(err, &ee):
+		return ee.ExitCode()
+	default:
+		return -1
+	}
+}
+
+// logLines are the lines of the agent log s that contain any of the needles.
+func logLines(s string, needles ...string) []string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		for _, n := range needles {
+			if strings.Contains(l, n) {
+				out = append(out, l)
+				break
+			}
+		}
+	}
+	return out
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func TestSystemIdentity(t *testing.T) {
 	if os.Getenv("NGFW_INTEGRATION") != "1" {
 		t.Skip("F-system-identity topology test: set NGFW_INTEGRATION=1 (run.sh does)")
@@ -135,6 +180,7 @@ func TestSystemIdentity(t *testing.T) {
 	s := slotFromEnv(t)
 	sharedLock(t)
 	host0 := hostIdentity(t)
+	t.Logf("host identity before: %s", host0)
 	t.Cleanup(func() {
 		if h := hostIdentity(t); h != host0 {
 			t.Errorf("the host's identity changed:\n before %s\n after  %s", host0, h)
@@ -153,20 +199,28 @@ func TestSystemIdentity(t *testing.T) {
 		t.Logf("cleanup commit → %d %v", r.status, r.body["status"])
 	})
 
-	// ---- refused at the API with a pointer --------------------------------------------------------------------
+	// ---- refused at the API with a pointer: unknown zone; banner with ESC, CR, a C1 control, a bidi override ----
 	for _, c := range []struct {
-		path string
-		body any
-		ptr  string
+		name, path string
+		body       any
+		ptr        string
 	}{
-		{"/api/v1/config/system/timezone", "Mars/Olympus_Mons", "/system/timezone"},
-		{"/api/v1/config/system/banner", map[string]any{"login": "hi\x1b[2J\x1b[Hforged"}, "/system/banner/login"},
+		{"unknown zone", "/api/v1/config/system/timezone", "Mars/Olympus_Mons", "/system/timezone"},
+		{"ESC (ANSI clear screen)", "/api/v1/config/system/banner", map[string]any{"login": "hi\x1b[2J\x1b[Hforged"}, "/system/banner/login"},
+		{"CR (overwrites the line)", "/api/v1/config/system/banner", map[string]any{"login": "Authorised access only.\rforged line"}, "/system/banner/login"},
+		{"C1 CSI U+009B", "/api/v1/config/system/banner", map[string]any{"login": "hi\u009b2Jforged"}, "/system/banner/login"},
+		{"bidi RLO U+202E", "/api/v1/config/system/banner", map[string]any{"login": "access \u202eforged"}, "/system/banner/login"},
 	} {
 		r := a.call("PUT", c.path, c.body)
-		t.Logf("PUT %s → %d %s", c.path, r.status, r.raw)
-		if r.status != 400 || !strings.Contains(r.raw, `"pointer":"`+c.ptr) {
-			t.Fatalf("PUT %s: want 400 naming %s", c.path, c.ptr)
+		t.Logf("%s: PUT %s %s → %d %s %s", c.name, c.path, strconv.QuoteToASCII(mustJSON(c.body)), r.status, r.ctype, r.raw)
+		if r.status != 400 || !strings.HasPrefix(r.ctype, "application/problem+json") || !strings.Contains(r.raw, `"pointer":"`+c.ptr+`"`) {
+			t.Fatalf("%s: PUT %s: want 400 application/problem+json naming %s", c.name, c.path, c.ptr)
 		}
+	}
+	if r := a.must(200, "GET", "/api/v1/config/diff", nil); strings.Contains(r.raw, "Mars") || strings.Contains(r.raw, "forged") {
+		t.Fatalf("a refused PUT reached the candidate: %s", r.raw)
+	} else {
+		t.Logf("GET /api/v1/config/diff after the refusals (nothing of them in the candidate): %s", r.raw)
 	}
 
 	// ---- commit and compare the rendering with the goldens ---------------------------------------------------
@@ -182,14 +236,18 @@ func TestSystemIdentity(t *testing.T) {
 		"hostname.golden": filepath.Join(rig, "etc/hostname"), "issue.golden": filepath.Join(rig, "etc/issue"),
 		"motd.golden": filepath.Join(rig, "etc/motd"), "resolved-ngfw.conf.golden": filepath.Join(rig, "etc/systemd/resolved.conf.d/ngfw.conf"),
 	}
+	t.Logf("$ find %s -exec ls -ld --time-style=full-iso {} +\n%s", rig,
+		mustRun(t, "find", rig, "-exec", "ls", "-ld", "--time-style=full-iso", "{}", "+"))
 	mtimes := map[string]time.Time{}
-	for golden, path := range files {
+	for _, golden := range sortedKeys(files) {
+		path := files[golden]
 		got, err := os.ReadFile(path) //nolint:gosec // the slot rig
 		if err != nil {
 			t.Fatal(err)
 		}
 		want, _ := os.ReadFile(filepath.Join("testdata", golden)) //nolint:gosec // testdata
 		have := string(got)
+		args := []string{"-u", filepath.Join("testdata", golden), path}
 		if golden == "resolved-ngfw.conf.golden" { // the embedded render input line is the agent's own bookkeeping
 			var keep []string
 			for _, l := range strings.Split(have, "\n") {
@@ -198,8 +256,11 @@ func TestSystemIdentity(t *testing.T) {
 				}
 			}
 			have = strings.Join(keep, "\n")
+			args = []string{"-u", "-I", "^#", filepath.Join("testdata", golden), path} // ignores only the comment hunks
 		}
-		if have != string(want) {
+		out, derr := run("diff", args...)
+		t.Logf("$ diff %s → exit %d\n%s", strings.Join(args, " "), exitCode(derr), out)
+		if have != string(want) || derr != nil {
 			t.Errorf("%s:\n got %q\nwant %q", path, have, want)
 		}
 		t.Logf("$ cat %s\n%s", path, got)
@@ -208,26 +269,56 @@ func TestSystemIdentity(t *testing.T) {
 	}
 	if lt, err := os.Readlink(filepath.Join(rig, "etc/localtime")); err != nil || lt != "/usr/share/zoneinfo/Asia/Tehran" {
 		t.Errorf("localtime -> %q (%v)", lt, err)
+	} else {
+		t.Logf("$ readlink %s → %s", filepath.Join(rig, "etc/localtime"), lt)
+	}
+	if h, _ := os.ReadFile(filepath.Join(rig, "etc/hosts")); !strings.Contains(string(h), "127.0.1.1\tngfw-sysid.lab.example ngfw-sysid") { //nolint:gosec // the slot rig
+		t.Errorf("slot hosts line: %q", h)
+	} else {
+		t.Logf("$ cat %s\n%s", filepath.Join(rig, "etc/hosts"), h)
+	}
+	// ---- S-system-identity-state: the live identity through GET /api/v1/state/system -----------------------------
+	sys := a.call("GET", "/api/v1/state/system", nil)
+	t.Logf("GET /api/v1/state/system → %d identity=%s", sys.status, mustJSON(sys.body["identity"]))
+	if id, _ := sys.body["identity"].(map[string]any); id == nil || id["available"] != true || id["mechanism"] != "files" ||
+		id["hostname"] != "ngfw-sysid.lab.example" || id["timezone"] != "Asia/Tehran" || id["inSync"] != true {
+		t.Errorf("state identity: %v", sys.body["identity"])
 	}
 
-	// ---- agent restart: nothing changed → nothing rewritten --------------------------------------------------
+	// ---- agent restart: nothing changed → nothing rewritten, no SetHostname/SetTimezone -----------------------
+	before, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
+	for _, l := range logLines(string(before), "system identity wired", "system identity applied") {
+		t.Logf("agent log before restart: %s", l)
+	}
 	st.agent.stop(t)
 	off, _ := os.Stat(st.agentLog)
 	st.startAgent(t)
-	time.Sleep(5 * time.Second) // the initial resync
-	for path, m := range mtimes {
-		if fi, err := os.Stat(path); err != nil || !fi.ModTime().Equal(m) {
+	tail := ""
+	readTail := func() string {
+		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
+		return string(raw[off.Size():])
+	}
+	// the restarted agent's initial resync must have run before "nothing rewritten" means anything
+	if !waitFor(60*time.Second, func() bool { tail = readTail(); return strings.Contains(tail, `"msg":"reconcile done"`) }) {
+		t.Fatalf("no \"reconcile done\" in the restarted agent's log within 60 s:\n%s", tail)
+	}
+	time.Sleep(2 * time.Second) // a late write would land in this window
+	tail = readTail()
+	for _, path := range sortedKeys(mtimes) {
+		m := mtimes[path]
+		fi, err := os.Stat(path)
+		if err != nil || !fi.ModTime().Equal(m) {
 			t.Errorf("%s rewritten after an agent restart with nothing changed", path)
+			continue
 		}
+		t.Logf("mtime %s: before restart %s, after %s (equal)", path, m.Format(time.RFC3339Nano), fi.ModTime().Format(time.RFC3339Nano))
 	}
-	raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-	tail := string(raw[off.Size():])
 	if strings.Contains(tail, "system identity applied") {
-		t.Errorf("restart re-applied the system identity:\n%s", tail)
+		t.Errorf("restart re-applied the system identity (SetHostname/SetTimezone may have run):\n%s", tail)
 	}
-	for _, l := range strings.Split(tail, "\n") {
-		if strings.Contains(l, "system identity") || strings.Contains(l, "reconcile done") {
-			t.Logf("agent log after restart: %s", l)
-		}
+	t.Logf("agent log after restart: %d \"system identity applied\" lines, %d \"set_hostname\" fields",
+		strings.Count(tail, "system identity applied"), strings.Count(tail, "set_hostname"))
+	for _, l := range logLines(tail, "system identity", "reconcile done", "sethostname", "set_hostname") {
+		t.Logf("agent log after restart: %s", l)
 	}
 }

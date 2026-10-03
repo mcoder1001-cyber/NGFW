@@ -180,3 +180,13 @@ func (*Liveness) Delete(context.Context, proto.Message, any) error { return nil 
 func (*Liveness) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return nil, fmt.Errorf("%s: %w", LivenessName, vpn.ErrRetrieveUnsupported)
 }
+
+// RecordsNoOwnership indicates VPP-global setters have no ownership records; D-071 registration restricts
+// writes to the designated globals owner, and absence never resets them.
+func (*LocalKey) RecordsNoOwnership() {}
+
+// RecordsNoOwnership indicates that this VPP-global setter has no ownership records.
+func (*SleepInterval) RecordsNoOwnership() {}
+
+// RecordsNoOwnership indicates that this VPP-global setter has no ownership records.
+func (*Liveness) RecordsNoOwnership() {}

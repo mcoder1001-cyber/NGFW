@@ -14,8 +14,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"sort"
 	"strconv"
+	"sync"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -246,6 +249,8 @@ func dumpVRs(ctx context.Context, c vpp.Client) ([]*vrrp.VrrpVrDetails, error) {
 }
 
 // ownedVR is one VR of this owner as dumped.
+var unresolvedWarnings sync.Map
+
 type ownedVR struct {
 	VR     VR
 	Idx    uint32
@@ -262,12 +267,25 @@ func ownedVRs(ctx context.Context, b df7.Base) ([]ownedVR, *df7.Interfaces, erro
 		return nil, nil, err
 	}
 	var out []ownedVR
+	var raw *dfkit.Ifaces
 	for _, d := range dets {
 		v6 := d.Config.Flags&vrrp.VRRP_API_VR_IPV6 != 0
 		name, ok := ifs.Owned(uint32(d.Config.SwIfIndex), func(n string) string {
 			return string(KeyVR(VR{Interface: n, VRID: d.Config.VrID, IPv6: v6}))
 		})
 		if !ok {
+			if raw == nil {
+				raw, err = dfkit.DumpInterfaces(ctx, b.Client, b.Owner)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
+			if _, exists := raw.ByIndex[uint32(d.Config.SwIfIndex)]; !exists {
+				key := fmt.Sprintf("%s/%d/%d/%v", b.Owner, d.Config.SwIfIndex, d.Config.VrID, v6)
+				if _, warned := unresolvedWarnings.LoadOrStore(key, true); !warned {
+					slog.WarnContext(ctx, "VRRP residue skipped: interface no longer exists", "owner", b.Owner, "sw_if_index", d.Config.SwIfIndex, "vr_id", d.Config.VrID, "ipv6", v6)
+				}
+			}
 			continue
 		}
 		out = append(out, ownedVR{VR: VR{Interface: name, VRID: d.Config.VrID, IPv6: v6}, Idx: uint32(d.Config.SwIfIndex), Detail: d})
@@ -360,13 +378,37 @@ func (d *VRDescriptor) Create(ctx context.Context, obj proto.Message) (any, erro
 		return nil, err
 	}
 	idx := tg.Index
+	// D-133 / RV-A R4 M3: claim the interface with the VR's key BEFORE the VPP add. Claiming after
+	// the add (the old order) left a live unowned VR whenever a crash fell between the add and the
+	// claim: invisible to Retrieve (an untagged object is reported only when claimed), so the next
+	// Create hit ENTRY_ALREADY_EXISTS and could never recreate it until a VPP restart. With
+	// claim-first a claim that cannot be recorded fails the Create with nothing written.
+	c, err := tg.ClaimFirst(ctx)
+	if err != nil {
+		return nil, err
+	}
 	index, err := d.update(ctx, df7.NoIndex, idx, v)
 	if err != nil {
-		// ENTRY_ALREADY_EXISTS: a VR with this key exists and is not ours (Retrieve would have
-		// reported ours) — never adopted, nothing claimed (review M1)
-		return nil, d.Wrap("vrrp_vr_update (create) "+string(KeyVR(v.VR)), df7.PluginError("vrrp", err))
+		werr := d.Wrap("vrrp_vr_update (create) "+string(KeyVR(v.VR)), df7.PluginError("vrrp", err))
+		// ENTRY_ALREADY_EXISTS: a VR with this key already exists. It is ours only when the claim
+		// existed before this Create (Claim.Adopt); a foreign VR (no prior claim) releases the fresh
+		// claim and is refused (ErrNotOurs). An adopted VR may carry other parameters than desired
+		// (priority, interval, addresses of an earlier attempt): converge it with Update's pool walk,
+		// which also recovers its pool index. A unicast/multicast mismatch surfaces as that update's
+		// error (the scheduler then fails the transaction; Delete + Create is the operator's fix).
+		if df7.IsVPPError(err, api.ENTRY_ALREADY_EXISTS) {
+			if aerr := c.Adopt(); aerr != nil {
+				return nil, errors.Join(werr, aerr)
+			}
+			m, uerr := d.Update(ctx, obj, obj, nil)
+			if uerr != nil {
+				return nil, errors.Join(werr, uerr)
+			}
+			return m, nil
+		}
+		return nil, c.Undo(werr)
 	}
-	return Meta{SwIfIndex: idx, Index: index, HasIndex: true}, tg.Claim()
+	return Meta{SwIfIndex: idx, Index: index, HasIndex: true}, nil
 }
 
 // maxProbe bounds the pool-index search of Update after a restart.
@@ -424,14 +466,28 @@ func (d *VRDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message,
 // Delete implements scheduler.Descriptor: vrrp_vr_add_del is_add=0 by key — interface
 // re-resolved by logical name (D-071), NO_SUCH_ENTRY = already gone (tracking, peers and
 // addresses go with the VR; the state object depends on the VR and stops it first).
-func (d *VRDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+func (d *VRDescriptor) Delete(ctx context.Context, obj proto.Message, previous any) error {
 	v, err := df7.Decode[VRSpec](obj)
 	if err != nil {
 		return err
 	}
 	tg, found, err := d.Detach(ctx, v.Interface, string(KeyVR(v.VR)))
-	if err != nil || !found {
+	if err != nil {
 		return err
+	}
+	if !found {
+		slog.WarnContext(ctx, "VRRP delete skipped: interface no longer resolves; VPP residue may need manual cleanup", "key", KeyVR(v.VR), "interface", v.Interface)
+		if meta, ok := previous.(Meta); ok {
+			identity, err := dfkit.IdentitySource(ctx, d.Client)
+			if err != nil {
+				return err
+			}
+			old := dfkit.Target{Name: v.Interface, Index: meta.SwIfIndex, Untagged: true, Owner: d.Owner, Holder: string(KeyVR(v.VR)), Identity: identity}
+			if err := old.Release(); err != nil {
+				return err
+			}
+		}
+		return d.ForgetApplied(string(KeyVR(v.VR)))
 	}
 	// the handler validates priority/interval/vr_id before it looks at is_add
 	_, err = vrrp.NewServiceClient(d.Client).VrrpVrAddDel(ctx, &vrrp.VrrpVrAddDel{IsAdd: 0, SwIfIndex: interface_types.InterfaceIndex(tg.Index),

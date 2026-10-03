@@ -1,0 +1,674 @@
+$ ip -o addr show dev ens193
+
+exit=0
+$ ip -o addr show dev ens256
+
+exit=0
+$ ip netns list
+
+exit=0
+$ ip netns list
+
+exit=0
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0
+$ ethtool -k ens256
+Features for ens256:
+rx-checksumming: on
+tx-checksumming: on
+	tx-checksum-ipv4: off [fixed]
+	tx-checksum-ip-generic: on
+	tx-checksum-ipv6: off [fixed]
+	tx-checksum-fcoe-crc: off [fixed]
+	tx-checksum-sctp: off [fixed]
+scatter-gather: on
+	tx-scatter-gather: on
+	tx-scatter-gather-fraglist: off [fixed]
+tcp-segmentation-offload: on
+	tx-tcp-segmentation: on
+	tx-tcp-ecn-segmentation: off [fixed]
+	tx-tcp-mangleid-segmentation: off
+	tx-tcp6-segmentation: on
+	tx-tcp-accecn-segmentation: off [fixed]
+generic-segmentation-offload: on
+generic-receive-offload: on
+large-receive-offload: off
+rx-vlan-offload: on
+tx-vlan-offload: on
+ntuple-filters: off [fixed]
+receive-hashing: on
+highdma: on
+rx-vlan-filter: on [fixed]
+vlan-challenged: off [fixed]
+tx-gso-robust: off [fixed]
+tx-fcoe-segmentation: off [fixed]
+tx-gre-segmentation: off [fixed]
+tx-gre-csum-segmentation: off [fixed]
+tx-ipxip4-segmentation: off [fixed]
+tx-ipxip6-segmentation: off [fixed]
+tx-udp_tnl-segmentation: off [fixed]
+tx-udp_tnl-csum-segmentation: off [fixed]
+tx-gso-partial: off [fixed]
+tx-tunnel-remcsum-segmentation: off [fixed]
+tx-sctp-segmentation: off [fixed]
+tx-esp-segmentation: off [fixed]
+tx-udp-segmentation: off [fixed]
+tx-gso-list: off [fixed]
+tx-nocache-copy: off
+loopback: off [fixed]
+rx-fcs: off [fixed]
+rx-all: off [fixed]
+tx-vlan-stag-hw-insert: off [fixed]
+rx-vlan-stag-hw-parse: off [fixed]
+rx-vlan-stag-filter: off [fixed]
+l2-fwd-offload: off [fixed]
+hw-tc-offload: off [fixed]
+esp-hw-offload: off [fixed]
+esp-tx-csum-hw-offload: off [fixed]
+rx-udp_tunnel-port-offload: off [fixed]
+tls-hw-tx-offload: off [fixed]
+tls-hw-rx-offload: off [fixed]
+rx-gro-hw: off [fixed]
+tls-hw-record: off [fixed]
+rx-gro-list: off
+macsec-hw-offload: off [fixed]
+rx-udp-gro-forwarding: off
+hsr-tag-ins-offload: off [fixed]
+hsr-tag-rm-offload: off [fixed]
+hsr-fwd-offload: off [fixed]
+hsr-dup-offload: off [fixed]
+
+exit=0
+$ ip netns add hw32-peer
+
+exit=0
+$ ip netns add hw32-lan
+
+exit=0
+$ ip link set ens256 netns hw32-peer
+
+exit=0
+$ ip -n hw32-peer link set lo up
+
+exit=0
+$ ip netns exec hw32-peer sysctl -qw net.ipv6.conf.ens256.disable_ipv6=1
+
+exit=0
+$ ip netns exec hw32-peer ethtool -K ens256 tx off
+Actual changes:
+tx-checksum-ip-generic: off
+tx-tcp-segmentation: off [not requested]
+tx-tcp6-segmentation: off [not requested]
+
+exit=0
+$ ip -n hw32-peer addr add 198.18.32.2/30 dev ens256
+
+exit=0
+$ ip -n hw32-peer link set ens256 up
+
+exit=0
+$ ip -n hw32-peer route add 198.18.33.0/30 via 198.18.32.1
+
+exit=0
+$ ip link add hw32l0 type veth peer name hw32l1
+
+exit=0
+$ ip link set hw32l1 netns hw32-lan
+
+exit=0
+$ ip -n hw32-lan link set lo up
+
+exit=0
+$ ip -n hw32-lan addr add 198.18.33.2/30 dev hw32l1
+
+exit=0
+$ ip -n hw32-lan link set hw32l1 up
+
+exit=0
+$ ip netns exec hw32-lan ethtool -K hw32l1 tx off
+Actual changes:
+tx-checksum-ip-generic: off
+tx-tcp-segmentation: off [not requested]
+tx-tcp-ecn-segmentation: off [not requested]
+tx-tcp-mangleid-segmentation: off [not requested]
+tx-tcp6-segmentation: off [not requested]
+tx-udp-segmentation: off [not requested]
+tx-checksum-sctp: off
+
+exit=0
+$ ip -n hw32-lan route add 198.18.32.0/30 via 198.18.33.1
+
+exit=0
+$ sysctl -qw net.ipv6.conf.ens193.disable_ipv6=1
+
+exit=0
+$ ip link set ens193 up
+
+exit=0
+$ sysctl -qw net.ipv6.conf.hw32l0.disable_ipv6=1
+
+exit=0
+$ ip link set hw32l0 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock create host-interface name ens193 tx-size 67584 tx-per-block 256 rx-size 2048 rx-per-block 8
+host-ens193
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mac address host-ens193 00:50:56:9f:4b:c6
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip6 classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface state host-ens193 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mtu packet 1500 host-ens193
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface ip address host-ens193 198.18.32.1/30
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock create host-interface name hw32l0 tx-size 67584 tx-per-block 256 rx-size 2048 rx-per-block 8
+host-hw32l0
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mac address host-hw32l0 86:44:e0:cc:fe:4e
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip6 classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface state host-hw32l0 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mtu packet 1500 host-hw32l0
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface ip address host-hw32l0 198.18.33.1/30
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ ip netns exec hw32-lan ping -n -c 3 -W 1 198.18.32.2
+PING 198.18.32.2 (198.18.32.2) 56(84) bytes of data.
+64 bytes from 198.18.32.2: icmp_seq=2 ttl=63 time=1.20 ms
+64 bytes from 198.18.32.2: icmp_seq=3 ttl=63 time=2.15 ms
+
+--- 198.18.32.2 ping statistics ---
+3 packets transmitted, 2 received, 33.3333% packet loss, time 2062ms
+rtt min/avg/max/mdev = 1.204/1.676/2.148/0.472 ms
+
+exit=0
+$ ip netns exec hw32-lan ping -n -c 100 -i .02 -W 1 198.18.32.2
+PING 198.18.32.2 (198.18.32.2) 56(84) bytes of data.
+64 bytes from 198.18.32.2: icmp_seq=1 ttl=63 time=2.19 ms
+64 bytes from 198.18.32.2: icmp_seq=2 ttl=63 time=2.67 ms
+64 bytes from 198.18.32.2: icmp_seq=3 ttl=63 time=1.51 ms
+64 bytes from 198.18.32.2: icmp_seq=4 ttl=63 time=1.67 ms
+64 bytes from 198.18.32.2: icmp_seq=5 ttl=63 time=1.68 ms
+64 bytes from 198.18.32.2: icmp_seq=6 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=7 ttl=63 time=1.79 ms
+64 bytes from 198.18.32.2: icmp_seq=8 ttl=63 time=1.58 ms
+64 bytes from 198.18.32.2: icmp_seq=9 ttl=63 time=1.67 ms
+64 bytes from 198.18.32.2: icmp_seq=10 ttl=63 time=1.57 ms
+64 bytes from 198.18.32.2: icmp_seq=11 ttl=63 time=1.78 ms
+64 bytes from 198.18.32.2: icmp_seq=12 ttl=63 time=1.50 ms
+64 bytes from 198.18.32.2: icmp_seq=13 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=14 ttl=63 time=1.80 ms
+64 bytes from 198.18.32.2: icmp_seq=15 ttl=63 time=1.69 ms
+64 bytes from 198.18.32.2: icmp_seq=16 ttl=63 time=2.69 ms
+64 bytes from 198.18.32.2: icmp_seq=17 ttl=63 time=1.61 ms
+64 bytes from 198.18.32.2: icmp_seq=18 ttl=63 time=1.73 ms
+64 bytes from 198.18.32.2: icmp_seq=19 ttl=63 time=1.72 ms
+64 bytes from 198.18.32.2: icmp_seq=20 ttl=63 time=1.77 ms
+64 bytes from 198.18.32.2: icmp_seq=21 ttl=63 time=1.72 ms
+64 bytes from 198.18.32.2: icmp_seq=22 ttl=63 time=1.60 ms
+64 bytes from 198.18.32.2: icmp_seq=23 ttl=63 time=1.62 ms
+64 bytes from 198.18.32.2: icmp_seq=24 ttl=63 time=1.67 ms
+64 bytes from 198.18.32.2: icmp_seq=25 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=26 ttl=63 time=1.78 ms
+64 bytes from 198.18.32.2: icmp_seq=27 ttl=63 time=1.43 ms
+64 bytes from 198.18.32.2: icmp_seq=28 ttl=63 time=1.65 ms
+64 bytes from 198.18.32.2: icmp_seq=29 ttl=63 time=1.75 ms
+64 bytes from 198.18.32.2: icmp_seq=30 ttl=63 time=1.69 ms
+64 bytes from 198.18.32.2: icmp_seq=31 ttl=63 time=1.57 ms
+64 bytes from 198.18.32.2: icmp_seq=32 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=33 ttl=63 time=1.62 ms
+64 bytes from 198.18.32.2: icmp_seq=34 ttl=63 time=1.65 ms
+64 bytes from 198.18.32.2: icmp_seq=35 ttl=63 time=1.73 ms
+64 bytes from 198.18.32.2: icmp_seq=36 ttl=63 time=1.89 ms
+64 bytes from 198.18.32.2: icmp_seq=37 ttl=63 time=1.42 ms
+64 bytes from 198.18.32.2: icmp_seq=38 ttl=63 time=2.33 ms
+64 bytes from 198.18.32.2: icmp_seq=39 ttl=63 time=1.69 ms
+64 bytes from 198.18.32.2: icmp_seq=40 ttl=63 time=1.70 ms
+64 bytes from 198.18.32.2: icmp_seq=41 ttl=63 time=1.75 ms
+64 bytes from 198.18.32.2: icmp_seq=42 ttl=63 time=1.67 ms
+64 bytes from 198.18.32.2: icmp_seq=43 ttl=63 time=1.38 ms
+64 bytes from 198.18.32.2: icmp_seq=44 ttl=63 time=1.68 ms
+64 bytes from 198.18.32.2: icmp_seq=45 ttl=63 time=1.49 ms
+64 bytes from 198.18.32.2: icmp_seq=46 ttl=63 time=3.00 ms
+64 bytes from 198.18.32.2: icmp_seq=47 ttl=63 time=2.10 ms
+64 bytes from 198.18.32.2: icmp_seq=48 ttl=63 time=1.65 ms
+64 bytes from 198.18.32.2: icmp_seq=49 ttl=63 time=1.61 ms
+64 bytes from 198.18.32.2: icmp_seq=50 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=51 ttl=63 time=1.60 ms
+64 bytes from 198.18.32.2: icmp_seq=52 ttl=63 time=1.80 ms
+64 bytes from 198.18.32.2: icmp_seq=53 ttl=63 time=1.61 ms
+64 bytes from 198.18.32.2: icmp_seq=54 ttl=63 time=1.70 ms
+64 bytes from 198.18.32.2: icmp_seq=55 ttl=63 time=1.52 ms
+64 bytes from 198.18.32.2: icmp_seq=56 ttl=63 time=2.13 ms
+64 bytes from 198.18.32.2: icmp_seq=57 ttl=63 time=1.95 ms
+64 bytes from 198.18.32.2: icmp_seq=58 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=59 ttl=63 time=1.60 ms
+64 bytes from 198.18.32.2: icmp_seq=60 ttl=63 time=1.67 ms
+64 bytes from 198.18.32.2: icmp_seq=61 ttl=63 time=1.69 ms
+64 bytes from 198.18.32.2: icmp_seq=62 ttl=63 time=1.75 ms
+64 bytes from 198.18.32.2: icmp_seq=63 ttl=63 time=1.74 ms
+64 bytes from 198.18.32.2: icmp_seq=64 ttl=63 time=1.62 ms
+64 bytes from 198.18.32.2: icmp_seq=65 ttl=63 time=1.75 ms
+64 bytes from 198.18.32.2: icmp_seq=66 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=67 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=68 ttl=63 time=1.58 ms
+64 bytes from 198.18.32.2: icmp_seq=69 ttl=63 time=1.72 ms
+64 bytes from 198.18.32.2: icmp_seq=70 ttl=63 time=1.88 ms
+64 bytes from 198.18.32.2: icmp_seq=71 ttl=63 time=1.52 ms
+64 bytes from 198.18.32.2: icmp_seq=72 ttl=63 time=3.14 ms
+64 bytes from 198.18.32.2: icmp_seq=73 ttl=63 time=2.18 ms
+64 bytes from 198.18.32.2: icmp_seq=74 ttl=63 time=1.63 ms
+64 bytes from 198.18.32.2: icmp_seq=75 ttl=63 time=1.69 ms
+64 bytes from 198.18.32.2: icmp_seq=76 ttl=63 time=1.62 ms
+64 bytes from 198.18.32.2: icmp_seq=77 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=78 ttl=63 time=1.63 ms
+64 bytes from 198.18.32.2: icmp_seq=79 ttl=63 time=1.55 ms
+64 bytes from 198.18.32.2: icmp_seq=80 ttl=63 time=1.49 ms
+64 bytes from 198.18.32.2: icmp_seq=81 ttl=63 time=1.54 ms
+64 bytes from 198.18.32.2: icmp_seq=82 ttl=63 time=1.53 ms
+64 bytes from 198.18.32.2: icmp_seq=83 ttl=63 time=1.66 ms
+64 bytes from 198.18.32.2: icmp_seq=84 ttl=63 time=1.59 ms
+64 bytes from 198.18.32.2: icmp_seq=85 ttl=63 time=1.58 ms
+64 bytes from 198.18.32.2: icmp_seq=86 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=87 ttl=63 time=1.64 ms
+64 bytes from 198.18.32.2: icmp_seq=88 ttl=63 time=1.51 ms
+64 bytes from 198.18.32.2: icmp_seq=89 ttl=63 time=2.66 ms
+64 bytes from 198.18.32.2: icmp_seq=90 ttl=63 time=1.51 ms
+64 bytes from 198.18.32.2: icmp_seq=91 ttl=63 time=1.59 ms
+64 bytes from 198.18.32.2: icmp_seq=92 ttl=63 time=1.73 ms
+64 bytes from 198.18.32.2: icmp_seq=93 ttl=63 time=2.60 ms
+64 bytes from 198.18.32.2: icmp_seq=94 ttl=63 time=1.63 ms
+64 bytes from 198.18.32.2: icmp_seq=95 ttl=63 time=1.63 ms
+64 bytes from 198.18.32.2: icmp_seq=96 ttl=63 time=1.78 ms
+64 bytes from 198.18.32.2: icmp_seq=97 ttl=63 time=1.56 ms
+64 bytes from 198.18.32.2: icmp_seq=98 ttl=63 time=1.46 ms
+64 bytes from 198.18.32.2: icmp_seq=99 ttl=63 time=1.63 ms
+64 bytes from 198.18.32.2: icmp_seq=100 ttl=63 time=1.70 ms
+
+--- 198.18.32.2 ping statistics ---
+100 packets transmitted, 100 received, 0% packet loss, time 2073ms
+rtt min/avg/max/mdev = 1.380/1.741/3.135/0.309 ms
+
+exit=0
+$ ip netns exec hw32-lan ping -n -c 10 -i .05 -W 1 -M do -s 1472 198.18.32.2
+PING 198.18.32.2 (198.18.32.2) 1472(1500) bytes of data.
+1480 bytes from 198.18.32.2: icmp_seq=1 ttl=63 time=1.26 ms
+1480 bytes from 198.18.32.2: icmp_seq=2 ttl=63 time=1.91 ms
+1480 bytes from 198.18.32.2: icmp_seq=3 ttl=63 time=1.41 ms
+1480 bytes from 198.18.32.2: icmp_seq=4 ttl=63 time=1.42 ms
+1480 bytes from 198.18.32.2: icmp_seq=5 ttl=63 time=1.52 ms
+1480 bytes from 198.18.32.2: icmp_seq=6 ttl=63 time=1.57 ms
+1480 bytes from 198.18.32.2: icmp_seq=7 ttl=63 time=1.78 ms
+1480 bytes from 198.18.32.2: icmp_seq=8 ttl=63 time=1.45 ms
+1480 bytes from 198.18.32.2: icmp_seq=9 ttl=63 time=1.67 ms
+1480 bytes from 198.18.32.2: icmp_seq=10 ttl=63 time=1.66 ms
+
+--- 198.18.32.2 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 457ms
+rtt min/avg/max/mdev = 1.260/1.564/1.907/0.183 ms
+
+exit=0
+$ ip netns exec hw32-peer ping -n -c 3 -W 1 198.18.33.2
+PING 198.18.33.2 (198.18.33.2) 56(84) bytes of data.
+64 bytes from 198.18.33.2: icmp_seq=1 ttl=63 time=1.72 ms
+64 bytes from 198.18.33.2: icmp_seq=2 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=3 ttl=63 time=1.83 ms
+
+--- 198.18.33.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 1.601/1.716/1.829/0.093 ms
+
+exit=0
+$ ip netns exec hw32-peer ping -n -c 100 -i .02 -W 1 198.18.33.2
+PING 198.18.33.2 (198.18.33.2) 56(84) bytes of data.
+64 bytes from 198.18.33.2: icmp_seq=1 ttl=63 time=1.56 ms
+64 bytes from 198.18.33.2: icmp_seq=2 ttl=63 time=4.06 ms
+64 bytes from 198.18.33.2: icmp_seq=3 ttl=63 time=3.62 ms
+64 bytes from 198.18.33.2: icmp_seq=4 ttl=63 time=2.03 ms
+64 bytes from 198.18.33.2: icmp_seq=5 ttl=63 time=1.63 ms
+64 bytes from 198.18.33.2: icmp_seq=6 ttl=63 time=1.53 ms
+64 bytes from 198.18.33.2: icmp_seq=7 ttl=63 time=1.62 ms
+64 bytes from 198.18.33.2: icmp_seq=8 ttl=63 time=1.50 ms
+64 bytes from 198.18.33.2: icmp_seq=9 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=10 ttl=63 time=1.61 ms
+64 bytes from 198.18.33.2: icmp_seq=11 ttl=63 time=1.52 ms
+64 bytes from 198.18.33.2: icmp_seq=12 ttl=63 time=1.64 ms
+64 bytes from 198.18.33.2: icmp_seq=13 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=14 ttl=63 time=1.63 ms
+64 bytes from 198.18.33.2: icmp_seq=15 ttl=63 time=1.70 ms
+64 bytes from 198.18.33.2: icmp_seq=16 ttl=63 time=1.54 ms
+64 bytes from 198.18.33.2: icmp_seq=17 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=18 ttl=63 time=1.66 ms
+64 bytes from 198.18.33.2: icmp_seq=19 ttl=63 time=1.78 ms
+64 bytes from 198.18.33.2: icmp_seq=20 ttl=63 time=1.54 ms
+64 bytes from 198.18.33.2: icmp_seq=21 ttl=63 time=1.77 ms
+64 bytes from 198.18.33.2: icmp_seq=22 ttl=63 time=1.82 ms
+64 bytes from 198.18.33.2: icmp_seq=23 ttl=63 time=1.57 ms
+64 bytes from 198.18.33.2: icmp_seq=24 ttl=63 time=1.71 ms
+64 bytes from 198.18.33.2: icmp_seq=25 ttl=63 time=1.70 ms
+64 bytes from 198.18.33.2: icmp_seq=26 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=27 ttl=63 time=2.47 ms
+64 bytes from 198.18.33.2: icmp_seq=28 ttl=63 time=1.81 ms
+64 bytes from 198.18.33.2: icmp_seq=29 ttl=63 time=1.55 ms
+64 bytes from 198.18.33.2: icmp_seq=30 ttl=63 time=1.59 ms
+64 bytes from 198.18.33.2: icmp_seq=31 ttl=63 time=1.58 ms
+64 bytes from 198.18.33.2: icmp_seq=32 ttl=63 time=1.61 ms
+64 bytes from 198.18.33.2: icmp_seq=33 ttl=63 time=1.67 ms
+64 bytes from 198.18.33.2: icmp_seq=34 ttl=63 time=1.80 ms
+64 bytes from 198.18.33.2: icmp_seq=35 ttl=63 time=1.50 ms
+64 bytes from 198.18.33.2: icmp_seq=36 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=37 ttl=63 time=1.71 ms
+64 bytes from 198.18.33.2: icmp_seq=38 ttl=63 time=1.58 ms
+64 bytes from 198.18.33.2: icmp_seq=39 ttl=63 time=1.64 ms
+64 bytes from 198.18.33.2: icmp_seq=40 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=41 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=42 ttl=63 time=1.80 ms
+64 bytes from 198.18.33.2: icmp_seq=43 ttl=63 time=1.61 ms
+64 bytes from 198.18.33.2: icmp_seq=44 ttl=63 time=1.76 ms
+64 bytes from 198.18.33.2: icmp_seq=45 ttl=63 time=1.64 ms
+64 bytes from 198.18.33.2: icmp_seq=46 ttl=63 time=2.74 ms
+64 bytes from 198.18.33.2: icmp_seq=47 ttl=63 time=1.80 ms
+64 bytes from 198.18.33.2: icmp_seq=48 ttl=63 time=1.54 ms
+64 bytes from 198.18.33.2: icmp_seq=49 ttl=63 time=1.67 ms
+64 bytes from 198.18.33.2: icmp_seq=50 ttl=63 time=1.68 ms
+64 bytes from 198.18.33.2: icmp_seq=51 ttl=63 time=1.54 ms
+64 bytes from 198.18.33.2: icmp_seq=52 ttl=63 time=1.56 ms
+64 bytes from 198.18.33.2: icmp_seq=53 ttl=63 time=1.71 ms
+64 bytes from 198.18.33.2: icmp_seq=54 ttl=63 time=1.73 ms
+64 bytes from 198.18.33.2: icmp_seq=55 ttl=63 time=1.49 ms
+64 bytes from 198.18.33.2: icmp_seq=56 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=57 ttl=63 time=1.72 ms
+64 bytes from 198.18.33.2: icmp_seq=58 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=59 ttl=63 time=1.73 ms
+64 bytes from 198.18.33.2: icmp_seq=60 ttl=63 time=1.70 ms
+64 bytes from 198.18.33.2: icmp_seq=61 ttl=63 time=1.75 ms
+64 bytes from 198.18.33.2: icmp_seq=62 ttl=63 time=2.61 ms
+64 bytes from 198.18.33.2: icmp_seq=63 ttl=63 time=1.99 ms
+64 bytes from 198.18.33.2: icmp_seq=64 ttl=63 time=1.42 ms
+64 bytes from 198.18.33.2: icmp_seq=65 ttl=63 time=1.76 ms
+64 bytes from 198.18.33.2: icmp_seq=66 ttl=63 time=1.76 ms
+64 bytes from 198.18.33.2: icmp_seq=67 ttl=63 time=1.69 ms
+64 bytes from 198.18.33.2: icmp_seq=68 ttl=63 time=1.67 ms
+64 bytes from 198.18.33.2: icmp_seq=69 ttl=63 time=2.01 ms
+64 bytes from 198.18.33.2: icmp_seq=70 ttl=63 time=2.29 ms
+64 bytes from 198.18.33.2: icmp_seq=71 ttl=63 time=1.71 ms
+64 bytes from 198.18.33.2: icmp_seq=72 ttl=63 time=1.69 ms
+64 bytes from 198.18.33.2: icmp_seq=73 ttl=63 time=1.75 ms
+64 bytes from 198.18.33.2: icmp_seq=74 ttl=63 time=1.68 ms
+64 bytes from 198.18.33.2: icmp_seq=75 ttl=63 time=1.80 ms
+64 bytes from 198.18.33.2: icmp_seq=76 ttl=63 time=2.32 ms
+64 bytes from 198.18.33.2: icmp_seq=77 ttl=63 time=1.67 ms
+64 bytes from 198.18.33.2: icmp_seq=78 ttl=63 time=1.61 ms
+64 bytes from 198.18.33.2: icmp_seq=79 ttl=63 time=1.66 ms
+64 bytes from 198.18.33.2: icmp_seq=80 ttl=63 time=1.58 ms
+64 bytes from 198.18.33.2: icmp_seq=81 ttl=63 time=2.62 ms
+64 bytes from 198.18.33.2: icmp_seq=82 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=83 ttl=63 time=1.73 ms
+64 bytes from 198.18.33.2: icmp_seq=84 ttl=63 time=1.65 ms
+64 bytes from 198.18.33.2: icmp_seq=85 ttl=63 time=1.79 ms
+64 bytes from 198.18.33.2: icmp_seq=86 ttl=63 time=1.62 ms
+64 bytes from 198.18.33.2: icmp_seq=87 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=88 ttl=63 time=1.72 ms
+64 bytes from 198.18.33.2: icmp_seq=89 ttl=63 time=1.64 ms
+64 bytes from 198.18.33.2: icmp_seq=90 ttl=63 time=1.60 ms
+64 bytes from 198.18.33.2: icmp_seq=91 ttl=63 time=1.62 ms
+64 bytes from 198.18.33.2: icmp_seq=92 ttl=63 time=1.87 ms
+64 bytes from 198.18.33.2: icmp_seq=93 ttl=63 time=2.33 ms
+64 bytes from 198.18.33.2: icmp_seq=94 ttl=63 time=1.67 ms
+64 bytes from 198.18.33.2: icmp_seq=95 ttl=63 time=1.89 ms
+64 bytes from 198.18.33.2: icmp_seq=96 ttl=63 time=2.27 ms
+64 bytes from 198.18.33.2: icmp_seq=97 ttl=63 time=5.27 ms
+64 bytes from 198.18.33.2: icmp_seq=98 ttl=63 time=1.89 ms
+64 bytes from 198.18.33.2: icmp_seq=99 ttl=63 time=1.76 ms
+64 bytes from 198.18.33.2: icmp_seq=100 ttl=63 time=2.22 ms
+
+--- 198.18.33.2 ping statistics ---
+100 packets transmitted, 100 received, 0% packet loss, time 2073ms
+rtt min/avg/max/mdev = 1.424/1.820/5.271/0.517 ms
+
+exit=0
+$ ip netns exec hw32-peer ping -n -c 10 -i .05 -W 1 -M do -s 1472 198.18.33.2
+PING 198.18.33.2 (198.18.33.2) 1472(1500) bytes of data.
+1480 bytes from 198.18.33.2: icmp_seq=1 ttl=63 time=2.26 ms
+1480 bytes from 198.18.33.2: icmp_seq=2 ttl=63 time=1.43 ms
+1480 bytes from 198.18.33.2: icmp_seq=3 ttl=63 time=1.68 ms
+1480 bytes from 198.18.33.2: icmp_seq=4 ttl=63 time=1.79 ms
+1480 bytes from 198.18.33.2: icmp_seq=5 ttl=63 time=1.48 ms
+1480 bytes from 198.18.33.2: icmp_seq=6 ttl=63 time=1.80 ms
+1480 bytes from 198.18.33.2: icmp_seq=7 ttl=63 time=1.73 ms
+1480 bytes from 198.18.33.2: icmp_seq=8 ttl=63 time=1.68 ms
+1480 bytes from 198.18.33.2: icmp_seq=9 ttl=63 time=1.71 ms
+1480 bytes from 198.18.33.2: icmp_seq=10 ttl=63 time=1.77 ms
+
+--- 198.18.33.2 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 459ms
+rtt min/avg/max/mdev = 1.432/1.731/2.261/0.212 ms
+
+exit=0
+$ ip netns exec hw32-lan python3 -c import socket
+s=socket.create_connection(('198.18.32.2',8032),5); s.settimeout(10)
+b=bytes(range(256))*256; n=0
+for i in range(160):
+ s.sendall(b); got=b''
+ while len(got)<len(b):
+  part=s.recv(len(b)-len(got)); assert part; got+=part
+ assert got==b; n+=len(got)
+s.close(); print('PASS TCP exact echo',n,'bytes')
+
+echoed 10485760
+PASS TCP exact echo 10485760 bytes
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show interface
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+host-ens193                       1      up          1500/0/0/0     rx packets                  2666
+                                                                    rx bytes                11214940
+                                                                    tx packets                  8728
+                                                                    tx bytes                11099990
+                                                                    drops                         33
+                                                                    ip4                         2632
+host-hw32l0                       2      up          1500/0/0/0     rx packets                  8732
+                                                                    rx bytes                11100348
+                                                                    tx packets                  2633
+                                                                    tx bytes                10695054
+                                                                    drops                          5
+                                                                    ip4                         8727
+                                                                    ip6                            4
+local0                            0     down          0/0/0/0       
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show hardware-interfaces host-ens193
+              Name                Idx   Link  Hardware
+host-ens193                        1     up   host-ens193
+  Link speed: unknown
+  RX Queues:
+    queue thread         mode      
+    0     main (0)       interrupt 
+  TX Queues:
+    TX Hash: [name: hash-eth-l34 priority: 50 description: Hash ethernet L34 headers]
+    queue shared thread(s)      
+    0     no     0
+  Ethernet address 00:50:56:9f:4b:c6
+  Linux PACKET socket interface v3
+  FEATURES:
+    qdisc-bpass-enabled
+    cksum-gso-enabled
+  Host Interface Offload:
+    creation time:
+     rx checksum
+     tx checksum
+     tcp segmentation offload
+     generic segmentation offload
+     generic receive offload
+    now:
+     rx checksum
+     tx checksum
+     tcp segmentation offload
+     generic segmentation offload
+     generic receive offload
+  RX Queue 0:
+    block size:16384 nr:160  frame size:2048 nr:1280 next block:111
+  TX Queue 0:
+    block size:17301504 nr:1  frame size:67584 nr:256 next frame:24
+    available:256 request:0 sending:0 wrong:0 total:256
+
+exit=0
+$ ip -n hw32-peer -s link show ens256
+7: ens256: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 00:50:56:9f:73:f8 brd ff:ff:ff:ff:ff:ff
+    RX:  bytes packets errors dropped  missed   mcast           
+      11100008    8728      0       0       0       0 
+    TX:  bytes packets errors dropped carrier collsns           
+      11727390    8801      0       0       0       0 
+    altname enp27s0
+    altname enx0050569f73f8
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show errors
+   Count                  Node                              Reason               Severity 
+        32          af-packet-input                     partial packet             error  
+      2182          af-packet-input                    timed out block             error  
+      3117          af-packet-input                  total received block          error  
+         2             arp-reply                       ARP replies sent            info   
+         1             arp-reply             ARP request IP4 source address lear   info   
+         1             ip4-glean                      ARP requests sent            info   
+         4           ethernet-input                        no error                error  
+
+exit=0
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0
+PASS: actual ens193/ens256 path through dedicated VPP, bidirectional ICMP, DF1500, TCP 10MiB
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show interface
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+host-ens193                       1      up          1500/0/0/0     rx packets                  2666
+                                                                    rx bytes                11214940
+                                                                    tx packets                  8728
+                                                                    tx bytes                11099990
+                                                                    drops                         33
+                                                                    ip4                         2632
+host-hw32l0                       2      up          1500/0/0/0     rx packets                  8732
+                                                                    rx bytes                11100348
+                                                                    tx packets                  2633
+                                                                    tx bytes                10695054
+                                                                    drops                          5
+                                                                    ip4                         8727
+                                                                    ip6                            4
+local0                            0     down          0/0/0/0       
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show interface address
+host-ens193 (up):
+  L3 198.18.32.1/30
+host-hw32l0 (up):
+  L3 198.18.33.1/30
+local0 (dn):
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show errors
+   Count                  Node                              Reason               Severity 
+        32          af-packet-input                     partial packet             error  
+      2182          af-packet-input                    timed out block             error  
+      3117          af-packet-input                  total received block          error  
+         2             arp-reply                       ARP replies sent            info   
+         1             arp-reply             ARP request IP4 source address lear   info   
+         1             ip4-glean                      ARP requests sent            info   
+         4           ethernet-input                        no error                error  
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock show ip neighbors
+     Age                       IP                    Flags      Ethernet              Interface       
+      6.4165               198.18.32.2                 D    00:50:56:9f:73:f8 host-ens193
+     12.5995               198.18.33.2                 D    86:a0:3f:dc:e3:40 host-hw32l0
+
+exit=0
+$ ip link set ens193 down
+
+exit=0
+$ ip link set hw32l0 down
+
+exit=0
+$ ip -n hw32-peer addr flush dev ens256
+
+exit=0
+$ ip -n hw32-peer link set ens256 down
+
+exit=0
+$ ip netns exec hw32-peer ethtool -K ens256 tx on
+Actual changes:
+tx-checksum-ipv4: off [requested on]
+tx-checksum-ip-generic: on
+tx-checksum-ipv6: off [requested on]
+tx-tcp-segmentation: on [not requested]
+tx-tcp6-segmentation: on [not requested]
+tx-checksum-fcoe-crc: off [requested on]
+tx-checksum-sctp: off [requested on]
+
+exit=0
+$ ip -n hw32-peer link set ens256 netns 195596
+
+exit=0
+$ ip netns del hw32-peer
+
+exit=0
+$ ip netns del hw32-lan
+
+exit=0
+$ ip link set ens193 down
+
+exit=0
+$ sysctl -qw net.ipv6.conf.ens193.disable_ipv6=0
+
+exit=0
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+ens161           DOWN           
+ens192           UP             172.30.126.195/24 fe80::250:56ff:fe9f:1e53/64 
+ens193           DOWN           
+ens224           DOWN           
+ens225           DOWN           
+ens256           DOWN           
+ens257           DOWN           
+virbr0           DOWN           192.168.122.1/24 
+hw32l0@if34      DOWN           
+
+exit=0
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0

@@ -1,0 +1,22 @@
+heavy: all 3 heavy slots busy, waiting (0s): make -C apps/cli gen docs test build
+heavy: slot 1 after 70s
+make: Entering directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'
+go run ./cmd/vrx-opgen -in ../../packages/api-client/openapi.json -out internal/api/operations_gen.go
+vrx-opgen: internal/api/operations_gen.go written
+go run ./cmd/vrx-docgen -out ../../docs/user/cli/reference.md
+vrx-docgen: ../../docs/user/cli/reference.md written
+go test -race -count=1 ./...
+?   	ngfw/cli/cmd/vrx	[no test files]
+?   	ngfw/cli/cmd/vrx-docgen	[no test files]
+?   	ngfw/cli/cmd/vrx-opgen	[no test files]
+ok  	ngfw/cli/internal/api	2.692s
+?   	ngfw/cli/internal/api/opgen	[no test files]
+ok  	ngfw/cli/internal/cli	1.880s
+ok  	ngfw/cli/internal/cpath	1.079s
+ok  	ngfw/cli/internal/jschema	1.180s
+?   	ngfw/cli/internal/lineedit	[no test files]
+ok  	ngfw/cli/internal/render	1.096s
+ok  	ngfw/cli/internal/safe	1.079s
+ok  	ngfw/cli/test/e2e	1.091s
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=5848a73c-dirty" -o bin/vrx ./cmd/vrx
+make: Leaving directory '/root/.codex/worktrees/bbd9/NGFW/apps/cli'

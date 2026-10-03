@@ -1,0 +1,10 @@
+9:	w6-l0
+	link  33:33:00:00:00:01
+	link  01:00:5e:00:00:01
+	link  33:33:ff:af:e5:ca
+	link  01:00:5e:00:00:09
+	inet  224.0.0.9
+	inet  224.0.0.1
+	inet6 ff02::1:ffaf:e5ca
+	inet6 ff02::1
+	inet6 ff01::1

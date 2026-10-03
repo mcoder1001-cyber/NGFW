@@ -17,7 +17,7 @@ ngfw-api: Node.js 22 + NestJS (Fastify adapter) + TypeScript(strict) + PostgreSQ
    │  gRPC over unix socket /run/ngfw/agent.sock  (protobuf in packages/proto)
 ngfw-agent: Go 1.23 + go.fd.io/govpp  (declarative reconciler; renders FRR/strongSwan/Kea/Unbound/chrony configs)
    │  VPP binary API + stats segment; files + systemd for the daemons
-VPP 26.06 · FRR · strongSwan(kernel-vpp) · Kea · Unbound · chrony
+VPP 26.06 · FRR · VPP native IKEv2 (IPsec route-based only; DEC-ipsec-route-based); strongSwan test peers · Kea · Unbound · chrony
 ```
 
 ## Non-negotiable architecture rules

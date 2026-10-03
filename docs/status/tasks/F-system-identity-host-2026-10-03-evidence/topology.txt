@@ -1,0 +1,80 @@
+DISPOSABLE_VPP pid=1225225 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1225206
+=== RUN   TestSystemIdentity
+    sysident_test.go:184: host identity before: kernel=ubuntu-26.04 /etc/hostname="ubuntu-26.04\n"/true /etc/issue="Ubuntu 26.04.1 LTS \\n \\l\n\n"/true /etc/issue.net="Ubuntu 26.04.1 LTS\n"/true /etc/motd=""/false /etc/hosts="127.0.0.1 localhost ubuntu-26.04\n\n# The following lines are desirable for IPv6 capable hosts\n::1     ip6-localhost ip6-loopback\nfe00::0 ip6-localnet\nff00::0 ip6-mcastprefix\nff02::1 ip6-allnodes\nff02::2 ip6-allrouters\n"/true /etc/issue.d/vrx.issue=""/false /etc/issue.d/vrx-ssh.banner=""/false /etc/motd.d/vrx=""/false /etc/systemd/resolved.conf.d/vrx.conf=""/false /etc/localtime->../usr/share/zoneinfo/Asia/Tehran
+    sysident_test.go:195: create role vrx_w6
+        create database vrx_w6 (owner vrx_w6)
+        check  vrx_w6 as vrx_w6 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/vrx-test/w6/pg.env (0600) · DSN <redacted-dsn>
+        
+    sysident_test.go:195: started vrx-agent pid 1225511: /root/.codex/worktrees/bbd9/NGFW/.scratch/native-product-agent 
+    sysident_test.go:195: started vrx-api pid 1225534: /usr/bin/node /root/.codex/worktrees/bbd9/NGFW/apps/api/dist/main.js
+    sysident_test.go:216: unknown zone: PUT /api/v1/config/system/timezone "\"Mars/Olympus_Mons\"" → 400 application/problem+json; charset=utf-8 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/system/timezone","errors":[{"pointer":"/system/timezone","message":"unknown IANA time zone"}]}
+    sysident_test.go:216: ESC (ANSI clear screen): PUT /api/v1/config/system/banner "{\"login\":\"hi\\u001b[2J\\u001b[Hforged\"}" → 400 application/problem+json; charset=utf-8 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","instance":"/api/v1/config/system/banner","errors":[{"pointer":"/system/banner/login","message":"U+001B: control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","rule":"api.safe-text"}]}
+    sysident_test.go:216: CR (overwrites the line): PUT /api/v1/config/system/banner "{\"login\":\"Authorised access only.\\rforged line\"}" → 400 application/problem+json; charset=utf-8 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","instance":"/api/v1/config/system/banner","errors":[{"pointer":"/system/banner/login","message":"U+000D: control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","rule":"api.safe-text"}]}
+    sysident_test.go:216: C1 CSI U+009B: PUT /api/v1/config/system/banner "{\"login\":\"hi\u009b2Jforged\"}" → 400 application/problem+json; charset=utf-8 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","instance":"/api/v1/config/system/banner","errors":[{"pointer":"/system/banner/login","message":"U+009B: control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","rule":"api.safe-text"}]}
+    sysident_test.go:216: bidi RLO U+202E: PUT /api/v1/config/system/banner "{\"login\":\"access \u202eforged\"}" → 400 application/problem+json; charset=utf-8 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","instance":"/api/v1/config/system/banner","errors":[{"pointer":"/system/banner/login","message":"U+202E: control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed","rule":"api.safe-text"}]}
+    sysident_test.go:224: GET /api/v1/config/diff after the refusals (nothing of them in the candidate): {"baseRevision":null,"changes":[]}
+    sysident_test.go:235: commit sysid-1 → applied
+    sysident_test.go:241: $ find /run/vrx-test/w6/sysident -exec ls -ld --time-style=full-iso {} +
+        drwxr-xr-x 3 root root  60 2026-10-03 16:09:42.371198585 +0330 /run/vrx-test/w6/sysident
+        drwxr-xr-x 5 root root 160 2026-10-03 16:09:42.371849545 +0330 /run/vrx-test/w6/sysident/etc
+        -rw-r--r-- 1 root root  22 2026-10-03 16:09:42.371849545 +0330 /run/vrx-test/w6/sysident/etc/hostname
+        -rw-r--r-- 1 root root  42 2026-10-03 16:09:42.371849545 +0330 /run/vrx-test/w6/sysident/etc/hosts
+        drwxr-xr-x 2 root root  80 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/issue.d
+        -rw-r--r-- 1 root root  54 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/issue.d/vrx-ssh.banner
+        -rw-r--r-- 1 root root  54 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/issue.d/vrx.issue
+        lrwxrwxrwx 1 root root  31 2026-10-03 16:09:42.371849545 +0330 /run/vrx-test/w6/sysident/etc/localtime -> /usr/share/zoneinfo/Asia/Tehran
+        drwxr-xr-x 2 root root  60 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/motd.d
+        -rw-r--r-- 1 root root  24 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/motd.d/vrx
+        drwxr-xr-x 3 root root  60 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/systemd
+        drwxr-xr-x 2 root root  60 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d
+        -rw-r--r-- 1 root root 390 2026-10-03 16:09:42.371271078 +0330 /run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf
+    sysident_test.go:264: $ diff -u testdata/hostname.golden /run/vrx-test/w6/sysident/etc/hostname → exit 0
+    sysident_test.go:268: $ cat /run/vrx-test/w6/sysident/etc/hostname
+        vrx-sysid.lab.example
+    sysident_test.go:264: $ diff -u testdata/issue.golden /run/vrx-test/w6/sysident/etc/issue.d/vrx.issue → exit 0
+    sysident_test.go:268: $ cat /run/vrx-test/w6/sysident/etc/issue.d/vrx.issue
+        Authorised access only.
+        	Slot rig (F-system-identity)
+    sysident_test.go:264: $ diff -u testdata/issue.net.golden /run/vrx-test/w6/sysident/etc/issue.d/vrx-ssh.banner → exit 0
+    sysident_test.go:268: $ cat /run/vrx-test/w6/sysident/etc/issue.d/vrx-ssh.banner
+        Authorised access only.
+        	Slot rig (F-system-identity)
+    sysident_test.go:264: $ diff -u testdata/motd.golden /run/vrx-test/w6/sysident/etc/motd.d/vrx → exit 0
+    sysident_test.go:268: $ cat /run/vrx-test/w6/sysident/etc/motd.d/vrx
+        Welcome to the lab rig.
+    sysident_test.go:264: $ diff -u -I ^# testdata/resolved-vrx.conf.golden /run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf → exit 0
+    sysident_test.go:268: $ cat /run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf
+        # Rendered by vrx-agent from the `system.dns` configuration (F-system-identity). Do not edit.
+        # vrx-input: ChV2cngtc3lzaWQubGFiLmV4YW1wbGUSC0FzaWEvVGVocmFuGlAKNUF1dGhvcmlzZWQgYWNjZXNzIG9ubHkuCglTbG90IHJpZyAoRi1zeXN0ZW0taWRlbnRpdHkpEhdXZWxjb21lIHRvIHRoZSBsYWIgcmlnLiowCgoxOTIuMC4yLjUzCgwyMDAxOmRiODo6NTMSC2xhYi5leGFtcGxlGgdkZWZhdWx0
+        [Resolve]
+        DNS=192.0.2.53 2001:db8::53
+        Domains=lab.example
+    sysident_test.go:275: $ readlink /run/vrx-test/w6/sysident/etc/localtime → /usr/share/zoneinfo/Asia/Tehran
+    sysident_test.go:280: $ cat /run/vrx-test/w6/sysident/etc/hosts
+        127.0.1.1	vrx-sysid.lab.example vrx-sysid
+    sysident_test.go:284: GET /api/v1/state/system → 200 identity={"adopted":[],"available":true,"drift":[],"error":"","hostname":"vrx-sysid.lab.example","inSync":true,"kernelHostname":"vrx-sysid.lab.example","managed":true,"mechanism":"files","pendingActions":[],"resolver":{"searchDomains":["lab.example"],"servers":["192.0.2.53","2001:db8::53"],"source":"/run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf"},"retrievedAt":"2026-10-03T12:39:42.574Z","timezone":"Asia/Tehran","uptimeSeconds":"12138","warnings":[]}
+    sysident_test.go:293: agent log before restart: {"time":"2026-10-03T16:09:35.222976783+03:30","level":"INFO","msg":"system identity wired","owner":"w6","component":"subsystems","product_paths":false,"mechanism":"files","issue_file":"/run/vrx-test/w6/sysident/etc/issue.d/vrx.issue"}
+    sysident_test.go:293: agent log before restart: {"time":"2026-10-03T16:09:42.372093308+03:30","level":"INFO","msg":"system identity applied","owner":"w6","component":"subsystems","feature":"system-identity","mechanism":"files","hostname":"vrx-sysid.lab.example","timezone":"Asia/Tehran","files":["/run/vrx-test/w6/sysident/etc/issue.d/vrx-ssh.banner","/run/vrx-test/w6/sysident/etc/issue.d/vrx.issue","/run/vrx-test/w6/sysident/etc/motd.d/vrx","/run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf"],"removed":null,"hosts":true,"set_hostname":true,"set_timezone":true,"resolver_reloaded":false,"adopted":null}
+    harness_test.go:173: stopped vrx-agent pid 1225511
+    sysident_test.go:297: started vrx-agent pid 1227124: /root/.codex/worktrees/bbd9/NGFW/.scratch/native-product-agent 
+    sysident_test.go:316: mtime /run/vrx-test/w6/sysident/etc/hostname: before restart 2026-10-03T16:09:42.371849545+03:30, after 2026-10-03T16:09:42.371849545+03:30 (equal)
+    sysident_test.go:316: mtime /run/vrx-test/w6/sysident/etc/issue.d/vrx-ssh.banner: before restart 2026-10-03T16:09:42.371271078+03:30, after 2026-10-03T16:09:42.371271078+03:30 (equal)
+    sysident_test.go:316: mtime /run/vrx-test/w6/sysident/etc/issue.d/vrx.issue: before restart 2026-10-03T16:09:42.371271078+03:30, after 2026-10-03T16:09:42.371271078+03:30 (equal)
+    sysident_test.go:316: mtime /run/vrx-test/w6/sysident/etc/motd.d/vrx: before restart 2026-10-03T16:09:42.371271078+03:30, after 2026-10-03T16:09:42.371271078+03:30 (equal)
+    sysident_test.go:316: mtime /run/vrx-test/w6/sysident/etc/systemd/resolved.conf.d/vrx.conf: before restart 2026-10-03T16:09:42.371271078+03:30, after 2026-10-03T16:09:42.371271078+03:30 (equal)
+    sysident_test.go:321: agent log after restart: 0 "system identity applied" lines, 0 "set_hostname" fields
+    sysident_test.go:324: agent log after restart: {"time":"2026-10-03T16:09:44.704437923+03:30","level":"INFO","msg":"system identity wired","owner":"w6","component":"subsystems","product_paths":false,"mechanism":"files","issue_file":"/run/vrx-test/w6/sysident/etc/issue.d/vrx.issue"}
+    sysident_test.go:324: agent log after restart: {"time":"2026-10-03T16:09:44.775198764+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":58703888,"err":""}
+    sysident_test.go:200: cleanup commit → 200 applied
+    harness_test.go:173: stopped vrx-api pid 1225534
+    harness_test.go:173: stopped vrx-agent pid 1227124
+    sysident_test.go:84: pg-test drop w6: <nil>
+        drop   database vrx_w6
+        drop   role vrx_w6
+        ok     nothing named vrx_w6 / vrx_w6 remains
+    sysident_test.go:189: host identity unchanged: kernel=ubuntu-26.04 /etc/hostname="ubuntu-26.04\n"/true /etc/issue="Ubuntu 26.04.1 LTS \\n \\l\n\n"/true /etc/issue.net="Ubuntu 26.04.1 LTS\n"/true /etc/motd=""/false /etc/hosts="127.0.0.1 localhost ubuntu-26.04\n\n# The following lines are desirable for IPv6 capable hosts\n::1     ip6-localhost ip6-loopback\nfe00::0 ip6-localnet\nff00::0 ip6-mcastprefix\nff02::1 ip6-allnodes\nff02::2 ip6-allrouters\n"/true /etc/issue.d/vrx.issue=""/false /etc/issue.d/vrx-ssh.banner=""/false /etc/motd.d/vrx=""/false /etc/systemd/resolved.conf.d/vrx.conf=""/false /etc/localtime->../usr/share/zoneinfo/Asia/Tehran
+--- PASS: TestSystemIdentity (14.47s)
+PASS
+ok  	ngfw/test/topology/system-identity	14.485s
+DISPOSABLE_VPP_STOPPED pid=1225225

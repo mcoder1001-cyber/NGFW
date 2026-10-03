@@ -9,13 +9,26 @@ var writeOnlyPointers = []string{
 
 // secretRefPointers: secret references `<kind>/<name>` (D-051) — names, not values.
 var secretRefPointers = []string{
+	"/acl/globalBlocking/lists/*/source/authRef",
+	"/acl/globalBlocking/lists/*/source/caRef",
 	"/ha/cluster/secretRef",
+	"/interfaces/*/pppoe/passwordRef",
+	"/management/aaa/ldap/servers/*/bindPasswordRef",
+	"/management/aaa/oidc/clientSecretRef",
 	"/management/aaa/radius/servers/*/secretRef",
 	"/management/aaa/tacacs/servers/*/secretRef",
+	"/management/alarms/targets/*/secretRef",
+	"/management/notifications/channels/*/email/passwordRef",
+	"/management/notifications/channels/*/webhook/secretRef",
+	"/management/syslog/*/tls/caRef",
+	"/management/syslog/*/tls/certRef",
+	"/management/syslog/*/tls/keyRef",
 	"/management/tls/certificateRef",
 	"/management/tls/privateKeyRef",
 	"/routing/bgp/neighbors/*/passwordRef",
 	"/routing/bgp/peerGroups/*/passwordRef",
+	"/routing/mpls/ldp/neighbors/*/passwordRef",
+	"/services/hostStack/namespaces/*/secretRef",
 	"/services/ntp/ntsServer/certificateRef",
 	"/services/ntp/ntsServer/keyRef",
 	"/services/ntp/servers/*/keyRef",
@@ -36,8 +49,12 @@ var secretRefPointers = []string{
 // keyedArrayPointers: arrays whose elements are identified by one member (`x-ngfw-ui.itemKey`) —
 // sensitive_value elements are matched by that key, never by index.
 var keyedArrayPointers = map[string]string{
-	"/management/users":                   "username",
-	"/routing/bgp/networks":               "prefix",
-	"/routing/policy/prefixLists/*/rules": "seq",
-	"/routing/policy/routeMaps/*/entries": "seq",
+	"/management/aaa/ldap/servers":           "url",
+	"/management/users":                      "username",
+	"/routing/bgp/networks":                  "prefix",
+	"/routing/l2/bridgeDomains/*/staticMacs": "mac",
+	"/routing/policy/prefixLists/*/rules":    "seq",
+	"/routing/policy/routeMaps/*/entries":    "seq",
+	"/routing/wanGroups":                     "name",
+	"/services/lb/vips/*/servers":            "address",
 }

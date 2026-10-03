@@ -113,9 +113,13 @@ func generate(raw []byte) (iface, secrets []byte, summary string, err error) {
 	if g.err != nil {
 		return nil, nil, "", g.err
 	}
-	for _, reserved := range []string{"id", "name", "revision"} {
-		if strings.Contains(attrs, strconv.Quote(reserved)+":") {
-			return nil, nil, "", fmt.Errorf("interface schema has a property %q that collides with a provider attribute", reserved)
+	// Provider-owned attributes live at the interface root. Nested API fields
+	// such as bond.id belong to their own object and must remain representable.
+	props, _ := item["properties"].(schemaT)
+	for name := range props {
+		switch snake(name) {
+		case "id", "name", "revision":
+			return nil, nil, "", fmt.Errorf("interface schema has a property %q that collides with a provider attribute", name)
 		}
 	}
 

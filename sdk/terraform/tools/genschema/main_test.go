@@ -80,3 +80,24 @@ func TestHostilePropertyNameFailsGeneration(t *testing.T) {
 		}
 	}
 }
+
+func TestProviderReservedNamesOnlyCollideAtInterfaceRoot(t *testing.T) {
+	for _, name := range []string{"id", "name", "revision"} {
+		t.Run(name, func(t *testing.T) {
+			property := map[string]any{"type": "integer"}
+			_, _, _, err := generate(spec("NGFW", map[string]any{name: property}))
+			if err == nil {
+				t.Fatal("provider-owned top-level attribute accepted")
+			}
+			iface, _, _, err := generate(spec("NGFW", map[string]any{
+				"bond": map[string]any{"type": "object", "properties": map[string]any{name: property}},
+			}))
+			if err != nil {
+				t.Fatalf("nested API field is independent of provider-owned attributes: %v", err)
+			}
+			if !strings.Contains(string(iface), `"`+name+`": schema.Int64Attribute`) {
+				t.Fatal("nested API field was lost or changed type")
+			}
+		})
+	}
+}

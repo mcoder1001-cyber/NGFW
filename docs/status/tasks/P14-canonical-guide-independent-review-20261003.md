@@ -1,0 +1,11 @@
+# Independent P14 canonical ISO guide review — 2026-10-03
+
+Reviewed only docs/install/iso.md and P14-docs-20261003-wip.md in immutable2519a5e865986348d076aaafe40311f8321f09e0, against current main6b7fdda2 source. Verdict APPROVE. No concrete mismatch established.
+
+Actual builder flags, four stages and re-run semantics match build-iso.sh: existing owned work is recreated, chroot prerequisite checked before verify, verify stops before pool, pool/tree/iso stop at documented boundaries. Source selection, default base filename, signed adjacent sums, explicit trusted VRX fingerprint, VPP manifest parity, pinned Ubuntu/FRR keyrings, external signing home, optional key creation, pool-only simulation/Recommends, lock and output names correspond to source. Guide clearly distinguishes build-time archive access and fixture inputs from a verified production offline closure.
+
+Destructive behavior is accurately prominent: both entries use curtin largest-disk match and wipe/preserve:false, minimum fixed disk96GiB guard, reinstall flag does not select an existing VRX disk, and failed/partial label inventory refuses even reinstall. Default unattended Install/5s menu, preserved interactive submenu, BIOS GRUB adjustment/UEFI ESP, xorriso boot replay and media removal are described without claiming actual boot acceptance. LUKS limited data volumes and automatic per-install-key unlock match source; no root encryption/passphrase guarantee is invented.
+
+Firstboot credential generation, no baked administrator password, optional root keys and console cleanup after no unused bootstrap administrators remain match banner/bootstrap logic. Database errors preserve the console password for retry. Both files explicitly retain partial P14 status and production build/VM/live acceptance NOT RUN; offline fixture checks do not certify pool completeness or appliance release. Prerequisite ownership stays with external package/signing producer; no host permission is implied by example commands.
+
+Review evidence: read-only builder, pool, storage, render, early disk guard, seed and console-banner source inspected. No shell execution, tests, builds, fetches, signing, host/VM/services or product edits. Root-owned publication/CI and future actual acceptance remain separate requirements.

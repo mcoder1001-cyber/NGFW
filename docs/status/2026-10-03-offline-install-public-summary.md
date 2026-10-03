@@ -1,9 +1,11 @@
 # Offline packaging progress — 2026-10-03
 
-PR91 merged at 809625c859b0bdcaca6bb1560f5036e9dc7e8036 after all five applicable independent reviews and unchanged hosted gates. Post-main quick37090442585 and provisioning37090442607 both SUCCESS. The merged Git tree equals the reviewed tree.
+PR91 installer merged809625c859b0bdcaca6bb1560f5036e9dc7e8036; post-main quick37090442585 and provisioning37090442607 SUCCESS.
 
-Next sequential increment is PR92: bounded direct runtime :any dependencies for native amd64/all packages declaring Multi-Arch: allowed. Public head0feb1ad1, tree7480ec00; three product files, single commit. All five independent reviews approve; 22 checker and 11 installer regression tests pass with zero skips. Hosted provisioning37091001230 SUCCESS; unchanged complete quick37091001247 pending. It must pass before merge, followed by fresh live-main and expected-head checks.
+PR92 bounded direct :any runtime dependencies merged e0e1e1b8c24c8b4783134cee7b1dc3db7a018a29 after five independent applicable reviews, 22 checker and11 installer regressions PASS zero skips, unchanged full quick37091001247 and provisioning37091001230 SUCCESS. Immediately fresh main checked; expected-head merge produced exact reviewed tree7480ec003035d13d35c53fd9386df622e7363a02. Post-main provisioning37092044128 SUCCESS; full quick37092042866 pending.
 
-The whole P10 task remains incomplete. Real complete signed artifacts, clean Ubuntu26 lifecycle/firstboot and hardware acceptance remain unverified; synthetic VPP boundaries are not artifact provenance. No host installation was performed.
+Next single development increment is portable export from an already complete externally trusted verified .deb set. It reuses the existing secure snapshot and full VPP/bundle verification, preserves a separately trusted manifest and never runs installation. No package acquisition or real-artifact build is claimed. Independent review and unchanged hosted gates will apply before merge.
 
-Board reconciliation checkpoint is 114/156 merged; historical dashboard and identity merges corrected stale rows. Board running counts are not live-agent counts. Product development proceeds one increment at a time, with independent reviews parallel.
+Whole P10 remains incomplete: complete signed real artifacts, clean Ubuntu26 lifecycle/firstboot and hardware acceptance still unverified. Synthetic VPP boundaries are not provenance. No host installation performed.
+
+Board reconciliation checkpoint114/156 merged corrects historical dashboard and identity rows; running board rows are not live-agent counts. Development proceeds sequentially with parallel independent reviews.

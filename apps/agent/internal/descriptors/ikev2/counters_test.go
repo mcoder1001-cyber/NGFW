@@ -1,6 +1,9 @@
 package ikev2
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestSACounterJoinRefusesForeignSPICollision(t *testing.T) {
 	want := map[uint32]map[uint32]bool{0x12345678: {0xabc001: true}}
@@ -16,5 +19,20 @@ func TestSACounterJoinRefusesForeignSPICollision(t *testing.T) {
 	}
 	if ownedCounterEntry(want, 0x87654321, 0xc0abc001) {
 		t.Fatal("foreign SPI accepted at owned index")
+	}
+}
+
+func TestSaturatingCounterBounds(t *testing.T) {
+	for _, tc := range []struct {
+		previous int64
+		value    uint64
+		want     int64
+	}{
+		{0, 0, 0}, {12, 34, 46}, {math.MaxInt64 - 1, 1, math.MaxInt64},
+		{math.MaxInt64 - 1, 2, math.MaxInt64}, {0, math.MaxUint64, math.MaxInt64}, {-1, 2, 2},
+	} {
+		if got := saturatingCounter(tc.previous, tc.value); got != tc.want {
+			t.Fatalf("%d + %d: got %d want %d", tc.previous, tc.value, got, tc.want)
+		}
 	}
 }

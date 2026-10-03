@@ -26,7 +26,8 @@ func TestTunnelsOnDisposableVPP(t *testing.T) {
 		t.Skip("requires disposable VPP")
 	}
 	vpptest.LockLab(t)
-	base, err := strconv.Atoi(os.Getenv("NGFW_VPP_TABLE_BASE"))
+	baseValue, err := strconv.ParseUint(os.Getenv("NGFW_VPP_TABLE_BASE"), 10, 16)
+	base := int(baseValue)
 	if err != nil || base < 1000 || base > 32000 || base%1000 != 0 {
 		t.Fatal("invalid slot base")
 	}
@@ -38,12 +39,12 @@ func TestTunnelsOnDisposableVPP(t *testing.T) {
 		"10.7.1.", fmt.Sprintf("10.%d.7.", slot), "10.254.0.1", fmt.Sprintf("10.%d.251.1", slot), "2001:db8:7::1", fmt.Sprintf("fd00:%x:252::1", slot), "2001:db8:9::1", fmt.Sprintf("fd00:%x:253::1", slot))
 	desired := doc(t, replace.Replace(tunnelsDoc))
 	// The delete helper expects the exact owned VXLAN instance/VNI tuple.
-	desired.Tunnels.Vxlan[owner+"-vxlan"].Vni = proto.Uint32(uint32(base + 3))
+	desired.Tunnels.Vxlan[owner+"-vxlan"].Vni = proto.Uint32(uint32(baseValue + 3))
 	want := &ngfwv1.TunnelsConfig{}
 	if err := protojson.Unmarshal([]byte(replace.Replace(tunnelsRetrieved)), want); err != nil {
 		t.Fatal(err)
 	}
-	want.Vxlan[owner+"-vxlan"].Vni = proto.Uint32(uint32(base + 3))
+	want.Vxlan[owner+"-vxlan"].Vni = proto.Uint32(uint32(baseValue + 3))
 	helper, err := filepath.Abs("../../../../.scratch/tunnels-delete-owned")
 	if err != nil {
 		t.Fatal(err)
@@ -103,6 +104,7 @@ func TestTunnelsOnDisposableVPP(t *testing.T) {
 	}
 	a.Stop()
 	deleteCtx, stop := context.WithTimeout(ctx, 20*time.Second)
+	//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 	out, e := exec.CommandContext(deleteCtx, helper, src, strconv.Itoa(base)).CombinedOutput()
 	stop()
 	if e != nil {

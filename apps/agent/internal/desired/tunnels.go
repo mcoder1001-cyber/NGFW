@@ -100,8 +100,8 @@ type TunnelMetaSpec struct {
 type TunnelMetaSixrd struct {
 	Src           string  `json:"src,omitempty"`
 	UnderlayVrf   string  `json:"underlayVrf,omitempty"`
-	Ip6Prefix     string  `json:"ip6Prefix"`
-	Ip4Prefix     string  `json:"ip4Prefix"`
+	IP6Prefix     string  `json:"ip6Prefix"`
+	IP4Prefix     string  `json:"ip4Prefix"`
 	SecurityCheck bool    `json:"securityCheck"`
 	TcTos         *uint32 `json:"tcTos,omitempty"`
 }
@@ -517,7 +517,7 @@ func (b tunnelBuild) sixrd(pt, name string, p *ngfwv1.IpipTunnel) {
 	key := scheduler.Join(ipip.SixrdName, name)
 	s.Add(key, v, pt)
 	m := TunnelMetaSpec{ID: name, Kind: "ipip", Name: name, Description: p.GetDescription(),
-		Sixrd: &TunnelMetaSixrd{Src: src, UnderlayVrf: vrfName(p.GetUnderlayVrf()), Ip6Prefix: p6, Ip4Prefix: p4, SecurityCheck: x.GetSecurityCheck()}}
+		Sixrd: &TunnelMetaSixrd{Src: src, UnderlayVrf: vrfName(p.GetUnderlayVrf()), IP6Prefix: p6, IP4Prefix: p4, SecurityCheck: x.GetSecurityCheck()}}
 	if x.TcTos != nil {
 		m.Sixrd.TcTos = proto.Uint32(x.GetTcTos())
 	}
@@ -826,7 +826,7 @@ func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]
 				continue
 			}
 			p := &ngfwv1.IpipTunnel{Description: desc(id), Mode: proto.String("p2p"), Src: proto.String(m.Sixrd.Src), UnderlayVrf: proto.String(vrfName(m.Sixrd.UnderlayVrf)),
-				Sixrd: &ngfwv1.IpipSixrd{Ip6Prefix: proto.String(m.Sixrd.Ip6Prefix), Ip4Prefix: proto.String(m.Sixrd.Ip4Prefix),
+				Sixrd: &ngfwv1.IpipSixrd{Ip6Prefix: proto.String(m.Sixrd.IP6Prefix), Ip4Prefix: proto.String(m.Sixrd.IP4Prefix),
 					SecurityCheck: proto.Bool(m.Sixrd.SecurityCheck), TcTos: m.Sixrd.TcTos}}
 			fill(id, &p.Enabled, &p.Vrf, &p.Mtu, &p.Ipv4, &p.Ipv6, &p.BridgeDomain)
 			out.ipip[m.Name] = p

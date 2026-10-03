@@ -181,8 +181,12 @@ func (*Liveness) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return nil, fmt.Errorf("%s: %w", LivenessName, vpn.ErrRetrieveUnsupported)
 }
 
-// VPP-global setters have no ownership records; D-071 registration restricts
+// RecordsNoOwnership indicates VPP-global setters have no ownership records; D-071 registration restricts
 // writes to the designated globals owner, and absence never resets them.
-func (*LocalKey) RecordsNoOwnership()      {}
+func (*LocalKey) RecordsNoOwnership() {}
+
+// RecordsNoOwnership indicates that this VPP-global setter has no ownership records.
 func (*SleepInterval) RecordsNoOwnership() {}
-func (*Liveness) RecordsNoOwnership()      {}
+
+// RecordsNoOwnership indicates that this VPP-global setter has no ownership records.
+func (*Liveness) RecordsNoOwnership() {}

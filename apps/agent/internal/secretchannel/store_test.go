@@ -37,6 +37,7 @@ func TestSealedRestartAndRotation(t *testing.T) {
 	if e != nil || string(resolved) != fixture {
 		t.Fatal("historical fingerprint unavailable for rollback", e)
 	}
+	//nolint:gosec // Private test directory; deliberate tampering verifies rejection of unsafe cache files.
 	raw, e := os.ReadFile(filepath.Join(dir, "secret-cache-w8.sealed"))
 	if e != nil {
 		t.Fatal(e)
@@ -96,8 +97,10 @@ func TestCacheTamperingAndMissingKeyFailClosed(t *testing.T) {
 		t.Fatal(e)
 	}
 	path := filepath.Join(dir, "secret-cache-w8.sealed")
+	//nolint:gosec // Private test directory: read the sealed cache for the deliberate tampering regression.
 	raw, _ := os.ReadFile(path)
 	raw[len(raw)-1] ^= 1
+	//nolint:gosec // Private test directory; deliberate tampering verifies rejection of unsafe cache files.
 	if e = os.WriteFile(path, raw, 0600); e != nil {
 		t.Fatal(e)
 	}
@@ -120,6 +123,7 @@ func TestBundleLimitsAndPrivateFileSafety(t *testing.T) {
 		}
 	}
 	path := filepath.Join(dir, "secret-cache-w8.key")
+	//nolint:gosec // Private test directory; deliberate tampering verifies rejection of unsafe cache files.
 	if e := os.Chmod(path, 0644); e != nil {
 		t.Fatal(e)
 	}

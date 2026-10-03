@@ -368,7 +368,10 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*ngfwv1.ActionOutpu
 	if snaplen == 0 {
 		snaplen = 9000
 	}
-	if uint64(p.MaxPackets)*(uint64(snaplen)+16)+24 > uint64(m.c.MaxBytes) {
+	if m.c.MaxBytes < 24 {
+		return invalid("maxPackets", "capture plan exceeds retained byte limit")
+	}
+	if uint64(p.MaxPackets) > (uint64(m.c.MaxBytes)-24)/(uint64(snaplen)+16) {
 		return invalid("maxPackets", "capture plan exceeds retained byte limit")
 	}
 	if err := m.Recover(ctx); err != nil {

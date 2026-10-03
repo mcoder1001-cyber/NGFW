@@ -22,6 +22,7 @@ type IKEv2Env struct {
 	CheckReady func(context.Context) error
 }
 
+// IKEv2 projects native route based VPN profiles into scheduler values.
 func IKEv2(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, env IKEv2Env) {
 	if !in["vpn"] {
 		return

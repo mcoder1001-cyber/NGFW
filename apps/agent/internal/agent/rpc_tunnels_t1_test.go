@@ -199,11 +199,11 @@ func TestTunnelsT1VxlanGpeApplyRetrieveRestartRollback(t *testing.T) {
 func TestTunnelsT1SixrdRoundTrip(t *testing.T) {
 	t.Setenv(subsystems.EnvIDRange, subsystems.IDRangeAll)
 	v := coretest.New()
-	v.On("ipip_6rd_add_tunnel", func(msg api.Message) ([]api.Message, error) {
+	v.On("ipip_6rd_add_tunnel", func(_ api.Message) ([]api.Message, error) {
 		idx := v.AddInterface("ipip0", "ip6ip-6rd", "")
 		return []api.Message{&ipipapi.Ipip6rdAddTunnelReply{SwIfIndex: interface_types.InterfaceIndex(idx)}}, nil
 	})
-	v.On("ipip_6rd_del_tunnel", func(msg api.Message) ([]api.Message, error) {
+	v.On("ipip_6rd_del_tunnel", func(_ api.Message) ([]api.Message, error) {
 		v.DeleteInterface("ipip0")
 		return []api.Message{&ipipapi.Ipip6rdDelTunnelReply{}}, nil
 	})

@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -133,7 +134,11 @@ func (s *Service) nativeIpsecState(ctx context.Context, req *ngfwv1.IpsecStateRe
 			continue
 		}
 		c := &ngfwv1.IpsecConnState{Name: s.owner + "-" + p.Name, Tunnel: p.Name, Version: "2", LocalAuth: p.GetAuth().GetMethod(), RemoteAuth: p.GetAuth().GetMethod(), LocalId: p.GetLocalId().GetValue(), RemoteId: p.GetRemoteId().GetValue()}
-		c.Children = []*ngfwv1.IpsecChildConn{{Name: p.Name, Mode: "tunnel", RekeySec: int64(p.GetLifetime().GetSeconds()), LocalTs: []string{p.GetLocalTs().GetStartAddr() + "-" + p.GetLocalTs().GetEndAddr()}, RemoteTs: []string{p.GetRemoteTs().GetStartAddr() + "-" + p.GetRemoteTs().GetEndAddr()}}}
+		seconds := p.GetLifetime().GetSeconds()
+		if seconds > math.MaxInt64 {
+			seconds = math.MaxInt64
+		}
+		c.Children = []*ngfwv1.IpsecChildConn{{Name: p.Name, Mode: "tunnel", RekeySec: int64(seconds), LocalTs: []string{p.GetLocalTs().GetStartAddr() + "-" + p.GetLocalTs().GetEndAddr()}, RemoteTs: []string{p.GetRemoteTs().GetStartAddr() + "-" + p.GetRemoteTs().GetEndAddr()}}}
 		resp.Conns = append(resp.Conns, c)
 	}
 	for _, sa := range states {

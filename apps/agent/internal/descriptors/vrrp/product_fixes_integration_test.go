@@ -30,10 +30,14 @@ func TestVRRPProductFixesOnDisposableVPP(t *testing.T) {
 		t.Skip("disposable VPP and explicit VRRP window required")
 	}
 	h := df7test.StartHost(t)
+	if h.Slot < 1 || h.Slot > 255 {
+		t.Fatal("invalid disposable VPP slot")
+	}
+	slot := uint8(h.Slot) //nolint:gosec // Slot was explicitly checked to be in [1,255].
 	env := core.Env{Client: h.C, Owner: h.Owner, Owned: ownertable.NewMemory()}
 	loop := &core.LoopbackDescriptor{Env: env}
 	name := fmt.Sprintf("loop%d70", h.Slot)
-	object := &core.Loopback{Name: name, Instance: uint32(h.Slot*100 + 70)}
+	object := &core.Loopback{Name: name, Instance: uint32(slot)*100 + 70}
 	meta, err := loop.Create(h.Ctx, object)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +60,7 @@ func TestVRRPProductFixesOnDisposableVPP(t *testing.T) {
 	t.Cleanup(func() { _ = addr.Delete(context.Background(), primary, nil) })
 	vd := vrrp.NewVR(h.C, h.Owner)
 	sd := vrrp.NewState(h.C, h.Owner)
-	spec := vrrp.VRSpec{VR: vrrp.VR{Interface: name, VRID: uint8(h.Slot)}, Priority: 100, Interval: 10, Accept: true, Preempt: true, Addresses: []string{h.Addr(70, 253), h.Addr(70, 254)}}
+	spec := vrrp.VRSpec{VR: vrrp.VR{Interface: name, VRID: slot}, Priority: 100, Interval: 10, Accept: true, Preempt: true, Addresses: []string{h.Addr(70, 253), h.Addr(70, 254)}}
 	vrValue := df7.Encode(spec)
 	vrMeta, err := vd.Create(h.Ctx, vrValue)
 	if err != nil {

@@ -269,7 +269,6 @@ func (d *Profile) checkName(n string) (string, error) {
 	return name, nil
 }
 
-// validate checks everything that can be checked without VPP.
 // ValidateProfile checks native API representability before a transaction mutates VPP.
 func ValidateProfile(o *vpnpb.Ikev2Profile) error { return validate(o) }
 
@@ -699,5 +698,5 @@ func sortKVs(kvs []scheduler.KV) []scheduler.KV {
 	return dfkit.Dedupe(kvs)
 }
 
-// RecordsNoOwnership: ownership is encoded in the persisted VPP profile name.
+// RecordsNoOwnership indicates that ownership is encoded in the persisted VPP profile name.
 func (*Profile) RecordsNoOwnership() {}

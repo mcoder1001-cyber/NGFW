@@ -641,6 +641,7 @@ func TestRecoveryContinuesAfterForeignLeftover(t *testing.T) {
 	if bad.State != "error" || good.State != "interrupted" || good.Packets != 1 || !m.recovered {
 		t.Fatalf("bad=%+v good=%+v", bad, good)
 	}
+	//nolint:gosec // Private test directory: verify that the foreign file remains unchanged.
 	if b, err := os.ReadFile(target); err != nil || string(b) != "foreign" {
 		t.Fatal("foreign target modified")
 	}
@@ -790,6 +791,7 @@ func TestRecoveryRefusesForeignKeptFile(t *testing.T) {
 			}
 			target := filepath.Join(t.TempDir(), "private-target")
 			original := []byte("never serve or modify this target")
+			//nolint:gosec // Deliberately public foreign file verifies that capture refuses to overwrite it.
 			if err := os.WriteFile(target, original, 0644); err != nil {
 				t.Fatal(err)
 			}

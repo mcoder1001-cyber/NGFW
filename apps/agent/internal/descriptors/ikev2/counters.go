@@ -46,7 +46,7 @@ func SACounters(ctx context.Context, c vpp.Client, path string, owned []SAState)
 	if err := sc.Connect(); err != nil {
 		return nil, fmt.Errorf("IPsec stats segment unavailable: %w", err)
 	}
-	defer sc.Disconnect()
+	defer func() { _ = sc.Disconnect() }()
 	entries, err := sc.DumpStats("^/net/ipsec/sa$")
 	if err != nil {
 		return nil, fmt.Errorf("IPsec counter snapshot: %w", err)
@@ -91,7 +91,13 @@ func SACounters(ctx context.Context, c vpp.Client, path string, owned []SAState)
 	return out, nil
 }
 func saturatingCounter(previous int64, value uint64) int64 {
-	if value > uint64(math.MaxInt64-previous) {
+	if previous < 0 {
+		previous = 0
+	}
+	if value > math.MaxInt64 {
+		return math.MaxInt64
+	}
+	if previous > math.MaxInt64-int64(value) {
 		return math.MaxInt64
 	}
 	return previous + int64(value)

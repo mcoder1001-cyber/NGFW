@@ -70,6 +70,7 @@ func (w *Wiring) registerIKEv2(r scheduler.Registry) error {
 	return nil
 }
 
+// IKEv2Profiles retrieves profiles belonging to the specified owner.
 func IKEv2Profiles(ctx context.Context, owner string) ([]scheduler.KV, error) {
 	nativeMu.Lock()
 	r := nativeByOwner[owner]
@@ -95,6 +96,8 @@ func SetIKEv2Secrets(owner string, resolver vpn.Resolver, fingerprint func(conte
 	r.mu.Unlock()
 	return nil
 }
+
+// IKEv2Projection returns native VPN projection dependencies.
 func IKEv2Projection() desired.IKEv2Env {
 	nativeMu.Lock()
 	r := nativeCurrent

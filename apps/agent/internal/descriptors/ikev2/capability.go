@@ -12,8 +12,10 @@ import (
 // IKE_AUTH. A plugin version alone must never be treated as evidence of this fix.
 const SafeStateRevision uint32 = 0x56525801
 
+// ErrUnsafeState indicates missing safe native state capability.
 var ErrUnsafeState = errors.New("native IPsec requires the VPP safe-state patch (0002-ikev2-safe-native-state)")
 
+// RequireSafeState verifies the native state capability before accessing profiles.
 func RequireSafeState(ctx context.Context, c vpp.Client) error {
 	v, err := api.NewServiceClient(c).Ikev2PluginGetVersion(ctx, &api.Ikev2PluginGetVersion{})
 	if err != nil {

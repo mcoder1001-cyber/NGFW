@@ -22,6 +22,8 @@ const maxValue = 64 << 10
 const maxSnapshot = 4 << 20
 
 var reference = regexp.MustCompile(`^(psk|key|cert|password|token)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`)
+
+// ErrUnavailable indicates that a referenced secret is missing.
 var ErrUnavailable = errors.New("secret channel: referenced secret is unavailable")
 
 // Store is opaque to fmt/slog. Snapshots are immutable; the txn state owns active IDs.
@@ -37,8 +39,12 @@ type state struct {
 	active    string
 }
 
-func (s *Store) String() string       { return "secretchannel.Store(<redacted>)" }
-func (s *Store) GoString() string     { return s.String() }
+func (s *Store) String() string { return "secretchannel.Store(<redacted>)" }
+
+// GoString redacts the store during Go formatting.
+func (s *Store) GoString() string { return s.String() }
+
+// LogValue redacts the store during structured logging.
 func (s *Store) LogValue() slog.Value { return slog.StringValue(s.String()) }
 
 // Open loads and authenticates the owner-bound cache before the first resync.
@@ -61,6 +67,7 @@ func Open(dir, owner string) (*Store, error) {
 			return nil, err
 		}
 		var f *os.File
+		//nolint:gosec // Fixed cache filename under the configured private state directory; owner is validated and reads reject symlinks and public permissions.
 		f, err = os.OpenFile(keyPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err == nil {
 			_, err = f.Write(key)
@@ -131,6 +138,7 @@ func readPrivate(path string) ([]byte, error) {
 	if !fi.Mode().IsRegular() || fi.Mode().Perm()&0077 != 0 {
 		return nil, errors.New("secret channel: cache must be a private regular file")
 	}
+	//nolint:gosec // Fixed cache filename under the configured private state directory; owner is validated and reads reject symlinks and public permissions.
 	return os.ReadFile(path)
 }
 func validate(values map[string][]byte) ([]byte, error) {
@@ -208,7 +216,7 @@ func (st *state) save() error {
 		return err
 	}
 	name := f.Name()
-	defer os.Remove(name)
+	defer func() { _ = os.Remove(name) }()
 	if err = f.Chmod(0600); err == nil {
 		_, err = f.Write(sealed)
 	}
@@ -229,14 +237,19 @@ func (st *state) save() error {
 	if err != nil {
 		return err
 	}
-	defer d.Close()
-	return d.Sync()
+	syncErr := d.Sync()
+	closeErr := d.Close()
+	return errors.Join(syncErr, closeErr)
 }
+
+// Active returns the current immutable snapshot identifier.
 func (s *Store) Active() string {
 	s.state.mu.RLock()
 	defer s.state.mu.RUnlock()
 	return s.state.active
 }
+
+// Activate selects a previously staged snapshot.
 func (s *Store) Activate(id string) error {
 	s.state.mu.Lock()
 	defer s.state.mu.Unlock()

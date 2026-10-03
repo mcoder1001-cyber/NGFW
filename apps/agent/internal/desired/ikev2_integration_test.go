@@ -40,6 +40,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	defer cancel()
 	run := func(args ...string) string {
 		t.Helper()
+		//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 		out, e := exec.CommandContext(ctx, args[0], args[1:]...).CombinedOutput()
 		if e != nil {
 			t.Fatalf("%v: %v: %s", args, e, out)
@@ -56,7 +57,11 @@ func TestIKEv2NativePackets(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	defer h.Close()
+	defer func() {
+		if err := h.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	peer, e := h.AddNetNS(ctx, "native-peer")
 	if e != nil {
 		t.Fatal(e)
@@ -68,7 +73,8 @@ func TestIKEv2NativePackets(t *testing.T) {
 	for _, pair := range []struct{ host, peer, ns, addr string }{{"w8nwan", "w8npeer", peer, "198.18.8.2/24"}, {"w8nlan", "w8nhost", lan, "198.18.81.2/24"}} {
 		run("ip", "link", "add", pair.host, "type", "veth", "peer", "name", pair.peer)
 		host := pair.host
-		t.Cleanup(func() { exec.Command("ip", "link", "del", host).Run() })
+		//nolint:gosec // Disposable fixture removes only its locally created named veth.
+		t.Cleanup(func() { _ = exec.Command("ip", "link", "del", host).Run() })
 		run("ip", "link", "set", pair.peer, "netns", pair.ns)
 		run("ip", "link", "set", pair.host, "up")
 		run("ip", "-n", pair.ns, "link", "set", pair.peer, "up")
@@ -93,6 +99,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	run("ip", "-n", peer, "route", "add", "198.18.81.0/24", "via", "198.18.8.1")
 	run("ip", "-n", lan, "route", "add", "198.18.82.0/24", "via", "198.18.81.1")
 	pcap := filepath.Join(t.TempDir(), "native-underlay.pcap")
+	//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 	capture := exec.Command("tcpdump", "-U", "-n", "-i", "w8nwan", "-w", pcap)
 	if err := capture.Start(); err != nil {
 		t.Fatal(err)
@@ -100,13 +107,15 @@ func TestIKEv2NativePackets(t *testing.T) {
 	stopped := false
 	stopCapture := func() {
 		if !stopped {
-			capture.Process.Signal(syscall.SIGINT)
-			capture.Wait()
+			_ = capture.Process.Signal(syscall.SIGINT)
+			_ = capture.Wait()
 			stopped = true
 		}
 	}
 	defer stopCapture()
 	time.Sleep(200 * time.Millisecond)
+	//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
+	//nolint:gosec // Disposable fixture uses its own generated namespace with fixed executable and arguments.
 	if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 		t.Fatalf("traffic escaped before SA installation: %s", out)
 	}
@@ -158,7 +167,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		defer logfile.Close()
+		defer func() { _ = logfile.Close() }()
 		t.Cleanup(func() {
 			if t.Failed() {
 				data, _ := os.ReadFile(filepath.Join(work, "agent.log"))
@@ -166,6 +175,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 			}
 		})
 		startProduct := func() {
+			//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 			process = exec.CommandContext(ctx, productBinary)
 			process.Env = processEnv
 			process.Stdout = logfile
@@ -175,12 +185,12 @@ func TestIKEv2NativePackets(t *testing.T) {
 			}
 		}
 		startProduct()
-		defer func() { process.Process.Signal(syscall.SIGTERM); process.Wait() }()
+		defer func() { _ = process.Process.Signal(syscall.SIGTERM); _ = process.Wait() }()
 		cc, e := grpc.NewClient("unix://"+socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if e != nil {
 			t.Fatal(e)
 		}
-		defer cc.Close()
+		defer func() { _ = cc.Close() }()
 		product = ngfwv1.NewDataplaneClient(cc)
 		ready := time.Now().Add(20 * time.Second)
 		for {
@@ -200,7 +210,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 				t.Fatal(e)
 			}
 			offset := info.Size()
-			process.Process.Signal(syscall.SIGTERM)
+			_ = process.Process.Signal(syscall.SIGTERM)
 			if e := process.Wait(); e != nil {
 				t.Fatal(e)
 			}
@@ -244,6 +254,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		}
 		productApply("native-initial")
 		productPartial("native-partial-before-sa")
+		//nolint:gosec // Disposable fixture uses its own generated namespace with fixed executable and arguments.
 		if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 			t.Fatalf("traffic escaped production Apply before SA: %s", out)
 		}
@@ -252,7 +263,11 @@ func TestIKEv2NativePackets(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		defer desc.Delete(context.Background(), profile, meta)
+		defer func() {
+			if err := desc.Delete(context.Background(), profile, meta); err != nil {
+				t.Error(err)
+			}
+		}()
 	}
 	action := func(operation string, ikeSpi uint64, childSpi uint32) error {
 		if !production {
@@ -333,6 +348,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	if state := cli("show interface ipip8001"); !strings.Contains(state, " up ") {
 		t.Fatal("IKE did not enable protected IPIP", state)
 	}
+	//nolint:gosec // Disposable fixture uses its own generated namespace with fixed executable and arguments.
 	out, pe := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "5", "-W", "2", "198.18.82.2").CombinedOutput()
 	if pe != nil {
 		t.Log(cli("show errors"))
@@ -353,8 +369,8 @@ c,_=s.accept();data=b'x'*1048576;c.sendall(data);c.shutdown(socket.SHUT_WR);c.cl
 	}
 	defer func() {
 		if server.ProcessState == nil {
-			server.Process.Kill()
-			server.Wait()
+			_ = server.Process.Kill()
+			_ = server.Wait()
 		}
 	}()
 	time.Sleep(200 * time.Millisecond)
@@ -455,7 +471,7 @@ print('TCP exact 1048576 bytes passed')`))
 		if _, e = vc.Call(ctx, "rekey", msg); e != nil {
 			t.Fatal(e)
 		}
-		vc.Close()
+		_ = vc.Close()
 	}
 	old := sas[0].Children[0].ISPI
 	deadline = time.Now().Add(15 * time.Second)
@@ -482,6 +498,7 @@ print('TCP exact 1048576 bytes passed')`))
 	} else {
 		cli("ip route del 198.18.82.0/24 via ipip8001")
 	}
+	//nolint:gosec // Disposable fixture uses its own generated namespace with fixed executable and arguments.
 	if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 		t.Fatalf("traffic continued after route withdrawal: %s", out)
 	}
@@ -518,6 +535,7 @@ print('TCP exact 1048576 bytes passed')`))
 		if state := cli("show interface ipip8001"); !strings.Contains(state, " down ") {
 			t.Fatal("peer-loss expiry did not lower protected IPIP", state)
 		}
+		//nolint:gosec // Disposable fixture uses its own generated namespace with fixed executable and arguments.
 		if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 			t.Fatalf("traffic escaped after peer loss: %s", out)
 		}
@@ -567,6 +585,7 @@ print('TCP exact 1048576 bytes passed')`))
 	}
 	stopCapture()
 	if evidence := os.Getenv("NGFW_NATIVE_EVIDENCE_DIR"); evidence != "" {
+		//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 		if e := os.MkdirAll(evidence, 0700); e != nil {
 			t.Fatal(e)
 		}
@@ -578,6 +597,7 @@ print('TCP exact 1048576 bytes passed')`))
 		if initiator {
 			name = "initiator-underlay.pcap"
 		}
+		//nolint:gosec // Disposable lab fixture uses an explicitly authorized local executable or evidence directory.
 		if e := os.WriteFile(filepath.Join(evidence, name), data, 0600); e != nil {
 			t.Fatal(e)
 		}

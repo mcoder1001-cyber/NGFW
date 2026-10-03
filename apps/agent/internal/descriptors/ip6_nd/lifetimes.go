@@ -22,6 +22,7 @@ type lifetimeRecord struct {
 	ValidExpiry, PreferredExpiry expiryWindow
 }
 
+// LifetimeStore persists the configured router advertisement lifetimes.
 type LifetimeStore struct {
 	mu      sync.Mutex
 	path    string
@@ -35,6 +36,7 @@ func OpenLifetimeStore(path string) (*LifetimeStore, error) {
 	if path == "" {
 		return s, nil
 	}
+	//nolint:gosec // Configured agent state file containing non-secret router advertisement timers.
 	b, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
@@ -76,7 +78,7 @@ func (s *LifetimeStore) save(key scheduler.Key, record *lifetimeRecord) error {
 			return err
 		}
 		tmp := f.Name()
-		defer os.Remove(tmp)
+		defer func() { _ = os.Remove(tmp) }()
 		if _, err = f.Write(b); err == nil {
 			err = f.Sync()
 		}

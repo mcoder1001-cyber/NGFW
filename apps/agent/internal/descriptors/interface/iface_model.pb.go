@@ -598,7 +598,7 @@ var File_iface_model_proto protoreflect.FileDescriptor
 
 const file_iface_model_proto_rawDesc = "" +
 	"\n" +
-	"\x11iface_model.proto\x12\x0fngfw.agent.iface\"*\n" +
+	"\x11iface_model.proto\x12\x10ngfw.agent.iface\"*\n" +
 	"\n" +
 	"AdminState\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\"m\n" +
@@ -613,10 +613,10 @@ const file_iface_model_proto_rawDesc = "" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x10\n" +
 	"\x03mac\x18\x02 \x01(\tR\x03mac\"'\n" +
 	"\aPromisc\x12\x1c\n" +
-	"\tinterface\x18\x01 \x01(\tR\tinterface\"W\n" +
+	"\tinterface\x18\x01 \x01(\tR\tinterface\"X\n" +
 	"\x06RxMode\x12\x1c\n" +
-	"\tinterface\x18\x01 \x01(\tR\tinterface\x12/\n" +
-	"\x04mode\x18\x02 \x01(\x0e2\x1b.ngfw.agent.iface.RxModeKindR\x04mode\"Y\n" +
+	"\tinterface\x18\x01 \x01(\tR\tinterface\x120\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x1c.ngfw.agent.iface.RxModeKindR\x04mode\"Y\n" +
 	"\vRxPlacement\x12\x1c\n" +
 	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x14\n" +
 	"\x05queue\x18\x02 \x01(\rR\x05queue\x12\x16\n" +

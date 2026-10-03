@@ -1811,7 +1811,7 @@ var File_vpn_proto protoreflect.FileDescriptor
 
 const file_vpn_proto_rawDesc = "" +
 	"\n" +
-	"\tvpn.proto\x12\x10ngfw.agent.vpn.v1\"!\n" +
+	"\tvpn.proto\x12\x11ngfw.agent.vpn.v1\"!\n" +
 	"\bIpsecSpd\x12\x15\n" +
 	"\x06spd_id\x18\x01 \x01(\rR\x05spdId\"H\n" +
 	"\x11IpsecSpdInterface\x12\x1c\n" +
@@ -1842,7 +1842,7 @@ const file_vpn_proto_rawDesc = "" +
 	"\btable_id\x18\x03 \x01(\rR\atableId\x12\x12\n" +
 	"\x04dscp\x18\x04 \x01(\rR\x04dscp\x12\x1b\n" +
 	"\thop_limit\x18\x05 \x01(\rR\bhopLimit\x12*\n" +
-	"\x11encap_decap_flags\x18\x06 \x03(\tR\x0fencapDecapFlags\"\x9a\x04\n" +
+	"\x11encap_decap_flags\x18\x06 \x03(\tR\x0fencapDecapFlags\"\x9b\x04\n" +
 	"\aIpsecSa\x12\x15\n" +
 	"\x06sad_id\x18\x01 \x01(\rR\x05sadId\x12\x10\n" +
 	"\x03spi\x18\x02 \x01(\rR\x03spi\x12\x1a\n" +
@@ -1858,8 +1858,8 @@ const file_vpn_proto_rawDesc = "" +
 	"\tudp_encap\x18\n" +
 	" \x01(\bR\budpEncap\x12\x18\n" +
 	"\ainbound\x18\v \x01(\bR\ainbound\x12\x14\n" +
-	"\x05async\x18\f \x01(\bR\x05async\x125\n" +
-	"\x06tunnel\x18\r \x01(\v2\x1d.ngfw.agent.vpn.v1.IpsecTunnelR\x06tunnel\x12\x12\n" +
+	"\x05async\x18\f \x01(\bR\x05async\x126\n" +
+	"\x06tunnel\x18\r \x01(\v2\x1e.ngfw.agent.vpn.v1.IpsecTunnelR\x06tunnel\x12\x12\n" +
 	"\x04salt\x18\x0e \x01(\rR\x04salt\x12 \n" +
 	"\fudp_src_port\x18\x0f \x01(\rR\n" +
 	"udpSrcPort\x12 \n" +
@@ -1913,19 +1913,19 @@ const file_vpn_proto_rawDesc = "" +
 	"\aseconds\x18\x01 \x01(\x04R\aseconds\x12\x16\n" +
 	"\x06jitter\x18\x02 \x01(\rR\x06jitter\x12\x1a\n" +
 	"\bhandover\x18\x03 \x01(\rR\bhandover\x12\x19\n" +
-	"\bmax_data\x18\x04 \x01(\x04R\amaxData\"\xb8\x05\n" +
+	"\bmax_data\x18\x04 \x01(\x04R\amaxData\"\xc1\x05\n" +
 	"\fIkev2Profile\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12/\n" +
-	"\x04auth\x18\x02 \x01(\v2\x1b.ngfw.agent.vpn.v1.Ikev2AuthR\x04auth\x124\n" +
-	"\blocal_id\x18\x03 \x01(\v2\x19.ngfw.agent.vpn.v1.Ikev2IdR\alocalId\x126\n" +
-	"\tremote_id\x18\x04 \x01(\v2\x19.ngfw.agent.vpn.v1.Ikev2IdR\bremoteId\x124\n" +
-	"\blocal_ts\x18\x05 \x01(\v2\x19.ngfw.agent.vpn.v1.Ikev2TsR\alocalTs\x126\n" +
-	"\tremote_ts\x18\x06 \x01(\v2\x19.ngfw.agent.vpn.v1.Ikev2TsR\bremoteTs\x12>\n" +
-	"\tresponder\x18\a \x01(\v2 .ngfw.agent.vpn.v1.Ikev2ResponderR\tresponder\x126\n" +
-	"\x03ike\x18\b \x01(\v2$.ngfw.agent.vpn.v1.Ikev2IkeTransformsR\x03ike\x126\n" +
-	"\x03esp\x18\t \x01(\v2$.ngfw.agent.vpn.v1.Ikev2EspTransformsR\x03esp\x12;\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
+	"\x04auth\x18\x02 \x01(\v2\x1c.ngfw.agent.vpn.v1.Ikev2AuthR\x04auth\x125\n" +
+	"\blocal_id\x18\x03 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2IdR\alocalId\x127\n" +
+	"\tremote_id\x18\x04 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2IdR\bremoteId\x125\n" +
+	"\blocal_ts\x18\x05 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2TsR\alocalTs\x127\n" +
+	"\tremote_ts\x18\x06 \x01(\v2\x1a.ngfw.agent.vpn.v1.Ikev2TsR\bremoteTs\x12?\n" +
+	"\tresponder\x18\a \x01(\v2!.ngfw.agent.vpn.v1.Ikev2ResponderR\tresponder\x127\n" +
+	"\x03ike\x18\b \x01(\v2%.ngfw.agent.vpn.v1.Ikev2IkeTransformsR\x03ike\x127\n" +
+	"\x03esp\x18\t \x01(\v2%.ngfw.agent.vpn.v1.Ikev2EspTransformsR\x03esp\x12<\n" +
 	"\blifetime\x18\n" +
-	" \x01(\v2\x1f.ngfw.agent.vpn.v1.Ikev2LifetimeR\blifetime\x12\x1b\n" +
+	" \x01(\v2 .ngfw.agent.vpn.v1.Ikev2LifetimeR\blifetime\x12\x1b\n" +
 	"\tudp_encap\x18\v \x01(\bR\budpEncap\x12-\n" +
 	"\x13ipsec_over_udp_port\x18\f \x01(\rR\x10ipsecOverUdpPort\x12)\n" +
 	"\x10tunnel_interface\x18\r \x01(\tR\x0ftunnelInterface\x12#\n" +

@@ -135,12 +135,12 @@ var File_afpacket_model_proto protoreflect.FileDescriptor
 
 const file_afpacket_model_proto_rawDesc = "" +
 	"\n" +
-	"\x14afpacket_model.proto\x12\x12ngfw.agent.afpacket\"s\n" +
+	"\x14afpacket_model.proto\x12\x13ngfw.agent.afpacket\"t\n" +
 	"\rHostInterface\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\fhost_if_name\x18\x02 \x01(\tR\n" +
-	"hostIfName\x12,\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x18.ngfw.agent.afpacket.ModeR\x04mode*&\n" +
+	"hostIfName\x12-\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x19.ngfw.agent.afpacket.ModeR\x04mode*&\n" +
 	"\x04Mode\x12\x11\n" +
 	"\rMODE_ETHERNET\x10\x00\x12\v\n" +
 	"\aMODE_IP\x10\x01B4Z2ngfw/agent/internal/descriptors/af_packet;afpacketb\x06proto3"

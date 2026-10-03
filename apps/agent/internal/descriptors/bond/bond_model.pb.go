@@ -292,12 +292,12 @@ var File_bond_model_proto protoreflect.FileDescriptor
 
 const file_bond_model_proto_rawDesc = "" +
 	"\n" +
-	"\x10bond_model.proto\x12\x0engfw.agent.bond\"\x9e\x01\n" +
+	"\x10bond_model.proto\x12\x0fngfw.agent.bond\"\xa0\x01\n" +
 	"\x04Bond\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\rR\x02id\x12(\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x14.ngfw.agent.bond.ModeR\x04mode\x12+\n" +
-	"\x02lb\x18\x04 \x01(\x0e2\x1b.ngfw.agent.bond.LoadBalanceR\x02lb\x12\x1b\n" +
+	"\x02id\x18\x02 \x01(\rR\x02id\x12)\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x15.ngfw.agent.bond.ModeR\x04mode\x12,\n" +
+	"\x02lb\x18\x04 \x01(\x0e2\x1c.ngfw.agent.bond.LoadBalanceR\x02lb\x12\x1b\n" +
 	"\tnuma_only\x18\x05 \x01(\bR\bnumaOnly\"w\n" +
 	"\x06Member\x12\x12\n" +
 	"\x04bond\x18\x01 \x01(\tR\x04bond\x12\x1c\n" +

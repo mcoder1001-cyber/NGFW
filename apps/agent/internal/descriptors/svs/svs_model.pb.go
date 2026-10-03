@@ -235,7 +235,7 @@ var File_svs_model_proto protoreflect.FileDescriptor
 
 const file_svs_model_proto_rawDesc = "" +
 	"\n" +
-	"\x0fsvs_model.proto\x12\rngfw.agent.svs\"Y\n" +
+	"\x0fsvs_model.proto\x12\x0engfw.agent.svs\"Y\n" +
 	"\x05Table\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1f\n" +
 	"\vmissing_ip4\x18\x02 \x01(\bR\n" +

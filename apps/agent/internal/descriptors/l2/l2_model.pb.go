@@ -665,7 +665,7 @@ var File_l2_model_proto protoreflect.FileDescriptor
 
 const file_l2_model_proto_rawDesc = "" +
 	"\n" +
-	"\x0el2_model.proto\x12\fngfw.agent.l2\"\xe2\x01\n" +
+	"\x0el2_model.proto\x12\rngfw.agent.l2\"\xe2\x01\n" +
 	"\fBridgeDomain\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x14\n" +
 	"\x05flood\x18\x02 \x01(\bR\x05flood\x12\x19\n" +
@@ -675,11 +675,11 @@ const file_l2_model_proto_rawDesc = "" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
 	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12\x17\n" +
 	"\amac_age\x18\b \x01(\rR\x06macAge\x12\x12\n" +
-	"\x04name\x18\t \x01(\tR\x04name\"\x9e\x01\n" +
+	"\x04name\x18\t \x01(\tR\x04name\"\x9f\x01\n" +
 	"\x12BridgeDomainMember\x12#\n" +
 	"\rbridge_domain\x18\x01 \x01(\rR\fbridgeDomain\x12\x1c\n" +
-	"\tinterface\x18\x02 \x01(\tR\tinterface\x123\n" +
-	"\tport_type\x18\x03 \x01(\x0e2\x16.ngfw.agent.l2.PortTypeR\bportType\x12\x10\n" +
+	"\tinterface\x18\x02 \x01(\tR\tinterface\x124\n" +
+	"\tport_type\x18\x03 \x01(\x0e2\x17.ngfw.agent.l2.PortTypeR\bportType\x12\x10\n" +
 	"\x03shg\x18\x04 \x01(\rR\x03shg\"*\n" +
 	"\bXconnect\x12\x0e\n" +
 	"\x02rx\x18\x01 \x01(\tR\x02rx\x12\x0e\n" +
@@ -699,10 +699,10 @@ const file_l2_model_proto_rawDesc = "" +
 	"\buu_flood\x18\x05 \x01(\bR\auuFlood\x12\x19\n" +
 	"\barp_term\x18\x06 \x01(\bR\aarpTerm\x12\x19\n" +
 	"\barp_ufwd\x18\a \x01(\bR\aarpUfwd\x12#\n" +
-	"\rbridge_domain\x18\b \x01(\rR\fbridgeDomain\"\xdb\x01\n" +
+	"\rbridge_domain\x18\b \x01(\rR\fbridgeDomain\"\xdc\x01\n" +
 	"\x0eVlanTagRewrite\x12\x1c\n" +
-	"\tinterface\x18\x01 \x01(\tR\tinterface\x12#\n" +
-	"\x02op\x18\x02 \x01(\x0e2\x13.ngfw.agent.l2.VtrOpR\x02op\x12\x1d\n" +
+	"\tinterface\x18\x01 \x01(\tR\tinterface\x12$\n" +
+	"\x02op\x18\x02 \x01(\x0e2\x14.ngfw.agent.l2.VtrOpR\x02op\x12\x1d\n" +
 	"\n" +
 	"push_dot1q\x18\x03 \x01(\bR\tpushDot1q\x12\x12\n" +
 	"\x04tag1\x18\x04 \x01(\rR\x04tag1\x12\x12\n" +

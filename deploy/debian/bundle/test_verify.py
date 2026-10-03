@@ -19,11 +19,17 @@ class BundleTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
 
-    def archive(self, name, version='1.0', extra='', architecture='amd64'):
+    def archive(self, name, version='1.0', extra='', architecture='amd64', lower_required=False, mixed_required=False):
         source = self.root / (name + '-source')
         (source / 'DEBIAN').mkdir(parents=True)
+        required = (f'package: {name}\nversion: {version}\narchitecture: {architecture}\n'
+                    if lower_required else
+                    f'Package: {name}\nVersion: {version}\nArchitecture: {architecture}\n')
+        if mixed_required:
+            required = required.replace('Package:', 'pAcKaGe:').replace(
+                'Version:', 'vErSiOn:').replace('Architecture:', 'aRcHiTeCtUrE:')
         (source / 'DEBIAN/control').write_text(
-            f'Package: {name}\nVersion: {version}\nArchitecture: {architecture}\n'
+            required +
             'Maintainer: Test <test@example.invalid>\nDescription: synthetic fixture\n' + extra)
         artifact = self.root / (name + '.deb')
         subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(source), str(artifact)],
@@ -160,6 +166,51 @@ class BundleTests(unittest.TestCase):
             VERIFY.validate_set({'one': one, 'two': two}, {'one'})
         with self.assertRaises(VERIFY.InvalidBundle):
             VERIFY.relations('virtual (= nonsense)')
+
+    def test_real_deb_case_insensitive_dependencies_and_predepends(self):
+        for index, key in enumerate(('depends', 'dEpEnDs', 'pre-depends', 'pRe-DePeNdS')):
+            base_name = 'base-' + str(index)
+            consumer = VERIFY.metadata(self.archive('consumer-' + str(index), extra=
+                key + ': ' + base_name + ' (>= 2)\n'))
+            self.assertIn('Depends' if 'pre' not in key.lower() else 'Pre-Depends', consumer['fields'])
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({'consumer': consumer}, set())
+            too_old = VERIFY.metadata(self.archive(base_name, version='1'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({'consumer': consumer, base_name: too_old}, set())
+        base = VERIFY.metadata(self.archive('base', version='2'))
+        valid = VERIFY.metadata(self.archive('valid', extra='dEpEnDs: base (>= 2)\n'))
+        VERIFY.validate_set({'valid': valid, 'base': base}, set())
+
+    def test_real_deb_case_insensitive_provides_and_conflicts(self):
+        provider = VERIFY.metadata(self.archive('provider', extra=
+            'pRoViDeS: virtual (= 3)\nMulti-arch: foreign\n'))
+        consumer = VERIFY.metadata(self.archive('consumer', extra='depends: virtual (= 3)\n'))
+        VERIFY.validate_set({'provider': provider, 'consumer': consumer}, set())
+        self.assertEqual(provider['fields']['Multi-Arch'], 'foreign')
+        for index, key in enumerate(('conflicts', 'cOnFlIcTs', 'breaks', 'bReAkS')):
+            incompatible = VERIFY.metadata(self.archive('incompatible-' + str(index), extra=
+                key + ': virtual (>= 2)\n'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({'provider': provider, 'incompatible': incompatible}, set())
+
+    def test_real_deb_lowercase_required_control_fields(self):
+        for name, options in (('lowercase', {'lower_required': True}),
+                              ('mixedcase', {'mixed_required': True})):
+            package = VERIFY.metadata(self.archive(name, **options))
+            self.assertEqual(package['fields']['Package'], name)
+            self.assertEqual(package['fields']['Version'], '1.0')
+            self.assertEqual(package['fields']['Architecture'], 'amd64')
+
+    def test_case_insensitive_duplicates_parser_only(self):
+        # dpkg-deb itself rejects duplicate control fields, so malformed duplicate
+        # input is a direct parser regression, not a valid built-deb fixture.
+        for first, second in (('Depends', 'depends'), ('Package', 'PACKAGE'),
+                              ('X-Unknown', 'x-unknown')):
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.parse_control(first + ': one\n' + second + ': two\n')
+        parsed = VERIFY.parse_control('dEpEnDs: base\n | alternative\nX-Custom: value\n')
+        self.assertEqual(parsed, {'Depends': 'base | alternative', 'X-Custom': 'value'})
 
 
 if __name__ == '__main__':

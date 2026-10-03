@@ -69,3 +69,5 @@ jobs:
         run: python3 docs/status/tasks/TD-19-run-fixtures.py
       - name: Validate offline Debian bundle fixtures
         run: python3 deploy/debian/bundle/test_verify.py
+      - name: Validate trusted offline installer fixtures
+        run: python3 deploy/debian/bundle/test_install.py

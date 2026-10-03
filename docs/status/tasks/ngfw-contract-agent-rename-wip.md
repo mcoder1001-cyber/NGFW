@@ -1,0 +1,2 @@
+# NGFW contract/agent rename WIP
+Base0d174caf, remote unpublished; inventory/protocolsharedrootandconsumerdeveloperbeforechanges. Contractnamespace renameauthorized explicitly; behavior/fieldnumbers remainfixed. No implementationyet. Nextcommands: baselinebufdescriptor; replaceownedcanonicalsource/paths; generateproto/schema/yang; meaningfulcontract+Go tests andindependentreview. Tools/deploy/UIconsumers areseparate coordinatedbranches; no fullintegrationgateclaim untilassembled.

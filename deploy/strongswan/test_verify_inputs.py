@@ -6,6 +6,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tarfile
@@ -210,11 +211,19 @@ class IntakeTests(unittest.TestCase):
                 self.assertEqual(os.environ['HOME'], '/nonexistent')
                 self.assertNotIn('BASH_ENV', os.environ)
                 # These commands are real and unchanged; no provenance stub is used
-                # for either static verification or the full 66-test script.
+                # for either static verification or the full current test script.
                 tests = self.real_run(['bash', str(INPUT.ROOT / 'deploy/vpp/tests/run.sh')])
-                self.assertEqual(len([line for line in tests.splitlines()
-                                      if line.startswith('ok ')]), 66)
-                self.assertIn('66 passed, 0 failed', tests)
+                lines = tests.splitlines()
+                self.assertTrue(lines, tests)
+                summary = re.fullmatch(r'([1-9][0-9]*) passed, 0 failed', lines[-1])
+                self.assertIsNotNone(summary, tests)
+                # Every preceding line must be a successful numbered record:
+                # failed/extra/duplicate/missing records and summaries refuse.
+                records = [re.fullmatch(r'ok ([1-9][0-9]*) - .+', line)
+                           for line in lines[:-1]]
+                self.assertTrue(all(records), tests)
+                self.assertEqual([int(record.group(1)) for record in records],
+                                 list(range(1, int(summary.group(1)) + 1)), tests)
                 static = self.real_run(['bash', str(INPUT.ROOT / 'deploy/vpp/verify.sh')])
                 self.assertIn('verify.sh: OK', static)
                 observed.extend([tests, static])

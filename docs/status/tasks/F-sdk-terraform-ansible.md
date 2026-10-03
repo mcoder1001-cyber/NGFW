@@ -271,7 +271,7 @@ ok: gitleaks — scanned ~346226 bytes (346.23 KB) in 1.19s no leaks found
 Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    1m22.13s  
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/ngfw-startupgen	1.590s; ok  	ngfw/agent/internal/agent	9.459s; ok  	ngfw/agent/internal/contracttest	2.294s; ok  	ngfw/agent/internal/descriptors/abf	1.161s; ok  	ngfw/agent/internal/descriptors/acl	1.243s; ok  	ngfw/agent/internal/descriptors/adl	1.110s; ok  	ngfw/agent/internal/descriptors/af_packet	1.125s; ok  	ngfw/agent/internal/descriptors/arp	1.085s; ok  	ngfw/agent/internal/descriptors/bfd	1.212s; ok  	ngfw/agent/internal/descriptors/bond	1.128s; ok  	ngfw/agent/internal/descriptors/classify	1.167s; ok  	ngfw/agent/internal/descriptors/cnat	1.143s; 
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.590s; ok  	ngfw/agent/internal/agent	9.459s; ok  	ngfw/agent/internal/contracttest	2.294s; ok  	ngfw/agent/internal/descriptors/abf	1.161s; ok  	ngfw/agent/internal/descriptors/acl	1.243s; ok  	ngfw/agent/internal/descriptors/adl	1.110s; ok  	ngfw/agent/internal/descriptors/af_packet	1.125s; ok  	ngfw/agent/internal/descriptors/arp	1.085s; ok  	ngfw/agent/internal/descriptors/bfd	1.212s; ok  	ngfw/agent/internal/descriptors/bond	1.128s; ok  	ngfw/agent/internal/descriptors/classify	1.167s; ok  	ngfw/agent/internal/descriptors/cnat	1.143s;
 
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.019s; 

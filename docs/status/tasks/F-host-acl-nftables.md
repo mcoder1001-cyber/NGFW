@@ -114,7 +114,7 @@ ok  	ngfw/agent/internal/agent	0.349s
     apply: APPLIED summary={Created:1 …} in 118ms
     `nft list table inet ngfw_w9` in ns-w9-hacl after apply:
         table inet ngfw_w9 {
-        	comment "ngfw-agent host firewall"
+            comment "ngfw-agent host firewall"
         	set a4_peer {
         		type ipv4_addr
         		flags interval
@@ -122,13 +122,13 @@ ok  	ngfw/agent/internal/agent	0.349s
         	}
         	chain in_local-in {
         		type filter hook input priority filter; policy accept;
-        		ct state established,related counter packets 0 bytes 0 accept comment "ngfw:@established/0:c77fde03"
-        		iif "lo" counter packets 0 bytes 0 accept comment "ngfw:@loopback/0:ad72b3be"
-        		meta l4proto icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/0:36418210"
-        		meta l4proto ipv6-icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/1:455fde78"
-        		ip saddr 10.9.77.2 tcp dport 22 counter packets 0 bytes 0 accept comment "ngfw:@anti-lockout/0:f175bad4"
-        		ip saddr @a4_peer tcp dport 2222 counter packets 0 bytes 0 accept comment "ngfw:local-in:10/0:591e6c38"
-        		tcp dport 2323 counter packets 0 bytes 0 log prefix "ngfw:local-in:20 " drop comment "ngfw:local-in:20/0:f020440d"
+                ct state established,related counter packets 0 bytes 0 accept comment "ngfw:@established/0:c77fde03"
+                iif "lo" counter packets 0 bytes 0 accept comment "ngfw:@loopback/0:ad72b3be"
+                meta l4proto icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/0:36418210"
+                meta l4proto ipv6-icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/1:455fde78"
+                ip saddr 10.9.77.2 tcp dport 22 counter packets 0 bytes 0 accept comment "ngfw:@anti-lockout/0:f175bad4"
+                ip saddr @a4_peer tcp dport 2222 counter packets 0 bytes 0 accept comment "ngfw:local-in:10/0:591e6c38"
+                tcp dport 2323 counter packets 0 bytes 0 log prefix "ngfw:local-in:20 " drop comment "ngfw:local-in:20/0:f020440d"
         	}
         }
     `nft list tables` in ns-w9-hacl:   table inet foreign / table inet ngfw_w9

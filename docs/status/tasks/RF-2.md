@@ -151,7 +151,7 @@ strongswan_integration_test.go:337: charon a restarted (SIGTERM to the PID the h
 strongswan_integration_test.go:344: events: Watch reported daemon down and, after re-subscribing, daemon up
 strongswan_integration_test.go:388: after terminate + unload: Retrieve a = conns [] sas [] sharedSecrets []; xfrm state/policy empty in both namespaces
 strongswan_integration_test.go:426: planted secret: not found in 14 sources (ngfw.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 8 events, errors)
-strongswan_integration_test.go:116: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent; 
+strongswan_integration_test.go:116: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent;
 --- PASS: TestStrongswanIntegration (2.51s)
 ```
 Test log: `grep -c NGFW_TEST_PSK /root/ngfw-wt/logs/RF-2-integ-final.log` → `0` (the PSK exists only base64-encoded in the 0600
@@ -291,7 +291,7 @@ strongswan_integration_test.go:484: M3: residue flushed, AckRestart → restarte
 strongswan_integration_test.go:491: events: Watch reported daemon down and, after re-subscribing, daemon restarted
 strongswan_integration_test.go:541: after terminate + unload: Retrieve a = conns [] sas [] sharedSecrets []; xfrm state/policy empty in both namespaces
 strongswan_integration_test.go:581: planted secret: not found in 15 sources (ngfw.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 16 events, errors)
-strongswan_integration_test.go:129: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent; 
+strongswan_integration_test.go:129: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent;
 --- PASS: TestStrongswanIntegration (2.86s)
 ```
 `grep -c NGFW_TEST_PSK /root/ngfw-wt/logs/RF-2-fix-integ-final.log` → `0`. Log: `/root/ngfw-wt/logs/RF-2-fix-integ-final.log`.

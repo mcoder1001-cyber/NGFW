@@ -400,7 +400,7 @@ $ deploy/vpp/build.sh --build-dir /tmp/elsewhere --prepare-only
 [build.sh] ERROR: --build-dir must resolve inside /root/ngfw-wt/F-vpp-debs/deploy/vpp/.build
 rc=1
 $ ngfw_apt_missing ngfw-nonexistent-pkg-xyz   (M3)
-apt-get install -s failed (rc=100): E: Unable to locate package ngfw-nonexistent-pkg-xyz 
+apt-get install -s failed (rc=100): E: Unable to locate package ngfw-nonexistent-pkg-xyz
 rc=2
 $ VERSION with VPP_TAG=$(touch /tmp/pwned) (L2)
 VERSION:19: VPP_TAG='$(touch /tmp/ngfw-pwned)' does not match ^v[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$

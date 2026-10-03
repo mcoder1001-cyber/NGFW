@@ -242,7 +242,7 @@ logs      /root/ngfw-wt/logs/ci/F-startup-gen-20260924-014406-1519297
 Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    19.22s  
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/ngfw-startupgen	1.390s; ok  	ngfw/agent/internal/agent	1.105s; ok  	ngfw/agent/internal/contracttest	1.854s; ok  	ngfw/agent/internal/descriptors/abf	1.117s; ok  	ngfw/agent/internal/descriptors/acl	1.271s; ok  	ngfw/agent/internal/descriptors/adl	1.111s; ok  	ngfw/agent/internal/descriptors/af_packet	1.103s; ok  	ngfw/agent/internal/descriptors/arp	1.096s; ok  	ngfw/agent/internal/descriptors/bond	1.120s; ok  	ngfw/agent/internal/descriptors/classify	1.151s; ok  	ngfw/agent/internal/descriptors/df2	1.103s; ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.121s; 
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.390s; ok  	ngfw/agent/internal/agent	1.105s; ok  	ngfw/agent/internal/contracttest	1.854s; ok  	ngfw/agent/internal/descriptors/abf	1.117s; ok  	ngfw/agent/internal/descriptors/acl	1.271s; ok  	ngfw/agent/internal/descriptors/adl	1.111s; ok  	ngfw/agent/internal/descriptors/af_packet	1.103s; ok  	ngfw/agent/internal/descriptors/arp	1.096s; ok  	ngfw/agent/internal/descriptors/bond	1.120s; ok  	ngfw/agent/internal/descriptors/classify	1.151s; ok  	ngfw/agent/internal/descriptors/df2	1.103s; ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.121s;
 
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.020s; 

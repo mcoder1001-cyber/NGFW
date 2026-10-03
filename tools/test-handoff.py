@@ -35,6 +35,35 @@ def clean_head(cwd, head):
     return actual == head and clean
 
 
+def group_alive(group):
+    """Linux owned-group quiescence: zombies cannot execute or retain files."""
+    try:
+        os.killpg(group, 0)
+    except ProcessLookupError:
+        return False
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdecimal():
+            continue
+        try:
+            fields = (entry / 'stat').read_text().rsplit(')', 1)[1].split()
+        except FileNotFoundError:
+            continue  # process exited during the scan
+        if int(fields[2]) == group and fields[0] not in ('Z', 'X'):
+            return True
+    return False
+
+
+def wait_group(process, seconds):
+    deadline = time.monotonic() + seconds
+    while True:
+        process.poll()
+        if not group_alive(process.pid):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
 def run(path):
     job = json.loads(path.read_text())
     job.update(pid=os.getpid(), state='checking', started=datetime.datetime.now(datetime.timezone.utc).isoformat())
@@ -78,19 +107,23 @@ def run(path):
             # Kill only this job's dedicated process group, never a shared PID.
             try:
                 os.killpg(process.pid, signal.SIGTERM)
-                deadline = time.monotonic() + 10
-                while time.monotonic() < deadline:
-                    process.poll()  # reap the wrapper; descendants still matter
-                    try:
-                        os.killpg(process.pid, 0)
-                    except ProcessLookupError:
-                        break
-                    time.sleep(0.1)
-                else:
+                if not wait_group(process, 10):
                     os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
+                    if not wait_group(process, 5):
+                        raise TimeoutError('Owned process group did not become quiescent after KILL')
+                process.wait(timeout=5)
             except ProcessLookupError:
                 pass
+            except Exception as error:
+                job.update(state='failed', error=f'Process cleanup verification failed: {error}')
+        # Descendants can change source while TERM/KILL cleanup is in progress.
+        # Seal success only after our process group has finished cleanup.
+        if job['state'] == 'passed':
+            try:
+                if not clean_head(job['cwd'], job['head']):
+                    job.update(state='stale', error='Tracked tree changed during cleanup; result does not validate submitted SHA.')
+            except Exception as error:
+                job.update(state='failed', error=f'Final checkpoint verification failed: {error}')
         job['finished'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         save(path, job)
 

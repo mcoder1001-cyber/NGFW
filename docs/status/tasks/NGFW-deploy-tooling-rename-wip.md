@@ -51,3 +51,5 @@ Follow-up validation:
   workers; source edits migrate no host locks or running processes.
 - All VPP VERSION non-comment values equal prerequisite checkpoint; dependency
   pydeps.lock bytes equal. Python syntax 35 files PASS; license Node syntax PASS.
+- Final full owned-shell warning/error audit after those fixes: 38 scripts, exit0,
+  no diagnostics. Latest coherent product checkpoint 4478efdf1db21a3fb46669a50bbdd3da9bbaed6e.

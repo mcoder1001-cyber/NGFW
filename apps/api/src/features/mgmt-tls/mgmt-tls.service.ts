@@ -217,8 +217,18 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       } as const;
       if (!tls.certificateRef || !tls.privateKeyRef) {
         // the running listener keeps its last certificate until the API restarts (it cannot serve without one)
-        this.context = null;
-        this.current = { ...base, configured: false, active: null, error: null };
+        if (this.server?.listening && this.current) {
+          // Retention is the existing policy: report the certificate still served, not an empty context.
+          this.current = {
+            ...this.current,
+            configured: false,
+            certificateRef: base.certificateRef,
+            error: null,
+          };
+        } else {
+          this.context = null;
+          this.current = { ...base, configured: false, active: null, error: null };
+        }
         return;
       }
       const res = await this.check(tls);

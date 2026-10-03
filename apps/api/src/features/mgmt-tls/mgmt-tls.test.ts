@@ -284,29 +284,70 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
         holder.doc = tlsDoc('cert/a', 'key/a');
         await svc.reload();
         expect((await svc.state()).listener).toEqual({ enabled: true, port: 3202 });
-        const peer = await new Promise<string | undefined>((resolve, reject) => {
-          const req = request(
-            {
-              hostname: '127.0.0.1',
-              port: 3202,
-              path: '/w2-health',
-              agent: false,
-              rejectUnauthorized: false,
-            },
-            (res) => {
-              const subject = (res.socket as TLSSocket).getPeerX509Certificate()?.subject;
-              res.resume();
-              res.on('end', () => resolve(subject));
-            },
-          );
-          req.on('error', reject);
-          req.end();
+        const peer = () =>
+          new Promise<string | undefined>((resolve, reject) => {
+            const req = request(
+              {
+                hostname: '127.0.0.1',
+                port: 3202,
+                path: '/w2-health',
+                agent: false,
+                rejectUnauthorized: false,
+              },
+              (res) => {
+                const subject = (res.socket as TLSSocket).getPeerX509Certificate()?.subject;
+                res.resume();
+                res.on('end', () => resolve(subject));
+              },
+            );
+            req.on('error', reject);
+            req.end();
+          });
+        expect(await peer()).toBe('CN=a.vrx.test');
+        holder.doc = {};
+        holder.revision = 8;
+        await svc.reload();
+        expect(await svc.state()).toMatchObject({
+          configured: false,
+          active: { subject: 'CN=a.vrx.test' },
+          listener: { enabled: true },
+          loadedRevision: 7,
         });
-        expect(peer).toBe('CN=a.vrx.test');
+        expect(svc.secureContext()).not.toBeNull();
+        expect(await peer()).toBe('CN=a.vrx.test');
         await svc.onApplicationShutdown();
         expect((await svc.state()).listener.enabled).toBe(false);
       } finally {
         await svc.onApplicationShutdown();
+        await fastify.close();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('reports a failed bind as disabled and retries when the configured HTTPS port becomes available', async () => {
+      vi.stubEnv('VRX_HTTPS_PORT', '3203'); // slot 2 test sub-port
+      vi.stubEnv('VRX_HTTP_HOST', '127.0.0.1');
+      const blocker = createServer(validateTlsMaterial(a.cert, a.key, '1.2').options!);
+      await new Promise<void>((resolve) => blocker.listen(3203, '127.0.0.1', resolve));
+      const fastify = Fastify();
+      await fastify.ready();
+      const { svc, holder } = service({}, { 'cert/a': a.cert, 'key/a': a.key });
+      Object.assign(svc, { host: { httpAdapter: { getInstance: () => fastify } } });
+      try {
+        await svc.onApplicationBootstrap();
+        holder.doc = tlsDoc('cert/a', 'key/a');
+        await svc.reload();
+        expect((await svc.state()).listener.enabled).toBe(false);
+        expect((await svc.state()).error).toContain('EADDRINUSE');
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
+        await svc.reload();
+        expect(await svc.state()).toMatchObject({
+          listener: { enabled: true, port: 3203 },
+          error: null,
+        });
+      } finally {
+        await svc.onApplicationShutdown();
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
         await fastify.close();
         vi.unstubAllEnvs();
       }

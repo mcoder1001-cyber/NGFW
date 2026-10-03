@@ -47,7 +47,9 @@ this release. If the first valid certificate is committed after startup, the lis
 restarting the API. The listener status reports whether the server is actually listening, rather than whether a
 port was requested. Reloads run in sequence so slow earlier secret reads cannot overwrite later committed certificates.
 Removing the certificate references still leaves an existing listener using its previous certificate until restart;
-that removal behavior remains an open lifecycle issue. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
+that removal behavior remains an open lifecycle issue. While retained, the state still shows the certificate
+actually served and its loaded revision, with `configured: false`. A failed listener bind reports disabled and
+can be retried on a subsequent configuration reload once the requested port is available. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
 stream authentication and subscription handlers. Missing or invalid credentials are refused before the WebSocket
 upgrade. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
 

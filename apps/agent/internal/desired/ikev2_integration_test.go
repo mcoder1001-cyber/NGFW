@@ -594,6 +594,7 @@ print('TCP exact 1048576 bytes passed')`))
 		if e := os.MkdirAll(evidence, 0700); e != nil {
 			t.Fatal(e)
 		}
+		//nolint:gosec // Read only the capture file created by this fixture inside t.TempDir.
 		data, e := os.ReadFile(pcap)
 		if e != nil {
 			t.Fatal(e)

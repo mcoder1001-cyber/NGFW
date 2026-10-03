@@ -119,12 +119,23 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       return;
     }
     this.server = createServer(this.context, (req, res) => fastify.routing(req, res));
+    // Reuse Fastify's existing upgrade handler: it runs stream authentication and route hooks.
+    // Preserve the TLS socket and upgrade head; never create a second websocket/auth stack.
+    this.server.on('upgrade', (req, socket, head) => {
+      if (!fastify.server.emit('upgrade', req, socket, head)) socket.destroy();
+    });
     const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
-    this.server.listen(this.httpsPort, hostName, () =>
-      this.log.log(
-        `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
-      ),
-    );
+    const server = this.server;
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(this.httpsPort!, hostName, () => {
+        server.off('error', reject);
+        this.log.log(
+          `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
+        );
+        resolve();
+      });
+    });
   }
 
   async onApplicationShutdown(): Promise<void> {

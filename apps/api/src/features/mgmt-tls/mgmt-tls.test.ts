@@ -1,9 +1,14 @@
+import fastifyWebsocket from '@fastify/websocket';
+import Fastify from 'fastify';
+import { randomBytes } from 'node:crypto';
+import { request } from 'node:https';
 import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { connect, createServer, type Server } from 'node:tls';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { connect, createServer, type Server, type TLSSocket } from 'node:tls';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { registerStreamRoute } from '../../telemetry/stream.route.js';
 import { Bus } from '../../infra/bus.js';
 import { MgmtTlsService } from './mgmt-tls.service.js';
 import { CERT_POINTER, KEY_POINTER, validateTlsMaterial } from './validator.js';
@@ -176,6 +181,93 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       expect(s3.active?.subject).toBe('CN=b.vrx.test');
       expect(s3.error).toContain('does not match');
       expect(JSON.stringify(s3)).not.toContain('PRIVATE KEY');
+    });
+
+    it('HTTPS upgrades reuse stream authentication and deliver relay data over the TLS socket', async () => {
+      vi.stubEnv('VRX_HTTPS_PORT', '3201'); // slot 2 test sub-port
+      vi.stubEnv('VRX_HTTP_HOST', '127.0.0.1');
+      const fastify = Fastify();
+      await fastify.register(fastifyWebsocket);
+      const authenticate = vi.fn(async (credential: string | undefined) =>
+        credential === 'Bearer test-access' ? { username: 'w2-user', role: 'admin' } : null,
+      );
+      const attach = vi.fn((socket: { send: (data: string) => void }) =>
+        socket.send('w2-stream-delivery'),
+      );
+      let encrypted = false;
+      fastify.addHook('preValidation', async (req) => {
+        encrypted = (req.raw.socket as TLSSocket).encrypted;
+      });
+      await registerStreamRoute(fastify, { authenticate } as never, { attach } as never);
+      await fastify.ready();
+      const { svc } = service(tlsDoc('cert/a', 'key/a'), {
+        'cert/a': a.cert,
+        'key/a': a.key,
+      });
+      // Use the production HTTPS listener, forwarding into the real Fastify stream route/plugin.
+      Object.assign(svc, { host: { httpAdapter: { getInstance: () => fastify } } });
+      const upgrade = (authorization?: string) =>
+        new Promise<{ status: number; body: string; subject?: string }>((resolve, reject) => {
+          const req = request({
+            hostname: '127.0.0.1',
+            port: 3201,
+            path: '/api/v1/stream',
+            rejectUnauthorized: false,
+            agent: false, // rejected upgrades close the socket; do not reuse it for the next attempt
+            headers: {
+              connection: 'Upgrade',
+              upgrade: 'websocket',
+              'sec-websocket-version': '13',
+              'sec-websocket-key': randomBytes(16).toString('base64'),
+              ...(authorization ? { authorization } : {}),
+            },
+          });
+          req.on('error', (error) =>
+            reject(new Error(`${authorization ?? 'missing'}: ${error.message}`)),
+          );
+          req.setTimeout(5_000, () => req.destroy(new Error('upgrade timed out')));
+          req.on('response', (res) => {
+            let body = '';
+            res.on('data', (chunk: Buffer) => {
+              body += chunk.toString();
+            });
+            res.on('end', () => resolve({ status: res.statusCode!, body }));
+          });
+          req.on('upgrade', (res, socket, head) => {
+            const subject = (socket as TLSSocket).getPeerX509Certificate()?.subject;
+            const received = (data: Buffer) => {
+              socket.destroy();
+              resolve({ status: res.statusCode!, body: data.toString(), subject });
+            };
+            if (head.length > 0) received(head);
+            else socket.once('data', received);
+          });
+          req.end();
+        });
+      try {
+        await svc.onApplicationBootstrap();
+        for (const credentials of [undefined, 'Bearer invalid-access']) {
+          const refused = await upgrade(credentials);
+          expect(refused.status).toBe(401);
+          expect(JSON.parse(refused.body)).toMatchObject({ status: 401 });
+          expect(attach).not.toHaveBeenCalled();
+        }
+        const accepted = await upgrade('Bearer test-access');
+        expect(accepted.status).toBe(101);
+        expect(accepted.subject).toBe('CN=a.vrx.test');
+        expect(accepted.body).toContain('w2-stream-delivery');
+        expect(encrypted).toBe(true);
+        expect(authenticate.mock.calls.map(([credential]) => credential)).toEqual([
+          undefined,
+          'Bearer invalid-access',
+          'Bearer test-access',
+        ]);
+        expect(attach).toHaveBeenCalledOnce();
+      } finally {
+        await svc.onApplicationShutdown();
+        await fastify.close();
+        vi.unstubAllEnvs();
+      }
     });
 
     it('no refs → no certificate, honest state', async () => {

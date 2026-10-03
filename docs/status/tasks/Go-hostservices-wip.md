@@ -1,4 +1,4 @@
-# Go host-services fixture — coherent correction, full gate running
+# Go host-services fixture — frozen correction, complete local quick PASS
 
 Branch `codex/go-hostservices-fixture-20261003`; isolated `NGFW-go-hostservices`; base `a237827811a4abd2293157d5e8ea0cebf61196fc`.
 Owned only `apps/agent/internal/agent/rpc_dns_test.go` and `docs/status/tasks/Go-hostservices-*`.
@@ -33,5 +33,19 @@ ok ngfw/agent/internal/subsystems 22.550s
 
 Corrected logs: `/tmp/go-hostservices-after-final-{1,2}.log`, `/tmp/go-hostservices-related-final.log`, `/tmp/go-hostservices-subsystems.log`. Existing real Unbound/chrony/rsyslog config-check tools ran read-only on private staged fixture files; no host service was started or signalled.
 
-Unchanged full quick gate is NOW RUNNING on frozen source b4ef518f, log `/tmp/go-hostservices-quick.log`. No full-gate pass claimed before completion. Remaining: full local quick, exact-tree publication/PR and unchanged hosted gates, independent review; developer does not self-review or merge.
-Next command: inspect `/tmp/go-hostservices-quick.log`, commit final raw result, ask root to publish exact final tree and create the reviewable PR from Go-hostservices-pr.md.
+Unchanged COMPLETE local quick gate PASSED on frozen source b4ef518f with documentation checkpoint df29183f, exit 0:
+
+```text
+tools/ci.sh --base a237827811a4abd2293157d5e8ea0cebf61196fc
+35 turbo tasks successful (28 cached, 56.606s)
+ngfw/agent/internal/agent 46.385s — PASS
+agent lint/race/build, CLI lint/test/build and every test-module unit/compile/vet stage — PASS
+deploy/vpp shellcheck + preserved fake-host apply-startup shards — 33/29/26/61 assertions PASS
+mode quick · wall time 10m23s
+CI GATE PASSED
+```
+
+Raw quick log `/tmp/go-hostservices-quick.log`; detailed logs `/root/ngfw-wt/logs/ci/NGFW-go-hostservices-20261003-133014-396580`. The VPP counters belong to fake-host fixtures; no host VPP/service restart occurred. VRX_INTEGRATION remained unset, so real lab integration is NOT claimed. All spawned test/gate processes ended; worktree clean before this documentation-only checkpoint.
+
+Current code failure: none. Remaining: exact-tree remote publication/PR acknowledgement, unchanged hosted gate results and independent review. If main changes, root must validate the final integration tree; developer does not self-review or merge. No production/test-helper redesign, new skip, relaxed nonempty configuration acceptance or CI change was introduced.
+Next command: `git rev-parse HEAD && git rev-parse HEAD^{tree}` after final documentation commit; root connector-publishes that exact tree and creates the reviewable PR from Go-hostservices-pr.md, then checks final published-head CI and independent review before guarded integration.

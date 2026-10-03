@@ -91,6 +91,14 @@ def run(path):
                 process.wait()
             except ProcessLookupError:
                 pass
+        # Descendants can change source while TERM/KILL cleanup is in progress.
+        # Seal success only after our process group has finished cleanup.
+        if job['state'] == 'passed':
+            try:
+                if not clean_head(job['cwd'], job['head']):
+                    job.update(state='stale', error='Tracked tree changed during cleanup; result does not validate submitted SHA.')
+            except Exception as error:
+                job.update(state='failed', error=f'Final checkpoint verification failed: {error}')
         job['finished'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         save(path, job)
 

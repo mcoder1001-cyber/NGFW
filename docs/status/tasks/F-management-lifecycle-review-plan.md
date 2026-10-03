@@ -1,0 +1,5 @@
+# Dispatch plan — TLS listener lifecycle stacked PR100
+Final source remote df83a412/local eabeb473 tree 3c49a16c, based on PR99 unmerged; optional-property typing correction appended without force. Own mgmt-tls source/test and usermanagementdocs.
+Required fresh R1 correctness/tests, R2 security, R7 evidence/scope; R6 userdocs; preserve conservativeR5 parentWS review requirement. No newroutes/DTO/contracts/sharedbootstrap edits.
+Behavior: actualserver.listening state, latefirstcertlistener startup, reloadserialization, bindfailure retry, retainedactuallyservedcertstate afterrefsremoved. Certretention/anti-lockout boundary unchanged.
+Focused13PASS9.40s sourcecheckpoint, posttypingcorrection13PASS13.30s developer; developer APItypecheck PASS on both corrected candidates; independent final APItypecheck exit0 +13focusPASS9.29s and R2APPROVE; root independently verifies remote/localtree. RootindependentT1/R2separate. Completeunchangedhostedgate exactfinalintegration tree and literalfreshpanel required; no merge whilecapblocks panel or99fails.

@@ -1114,14 +1114,15 @@ tasks:
   files_owned: '- apps/agent/internal/descriptors/dslite/** and docs/agent/descriptors/dslite.md (new)'
   branch: ''
   worktree: ''
-  owner: ''
+  owner: awaiting resume
   started: ''
   finished: ''
   notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md | cloud 2026-09-27: agent layer merged (review
     BLOCK→fixed: nat46- name guard in map builder, lw4o6 needs rules). Follow-ups: contract nat.pnat + Det44Sessions/Det44Lookup/CnatSessions RPCs + ActionRequest 9/10, PNAT projection, rpc_det44/rpc_cnat
     actions, API + e2e, UI tabs en/fa, test/topology; host: DET44 enable + globals windows, packet paths, vppctl show, NRestarts; Q3 schema-vs-VPP defaults, Q4 derived cnat interface feature | cloud 2026-09-27
     part B merged (contract nat.pnat=27, RPCs, PNAT wired, rpc_det44/rpc_cnat, API 5 routes, UI 4 tabs en/fa; review fixes: PNAT names/order recovered by BindingID, CNAT sessions owner-scoped). Remaining
-    = host evidence only (packet paths, vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology)'
+    = host evidence only (packet paths, vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology) | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished
+    source state retained.'
 - id: F-nat46
   title: 'Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46)'
   prompt: prompts/features/F-nat46.md
@@ -1143,14 +1144,15 @@ tasks:
   files_owned: '- apps/agent/internal/descriptors/nat46/** and docs/agent/descriptors/nat46.md (new, if a descriptor family is needed)'
   branch: ''
   worktree: ''
-  owner: ''
+  owner: awaiting resume
   started: ''
   finished: ''
   notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry).
     NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)
     | UPDATE 2026-10-01 (re-recorded; the 2026-09-27 part-B note was lost in a main merge): part B merged 1252727b/3d5fd946 — wired end to end: schema nat.nat46, proto NatConfig 28, agent builder (shared
     MAP-T interface ownership from stored desired state, nat46- name guard both ways, /32 overlap vs nat.map), API state routes, UI tab, docs; D-160 stateful NAT46 out of scope. Remaining = host evidence
-    only: TestNat46OnHost (does VPP 26.06 accept /32<->/128 MAP-T ea_bits 0), packet test, vppctl show map domain, API e2e on PostgreSQL, screenshot'
+    only: TestNat46OnHost (does VPP 26.06 accept /32<->/128 MAP-T ea_bits 0), packet test, vppctl show map domain, API e2e on PostgreSQL, screenshot | 2026-10-03 parallel recovery: no verified live developer;
+    operationally awaiting resume, unfinished source state retained.'
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md
@@ -1175,7 +1177,8 @@ tasks:
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 board correction: code merged in PR #70 (30fccd767e1e25a247659dc24808a2587d69c5e5); appliance/browser/restart acceptance NOT RUN and owner-deferred.'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 board correction: code merged in PR #70 (30fccd767e1e25a247659dc24808a2587d69c5e5);
+    appliance/browser/restart acceptance NOT RUN and owner-deferred.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -1196,12 +1199,13 @@ tasks:
   files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
     route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav
-    entry. | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+    entry. | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished
+    source state retained.'
 - id: F-management-ui
   title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
   prompt: prompts/features/F-management-ui.md
@@ -1221,14 +1225,16 @@ tasks:
   - D0.10
   scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
   files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
-  branch: claude/modest-keller-upaw4m
-  worktree: ''
-  owner: cloud session modest-keller
-  started: '2026-09-27'
+  branch: codex/management-lifecycle-parallel-20261003
+  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-management-lifecycle
+  owner: awaiting independent fresh review (partial source)
+  started: '2026-10-03'
   finished: ''
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
     apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry. | Integrated partial scope, remaining code in review-lab-audit.md;
-    lab alone no merge blocker.'
+    lab alone no merge blocker. | 2026-10-03: live isolated developer assigned by programme manager; unfinished code first, bounded source slice, whole task not yet done. | PR99 stream candidate published7f7b81eb
+    unmerged, next isolated lifecycle source increment stacked on99; fresh panel blocked runtimecap. | PR99 finale405145f stream and stackedPR100 finaldf83a412 lifecycle; stricttyping defect corrected,
+    developer APItypecheckPASS both; root finalretests pending; wholemanagement not certifiedmerged.'
 - id: WEB-dashboard
   title: 'Dashboard: status banner, device CPU/memory/storage gauges and history, throughput, traffic chart, packet engine (hugepages, threads), interface donut, busiest interfaces, events'
   prompt: ''
@@ -1278,14 +1284,17 @@ tasks:
     → start → AckRestart, SA state/event glue) apps/agent/internal/desired/ipsec*.go apps/agent/internal/subsystems/ipsec*.go apps/agent/internal/agent/rpc_ipsec*.go packages/schema/src/semantic/ipsec*.ts
     apps/api/src/features/ipsec/** apps/api/test/e2e/ipsec* apps/web/src/domains/vpn/ipsec/** apps/web/src/locales/{en,fa}/ipsec.json docs/user/vpn/ipsec.md docs/agent/renderers/strongswan.md docs/agent/descriptors/ipsec.md
     test/topology/ipsec/** docs/status/tasks/P11* — plus apps/agent/internal/secrets/** ONLY if the manager assigns the API→agent secret channel to P11 (see coordination)'
-  branch: task/P11-codex
-  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-P11
-  owner: Codex manager delegated worker
-  started: '2026-10-01T20:33:27.076593+00:00'
+  branch: codex/p11-resume-parallel-20261003
+  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-p11-resume
+  owner: awaiting independent fresh review (partial source)
+  started: '2026-10-03'
   finished: ''
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
     since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
-    any VPP write) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged.'
+    any VPP write) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. |
+    2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source state retained. | 2026-10-03 new live recovery assignment: isolated packaging provenance/staging
+    slice; all5deps merged; no host mutation. | PR101 finalfa26c700 readonly source/staging intake, initialmissingdigestfinding fixed, independent9fixturePASS; realbuilder/plugin/wiring and hardware acceptance
+    unfinished.'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -1359,11 +1368,11 @@ tasks:
   files_owned: '- gap-only (DF-6 built them): apps/agent/internal/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}/**, docs/agent/descriptors/{gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe}.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume
   started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining code in review-lab-audit.md; lab alone
-    no merge blocker.'
+    no merge blocker. | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source state retained.'
 - id: F-pki
   title: 'Wave B (day 10-12): CA, CSR, import/export, CRL/OCSP, expiry alerts'
   prompt: prompts/features/F-pki.md
@@ -1445,10 +1454,11 @@ tasks:
   files_owned: '- apps/agent/internal/renderers/frr/ospf/** (both sections `ospf` and `ospf6`: orders 440/450 per wave-BC-numbers.md), docs/agent/renderers/frr-ospf.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume
   started: '2026-09-27'
   finished: ''
-  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished
+    source state retained.'
 - id: F-isis-rip
   title: 'Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR'
   prompt: prompts/features/F-isis-rip.md
@@ -1469,10 +1479,11 @@ tasks:
   files_owned: '- apps/agent/internal/renderers/frr/{isis,rip}/** (sections `isis` 470, `rip` 420, `ripng` 430 — RIPng lives in the rip package), docs/agent/renderers/frr-{isis,rip}.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume
   started: '2026-09-27'
   finished: ''
-  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished
+    source state retained.'
 - id: F-bfd-redistribution
   title: 'Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX'
   prompt: prompts/features/F-bfd-redistribution.md
@@ -1899,11 +1910,11 @@ tasks:
     docs/agent/renderers/keepalived.md'
   branch: claude/modest-keller-upaw4m
   worktree: ''
-  owner: cloud session modest-keller
+  owner: awaiting resume
   started: '2026-09-27'
   finished: ''
   notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker.'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source state retained.'
 - id: P13
   title: CLI basic
   prompt: prompts/P13-cli-basic.md
@@ -2078,14 +2089,16 @@ tasks:
     signed APT repo / vrx-meta (5.5a); vrx-power@ hook unit
   files_owned: '- deploy/debian/vrx/** (the source package: control, rules, *.install, postinst/prerm/postrm, units wiring), deploy/debian/README.md, scripts/10-install-runtime.sh, docs/09-os-packages.md
     (FD.io row and table rows; review 5.5a)'
-  branch: ''
-  worktree: ''
-  owner: ''
-  started: ''
+  branch: codex/p10-resume-parallel-20261003
+  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-p10-resume
+  owner: awaiting independent fresh review
+  started: '2026-10-03'
   finished: ''
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
     security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
-    DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114)'
+    DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114) | 2026-10-03: live isolated developer assigned by programme manager;
+    unfinished code first, bounded source slice, whole task not yet done. | 2026-10-03 PR98 published e53bc20b source slice; developer handed off and reassigned P11; required fresh panel blocked runtime
+    total-thread cap, no merge.'
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md
@@ -3691,11 +3704,12 @@ tasks:
   files_owned: '- apps/api/src/features/notifications/**, docs/user/system/notifications.md'
   branch: task/F-notifications-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-notifications
-  owner: notifications_build
+  owner: awaiting resume
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished
+    source state retained.'
 - template: ''
   parked_on: ''
   branch: ''
@@ -3756,11 +3770,12 @@ tasks:
   files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
   branch: task/F-setup-wizard-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-setup
-  owner: setup_build
+  owner: awaiting resume
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   notes: 'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned setup_build'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned setup_build | 2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source
+    state retained.'
 - id: F-rule-expiry
   title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
   prompt: prompts/features/F-rule-expiry.md
@@ -3930,12 +3945,13 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03 board correction: code integrated in PR #62 (c76774e8d2e04abee8ea7a301e64acbb3f794373); PR #58 closed unmerged and superseded; live VPP/browser/restart acceptance NOT RUN and owner-deferred.'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03
+    board correction: code integrated in PR #62 (c76774e8d2e04abee8ea7a301e64acbb3f794373); PR #58 closed unmerged and superseded; live VPP/browser/restart acceptance NOT RUN and owner-deferred.'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
-  owner: dashboard_finish
+  owner: awaiting resume
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
   state: running
@@ -3952,7 +3968,8 @@ tasks:
     WanState RPC handler); topology — cut link 1 -> traffic moves within downAfter*interval+2s, restore -> back (failover); balance splits ~1000 flows by weight +/-10%'
   files_owned: docs/status/tasks/F-multiwan*
   notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance
-    remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish'
+    remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish | 2026-10-03 parallel recovery: no verified live developer;
+    operationally awaiting resume, unfinished source state retained.'
 - id: F-aaa-login
   title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
   stage: S4

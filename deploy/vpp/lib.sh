@@ -187,3 +187,23 @@ vrx_pydeps_verify() {
   for f in "$2"/*; do [[ -e $f ]] && n=$((n - 1)); done
   ((n == 0)) || { echo "pydeps: $2 holds files that are not in the lock" >&2; return 1; }
 }
+
+# Select up to JOBS CPUs from this process's inherited Linux affinity, never
+# from the host CPU count. Explicit IDs keep sparse masks valid for taskset.
+# Python is already mandatory for the hash-locked build dependency checks.
+vrx_build_cpus() {
+  python3 - "$1" <<'PYCPU'
+import os, sys
+
+jobs = sys.argv[1]
+if not jobs.isascii() or not jobs.isdecimal() or not 1 <= int(jobs) <= 8:
+    sys.exit("CPU selection: jobs must be 1..8")
+try:
+    allowed = sorted(os.sched_getaffinity(0))
+except OSError as exc:
+    sys.exit(f"CPU selection: cannot read process affinity: {exc}")
+if not allowed:
+    sys.exit("CPU selection: empty process affinity")
+print(",".join(str(cpu) for cpu in allowed[-int(jobs):]))
+PYCPU
+}

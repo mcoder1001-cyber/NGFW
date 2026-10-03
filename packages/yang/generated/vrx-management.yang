@@ -602,5 +602,151 @@ module vrx-management {
         }
       }
     }
+    container notifications {
+      list channels {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf name {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf enabled {
+          type boolean;
+          default "true";
+        }
+        leaf vrf {
+          type string;
+          default "default";
+          description "Only default API namespace routing is supported; other VRFs fail validation.";
+        }
+        leaf type {
+          type enumeration {
+            enum "email";
+            enum "webhook";
+          }
+          mandatory true;
+        }
+        container email {
+          leaf smtpHost {
+            type union {
+              type string {
+                pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+              }
+              type string {
+                pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+              }
+              type string {
+                pattern "[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+                length "1..253";
+              }
+            }
+            mandatory true;
+            description "IP address or hostname";
+          }
+          leaf port {
+            type uint32 {
+              range "1..65535";
+            }
+            default "587";
+          }
+          leaf tls {
+            type enumeration {
+              enum "starttls";
+              enum "tls";
+            }
+            default "starttls";
+          }
+          leaf username {
+            type string {
+              // pattern dropped: not XSD-expressible
+              length "1..254";
+            }
+          }
+          leaf passwordRef {
+            type string {
+              pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            description "reference to a stored secret of kind password";
+          }
+          leaf from {
+            type string {
+              pattern "([A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}";
+              length "0..254";
+            }
+            mandatory true;
+          }
+          leaf-list to {
+            type string {
+              pattern "([A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}";
+              length "0..254";
+            }
+          }
+        }
+        container webhook {
+          leaf url {
+            type string {
+              length "0..2048";
+            }
+            mandatory true;
+          }
+          leaf secretRef {
+            type string {
+              pattern "(token)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            mandatory true;
+            description "reference to a stored secret of kind token";
+          }
+        }
+      }
+      list rules {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        leaf name {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf enabled {
+          type boolean;
+          default "true";
+        }
+        leaf-list events {
+          type enumeration {
+            enum "alarm";
+            enum "commit";
+            enum "link";
+            enum "vpn";
+            enum "global-blocking";
+          }
+        }
+        leaf minSeverity {
+          type enumeration {
+            enum "info";
+            enum "warning";
+            enum "critical";
+          }
+          default "warning";
+        }
+        leaf-list channels {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+        leaf throttleSec {
+          type uint32 {
+            range "1..86400";
+          }
+          default "60";
+        }
+      }
+    }
   }
 }

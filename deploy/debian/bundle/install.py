@@ -26,6 +26,8 @@ def copy_tree(source, destination):
     """Walk using pinned no-follow directory descriptors, never source path reopen."""
     budget = [0, 0]
     def walk(fd, target, relative):
+        if len(relative.parts) > 32:
+            raise InvalidBundle('delivery directory depth exceeds bound')
         before = os.fstat(fd)
         for name in sorted(os.listdir(fd)):
             budget[0] += 1

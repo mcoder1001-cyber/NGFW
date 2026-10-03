@@ -44,8 +44,8 @@ sets require a separate supported implementation. Explicit architecture qualifie
 such as `:any` and `:native` are also rejected; no Multi-Arch resolution is claimed.
 Inspection uses a private archive snapshot with bounded output, archive count,
 sizes and relationship count. Source replacement during inspection is rejected.
-Files can change afterwards: reverify the trusted manifest immediately before a
-separate installer uses the delivery set.
+Files can change afterwards: the installer below takes its own private snapshot
+and verifies that snapshot against the trusted manifest before use.
 
 The plan proves package metadata closure, not that package payloads, maintainer
 scripts, application migrations or services work. It does not perform an APT
@@ -57,4 +57,57 @@ For release, build the real product/VPP archives, obtain runtime dependencies
 from authenticated repositories, publish the signed APT repository, and run the
 existing clean Ubuntu install/remove/reinstall and appliance boot acceptance.
 The existing runtime installer and firstboot safeguards still apply. This
-checker is a bounded preparation step, not a complete offline installer.
+checker is a bounded preparation step; the explicit installer below still needs
+real release artifacts and clean-target acceptance.
+
+## Preflight and explicitly install a trusted delivery set
+
+The installer requires the expected manifest outside the delivery directory.
+It copies `.deb` archives and the VPP manifest/checksum files into a private,
+bounded snapshot using no-follow file descriptors, then runs the existing full
+bundle and VPP verification against that snapshot. Symlinks and special files
+are rejected. The source directory can be on removable storage; installation
+uses the verified private copies. Temporary copies are removed on success or
+failure. Allow space for a second copy of the archives (up to 16 GiB).
+
+The default only prints the verified plan and never runs APT or starts services:
+
+```sh
+python3 deploy/debian/bundle/install.py /path/to/delivery --manifest /trusted/bundle-manifest.json
+```
+
+Only on an explicitly authorized fresh Ubuntu 26.04 amd64 target, request the
+mutating operation:
+
+```sh
+sudo python3 deploy/debian/bundle/install.py /path/to/delivery --manifest /trusted/bundle-manifest.json --install
+```
+
+This requires root, checks the OS/release and dpkg architecture, and first runs
+an APT simulation. If simulation fails, installation does not run. Both commands
+use the exact verified local archive paths, `--no-download`, `--no-remove`, an
+empty private repository list, lists/cache directories, isolated APT
+configuration and a minimal environment with no inherited proxy settings.
+It does not run `apt update`, permit downgrades, add repositories or install
+recommended/suggested packages outside the complete supplied runtime profile.
+Existing configuration files are retained (`--force-confold`). APT still reads
+the target's installed-package status and uses its normal dpkg database/lock.
+Archives remain root-private, so APT reads them as root rather than weakening
+the snapshot permissions for its `_apt` helper.
+
+**Installation is a privileged mutation.** Trusted package maintainer scripts
+can write configuration, migrate data and start services. The installer does
+not sandbox those scripts or prohibit their own network activity. The isolated
+APT acquisition path does not prove that every package script is offline.
+Installation is not transactional: a failure may leave partially configured
+packages; retain the APT/dpkg output and inspect the target before retrying.
+Concurrent administrative package changes must be avoided. Use this operation
+for fresh targets; it is not a validated upgrade or rollback mechanism.
+
+Synthetic tests build real small `dpkg-deb` archives, stub only the VPP provenance
+boundary and capture APT commands without executing them. They prove command
+construction and rejection paths, not real artifact provenance or installation.
+A genuine complete bundle, signed-release trust, actual clean Ubuntu
+installation/remove/reinstall, firstboot and hardware validation remain required.
+The bounded verifier's unsupported relationship/Multi-Arch syntax limitations
+above still apply and can reject real distribution package sets.

@@ -167,7 +167,8 @@ class HelpersTests(unittest.TestCase):
         return output, report, destination
 
     def test_inventory_refuses_omission_extra_duplicate_link_and_mode(self):
-        for case in ('missing', 'extra', 'duplicate', 'link', 'mode', 'traversal', 'modified'):
+        for case in ('missing', 'extra', 'duplicate', 'link', 'fifo', 'contiguous',
+                     'mode', 'traversal', 'modified'):
             with self.subTest(case=case):
                 def change(records):
                     member, content = records[0]
@@ -182,6 +183,10 @@ class HelpersTests(unittest.TestCase):
                     if case == 'link':
                         member.type = tarfile.SYMTYPE
                         member.linkname = '/tmp/escape'
+                    elif case == 'fifo':
+                        member.type = tarfile.FIFOTYPE
+                    elif case == 'contiguous':
+                        member.type = tarfile.CONTTYPE
                     elif case == 'mode':
                         member.mode = 0o777
                     elif case == 'traversal':

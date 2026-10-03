@@ -110,7 +110,7 @@ def unpack_helpers(archive_path, report, destination):
     with tarfile.open(fileobj=io.BytesIO(data), mode='r:') as archive:
         for member in archive:
             entry = report['files'].get(member.name)
-            if (entry is None or member.name in seen or not member.isfile()
+            if (entry is None or member.name in seen or member.type != tarfile.REGTYPE
                     or member.size != entry['size'] or member.mode != entry['mode']
                     or member.pax_headers or member.linkname):
                 raise ValueError('helper archive member differs from trusted inventory')

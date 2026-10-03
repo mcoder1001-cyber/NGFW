@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-02'
+updated: '2026-10-03'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1162,7 +1162,7 @@ tasks:
   - WEB-2
   priority: 3
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.14
@@ -1175,7 +1175,8 @@ tasks:
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 reconciliation: PR70 merge30fccd767 verified ancestor of maina044cf1d; observed facts/banner
+    code merged, real appliance acceptance remains deferred. No live worker inferred.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -3915,7 +3916,7 @@ tasks:
   owner: PR58 pending hosted gate
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: running
+  state: merged
   wbs: []
   prompt: ''
   id: F-dashboard-prom-alarms-host
@@ -3930,7 +3931,9 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03
+    reconciliation: superseding PR62 mergec76774e8 verified ancestor of maina044cf1d; recovered collector/listener code merged. Real VPP traffic, alarms/webhooks, restart/browser acceptance deferred per
+    approved owner policy; PR58 closed unmerged, not evidence of current code absence.'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex

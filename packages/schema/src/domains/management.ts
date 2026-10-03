@@ -1,3 +1,4 @@
+import { managementNotificationsField } from './ext/notifications.js';
 import { z } from 'zod';
 import {
   descriptionText,
@@ -250,6 +251,7 @@ export const ManagementSchema = withUi(
     // wave-BC: F-dashboard-prom-alarms
     prometheus: managementPrometheusField,
     alarms: managementAlarmsField,
+    notifications: managementNotificationsField,
     // wave-BC: F-backup-restore
   }),
   {

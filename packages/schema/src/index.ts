@@ -128,3 +128,5 @@ export * from './merge-patch.js';
 export * from './semantic/index.js';
 export * from './validate.js';
 export * from './secrets.js';
+
+export * from './domains/ext/notifications.js';

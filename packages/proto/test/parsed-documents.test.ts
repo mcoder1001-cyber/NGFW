@@ -111,6 +111,34 @@ describe('parsed documents survive the DesiredState projection', () => {
     });
   }
 
+  it('populated API-owned notifications survive the contract projection', () => {
+    const parsed = redactSecrets(RootConfig.parse({
+      management: {
+        notifications: {
+          channels: [
+            {
+              name: 'relay', type: 'email',
+              email: {
+                smtpHost: 'mail.example.test', port: 587, tls: 'starttls',
+                username: 'relay-user', passwordRef: 'password/relay',
+                from: 'sender@example.test', to: ['admin@example.test'],
+              },
+            },
+            {
+              name: 'hook', type: 'webhook',
+              webhook: { url: 'https://example.test/notify', secretRef: 'token/hook' },
+            },
+          ],
+          rules: [{
+            name: 'events', events: ['alarm', 'commit', 'link', 'vpn', 'global-blocking'],
+            channels: ['relay', 'hook'], minSeverity: 'warning', throttleSec: 60,
+          }],
+        },
+      },
+    }));
+    expect(diff(parsed, DesiredState.toJSON(DesiredState.fromJSON(parsed)))).toEqual([]);
+  });
+
   it('the comparison is not vacuous: a leaf without a proto field is reported', () => {
     const parsed = redactSecrets(RootConfig.parse({})) as Record<string, Record<string, unknown>>;
     const broken = { ...parsed, system: { ...parsed['system'], bogusLeaf: 'x' } };

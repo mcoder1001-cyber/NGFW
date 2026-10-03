@@ -98,7 +98,7 @@ Write-only Creates run again on every resync:
 
 ## Host-wide lock
 
-Mutations that dereference the cnat default SNAT entry take `/run/lock/vrx-nat-cnat.lock`:
+Mutations that dereference the cnat default SNAT entry take `/run/lock/ngfw-nat-cnat.lock`:
 - shared: `cnat_set_snat_policy` and `cnat_snat_policy_add_del_exclude_pfx`, together with their guard read;
 - exclusive: creating or deleting the entry.
 
@@ -110,7 +110,7 @@ lock directory can be changed with `natcommon.WithLockDir`.
 Integration tests run as **non-owners**:
 - The plugins are **test fixtures** (`nattest.EnsurePlugin`). A plugin is enabled if it was off and disabled again only
   if the test enabled it and it is completely empty; det44 is never disabled. Every test using the plugin holds
-  `/run/lock/vrx-nat-fixture-<plugin>.lock` shared. The enabling test converts it to exclusive around the emptiness
+  `/run/lock/ngfw-nat-fixture-<plugin>.lock` shared. The enabling test converts it to exclusive around the emptiness
   check and the disable, so no other slot can add an object in between (re-review N4).
 - Globals are exercised as requirements: the current value is accepted, a different one fails with `ErrGlobalMismatch`,
   and the values read before and after are asserted equal (the previous value is restored by never changing it).

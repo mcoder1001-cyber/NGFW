@@ -5,7 +5,7 @@ Branch `task/RF-2` (worktree `/root/ngfw-wt/RF-2`, base `main@ff6b91a`, slot 3 /
 ## What was built
 - `apps/agent/internal/renderers/strongswan` — `renderers.Renderer` for charon:
   - **Render**: `vpn.ipsec.{proposals,tunnels}` (typed `DesiredState` or D-055 `structpb` stand-in) → `strongswan.conf`
-    (0640), `swanctl/conf.d/vrx.conf` (0640), `swanctl/conf.d/vrx-secrets.conf` (**0600**, `File.Secret`), from
+    (0640), `swanctl/conf.d/ngfw.conf` (0640), `swanctl/conf.d/ngfw-secrets.conf` (**0600**, `File.Secret`), from
     `templates/*.tmpl` with strict helpers (`name`, `q`, `tok`, `list`). PSKs resolved from `psk/<name>` refs (D-051) through
     an injected `SecretResolver`, rendered only as `secret = 0s<base64>`. Kernel plugin list is `DaemonConfig.Plugins` (P11 fills).
   - **Validate**: strongSwan has no offline checker → strict settings-grammar parser (`settings.go`) with byte-exact
@@ -30,7 +30,7 @@ Branch `task/RF-2` (worktree `/root/ngfw-wt/RF-2`, base `main@ff6b91a`, slot 3 /
 
 ## How it was verified
 
-### Unit + integration (`VRX_SLOT=3 VRX_TEST_PREFIX=w3 VRX_INTEGRATION=1 go test -count=1 -v ./internal/renderers/strongswan/...`)
+### Unit + integration (`NGFW_SLOT=3 NGFW_TEST_PREFIX=w3 NGFW_INTEGRATION=1 go test -count=1 -v ./internal/renderers/strongswan/...`)
 ```
 --- PASS: TestApplyLoadsConvergesAndIsIdempotent (0.02s)
 --- PASS: TestApplyRemovesStaleAndTerminatesSAs (0.01s)
@@ -75,12 +75,12 @@ Validate; fake-charon Apply/idempotency/stale unload+terminate/rollback/not-conv
 ### Integration evidence (two stock charon-systemd 6.0.4 in ns-w3-a / ns-w3-b, kernel-netlink, no VPP)
 ```
 === RUN   TestStrongswanIntegration
-strongswan_integration_test.go:118: strongSwan binaries: root /run/vrx-test/w3/swan-stock/root (charon-systemd, swanctl)
+strongswan_integration_test.go:118: strongSwan binaries: root /run/ngfw-test/w3/swan-stock/root (charon-systemd, swanctl)
 strongswan_integration_test.go:177: rendered endpoints are in 10.3.0.0/16; IKE binds only inside ns-w3-a / ns-w3-b
-strongswan_integration_test.go:184: charon a started in ns-w3-a, VICI /run/vrx-test/w3/swan/a/charon.vici
-strongswan_integration_test.go:184: charon b started in ns-w3-b, VICI /run/vrx-test/w3/swan/b/charon.vici
-strongswan_integration_test.go:184: charon v started in ns-w3-v, VICI /run/vrx-test/w3/swan/v/charon.vici
-strongswan_integration_test.go:186: test daemons (argv0 under /run/vrx-test/w3/swan): pids [1813971 1813997 1814019]
+strongswan_integration_test.go:184: charon a started in ns-w3-a, VICI /run/ngfw-test/w3/swan/a/charon.vici
+strongswan_integration_test.go:184: charon b started in ns-w3-b, VICI /run/ngfw-test/w3/swan/b/charon.vici
+strongswan_integration_test.go:184: charon v started in ns-w3-v, VICI /run/ngfw-test/w3/swan/v/charon.vici
+strongswan_integration_test.go:186: test daemons (argv0 under /run/ngfw-test/w3/swan): pids [1813971 1813997 1814019]
 strongswan_integration_test.go:204: Validate a+b: strict parser ok; swanctl --load-all into scratch charon v ok (v has w3-ab, start_action none, 0 SAs)
 strongswan_integration_test.go:247: Apply a+b ok: list-conns w3-ab IKEv2 local [10.3.250.1] remote [10.3.250.2] children [{w3-ab TUNNEL 3600 [10.3.1.0/24] [10.3.2.0/24]}]; get-shared [ike-w3-ab]; secrets file mode -rw-------
 strongswan_integration_test.go:271: list-sas (a, via Retrieve; PSK never present):
@@ -146,26 +146,26 @@ strongswan_integration_test.go:276: ip -n ns-w3-a xfrm state (keys removed):
     	proto esp spi 0xca7f76b6 reqid 1 mode tunnel
 strongswan_integration_test.go:283: events: ike-updown up + child-updown up received from VICI
 strongswan_integration_test.go:293: idempotent re-Apply: IKE_SA #1 still ESTABLISHED
-strongswan_integration_test.go:315: failed Apply rolled back: error "load connection w3-bad: strongswan: daemon error: vici load-conn: vici: command failed: invalid value for: certs, config discarded"; vrx.conf restored byte-for-byte; charon still has only w3-ab with IKE_SA #1
+strongswan_integration_test.go:315: failed Apply rolled back: error "load connection w3-bad: strongswan: daemon error: vici load-conn: vici: command failed: invalid value for: certs, config discarded"; ngfw.conf restored byte-for-byte; charon still has only w3-ab with IKE_SA #1
 strongswan_integration_test.go:337: charon a restarted (SIGTERM to the PID the harness spawned, then started again): re-Apply loaded w3-ab from the files, IKE_SA #1 ESTABLISHED
 strongswan_integration_test.go:344: events: Watch reported daemon down and, after re-subscribing, daemon up
 strongswan_integration_test.go:388: after terminate + unload: Retrieve a = conns [] sas [] sharedSecrets []; xfrm state/policy empty in both namespaces
-strongswan_integration_test.go:426: planted secret: not found in 14 sources (vrx.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 8 events, errors)
-strongswan_integration_test.go:116: cleanup: daemons stopped (none left under /run/vrx-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent; 
+strongswan_integration_test.go:426: planted secret: not found in 14 sources (ngfw.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 8 events, errors)
+strongswan_integration_test.go:116: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent;
 --- PASS: TestStrongswanIntegration (2.51s)
 ```
-Test log: `grep -c VRX_TEST_PSK /root/ngfw-wt/logs/RF-2-integ-final.log` → `0` (the PSK exists only base64-encoded in the 0600
+Test log: `grep -c NGFW_TEST_PSK /root/ngfw-wt/logs/RF-2-integ-final.log` → `0` (the PSK exists only base64-encoded in the 0600
 secrets file and in charon). Log files: `/root/ngfw-wt/logs/RF-2-integ-final.log`, `/root/ngfw-wt/logs/RF-2-ci-1.log`.
 
 ### Acceptance checks (after the runs)
 ```
 $ grep -rn "sh -c\|bash -c" internal/renderers/strongswan        → (no output, exit 1)
 $ grep -rn "exec.Command" internal/renderers/strongswan           → (no output, exit 1)
-$ pgrep -af /run/vrx-test/w3/swan                                 → only the grep's own shell; no test daemon
+$ pgrep -af /run/ngfw-test/w3/swan                                 → only the grep's own shell; no test daemon
 $ systemctl is-active strongswan-starter strongswan               → inactive / inactive  (is-enabled: not-found)
 $ stat /etc/swanctl /etc/strongswan.conf                          → No such file or directory (before and after; test asserts unchanged)
 $ ip netns list | grep -c w3                                      → 0
-$ ls /run/vrx-test/w3                                             → swan-stock  swan.lock
+$ ls /run/ngfw-test/w3                                             → swan-stock  swan.lock
 $ golangci-lint run ./internal/renderers/...                      → 0 issues
 ```
 
@@ -191,7 +191,7 @@ CI GATE PASSED
 ## Environment finding (important)
 strongSwan is **not installed** on this host (the prompt assumed it was). I did not install it (creates `/etc/swanctl`,
 `/etc/strongswan.conf`, enables `strongswan.service`). The stock Ubuntu 6.0.4 debs were extracted with `apt-get download` +
-`dpkg -x` into `/run/vrx-test/w3/swan-stock/root` (tmpfs; lost on reboot; README has the 3 commands). The harness runs daemons
+`dpkg -x` into `/run/ngfw-test/w3/swan-stock/root` (tmpfs; lost on reboot; README has the 3 commands). The harness runs daemons
 and swanctl on a locked OS thread that enters a private mount namespace (propagation private) with read-only overlays of the
 extracted `usr/lib` and `usr/sbin` (stock binaries hard-code `/usr/lib/ipsec/plugins`; `/run` is noexec) and then the rig netns.
 The test asserts the overlay never appears in the host namespace. If strongSwan gets installed, the harness uses it directly.
@@ -258,15 +258,15 @@ exists in the Active sections. Fix round commit: `454194b`.
 --- PASS: TestTunnelNameCap (0.00s)
 ```
 
-### Integration (`VRX_SLOT=3 VRX_TEST_PREFIX=w3 VRX_INTEGRATION=1 go test -count=1 -v ./internal/renderers/strongswan/...` → 39 PASS, 0 FAIL; list-sas JSON body elided)
+### Integration (`NGFW_SLOT=3 NGFW_TEST_PREFIX=w3 NGFW_INTEGRATION=1 go test -count=1 -v ./internal/renderers/strongswan/...` → 39 PASS, 0 FAIL; list-sas JSON body elided)
 ```
 === RUN   TestStrongswanIntegration
-strongswan_integration_test.go:131: strongSwan binaries: root /run/vrx-test/w3/swan-stock/root (charon-systemd, swanctl)
+strongswan_integration_test.go:131: strongSwan binaries: root /run/ngfw-test/w3/swan-stock/root (charon-systemd, swanctl)
 strongswan_integration_test.go:195: rendered endpoints are in 10.3.0.0/16; IKE binds only inside ns-w3-a / ns-w3-b
-strongswan_integration_test.go:202: charon b started in ns-w3-b, VICI /run/vrx-test/w3/swan/b/charon.vici
-strongswan_integration_test.go:202: charon v started in ns-w3-v, VICI /run/vrx-test/w3/swan/v/charon.vici
-strongswan_integration_test.go:202: charon a started in ns-w3-a, VICI /run/vrx-test/w3/swan/a/charon.vici
-strongswan_integration_test.go:204: test daemons (argv0 under /run/vrx-test/w3/swan): pids [2055574 2055598 2055621]
+strongswan_integration_test.go:202: charon b started in ns-w3-b, VICI /run/ngfw-test/w3/swan/b/charon.vici
+strongswan_integration_test.go:202: charon v started in ns-w3-v, VICI /run/ngfw-test/w3/swan/v/charon.vici
+strongswan_integration_test.go:202: charon a started in ns-w3-a, VICI /run/ngfw-test/w3/swan/a/charon.vici
+strongswan_integration_test.go:204: test daemons (argv0 under /run/ngfw-test/w3/swan): pids [2055574 2055598 2055621]
 strongswan_integration_test.go:222: Validate a+b: strict parser ok; swanctl --load-all into scratch charon v ok (v has w3-ab, start_action none, 0 SAs)
 strongswan_integration_test.go:265: Apply a+b ok: list-conns w3-ab IKEv2 local [10.3.250.1] remote [10.3.250.2] children [{w3-ab TUNNEL 3600 [10.3.1.0/24] [10.3.2.0/24]}]; get-shared [ike-w3-ab]; secrets file mode -rw-------
 strongswan_integration_test.go:289: list-sas (a, via Retrieve; PSK never present):
@@ -277,7 +277,7 @@ strongswan_integration_test.go:294: ip -n ns-w3-a xfrm state (keys removed):
     	proto esp spi 0xc20acb95 reqid 1 mode tunnel
 strongswan_integration_test.go:301: events: ike-updown up + child-updown up received from VICI
 strongswan_integration_test.go:311: idempotent re-Apply: IKE_SA #1 still ESTABLISHED
-strongswan_integration_test.go:333: failed Apply rolled back: error "load connection w3-bad: strongswan: daemon error: vici load-conn: vici: command failed: invalid value for: certs, config discarded"; vrx.conf restored byte-for-byte; charon still has only w3-ab with IKE_SA #1
+strongswan_integration_test.go:333: failed Apply rolled back: error "load connection w3-bad: strongswan: daemon error: vici load-conn: vici: command failed: invalid value for: certs, config discarded"; ngfw.conf restored byte-for-byte; charon still has only w3-ab with IKE_SA #1
 strongswan_integration_test.go:378: M1: Impact map[w3-ab:update]; Apply(dpd 30→20, start_action none→start): IKE_SA #1 kept, 1 CHILD_SA (no duplicate)
 strongswan_integration_test.go:403: H1 probe 1: Apply(b, remote_ts 10.3.1.0/25) returned after terminating the /24 CHILD_SA; b: stale 0, xfrm policy has no 10.3.1.0/24
 strongswan_integration_test.go:419: H1 probe 1: a followed; IKE_SA #2 CHILD_SA #2 INSTALLED local_ts [10.3.1.0/25] remote_ts [10.3.2.0/24] (b: remote [10.3.1.0/25])
@@ -290,19 +290,19 @@ strongswan_integration_test.go:468: M3: after SIGKILL + restart: State.restarted
 strongswan_integration_test.go:484: M3: residue flushed, AckRestart → restarted=false; re-Apply loaded w3-ab and initiated it (start action): IKE_SA #1 ESTABLISHED
 strongswan_integration_test.go:491: events: Watch reported daemon down and, after re-subscribing, daemon restarted
 strongswan_integration_test.go:541: after terminate + unload: Retrieve a = conns [] sas [] sharedSecrets []; xfrm state/policy empty in both namespaces
-strongswan_integration_test.go:581: planted secret: not found in 15 sources (vrx.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 16 events, errors)
-strongswan_integration_test.go:129: cleanup: daemons stopped (none left under /run/vrx-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent; 
+strongswan_integration_test.go:581: planted secret: not found in 15 sources (ngfw.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, 16 events, errors)
+strongswan_integration_test.go:129: cleanup: daemons stopped (none left under /run/ngfw-test/w3/swan), namespaces deleted; /etc unchanged: /etc/strongswan.conf: absent; /etc/swanctl: absent; /etc/strongswan.d: absent; /usr/lib/ipsec: absent;
 --- PASS: TestStrongswanIntegration (2.86s)
 ```
-`grep -c VRX_TEST_PSK /root/ngfw-wt/logs/RF-2-fix-integ-final.log` → `0`. Log: `/root/ngfw-wt/logs/RF-2-fix-integ-final.log`.
+`grep -c NGFW_TEST_PSK /root/ngfw-wt/logs/RF-2-fix-integ-final.log` → `0`. Log: `/root/ngfw-wt/logs/RF-2-fix-integ-final.log`.
 
 ### After the runs
 ```
-pgrep -af /run/vrx-test/w3/swan          → none (only the grep's shell)
+pgrep -af /run/ngfw-test/w3/swan          → none (only the grep's shell)
 ip netns list | grep -c w3               → 0
 ip xfrm state | wc -l   (host)           → 0
 findmnt | grep -c swan-stock             → 0
-ls /run/vrx-test/w3                      → swan-stock  swan.lock
+ls /run/ngfw-test/w3                      → swan-stock  swan.lock
 systemctl is-active strongswan strongswan-starter → inactive inactive
 /etc/strongswan.conf, /etc/swanctl       → absent before and after (asserted by the test)
 ```
@@ -328,7 +328,7 @@ CI GATE PASSED
 gitleaks: "no leaks found"; contract guard: "no contract files changed in the 11 commit(s)". The first fix-round CI run
 failed gitleaks on a test literal `secret = 0s<base64 of "ABCDEFGH">` (generic-api-key) in my own, unreviewed fix-round
 commits `49f20a4`/`3534a7a`; per the CI instruction ("recreate the commits without it") they were squashed into
-`454194b` with the literal replaced by the allow-listed `VRX_TEST_PSK_RF2_masked` form. Nothing reviewed or merged was
+`454194b` with the literal replaced by the allow-listed `NGFW_TEST_PSK_RF2_masked` form. Nothing reviewed or merged was
 rewritten.
 
 ### Decisions (fix round)

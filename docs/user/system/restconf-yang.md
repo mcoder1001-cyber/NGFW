@@ -2,7 +2,7 @@
 
 The box exposes a **RESTCONF** API (RFC 8040) at `/restconf`, described by **YANG 1.1** modules that are *generated*
 from the same configuration schema the REST API and the web UI use. There is one module per configuration domain
-(`vrx-system`, `vrx-interfaces`, `vrx-routing`, …). RESTCONF is a thin compatibility layer over the normal
+(`ngfw-system`, `ngfw-interfaces`, `ngfw-routing`, …). RESTCONF is a thin compatibility layer over the normal
 candidate/commit engine: it uses the same authentication, roles and audit as `/api/v1`, and a write is not live until
 you commit.
 
@@ -14,42 +14,42 @@ Same as the REST API — send your bearer token (or API key):
 
 ```
 curl -H "Authorization: Bearer $TOKEN" -H "Accept: application/yang-data+json" \
-     https://<box>/restconf/data/vrx-interfaces:interfaces
+     https://<box>/restconf/data/ngfw-interfaces:interfaces
 ```
 
 ## Reading configuration
 
 `GET /restconf/data` returns the whole datastore; `GET /restconf/data/<module>:<node>[/…]` returns one subtree. The
-top node is module-qualified (`{"vrx-system:system": {…}}`). Reads come from the **running** datastore by default; add
+top node is module-qualified (`{"ngfw-system:system": {…}}`). Reads come from the **running** datastore by default; add
 `?datastore=candidate` to read the uncommitted candidate. Secret leaves (e.g. password hashes) are **never** returned.
 
 ```
 # the whole running config
 curl … https://<box>/restconf/data
 # one domain
-curl … https://<box>/restconf/data/vrx-system:system
+curl … https://<box>/restconf/data/ngfw-system:system
 # a keyed list entry (RFC 8040 list-key syntax)
-curl … https://<box>/restconf/data/vrx-interfaces:interfaces=TenGigabitEthernet0/mtu
+curl … https://<box>/restconf/data/ngfw-interfaces:interfaces=TenGigabitEthernet0/mtu
 ```
 
 ## Changing configuration
 
-`PUT` replaces, `PATCH` merges (RFC 7386), `DELETE` removes — all edit the **candidate**. Then run the `vrx:commit`
+`PUT` replaces, `PATCH` merges (RFC 7386), `DELETE` removes — all edit the **candidate**. Then run the `ngfw:commit`
 operation. The body is module-qualified `application/yang-data+json`:
 
 ```
 # stage a change
 curl -X PATCH -H "Content-Type: application/yang-data+json" … \
-     -d '{"vrx-system:system":{"hostname":"edge-1"}}' \
-     https://<box>/restconf/data/vrx-system:system
+     -d '{"ngfw-system:system":{"hostname":"edge-1"}}' \
+     https://<box>/restconf/data/ngfw-system:system
 
 # apply it (optionally { "input": { "confirm": 120 } } for a confirmed commit)
 curl -X POST -H "Content-Type: application/yang-data+json" … \
-     -d '{"input":{}}' https://<box>/restconf/operations/vrx:commit
+     -d '{"input":{}}' https://<box>/restconf/operations/ngfw:commit
 ```
 
-Other operations: `POST /restconf/operations/vrx:confirm` confirms a pending confirmed commit, and
-`POST /restconf/operations/vrx:rollback` with `{"input":{"revision":<n>}}` restores an earlier revision.
+Other operations: `POST /restconf/operations/ngfw:confirm` confirms a pending confirmed commit, and
+`POST /restconf/operations/ngfw:rollback` with `{"input":{"revision":<n>}}` restores an earlier revision.
 
 ## Errors
 

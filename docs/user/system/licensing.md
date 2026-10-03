@@ -1,6 +1,6 @@
 # Licensing
 
-VRX uses a simple, **offline** licence: a signed file that says who the licence is for, how long it is valid and which
+NGFW uses a simple, **offline** licence: a signed file that says who the licence is for, how long it is valid and which
 features it covers. There is no online activation and no call-home. Licensing never touches the data plane: it is
 checked only when you commit a configuration.
 
@@ -48,16 +48,16 @@ Everything else (interfaces, static routing, NAT, ACLs, services, …) is never 
 - **System → Licence**: status, customer, expiry, days left, the entitlement table, and *Upload licence file* (admin).
 - `GET /api/v1/state/license` (any role): status, entitlements in force, days left and the customer name. The signature
   and the binding values are never returned.
-- `PUT /api/v1/system/license` (admin, audited): body = the `.vrxlic` file content. A malformed, tampered or wrongly
+- `PUT /api/v1/system/license` (admin, audited): body = the `.ngfwlic` file content. A malformed, tampered or wrongly
   signed file, a file bound to another host, and a file expired past grace are rejected with `400`.
-- CLI (`vrx`): the generated operations for these two routes (see `docs/user/cli/reference.md`). The CLI enforces
+- CLI (`ngfw`): the generated operations for these two routes (see `docs/user/cli/reference.md`). The CLI enforces
   nothing itself; the API does.
 
-## File format (`.vrxlic`)
+## File format (`.ngfwlic`)
 
 ```json
 {
-  "format": "vrxlic/1",
+  "format": "ngfwlic/1",
   "license": {
     "version": 1,
     "licenseId": "LIC-2026-0001",
@@ -77,28 +77,28 @@ no whitespace). `binding` is optional: `serial` (DMI product serial, `/sys/class
 `machineIdHash` (SHA-256 hex of `/etc/machine-id`). Note that VM templates clone `/etc/machine-id`; prefer the serial.
 
 The API trusts the product public key(s) compiled into `apps/api/src/features/licensing/licensing.config.ts`, or, when
-`VRX_LICENSE_PUBLIC_KEYS` is set (comma-separated PEM public keys; `\n` escapes allowed), exactly those keys instead.
-**Release engineering must set `VRX_LICENSE_PUBLIC_KEYS` or replace the embedded key**: the embedded key is a
+`NGFW_LICENSE_PUBLIC_KEYS` is set (comma-separated PEM public keys; `\n` escapes allowed), exactly those keys instead.
+**Release engineering must set `NGFW_LICENSE_PUBLIC_KEYS` or replace the embedded key**: the embedded key is a
 placeholder whose private half was discarded, so without that step no licence verifies and every device stays
-unlicensed. For development only, `VRX_LICENSE_PUBKEY_FILE` adds one more trusted key. The installed file is stored at
-`VRX_LICENSE_FILE` (default `/var/lib/vrx/license.vrxlic`). `VRX_LICENSE_SERIAL` overrides the detected serial.
+unlicensed. For development only, `NGFW_LICENSE_PUBKEY_FILE` adds one more trusted key. The installed file is stored at
+`NGFW_LICENSE_FILE` (default `/var/lib/ngfw/license.ngfwlic`). `NGFW_LICENSE_SERIAL` overrides the detected serial.
 
 ## How support issues a licence
 
-`tools/license/vrx-license` needs only Node 22 (no packages):
+`tools/license/ngfw-license` needs only Node 22 (no packages):
 
 ```sh
 # once, on the offline signing workstation — never inside a git checkout (the tool refuses)
-tools/license/vrx-license keygen --out-dir /secure/vrx-license-keys
-# → vrx-license-signing.pem (0600, keep offline) and vrx-license-public.pem (goes into licensing.config.ts)
+tools/license/ngfw-license keygen --out-dir /secure/ngfw-license-keys
+# → ngfw-license-signing.pem (0600, keep offline) and ngfw-license-public.pem (goes into licensing.config.ts)
 
 # the customer sends the serial:  cat /sys/class/dmi/id/product_serial
-tools/license/vrx-license issue --key /secure/vrx-license-keys/vrx-license-signing.pem \
+tools/license/ngfw-license issue --key /secure/ngfw-license-keys/ngfw-license-signing.pem \
   --customer "Example Ltd" --id LIC-2026-0001 --days 365 --serial "VMware-42 1a 2b ..." \
-  --features ipsec,ha --limit ipsecTunnels=50 --out example.vrxlic
+  --features ipsec,ha --limit ipsecTunnels=50 --out example.ngfwlic
 
-tools/license/vrx-license verify --pub /secure/vrx-license-keys/vrx-license-public.pem example.vrxlic
-tools/license/vrx-license inspect example.vrxlic
+tools/license/ngfw-license verify --pub /secure/ngfw-license-keys/ngfw-license-public.pem example.ngfwlic
+tools/license/ngfw-license inspect example.ngfwlic
 ```
 
-The customer uploads `example.vrxlic` on **System → Licence**.
+The customer uploads `example.ngfwlic` on **System → Licence**.

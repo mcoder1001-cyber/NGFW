@@ -44,26 +44,26 @@ def slot_values(slot):
     if isinstance(slot, bool) or not isinstance(slot, int) or slot not in (*range(1, 12), *range(14, 33)):
         raise Refused('developer slot must be 1–11 or 14–32; CI12 and13 are excluded')
     return {
-        'VRX_SLOT': str(slot), 'VRX_TEST_PREFIX': f'w{slot}',
-        'VRX_HTTP_PORT': str(3000 + 100 * slot if slot <= 11 else 10000 + 100 * slot),
-        'VRX_WEB_PORT': str(5000 + 100 * slot if slot <= 11 else 14000 + 100 * slot),
-        'VRX_METRICS_PORT': str(9100 + 10 * slot + 1),
-        'VRX_AGENT_SOCKET': f'/run/vrx-test/w{slot}/agent.sock',
-        'VRX_PG_DATABASE': f'vrx_w{slot}', 'VRX_VALKEY_DB': str(slot),
-        'VRX_VPP_TABLE_BASE': str(slot * 1000),
+        'NGFW_SLOT': str(slot), 'NGFW_TEST_PREFIX': f'w{slot}',
+        'NGFW_HTTP_PORT': str(3000 + 100 * slot if slot <= 11 else 10000 + 100 * slot),
+        'NGFW_WEB_PORT': str(5000 + 100 * slot if slot <= 11 else 14000 + 100 * slot),
+        'NGFW_METRICS_PORT': str(9100 + 10 * slot + 1),
+        'NGFW_AGENT_SOCKET': f'/run/ngfw-test/w{slot}/agent.sock',
+        'NGFW_PG_DATABASE': f'ngfw_w{slot}', 'NGFW_VALKEY_DB': str(slot),
+        'NGFW_VPP_TABLE_BASE': str(slot * 1000),
     }
 
 
 def validate_environment(environment, slot):
     expected = slot_values(slot)
-    if environment.get('VRX_INTEGRATION') != '1' or environment.get('VRX_TRAFFIC_A_HOST') != '1':
-        raise Refused('explicit VRX_INTEGRATION=1 and VRX_TRAFFIC_A_HOST=1 required')
+    if environment.get('NGFW_INTEGRATION') != '1' or environment.get('NGFW_TRAFFIC_A_HOST') != '1':
+        raise Refused('explicit NGFW_INTEGRATION=1 and NGFW_TRAFFIC_A_HOST=1 required')
     for name, value in expected.items():
         if environment.get(name) != value:
             raise Refused(f'{name} differs from the allocated slot')
-    if environment.get('VRX_GLOBALS_OWNER', '0') != '0' or environment.get('VRX_VPP_ID_RANGE'):
+    if environment.get('NGFW_GLOBALS_OWNER', '0') != '0' or environment.get('NGFW_VPP_ID_RANGE'):
         raise Refused('traffic worker cannot own global VPP settings or all IDs')
-    forbidden = ('VRX_ACL_STATS_GLOBALS', 'VRX_DF7_GLOBALS', 'VRX_DF8_GLOBALS', 'VRX_NAT64_TENANT_VRF_HOST')
+    forbidden = ('NGFW_ACL_STATS_GLOBALS', 'NGFW_DF7_GLOBALS', 'NGFW_DF8_GLOBALS', 'NGFW_NAT64_TENANT_VRF_HOST')
     if any(environment.get(name) not in (None, '', '0') for name in forbidden):
         raise Refused('unsupported global/retained-state integration option')
     return expected
@@ -72,7 +72,7 @@ def validate_environment(environment, slot):
 def validate_lease(path, slot, boot_id, now=None):
     """Read a manager-provisioned lease; never create or renew one ourselves."""
     slot_values(slot)
-    expected = f'/run/vrx-test/w{slot}/traffic-a-lease.json'
+    expected = f'/run/ngfw-test/w{slot}/traffic-a-lease.json'
     if str(path) != expected:
         raise Refused('lease must be the fixed allocated-slot path')
     info = path.lstat()
@@ -99,7 +99,7 @@ def require_implemented(stages=STAGES):
 
 def plan(slot):
     values = slot_values(slot)
-    prefix = values['VRX_TEST_PREFIX']
+    prefix = values['NGFW_TEST_PREFIX']
     return {'task': 'TEST-traffic-A', 'status': 'NOTIMPLEMENTED', 'slot': slot,
             'path': 'af_packet', 'whole_chain_proven': False,
             'captures': [{'side': side, 'namespace': f'ns-{prefix}-{side}',

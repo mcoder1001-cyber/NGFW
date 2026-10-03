@@ -25,16 +25,16 @@ Apply: `unbound-control reload_keep_cache`. Retrieve: `status`, `stats_noreset`,
 
 ## In the agent (F-unbound-chrony-syslog)
 
-Singleton descriptor `unbound.config/vrx` (`renderers/unbound/descriptor.go`, D-109 d), domain `services`:
+Singleton descriptor `unbound.config/ngfw` (`renderers/unbound/descriptor.go`, D-109 d), domain `services`:
 
 | | |
 |---|---|
 | Value | `unbound.Input(services.dns)` — the resolvers (enabled or not); no object without a resolver |
 | Create / Update | Render → Validate (`unbound-checkconf`) → Apply; `*ActionRequired{start\|restart}` is logged, not a failure |
 | Delete | the idle rendering (loopback only, no resolver) |
-| Retrieve | `unbound.conf` → embedded input (`# vrx-input: <base64 of the deterministic protobuf>`) → re-rendered → byte-equal: the Value; else a drift `*structpb.Struct` (re-applied); a file without the line (Debian's default) is not ours and never reported |
+| Retrieve | `unbound.conf` → embedded input (`# ngfw-input: <base64 of the deterministic protobuf>`) → re-rendered → byte-equal: the Value; else a drift `*structpb.Struct` (re-applied); a file without the line (Debian's default) is not ours and never reported |
 | Pending (DnsState) | a persisted restart request (D-079) until unbound's process started after it; `start` while not running with resolvers |
 | Ownership | `RecordsNoOwnership()` (TD-11b): the embedded input is the ownership record |
 
-Paths: the globals owner (the product agent) uses `ProductPaths()`; every other agent `PathsUnder(/run/vrx-test/<owner>/unbound,
-3<slot>53)` (loopback only, `VRX_HOST_SERVICES_DIR` overrides the base), prepared on the first write — registration touches no file.
+Paths: the globals owner (the product agent) uses `ProductPaths()`; every other agent `PathsUnder(/run/ngfw-test/<owner>/unbound,
+3<slot>53)` (loopback only, `NGFW_HOST_SERVICES_DIR` overrides the base), prepared on the first write — registration touches no file.

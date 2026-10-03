@@ -67,7 +67,7 @@ had never been enabled. VPP 26.06 dereferenced a NULL name server (`vnet_dns_res
 - The DF-8 descriptors never leave the resolver enabled without a server. A server delete disables the switch first, and
   `dns.enable` carries the upstream set, so the transaction re-enables it after the new servers exist (the scheduler runs
   deletes before creates). `TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers` drives the real scheduler.
-- The DF-8 host test is opt-in twice (`VRX_DNS_VPP_HOST=1`, D-064). V-item in `docs/vpp-code-track.md`.
+- The DF-8 host test is opt-in twice (`NGFW_DNS_VPP_HOST=1`, D-064). V-item in `docs/vpp-code-track.md`.
 Every later run: NRestarts stayed 2 (pasted below).
 
 ## What was built
@@ -75,7 +75,7 @@ Every later run: NRestarts stayed 2 (pasted below).
 |---|---|
 | contract (schema) | `management.syslog[i].{facilities, format, queueSize, tls{caRef, certRef, keyRef, authMode, permittedPeers}}` (D-086, `domains/ext/syslog.ts`, all optional); rules `services.unbound-chrony-syslog-vpp-cache-port`, `-forwarder-loop`, `management.unbound-chrony-syslog-tls` |
 | contract (proto) | SyslogTarget 6–9 (+ `SyslogTls`), ActionRequest 7 `dns_lookup`, rpc `DnsState`, `NtpState`, `SyslogState`, `SyslogEntries` + messages in the feature section; proto.md §11 |
-| agent | singleton descriptors `unbound.config/vrx`, `chrony.config/vrx` (domain `services`) and `rsyslog.config/vrx` (domain `management`, which this branch introduces). Each Value is the render input embedded in the rendered file (`# vrx-input:`), proven on Retrieve by re-rendering byte for byte; drift → re-apply. Start/restart requests are recorded, not failures (D-079). `services.dns.vppCache` → DF-8 `dns.*` (owner: applied, others: required). Secret refs refused at DryRun. Slot/product path split (Q8). State RPCs, journald log explorer, dns_lookup action. `RecordsNoOwnership()` on all five descriptors (TD-11b) |
+| agent | singleton descriptors `unbound.config/ngfw`, `chrony.config/ngfw` (domain `services`) and `rsyslog.config/ngfw` (domain `management`, which this branch introduces). Each Value is the render input embedded in the rendered file (`# ngfw-input:`), proven on Retrieve by re-rendering byte for byte; drift → re-apply. Start/restart requests are recorded, not failures (D-079). `services.dns.vppCache` → DF-8 `dns.*` (owner: applied, others: required). Secret refs refused at DryRun. Slot/product path split (Q8). State RPCs, journald log explorer, dns_lookup action. `RecordsNoOwnership()` on all five descriptors (TD-11b) |
 | API | `GET /api/v1/state/{dns,ntp,syslog,logs}`, `POST /api/v1/actions/dns-lookup` (static route, operator, audited), fake agent (P5), e2e, OpenAPI + api-client + CLI operation table regenerated |
 | UI | Services › DNS / NTP / Logging (tab registry): schema-driven forms, live status, pending-daemon-action banner, VPP cache panel, lookup, log explorer on `ServerDataGrid` (severity/facility/window/text, server paging); polls ≥ 30 s + Refresh (D-132); en + fa |
 | docs | `docs/user/services/unbound-chrony-syslog.md` (5 screenshots), agent sections in `docs/agent/renderers/{unbound,chrony,rsyslog}.md`, `docs/agent/descriptors/dns.md` |
@@ -83,7 +83,7 @@ Every later run: NRestarts stayed 2 (pasted below).
 
 ## Acceptance (pasted from the runs)
 
-Slot end-to-end run: `eval "$(tools/lab env 10)"; VRX_UCS_SHOTS=<script> VRX_UCS_SHOTS_OUT=docs/user/services/img
+Slot end-to-end run: `eval "$(tools/lab env 10)"; NGFW_UCS_SHOTS=<script> NGFW_UCS_SHOTS_OUT=docs/user/services/img
 test/topology/unbound-chrony-syslog/run.sh -run TestUnboundChronySyslog`, 2026-09-25 04:50 (before the 05:05 af_packet
 problem; no host run since):
 ```
@@ -91,40 +91,40 @@ ucs_test.go:254: systemctl show vpp -p NRestarts (before): NRestarts=2
 ucs_test.go:256: host units (before): Id=chrony.service ActiveState=active UnitFileState=enabled MainPID=995 Id=rsyslog.service ActiveState=active UnitFileState=enabled MainPID=1033 Id=unbound.service ActiveState=inactive UnitFileState=disabled MainPID=0
 ucs_test.go:328: commit ucs-1: revision 1, status applied
 ucs_test.go:335: GET /state/dns before any daemon runs: running=false pendingActions=[{"action": "start", "daemon": "unbound", "reason": "configuration has resolvers but unbound is not running", "unit": "unbound"}]
-ucs_test.go:341: PUT resolver with forwarder = listen address → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/services/dns/resolvers/lab","errors":[{"pointer":"/services/dns/resolvers/lab/forwarders/0","message":"a forwarder must not be one of the listen addresses (loop)"}]}
-ucs_test.go:349: started unbound pid 3782682: /usr/sbin/unbound -d -c /run/vrx-test/w10/unbound/unbound.conf
-ucs_test.go:354: started chronyd(server) pid 3782683: /usr/sbin/chronyd -f /run/vrx-test/w10/chrony/server/chrony.conf -n -x -l /run/vrx-test/w10/chrony/server/chronyd.log
-ucs_test.go:356: started chronyd(agent) pid 3782684: /usr/sbin/chronyd -f /run/vrx-test/w10/chrony/agent/chrony.conf -n -x -l /run/vrx-test/w10/chrony/agent/log/chronyd.log
-ucs_test.go:359: started rsyslogd pid 3782686: /usr/sbin/rsyslogd -n -f /run/vrx-test/w10/rsyslog/rsyslog.conf -i /run/vrx-test/w10/rsyslog/rsyslogd.pid
+ucs_test.go:341: PUT resolver with forwarder = listen address → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/services/dns/resolvers/lab","errors":[{"pointer":"/services/dns/resolvers/lab/forwarders/0","message":"a forwarder must not be one of the listen addresses (loop)"}]}
+ucs_test.go:349: started unbound pid 3782682: /usr/sbin/unbound -d -c /run/ngfw-test/w10/unbound/unbound.conf
+ucs_test.go:354: started chronyd(server) pid 3782683: /usr/sbin/chronyd -f /run/ngfw-test/w10/chrony/server/chrony.conf -n -x -l /run/ngfw-test/w10/chrony/server/chronyd.log
+ucs_test.go:356: started chronyd(agent) pid 3782684: /usr/sbin/chronyd -f /run/ngfw-test/w10/chrony/agent/chrony.conf -n -x -l /run/ngfw-test/w10/chrony/agent/log/chronyd.log
+ucs_test.go:359: started rsyslogd pid 3782686: /usr/sbin/rsyslogd -n -f /run/ngfw-test/w10/rsyslog/rsyslog.conf -i /run/ngfw-test/w10/rsyslog/rsyslogd.pid
 ucs_test.go:375: net.Resolver{127.10.0.53:4053}.LookupHost(gw.lab.example) = [10.10.53.1]
-ucs_test.go:388: $ chronyc -n -h /run/vrx-test/w10/chrony/agent/chronyd.sock sources
+ucs_test.go:388: $ chronyc -n -h /run/ngfw-test/w10/chrony/agent/chronyd.sock sources
     MS Name/IP address         Stratum Poll Reach LastRx Last sample
     ===============================================================================
     ^* 127.0.0.1                    10  -1     7     0   -108ns[  +13us] +/-   15us
-ucs_test.go:404: $ logger -u /run/vrx-test/w10/rsyslog/log.sock -p local7.notice -t vrx-ucs-w10 'hello from w10 ucs-83d41b01'
-    collector 127.0.0.1:4016 received: "97 <189>1 2026-09-25T04:50:44.292599+03:30 ubuntu-26 vrx-ucs-w10 - - -  hello from w10 ucs-83d41b01"
+ucs_test.go:404: $ logger -u /run/ngfw-test/w10/rsyslog/log.sock -p local7.notice -t ngfw-ucs-w10 'hello from w10 ucs-83d41b01'
+    collector 127.0.0.1:4016 received: "97 <189>1 2026-09-25T04:50:44.292599+03:30 ubuntu-26 ngfw-ucs-w10 - - -  hello from w10 ucs-83d41b01"
     (a daemon.info line sent next was not forwarded: the facilities filter local7 holds)
-ucs_test.go:432: GET /api/v1/state/dns → {"configPath":"/run/vrx-test/w10/unbound/unbound.conf","forwards":[{"zone":"corp.example.","kind":"forward","addresses":["10.10.99.53"]}],
+ucs_test.go:432: GET /api/v1/state/dns → {"configPath":"/run/ngfw-test/w10/unbound/unbound.conf","forwards":[{"zone":"corp.example.","kind":"forward","addresses":["10.10.99.53"]}],
     "localZones":[{"zone":"lab.example.","type":"static"}],"localData":["gw.lab.example. 3600 IN A 10.10.53.1"],"pendingActions":[],"running":true,
     "vppCache":{"configured":false,"appliedByThisAgent":false,"upstreams":[],"live":false}, …}
 ucs_test.go:432: GET /api/v1/state/ntp → {"running":true,"sources":[{"mode":"^","state":"*","name":"127.0.0.1","stratum":10,"reach":"377",…}],
     "tracking":{"refName":"127.0.0.1","stratum":11,"leap":"Normal","systemTime":-0.000013072,…},"pendingActions":[]}
-ucs_test.go:432: GET /api/v1/state/syslog → {"inputs":{"imuxsock":2},"pendingActions":[],"targets":[{"index":0,"action":"vrx_export_0_6cb32106",
+ucs_test.go:432: GET /api/v1/state/syslog → {"inputs":{"imuxsock":2},"pendingActions":[],"targets":[{"index":0,"action":"ngfw_export_0_6cb32106",
     "target":"127.0.0.1:4016","protocol":"tcp","reported":true,"processed":1,"failed":0,"queueSize":0,…}]}
 ucs_test.go:432: GET /api/v1/state/logs?severity=notice&pageSize=3 → {"items":[{"time":"2026-09-25T01:20:43.567Z","severity":"error","facility":"daemon",
     "identifier":"vpp","unit":"vpp.service","message":"vnet_set_flow_classify_intfc:68: …"}, …],"page":1,"pageSize":3,"total":5000,"scanned":5000,"truncated":true,"source":"journald"}
-ucs_test.go:437: POST /api/v1/actions/dns-lookup (slot agent, not the globals owner) → 409 {"type":"https://vrx.dev/problems/agent-precondition",…,"grpcCode":"FAILED_PRECONDITION",
+ucs_test.go:437: POST /api/v1/actions/dns-lookup (slot agent, not the globals owner) → 409 {"type":"https://ngfw.dev/problems/agent-precondition",…,"grpcCode":"FAILED_PRECONDITION",
     "detail":"agent: dns_lookup needs the VPP DNS cache enabled with an upstream by this agent (the globals owner, D-071): VPP 26.06 crashes on dns_resolve_name while its dns plugin has no name server (SIGSEGV in ip4_sas, docs/vpp-code-track.md), so the lookup is never sent otherwise"}
 ucs_test.go:444: after the listen-port commit (revision 2): pendingActions=[{"action":"restart","daemon":"unbound","reason":"listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)","unit":"unbound"}]
-harness_test.go:160: stopped vrx-agent pid 3782465
-ucs_test.go:454: agent stopped; deleted /run/vrx-test/w10/unbound/unbound.conf, /run/vrx-test/w10/chrony/agent/sources.d/vrx.sources, /run/vrx-test/w10/rsyslog/rsyslog.conf (simulated loss)
-ucs_test.go:457: started vrx-agent pid 3783213
+harness_test.go:160: stopped ngfw-agent pid 3782465
+ucs_test.go:454: agent stopped; deleted /run/ngfw-test/w10/unbound/unbound.conf, /run/ngfw-test/w10/chrony/agent/sources.d/ngfw.sources, /run/ngfw-test/w10/rsyslog/rsyslog.conf (simulated loss)
+ucs_test.go:457: started ngfw-agent pid 3783213
 ucs_test.go:468: files re-rendered 0.25 s after the agent start
 ucs_test.go:470: agent log excerpt after the restart:
-    {"time":"2026-09-25T04:50:50.352+03:30","level":"INFO","msg":"host services wired","owner":"w10","feature":"unbound-chrony-syslog","product_paths":false,"unbound_conf":"/run/vrx-test/w10/unbound/unbound.conf",…,"vpp_dns_cache":"required only"}
+    {"time":"2026-09-25T04:50:50.352+03:30","level":"INFO","msg":"host services wired","owner":"w10","feature":"unbound-chrony-syslog","product_paths":false,"unbound_conf":"/run/ngfw-test/w10/unbound/unbound.conf",…,"vpp_dns_cache":"required only"}
     {"time":"2026-09-25T04:50:50.378+03:30","level":"INFO","msg":"reconcile start","owner":"w10","mode":"resync","domains":["interfaces","vrfs","routing","services","management"]}
     {"time":"2026-09-25T04:50:50.448+03:30","level":"WARN","msg":"unbound configuration written; the daemon must act on it","daemon":"unbound","unit":"unbound","action":"restart","reason":"listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)",…}
-    {"time":"2026-09-25T04:50:50.485+03:30","level":"INFO","msg":"chrony configuration applied","daemon":"chronyd","conf":"/run/vrx-test/w10/chrony/agent/chrony.conf","enabled":true}
+    {"time":"2026-09-25T04:50:50.485+03:30","level":"INFO","msg":"chrony configuration applied","daemon":"chronyd","conf":"/run/ngfw-test/w10/chrony/agent/chrony.conf","enabled":true}
     {"time":"2026-09-25T04:50:50.517+03:30","level":"INFO","msg":"reconcile done","mode":"resync","status":"APPLY_STATUS_APPLIED","summary":"created:3 unchanged:4",…}
 ucs_test.go:472: after the agent restart: pendingActions=[{"action":"restart","daemon":"unbound","reason":"listen addresses, port, views, paths or remote-control changed (unbound applies them only at startup)","unit":"unbound"}]
 harness_test.go:160: stopped unbound pid 3782682
@@ -144,8 +144,8 @@ ucs_test.go:526: screenshots:
     ucs-logging-fa-rtl.png  html dir/lang=rtl/fa  rows=26  firstCells=["۱۴۰۵/۷/۳, ۴:۵۱:۳۱","خطا","daemon","vpp","af_packet: fd 33 reason af_packet_fd_error: Network is down"]  pageErrors=0
 ucs_test.go:316: cleanup commit → 200 applied
 ucs_test.go:532: after the cleanup commit unbound.conf is idle: true
-harness_test.go:160: stopped rsyslogd / unbound / chronyd(agent) / chronyd(server) / vrx-api / vrx-agent (by PID)
-ucs_test.go:171: pg-test drop w10: ok nothing named vrx_w10 / vrx_w10 remains
+harness_test.go:160: stopped rsyslogd / unbound / chronyd(agent) / chronyd(server) / ngfw-api / ngfw-agent (by PID)
+ucs_test.go:171: pg-test drop w10: ok nothing named ngfw_w10 / ngfw_w10 remains
 ucs_test.go:258: systemctl show vpp -p NRestarts (after): NRestarts=2
 ucs_test.go:262: host units (after, unchanged): Id=chrony.service ActiveState=active UnitFileState=enabled MainPID=995 Id=rsyslog.service ActiveState=active UnitFileState=enabled MainPID=1033 Id=unbound.service ActiveState=inactive UnitFileState=disabled MainPID=0
 --- PASS: TestUnboundChronySyslog (64.67s)
@@ -154,7 +154,7 @@ ok  	ngfw/test/topology/unbound-chrony-syslog	64.699s
 
 - [x] **Slot Unbound answers a local record** at its slot address/port through a Go `net.Resolver` pinned there:
       `net.Resolver{127.10.0.53:4053}.LookupHost(gw.lab.example) = [10.10.53.1]`. **chrony**:
-      `chronyc -n -h /run/vrx-test/w10/chrony/agent/chronyd.sock sources` lists (and selects, `^*`) the server.
+      `chronyc -n -h /run/ngfw-test/w10/chrony/agent/chronyd.sock sources` lists (and selects, `^*`) the server.
 - [x] **rsyslog** test instance forwards a `logger -u <slot log.sock>` line to the slot TCP collector (octet-counted
       RFC 5424 `<189>` = local7.notice). The log explorer page shows lines from its source (journald), in
       `docs/user/services/img/ucs-logging-{en,fa-rtl}.png`.
@@ -217,7 +217,7 @@ CI GATE PASSED
 | D-086 stand-ins → contract; TLS built but untested until the driver is packaged | contract commits; renderer reads typed fields; TLS refused at DryRun (secret channel) and by Validate without `lmnsd_ossl.so` |
 | D-050 NTP only in `services.ntp` | projection reads only `services.ntp` |
 | D-063/D-076/D-071 dns globals write-only, registered by the owner, non-owners require | `registerDNSCache` (owner `RegisterGlobalsReady`, else require-mode descriptors); DryRun note on `vppCache`; D-137 guards |
-| D-082 opt-in VPP dns host test holds `flock -x` globals lock | DF-8 test unchanged (globals lock) + now also `VRX_DNS_VPP_HOST=1`; it was **not** run |
+| D-082 opt-in VPP dns host test holds `flock -x` globals lock | DF-8 test unchanged (globals lock) + now also `NGFW_DNS_VPP_HOST=1`; it was **not** run |
 | RF-4 M2 (no restart for an unchanged rendering) / M3 (host impstats) | unchanged in the renderer; the deferred path keeps M2 (`applyDeferred` returns nothing / the still-pending request for unchanged files) |
 | TD-11b ownership declaration | `RecordsNoOwnership()` on `unbound.config`, `chrony.config`, `rsyslog.config`, `dns.name-server`, `dns.enable`; agent tests green after merging main with the guard |
 | D-132 no UI timer < 30 s, Refresh button | `STATE_POLL_MS = 30_000`, Refresh on every panel and the explorer |
@@ -228,7 +228,7 @@ CI GATE PASSED
 |---|---|---|---|
 | UCS-1 | renderer stage = one singleton descriptor per renderer | (a) singleton descriptors (b) shared service.go stage | D-109 d; no agent-core change |
 | UCS-2 | Retrieve Value = render input embedded in the file, proven by re-render | (a) embedded input (F-kea pattern) (b) in-memory last applied (c) parse daemon state | (a) survives restarts, detects hand edits, never reports a foreign file |
-| UCS-3 | only the globals owner uses the product paths / host units; others render into `/run/vrx-test/<owner>` (Q8) | (a) GlobalsOwner (b) new env var (c) owner=="vrx" | the dev host's main stack runs `VRX_GLOBALS_OWNER=0`: (a) keeps it off the host's rsyslog/chrony without new config |
+| UCS-3 | only the globals owner uses the product paths / host units; others render into `/run/ngfw-test/<owner>` (Q8) | (a) GlobalsOwner (b) new env var (c) owner=="ngfw" | the dev host's main stack runs `NGFW_GLOBALS_OWNER=0`: (a) keeps it off the host's rsyslog/chrony without new config |
 | UCS-4 | log explorer = journald, fixed argv, text matched in the agent (Q3) | (a) journald (b) omfile in RF-4 | (b) breaks RF-4's template rule |
 | UCS-5 | VPP cache shown as configured; DryRun `agent.unsupported-field` note (Q4) | (a) note + "configured" (b) error (c) silent | write-only; drift must not compare it |
 | UCS-6 | syslog `vrf` ≠ default: noted, not applied (target rendered) | (a) note (b) DryRun error | the daemons live in the host namespace; valid schema examples must project |
@@ -244,7 +244,7 @@ CI GATE PASSED
 - `apps/agent/internal/agent/server.go`: `Action` parameter `_` → `stream`; one case `ActionRequest_DnsLookup` (A4, Q7).
 - `apps/agent/internal/agent/{service_test,projection_test}.go`: registry-derived domain assertions; the secret-channel rule
   is allowed for valid examples (Q7).
-- `packages/proto/vrx/v1/dataplane.proto` (RPCs, ActionRequest 7, SyslogTarget 6–9, feature section), `docs/contracts/proto.md`,
+- `packages/proto/ngfw/v1/dataplane.proto` (RPCs, ActionRequest 7, SyslogTarget 6–9, feature section), `docs/contracts/proto.md`,
   `packages/proto/test/fixtures/unbound-chrony-syslog-full.json` (C4-C6), generated files (C7).
 - `packages/schema/src/domains/management.ts` (import + spread, SY4), `packages/schema/src/index.ts` (C3), `semantic/index.ts` (C2).
 - `apps/api/src/app.module.ts` (P1), `agent/agent.client.ts` (P4), `testing/fake-agent.ts` (import + spread, P5, Q6).
@@ -266,5 +266,5 @@ CLI `show dns|ntp|logs` commands (apps/cli is P13's); running the opt-in VPP dns
 ## Cleanup
 Every process was started by the tests and stopped by PID. The slot database was dropped (pg-test). `vppctl show interface | grep -c loop10` → 0. No systemd unit was touched.
 `dist/` (apps and packages) and `apps/agent/bin` were deleted after the last CI run. **Not removed:** the permission prompt
-refused the `rm` of `/run/vrx-test/w10/ucs/` (48 KiB tmpfs: agent-state, agent/API logs, the run's test JWT/secret key file
+refused the `rm` of `/run/ngfw-test/w10/ucs/` (48 KiB tmpfs: agent-state, agent/API logs, the run's test JWT/secret key file
 0600). Please delete it, or allow it and I will.

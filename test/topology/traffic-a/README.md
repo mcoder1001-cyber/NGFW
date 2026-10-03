@@ -22,14 +22,14 @@ This is a real source gap, independently of lab availability.
 
 Future host boundary: a manager allocates slot1–11/14–32 (never12/13), supplies
 canonical `tools/lab env` values and a root-owned regular0600 lease at
-`/run/vrx-test/w<N>/traffic-a-lease.json`. Its exact fields are task
+`/run/ngfw-test/w<N>/traffic-a-lease.json`. Its exact fields are task
 `TEST-traffic-A`, integer slot, matching prefix, current boot ID, bounded
 `expires_unix`, and32-hex lease ID. The runner never grants its own lease.
-Live opt-ins are `VRX_INTEGRATION=1`, `VRX_TRAFFIC_A_HOST=1`; global VPP ownership
+Live opt-ins are `NGFW_INTEGRATION=1`, `NGFW_TRAFFIC_A_HOST=1`; global VPP ownership
 and retained NAT64/global flags are refused. Shared lab lock, per-slot exclusivity
 and lease renewal/revalidation must be implemented before live enabling.
 
-Capture contract: both `ns-w<N>-lan/wan` peer devices, fixed argv, fixed `/run/vrx-test/w<N>/traffic-a/<run-id>/<side>.pcap`, private
+Capture contract: both `ns-w<N>-lan/wan` peer devices, fixed argv, fixed `/run/ngfw-test/w<N>/traffic-a/<run-id>/<side>.pcap`, private
 regular0600 bounded classic Ethernet pcap, run identity, content SHA256,
 bounded time window and zero dropped packets. Parser supports IPv4 ICMP/TCP
 and at most two VLAN headers, rejects truncated/fractured framing. Config

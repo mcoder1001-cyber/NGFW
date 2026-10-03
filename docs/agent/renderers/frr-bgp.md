@@ -22,7 +22,7 @@ order 850), `internal/lcpmap` (VPP → Linux names, S2 producer `lcp-addresses`)
 | `redistribute.<src>{metric, routeMap}` | `  redistribute <src> [metric N] [route-map R]` (IPv4 always, IPv6 when the family is in use) |
 | `routing.policy.prefixLists.<n>{family, description, rules[]}` | `ip\|ipv6 prefix-list <n> description …` + `… seq S permit\|deny P [ge G] [le L]` |
 | `routing.policy.routeMaps.<n>.entries[]` | `route-map <n> permit\|deny <seq>` + ` description`, matches (`ip address prefix-list`, `ip next-hop prefix-list`, `interface`, `community`, `as-path`, `metric`, `tag`), sets (`as-path prepend`, `community … [additive]`, `ip next-hop` / `ipv6 next-hop global`, `local-preference`, `metric` (= MED), `tag`, `weight`) + `exit` |
-| route-map `match community C` / `match as-path RE` | generated lists `bgp community-list standard vrx-<map>-<seq> seq 5 permit C`, `bgp as-path access-list vrx-<map>-<seq> seq 5 permit RE` (FRR matches list names, the document carries values) |
+| route-map `match community C` / `match as-path RE` | generated lists `bgp community-list standard ngfw-<map>-<seq> seq 5 permit C`, `bgp as-path access-list ngfw-<map>-<seq> seq 5 permit RE` (FRR matches list names, the document carries values) |
 | `interfaces.<n>.lcp` + `ipv4`/`ipv6` | `interface <linux-name>` + ` ip address A/L` / ` ipv6 address …` (S2, `lcp-addresses`) |
 | `routing.static[i]` with `viaFrr` (+ `tag`) | the framework `static` section: `ip route P NH [IF] [tag T] [D]` (D-072: the agent then does not program it) |
 
@@ -34,9 +34,9 @@ addresses unique canonically, `redistribute.bgp` refused.
 Secrets: `passwordRef` → `rc.Secret` (D-051/D-072). Until PENDING-secret-channel the product agent has no resolver: a
 neighbour or peer group with `passwordRef` is a validation error `routing.bgp-password-unavailable` at the reference's
 pointer (DryRun and Apply). The redaction path (frr.conf `Secret`, `<redacted>` in Show/Retrieve/DryRun/errors) is
-proven by `bgp/integration_test.go` with the fixture resolver (`VRX_TEST_PSK_P12_1`).
+proven by `bgp/integration_test.go` with the fixture resolver (`NGFW_TEST_PSK_P12_1`).
 
-## The FRR stage: `frr.config/vrx` (D-109 d, P12-questions Q3)
+## The FRR stage: `frr.config/ngfw` (D-109 d, P12-questions Q3)
 
 One singleton scheduler object in `Domains["routing"]`, value = the FRR-relevant subset of the document
 (`desired.FRRDoc`: bgp, policy, viaFrr statics, paired interfaces' lcp/addresses/description — references, never secret
@@ -57,8 +57,8 @@ domain; an `interfaces`-only Apply leaves the tap addresses to the next routing 
 - **Dependencies**: none (review H1). A dependency on the pairs — hard or optional — makes the scheduler recreate the
   singleton around every pair change, and its Delete (the framework-only configuration) drops every BGP session and tap
   address. zebra/bgpd take configuration for an interface that appears later and apply it when it does.
-- Which FRR: owner `vrx` → `/etc/frr` (product, no pathspace); `VRX_FRR_PATHSPACE=<slot>` → that slot's frrtest
-  instance; otherwise, or `VRX_FRR=off`, none — FRR content is then an `agent.unsupported-field` warning, not applied.
+- Which FRR: owner `ngfw` → `/etc/frr` (product, no pathspace); `NGFW_FRR_PATHSPACE=<slot>` → that slot's frrtest
+  instance; otherwise, or `NGFW_FRR=off`, none — FRR content is then an `agent.unsupported-field` warning, not applied.
 - Assemble: `routing.bgp`, `routing.policy` and the viaFrr statics come back from the object when its status is
   `applied` (contract §5: a leaf the backend cannot vouch for stays unset).
 - TD-11b: `RecordsNoOwnership()` (no claim or boot records).
@@ -91,7 +91,7 @@ filters them by FRR protocol (API `features/bgp/routes.ts`, one RIB lookup per p
 | test | what |
 |---|---|
 | `bgp/render_test.go` | golden `testdata/full.golden` (every rendered form), render errors, policy errors, summary parser + poller |
-| `bgp/integration_test.go` (VRX_INTEGRATION) | two slot FRR instances (`Instance: "p1"`), MD5 session, 100 prefixes, route map → 50, withdraw → 0, poller event, removal, redaction |
+| `bgp/integration_test.go` (NGFW_INTEGRATION) | two slot FRR instances (`Instance: "p1"`), MD5 session, 100 prefixes, route map → 50, withdraw → 0, poller event, removal, redaction |
 | `subsystems/frr_test.go` | frr.config lifecycle with a recording runner (not running → no exec, create/validate/reload/converge, drift, delete, unknown after restart), events, paths, tap gate |
 | `agent/project_p12_test.go` | projection with/without FRR, passwordRef refusal, render check, assemble, S3 table |
 | `agent/p12_topology_integration_test.go` (`test/topology/bgp/run.sh`) | VPP + linux-cp + 3 FRR instances: 200 → 100 → withdraw < 5 s → agent restart with pair loss → link down → rollback |

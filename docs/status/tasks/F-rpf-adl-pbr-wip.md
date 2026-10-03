@@ -15,4 +15,4 @@ main is not merged until the manager says P08 has landed; `task/W-seed@df67a8e` 
 - [x] questions file (Q1–Q9, incl. the 18:41 crash: not slot 10)
 - [x] CI `TMPDIR=/tmp/g-w10 tools/ci.sh --base main` → CI GATE PASSED at 456fd40 (this tree's ci.sh fails the contract
       guard on SIGPIPE, fixed on main 7edac8c / D-127; the green run used a scratch copy with exactly that fix)
-- [x] F-rpf-adl-pbr.md with pasted output; cleanup (processes by PID, vrx_w10 dropped, nothing of w10 in VPP, dist removed)
+- [x] F-rpf-adl-pbr.md with pasted output; cleanup (processes by PID, ngfw_w10 dropped, nothing of w10 in VPP, dist removed)

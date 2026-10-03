@@ -2,7 +2,7 @@
 
 **R1/R2/R5/R7/R8: APPROVE bounded timing source prototype** exact `50b9acbd3254abed851a147489b571303df9a63d`, independently reviewed2026-10-02. This is not hosted acceptance or a speedup measurement; HOLD integration until active feature/transaction/cleanup gates finish and separate exact-head validation is scheduled.
 
-Independent byte comparison removed only eight VRX_TIMING lines and recovered the original Makefile exactly. Original vet/lint dispatch/race count1/build commands, flags, ordering, target graph, executable selection and fallback remain unchanged. BEGIN/END UTC markers are separate sequential recipes: command failure retains Make's prior stop behavior, no END is printed and subsequent targets do not execute. No shared gate state, cache, concurrency, timeout, dependency or production code change. Existing CI still rejects missing golangci-lint fallback; an END label alone is not gate acceptance. Labels contain constant stage names and timestamps, no secret or external input expansion.
+Independent byte comparison removed only eight NGFW_TIMING lines and recovered the original Makefile exactly. Original vet/lint dispatch/race count1/build commands, flags, ordering, target graph, executable selection and fallback remain unchanged. BEGIN/END UTC markers are separate sequential recipes: command failure retains Make's prior stop behavior, no END is printed and subsequent targets do not execute. No shared gate state, cache, concurrency, timeout, dependency or production code change. Existing CI still rejects missing golangci-lint fallback; an END label alone is not gate acceptance. Labels contain constant stage names and timestamps, no secret or external input expansion.
 
 ## Meaningful independent execution
 

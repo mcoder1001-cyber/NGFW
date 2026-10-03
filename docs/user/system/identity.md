@@ -2,13 +2,13 @@
 
 **Screen:** System (the `system` nav entry, `/system`). **API:** the generic configuration routes on `/system`
 (`GET/PUT/PATCH /api/v1/config/candidate/system`, `/api/v1/config/system`), then commit.
-**CLI:** `vrx configure set|merge system …`, then `commit`.
+**CLI:** `ngfw configure set|merge system …`, then `commit`.
 
 ## What it sets
 
 | field | effect on the router |
 |---|---|
-| Hostname | `/etc/hostname` and the running host name (RFC 1123, e.g. `vrx-a.lab.example`) |
+| Hostname | `/etc/hostname` and the running host name (RFC 1123, e.g. `ngfw-a.lab.example`) |
 | Time zone | `/etc/localtime` (IANA name, e.g. `Asia/Tehran`; an unknown zone is refused) |
 | Pre-login banner | `/etc/issue` and `/etc/issue.net` (console and SSH before login) |
 | Message of the day | `/etc/motd` (after login) |
@@ -31,9 +31,9 @@ The DNS client uses the default VRF only in this release: any other VRF is refus
 ```json
 PUT /api/v1/config/system
 {
-  "hostname": "vrx-a.lab.example",
+  "hostname": "ngfw-a.lab.example",
   "timezone": "Asia/Tehran",
-  "banner": { "login": "Authorised access only.", "motd": "Welcome to vrx-a." },
+  "banner": { "login": "Authorised access only.", "motd": "Welcome to ngfw-a." },
   "dns": { "servers": ["192.0.2.53", "2001:db8::53"], "searchDomains": ["lab.example"] }
 }
 ```
@@ -41,8 +41,8 @@ PUT /api/v1/config/system
 CLI equivalent:
 
 ```
-vrx configure merge system '{"hostname":"vrx-a.lab.example","timezone":"Asia/Tehran","banner":{"login":"Authorised access only.","motd":"Welcome to vrx-a."},"dns":{"servers":["192.0.2.53","2001:db8::53"],"searchDomains":["lab.example"]}}'
-vrx commit
+ngfw configure merge system '{"hostname":"ngfw-a.lab.example","timezone":"Asia/Tehran","banner":{"login":"Authorised access only.","motd":"Welcome to ngfw-a."},"dns":{"servers":["192.0.2.53","2001:db8::53"],"searchDomains":["lab.example"]}}'
+ngfw commit
 ```
 
 A refused value comes back as problem+json with a pointer:

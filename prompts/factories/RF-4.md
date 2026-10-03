@@ -10,27 +10,27 @@ reports your config.
 ## Inputs to read first
 - `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
 - Daemon docs: `man snmpd.conf`, `man snmpd`, `man keepalived.conf`, `keepalived --help` (check for `--enable-json`, `--dump-file-name`/`-D` options),
-  rsyslog RainerScript docs (`omfwd`, `impstats`, `imuxsock`, `imtcp`, `rsyslogd -N`). Installed on this host (disabled): frr, strongswan (stock; vrx build
+  rsyslog RainerScript docs (`omfwd`, `impstats`, `imuxsock`, `imtcp`, `rsyslogd -N`). Installed on this host (disabled): frr, strongswan (stock; ngfw build
   comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd (+ `snmp` client tools), keepalived, rsyslog
 - `packages/proto` messages for the domain (P03) — the input type (`system.snmp`, `ha.vrrp` keepalived variant, `logging.export`); missing fields → additive `contract/<id>`, questions file, continue
 - `docs/lab/shared-host-rules.md` — you are `daemon-owner: snmpd, keepalived, rsyslog` for this task; slot prefix `w<N>`, addresses `10.<N>.0.0/16`, VR ids from
   your slot range; propose loopback ports in the slot's `3<N>xx` range (e.g. snmpd `3<N>61`, rsyslog imtcp `3<N>14`, test collector `3<N>15`) and record them
 
 ## Scope — build exactly this, per daemon
-All paths come from one injected `Paths` struct (product: `/etc/snmp/snmpd.conf`, `/etc/keepalived/keepalived.conf`, `/etc/rsyslog.d/50-vrx-export.conf`;
-tests: `/run/vrx-test/w<N>/{snmpd,keepalived,rsyslog}/…`). Apply's control channel is behind one `Controller` interface with two implementations:
+All paths come from one injected `Paths` struct (product: `/etc/snmp/snmpd.conf`, `/etc/keepalived/keepalived.conf`, `/etc/rsyslog.d/50-ngfw-export.conf`;
+tests: `/run/ngfw-test/w<N>/{snmpd,keepalived,rsyslog}/…`). Apply's control channel is behind one `Controller` interface with two implementations:
 systemd (`systemctl reload|restart <unit>`, product) and child-process (signal / restart the PID you spawned, tests).
 1. Templates in `internal/renderers/<daemon>/templates/*.tmpl` rendered with `text/template` and **strict escaping helpers** — no user string reaches the file unescaped.
    - **snmpd**: `snmpd.conf` (`agentaddress udp:<ip>:<port>[,udp6:[<ip6>]:<port>]`, `sysName/sysLocation/sysContact/sysServices`, `view` definitions, `rocommunity/rocommunity6
      <community> <source> -V <view>`, v3: `createUser <user> SHA-256 "<auth>" AES "<priv>"` (goes into the persistent-store file the daemon reads once) + `rouser <user> priv -V <view>`,
      `trapsess`/`trap2sink`, `master agentx` + `agentXSocket <dir>/agentx.sock` for the future private-MIB subagent, `disk`/`load` monitors). Communities and passphrases are
-     **secrets**: file 0600, redacted in logs and goldens (`VRX_TEST_PSK_<id>`). Escaping: tokens `[A-Za-z0-9_.-]{1,64}`, no whitespace/newline/quotes; OIDs numeric or from a
+     **secrets**: file 0600, redacted in logs and goldens (`NGFW_TEST_PSK_<id>`). Escaping: tokens `[A-Za-z0-9_.-]{1,64}`, no whitespace/newline/quotes; OIDs numeric or from a
      fixed symbolic allow-list; sources typed CIDR; free-text fields (`sysLocation`, `sysContact`) printable ASCII ≤ 255 without newline.
    - **keepalived**: `keepalived.conf` (`global_defs { router_id, enable_script_security, script_user root, vrrp_version 3, vrrp_garp_master_refresh }`,
-     `vrrp_script <name> { script "<fixed path>" interval weight fall rise }` — script paths only from the shipped allow-list (product `/usr/libexec/vrx/checks/*`, tests
+     `vrrp_script <name> { script "<fixed path>" interval weight fall rise }` — script paths only from the shipped allow-list (product `/usr/libexec/ngfw/checks/*`, tests
      `<dir>/checks/*`), **never user-provided script text**; `vrrp_instance <name> { state, interface, virtual_router_id, priority, advert_int, preempt|nopreempt, preempt_delay,
      unicast_src_ip, unicast_peer {}, virtual_ipaddress { <ip>/<len> dev <if> }, virtual_routes, track_interface, track_script, notify_master|backup|fault|stop "<our helper>" }`,
-     `vrrp_sync_group`). The `notify_*` target is *our* shipped helper (`vrx-keepalived-notify`, fixed path from `Paths`) that writes `<state dir>/<instance>.state` — that is the
+     `vrrp_sync_group`). The `notify_*` target is *our* shipped helper (`ngfw-keepalived-notify`, fixed path from `Paths`) that writes `<state dir>/<instance>.state` — that is the
      state and event channel. Escaping: names `[A-Za-z0-9_.-]{1,32}`, interfaces `w<N>-*` in tests, IPs typed, no quotes/newline/braces from user data.
    - **rsyslog**: one RainerScript file (`global(workDirectory=…)`, inputs `imuxsock` `SysSock.Name=<dir>/log.sock` or `imtcp` on `127.0.0.1:<port>`, `module(load="impstats"
      interval="1" format="json" log.file="<dir>/impstats.json" log.syslog="off")`, RFC 5424 `template()`, `ruleset()` per export target with facility/severity filters and
@@ -64,9 +64,9 @@ systemd (`systemctl reload|restart <unit>`, product) and child-process (signal /
 - [ ] `go test ./internal/renderers/{snmpd,keepalived,rsyslog}/...` green, integration included (paste the SNMP reply, the `.state` file, the collected RFC 5424 line)
 - [ ] `grep -rn "sh -c\|bash -c" internal/renderers/{snmpd,keepalived,rsyslog}` is empty; `ALLOWLIST.md` updated; no `omprog`/`omshell`/user script paths reachable (test)
 - [ ] A rendered config with `"; rm -rf /` in a description field is rejected or escaped (test present, per daemon)
-- [ ] No child daemon left running after tests (`pgrep -f /run/vrx-test/w<N>/snmpd`, `…/keepalived`, `…/rsyslog` empty); `systemctl is-active snmpd keepalived rsyslog` unchanged from before
+- [ ] No child daemon left running after tests (`pgrep -f /run/ngfw-test/w<N>/snmpd`, `…/keepalived`, `…/rsyslog` empty); `systemctl is-active snmpd keepalived rsyslog` unchanged from before
       (rsyslog may be the host's own active unit — never touch it; assert its PID is unchanged); `/etc/snmp`, `/etc/keepalived`, `/etc/rsyslog*` untouched (`stat` before/after)
-- [ ] `grep -rn "VRX_TEST_PSK" <test log>` finds nothing outside the 0600 snmpd file
+- [ ] `grep -rn "NGFW_TEST_PSK" <test log>` finds nothing outside the 0600 snmpd file
 
 ## Out of scope (do not build)
 API/UI, schema changes beyond additive `contract/<id>`, private MIB / AgentX subagent contents (F-snmp), trap semantics and receivers, VPP-native VRRP

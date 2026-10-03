@@ -27,7 +27,7 @@ carry the ACL index the policy was created with, and that ACL must still carry t
 
 ## Product wiring (F-rpf-adl-pbr)
 - Registered by `subsystems/rpf_adl_pbr.go` with the persisted "acl" claim store and the policy-id range `SlotIDRange()`
-  (the slot's `VRX_VPP_TABLE_BASE … +999` on the shared host, nil = every id in the product agent).
+  (the slot's `NGFW_VPP_TABLE_BASE … +999` on the shared host, nil = every id in the product agent).
 - `routing.pbr.policies.<name>` → `abf.policy/<id>`: the id is FNV-1a of the name into the range, linear probing in name
   order (`desired.PolicyIDs`). VPP keeps no name, so the agent-local `pbr.policy/<name>` record (persisted
   `<state dir>/pbr-<owner>.json`, depends on its `abf.policy`) maps names back to ids for Retrieve and keeps the policy's

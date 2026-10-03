@@ -11,7 +11,7 @@ description, static routes). Same pattern for every GPL daemon; P11 (strongSwan)
 - `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
   (`Name / Render / Validate / Apply / Retrieve`, `Files{Mode, Owner, Content}`, atomic write, fixed-argv runner, strict escaping)
 - Daemon docs: FRR 10 user guide (`frr-reload.py`, integrated config, `-N` pathspace, `mgmtd`), `man vtysh`, `man zebra`, `frr-reload.py --help` on the
-  host. Installed on this host (disabled): frr + frr-pythontools (`/usr/lib/frr/*`, `/usr/lib/frr/frr-reload.py`), strongswan (stock; vrx build
+  host. Installed on this host (disabled): frr + frr-pythontools (`/usr/lib/frr/*`, `/usr/lib/frr/frr-reload.py`), strongswan (stock; ngfw build
   comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog. Check `vtysh -c "show version"` — FRR ≥ 10 needs
   `mgmtd` running for staticd/vtysh config paths.
 - `packages/proto` messages for the domain (P03) — the input type (`Routing` globals, vrf list, static routes, interface descriptions); if a field is
@@ -21,7 +21,7 @@ description, static routes). Same pattern for every GPL daemon; P11 (strongSwan)
 
 ## Scope — build exactly this, per daemon
 Daemon set: **zebra, mgmtd, staticd** (framework); bgpd/ospfd/ospf6d/bfdd/pimd/isisd/ripd are started by P12/F-* tests, not yours. All paths come
-from one injected `Paths` struct (product: `/etc/frr/frr.conf`, `/etc/frr/vtysh.conf`, `/var/run/frr`; tests: `/run/vrx-test/w<N>/frr/…`).
+from one injected `Paths` struct (product: `/etc/frr/frr.conf`, `/etc/frr/vtysh.conf`, `/var/run/frr`; tests: `/run/ngfw-test/w<N>/frr/…`).
 1. Templates in `internal/renderers/frr/templates/*.tmpl` rendered with `text/template` and **strict escaping helpers** — no user string reaches the file
    unescaped. Framework sections in fixed order: `frr version` / `frr defaults traditional` / `hostname` / `log syslog informational` /
    `service integrated-vtysh-config` → `vrf <name>` blocks → `interface <name>` (description only) → `ip route` / `ipv6 route` (staticd; per vrf,
@@ -54,7 +54,7 @@ from one injected `Paths` struct (product: `/etc/frr/frr.conf`, `/etc/frr/vtysh.
 - [ ] `go test ./internal/renderers/frr/...` green, integration included (paste the `show ip route json` excerpt and the frr-reload diff)
 - [ ] `grep -rn "sh -c\|bash -c" internal/renderers/frr` is empty; `ALLOWLIST.md` updated with every binary above
 - [ ] A rendered config with `"; rm -rf /` in a description field is rejected or escaped (test present, golden shows the result)
-- [ ] No child daemon left running after tests (`pgrep -f /run/vrx-test/w<N>/frr` empty); `systemctl is-active frr` still `inactive`; `/etc/frr` untouched (`stat` before/after)
+- [ ] No child daemon left running after tests (`pgrep -f /run/ngfw-test/w<N>/frr` empty); `systemctl is-active frr` still `inactive`; `/etc/frr` untouched (`stat` before/after)
 - [ ] zebra/staticd PIDs identical before and after a config change (reload, not restart)
 
 ## Out of scope (do not build)

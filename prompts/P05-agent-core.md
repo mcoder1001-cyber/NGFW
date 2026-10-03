@@ -1,4 +1,4 @@
-# Task P05 — vrx-agent core: govpp + reconciler   (prepend 00-CONTEXT.md)
+# Task P05 — ngfw-agent core: govpp + reconciler   (prepend 00-CONTEXT.md)
 
 ## Goal
 The Go agent that owns everything privileged: connects to VPP, exposes the P03 gRPC
@@ -7,7 +7,7 @@ Reference design: Ligato vpp-agent's KVScheduler (read `docs/01-architecture.md`
 **learn from it, do not vendor it**.
 
 ## Read first
-`apps/agent/gen/vrx/v1` (P03 stubs), `apps/agent/binapi/` (P04 bindings), `docs/01-architecture.md`.
+`apps/agent/gen/ngfw/v1` (P03 stubs), `apps/agent/binapi/` (P04 bindings), `docs/01-architecture.md`.
 
 ## Precondition
 P05a is merged: `internal/scheduler/descriptor.go`, `internal/vpp/{client.go,fake}`, `internal/renderers/renderer.go` and the READMEs are **frozen, read-only for you** (changes = `contract/<id>` branch). Start at step 1.
@@ -34,18 +34,18 @@ P05a is merged: `internal/scheduler/descriptor.go`, `internal/vpp/{client.go,fak
    (create_loopback_instance), `interface-ip` (sw_interface_add_del_address), `vrf` (ip_table_add_del), `static-route`
    (ip_route_add_del). Everything interface-family (host-interface/af_packet, subinterface, admin-state, MTU, rx-mode,
    neighbor/ND) is owned by DF-1/DF-2 — do not create it here. Every descriptor implements `Retrieve`.
-3b. **Ownership scoping (mandatory on the shared host):** the agent takes `VRX_OWNER` (default `vrx`) and tags every object
+3b. **Ownership scoping (mandatory on the shared host):** the agent takes `NGFW_OWNER` (default `ngfw`) and tags every object
    it creates with it (interface tag via `sw_interface_tag_add_del`; tables/routes via an owner-prefixed name or an owner
    table in the state dir). Resync and rollback act **only on owned objects**; `Retrieve` filters by owner. Two agents with
    different owners on one VPP must never delete each other's objects — write the test.
-4. gRPC server on `VRX_AGENT_SOCKET` (product default `/run/vrx/agent.sock`, 0660, group from `VRX_SOCKET_GROUP` — if the group does not
+4. gRPC server on `NGFW_AGENT_SOCKET` (product default `/run/ngfw/agent.sock`, 0660, group from `NGFW_SOCKET_GROUP` — if the group does not
    exist, log a warning and use the process's primary group; **never `groupadd` on the host**); the agent itself runs as root
-   (VPP sockets are root:vpp 775 — see `docs/lab/host-vrx-a.md`). Tests use their slot's socket path.: `Apply`, `DryRun`
+   (VPP sockets are root:vpp 775 — see `docs/lab/host-ngfw-a.md`). Tests use their slot's socket path.: `Apply`, `DryRun`
    (plan only, no apply), `Retrieve`, `StreamStats`, `StreamEvents` (link up/down from
    `want_interface_events`, reconcile start/done), `Health`. `Action` returns
    UNIMPLEMENTED for now.
 5. **Resync on start / VPP restart**: the agent keeps the last applied desired state in
-   `/var/lib/vrx/agent/desired.pb`; on start and on VPP reconnect it runs a full
+   `/var/lib/ngfw/agent/desired.pb`; on start and on VPP reconnect it runs a full
    reconcile automatically and emits `RECONCILE_DONE` with counts.
 6. **Confirm timeout**: `Apply` with `confirm_timeout_sec > 0` starts a timer; unless
    `Apply` is called again with `confirm_txn_id`, the agent re-applies the previous desired
@@ -53,7 +53,7 @@ P05a is merged: `internal/scheduler/descriptor.go`, `internal/vpp/{client.go,fak
 7. Structured logs (`slog`), Prometheus metrics on `127.0.0.1:9101/metrics`
    (reconcile duration, objects, errors, vpp_connected).
 8. Tests: unit tests for the scheduler with a fake descriptor set (ordering, rollback, idempotency, dependency failure);
-   integration tests against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, shared lab lock, your `VRX_TEST_PREFIX`):
+   integration tests against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, shared lab lock, your `NGFW_TEST_PREFIX`):
    apply two prefixed loopbacks with IPs in your VRF range and a static route → `Retrieve()` == desired and `vppctl show ip fib table <n>`
    reflects it → **simulate loss**: stop your agent, delete the objects via binapi, start the agent → everything back within 30 s
    (`Retrieve`) → rollback removes them. No VPP restart (D-012); no ping (that is P08).

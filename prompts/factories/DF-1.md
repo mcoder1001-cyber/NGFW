@@ -14,9 +14,9 @@ everything else interface-shaped is yours.
 - `apps/agent/binapi/interface/`, `binapi/bond/`, `binapi/l2/`, `binapi/l3xc/`, `binapi/memif/`, `binapi/tapv2/`, `binapi/af_packet/`,
   `binapi/interface_types/` — **the only source of message names and fields**; verify every name below in the package, never guess
 - VPP 26.06 docs for the plugins: https://s3-docs.fd.io/vpp/26.06/ (bond, l2, memif, tapv2, af_packet)
-- `docs/lab/host-vrx-a.md` — all plugins here are loaded; but the host runs `cpu { }` (main core only): anything that needs a
+- `docs/lab/host-ngfw-a.md` — all plugins here are loaded; but the host runs `cpu { }` (main core only): anything that needs a
   worker index (rx-placement to a worker) gets an integration test marked `skip: no workers on host`
-- `docs/lab/shared-host-rules.md` — `VRX_TEST_PREFIX=w<N>`, loopbacks `loop<N>xx`, host-interfaces/veths/taps `w<N>-*`, table range
+- `docs/lab/shared-host-rules.md` — `NGFW_TEST_PREFIX=w<N>`, loopbacks `loop<N>xx`, host-interfaces/veths/taps `w<N>-*`, table range
 
 ## Scope — build exactly this
 Enumerate the object types in `docs/status/tasks/DF-1.md` first, then build (estimate: 16 object types × Create/Update/Delete/Retrieve
@@ -41,7 +41,7 @@ Enumerate the object types in `docs/status/tasks/DF-1.md` first, then build (est
   uu-flood/arp-term on an interface), `mac-age` if not part of the bridge-domain object (bridge_domain_set_mac_age). Retrieve:
   bridge_domain_dump, l2_xconnect_dump, l2_fib_table_dump.
 - **l3xc** (`binapi/l3xc`, plugin loaded): `l3xc` (l3xc_update / l3xc_del with paths; l3xc_dump). Depends on interface + FIB table (P05 `vrf`).
-- **memif** (`binapi/memif`): `memif-socket` (memif_socket_filename_add_del_v2; file under `/run/vrx-test/w<N>/`), `memif` (memif_create_v2:
+- **memif** (`binapi/memif`): `memif-socket` (memif_socket_filename_add_del_v2; file under `/run/ngfw-test/w<N>/`), `memif` (memif_create_v2:
   role master/slave, mode ethernet/ip/punt, ring-size, buffer-size, secret, hw-addr; memif_delete). Retrieve: memif_socket_filename_dump,
   memif_dump.
 - **tap** (`binapi/tapv2`): `tap` (tap_create_v3: host_if_name `w<N>-tapX`, host namespace, host mac/ip4/ip6/bridge, mtu, rx/tx ring sizes,
@@ -63,8 +63,8 @@ Publish the exact key strings in `docs/agent/descriptors/interface.md` — DF-2�
    `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your prefix (other workers' objects exist on the same VPP). Use prefixed loopbacks/taps/bridge ids from your table range; never
    touch `local0`, `ens192` or anything unprefixed; clean up in `t.Cleanup`. Tap and host-interface tests create Linux netdevs on the host —
    name them `w<N>-*`, never assign management addresses, delete them even when the test fails.

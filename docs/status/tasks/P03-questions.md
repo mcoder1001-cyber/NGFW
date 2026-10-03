@@ -35,7 +35,7 @@
    `z.toJSONSchema(RootConfig)` and asserts every property has a field with the same JSON name in the `DesiredState`
    descriptor (schema ⊆ proto). It would pass today and fail the moment a P02x field lands without the proto follow-up —
    which couples their merges to a `contract(proto)` commit. Manager's call; ~1 h in P09.
-8. **`owner` on requests is a guard, not a selector:** an agent serves one owner (VRX_OWNER); a mismatching non-empty
+8. **`owner` on requests is a guard, not a selector:** an agent serves one owner (NGFW_OWNER); a mismatching non-empty
    `owner` fails with INVALID_ARGUMENT. Multi-owner agents were rejected (one desired.pb, one confirm timer, one resync).
    Envelope listed `owner` in ApplyRequest without semantics — this is the interpretation written into
    `docs/contracts/proto.md` §6.
@@ -50,7 +50,7 @@
 10. **F8 done here, note for P05.** The Go contract test now lives in `apps/agent/internal/contracttest/` (owned by the contract
     task; `gen.sh` wipes `apps/agent/gen` fully again). P05 should not put implementation code in that package; if the agent
     grows its own `internal/contract` helpers, keep them separate.
-11. **F9 done here, note for P06.** `@ngfw/proto` has a real `build` (`tsc -p tsconfig.build.json` → `dist/`, `exports` → `dist/vrx/v1/dataplane.js`).
+11. **F9 done here, note for P06.** `@ngfw/proto` has a real `build` (`tsc -p tsconfig.build.json` → `dist/`, `exports` → `dist/ngfw/v1/dataplane.js`).
     Consumers need `pnpm build` (turbo `^build`) before `node` can import it; `tsx`/vitest resolve through `dist/` too, so run
     `pnpm --filter @ngfw/proto build` after `pnpm gen` in dev. Verified: `node --input-type=module -e 'await import("@ngfw/proto")'`
     from `apps/api` resolves (195 exports).

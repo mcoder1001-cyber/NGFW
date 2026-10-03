@@ -48,7 +48,7 @@ ok  ngfw/agent/internal/promexport  1.019s
 ok  ngfw/agent/internal/desired     8.921s
 ```
 
-`TestGovppLiveStats` skips without `VRX_INTEGRATION=1`; no lab was available and it was not counted as live evidence. Whole quick gate was not repeated: manager reports baseline AF_UNIX EPERM and an unrestricted hosted run is pending. An initial invocation using bare `go` failed because Go is not on PATH; commands above use the installed absolute executable.
+`TestGovppLiveStats` skips without `NGFW_INTEGRATION=1`; no lab was available and it was not counted as live evidence. Whole quick gate was not repeated: manager reports baseline AF_UNIX EPERM and an unrestricted hosted run is pending. An initial invocation using bare `go` failed because Go is not on PATH; commands above use the installed absolute executable.
 
 ## Verify round — commit `35c4533e723352c918bb8e842a9155e59c4d6bed`
 

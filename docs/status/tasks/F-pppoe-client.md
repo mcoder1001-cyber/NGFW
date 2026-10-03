@@ -25,7 +25,7 @@ parent, authenticates, and the agent mirrors the ISP-assigned address and defaul
   offline checker); `ReadState` parses the hook file into `PppoeSessionState`. Golden + hostile-string + state tests.
 - **Supervisor** (773d6af0): `Renderer.Apply(ctx, runner, sessions)` — write files, stop+prune gone sessions,
   daemon-reload on unit change, restart only changed/new (a no-op Apply never drops the link), remove shared secrets
-  when none remain; owns only `vrx-pppoe-*` units, never enable/disable. Recording-runner test.
+  when none remain; owns only `ngfw-pppoe-*` units, never enable/disable. Recording-runner test.
 - **API** (812339c7): `/state/interfaces` exposes the session; `POST /api/v1/actions/interfaces/{name}/pppoe/reconnect`;
   fake agent reports a session and answers reconnect. e2e: commit → session on /state/interfaces, reconnect
   (accepted / none), static-address rejected, operator 403 on passwordRef.

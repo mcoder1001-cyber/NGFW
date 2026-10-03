@@ -16,7 +16,7 @@ Branch `task/F-wireguard`, committed first as `contract(schema): …` and `contr
 Existing P02c rules (`vpn.wireguard-unique`, `vpn.wireguard-address-overlap`, `vpn.local-address-configured`,
 `vpn.vrf-exists`) and P06's `secrets.ref-exists` are not re-added.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`)
 
 | change | number | where |
 |---|---|---|
@@ -30,6 +30,6 @@ against main clean (additive). Semantics: `docs/contracts/proto.md` §11 "F-wire
 
 ## Generated (C7)
 
-`pnpm gen`: `apps/agent/gen/vrx/v1/*`, `packages/proto/gen/ts/vrx/v1/dataplane.ts`,
+`pnpm gen`: `apps/agent/gen/ngfw/v1/*`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts`,
 `packages/api-client/src/generated/schema.d.ts`. Fake agent (P5): the contract commit adds the `wireguardState`
 UNIMPLEMENTED stub under the anchor; the real fake lives in `apps/api/src/features/wireguard/fake.ts`.

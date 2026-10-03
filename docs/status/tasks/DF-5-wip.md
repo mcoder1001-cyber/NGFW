@@ -1,6 +1,6 @@
 # DF-5 — WIP log (descriptors: ipsec, ikev2, wireguard)
 
-- 2026-09-23 read: 00-CONTEXT, WORKER-OPS, DF-5.md, shared-host-rules, host-vrx-a, LOG D-012/014/030/038, envelope,
+- 2026-09-23 read: 00-CONTEXT, WORKER-OPS, DF-5.md, shared-host-rules, host-ngfw-a, LOG D-012/014/030/038, envelope,
   descriptors/README, scheduler/descriptor.go, vpp/{client,tag,fake,vpptest}, binapi ipsec/ipsec_types/ikev2/ikev2_types/
   wireguard/tunnel_types/ipip/interface/ip_types. Host: VPP 26.06 on /run/vpp/api.sock, ikev2 + wireguard plugins loaded,
   ipsec core, no workers, protoc + protoc-gen-go v1.36.12 present.

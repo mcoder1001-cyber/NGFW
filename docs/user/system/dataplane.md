@@ -3,7 +3,7 @@
 **Screen:** System › Dataplane (`/system/dataplane`). **API:** the generic configuration routes on `/dataplane`
 (`GET/PUT/PATCH /api/v1/config/candidate/dataplane`, `/api/v1/config/dataplane`), then commit;
 `GET /api/v1/state/dataplane` (installed start-up file + host facts) and `POST /api/v1/actions/dataplane/preview`
-(rendered startup.conf + diff, read-only). **CLI:** `vrx configure set|merge dataplane …`, then `commit`.
+(rendered startup.conf + diff, read-only). **CLI:** `ngfw configure set|merge dataplane …`, then `commit`.
 
 ## Why a restart is needed
 

@@ -6,7 +6,7 @@ with `systemctl reload snmpd` (SIGHUP, same PID); validated by a daemon parse ru
 read over SNMP (gosnmp, in-process).
 
 The former stand-in fields (D-055; marked *(F-snmp)* below) are typed contract fields since F-snmp (D-086:
-`SnmpService` 12–15, `Community.view`, `V3User.view`); the renderer reads them from `*vrxv1.DesiredState`. A
+`SnmpService` 12–15, `Community.view`, `V3User.view`); the renderer reads them from `*ngfwv1.DesiredState`. A
 `*structpb.Struct` input is still accepted and decoded into the typed message (keys the contract does not have are
 dropped, so they can never reach the file — `TestTypedStandIns`).
 
@@ -20,8 +20,8 @@ dropped, so they can never reach the file — `TestTypedStandIns`).
 | `services.snmp.sysName` | `sysName <h>` | hostname, ≤ 253 |
 | `services.snmp.sysLocation`, `.sysContact` | `sysLocation <text>` / `sysContact <text>` — rest of the line, written verbatim (snmpd keeps quotes literally) | printable ASCII 1–255, no leading/trailing blank; `"; rm -rf /` is legal text and stays on its line (golden `hostile-location`) |
 | `services.snmp.sysServices` *(F-snmp)* | `sysServices <n>` | 0–127 |
-| `services.snmp.views.<name>.{include,exclude}[]` *(F-snmp)* | `view <name> included\|excluded <numeric OID>` | name `[A-Za-z0-9_.-]{1,64}` ≠ `vrx_all`; OID numeric or from the fixed symbolic list (`system`, `interfaces`, `ifMIB`, `mib-2`, …) → numeric; ≤ 32 each |
-| — | `view vrx_all included .1` (default view) | fixed |
+| `services.snmp.views.<name>.{include,exclude}[]` *(F-snmp)* | `view <name> included\|excluded <numeric OID>` | name `[A-Za-z0-9_.-]{1,64}` ≠ `ngfw_all`; OID numeric or from the fixed symbolic list (`system`, `interfaces`, `ifMIB`, `mib-2`, …) → numeric; ≤ 32 each |
+| — | `view ngfw_all included .1` (default view) | fixed |
 | `services.snmp.communities.<name>` `secretRef` (password/…) | `rocommunity[6] <community> <source> -V <view>` (`rw…` for `access: rw`), one line per source; no sources → `default` for IPv4 and IPv6 | D-051 ref of kind `password`; value `[A-Za-z0-9_.-]{8,64}`; sources CIDR (masked) |
 | `….communities.<name>.view` *(F-snmp)* | `-V <view>` | must be a defined view |
 | `services.snmp.v3Users.<name>` | `createUser <name> <AUTH> "<auth>" [<PRIV> "<priv>"]` + `rouser\|rwuser <name> noauth\|auth\|priv -V <view>` | name token; `securityLevel` noAuthNoPriv/authNoPriv/authPriv with matching refs; auth md5/sha/sha256/sha512 → MD5/SHA/SHA-256/SHA-512; priv aes/des → AES/DES (**aes256 rejected**: not in this net-snmp build); passphrases kind `password`, `[A-Za-z0-9_.,:;@%+=/~^*!?-]{8,64}` |
@@ -39,7 +39,7 @@ Retrieve: `configured`, `reachable`, `endpoint`, `credential`
 ## F-snmp: agent stage
 
 `internal/subsystems/snmp.go` wraps this renderer in the singleton scheduler descriptor `snmpd.config` (key
-`snmpd.config/vrx`, domain `services`, D-109 (d)): Create/Update = Render → Validate (parse run) → Apply; Delete = the
+`snmpd.config/ngfw`, domain `services`, D-109 (d)): Create/Update = Render → Validate (parse run) → Apply; Delete = the
 disabled rendering; Retrieve = the applied `services.snmp` when the live file still hashes to what was applied, else
 nothing (drift → re-applied on the next resync). The structural check (`BuildModel`) also runs in the projection, so
 a bad `services.snmp` is a DryRun issue with a JSON pointer before any VPP write (D-125). `vrf` other than `default`

@@ -15,13 +15,13 @@ Questions and decisions: `F-rpf-adl-pbr-questions.md` (Q1–Q9).
 | agent: descriptors | **V23 (a) fixed** in `adl.interface` Retrieve (control query of device-input's end node + local0 probe); `adl.allowlist` rewritten to VPP-safe two-call sequences with a D-076 applied-once record (V-new: the naive call wipes unconfigured families → crash vector); new `descriptors/auto_sdl` (write-only global, globals owner only, disable+enable once per VPP instance) |
 | agent: wiring | `subsystems/rpf_adl_pbr.go`: urpf/adl/abf with the persisted `KeyedClaims("acl")`, allow-list + Auto-SDL with `Wiring.BootStore()`, ABF ids in `SlotIDRange()`; agent-local `pbr.policy` name store (`<state dir>/pbr-<owner>.json`); observe-only `pbr.acl-ref` bridge for `acl.acl/<name>` until F-acl (Q2); `Domains["services"]` (first implementer) |
 | API | `apps/api/src/features/rpf-adl-pbr`: `RpfAdlPbrController` — `GET /api/v1/state/pbr` (running vs Retrieve per policy/attachment: in-sync / drift / missing / unmanaged; attachments paged; counters not available, Q4); configuration through the generic pointer routes; OpenAPI + api-client + CLI table regenerated |
-| UI | *Routing → Policy routing* (`/routing/pbr`: policies with ACL/VRF/interface pickers and path editor, live status, attachments), *Firewall → ADL / Auto-SDL* (`/firewall/adl`: uRPF/ADL per interface, Auto-SDL form), uRPF/ADL in the interface drawer's **Security** group (P08 SchemaForm, `x-vrx-ui` group `rpf-adl-pbr`); en + fa |
+| UI | *Routing → Policy routing* (`/routing/pbr`: policies with ACL/VRF/interface pickers and path editor, live status, attachments), *Firewall → ADL / Auto-SDL* (`/firewall/adl`: uRPF/ADL per interface, Auto-SDL form), uRPF/ADL in the interface drawer's **Security** group (P08 SchemaForm, `x-ngfw-ui` group `rpf-adl-pbr`); en + fa |
 | docs | `docs/user/routing/rpf-adl-pbr.md` (second-uplink example, strict uRPF on WAN, REST + CLI), `docs/agent/descriptors/{auto_sdl (new),adl,abf}.md`, V23 row + V-new in `docs/vpp-code-track.md` |
 
 ## Acceptance
 
 ### `vppctl` reflects the commit; Retrieve == desired (host VPP, slot 10, loopbacks only, no packets)
-`VRX_INTEGRATION=1 VRX_RPF_VPPCTL=1 go test -run 'TestRpfAdlPbrOnHost|TestADLRetrieveV23OnHost' ./internal/subsystems/`
+`NGFW_INTEGRATION=1 NGFW_RPF_VPPCTL=1 go test -run 'TestRpfAdlPbrOnHost|TestADLRetrieveV23OnHost' ./internal/subsystems/`
 under `flock -s` (the agent service with the product registry + DF-4's acl.acl as F-acl will register it; ACL
 `w10:lan-b` created through binapi). NRestarts 0 → 0.
 ```
@@ -144,9 +144,9 @@ API e2e with the fake agent (`apps/api/test/e2e/rpf-adl-pbr.e2e.test.ts`, slot D
 ```
 
 ### UI screenshots against the real endpoint
-Real stack on the host (scratch script, not committed; the P07a/P08 approach): the `vrx-agent` binary of this tree
-(owner `w10`, not globals owner, product registry — the `pbr.acl-ref` bridge resolved the ACL), `vrx-api` (dist) on port
-4000 with a throwaway `vrx_w10` database, `vite preview` of the production web build on port 6000, Chrome-for-Testing
+Real stack on the host (scratch script, not committed; the P07a/P08 approach): the `ngfw-agent` binary of this tree
+(owner `w10`, not globals owner, product registry — the `pbr.acl-ref` bridge resolved the ACL), `ngfw-api` (dist) on port
+4000 with a throwaway `ngfw_w10` database, `vite preview` of the production web build on port 6000, Chrome-for-Testing
 headless shell + playwright-core from the npx cache (nothing installed). Configured through the API, committed
 (`partially-applied`: acl/nat/management are not implemented by this build), then one pending edit (priority 15) for the
 pending marks. NRestarts 1 → 1 (the 18:41 crash was before, Q1).
@@ -163,7 +163,7 @@ pbr-editor-fa-rtl.png  /routing/pbr  html dir/lang=rtl/fa  h2="مسیریابی 
 adl-page-fa-rtl.png  /firewall/adl  html dir/lang=rtl/fa  h2="فهرست مجاز/ممنوع و Auto-SDL"  pageErrors=0
 adl-dialog-fa-rtl.png  /firewall/adl  html dir/lang=rtl/fa  h2="فهرست مجاز/ممنوع و Auto-SDL"  pageErrors=0
 drawer-security-fa-rtl.png  /interfaces  html dir/lang=rtl/fa  h2="اینترفیس‌ها"  pageErrors=0
-cleanup: commit of an empty feature config → applied; ACL deleted; vrx_w10 dropped; left in VPP: nothing (loop100x, abf, w10 ACL)
+cleanup: commit of an empty feature config → applied; ACL deleted; ngfw_w10 dropped; left in VPP: nothing (loop100x, abf, w10 ACL)
 ```
 
 | | |
@@ -175,10 +175,10 @@ cleanup: commit of an empty feature config → applied; ACL deleted; vrx_w10 dro
 
 ### Auto-SDL on the host
 ```
-=== RUN   TestAutoSdlOnHost          (VRX_AUTOSDL_GLOBALS unset)
-    auto_sdl_config changes a getter-less VPP-global; set VRX_AUTOSDL_GLOBALS=1 in a manager window (D-071/D-082)
+=== RUN   TestAutoSdlOnHost          (NGFW_AUTOSDL_GLOBALS unset)
+    auto_sdl_config changes a getter-less VPP-global; set NGFW_AUTOSDL_GLOBALS=1 in a manager window (D-071/D-082)
 --- SKIP
-=== RUN   TestAutoSdlOnHost          (VRX_AUTOSDL_GLOBALS=1, flock -x globals lock)
+=== RUN   TestAutoSdlOnHost          (NGFW_AUTOSDL_GLOBALS=1, flock -x globals lock)
     plugin auto_sdl loaded: 2 message(s) compatible
     skip-unless-supported: auto_sdl_config: auto_sdl needs the session layer's SDL backend (startup.conf session { rt-backend sdl }) (VPPApiError: Feature disabled by configuration (-30))
 --- SKIP
@@ -238,7 +238,7 @@ CI GATE PASSED
 | `packages/schema/src/domains/services.ts` | import line; `autoSdl: autoSdlField,` |
 | `packages/schema/src/index.ts` | `export * from './domains/ext/rpf-adl-pbr.js';` |
 | `packages/schema/src/semantic/index.ts` | import; `...rpfAdlPbrValidators,` |
-| `packages/proto/vrx/v1/dataplane.proto` | Interface 18/19, RoutingConfig 11, ServicesConfig 8 under the anchors; messages in `// ----- F-rpf-adl-pbr -----` |
+| `packages/proto/ngfw/v1/dataplane.proto` | Interface 18/19, RoutingConfig 11, ServicesConfig 8 under the anchors; messages in `// ----- F-rpf-adl-pbr -----` |
 | `apps/agent/internal/subsystems/subsystems.go` | `Services = "services"`; 3 names in `Interfaces`, 3 in `Routing`; `Services: {rpfAdlPbrAutoSdl},`; `registerRpfAdlPbr` call |
 | `apps/agent/internal/agent/projection.go` | `desired.RpfAdlPbr(…)` in project(); `desired.RpfAdlPbrAssemble(…)` in assemble() |
 | `apps/api/src/app.module.ts` | import; `...rpfAdlPbrFeature.controllers,`; `...rpfAdlPbrFeature.providers,` |
@@ -256,10 +256,10 @@ CI GATE PASSED
 ACL lists/rules/attachments (F-acl), host ACL, static routes/VRFs (the ADL allow-list VRF's *local* entries, Q9), QoS,
 schema/API/UI for classify tables and ip-session-redirect, NAT session redirect, session-layer tuning, enabling the session
 layer, sub-interface uRPF/ADL, per-policy ACL hit counters (Q4), `show pbr` in the CLI (apps/cli; the generic
-`vrx configure set/merge` and `vrx show drift` work).
+`ngfw configure set/merge` and `ngfw show drift` work).
 
 ## Cleanup
-Every process started (agent, API, vite preview, headless Chrome) stopped by PID; lab lock held only during runs; `vrx_w10`
+Every process started (agent, API, vite preview, headless Chrome) stopped by PID; lab lock held only during runs; `ngfw_w10`
 dropped; no `w10` uRPF/ADL/ABF/ACL objects left (`vppctl show abf policy` empty, no `loop100x`, no `w10:` ACL);
 `apps/web/dist`, `apps/api/dist` removed at the end; no global changed.
 

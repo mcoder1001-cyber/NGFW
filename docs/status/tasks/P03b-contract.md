@@ -7,12 +7,12 @@ Branch `task/P03b`, worktree `/root/ngfw-wt/P03b`, base `main@dfc2f90`. Evidence
 
 | change | kind | wire / API effect | why |
 |---|---|---|---|
-| `vrx.v1` — 68 field comments added (routing BGP/OSPF/IS-IS/RIP/BFD, management AAA/syslog, `ActionRequest` oneof members, `Health*` message comments); section headers point at the merged `packages/schema/src/domains/*.ts` instead of branch hashes; numbering header names the drift guard | comments only | none (generated Go/TS differ only in doc comments) | scope 2: P03's rule "every field commented" was broken by the group (a) sync; stale `task/P02b@ec0ccda` references |
-| `vrx.v1.Redistribute` comment: the shared message's own-protocol key can never be set | comment | none | documents the one accepted drift (below) |
-| **new** `vrx/model/acl/v1/acl.proto` — `vrx.model.acl.v1` (8 messages) | additive (new package) | Go only, not referenced by `vrx.v1` | scope 3, D-055: DF-4's structpb stand-in |
-| **new** `vrx/model/nat/v1/*.proto` — `vrx.model.nat.v1` (9 files, 41 messages: 6 shared + 35 per plugin) | additive | Go only | scope 3, D-055: DF-3's structpb carrier (`task/DF-3@08d0af4`) |
-| **new** `vrx/model/iface/v1/interface.proto` — `vrx.model.iface.v1` (8 messages + `RxModeKind`) | additive | Go only | scope 3, D-055: DF-1 interface attributes promoted from the descriptor-local proto |
-| `buf.gen.yaml` restricted to `inputs: vrx/v1`; new `buf.gen.model.yaml` (Go only, `vrx/model`); `gen.sh` runs both | generation | `@ngfw/proto` TS output unchanged | the API never sees the object model |
+| `ngfw.v1` — 68 field comments added (routing BGP/OSPF/IS-IS/RIP/BFD, management AAA/syslog, `ActionRequest` oneof members, `Health*` message comments); section headers point at the merged `packages/schema/src/domains/*.ts` instead of branch hashes; numbering header names the drift guard | comments only | none (generated Go/TS differ only in doc comments) | scope 2: P03's rule "every field commented" was broken by the group (a) sync; stale `task/P02b@ec0ccda` references |
+| `ngfw.v1.Redistribute` comment: the shared message's own-protocol key can never be set | comment | none | documents the one accepted drift (below) |
+| **new** `ngfw/model/acl/v1/acl.proto` — `ngfw.model.acl.v1` (8 messages) | additive (new package) | Go only, not referenced by `ngfw.v1` | scope 3, D-055: DF-4's structpb stand-in |
+| **new** `ngfw/model/nat/v1/*.proto` — `ngfw.model.nat.v1` (9 files, 41 messages: 6 shared + 35 per plugin) | additive | Go only | scope 3, D-055: DF-3's structpb carrier (`task/DF-3@08d0af4`) |
+| **new** `ngfw/model/iface/v1/interface.proto` — `ngfw.model.iface.v1` (8 messages + `RxModeKind`) | additive | Go only | scope 3, D-055: DF-1 interface attributes promoted from the descriptor-local proto |
+| `buf.gen.yaml` restricted to `inputs: ngfw/v1`; new `buf.gen.model.yaml` (Go only, `ngfw/model`); `gen.sh` runs both | generation | `@ngfw/proto` TS output unchanged | the API never sees the object model |
 
 No existing field was renamed, renumbered, retyped or removed by P03b. `buf breaking` vs `main`: exit 0.
 
@@ -50,5 +50,5 @@ always-PENDING (decision-policy #1).
 
 With this branch merged, every schema leaf has its proto field and vice versa (4 documented supersets), CI fails on
 any future drift, and the factories have typed messages to adapt to. Open points for the manager:
-`docs/status/tasks/P03b-questions.md` (#1 package placement, #2 implicit presence in `vrx.model`, #6 the
+`docs/status/tasks/P03b-questions.md` (#1 package placement, #2 implicit presence in `ngfw.model`, #6 the
 `Redistribute` exception) — none blocks the tag.

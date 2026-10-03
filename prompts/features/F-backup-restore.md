@@ -8,19 +8,19 @@ that drives F-ab-upgrade's mechanism. Reference: TNSR "configuration backup/rest
 
 ## Inputs to read first
 - P06 (merged; read on main) under `apps/api/src/`: `datastore/datastore.service.ts` (candidate/running, export/import to candidate),
-  `commit/commit.service.ts`, `secrets/secrets.service.ts` (AES-256-GCM under `VRX_SECRET_KEY_FILE`, secret name as AAD, versioned with
+  `commit/commit.service.ts`, `secrets/secrets.service.ts` (AES-256-GCM under `NGFW_SECRET_KEY_FILE`, secret name as AAD, versioned with
   revisions — D-091), `db/schema.ts` (Drizzle tables), `audit/`, `app.ts` (8 MiB JSON body limit). `actions/actions.controller.ts` is the
   generic `POST /actions/:action` bridge (F-vrf-static-ecmp's): serve your actions from static routes in your own controller (a static route
   wins over `:action`) and call the agent through the generic Action stream method in `agent/agent.client.ts`
 - `packages/schema` — `redactSecrets(doc)` / `secretPointers()` (D-046, D-070): backups carry secrets only inside the encrypted archive
 - `docs/decisions/LOG.md` D-046, D-051, D-059 (have-nots), D-091, **D-097** (every path that writes a snapshot back — restore/import included —
-  takes password hashes from `app_user`, never from the snapshot), D-102; `prompts/P10-packaging-deb.md` (paths `/var/lib/vrx`, `/data`);
+  takes password hashes from `app_user`, never from the snapshot), D-102; `prompts/P10-packaging-deb.md` (paths `/var/lib/ngfw`, `/data`);
   `docs/09-os-packages.md` §7 (`/data` holds backups and update bundles); `deploy/upgrade/` + `docs/install/ab-upgrade.md` (F-ab-upgrade,
-  merged before you start: the `vrx-upgrade` argv, exit codes and `status --json` you call)
+  merged before you start: the `ngfw-upgrade` argv, exit codes and `status --json` you call)
 - P07b UI flows (pending-change bar, commit dialog) — restore and template apply land in the candidate and go through the normal commit
 
 ## Scope — build exactly this
-1. **Backup format**: `vrx-backup-<host>-<ts>.tar.zst.age`-style archive = `manifest.json` (schema version, revision id, hash, created-by) +
+1. **Backup format**: `ngfw-backup-<host>-<ts>.tar.zst.age`-style archive = `manifest.json` (schema version, revision id, hash, created-by) +
    running document + last N revisions + secret-store rows (still encrypted) ; the archive itself encrypted with a **user passphrase**
    (scrypt/argon2 KDF + AES-256-GCM via Node crypto, no shell). Restore refuses a schema major version it cannot parse; older minor → migrate via P02 parse.
 2. **API** `apps/api/src/features/backup-restore/`: `POST /api/v1/actions/backup` (stream download), `POST /api/v1/actions/restore` (upload →
@@ -29,7 +29,7 @@ that drives F-ab-upgrade's mechanism. Reference: TNSR "configuration backup/rest
    templates (`GET/PUT /api/v1/config-templates/{name}`, apply = render parameters → merge-patch into candidate, validated per D-049),
    `POST /api/v1/actions/support-bundle` (redacted running config, last 1000 audit rows, agent `Health`/`Retrieve` summaries, service
    status from the agent, versions; secrets and hashes removed by `redactSecrets` + a final regex scan that fails the bundle on a hit),
-   upgrade UI endpoints that call F-ab-upgrade's `vrx-upgrade` CLI **through the agent Action** (list slots, stage bundle, activate, confirm, rollback).
+   upgrade UI endpoints that call F-ab-upgrade's `ngfw-upgrade` CLI **through the agent Action** (list slots, stage bundle, activate, confirm, rollback).
    Agent side: new `ActionRequest` members (numbers in `docs/status/wave-BC-numbers.md`), handler code in `apps/agent/internal/actions/backup-restore/`,
    one case in the Action switch under your anchor, one fixed-argv row per binary in `apps/agent/internal/renderers/ALLOWLIST.md` (no user
    string ever reaches argv: the op is an enum, the bundle path is validated to lie under `/data/updates/`). VPP facts for the support bundle
@@ -48,14 +48,14 @@ that drives F-ab-upgrade's mechanism. Reference: TNSR "configuration backup/rest
    templates editor (SchemaForm for parameters), Support bundle button, Upgrade page (current/other slot version, upload, staged rollout
    status, rollback); en + fa (`locales/*/backup-restore.json`).
 5. **Support-bundle collector** `deploy/support-bundle/` — the host-side script list the agent Action may run (fixed argv, no user input), e.g.
-   `journalctl -u vrx-* --since`, `vppctl show version/plugins/interface` read-only; allow-listed per `renderers/ALLOWLIST.md` style.
+   `journalctl -u ngfw-* --since`, `vppctl show version/plugins/interface` read-only; allow-listed per `renderers/ALLOWLIST.md` style.
 6. **Docs**: `docs/user/system/backup-restore.md` (backup, restore, templates, support bundle, upgrade UI).
 
 Files you own: `apps/api/src/features/backup-restore/**`, `apps/web/src/domains/system/backup-restore/**`, `apps/web/src/locales/*/backup-restore.json`,
 `apps/agent/internal/actions/backup-restore/**`, `deploy/support-bundle/**`, `docs/user/system/backup-restore.md`, `test/topology/backup-restore/**`
 (the envelope has the full list). Shared files: one-line appends only under your anchor (`app.module.ts`, web router/nav/i18n, the Action
 switch in `server.go`, ALLOWLIST rows, route-guard lists, `ManagementConfig`/`ManagementSchema` key lines, P10's install list for the
-collector) — the manager resolves at merge. The SFTP test uses your own `sshd -D -f <cfg> -p <slot port>` under `/run/vrx-test/w<SLOT>/`
+collector) — the manager resolves at merge. The SFTP test uses your own `sshd -D -f <cfg> -p <slot port>` under `/run/ngfw-test/w<SLOT>/`
 (your PID only) — never `ssh.service`, which carries everyone's management SSH.
 
 ## Acceptance (paste the evidence)
@@ -68,7 +68,7 @@ collector) — the manager resolves at merge. The SFTP test uses your own `sshd 
 ## Out of scope (do not build)
 The A/B slot mechanism, boot flags and rollback watchdog (F-ab-upgrade); package building/signing (P10, F-vpp-debs, F-hardening-lite); bulk multi-device
 provisioning/orchestration (D8.5 fleet part — have-not, list it); cloud storage targets (S3/Azure); HA config sync between peers (F-vrrp-config-sync);
-RESTCONF export formats (F-restconf-yang); performing a real upgrade of this host (tests drive a fake `vrx-upgrade` with the same argv, or
+RESTCONF export formats (F-restconf-yang); performing a real upgrade of this host (tests drive a fake `ngfw-upgrade` with the same argv, or
 F-ab-upgrade's loop-image harness — never `stage/activate` against this host's disks or grubenv).
 
 ## Open questions to surface, not to decide silently

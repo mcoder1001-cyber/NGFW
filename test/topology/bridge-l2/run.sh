@@ -7,15 +7,15 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
-: "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
-[[ "$VRX_TEST_PREFIX" =~ ^w([0-9]{1,2})$ ]] || { echo "run.sh: VRX_TEST_PREFIX must be w<N>" >&2; exit 1; }
+: "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
+[[ "$NGFW_TEST_PREFIX" =~ ^w([0-9]{1,2})$ ]] || { echo "run.sh: NGFW_TEST_PREFIX must be w<N>" >&2; exit 1; }
 # the slot run dir stays 0755 and is never re-moded (frr/_chrony test daemons traverse it, D-106/D-107): create it
 # only when missing; the test keeps its own files private in "$RUN/bl2" (0700)
-RUN="/run/vrx-test/$VRX_TEST_PREFIX"
-[[ -d /run/vrx-test ]] || install -d -m 0755 /run/vrx-test
+RUN="/run/ngfw-test/$NGFW_TEST_PREFIX"
+[[ -d /run/ngfw-test ]] || install -d -m 0755 /run/ngfw-test
 [[ -d "$RUN" ]] || install -d -m 0755 "$RUN"
-( cd "$ROOT/apps/agent" && go build -o bin/vrx-agent ./cmd/vrx-agent )
+( cd "$ROOT/apps/agent" && go build -o bin/ngfw-agent ./cmd/ngfw-agent )
 ( cd "$ROOT/apps/api" && pnpm build >/dev/null )
-export VRX_BL2_AGENT_BIN="$ROOT/apps/agent/bin/vrx-agent" VRX_INTEGRATION=1
+export NGFW_BL2_AGENT_BIN="$ROOT/apps/agent/bin/ngfw-agent" NGFW_INTEGRATION=1
 cd "$HERE"
 exec "$ROOT/tools/lab" lock shared go test -count=1 -v -timeout 15m "$@" .

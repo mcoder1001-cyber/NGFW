@@ -17,11 +17,11 @@ Numbers from `docs/status/wave-BC-numbers.md` § F-det44-map-dslite-cnat, verifi
 - Semantic rules (`semantic/det44-map-dslite-cnat.ts`, mirroring the agent): `nat.det44-map-dslite-cnat-cnat-snat-address`,
   `…-cnat-nat44-interface`, `…-map-domain-name` (`nat46-` reserved), `…-lw4o6-rules`, `…-pnat-interfaces`.
 
-## Proto (`contract(proto)`, `packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`contract(proto)`, `packages/proto/ngfw/v1/dataplane.proto`)
 - `NatConfig.pnat = 27` → `PnatConfig{bindings, attachments}`, `PnatBinding`, `PnatMatch`, `PnatRewrite`, `PnatAttachment`.
 - RPCs `Det44Sessions`, `Det44Lookup`, `CnatSessions` (+ request/response/row messages).
 - `ActionRequest.det44_session_close = 9` (`Det44SessionCloseAction{direction in|out, address, port, external_address,
   external_port}`), `ActionRequest.cnat_session_purge = 10` (`CnatSessionPurgeAction{}`, globals owner only).
 - Regenerated: Go (`apps/agent/gen`), TS (`packages/proto/gen/ts`; `timestamp.ts` restored — comment-only diff),
-  `packages/yang/generated/vrx-nat.yang`, `packages/api-client/src/generated/schema.d.ts`.
+  `packages/yang/generated/ngfw-nat.yang`, `packages/api-client/src/generated/schema.d.ts`.
 - Fake agent: UNIMPLEMENTED stubs for the three RPCs under the anchor (replaced by the feature fake later).

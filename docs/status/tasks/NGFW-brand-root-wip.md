@@ -1,0 +1,4 @@
+# NGFW naming root WIP
+
+Branch codex/ngfw-brand-docs-integration-20261003; base0d174caf96413599a6bae7111bf74d14ecebede1. Root owns documentation/prompts/plan/rootREADME/.claude and test metadata/non-Go. SDK now delegated in its own worktree; root did not edit SDK source. Canonical CLI reference consumed from the real new generator; consumer repeated uncached CLI race successfully.
+Owned text and path rename now applied; PEM material and random dependency integrity are protected, Git history preserved. Historical terminology normalization documented in docs/status/NGFW-RENAME-HISTORY.md. No host operations performed. Next: verify owned JSON/YAML/topology/link consistency, publish checkpoint, compose stable developer snapshots/P11/TLS fixes, independent reviews, full exacthead quick, real new native NGFW package builds and guarded merge.

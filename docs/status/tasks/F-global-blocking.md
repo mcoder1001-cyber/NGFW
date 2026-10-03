@@ -46,7 +46,7 @@ interfaces ahead of the access lists and, optionally, on traffic to the box itse
 - API (a38718bb): `/api/v1/security/global-blocking` status (source, last download, next refresh, data-plane and
   host drop counters), `lists/{name}/import` (text/plain ≤ 8 MB, preview by default), `lists/{name}/fetch`,
   `lists/{name}/export`; `fetch.ts` (https verify, private CA / token / basic from secret refs, 20 MB, 30 s, ETag /
-  If-Modified-Since, no redirects); scheduled refresh (`VRX_GLOBAL_BLOCKING_CHECK_SEC`, default 60 s; a Valkey
+  If-Modified-Since, no redirects); scheduled refresh (`NGFW_GLOBAL_BLOCKING_CHECK_SEC`, default 60 s; a Valkey
   `SET NX` keeps it to one API process per list); `BLOCKLIST_FETCH_FAILED` / `BLOCKLIST_REFRESHED` system events.
   ACL attachments view: `_gb.*` no longer counts as out of sync.
 - Web: Firewall › Global blocking (`domains/security/global-blocking`): lists with source, enforcement, entries
@@ -63,7 +63,7 @@ interfaces ahead of the access lists and, optionally, on traffic to the box itse
   (loop711) and `_gb.bad.i00,_gb.pass,_gb.bad.o00,_gb.pass` (loop712); Retrieve == desired; second Apply empty; one
   added entry = 3 updates (two buckets + the applied record), 0 creates/deletes, no rebinding; AclState lists the
   bucket ACLs; removing the lists restores `user-in` alone.
-- **Real kernel** (nft 1.1.x in a slot netns, `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w1`,
+- **Real kernel** (nft 1.1.x in a slot netns, `NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w1`,
   `TestIntegrationBlockListProtectsHost`): the listed peer 10.1.77.2 is dropped (block rule counter 2 packets), an
   unlisted peer connects; **200 000-entry set applied in 6.3 s**, Retrieve 2.0 s and == desired; a one-entry change
   re-applies in 8.1 s (whole-table replacement, atomic); removal clean. The existing host-ACL integration test passes

@@ -3,13 +3,13 @@
 **Screen:** *Firewall → Host ACL* (`/firewall/host-acl`: tabs *Lists*, *Attachments*, *Settings*, *Rendered*).
 **REST:** the generic configuration routes under `/api/v1/config/acl/host/<list>`, `/api/v1/config/acl/hostAttachments`,
 `/api/v1/config/acl/hostSettings`, and `GET /api/v1/state/host-acl` (the rendered firewall with per-rule counters).
-**CLI:** `vrx configure set|merge|delete acl host …`, `… acl hostAttachments …`, `… acl hostSettings …`, then `commit`;
-`vrx show configuration acl` (`docs/user/cli/reference.md`). There is no `show` command for the rendered table yet — use
+**CLI:** `ngfw configure set|merge|delete acl host …`, `… acl hostAttachments …`, `… acl hostSettings …`, then `commit`;
+`ngfw show configuration acl` (`docs/user/cli/reference.md`). There is no `show` command for the rendered table yet — use
 `GET /api/v1/state/host-acl`.
 
 Host ACLs filter traffic **to and from the appliance's own host stack**: SSH, the HTTPS UI/API, SNMP, BGP/OSPF sessions
 punted to Linux, DNS/NTP the box serves. They are not the data-plane ACLs of the VPP interfaces (*Firewall → ACL*); they
-are rendered into the Linux kernel's nftables as one table, `table inet vrx`, which the box owns completely: every
+are rendered into the Linux kernel's nftables as one table, `table inet ngfw`, which the box owns completely: every
 commit replaces the whole table in one atomic step, and nothing else in the kernel ruleset is touched (the static base
 policy the package installs, and anything else, stays).
 
@@ -26,7 +26,7 @@ policy the package installs, and anything else, stays).
 Every chain starts with *established/related → accept* (replies to connections that were allowed are not cut — output chains
 therefore always run after connection tracking), then
 loopback, then ICMP (if allowed; IPv6 neighbour discovery always), then — on input — the anti-lockout rule, then your
-rules in `sequence` order. Every rule has a counter; rules with *log* write `vrx:<list>:<sequence>` to the kernel log.
+rules in `sequence` order. Every rule has a counter; rules with *log* write `ngfw:<list>:<sequence>` to the kernel log.
 
 ## Default policy
 
@@ -108,7 +108,7 @@ chain in_mgmt-in { type filter hook input priority 0; policy accept;
   iifname "ens192" ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept        # anti-lockout
   ip saddr 10.0.0.0/24 tcp dport { 22, 443 } counter accept                         # rule 10
   ip saddr 10.0.0.0/24 udp dport 161 counter accept                                 # rule 20
-  tcp dport { 22, 443 } counter log prefix "vrx:mgmt-in:30 " drop                   # rule 30
+  tcp dport { 22, 443 } counter log prefix "ngfw:mgmt-in:30 " drop                   # rule 30
 }
 ```
 

@@ -11,7 +11,7 @@ Stand-ins (D-055): `ha.keepalived.*` and `ha.vrrp.<name>.keepalived.*` (RF-4-que
 | desired state (JSON path) | rendered | validation |
 |---|---|---|
 | — | `global_defs { enable_script_security; script_user root; vrrp_version 3 }` | fixed |
-| `ha.keepalived.routerId` *(stand-in)* / `system.hostname` | `router_id <id>` (default `vrx`) | `[A-Za-z0-9_.-]{1,32}` |
+| `ha.keepalived.routerId` *(stand-in)* / `system.hostname` | `router_id <id>` (default `ngfw`) | `[A-Za-z0-9_.-]{1,32}` |
 | `ha.keepalived.garpMasterRefresh` *(stand-in)* | `vrrp_garp_master_refresh <s>` | 1–86400 |
 | `ha.keepalived.scripts.<name>.{check,interval,weight,fall,rise}` *(stand-in)* | `vrrp_script <name> { script "<ChecksDir>/<check>" interval … weight … fall … rise … }` | `check` ∈ shipped allow-list (`WithChecks`); never a path or script text; interval 1–3600, weight −253…253, fall/rise 1–255 |
 | `ha.vrrp.<name>` | `vrrp_instance <name> { … }` | name `[A-Za-z0-9_.-]{1,32}` |
@@ -41,12 +41,12 @@ Never rendered: `vrrp_strict`, `use_vmac`, `no_accept`, `include`, `$VAR`, `@…
 
 ## Wired by F-vrrp-config-sync
 
-`internal/subsystems/keepalived.go` registers the renderer as the singleton stage `keepalived.config/vrx` (domain
+`internal/subsystems/keepalived.go` registers the renderer as the singleton stage `keepalived.config/ngfw` (domain
 `ha`, pattern of F-snmp's `snmpd.config`). The projection (`internal/desired/vrrp.go`) puts every `engine: keepalived`
 instance whose interface has a linux-cp pair (`interfaces.<if>.lcp`, P12) into the stage's value together with those
 pairs; the stage sets P12's `lcpmap.Mapper` from that value before every render, so the renderer's `InterfaceMapper`
 is the linux-cp mapping (no longer `NoMapper`). An instance without a pair is skipped with the DryRun warning
-`ha.vrrp-keepalived-no-lcp`; one in a non-default VRF with `ha.vrrp-keepalived-vrf`. With `VRX_TEST_PREFIX` the stage uses
-`TestPaths(prefix, $VRX_KEEPALIVED_BIN_DIR, $VRX_KEEPALIVED_NETNS)` and a pidfile controller
+`ha.vrrp-keepalived-no-lcp`; one in a non-default VRF with `ha.vrrp-keepalived-vrf`. With `NGFW_TEST_PREFIX` the stage uses
+`TestPaths(prefix, $NGFW_KEEPALIVED_BIN_DIR, $NGFW_KEEPALIVED_NETNS)` and a pidfile controller
 (`<conf dir>/keepalived.pid`). No secret resolver is passed (no API→agent secret channel; the D-086 stand-ins are not
 contract fields yet). No change to the renderer package itself.

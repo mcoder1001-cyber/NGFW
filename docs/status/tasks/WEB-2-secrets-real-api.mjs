@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 
 const BASE = process.env.BASE ?? 'http://127.0.0.1:3100';
-const VALUE = 'VRX_TEST_PSK_WEB2';
+const VALUE = 'NGFW_TEST_PSK_WEB2';
 const REF = 'psk/w1-web2';
 const pw = readFileSync(process.env.PWFILE, 'utf8').trim();
 

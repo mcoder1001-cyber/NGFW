@@ -1,8 +1,8 @@
 # Task P03 — gRPC contract agent↔api (contract)   (prepend 00-CONTEXT.md)
 
 ## Goal
-Define `packages/proto/vrx/dataplane.proto` — the frozen interface between `vrx-api`
-(Node) and `vrx-agent` (Go). Mirror the schema from P02 for the modelled domains only.
+Define `packages/proto/ngfw/dataplane.proto` — the frozen interface between `ngfw-api`
+(Node) and `ngfw-agent` (Go). Mirror the schema from P02 for the modelled domains only.
 
 ## Read first
 `docs/04-api-datamodel.md` (gRPC sketch), the P02 schema in `packages/schema/src`.
@@ -32,7 +32,7 @@ service Dataplane {
 - `ActionRequest{ oneof: Ping{target, vrf, count, size}, Traceroute{...}, Capture{interface, bpf, max_packets, seconds} }`;
   `ActionOutput{ oneof: line, pcap_chunk, done{summary} }`.
 - Field-level comments for every field. `buf lint` with the DEFAULT rule set, `buf breaking` against `main`.
-- Generate Go into `apps/agent/gen/vrx/v1` and TS into `packages/proto/gen/ts`.
+- Generate Go into `apps/agent/gen/ngfw/v1` and TS into `packages/proto/gen/ts`.
 - `docs/contracts/proto.md`: RPC semantics — idempotency of Apply, what Retrieve must include,
   ordering guarantees of streams, the confirm-timeout self-revert behaviour.
 

@@ -4,7 +4,7 @@ Reviewed local `54bf1b9eacd1bc9e08cbd7f7ec0e96750f8b9a9d`, remote `7acf72dd06eb2
 
 ## Findings
 
-1. **MAJOR — completion marker prevents automatic credential cleanup after crash.** `deploy/systemd/vrx-firstboot.service` uses `ConditionPathExists=!/var/lib/vrx/firstboot-complete`. Script deliberately durably publishes that marker BEFORE removing bootstrap.env. A crash between those operations causes systemd to skip the service on reboot, so its existing completion cleanup branch never runs and plaintext bootstrap credentials persist. Make cleanup-only recovery run when credentials still exist, without reprovisioning completed installations. Test marker-published/credentials-present boundary against the shipped unit start condition.
+1. **MAJOR — completion marker prevents automatic credential cleanup after crash.** `deploy/systemd/ngfw-firstboot.service` uses `ConditionPathExists=!/var/lib/ngfw/firstboot-complete`. Script deliberately durably publishes that marker BEFORE removing bootstrap.env. A crash between those operations causes systemd to skip the service on reboot, so its existing completion cleanup branch never runs and plaintext bootstrap credentials persist. Make cleanup-only recovery run when credentials still exist, without reprovisioning completed installations. Test marker-published/credentials-present boundary against the shipped unit start condition.
 2. **MAJOR — stable JWT input can be missing while completion succeeds.** `assets/firstboot.sh` validates existing api.env owner/mode, DB line and master-key line, but not JWT. An existing env missing JWT (or with empty JWT) therefore passes and is sealed complete; existing TokensService then uses a fresh per-process key, losing sessions on restart. Additionally `printf ... "$(openssl rand -hex 32)"` can succeed despite the random command failing. Assign/check random output separately, validate exactly one expected 64-hex JWT value in generated/existing env, and export that verified key for bootstrap consistency. Add failures for malformed existing env and random generation while preserving credentials/no completion. Generated secret key length is already checked and should remain checked.
 
 R1/R8 BLOCK until fixed. R2 BLOCK for credential lifecycle finding 1; remaining new SQL/env handling uses fixed identifiers and parses controlled env as data rather than shell code, with sanitized DB failure messages and no secret material in logs. R7 APPROVE checkpoint honesty: actual DB/API/VPP boot explicitly not run, activation/base policy/APT remain unfinished, whole P10 remains running. No new always-pending security boundary decision is identified.
@@ -12,15 +12,15 @@ R1/R8 BLOCK until fixed. R2 BLOCK for credential lifecycle finding 1; remaining 
 ## Independent actual verification
 
 ```text
-python3 deploy/debian/vrx/tests/test_firstboot.py
+python3 deploy/debian/ngfw/tests/test_firstboot.py
 Ran 2 tests in 0.363s
 OK
-python3 deploy/debian/vrx/tests/test_packaging.py
+python3 deploy/debian/ngfw/tests/test_packaging.py
 Ran 7 tests in 0.441s
 OK
-node --check deploy/debian/vrx/assets/bootstrap-db.mjs
+node --check deploy/debian/ngfw/assets/bootstrap-db.mjs
 exit 0
-bash -n deploy/debian/vrx/assets/firstboot.sh
+bash -n deploy/debian/ngfw/assets/firstboot.sh
 exit 0
 tools/ci.sh check --base origin/main
 ok: gitleaks — scanned ~40392 bytes (40.39 KB) in 164ms no leaks found

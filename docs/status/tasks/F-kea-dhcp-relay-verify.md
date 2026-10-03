@@ -8,7 +8,7 @@ TD-25.
 ## Verdict: **APPROVE**
 
 - **Findings:** M1, M2, M3, Q7, L1, L3 and L7 are fixed. Each new test **fails on a mutant of the fix**, as shown below.
-- **tools/app:** the change is exactly the one `VRX_KEA_MODE=off` token on the agent line.
+- **tools/app:** the change is exactly the one `NGFW_KEA_MODE=off` token on the agent line.
 - **Regressions:** none. One web test failed once while the host load was 48; the fix round does not touch it, and it
   passes on a re-run (details under "Tests").
 - **New findings:** V1–V3 are all L and can wait (owners below).
@@ -21,8 +21,8 @@ TD-25.
 | **M1** | **fixed** | `renderers/kea/status.go:59`: a configuration without an embedded render input returns only `Running` (no file, idle, or foreign such as the packaged commented `/etc/kea`). The UI shows a neutral "Not configured" chip (`ConfigTabs.tsx:240-242`, en+fa keys). `TestStatusForeignConfigNotConfigured` covers the commented file while stopped, foreign JSON while running, and no file. **Mutant** (the check reduced to `cfg == nil`): FAIL `stopped daemon, packaged file: {… Active:true ActionRequired:start … Err:kea: configuration: invalid character '/' …}`, the exact symptom in the review. `DhcpPage.test.tsx` asserts "Not configured" and no "Stopped". |
 | **M2** | **fixed** | `status.go:223-257` `cachedLeases`: one read per family in flight (singleflight), reused for `LeaseCacheTTL` = 10 s; errors are not cached. The read is detached from the caller with a 60 s bound; a cancelled caller returns `ctx.Err()`. `renderer.go:310`: `Apply` drops the cache. Paging is unchanged (`Leases`, `LeasePageSize` = 1000 per message, `MaxLeases`). `TestLeaseReadsSharedAndCached` checks four cases: 8 concurrent calls send 3 page requests (one read of 2500 leases); calls within the TTL send none; after the TTL one read; after Apply one read. **Mutant** (`LeasePage` calling `r.Leases` directly): FAIL `8 concurrent calls made 24 lease4-get-page requests, want 3`. Stress: `-race -count=20` over both new kea tests passes. |
 | **M3** | **fixed** | `subsystems/kea_test.go:36-97` `TestRegisterKeaRelayScope`: zero `IDScope` (tables 5000 and 0), slot range inside and outside, and `IDs.All`. It checks Retrieve, a refused Create (nothing written to the fake VPP) and relay records. **Mutant** (`if err != nil { rng = nil }` at `kea.go:77`): FAIL `no_range:_fail_closed: retrieved 1 relays of table 5000, owns=false` and `table_0_too`, which is the exact refactor the review warned about. `TestRegisterKeaModes` (`:101-167`) covers the mode, IFMAP and netns table; `TestKeaTestModeMapper` covers the map scope and no address binding. |
-| **Q7** | **fixed** | `subsystems/kea.go:90-95`: `VRX_KEA_MODE=test` refuses to start for owner `vrx` or `IDs.All`; three test cases. `ALLOWLIST.md:70` has a new row with a fixed argv and no shell. The product runner stays `kea.Binaries()`, which RF-3's `TestProductAllowlistHasNoTrampoline` covers. The optional WARN log was not added; the start-up log line "kea wired … mode test (netns …)" already names the mode. Accepted. |
-| tools/app | **ok** | `tools/app:108`: only `VRX_KEA_MODE=off` was added (1+/1−). The product stack's stored desired state is empty (`/var/lib/vrx-app/agent/desired.pb`, 0 bytes, read-only check), so nothing changes at start-up. D-136 is **not yet in `docs/decisions/LOG.md` on main @ 56200c3e**; the manager should record it. For the effect of `off` on a document with servers, see V3. |
+| **Q7** | **fixed** | `subsystems/kea.go:90-95`: `NGFW_KEA_MODE=test` refuses to start for owner `ngfw` or `IDs.All`; three test cases. `ALLOWLIST.md:70` has a new row with a fixed argv and no shell. The product runner stays `kea.Binaries()`, which RF-3's `TestProductAllowlistHasNoTrampoline` covers. The optional WARN log was not added; the start-up log line "kea wired … mode test (netns …)" already names the mode. Accepted. |
+| tools/app | **ok** | `tools/app:108`: only `NGFW_KEA_MODE=off` was added (1+/1−). The product stack's stored desired state is empty (`/var/lib/ngfw-app/agent/desired.pb`, 0 bytes, read-only check), so nothing changes at start-up. D-136 is **not yet in `docs/decisions/LOG.md` on main @ 56200c3e**; the manager should record it. For the effect of `off` on a document with servers, see V3. |
 | **L1** | **fixed** | `3202aff2 contract(schema)` changes 1 file, 3+/2−, all comment lines (checked: no non-comment line changed). `turbo run test` ran `gen` and the worktree stayed clean, so the generated outputs are byte-identical. |
 | **L3** | **fixed** | `descriptors/dhcp/relay.go:148-171`: write, fsync, close, rename, then fsync of the directory. `:130-134`: a corrupt file is treated as empty. `TestFileRelayStoreCorruptFile` covers Load, Retrieve returning 0 without error, and Put rewriting the file. Nit: the corrupt file is dropped without a log line. The review asked for one; this can wait. |
 | **L7** | **fixed** | `docs/user/services/kea-dhcp-relay.md:121-124`: a known-issue line for sub-interfaces, af_packet and loopbacks. "Physical NIC not affected" is correct on main (untagged NICs are skipped) and on TD-11c (a lease is never claimed). |
@@ -51,7 +51,7 @@ TD-25.
   - Fix: `cachedLeases` returns `ctx.Err()` before it joins or starts a read. That also avoids starting a 60 s read for
     a caller that has already gone.
   - Owner: TD-22.
-- **V3:** with `VRX_KEA_MODE=off`, which tools/app now uses, a document with a DHCP server fails the whole Apply. The
+- **V3:** with `NGFW_KEA_MODE=off`, which tools/app now uses, a document with a DHCP server fails the whole Apply. The
   error is "validation failed: no descriptor registered for kea.dhcp4", pointed at `/services/dhcp/servers`
   (`scheduler/reconciler.go:380`), and it is fail-safe: nothing is written. Such a commit is never stored, so a resync
   cannot hit it, and the stack's stored state is empty today.
@@ -61,11 +61,11 @@ TD-25.
 ## Merge notes (additions to the review's list)
 
 - **N1: `tools/app:108` conflicts when merged:**
-  - with `task/F-host-acl-nftables`: the same line gains `VRX_HOST_ACL_MODE=check`;
-  - with `task/TD-8b`: the next line gains `VRX_VPP_TABLE_BASE=13000`;
+  - with `task/F-host-acl-nftables`: the same line gains `NGFW_HOST_ACL_MODE=check`;
+  - with `task/TD-8b`: the next line gains `NGFW_VPP_TABLE_BASE=13000`;
   - both are confirmed with `merge-tree`, and both are resolved by keeping every env token (mechanical).
   - With TD-8b's range, the product stack's relay families own tables 13000–13999. Q7 still refuses test mode (owner
-    `vrx`).
+    `ngfw`).
 - **N2: main has moved to `56200c3e`.** `git merge-tree --write-tree --name-only main task/F-kea-dhcp-relay` →
   `5ff4133a…`, exit 0: no conflicts. The review's earlier notes still apply: M4 against F-unbound, the TD-23
   registration line, and the squash subject `contract(`.

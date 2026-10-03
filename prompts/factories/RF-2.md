@@ -1,4 +1,4 @@
-# Task: RF-2 — Renderers for daemons: strongswan (swanctl/VICI path; vrx build lands in P11)   (prepend 00-CONTEXT.md)
+# Task: RF-2 — Renderers for daemons: strongswan (swanctl/VICI path; ngfw build lands in P11)   (prepend 00-CONTEXT.md)
 
 ## Goal
 Write the agent-side **renderer** for strongSwan (WBS D6.2): desired IPsec/IKE state → validated `swanctl.conf` + secrets → applied through
@@ -11,19 +11,19 @@ renderer must not care which kernel plugin charon loads.
 - `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
 - Daemon docs: strongSwan `swanctl.conf` / `strongswan.conf` man pages (on the host: `man swanctl.conf`, `man strongswan.conf`), VICI protocol doc
   (`src/libcharon/plugins/vici/README.md`), `swanctl --help`. Installed on this host (disabled): frr, strongswan (stock: `/usr/lib/ipsec/charon`,
-  `/usr/sbin/swanctl`; vrx build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog
+  `/usr/sbin/swanctl`; ngfw build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound, chrony, snmpd, keepalived, rsyslog
 - `packages/proto` messages for the domain (P03) — the input type: `vpn.ipsec.proposals`, `vpn.ipsec.tunnels` as specified in `prompts/P11-strongswan-vpp.md`
   (P11 opens the contract PR; if it has not landed, build against the shape in that prompt on a `contract/<id>` branch and say so)
 - `prompts/P11-strongswan-vpp.md` — the secret handling contract (`secretRef` → resolver, PSK never in logs/GET/world-readable files)
 - `docs/lab/shared-host-rules.md` — you are `daemon-owner: strongswan` for this task; slot prefix `w<N>`, addresses `10.<N>.0.0/16`
 
 ## Scope — build exactly this, per daemon
-Daemon: **charon** (+ `swanctl` as fallback CLI). All paths come from one injected `Paths` struct (product: `/etc/strongswan.conf`, `/etc/swanctl/conf.d/vrx.conf`,
-`/etc/swanctl/conf.d/vrx-secrets.conf`, VICI `unix:///var/run/charon.vici`; tests: `/run/vrx-test/w<N>/swan/{a,b}/…`).
+Daemon: **charon** (+ `swanctl` as fallback CLI). All paths come from one injected `Paths` struct (product: `/etc/strongswan.conf`, `/etc/swanctl/conf.d/ngfw.conf`,
+`/etc/swanctl/conf.d/ngfw-secrets.conf`, VICI `unix:///var/run/charon.vici`; tests: `/run/ngfw-test/w<N>/swan/{a,b}/…`).
 1. Templates in `internal/renderers/strongswan/templates/*.tmpl` rendered with `text/template` and **strict escaping helpers** — no user string reaches the file
-   unescaped. Files: `swanctl/conf.d/vrx.conf` (`connections { <name> { version, local_addrs, remote_addrs, local/remote { auth psk|pubkey, id }, proposals,
+   unescaped. Files: `swanctl/conf.d/ngfw.conf` (`connections { <name> { version, local_addrs, remote_addrs, local/remote { auth psk|pubkey, id }, proposals,
    children { <name> { local_ts, remote_ts, esp_proposals, mode tunnel|transport, start_action, dpd_action, rekey_time, if_id_in/out } }, dpd_delay, mobike,
-   encap, rekey_time, reauth_time } }`, `pools {}`), `swanctl/conf.d/vrx-secrets.conf` (`secrets { ike-<n> { id = …; secret = … } }`, mode 0600) and
+   encap, rekey_time, reauth_time } }`, `pools {}`), `swanctl/conf.d/ngfw-secrets.conf` (`secrets { ike-<n> { id = …; secret = … } }`, mode 0600) and
    `strongswan.conf` (`charon { plugins { vici { socket = unix://<path> } } filelog … }` — the kernel plugin list is a parameter P11 fills). Escaping:
    strongSwan settings grammar — keys `[A-Za-z0-9_-]`, values without newline / `{` / `}` / `#` / leading whitespace; ids validated as ip/fqdn/email/dn
    shapes; the word `include` is never emitted from user data; connection names `w<N>-…` in tests, `[A-Za-z0-9_.-]{1,64}` always.
@@ -43,7 +43,7 @@ Daemon: **charon** (+ `swanctl` as fallback CLI). All paths come from one inject
    `StreamEvents`; reconnect with backoff when charon restarts; fall back to 1 Hz `list-sas` polling only while the event socket is down.
 6. Unit tests with golden files (`testdata/*.golden`) — every template path covered (IKEv1/IKEv2, psk/pubkey, tunnel/transport, multiple children, pools, dpd,
    mobike, encap), including hostile strings: `"; rm -rf /`, `}\ninclude /etc/passwd\n{`, `#`, unicode, 5 KB id → rejected or escaped, asserted. Golden secrets are
-   the literal `VRX_TEST_PSK_<id>`; a test asserts no PSK appears in any log line or in `vrx.conf` (only in the 0600 file).
+   the literal `NGFW_TEST_PSK_<id>`; a test asserts no PSK appears in any log line or in `ngfw.conf` (only in the 0600 file).
 7. Integration test on this host, **never through the system units or `/etc` paths**: two charons as child processes in the rig namespaces `ns-w<N>-a` /
    `ns-w<N>-b` (veth `w<N>-a`↔`w<N>-b`, `10.<N>.250.1/2`) with test-scoped config dirs: `ip netns exec ns-w<N>-a env STRONGSWAN_CONF=<dir>/a/strongswan.conf
    /usr/lib/ipsec/charon` (VICI socket per instance). charon's pid path is compile-time (`/var/run/charon.pid` on Ubuntu) and collides between instances: give each
@@ -57,8 +57,8 @@ Daemon: **charon** (+ `swanctl` as fallback CLI). All paths come from one inject
 - [ ] `go test ./internal/renderers/strongswan/...` green, integration included (paste the `list-sas` excerpt with the PSK redacted)
 - [ ] `grep -rn "sh -c\|bash -c" internal/renderers/strongswan` is empty; `ALLOWLIST.md` updated; `exec.Command` appears only in the fixed-argv runner
 - [ ] A rendered config with `"; rm -rf /` in a description/id field is rejected or escaped (test present); the `include` injection test is rejected
-- [ ] No child daemon left running after tests (`pgrep -f /run/vrx-test/w<N>/swan` empty); `systemctl is-active strongswan-starter strongswan` still `inactive`; `/etc/swanctl` and `/etc/strongswan.conf` untouched (`stat` before/after)
-- [ ] `grep -rn "VRX_TEST_PSK" <test log>` finds nothing outside the 0600 secrets file
+- [ ] No child daemon left running after tests (`pgrep -f /run/ngfw-test/w<N>/swan` empty); `systemctl is-active strongswan-starter strongswan` still `inactive`; `/etc/swanctl` and `/etc/strongswan.conf` untouched (`stat` before/after)
+- [ ] `grep -rn "NGFW_TEST_PSK" <test log>` finds nothing outside the 0600 secrets file
 
 ## Out of scope (do not build)
 API/UI, schema changes (the `vpn.ipsec.*` contract is P11's — only an additive `contract/<id>` if a rendering field is missing), strongSwan build /

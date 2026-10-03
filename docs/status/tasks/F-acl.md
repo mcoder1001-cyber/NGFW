@@ -26,7 +26,7 @@ Contract: `410b5471 contract(proto): acl state` (+ `F-acl-contract.md`). Questio
     mapped to configuration rules; counters flag read with the read-only CLI `show acl-plugin tables mask`, Q10; bindings
     from `acl_interface_list_dump` / `macip_acl_interface_list_dump`).
   - `internal/subsystems/acl.go` — registration of the six DF-4 descriptors with `KeyedClaims("acl")`, projection
-    environment, **re-projection watcher**: every 60 s (`VRX_ACL_REPROJECT_SEC`) an applied rule whose schedule turned on/off,
+    environment, **re-projection watcher**: every 60 s (`NGFW_ACL_REPROJECT_SEC`) an applied rule whose schedule turned on/off,
     and every FQDN change of an object an applied rule uses, asks for a resync of the stored desired state through TD-8's
     `Wiring.RequestResync` (coalesced ≥ 5 s). `internal/agent/rpc_acl.go` — the RPC.
   - `descriptors/acl/ownership.go` — TD-11b declarations (gap edit, Q6). `coretest/acl.go` — the acl plugin in the agent-level
@@ -67,7 +67,7 @@ Contract: `410b5471 contract(proto): acl state` (+ `F-acl-contract.md`). Questio
 |---|---|
 | `apps/agent/internal/subsystems/subsystems.go` (A1, under `wave-A: F-acl`) | const `ACL = "acl"` · Domains `ACL: aclDescriptors(),` · Register `if err := w.registerACL(r); err != nil { return nil, err }` — the `acl` key is shared with F-host-acl-nftables (merge: one entry, union of names) |
 | `apps/agent/internal/agent/projection.go` (A2) | `if in["acl"] { desired.ACL(p, ds, in) }` in `project()` · `if in["acl"] { ds.Acl = desired.AssembleACL(kvs) }` in `assemble()` |
-| `packages/proto/vrx/v1/dataplane.proto` (C5) | `rpc AclState(...)` under the service anchor · messages + enum in `// ----- F-acl -----` |
+| `packages/proto/ngfw/v1/dataplane.proto` (C5) | `rpc AclState(...)` under the service anchor · messages + enum in `// ----- F-acl -----` |
 | `docs/contracts/proto.md` (C6) | `### F-acl: AclState` |
 | `apps/api/src/app.module.ts` (P1) | import `aclFeature` · `...aclFeature.controllers,` · `...aclFeature.providers,` |
 | `apps/api/src/agent/agent.client.ts` (P4) | `type AclStateRequest, type AclStateResponse,` · `aclState(req)` |
@@ -82,7 +82,7 @@ Contract: `410b5471 contract(proto): acl state` (+ `F-acl-contract.md`). Questio
 
 ## How verified (real output)
 
-### Host VPP — `VRX_ACL_STATS_GLOBALS=1 test/topology/acl/run.sh -run TestACLTopology` (slot 3, 2026-09-25 04:22, NRestarts 1 → 1)
+### Host VPP — `NGFW_ACL_STATS_GLOBALS=1 test/topology/acl/run.sh -run TestACLTopology` (slot 3, 2026-09-25 04:22, NRestarts 1 → 1)
 ```
 acl_test.go:338: systemctl show vpp -p NRestarts (before) = 1
 acl_test.go:457: vppctl show acl-plugin acl (this slot's ACLs):
@@ -105,19 +105,19 @@ acl_test.go:460: vppctl show acl-plugin macip acl index 0:
       applied on sw_if_index(s): 11
 acl_test.go:462: vppctl show acl-plugin macip interface:
       sw_if_index 11: 0
-acl_test.go:471: vrx-agentctl retrieve -subsystems acl == running acl (1287 bytes of JSON)
+acl_test.go:471: ngfw-agentctl retrieve -subsystems acl == running acl (1287 bytes of JSON)
 acl_test.go:478: /state/drift: subsystems=[interfaces vrfs routing objects acl] changes=0 (none under /acl)
 acl_test.go:483: GET /state/acl/attachments → {…"interface":"host-w3l0","swIfIndex":8,"input":[{"aclIndex":0,"name":null,
     "tag":"w3-foreign:guard","foreign":true},{"aclIndex":1,"name":"lan-in","tag":"w3:lan-in","foreign":false}],…,"inSync":true},…}
 acl_test.go:507: VPP counters flag (show acl-plugin tables mask): true
-acl_test.go:508: vrx-vpp-preflight: exit 0
+acl_test.go:508: ngfw-vpp-preflight: exit 0
     V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
 acl_test.go:515: ping -c 5 10.3.2.2 (permitted by rule 10): 5 packets transmitted, 5 received, 0% packet loss
 acl_test.go:520: ping -c 3 10.3.2.1 (VPP's wan address, denied by rule 30): 3 packets transmitted, 0 received, 100% packet loss
 acl_test.go:525: GET /state/acl/lists/lan-in/rules (after) → {"applied":true,"countersAvailable":true,"items":[{"index":0,
     "live":{"bytes":672,"packets":8,"status":"applied","vppRules":1},…
 acl_test.go:538: rule 10 packets 3 → 8 (+5), rule 30 packets 0 → 3 (+3)
-acl_test.go:550: commit → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",
+acl_test.go:550: commit → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",
     …"errors":[{"pointer":"/acl/lists/lan-in/rules/4/destination/name","message":"address group 'none' has no members; the rule would match nothing"}]}
 acl_test.go:571: loss: acl_interface_set_acl_list host-w3l0 → [foreign 0]; acl_del 1 (lan-in); macip_acl_interface_add_del del + macip_acl_del 0 (wan-l2)
 acl_test.go:597: ACLs and bindings back 0.20 s after the agent start (foreign ACL 0 still first)
@@ -126,7 +126,7 @@ acl_test.go:601: agent: 2026-09-25T04:22:22.599 reconcile start mode=resync
 acl_test.go:601: agent: 2026-09-25T04:22:22.647 reconcile done mode=resync status=APPLY_STATUS_APPLIED summary=created:4  unchanged:13
 acl_test.go:618: ping after recovery: 3 packets transmitted, 3 received, 0% packet loss
 acl_test.go:637: POST /config/rollback/1 → {"status":"applied",…"results":[{"key":"acl.macip-interface-binding/host-w3w0","op":"delete",…
-acl_test.go:651: after rollback: vrx-agentctl retrieve -subsystems acl → {} ; host-w3l0 input = [foreign 0] only
+acl_test.go:651: after rollback: ngfw-agentctl retrieve -subsystems acl → {} ; host-w3l0 input = [foreign 0] only
 acl_test.go:652: vppctl show acl-plugin acl (this slot):
     acl-index 0 count 1 tag {w3-foreign:guard}          ← only the foreign ACL; no w3: ACL, no MACIP
 acl_test.go:341: systemctl show vpp -p NRestarts (after) = 1
@@ -135,9 +135,9 @@ acl_test.go:341: systemctl show vpp -p NRestarts (after) = 1
     --- SKIP: scale (opt-in) · PASS: rollback (0.34s) · PASS: cleanup-through-api (0.46s)
 ```
 The counters flag was off after the host's earlier VPP restart; the test switched it on under `flock -x
-/run/lock/vrx-globals.lock` (opt-in `VRX_ACL_STATS_GLOBALS=1`) and, per the envelope (V7), never off.
+/run/lock/ngfw-globals.lock` (opt-in `NGFW_ACL_STATS_GLOBALS=1`) and, per the envelope (V7), never off.
 
-### Scale 10 000 on the host — `VRX_ACL_SCALE=10000 run.sh -run TestACLTopology` (04:25–04:26, NRestarts 1 → 1)
+### Scale 10 000 on the host — `NGFW_ACL_SCALE=10000 run.sh -run TestACLTopology` (04:25–04:26, NRestarts 1 → 1)
 ```
 scale 10000: NRestarts before = 1
 scale 10000: raw acl_add_replace (10000 rules, one message) 0.013 s → acl_index 2
@@ -157,7 +157,7 @@ scale 10000: NRestarts after = 1
 limits (a 100k `ApplyRequest` is ≈ 12 MB > 4 MiB). Projection of 100 000 rules (unit, no VPP):
 `projection of a 100 000-rule list (100 000 VPP rules): 2.74 s` (`internal/desired TestACLListLimitAndProjectionTime`).
 
-### Rule editor at 100 000 rules (API + slot DB, candidate only, no VPP object) — `VRX_ACL_EDITOR=1 run.sh -run TestACLEditorScale` (04:5x)
+### Rule editor at 100 000 rules (API + slot DB, candidate only, no VPP object) — `NGFW_ACL_EDITOR=1 run.sh -run TestACLEditorScale` (04:5x)
 ```
 CSV dry run (100000 rows, 6522195 bytes)                   → 200 in   4.399 s
 CSV import into the candidate                              → 200 in  25.153 s
@@ -203,7 +203,7 @@ $ make -C apps/agent lint test      → golangci-lint 0 issues; go test -race ./
    ✓ imports CSV with a dry run first, appends, exports                              (400 with /csv/<line>/<column> pointers)
    ✓ a rule naming an empty address group: 400 problem+json with the pointer; nothing is applied
    ✓ degrades without the agent RPC: config columns stay, live is null with the reason
- drop database vrx_w3 · drop role vrx_w3 · ok nothing named vrx_w3 / vrx_w3 remains
+ drop database ngfw_w3 · drop role ngfw_w3 · ok nothing named ngfw_w3 / ngfw_w3 remains
 ```
 
 ### Web (sub-worker run, re-checked)
@@ -221,11 +221,11 @@ refuses every interface create on the shared VPP (placeholder cap 64 < 122 freed
 One no-rig attempt before the pause produced the lists / rules / attachments / MACIP screens in English (`pageErrors=0`)
 and stopped at the pager of the 5 000-rule editor (script fix done); it cleaned up (no w3 ACL left, NRestarts 2 → 2).
 Command once TD-25 lands:
-`VRX_ACL_STATS_GLOBALS=1 VRX_ACL_SHOTS=<scratch>/F-acl/acl-shots.mjs VRX_ACL_SHOTS_OUT=<dir> test/topology/acl/run.sh -run TestACLScreenshots`.
+`NGFW_ACL_STATS_GLOBALS=1 NGFW_ACL_SHOTS=<scratch>/F-acl/acl-shots.mjs NGFW_ACL_SHOTS_OUT=<dir> test/topology/acl/run.sh -run TestACLScreenshots`.
 
 ### CI — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD c0b93aca; the next commits only change this status and the questions)
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-acl @ c0b93aca   (base: main)
 == contract guard: HEAD vs main ==  ok — contract commit on the branch: 410b5471 contract(proto): acl state
 == test/ Go modules, unit mode (test/integration/smoke test/topology/acl test/topology/interfaces test/topology/object-model) ==
@@ -270,15 +270,15 @@ descriptors and screens (F-rpf-adl-pbr; only the info link and D-131's test), AC
 classifier ACLs, per-interface counters (VPP has none), connection-table sizing, a CLI command for the state routes.
 
 ## Cleanup
-Every process the tests started (agent, API, vite preview) was stopped by PID (logged); `vrx_w3` dropped by every run;
-`/run/vrx-test/w3` is empty; nothing listens on 3300/5300/9131; the lab lock is taken only by `run.sh` for a run.
+Every process the tests started (agent, API, vite preview) was stopped by PID (logged); `ngfw_w3` dropped by every run;
+`/run/ngfw-test/w3` is empty; nothing listens on 3300/5300/9131; the lab lock is taken only by `run.sh` for a run.
 No w3 ACL or MACIP ACL is left in VPP:
 ```
 $ vppctl show acl-plugin acl | grep "tag {w3"          → (nothing)
 $ vppctl show acl-plugin macip acl | grep w3            → (nothing)
 ```
 An aborted screenshot run (script failure) had left `w3:lan-in` and `w3:wan-l2` behind: removed with the new opt-in
-janitor (`VRX_ACL_JANITOR=1 run.sh -run TestACLJanitor`: unbind first, then delete; preflight OK before and after), and
+janitor (`NGFW_ACL_JANITOR=1 run.sh -run TestACLJanitor`: unbind first, then delete; preflight OK before and after), and
 the tests now clean up through the API in `t.Cleanup` (foreign ACL unbound before the interfaces are deleted, D-095c).
 The ACL counters flag stays on (V7, envelope). No test ran `show trace` (D-128) or swept classify indices (D-126).
 
@@ -321,7 +321,7 @@ No host run in this round (TD-25 pending; manager: host runs paused). Shared hun
 
 ### CI (fix round 1) — `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` (HEAD 122306d4; later commits change only this status)
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/F-acl @ 122306d4   (base: main)
 == summary (quick) ==
   contract guard: HEAD vs main                       0m01s

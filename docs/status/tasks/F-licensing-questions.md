@@ -6,10 +6,10 @@
    (existing running config is grandfathered). **Resolved for now:** community is permissive; the matrix is
    `docs/decisions/DEC-licensing-matrix.md`.
 2. **Host binding default.** Optional; `serial` (DMI product serial) recommended over `machineIdHash` because VM templates
-   clone `/etc/machine-id` (vrx-a is VMware). Both supported; neither required.
+   clone `/etc/machine-id` (ngfw-a is VMware). Both supported; neither required.
 3. **Product signing key custody.** `licensing.config.ts` embeds a PLACEHOLDER public key whose private half was
    discarded (no licence verifies against it). Release engineering must generate the real key offline
-   (`vrx-license keygen`) and replace the constant. `VRX_LICENSE_PUBKEY_FILE` adds a trusted key (dev/test only) — say if
+   (`ngfw-license keygen`) and replace the constant. `NGFW_LICENSE_PUBKEY_FILE` adds a trusted key (dev/test only) — say if
    that override should be compiled out of production builds.
 4. **Missing anchors (hunks unanchored, appended at the end of the block):** `apps/api/src/commit/validation.service.ts`
    (no `// wave-BC: F-licensing` anchor — tier union, import, optional constructor param, the stage call, warnings
@@ -23,8 +23,8 @@
    `tier: "license"`, `errors[].pointer`), thrown from the validation stage (so `POST /config/validate` and
    `/config/commit` both return it). The commit controller's OpenAPI does not list 403-license separately (commit/** is
    not mine beyond the stage hunk).
-7. **Storage.** The licence is stored as a file (`VRX_LICENSE_FILE`, default `/var/lib/vrx/license.vrxlic`), not in
-   PostgreSQL — no migration. `deploy/` (systemd unit / packaging) must make `/var/lib/vrx` writable by the API user;
+7. **Storage.** The licence is stored as a file (`NGFW_LICENSE_FILE`, default `/var/lib/ngfw/license.ngfwlic`), not in
+   PostgreSQL — no migration. `deploy/` (systemd unit / packaging) must make `/var/lib/ngfw` writable by the API user;
    F-backup-restore decides whether the file is part of a backup.
 8. **Expiry event dedup.** The `license.grace` / `license.expired` `system_event` is recorded on each status transition
    seen by the process (hourly timer + every status read); after an API restart a device already in grace records it once

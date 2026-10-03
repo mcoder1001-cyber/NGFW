@@ -20,7 +20,7 @@ None expected. If a field is missing, commit it first on your task branch with s
 ## Scope — build exactly this
 1. **Agent renderer `sysident`**: renders `/etc/hostname` + `sethostname(2)`, `/etc/localtime` symlink to `/usr/share/zoneinfo/<tz>`
    (validate the zone file exists), `/etc/issue` + `/etc/issue.net` (login banner) and `/etc/motd`, and a systemd-resolved drop-in
-   `/etc/systemd/resolved.conf.d/vrx.conf` (DNS=, Domains=). All paths come from one `paths.go` so tests run under a temp root.
+   `/etc/systemd/resolved.conf.d/ngfw.conf` (DNS=, Domains=). All paths come from one `paths.go` so tests run under a temp root.
    Implements `scheduler.Validator` + `StageDaemon`; banners are rejected if they carry C0/C1/bidi control characters (D-049).
    `Retrieve` reads the files back. Idempotent: an unchanged document writes nothing.
 2. **API**: config through the generic pointer routes; `GET /api/v1/state/system` (current hostname, timezone, uptime, resolver status).

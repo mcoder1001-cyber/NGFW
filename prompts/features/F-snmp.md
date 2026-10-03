@@ -2,7 +2,7 @@
 
 ## Goal
 SNMP monitoring end to end (WBS D7.5 in `plan/wbs.csv`): net-snmp `snmpd` rendered from `services.snmp` (v2c communities, v3 USM users,
-views, trap receivers), plus a small **private MIB** served through an AgentX subagent that exposes VPP interface counters and VRX health.
+views, trap receivers), plus a small **private MIB** served through an AgentX subagent that exposes VPP interface counters and NGFW health.
 Reference: TNSR "SNMP"; IF-MIB served for VPP interfaces (not the Linux ones).
 
 ## Inputs to read first
@@ -19,11 +19,11 @@ Reference: TNSR "SNMP"; IF-MIB served for VPP interfaces (not the Linux ones).
 - interface counters for the MIB: the stats segment (`/run/vpp/stats.sock`). The P05 reader (`apps/agent/internal/agent/telemetry.go`) is
   unexported agent core (read-only for you) — open your own govpp stats connection inside `internal/snmpagent`
 - agent integration: no renderer is called by the agent today (`service.go` runs only the scheduler) — D-109 (d): wrap the snmpd renderer in
-  **one singleton scheduler descriptor** (e.g. `snmpd.config/vrx`: Create/Update = Render → Validate → Apply, Delete = the RF-4 disabled
+  **one singleton scheduler descriptor** (e.g. `snmpd.config/ngfw`: Create/Update = Render → Validate → Apply, Delete = the RF-4 disabled
   rendering, Retrieve = renderer state) under `Domains["services"]`; the AgentX subagent is background work started from your own
   `subsystems/snmp*.go`, never from `agent.go`
 - `docs/decisions/PENDING-secret-channel.md` — no API→agent secret channel yet: communities and USM passphrases resolve through a slot-local
-  fixture resolver (`WithSecretResolver`, values `VRX_TEST_PSK_F-snmp_*`) until the owner decides; only the end-to-end secret step waits
+  fixture resolver (`WithSecretResolver`, values `NGFW_TEST_PSK_F-snmp_*`) until the owner decides; only the end-to-end secret step waits
 - host facts (checked 2026-09-24): `snmpd` 5.9.4 installed, unit **disabled and inactive** — leave it so; **`snmpwalk`, `snmpget` and
   `snmptrapd` are NOT installed** (net-snmp's `snmp`/`snmptrapd` packages absent; no package installs): walks run in-process through
   gosnmp (BSD-2, already in `apps/agent/go.mod` since D-086), the trap receiver is a gosnmp `TrapListener` on a slot port — and a
@@ -39,7 +39,7 @@ The D-086 stand-ins above, plus a private-MIB/AgentX enable flag if the UI needs
 ## Scope — build exactly this
 Files you own and shared hotspots: your TASK ENVELOPE is authoritative (the board's old `agent/project_snmp*.go` became
 `internal/desired/snmp*.go` + `internal/subsystems/snmp*.go` + `internal/agent/rpc_snmp*.go`, wave-A hotspots A2). Main pieces:
-`apps/agent/internal/renderers/snmpd/**` (gap-only), `apps/agent/internal/snmpagent/**`, `deploy/snmp/**` (MIB text file `VRX-MIB.txt`).
+`apps/agent/internal/renderers/snmpd/**` (gap-only), `apps/agent/internal/snmpagent/**`, `deploy/snmp/**` (MIB text file `NGFW-MIB.txt`).
 Shared files: registration lines under your anchor only (agent registry, `app.module.ts`, router/nav, services tab registry).
 1. **Schema** (your task branch, contract commits first): the D-086 stand-ins (views, per-community/user view, sysServices, monitors); trap
    receiver references an existing community/user (exists); v3 `authPriv` requires both refs (exists); `listen` addresses exist in `vrf`; at
@@ -48,7 +48,7 @@ Shared files: registration lines under your anchor only (agent registry, `app.mo
    resolver — fixture resolver until PENDING-secret-channel is answered — never logged);
    `snmpagent`: a Go AgentX subagent (pure Go, no cgo, no net-snmp linking — GPL/BSD boundary respected; a new Go module dependency goes to
    the questions file first — the manager runs `go mod tidy` on main, D4 — else a minimal in-repo RFC 2741 subset) registering
-   `VRX-MIB` (enterprise OID placeholder, flagged in questions): per-VPP-interface name/oper/admin/in/out octets+packets+errors from the
+   `NGFW-MIB` (enterprise OID placeholder, flagged in questions): per-VPP-interface name/oper/admin/in/out octets+packets+errors from the
    stats path, agent health, running revision, commit counter; IF-MIB rows for VPP interfaces only if cheap — else document.
 3. **API**: config via pointer routes; `GET /api/v1/state/snmp` (daemon status, engine id, last-trap time from renderer Retrieve).
 4. **UI**: Services → SNMP: general, communities (secret input writes a secret, never shows it), v3 users, trap receivers; en + fa; screenshot.
@@ -56,8 +56,8 @@ Shared files: registration lines under your anchor only (agent registry, `app.mo
    `snmpwalk` examples (for the operator's own station — the tool is not on the appliance); the MIB file location.
 
 ## Acceptance (paste the evidence)
-- [ ] An in-process gosnmp walk (v2c, and v3 authPriv) against the slot snmpd returns sysName and the `VRX-MIB` interface table (pasted;
-      `snmpwalk` is not installed on vrx-a)
+- [ ] An in-process gosnmp walk (v2c, and v3 authPriv) against the slot snmpd returns sysName and the `NGFW-MIB` interface table (pasted;
+      `snmpwalk` is not installed on ngfw-a)
 - [ ] A gosnmp `TrapListener` on a slot port receives a trap after a test link-down event (or coldStart) — pasted (`snmptrapd` is not installed)
 - [ ] Agent-restart simulation → snmpd config re-rendered, subagent re-registers within 30 s (log excerpt)
 - [ ] Rollback removes the community (walk with it fails) — evidence, not assumption

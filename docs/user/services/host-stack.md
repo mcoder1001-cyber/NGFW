@@ -12,10 +12,10 @@ only the part VPP's binary API can configure. Screen: **Services → Host stack*
 | `namespaces.<id>` `{vrf, interface?, secretRef?}` | Application namespace | `secretRef` is a `key/<name>` reference only. It is **refused** until the API→agent secret channel exists, so leave it out. VPP cannot list namespaces: the agent re-adds them on every resync (write-only). |
 | `sessionRules[]` `{tag, scope, transport, local, localPort?, remote, remotePort?, action, redirectAppIndex?, appNamespace?}` | Session rules: the host-stack "firewall" | Prefixes must be canonical and of one family. Tags must be unique. `action: redirect` needs `redirectAppIndex`. These are the only objects the agent can read back from VPP. |
 | `tcpSourceAddresses` `{first, last, vrf}` | TCP source-address pool of one VRF | VPP has **no delete**. The pool stays until VPP restarts. |
-| `httpStatic` `{enabled, wwwRootPath, uri, cacheSizeMb}` | VPP's built-in static web server | This is **opt-in on the agent** (`VRX_HOSTSTACK_HTTP_STATIC=1`, globals owner only). VPP cannot disable it or change it once it runs, so turning it off takes a VPP restart. `wwwRootPath` must be under `/var/lib/vrx/www/`, with no `..` and no control characters. |
+| `httpStatic` `{enabled, wwwRootPath, uri, cacheSizeMb}` | VPP's built-in static web server | This is **opt-in on the agent** (`NGFW_HOSTSTACK_HTTP_STATIC=1`, globals owner only). VPP cannot disable it or change it once it runs, so turning it off takes a VPP restart. `wwwRootPath` must be under `/var/lib/ngfw/www/`, with no `..` and no control characters. |
 
 Rules the API enforces. A failure returns 400 problem+json with a `pointer` to the failing leaf.
-- An inline secret, `..` in `wwwRootPath` or a path outside `/var/lib/vrx/www/`, a non-canonical prefix, or mixed families.
+- An inline secret, `..` in `wwwRootPath` or a path outside `/var/lib/ngfw/www/`, a non-canonical prefix, or mixed families.
 - A missing VRF, interface or rule namespace, or an interface in a different VRF from its namespace.
 - Session rules and `services.autoSdl.enabled` (Auto-SDL) in the same document. VPP has one session-rule engine: rules need
   `rule-table`, and Auto-SDL needs `sdl`.

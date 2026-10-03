@@ -13,7 +13,7 @@ Projection: `services.autoSdl{enabled: true, threshold, removeTimeoutSec}` → t
 ## VPP 26.06 behaviour the descriptor works around (`plugins/auto_sdl/auto_sdl.c`)
 - `auto_sdl_config` answers `FEATURE_DISABLED` (-30) unless the session layer's SDL backend is enabled
   (`session_sdl_is_enabled`; startup.conf `session { enable rt-backend sdl }`). The descriptor returns
-  `autosdl.ErrSessionSDLDisabled`. On vrx-a the session layer is off (`show session`: "session layer is not enabled";
+  `autosdl.ErrSessionSDLDisabled`. On ngfw-a the session layer is off (`show session`: "session layer is not enabled";
   startup.conf is handover-gated), so the host test skips.
 - An enable while enabled is a silent no-op that keeps the **old** threshold and timeout (`session_sdl_register_callbacks`
   fails first; the API handler ignores the error). Create therefore disables first.
@@ -23,7 +23,7 @@ Projection: `services.autoSdl{enabled: true, threshold, removeTimeoutSec}` → t
 ## Tests
 - Unit (`auto_sdl_test.go`): model of FEATURE_DISABLED, the no-op second enable, the flush on disable; applied-once across
   a re-apply and a descriptor restart on the same store; one more apply after a VPP restart (identity change).
-- Host (`integration_test.go`): opt-in `VRX_AUTOSDL_GLOBALS=1` (a getter-less VPP-global: the previous value cannot be
-  restored; manager window only), `flock -x /run/lock/vrx-globals.lock`, skip-unless-supported on FEATURE_DISABLED.
+- Host (`integration_test.go`): opt-in `NGFW_AUTOSDL_GLOBALS=1` (a getter-less VPP-global: the previous value cannot be
+  restored; manager window only), `flock -x /run/lock/ngfw-globals.lock`, skip-unless-supported on FEATURE_DISABLED.
 
 CLI: `show auto-sdl` (VPP), `auto-sdl <enable|disable> [threshold <n>] [remove-timeout <t>]`.

@@ -33,10 +33,10 @@ class Foundation(unittest.TestCase):
         for slot in (0, 12, 13, 33, True, '3'):
             with self.subTest(slot=slot), self.assertRaises(Refused):
                 slot_values(slot)
-        env = dict(slot_values(14), VRX_INTEGRATION='1', VRX_TRAFFIC_A_HOST='1')
+        env = dict(slot_values(14), NGFW_INTEGRATION='1', NGFW_TRAFFIC_A_HOST='1')
         self.assertEqual(validate_environment(env, 14), slot_values(14))
-        for key, value in [('VRX_TEST_PREFIX', 'w15'), ('VRX_HTTP_PORT', '4400'), ('VRX_GLOBALS_OWNER', '1'),
-                           ('VRX_VPP_ID_RANGE', 'all'), ('VRX_INTEGRATION', '0'), ('VRX_NAT64_TENANT_VRF_HOST', '1')]:
+        for key, value in [('NGFW_TEST_PREFIX', 'w15'), ('NGFW_HTTP_PORT', '4400'), ('NGFW_GLOBALS_OWNER', '1'),
+                           ('NGFW_VPP_ID_RANGE', 'all'), ('NGFW_INTEGRATION', '0'), ('NGFW_NAT64_TENANT_VRF_HOST', '1')]:
             with self.subTest(key=key), self.assertRaises(Refused):
                 validate_environment(dict(env, **{key: value}), 14)
 
@@ -46,7 +46,7 @@ class Foundation(unittest.TestCase):
             # Map the fixed host path to a real temporary file. No /run writes.
             class FixturePath:
                 owner=0  # Model manager UID; actual file mode/type/content remain real.
-                def __str__(self):return '/run/vrx-test/w3/traffic-a-lease.json'
+                def __str__(self):return '/run/ngfw-test/w3/traffic-a-lease.json'
                 def lstat(self):
                     info=list(physical.lstat());info[4]=self.owner
                     return os.stat_result(info)
@@ -76,7 +76,7 @@ class Foundation(unittest.TestCase):
                 stub = root / name
                 stub.write_text('#!/bin/sh\nprintf forbidden >> "$CALL_LOG"\nexit 99\n')
                 stub.chmod(0o755)
-            env = dict(os.environ, **slot_values(3), VRX_INTEGRATION='1', VRX_TRAFFIC_A_HOST='1',
+            env = dict(os.environ, **slot_values(3), NGFW_INTEGRATION='1', NGFW_TRAFFIC_A_HOST='1',
                        PATH=str(root), CALL_LOG=str(calls))
             result = subprocess.run([sys.executable, str(HERE / 'run.py'), 'run', '--slot', '3'],
                                     env=env, text=True, capture_output=True)

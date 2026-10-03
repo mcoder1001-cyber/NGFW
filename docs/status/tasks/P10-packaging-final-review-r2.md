@@ -12,7 +12,7 @@ R1/R2/R7/R8: **APPROVE reviewed APT/firewall checkpoint scope** after bounded ve
 Actual independent checks:
 
 ```text
-python3 deploy/debian/vrx/tests/test_publish_apt.py
+python3 deploy/debian/ngfw/tests/test_publish_apt.py
 Ran 4 tests in 1.341s
 OK (skipped=1)
 ```

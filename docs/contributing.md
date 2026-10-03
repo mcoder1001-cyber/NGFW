@@ -39,16 +39,16 @@ procedure depends on both.
 | # | Step | Fails when |
 |---|---|---|
 | 0 | contract guard (`--base` only; git-only, ~1 s, so a contract-less branch fails with the root-cause message before anything is built) | see [The contract rule](#the-contract-rule) |
-| 1 | tools | `golangci-lint` / `gitleaks` missing and the download from GitHub fails (`VRX_CI_ALLOW_MISSING_TOOLS=1` downgrades to a warning — never for a merge) |
+| 1 | tools | `golangci-lint` / `gitleaks` missing and the download from GitHub fails (`NGFW_CI_ALLOW_MISSING_TOOLS=1` downgrades to a warning — never for a merge) |
 | 2 | `pnpm install --frozen-lockfile --prefer-offline` | the lockfile is stale (you added a dependency: run `pnpm install` once, commit `pnpm-lock.yaml`) |
 | 3 | `pnpm gen` + **generated-output gate** | anything under `packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` differs from what the generators produce (working tree vs index after `pnpm gen`, plus untracked files there — so a staged merge inside the hook is not "dirty"), or `go mod tidy` (run by the proto generator) changed `apps/agent/go.mod`/`go.sum`. Only these paths are checked — other uncommitted files just produce a warning. A file in a generated directory that no generator writes (`.gitkeep`) is covered by the contract guard, not by this step |
 | 5 | forbidden patterns | see [Forbidden patterns](#forbidden-patterns) |
-| 6 | `turbo run lint typecheck test build` | ESLint, `buf lint`, `tsc`, Vitest unit tests or a build fails. Run as one turbo invocation so `gen` (uncached by design) runs once, not four times; `VRX_INTEGRATION` is unset — this is unit-only |
+| 6 | `turbo run lint typecheck test build` | ESLint, `buf lint`, `tsc`, Vitest unit tests or a build fails. Run as one turbo invocation so `gen` (uncached by design) runs once, not four times; `NGFW_INTEGRATION` is unset — this is unit-only |
 | 7 | `make -C apps/agent lint test build` | `go vet`, `golangci-lint run` (config `apps/agent/.golangci.yml`), `go test -race -count=1`, `go build` fail — or golangci-lint silently did not run (D-031: the Makefile's `lint` fails on linter findings) |
-| 8 | every Go module under `test/` in unit mode (`gofmt -l`, `go vet ./...`, `go test -count=1 ./...`) | a `gofmt`/`vet`/compile regression in e.g. `test/integration/smoke` (its own module, `replace ngfw/agent => ../../../apps/agent`), or a stale `go.sum` there after `apps/agent/go.mod` grew (`missing go.sum entry` — run `go mod tidy` in the module and commit). The integration tests inside `t.Skip` without `VRX_INTEGRATION`; this step only proves they compile and vet (P04 review F6). Skipped silently while `test/` has no `go.mod` |
+| 8 | every Go module under `test/` in unit mode (`gofmt -l`, `go vet ./...`, `go test -count=1 ./...`) | a `gofmt`/`vet`/compile regression in e.g. `test/integration/smoke` (its own module, `replace ngfw/agent => ../../../apps/agent`), or a stale `go.sum` there after `apps/agent/go.mod` grew (`missing go.sum entry` — run `go mod tidy` in the module and commit). The integration tests inside `t.Skip` without `NGFW_INTEGRATION`; this step only proves they compile and vet (P04 review F6). Skipped silently while `test/` has no `go.mod` |
 
-Every step's output goes to a log file (`/root/ngfw-wt/logs/ci/<worktree>-<timestamp>-<pid>/NN-<step>.log`, or `$TMPDIR/vrx-ci`
-elsewhere); only the failing step's tail is printed. `--verbose` / `VRX_CI_VERBOSE=1` streams everything. The summary at the end
+Every step's output goes to a log file (`/root/ngfw-wt/logs/ci/<worktree>-<timestamp>-<pid>/NN-<step>.log`, or `$TMPDIR/ngfw-ci`
+elsewhere); only the failing step's tail is printed. `--verbose` / `NGFW_CI_VERBOSE=1` streams everything. The summary at the end
 lists each step with its duration and the total wall time. The final line is exactly `CI GATE PASSED`; any failure prints
 `CI GATE FAILED — <reason>` and exits non-zero.
 
@@ -56,29 +56,29 @@ lists each step with its duration and the total wall time. The final line is exa
 
 `full` runs the whole quick gate first (no lock held), then:
 
-1. takes **`flock -x /run/lock/vrx-lab.lock`** (integration harnesses hold it shared; VPP restarts — manager-only, after handover —
-   exclusive), waiting up to `VRX_CI_LOCK_TIMEOUT` (1800 s);
+1. takes **`flock -x /run/lock/ngfw-lab.lock`** (integration harnesses hold it shared; VPP restarts — manager-only, after handover —
+   exclusive), waiting up to `NGFW_CI_LOCK_TIMEOUT` (1800 s);
 2. exports **slot 12** — the CI slot from `docs/lab/shared-host-rules.md` §1 — from `tools/lab env 12` (values are validated,
    never `eval`'d); anything it does not print comes from the same arithmetic `tools/lab` uses (D-025 for the metrics port):
-   `VRX_SLOT=12 VRX_TEST_PREFIX=w12 VRX_HTTP_PORT=4200 VRX_WEB_PORT=6200 VRX_METRICS_PORT=9221 VRX_AGENT_SOCKET=/run/vrx-test/w12/agent.sock
-   VRX_PG_DATABASE=vrx_w12 VRX_VALKEY_DB=12 VRX_VPP_TABLE_BASE=12000`;
-3. **converts the lock to shared** (`flock -s` on the same descriptor) and exports `VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1`. The
+   `NGFW_SLOT=12 NGFW_TEST_PREFIX=w12 NGFW_HTTP_PORT=4200 NGFW_WEB_PORT=6200 NGFW_METRICS_PORT=9221 NGFW_AGENT_SOCKET=/run/ngfw-test/w12/agent.sock
+   NGFW_PG_DATABASE=ngfw_w12 NGFW_VALKEY_DB=12 NGFW_VPP_TABLE_BASE=12000`;
+3. **converts the lock to shared** (`flock -s` on the same descriptor) and exports `NGFW_LAB_LOCK_HELD=1 NGFW_CI_FULL=1`. The
    exclusive acquisition is a barrier (it returns only when no VPP restart and no harness is running); everything after it runs
    under a shared lock, like every integration harness, for two hard reasons: `tools/lab rig up` refuses to touch VPP while the
    lock is held exclusively (it reads that as "VPP restart / CI in progress"), and every harness takes its own
-   `flock -s /run/lock/vrx-lab.lock` on a fresh file description (`test/integration/smoke/smoke_test.go` does) — against an
+   `flock -s /run/lock/ngfw-lab.lock` on a fresh file description (`test/integration/smoke/smoke_test.go` does) — against an
    exclusive lock that call blocks until `go test` times out, process tree or not. Shared keeps the protection that matters: a VPP
    restart (exclusive) cannot start underneath the rig or the suites. Other harnesses may run beside the gate on their own prefixes;
 4. `tools/lab status`, then `tools/lab rig up w12` (idempotent: a suite that runs `rig up`/`rig down` on the same prefix itself,
    like the smoke test, just reuses it);
-5. `VRX_INTEGRATION=1 go test -race -count=1 -timeout 20m ./...` in every Go module under `apps/agent` and `test/`, then
-   `VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`;
+5. `NGFW_INTEGRATION=1 go test -race -count=1 -timeout 20m ./...` in every Go module under `apps/agent` and `test/`, then
+   `NGFW_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration`;
 6. `tools/lab rig down w12` (also on failure, via the exit trap — the rig is torn down whatever happened), release the lock.
 
 It **never restarts VPP**. If `tools/lab` is not in the tree (P04 not merged) it prints a loud `WARNING: integration NOT RUN` and
-still passes — the quick gate ran; set `VRX_CI_REQUIRE_INTEGRATION=1` to turn that into a failure. Integration tests follow the
-conventions in `00-CONTEXT.md`: Go tests `t.Skip` unless `VRX_INTEGRATION=1`; TS suites live behind a `test:integration` script;
-every object created on VPP/PostgreSQL/Valkey carries `VRX_TEST_PREFIX`, and cleanup happens in `t.Cleanup`. Slot 12 belongs to
+still passes — the quick gate ran; set `NGFW_CI_REQUIRE_INTEGRATION=1` to turn that into a failure. Integration tests follow the
+conventions in `00-CONTEXT.md`: Go tests `t.Skip` unless `NGFW_INTEGRATION=1`; TS suites live behind a `test:integration` script;
+every object created on VPP/PostgreSQL/Valkey carries `NGFW_TEST_PREFIX`, and cleanup happens in `t.Cleanup`. Slot 12 belongs to
 the gate: no worker uses it. Only the manager runs `full`, on `main`, at most once per hour.
 
 ## Generated code is never hand-edited
@@ -99,7 +99,7 @@ UI, the API and the agent. When a branch changes any of them, it must carry at l
 `contract(<pkg>): …` (`contract:` / `contract!:` also match). `tools/ci.sh --base main` fails otherwise:
 
 ```
-CI GATE FAILED — CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT. [...] Changed files: packages/proto/vrx/v1/dataplane.proto ...
+CI GATE FAILED — CONTRACT FILES CHANGED WITHOUT A CONTRACT COMMIT. [...] Changed files: packages/proto/ngfw/v1/dataplane.proto ...
 ```
 
 How to do it right (FAST MODE, `00-CONTEXT.md`): commit the contract change **first** as `contract(schema): add dhcp.server`
@@ -118,7 +118,7 @@ the gate; the offending `file:line` is printed.
 | no shell, no direct VPP, no FFI in the control plane | `apps/api/src`, `apps/web/src`, `packages/*/src` | `child_process`, `execSync`, `execFileSync`, `spawnSync`, `exec.Command`, `sh -c`, `bash -c`, `vppctl`, `/run/vpp/`, `govpp`, `ffi-napi`, `node-ffi`, `koffi` | 00-CONTEXT rules 1 (Node never talks to VPP) and 9 (no user input reaches a shell). Escape hatch: `ALLOW: <justification>` **on the same line** as the hit (e.g. a trailing comment) — the gate prints every allowed line as a warning for the reviewer |
 | no Docker | whole tree | file names `Dockerfile*`, `Containerfile*`, `.dockerignore`, `*compose*.yml/yaml` | D-002: VMware VMs, never Docker |
 | no kill-by-pattern | every file except `docs/`, `prompts/`, `wbs/`, `*.md` | an *invocation* of either process-killing-by-name command: at command position (start of line, after `;`/`&`/`|`/`(`, `sudo …`, `$(…`) or as a quoted program name (`["…", "-f"]`, `os.system("… -f x")`); prose mentions do not count | shared host: kill only PIDs you spawned (`shared-host-rules.md` §5) |
-| no secret shapes | whole tree except `pnpm-lock.yaml` | private-key blocks, AWS/GitHub/Slack/Stripe token shapes, JWTs, URLs with an embedded password | secrets never enter the repo; `VRX_TEST_PSK_<id>` and `<redacted>` are exempt |
+| no secret shapes | whole tree except `pnpm-lock.yaml` | private-key blocks, AWS/GitHub/Slack/Stripe token shapes, JWTs, URLs with an embedded password | secrets never enter the repo; `NGFW_TEST_PSK_<id>` and `<redacted>` are exempt |
 | gitleaks | commit history: the branch's commits (`merge-base..HEAD`) with `--base`, else the last 500 commits of `HEAD` (never other refs — a leak on an unmerged branch must not fail `main`) | default gitleaks rules + `.github/gitleaks.toml` allowlist (placeholder PSKs, `<redacted>`, lockfile, `wbs/`, `apps/web/src/locales/`) | a secret in history stays in history — the branch must be recreated, not fixed forward |
 
 Do not widen `.github/gitleaks.toml` or add `ALLOW:` to make a branch pass; state the reason in your status file and let the
@@ -127,12 +127,12 @@ manager decide.
 ## Shared host rules (summary — the full text is `docs/lab/shared-host-rules.md`)
 
 Up to 30 developer workers (slots 1–11 and 14–32; 12 is CI, 13 does not exist — D-156) share one VPP, PostgreSQL, Valkey and disk.
-Your envelope gives you a slot `N`: prefix everything you create with `VRX_TEST_PREFIX=w<N>`, use your ports (from
+Your envelope gives you a slot `N`: prefix everything you create with `NGFW_TEST_PREFIX=w<N>`, use your ports (from
 `eval "$(tools/lab env <N>)"`: `3<N>00`/`5<N>00` for slots 1–12, `10000+100·N`/`14000+100·N` for 14–32, metrics `9100+10·N+1`),
-your table range and your database. Extra ports: `VRX_HTTP_PORT + x`, never built from the slot number
+your table range and your database. Extra ports: `NGFW_HTTP_PORT + x`, never built from the slot number
 (`python3 tools/slot-check.py` proves the scheme). Only your worktree and
 branch; never `/root/ngfw`, other worktrees, `/etc/vpp`, `/root/vpp`. Kill only PIDs you spawned. No VPP restarts while
-`docs/lab/host-vrx-a.md` says `handover: pending`. Integration tests only with `VRX_INTEGRATION=1` under the shared lock; `pnpm test`
+`docs/lab/host-ngfw-a.md` says `handover: pending`. Integration tests only with `NGFW_INTEGRATION=1` under the shared lock; `pnpm test`
 and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
 
 ## How the manager merges (from `prompts/MANAGER-PROMPT.md` §2)
@@ -154,10 +154,10 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
 3. **Branch gate.** After step 2 the branch is `main` + 1 commit, so its tree is exactly the tree the merge will produce and the
    `pre-merge-commit` hook in step 4 gates it (quick + contract guard + gitleaks, D-130). Without the hook installed, run
    `tools/ci.sh --base main` in the worker's worktree → must end with `CI GATE PASSED`. Steps 4–8 run under one
-   `flock /run/lock/vrx-main.lock env VRX_MAIN_LOCK_HELD=1 …`; a red hook is followed by `git merge --abort` before the lock is
-   released. The local `.git/hooks/pre-commit` guard refuses any commit in /root/ngfw that does not carry `VRX_MAIN_LOCK_HELD=1`.
+   `flock /run/lock/ngfw-main.lock env NGFW_MAIN_LOCK_HELD=1 …`; a red hook is followed by `git merge --abort` before the lock is
+   released. The local `.git/hooks/pre-commit` guard refuses any commit in /root/ngfw that does not carry `NGFW_MAIN_LOCK_HELD=1`.
 4. `git -C /root/ngfw merge --no-ff task/<id>`. With the hook installed (`cd /root/ngfw && tools/ci.sh install-hooks`),
-   `pre-merge-commit` runs `tools/ci.sh quick --base HEAD` with `VRX_CI_HEAD_REF=<the ref named on the merge command line>`
+   `pre-merge-commit` runs `tools/ci.sh quick --base HEAD` with `NGFW_CI_HEAD_REF=<the ref named on the merge command line>`
    (git does not write `MERGE_HEAD` before this hook, but exports `GIT_REFLOG_ACTION="merge task/<id>"`): the quick gate on the
    merged tree plus the contract guard and gitleaks on the commits being merged. Merge by ref name, as the procedure says —
    for a bare SHA or an unresolvable word the hook still runs quick, without the contract guard, and says so. A red gate aborts the merge commit; the working tree
@@ -177,7 +177,7 @@ and `make test` are unit-only. Slot 12 and the exclusive lock are the gate's.
   `--prefer-offline` avoids registry round-trips. A worktree costs ~300 MB, not 1.5 GB.
 - **Go build cache** `/root/.cache/go-build` (Go's default) and the module cache are shared per user; `GOTOOLCHAIN=local` so Go never
   tries to download a toolchain (`dl.google.com` is not reachable from the host).
-- **turbo cache** is shared across worktrees through `TURBO_CACHE_DIR=~/.cache/vrx-turbo` (exported by the gate); identical package
+- **turbo cache** is shared across worktrees through `TURBO_CACHE_DIR=~/.cache/ngfw-turbo` (exported by the gate); identical package
   inputs hit the cache in every worktree, which is what makes quick on an unchanged tree take about a minute.
 - golangci-lint keeps its own cache under `~/.cache/golangci-lint`.
 
@@ -201,5 +201,5 @@ Bumping a pinned version is a one-line change in `tools/ci.sh` plus this table; 
 ## GitHub Actions
 
 `.github/workflows/ci.yml` is a thin wrapper that installs the toolchain and calls `tools/ci.sh quick` (`--base origin/<base>` on
-pull requests). Hosted runs now execute this same quick gate; live VPP integration still requires the lab. The hosted wrapper bounds Turbo scheduling with `VRX_CI_TASK_CONCURRENCY=2`; unset retains the existing default and every check remains enabled. Keep the logic in
+pull requests). Hosted runs now execute this same quick gate; live VPP integration still requires the lab. The hosted wrapper bounds Turbo scheduling with `NGFW_CI_TASK_CONCURRENCY=2`; unset retains the existing default and every check remains enabled. Keep the logic in
 `tools/ci.sh`; the workflow only sets up node/pnpm/go/buf/protoc plugins and uploads the step logs as an artifact.

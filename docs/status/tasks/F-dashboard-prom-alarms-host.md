@@ -7,7 +7,7 @@ No scrape uses the binary API. Worker ratios use raw per-thread node counter mat
 interfaces, buffer pools and node errors use the pinned govpp StatsProvider API.
 
 VPP stats only provides aggregate interface drops and no interface state flags. The source
-publishes vrx_interface_drops_total and omits unavailable directional drops/link/admin samples.
+publishes ngfw_interface_drops_total and omits unavailable directional drops/link/admin samples.
 It does not invent CPU percentages. Existing alarm link-event subscriptions remain unchanged.
 The external listener's same-address updates now replace its allow-list handler. A failed
 bind to a replacement address preserves the existing listener and retrieved configuration.
@@ -63,7 +63,7 @@ the manager's baseline run. The gate needs the manager's unrestricted CI executi
 
 ## Pending live acceptance
 
-`TestGovppLiveStats` is opt-in with VRX_INTEGRATION=1 and requires a real VPP stats socket;
+`TestGovppLiveStats` is opt-in with NGFW_INTEGRATION=1 and requires a real VPP stats socket;
 it verifies a real snapshot and explicit connection close/reconnect. This cloud workspace
 has no VPP lab, and it was not run as passing evidence. Rig traffic counter growth, actual
 VPP restart reconnection, link-down/up webhook delivery, API/agent restart without duplicate

@@ -4,7 +4,7 @@ Branch `task/F-acl` (P08 pattern: the contract commit sits on the task branch, n
 `contract(proto): acl state`.
 
 ## What
-- `packages/proto/vrx/v1/dataplane.proto`
+- `packages/proto/ngfw/v1/dataplane.proto`
   - `service Dataplane`: `rpc AclState(AclStateRequest) returns (AclStateResponse);` under the `// wave-A: F-acl` anchor
     (framed by blank lines, C5).
   - `// ----- F-acl -----` section: `AclStateRequest {owner = 1, list = 2, offset = 3, limit = 4, filter = 5,
@@ -17,7 +17,7 @@ Branch `task/F-acl` (P08 pattern: the contract commit sits on the task branch, n
     `AclBoundAcl {acl_index = 1, name = 2, tag = 3, foreign = 4}`.
   - Names follow the prefix rule (§0.5): every message and the enum start with `Acl`. No field is added to an existing
     message, so no §2 number is used (`AclConfig` 7 stays unallocated: no config gap).
-- Regenerated (C7, never hand-edited): `apps/agent/gen/vrx/v1/dataplane{,_grpc}.pb.go`, `packages/proto/gen/ts/vrx/v1/dataplane.ts`.
+- Regenerated (C7, never hand-edited): `apps/agent/gen/ngfw/v1/dataplane{,_grpc}.pb.go`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts`.
 - `apps/api/src/testing/fake-agent.ts` (P5): the UNIMPLEMENTED stub handler under the anchor (the exhaustive
   `DataplaneServer` type would not compile without it). The real fake behaviour replaces that one line later
   (`features/acl/fake.ts`).

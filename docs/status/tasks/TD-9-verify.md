@@ -62,7 +62,7 @@
 **The fix:**
 - `agent.go:141` `MinVPPReplyTimeout = 15 s`.
 - `Validate` (`:128`) refuses values from 0 to 15 s (both excluded).
-- The floor is documented in `cmd/vrx-agent/main.go:14` and in `docs/contracts/proto.md:138`.
+- The floor is documented in `cmd/ngfw-agent/main.go:14` and in `docs/contracts/proto.md:138`.
 
 **Evidence:**
 - `TestReplyTimeoutBelowTheHealthCheckWindowRefused` (`:167`): `5`, `1500ms` and `14s` are refused; `15`, `30s` and `2m` are accepted.
@@ -98,7 +98,7 @@ Git reports no conflict here, so **the manager must pass this condition to the m
 
 ## Regression run
 
-`cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/scheduler/... ./internal/vpp/...` on `5417411d`:
+`cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/scheduler/... ./internal/vpp/...` on `5417411d`:
 
 ```
 ok  ngfw/agent/internal/agent        20.764s
@@ -123,7 +123,7 @@ The texts in TD-9-review.md still hold, with these corrections. The manager copi
 Scope: TD-9, review 1.1/1.1b/1.1e/1.4 and ARCH-01 (agent half). It amends proto.md §2 item 3, the Outcomes table, and AD-4 step 4.
 
 **Bounds**
-- One VPP reply: 30 s (`VRX_AGENT_VPP_REPLY_TIMEOUT`, in seconds or as a Go duration).
+- One VPP reply: 30 s (`NGFW_AGENT_VPP_REPLY_TIMEOUT`, in seconds or as a Go duration).
   - **At least 15 s**, which is govpp's health-check window. A lower or invalid value refuses to start.
   - It covers an Invoke round trip, on a stream with this reply timeout, and each message of a dump.
   - govpp's global default is set to the same 30 s, as a backstop.
@@ -159,10 +159,10 @@ Scope: TD-9, review 1.1/1.1b/1.1e/1.4 and ARCH-01 (agent half). It amends proto.
 
 **Drift check**
 - A Plan, bounded to 60 s, of the stored desired state, every 5 min, under the transaction lock. It is skipped while a transaction runs.
-- It is reported as `vrx_agent_drift_objects` and as an ERROR event with `reason=drift` when the count changes.
+- It is reported as `ngfw_agent_drift_objects` and as an ERROR event with `reason=drift` when the count changes.
 - It never corrects anything.
 
-**Panics** are counted in `vrx_agent_panics_total{where=grpc|descriptor|transaction|hook}`.
+**Panics** are counted in `ngfw_agent_panics_total{where=grpc|descriptor|transaction|hook}`.
 
 **AD-4 step 4**
 - While DEGRADED, the agent now resyncs automatically to its stored desired state.
@@ -185,11 +185,11 @@ Unchanged, and still matches the code: `service.go` sets `deadline := applied.Ad
 ### (c) Agent start-up refuses invalid settings
 
 Scope: TD-9, review 1.5c/1.5e and L6. The agent exits with status 1 when:
-- `VRX_LOG_LEVEL` is anything other than debug, info, warn or error;
-- `VRX_AGENT_VPP_REPLY_TIMEOUT` is invalid or **below 15 s**;
-- `VRX_METRICS_ADDR` is not a loopback address and `VRX_METRICS_ALLOW_REMOTE=1` is not set, because /metrics is unauthenticated.
+- `NGFW_LOG_LEVEL` is anything other than debug, info, warn or error;
+- `NGFW_AGENT_VPP_REPLY_TIMEOUT` is invalid or **below 15 s**;
+- `NGFW_METRICS_ADDR` is not a loopback address and `NGFW_METRICS_ALLOW_REMOTE=1` is not set, because /metrics is unauthenticated.
 
-All current callers use `VRX_METRICS_PORT` on loopback and no reply timeout, so nothing breaks.
+All current callers use `NGFW_METRICS_PORT` on loopback and no reply timeout, so nothing breaks.
 
 ## Scratch
 

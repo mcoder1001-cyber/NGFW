@@ -39,7 +39,7 @@ when the manager tags it: model it carefully, keep it minimal, make it extensibl
    IPv4 on the same VRF; sub-interface VLAN ids unique per parent; static route next-hop
    interface exists; at least one admin user.
 4. `gen`: JSON Schema (draft 2020-12) per top-level key + root, and OpenAPI 3.1 components,
-   into `dist/`. Include `x-vrx-ui` hints (widget, group, order, help) via a small helper
+   into `dist/`. Include `x-ngfw-ui` hints (widget, group, order, help) via a small helper
    so the UI form renderer can consume them.
 5. Reusable primitives in `src/primitives.ts`: `ipv4Cidr`, `ipv6Cidr`, `ipAddress`, `macAddress`,
    `vppInterfaceName`, `hostname` — with tests including nasty inputs.

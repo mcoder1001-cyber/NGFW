@@ -7,7 +7,7 @@ Two commits on `task/F-bonding` (P08 pattern, no own branch): `contract(schema):
 
 | file | change |
 |---|---|
-| `src/domains/ext/bonding.ts` (new, owned) | `BondSchema` = `{ mode: lacp\|xor\|round-robin\|active-backup\|broadcast, loadBalance?: l2\|l23\|l34, members: record<memberName, {passive=false, longTimeout=false, weight?: 1–255}> = {}, numaOnly = false, id?: 0–4294967294 }`, `interfaceBondField`, `bondIdOf()`, `BOND_INTERFACE_RE`; `x-vrx-ui` group `bonding` |
+| `src/domains/ext/bonding.ts` (new, owned) | `BondSchema` = `{ mode: lacp\|xor\|round-robin\|active-backup\|broadcast, loadBalance?: l2\|l23\|l34, members: record<memberName, {passive=false, longTimeout=false, weight?: 1–255}> = {}, numaOnly = false, id?: 0–4294967294 }`, `interfaceBondField`, `bondIdOf()`, `BOND_INTERFACE_RE`; `x-ngfw-ui` group `bonding` |
 | `src/domains/interfaces.ts` (C1) | one import line (top of file, `// wave-A: F-bonding`) + `bond: interfaceBondField,` under the anchor |
 | `src/index.ts` (C3) | `export * from './domains/ext/bonding.js';` |
 | `src/semantic/bonding.ts` (new, owned) + test | `bondingValidators`: `interfaces.bonding-name`, `-member-exists`, `-member-kind`, `-member-unique`, `-member-l3`, `-load-balance`, `-lacp-options`, `-weight` |
@@ -17,7 +17,7 @@ Naming: a bond interface is keyed `BondEthernet<id>` (VPP's and TNSR's name), so
 `bond.id` is optional and must equal the name's number. The member record key uses the parent-interface alphabet (no
 sub-interfaces). See decision F-B1 in `F-bonding-questions.md`.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`, numbers from wave-A-hotspots §2)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`, numbers from wave-A-hotspots §2)
 
 - `Interface.bond = 13` (`Bond`, message presence) — the only field number taken.
 - `// ----- F-bonding -----` section: `Bond`, `BondMember` (mirrors, every scalar `optional`, D-039), `BondStateRequest`,

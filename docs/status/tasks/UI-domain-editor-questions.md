@@ -66,12 +66,12 @@ contract task.
 The manager's message mid-task: real-stack screenshots must be af_packet-free — the slot agent must create no
 interfaces; wait for TD-25 if the agent needs interfaces. The advanced editor's reads/writes
 (`GET`/`PATCH /api/v1/config/candidate/{path}`) are DB-backed only and never call the agent (confirmed by reading
-`ConfigController`/`DatastoreService`), so vrx-agent was not started at all — the simplest way to guarantee zero
+`ConfigController`/`DatastoreService`), so ngfw-agent was not started at all — the simplest way to guarantee zero
 interfaces are created, and a faithful exercise of this screen's own code path.
 
-I stood up PostgreSQL (`vrx_w11`) + the real API (built with `tsc`, **not** `tsx`/esbuild — see the note below) +
+I stood up PostgreSQL (`ngfw_w11`) + the real API (built with `tsc`, **not** `tsx`/esbuild — see the note below) +
 `vite` on slot 11 (ports 4100/6100) and confirmed both boot and answer (API: bootstrap admin created, every
-`ConfigController` route mapped, `vrx-api listening`; web: `VITE ready`). The last step — a headless browser to take
+`ConfigController` route mapped, `ngfw-api listening`; web: `VITE ready`). The last step — a headless browser to take
 the actual PNGs — is **blocked**: `chrome-headless-shell` (downloaded from the npmmirror binary mirror, the same
 method P07a's screenshot round documented, since neither a system browser nor Playwright's own download works here)
 needs shared libraries (`libatk`, `libgbm`, `libxkbcommon`, …) that are not installed; `apt-get download` fetched the
@@ -89,9 +89,9 @@ not a bug in this task's code (nothing under `apps/api` was touched); it looks l
 main) — worth a quick check whether it is already fixed on `main` (real E2E runs on later, main-based branches, e.g.
 `ui-nav-collapse.md`, did not hit it) or needs its own tech-debt row.
 
-Everything used for this is torn down: API and vite stopped by PID, `vrx_w11` role+database dropped
-(`pg-test.sh drop w11` → "nothing named vrx_w11 remains"), Valkey db 11 flushed (`dbsize` 0 before and after),
-`/run/vrx-test/w11` removed, ports 4100/6100 closed. The downloaded `chrome-headless-shell` archive and its `.deb`s
+Everything used for this is torn down: API and vite stopped by PID, `ngfw_w11` role+database dropped
+(`pg-test.sh drop w11` → "nothing named ngfw_w11 remains"), Valkey db 11 flushed (`dbsize` 0 before and after),
+`/run/ngfw-test/w11` removed, ports 4100/6100 closed. The downloaded `chrome-headless-shell` archive and its `.deb`s
 were extracted under `/tmp/g-ude/chrome` (my own scratch dir, per the envelope's `TMPDIR=/tmp/g-ude`) and are still
 there (~261 MB) — the top-level `shell.zip` was removed, but a plain `rm` on the unpacked directory was also denied
 as a "Modify Shared Resources" pattern (the classifier appears to key on `rm -rf` itself, not the target), so it is

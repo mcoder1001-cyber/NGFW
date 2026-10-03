@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# test/topology/srv6/stack.sh — F-srv6 full-stack evidence run on one slot (host VPP, real processes): the vrx-agent
-#   (VRX_GLOBALS_OWNER=0, D-071), vrx-api on a throwaway database and, optionally, the production web build under
+# test/topology/srv6/stack.sh — F-srv6 full-stack evidence run on one slot (host VPP, real processes): the ngfw-agent
+#   (NGFW_GLOBALS_OWNER=0, D-071), ngfw-api on a throwaway database and, optionally, the production web build under
 #   `vite preview` for the screenshots. Steps: baseline commit (VRF + two loopbacks) → routing.srv6 commit through the API
 #   → GET /state/srv6 + `vppctl show sr …` + FIB evidence → drift → validation failure (encap policy without a source →
 #   400 problem+json with a pointer) → optional screenshots → agent restart without loss (claimed objects not re-added:
@@ -10,24 +10,24 @@
 #
 #   eval "$(tools/lab env <slot>)"; test/topology/srv6/stack.sh [<screenshot node script> <out dir>]
 #
-# Owner "<prefix>sr", database vrx_<prefix>sr, API port VRX_HTTP_PORT+60, web VRX_WEB_PORT+60 (D-156), agent socket
-# /run/vrx-test/<prefix>/sr/agent.sock, VRF <owner>-cust table base+60, loopbacks loop<slot>60/61, SIDs/BSIDs in
+# Owner "<prefix>sr", database ngfw_<prefix>sr, API port NGFW_HTTP_PORT+60, web NGFW_WEB_PORT+60 (D-156), agent socket
+# /run/ngfw-test/<prefix>/sr/agent.sock, VRF <owner>-cust table base+60, loopbacks loop<slot>60/61, SIDs/BSIDs in
 # fd00:<slot hex>::/48, steered prefixes 10.<slot>.160.0/24 and fd00:<slot hex>:160::/48. No packet is sent (no rig, no
 # af_packet). The screenshot script (kept outside the repo, P07a/P07b) is called as
 # `node <script> <webUrl> <outDir> <adminPasswordFile>`. Output: $RUN/evidence.log. Every process is stopped by PID.
 set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-: "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
-: "${VRX_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
-P=$VRX_TEST_PREFIX N=$VRX_SLOT OWNER=${VRX_TEST_PREFIX}sr
+: "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
+: "${NGFW_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
+P=$NGFW_TEST_PREFIX N=$NGFW_SLOT OWNER=${NGFW_TEST_PREFIX}sr
 [[ "$N" =~ ^([1-9]|1[01]|1[4-9]|2[0-9]|3[0-2])$ ]] || { echo "stack.sh: slots 1–11, 14–32 only (12 is CI, 13 does not exist)" >&2; exit 1; }
 BASE=$((N * 1000)) TABLE=$((N * 1000 + 60)) L1=loop$((N * 100 + 60)) L2=loop$((N * 100 + 61))
 H=$(printf 'fd00:%x' "$N") VRF=$OWNER-cust
-API_PORT=$((${VRX_HTTP_PORT:?} + 60)) WEB_PORT=$((${VRX_WEB_PORT:?} + 60))  # D-156: offsets from the slot exports
-RUN=/run/vrx-test/$P/sr
+API_PORT=$((${NGFW_HTTP_PORT:?} + 60)) WEB_PORT=$((${NGFW_WEB_PORT:?} + 60))  # D-156: offsets from the slot exports
+RUN=/run/ngfw-test/$P/sr
 SHOTS=${1:-} SHOTS_OUT=${2:-}
-[[ -d "/run/vrx-test/$P" ]] || install -d -m 0755 "/run/vrx-test/$P"
+[[ -d "/run/ngfw-test/$P" ]] || install -d -m 0755 "/run/ngfw-test/$P"
 rm -rf "$RUN"; install -d -m 0700 "$RUN"
 LOG=$RUN/evidence.log
 say() { printf '%s %s\n' "$(date +%T)" "$*" | tee -a "$LOG"; }
@@ -52,23 +52,23 @@ cleanup() {
 trap cleanup EXIT
 
 say "VPP $(systemctl show vpp -p NRestarts) before"
-( cd "$ROOT/apps/agent" && go build -o bin/vrx-agent ./cmd/vrx-agent )
+( cd "$ROOT/apps/agent" && go build -o bin/ngfw-agent ./cmd/ngfw-agent )
 ( cd "$ROOT" && pnpm --filter @ngfw/api build >/dev/null && { [[ -z "$SHOTS" ]] || pnpm --filter @ngfw/web build >/dev/null; } )
 
 "$ROOT/deploy/dev/pg-test.sh" create "$OWNER" >/dev/null
-DSN=$(sed -n 's/^VRX_PG_DSN=//p' "/run/vrx-test/$OWNER/pg.env")
+DSN=$(sed -n 's/^NGFW_PG_DSN=//p' "/run/ngfw-test/$OWNER/pg.env")
 start_agent() {
-  env -i PATH="$PATH" HOME="$HOME" VRX_OWNER="$OWNER" VRX_GLOBALS_OWNER=0 VRX_AGENT_SOCKET="$RUN/agent.sock" \
-    VRX_AGENT_STATE_DIR="$RUN/agent-state" VRX_METRICS_ADDR=off VRX_SOCKET_GROUP=root VRX_LOG_LEVEL=info \
-    VRX_VPP_TABLE_BASE="$BASE" "$ROOT/apps/agent/bin/vrx-agent" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
+  env -i PATH="$PATH" HOME="$HOME" NGFW_OWNER="$OWNER" NGFW_GLOBALS_OWNER=0 NGFW_AGENT_SOCKET="$RUN/agent.sock" \
+    NGFW_AGENT_STATE_DIR="$RUN/agent-state" NGFW_METRICS_ADDR=off NGFW_SOCKET_GROUP=root NGFW_LOG_LEVEL=info \
+    NGFW_VPP_TABLE_BASE="$BASE" "$ROOT/apps/agent/bin/ngfw-agent" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
 }
 start_agent
 ADMIN_PW=$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')
 ( umask 077; printf '%s' "$ADMIN_PW" > "$RUN/admin.pw" )
-env -i PATH="$PATH" HOME="$HOME" NODE_ENV=production VRX_HTTP_PORT="$API_PORT" VRX_HTTP_HOST=127.0.0.1 VRX_PG_DSN="$DSN" \
-  VRX_VALKEY_DB="$N" VRX_VALKEY_PREFIX="vrx:$OWNER:stack:" VRX_AGENT_SOCKET="$RUN/agent.sock" VRX_AGENT_OWNER="$OWNER" \
-  VRX_AGENT_TIMEOUT_MS=60000 VRX_JWT_SECRET="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" \
-  VRX_SECRET_KEY_FILE="$RUN/secret.key" VRX_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PW" VRX_COOKIE_SECURE=0 VRX_LOG_LEVEL=warn \
+env -i PATH="$PATH" HOME="$HOME" NODE_ENV=production NGFW_HTTP_PORT="$API_PORT" NGFW_HTTP_HOST=127.0.0.1 NGFW_PG_DSN="$DSN" \
+  NGFW_VALKEY_DB="$N" NGFW_VALKEY_PREFIX="ngfw:$OWNER:stack:" NGFW_AGENT_SOCKET="$RUN/agent.sock" NGFW_AGENT_OWNER="$OWNER" \
+  NGFW_AGENT_TIMEOUT_MS=60000 NGFW_JWT_SECRET="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" \
+  NGFW_SECRET_KEY_FILE="$RUN/secret.key" NGFW_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PW" NGFW_COOKIE_SECURE=0 NGFW_LOG_LEVEL=warn \
   node "$ROOT/apps/api/dist/main.js" >> "$RUN/api.log" 2>&1 & PIDS+=("$!")
 for _ in $(seq 120); do curl -sf "http://127.0.0.1:$API_PORT/api/v1/health" >/dev/null && break; sleep 0.5; done
 TOKEN=$(curl -sf -H 'content-type: application/json' -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}" "http://127.0.0.1:$API_PORT/api/v1/auth/login" | jq -r .accessToken)
@@ -119,7 +119,7 @@ say "encap policy without source: $(curl -s -o "$RUN/bad.json" -w '%{http_code}'
 api POST /api/v1/config/discard >/dev/null
 
 if [[ -n "$SHOTS" ]]; then
-  env VRX_HTTP_PORT="$API_PORT" VRX_WEB_PORT="$WEB_PORT" "$ROOT/apps/web/node_modules/.bin/vite" preview "$ROOT/apps/web" >> "$RUN/vite.log" 2>&1 & PIDS+=("$!")
+  env NGFW_HTTP_PORT="$API_PORT" NGFW_WEB_PORT="$WEB_PORT" "$ROOT/apps/web/node_modules/.bin/vite" preview "$ROOT/apps/web" >> "$RUN/vite.log" 2>&1 & PIDS+=("$!")
   for _ in $(seq 60); do curl -sf -o /dev/null "http://127.0.0.1:$WEB_PORT/" && break; sleep 0.5; done
   say "screenshots: $(node "$SHOTS" "http://127.0.0.1:$WEB_PORT" "$SHOTS_OUT" "$RUN/admin.pw" 2>&1 | tr '\n' ' ')"
 fi

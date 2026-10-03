@@ -2,9 +2,9 @@
 
 Package `apps/agent/internal/descriptors/nsim`, built on `descriptors/dfkit` (D-077): values are dfkit structpb specs
 (`Config`, `CrossConnect`, `Output`). `nsim.RegisterGlobals(r, client, owner, store, opts…)` registers all three — **only the
-globals owner calls it, and only with the lab gate `VRX_NSIM=lab`** (D-071; review M2): VPP holds one delay model and one
+globals owner calls it, and only with the lab gate `NGFW_NSIM=lab`** (D-071; review M2): VPP holds one delay model and one
 cross-connect pair (`nsim_main_t`), and an output feature without this owner's model would run on another agent's
-parameters. The API refuses a commit or rollback carrying `services.nsim` with 409 while `VRX_NSIM≠lab`
+parameters. The API refuses a commit or rollback carrying `services.nsim` with 409 while `NGFW_NSIM≠lab`
 (`apps/api/src/features/loopback-bvi-gso-lldp-span/nsim-gate.ts`).
 
 VPP hazards the descriptor guards against (review M1/M2, read from `src/plugins/nsim`):
@@ -13,7 +13,7 @@ VPP hazards the descriptor guards against (review M1/M2, read from `src/plugins/
 - **Worker threads:** without `nsim { poll-main-thread }` VPP allocates wheels for the workers only; a frame the main
   thread sends through `nsim-output-feature` dereferences the main thread's NULL wheel. `nsim.config` Create counts the
   threads (`show_threads`) and refuses a VPP with workers (`ErrWorkerThreads`) unless `WithPollMainThread(true)`
-  (`VRX_NSIM_POLL_MAIN_THREAD=1`: the operator asserts the startup.conf setting; VPP has no getter).
+  (`NGFW_NSIM_POLL_MAIN_THREAD=1`: the operator asserts the startup.conf setting; VPP has no getter).
 - **Irreversible polling:** `nsim_configure` sets the `nsim-wheel` input node to POLLING and nothing sets it back; the
   main thread then never sleeps (one busy core) until VPP restarts. Documented; the opt-in host test runs only just
   before a planned VPP restart. `store` is the owner's persisted D-076
@@ -32,5 +32,5 @@ packets per drop, packet size default 1500), `crossConnect` → `nsim.cross-conn
 
 Unit tests (`nsim_test.go`, a fake modelling -76 before the model and the stacking features): `TestConfigAppliedOncePerValue`,
 `TestCrossConnectAndOutput`; agent level `TestLoopbackBviGsoLldpSpanGlobalsOwner`. The host test `TestNsimOnHost` is
-**opt-in** (`VRX_NSIM_HOST=1`, globals lock exclusive, D-082): the previous model cannot be read back to restore it
+**opt-in** (`NGFW_NSIM_HOST=1`, globals lock exclusive, D-082): the previous model cannot be read back to restore it
 (shared-host-rules §7), so it runs only in a manager VPP window. The default gate's nsim evidence is the fake client.

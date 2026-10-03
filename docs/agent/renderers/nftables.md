@@ -1,8 +1,8 @@
-# nftables renderer — host firewall ↔ `table inet vrx`
+# nftables renderer — host firewall ↔ `table inet ngfw`
 
 Package `apps/agent/internal/renderers/nftables` (F-host-acl-nftables, WBS D5.3, D-057: the single owner of the host
-firewall; F-hardening-lite consumes it). nftables 1.1.6 (`/usr/sbin/nft`). One table, `table inet vrx` (test slots
-`vrx_<prefix>`), family `inet` (IPv4 and IPv6 in one table). The renderer never flushes the ruleset and never touches
+firewall; F-hardening-lite consumes it). nftables 1.1.6 (`/usr/sbin/nft`). One table, `table inet ngfw` (test slots
+`ngfw_<prefix>`), family `inet` (IPv4 and IPv6 in one table). The renderer never flushes the ruleset and never touches
 another table: P10's static base policy (its own table) and anything else loaded on the box stay as they are.
 
 ## Mapping
@@ -19,8 +19,8 @@ another table: P10's static base policy (its own table) and anything else loaded
 | `acl.hostSettings.antiLockout {enabled, sources[], interfaces[], ports[]}` (input; default on, any source, any interface, 22 + 443) | `[iifname { … }] [ip saddr { … }] tcp dport { … } counter accept`, one rule per source family, after the preamble and before every list rule |
 | `acl.host.<list>.rules[]` (enabled, in `sequence` order) | one or more rules per configured rule (below); disabled rules render nothing |
 | `rule.action` accept / drop / reject | `accept` / `drop` / `reject` (nftables' default reject: `icmpx port-unreachable`) |
-| `rule.log` | `log prefix "vrx:<list>:<sequence> "` before the verdict |
-| — (every rule) | `counter` (packets/bytes → `HostAclState`, `GET /api/v1/state/host-acl`) and `comment "vrx:<id>/<n>:<hash8>"` (identity) |
+| `rule.log` | `log prefix "ngfw:<list>:<sequence> "` before the verdict |
+| — (every rule) | `counter` (packets/bytes → `HostAclState`, `GET /api/v1/state/host-acl`) and `comment "ngfw:<id>/<n>:<hash8>"` (identity) |
 | `rule.interface` | `iifname "<if>"` (input, forward) / `oifname "<if>"` (output) |
 | `rule.source` / `destination` `{kind: prefix}` | `ip saddr <prefix>` / `ip6 daddr <prefix>` (masked) |
 | `{kind: object}` (address object or group) | named interval sets `a4_<object>` (`ipv4_addr`) and `a6_<object>` (`ipv6_addr`) holding the expansion (`objects.Expand`: aggregated, canonical; ranges → CIDR sets; FQDN → the resolver's answers) and `ip saddr @a4_<object>` / `ip6 saddr @a6_<object>` |
@@ -30,7 +30,7 @@ another table: P10's static base policy (its own table) and anything else loaded
 | a rule that expands to several families × protocol clauses | that many nftables rules, `<n>` = 0, 1, … in the comment |
 | `description` (lists, rules, attachments), `tags` | not rendered (never reach the file) |
 
-Rule identity: `vrx:<list>:<sequence>/<n>:<hash8>` for list rules, `vrx:@established|@loopback|@icmp|@anti-lockout/<n>:<hash8>`
+Rule identity: `ngfw:<list>:<sequence>/<n>:<hash8>` for list rules, `ngfw:@established|@loopback|@icmp|@anti-lockout/<n>:<hash8>`
 for the fixed ones; `hash8` = the first 8 hex digits of sha256 of the rendered rule text (without the comment).
 
 ## Validation (the agent's DryRun; issues carry JSON pointers)
@@ -56,10 +56,10 @@ function of the configuration, so a config accepted at commit can never fail a l
 
 ## Apply, Retrieve, restart
 
-- File `<state dir>/host-acl-<owner>.nft` (0600): `add table inet vrx` · `delete table inet vrx` · `table inet vrx { … }`,
+- File `<state dir>/host-acl-<owner>.nft` (0600): `add table inet ngfw` · `delete table inet ngfw` · `table inet ngfw { … }`,
   checked with `nft -c -f` on a staged copy, loaded with one `nft -f` (atomic: all or nothing).
 - Store `<state dir>/host-acl-<owner>.json` (0600): the value last applied (configuration + rendering).
-- Retrieve: `nft -j list table inet vrx` → sets (elements normalised to canonical prefixes), chains in evaluation order,
+- Retrieve: `nft -j list table inet ngfw` → sets (elements normalised to canonical prefixes), chains in evaluation order,
   rules by comment; the configuration and rule annotations come from the store entry the kernel still matches — same
   comment, same verdict, and the same rule body (sha256 of the kernel's `expr` JSON without counter values, recorded in
   the store right after each `nft -f`). The table's `flags dormant` is read too. A lost, dormant or edited table (rules
@@ -67,17 +67,17 @@ function of the configuration, so a config accepted at commit can never fail a l
   desired value, so the next Apply/resync (agent start, VPP reconnect) re-renders it (fix round 1, M1).
 - Counters are state, not configuration: `HostAclState` (proto.md §11) → `GET /api/v1/state/host-acl`.
 
-## Modes (`VRX_HOST_ACL_MODE`, `VRX_HOST_ACL_NETNS`)
+## Modes (`NGFW_HOST_ACL_MODE`, `NGFW_HOST_ACL_NETNS`)
 
 | agent | mode | where |
 |---|---|---|
-| product (`VRX_OWNER=vrx`) and globals owner (D-071) | `apply` | `table inet vrx` in the agent's (root) network namespace |
-| product owner with `VRX_GLOBALS_OWNER=0` (tools/app on the shared host) | `check` | `nft -c` only (fix round 1, H2) |
-| test slot, `VRX_HOST_ACL_NETNS=ns-<prefix>-<name>` | `netns` | `table inet vrx_<prefix>` inside that namespace: every nft call runs on a thread that entered it with `setns(2)` |
+| product (`NGFW_OWNER=ngfw`) and globals owner (D-071) | `apply` | `table inet ngfw` in the agent's (root) network namespace |
+| product owner with `NGFW_GLOBALS_OWNER=0` (tools/app on the shared host) | `check` | `nft -c` only (fix round 1, H2) |
+| test slot, `NGFW_HOST_ACL_NETNS=ns-<prefix>-<name>` | `netns` | `table inet ngfw_<prefix>` inside that namespace: every nft call runs on a thread that entered it with `setns(2)` |
 | test slot without a namespace | `check` | `nft -c` only; nothing is loaded; Retrieve returns the stored value |
-| any, `VRX_HOST_ACL_MODE=check` | `check` | a product stack on a shared host |
+| any, `NGFW_HOST_ACL_MODE=check` | `check` | a product stack on a shared host |
 
-`VRX_HOST_ACL_MODE=apply` is refused for any owner but `vrx` and without the globals owner: a test slot, or a product stack
+`NGFW_HOST_ACL_MODE=apply` is refused for any owner but `ngfw` and without the globals owner: a test slot, or a product stack
 that is not the host's globals owner, never loads into the root namespace.
 
 CLI equivalent: none yet (the API routes `PATCH /api/v1/config/acl/…`, `GET /api/v1/state/host-acl` are in

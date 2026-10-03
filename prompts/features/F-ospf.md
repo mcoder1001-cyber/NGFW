@@ -6,7 +6,7 @@
 ## Goal
 OSPFv2 (IPv4) and OSPFv3 (IPv6) end to end in FAST MODE: schema → FRR `ospfd`/`ospf6d` section → routes into the **VPP FIB**
 through linux-cp/linux-nl → API → UI → docs. Reference: TNSR "OSPF / OSPFv3"; FRR 10 ospfd/ospf6d; VPP `linux_cp` + `linux_nl`
-(loaded on vrx-a since D-060). WBS D3.4 (OSPFv2, T1), D3.5 (OSPFv3, T2) in `plan/wbs.csv`.
+(loaded on ngfw-a since D-060). WBS D3.4 (OSPFv2, T1), D3.5 (OSPFv3, T2) in `plan/wbs.csv`.
 
 ## Inputs to read first
 - `packages/schema/src/domains/routing.ts` — `routing.ospf{routerId, vrf, areas{<id>: {type normal|stub|nssa, noSummary}},

@@ -2,9 +2,9 @@
 
 Branch: `task/P10-packaging-finish-20261002`; base: `53a43ce5`.
 First published remote SHA: `c401f4efde321505cdd6a358cf93d044b1d215b4`. Local first checkpoint `ff6223db`; later code publication pending manager upload.
-Owned: deploy/debian/vrx/**, deploy/debian/README.md, deploy/apt/**,
+Owned: deploy/debian/ngfw/**, deploy/debian/README.md, deploy/apt/**,
 scripts/publish-apt.sh, scripts/10-install-runtime.sh, docs/09-os-packages.md,
-docs/install/**, deploy/systemd/vrx-* (not manager unit or P11).
+docs/install/**, deploy/systemd/ngfw-* (not manager unit or P11).
 
 Implemented: single-source four-package control/install metadata; product VPP exact-version substitution;
 no-start/no-enable package install; idempotent group/user creation and data-preserving upgrade handling;
@@ -22,11 +22,11 @@ APT signing/publication, runtime installer correction, user install/upgrade docs
 This is a scaffold; task is RUNNING, not done. No package install, host config change,
 daemon startup, VPP restart or laboratory acceptance has been performed.
 
-Next command: python3 deploy/debian/vrx/tests/test_packaging.py
+Next command: python3 deploy/debian/ngfw/tests/test_packaging.py
 
 Independent review fix: explicitly writable/provisioned capture and rsyslog TLS directories; regression checks actual renderer defaults. Correct TLS runtime driver to rsyslog-openssl (renderer uses ossl, not gnutls). Six checks PASS again.
 
-Independent review fix 2: helper binaries install to /usr/lib/vrx/bin, matching apply-startup.sh product defaults; regression compares installed mapping and actual script default. Seven checks PASS. pnpm12 deploy independently verified by reviewer (198 packages); full package build still NOT RUN. Remote checkpoint second SHA: 0d124f3e0440f78a5c1bb5804be2cf1eaa9a12b0.
+Independent review fix 2: helper binaries install to /usr/lib/ngfw/bin, matching apply-startup.sh product defaults; regression compares installed mapping and actual script default. Seven checks PASS. pnpm12 deploy independently verified by reviewer (198 packages); full package build still NOT RUN. Remote checkpoint second SHA: 0d124f3e0440f78a5c1bb5804be2cf1eaa9a12b0.
 
 Firstboot checkpoint: fixed-name PostgreSQL role/database creation, application-owned
 Drizzle migrations + existing AuthService seed without opening HTTP, durable expected-admin
@@ -63,8 +63,8 @@ Fresh arbiter key precedence fix: initial api.env accepts only the three generat
 
 Static firewall checkpoint (manager reserved D173): explicit management iface plus
 optional unique ≤64 punt iface list; initially empty punt set for no-data-NIC default.
-Packaging owns only inet vrx_base, atomic add/delete/recreate same named table; no
-flush or writes to renderer-owned inet vrx. Early generation is independent of DB/auth,
+Packaging owns only inet ngfw_base, atomic add/delete/recreate same named table; no
+flush or writes to renderer-owned inet ngfw. Early generation is independent of DB/auth,
 preserves distro nftables early-boot ordering/enable target, and nftables requires this
 early helper. Main firstboot requires NFT success, then PG/auth. No host load performed;
 pure base-policy tests 3 PASS, packaging 8 PASS, firstboot fixtures 6 PASS. Actual nft -c
@@ -81,7 +81,7 @@ stages PASS; Turbo 34/35 tasks succeeded (12 cached), API unit task FAILED_ENV.
 Representative failures: listen EPERM on temporary Unix fake-agent sockets; chown
 EINVAL for deliberately foreign-UID JWT fixtures; teardown close errors cascade from
 failed socket setup. No assertion/gate changes. Full Go steps not reached. Logs:
-/tmp/vrx-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log and .scratch/p10-quick.log.
+/tmp/ngfw-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log and .scratch/p10-quick.log.
 This is NOT CI GATE PASSED. Hosted unchanged complete quick remains mandatory.
 Debian source build now directly declares Python3/OpenSSL used by its regression checks.
 
@@ -127,12 +127,12 @@ Recovered published `aa76368a` on branch `codex/packaging-resume-20261002` in
 `NGFW-packaging`; `git rebase origin/main` confirms current base `53a43ce5` is
 already included. Original remote history and independent rulings are preserved.
 New owned delta: API postinst provisions `/data/{backups,updates,support}` at
-0750 `vrx:vrx`, documents ownership, and updates obsolete preparation warning.
+0750 `ngfw:ngfw`, documents ownership, and updates obsolete preparation warning.
 A redirected-script test runs configure twice using only temporary paths and the
 builder UID/GID; existing backup bytes and metadata are preserved. Host account
 commands are removed from that fixture copy; production account setup unchanged.
 
-Actual checks: `python3 -m unittest discover -s deploy/debian/vrx/tests` ran 24
+Actual checks: `python3 -m unittest discover -s deploy/debian/ngfw/tests` ran 24
 checks: 23 PASS, 1 signing SKIP because isolated gpg-agent cannot run. Packaging
 suite after fixture hardening: 9 tests PASS. `bash -n prepare.sh`, `git diff --check`
 PASS. `tools/ci.sh check --base origin/main` PASS with explicit missing-gitleaks
@@ -146,7 +146,7 @@ unresolved product constraints, not lab waivers. Actual signing and clean applia
 acceptance remain NOT RUN. Publication paused by manager pending central destination
 authorization review; no outbound push attempted by this worker.
 
-Next command: `python3 -m unittest discover -s deploy/debian/vrx/tests` (after any
+Next command: `python3 -m unittest discover -s deploy/debian/ngfw/tests` (after any
 review corrections); manager publishes this checkpoint and schedules exact-head CI.
 
 Follow-up validation on unchanged product checkpoint `db721ff49a747f8e7453ad1b4f4e11d085237d95`:
@@ -167,7 +167,7 @@ original `aa76368a`; no historical checkpoint was rewritten. Hosted quick run
 Independent R8 approves the bounded storage/base-unit-hardening checkpoint (report
 preserved). R4 found a real fresh-appliance startup blocker: missing explicit VPP
 ID range. Local `d31af805` adds the already-specified dedicated-appliance
-`VRX_VPP_ID_RANGE=all` environment, static regression, and shared-host prohibition.
+`NGFW_VPP_ID_RANGE=all` environment, static regression, and shared-host prohibition.
 Nine packaging tests PASS; independent R4 verification pending. The pending
 CAP_CHOWN and strict `/etc` write architecture remain untouched.
 
@@ -196,7 +196,7 @@ reviewed checkpoint and must not merge as-is. No host daemon/package changes.
 R2 found a BLOCKER in the resumed storage postinst: pathname-based root `install -d`
 followed an API-owned storage child symlink and could change external directory
 ownership. This is a real security defect, not an acceptance waiver. Replaced all
-API storage directory provisioning with a shipped Python helper (direct vrx-api
+API storage directory provisioning with a shipped Python helper (direct ngfw-api
 python3 dependency). Every component is opened relative to a directory descriptor
 with O_DIRECTORY|O_NOFOLLOW; leaf ownership/mode changes use fchown/fchmod, never a
 re-resolved pathname. Existing ancestors and operator contents remain unchanged.

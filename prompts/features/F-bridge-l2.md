@@ -91,7 +91,7 @@ Additive only. Commit them first as separate `contract(schema): l2` / `contract(
    - Retrieve covers every readable object. Fake-client unit tests (model VPP's duplicate-add behaviour for the write-only enable); an
      agent-level fake extension goes in `descriptors/core/coretest/bridge_l2.go`.
    - Disable mactime on an interface before it is deleted (V19 family: per-interface feature state can outlive the interface).
-   - ONE host integration check (`VRX_INTEGRATION=1`, lab lock shared). Members: slot loopbacks (BVI), the rig's `host-<prefix>…`
+   - ONE host integration check (`NGFW_INTEGRATION=1`, lab lock shared). Members: slot loopbacks (BVI), the rig's `host-<prefix>…`
      af_packet interfaces and their sub-interfaces, or slot-prefixed taps made by the fixture. Check:
      - Retrieve == desired;
      - `vppctl show bridge-domain <id> detail` / `show l2patch` / `show l3xc` contain it;
@@ -109,7 +109,7 @@ Additive only. Commit them first as separate `contract(schema): l2` / `contract(
    - A "Bridging" page in the Interfaces nav group, on its own route, added through the router/nav anchors; the label key is in your
      `bridge-l2` namespace. Do not restructure P08's `InterfacesPage.tsx`.
    - BD list + SchemaForm, member table (incl. tag rewrite), MAC table (ServerDataGrid), cross-connect list; en + fa.
-   - If members live on `interfaces.<if>.l2`, P08's generated drawer form shows them under your `x-vrx-ui` group. Only if that breaks the
+   - If members live on `interfaces.<if>.l2`, P08's generated drawer form shows them under your `x-ngfw-ui` group. Only if that breaks the
      drawer, exclude the field with one named line in `apps/web/src/domains/interfaces/model.ts`.
 5. **Docs**: `docs/user/interfaces/bridge-l2.md` (BD with BVI, bridged VLAN sub-interface with pop-1, xconnect, time-range filter; CLI
    equivalent). Add one see-also line at the end of `docs/user/interfaces/basics.md`; do not edit its "Not in this release" line.
@@ -127,7 +127,7 @@ Additive only. Commit them first as separate `contract(schema): l2` / `contract(
 **Shared hotspots: insert only under your `wave-A: F-bridge-l2` anchor, and name each hunk in `F-bridge-l2.md`:**
 - agent: `apps/agent/internal/subsystems/subsystems.go`, `apps/agent/internal/agent/projection.go`
 - schema: the domain file the placement answer names, `packages/schema/src/index.ts`, `packages/schema/src/semantic/index.ts`
-- proto: `packages/proto/vrx/v1/dataplane.proto`, `docs/contracts/proto.md`
+- proto: `packages/proto/ngfw/v1/dataplane.proto`, `docs/contracts/proto.md`
 - API: `apps/api/src/app.module.ts`, `apps/api/src/agent/agent.client.ts`, `apps/api/src/testing/fake-agent.ts`
 - web: `router.tsx`, `nav/nav.ts`, `nav/nav.test.ts`, `i18n.ts`
 - docs: `docs/user/interfaces/basics.md` (end), `docs/vpp-code-track.md` (append `### V-new (F-bridge-l2)`)

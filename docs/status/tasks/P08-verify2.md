@@ -21,7 +21,7 @@ done on `git archive` copies in my scratchpad (never in the worktree): the fix r
 
 ## Topology + restart-safety evidence (P08.md "Fix round 2"; judged, not re-run)
 **Accepted.** I cross-checked the pasted run against the host:
-- **Agent log.** `/run/vrx-test/w1/p08/agent.log` still exists. Its six `reconcile done` lines have the pasted times and summaries: created:8 at 18:02:25.033, created:2 unchanged:8, deleted:2 unchanged:8, the resync created:8 at 18:02:50.750, and deleted:6 at 18:02:57.718. All six are APPLIED.
+- **Agent log.** `/run/ngfw-test/w1/p08/agent.log` still exists. Its six `reconcile done` lines have the pasted times and summaries: created:8 at 18:02:25.033, created:2 unchanged:8, deleted:2 unchanged:8, the resync created:8 at 18:02:50.750, and deleted:6 at 18:02:57.718. All six are APPLIED.
 - **VPP did not restart.** `systemctl show vpp`: NRestarts=0, MainPID=8760 (active since 13:03:29). This matches "NRestarts 0 → 0, pid 8760 throughout".
 - **Management NIC.** The commit that puts af_packet on ens192 returns 400 with pointer `/interfaces/host-ens192`, rule `interfaces.af-packet-veth`, tier=agent.
 - **Data path.** Ping is routed at ttl 63; the first-packet loss is ARP. The trace runs af-packet-input → … → ip4-rewrite → host-w1w0-tx. The four counters match between vppctl and WS.
@@ -42,7 +42,7 @@ done on `git archive` copies in my scratchpad (never in the worktree): the fix r
    - **Fix, during the D-112 squash + rebase.** Regenerate both generated files instead of hand-merging: `pnpm --filter @ngfw/api-client gen`, then `make -C apps/cli gen` (opgen reads the generated `openapi.json`). Keep the `contract(` subject, because the squash touches `packages/api-client/src/generated`. Then re-run `tools/ci.sh --base main`: the generated-output gate also covers the auto-merged `schema.d.ts`. After that, P08.md's note that "`operations_gen.go` … regenerate unchanged" (6ce08c2) no longer holds.
 2. **Info. The T1 exemption is deliberately narrow, with one residual case.** `ch.SendRequest(m.(*afpapi.AfPacketDelete))` is no longer flagged when `m` comes from a place the guard does not scan (a test file, or `binapi` helpers such as `AllMessages()`). Every construction site in scanned code (`&afpapi.AfPacketDelete{}`, `new(...)`, `var x afpapi.AfPacketDelete`) is still flagged. Before this change, a send of an `api.Message` from those unscanned places was not caught either. This is acceptable under D-118 option (b); no action.
 3. **Info. The V24 signature is still in the VPP journal** for the cleanup deletes, although both netdevs were down first. This matches D-107 I1 (quiesce is not the fix) and VPP survived. It belongs to the manager's V24 record, not to P08.
-4. **Info. Leftovers.** `/run/vrx-test/w1/p08` (0700 run logs) and the git-ignored `apps/agent/bin` and `apps/{api,web}/dist` remain. P08 could not remove them (permission policy). They are harmless; the manager may delete them.
+4. **Info. Leftovers.** `/run/ngfw-test/w1/p08` (0700 run logs) and the git-ignored `apps/agent/bin` and `apps/{api,web}/dist` remain. P08 could not remove them (permission policy). They are harmless; the manager may delete them.
 
 ## Tests run (worktree HEAD abb6950, host load ~15-22)
 - `cd apps/agent && go test -count=1 ./internal/agent/... ./internal/subsystems/... ./internal/descriptors/af_packet/...` → ok agent 8.9 s, subsystems, and af_packet.

@@ -45,31 +45,31 @@ Hostile-input tests are real and assert.
 
 ### HIGH
 
-**H1 — `x-vrx-ui` widget/help hints are silently dropped on most leaf fields of all three domains.**
-`packages/schema/src/ui.ts:31-41` (`withUi`) always writes `[X_VRX_UI]: hints`; Zod 4's registry merges a clone's
+**H1 — `x-ngfw-ui` widget/help hints are silently dropped on most leaf fields of all three domains.**
+`packages/schema/src/ui.ts:31-41` (`withUi`) always writes `[X_NGFW_UI]: hints`; Zod 4's registry merges a clone's
 meta with its parent's *shallowly*, so a second `withUi()` over an already-hinted schema replaces the whole
-`x-vrx-ui` object. P02b re-wraps hinted primitives everywhere — `nat.ts:587-597` (`inside`/`outside`/`outputFeature`
+`x-ngfw-ui` object. P02b re-wraps hinted primitives everywhere — `nat.ts:587-597` (`inside`/`outside`/`outputFeature`
 over `interfaceList`), `nat.ts:141-142` (`local.ip`/`local.port`), `nat.ts:148-160` (`external.*`), `nat.ts:366-367`
 (det44 prefixes), `acl.ts:135-139` (`sourceMac`, `sourceMacMask`), `acl.ts:214-217` (`sequence`), `objects.ts:112,122-123`
 (`address`, `start`, `end`), … Verified in `dist/json-schema/*.json` after the gate's `gen`:
 
 ```
-nat.properties.inside                         x-vrx-ui {"group":"General","order":3}     ← widget interface-picker + help lost
-nat.…staticMappings.items.external.interface  x-vrx-ui {"help":"Use this interface’s address"}  ← widget lost
-nat.…staticMappings.items.local.ip            x-vrx-ui {}                                  ← widget ip lost
-nat.properties.forwarding                     x-vrx-ui {"group":"General"}                 ← help lost
-nat.…det44.mappings.items.inside              x-vrx-ui {}                                  ← widget cidr lost
-acl.…macip.rules.items.sourceMac              x-vrx-ui {}                                  ← widget mac lost
-objects.…addresses(host).address              x-vrx-ui {}                                  ← widget ip lost
+nat.properties.inside                         x-ngfw-ui {"group":"General","order":3}     ← widget interface-picker + help lost
+nat.…staticMappings.items.external.interface  x-ngfw-ui {"help":"Use this interface’s address"}  ← widget lost
+nat.…staticMappings.items.local.ip            x-ngfw-ui {}                                  ← widget ip lost
+nat.properties.forwarding                     x-ngfw-ui {"group":"General"}                 ← help lost
+nat.…det44.mappings.items.inside              x-ngfw-ui {}                                  ← widget cidr lost
+acl.…macip.rules.items.sourceMac              x-ngfw-ui {}                                  ← widget mac lost
+objects.…addresses(host).address              x-ngfw-ui {}                                  ← widget ip lost
 ```
 Failure scenario: the SchemaForm renderer (D-019 is the *only* plumbing for hints) shows plain text boxes for
 interface/IP/MAC/CIDR fields on the NAT, ACL and Objects screens; `docs/contracts/schema-nat-objects-acl.md:14`
-("Every field goes through withUi() → title + x-vrx-ui {widget, group, order, help}") is false. The existing test
-(`domains.test.ts` "carries a title and x-vrx-ui hints") only checks the domain root, so this slipped through.
-Fix (choose one, both cheap): (a) root cause — make `withUi` merge: `const parent = schema.meta()?.[X_VRX_UI] ?? {};
-[X_VRX_UI]: { ...parent, ...hints }` in `ui.ts` (P02a/P02s-owned → questions item; manager one-liner like D-036 is
+("Every field goes through withUi() → title + x-ngfw-ui {widget, group, order, help}") is false. The existing test
+(`domains.test.ts` "carries a title and x-ngfw-ui hints") only checks the domain root, so this slipped through.
+Fix (choose one, both cheap): (a) root cause — make `withUi` merge: `const parent = schema.meta()?.[X_NGFW_UI] ?? {};
+[X_NGFW_UI]: { ...parent, ...hints }` in `ui.ts` (P02a/P02s-owned → questions item; manager one-liner like D-036 is
 appropriate since it affects every group); or (b) in own files pass the widget explicitly at every re-wrap.
-Either way add a leaf-level assertion in `domains/nat.test.ts` / `acl.test.ts` (e.g. `nat.properties.inside['x-vrx-ui'].widget
+Either way add a leaf-level assertion in `domains/nat.test.ts` / `acl.test.ts` (e.g. `nat.properties.inside['x-ngfw-ui'].widget
 === 'interface-picker'`, `…sourceMac…widget === 'mac'`) so it cannot regress. Metadata only — not a shape change, so it
 does not need to block the merge, but it must land before the `contracts-v1` tag.
 
@@ -179,7 +179,7 @@ cannot exist empty, so "create group, then add members" UI flows must batch; con
 | 4 | secrets | ✓ none in `nat`/`objects`/`acl`; fixtures clean. |
 | 5 | validators `{pointer,message}` | ✓ 30 rules, correct pointers (table above); `domains[]` declared correctly for the commit engine's skip logic. |
 | 6 | hostile-input tests | ✓ real and asserting (counts above). Branch coverage not measured (tooling on P02a; questions #7) — run after merge. |
-| 7 | `x-vrx-ui` | Present at domain/group level and on unwrapped primitives; **lost on re-wrapped leaf fields** (H1). |
+| 7 | `x-ngfw-ui` | Present at domain/group level and on unwrapped primitives; **lost on re-wrapped leaf fields** (H1). |
 | 8 | D-P02b-1…8 | 1 ✓ (NAT44 at top level, siblings — matches docs/04 and F-nat44); 2 L1; 3 L2; 4 ✓ L3; 5 ✓ L5; 6 ✓; 7 ✓; 8 ✓ (wrap-around is additive later). None forces a *breaking* change; M1–M3 are the shapes that would. |
 
 ## Required changes

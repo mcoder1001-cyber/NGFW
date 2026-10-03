@@ -28,7 +28,7 @@ dashboard card, and an import-ready Grafana dashboard. User page: `docs/user/das
   `GET /state/alarms`, `POST /actions/alarms/{id}/ack`, `GET /state/dashboard`; migration `0005_dashboard_prom_alarms`;
   `alarm.events` bus topic.
 - **Web** (c605436f): AlarmsCard (dashboard) + AlarmsPage (`/system/alarms`, ack); rules/targets edited via the
-  generic Config → Management editor; en + fa. `deploy/grafana/vrx-overview.json`.
+  generic Config → Management editor; en + fa. `deploy/grafana/ngfw-overview.json`.
 
 ## Evidence (this session)
 - Agent: `go test ./internal/promexport/` (encoder/parser/allow-list/httptest) ok; go vet + golangci-lint clean;
@@ -42,6 +42,6 @@ dashboard card, and an import-ready Grafana dashboard. User page: `docs/user/das
 ## Not done here → `F-dashboard-prom-alarms-host` (lab: VPP)
 - The agent-side wiring of the real govpp `StatsSource` over the VPP stats segment and registering the metrics
   collector (manager hook) + the `management.prometheus` listener descriptor under `Domains["management"]`.
-- Acceptance on the rig: `/metrics` shows `vrx_interface_rx_bytes_total` increasing after traffic; link-down raises
+- Acceptance on the rig: `/metrics` shows `ngfw_interface_rx_bytes_total` increasing after traffic; link-down raises
   an alarm within 5 s and clears on link-up with the webhook receiving both; agent/API restart re-evaluation without
   duplicate notifications; screenshot of the dashboard against the real endpoint.

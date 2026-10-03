@@ -10,7 +10,7 @@ DF-1.md, questions file (l3xc.go already points at Q1), restart-simulation evide
 - [x] registry test: every Register() into one MapRegistry, no duplicate names
 - [x] docs/agent/descriptors/{interface,bond,l2,l3xc,memif,tapv2,af_packet}.md
 - [x] DF-1-questions.md (Q1 vrf key, Q2 interface key scheme vs DF-2..DF-6 `interface/<name>`)
-- [x] vppctl show evidence (VRX_DF1_HOLD)
+- [x] vppctl show evidence (NGFW_DF1_HOLD)
 - [x] tools/ci.sh --base main → CI GATE PASSED; DF-1.md
 
 Closed 2026-09-24: restart simulation found 4 drift bugs + the mtu Delete bug (fixed 85588b5); lint clean;

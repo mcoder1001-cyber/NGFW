@@ -2,7 +2,7 @@
 
 1. **Config home** `tunnels.lisp` (TunnelsConfig 10) as decided in wave-BC-numbers.md — no reason found against it. Contract
    commits are on this branch (F-lisp-contract.md); please pick them up.
-2. **Host run**: request an opt-in manager VPP window for `VRX_DF6_LISP_HOST=1` / `VRX_INTEGRATION=1` (V14 leaks on every
+2. **Host run**: request an opt-in manager VPP window for `NGFW_DF6_LISP_HOST=1` / `NGFW_INTEGRATION=1` (V14 leaks on every
    enable/disable). Not run; unit evidence only.
 3. **Claims store**: the envelope says `df6.WithClaims(Wiring.IfaceClaims())`; the code (TD-11b) requires `PairClaims("df6")`
    and refuses start otherwise — used PairClaims.

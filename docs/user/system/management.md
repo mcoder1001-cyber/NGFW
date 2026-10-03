@@ -40,8 +40,8 @@ fingerprint and the revision it was loaded from. The private key is never return
 
 ### HTTPS listener
 
-The API serves HTTPS with this certificate only when `VRX_HTTPS_PORT` is set in its environment (same bind address as
-`VRX_HTTP_HOST`). Without it, the certificate is still checked and loaded, and the tab says that HTTPS is not being
+The API serves HTTPS with this certificate only when `NGFW_HTTPS_PORT` is set in its environment (same bind address as
+`NGFW_HTTP_HOST`). Without it, the certificate is still checked and loaded, and the tab says that HTTPS is not being
 served. If no certificate is configured, the HTTPS listener does not start. No self-signed certificate is generated in
 this release. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
 
@@ -59,7 +59,7 @@ jq -n --rawfile v api.crt '{kind:"cert",name:"api",value:$v}' | \
   curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- http://127.0.0.1:3000/api/v1/secrets
 jq -n --rawfile v api.key '{kind:"key",name:"api",value:$v}' | \
   curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @- http://127.0.0.1:3000/api/v1/secrets
-vrx configure merge management '{"tls":{"certificateRef":"cert/api","privateKeyRef":"key/api","minVersion":"1.3"}}'
-vrx commit
+ngfw configure merge management '{"tls":{"certificateRef":"cert/api","privateKeyRef":"key/api","minVersion":"1.3"}}'
+ngfw commit
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:3000/api/v1/state/management/tls   # certificate in use (never the key)
 ```

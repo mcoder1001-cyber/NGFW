@@ -83,7 +83,7 @@ DF-6 do. When P05 merges, replace it with `var ErrRetrieveUnsupported = schedule
 
 `systemctl show vpp -p NRestarts` before/after the first host run of each new plugin (all times 2026-09-24):
 - det44: the first run (00:19) raised NRestarts: **crash caused by DF-3** (`det44_plugin_enable_disable` with
-  enable=0, see Q0). Fixed so that det44 is never disabled, and the test is gated behind `VRX_DF3_DET44=1`. Re-runs
+  enable=0, see Q0). Fixed so that det44 is never disabled, and the test is gated behind `NGFW_DF3_DET44=1`. Re-runs
   after the fix left VPP unchanged (ActiveEnterTimestamp 00:19:53 → 00:19:53, and later 00:26:04 → 00:26:04).
 - map: NRestarts 1 → 1 (00:25:17). cnat: 2 → 2. pnat: 2 → 2. The restarts at 00:24:53 (manual), 00:25:16 and
   00:26:04 were gtpu (DF-6), not DF-3.

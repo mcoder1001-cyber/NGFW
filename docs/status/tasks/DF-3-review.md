@@ -1,9 +1,9 @@
 # DF-3 — independent review
 
 Reviewer: review agent (did not write this code). Branch `task/DF-3` @ 6417446, base `main` (now at 7d9be25).
-Ran directly on the host with the slot-9 env (`eval "$(tools/lab env 9)"`, `VRX_INTEGRATION=1`), one package at a time.
+Ran directly on the host with the slot-9 env (`eval "$(tools/lab env 9)"`, `NGFW_INTEGRATION=1`), one package at a time.
 `systemctl show vpp -p NRestarts` was `2` before and after every run (ActiveEnterTimestamp 00:26:04, unchanged), so VPP did not restart.
-`VRX_DF3_DET44` was **not** set, so `TestDet44OnHost` was SKIP in my runs, as intended by D-064.
+`NGFW_DF3_DET44` was **not** set, so `TestDet44OnHost` was SKIP in my runs, as intended by D-064.
 
 ## Checklist
 
@@ -33,7 +33,7 @@ Ran directly on the host with the slot-9 env (`eval "$(tools/lab env 9)"`, `VRX_
 - **Same class:** `nat64.enable` / `nat66.enable` Delete use `inventory()`, which has the same "enabled but empty" hole.
 - **Fix:**
   - Extend `hasForeignObjects` (ED and EI) to the output-feature interfaces, identity/LB mappings, interface-address, VRF tables and the ED↔EI state.
-  - For slot owners (`!scope.All`), never Retrieve or Delete the enable singleton unless this owner provably enabled it. A host-wide lease is the simplest way: a `flock` file per plugin under `/run/lock/vrx-nat-<plugin>.lock` held shared by every user and taken exclusive to disable. The per-slot `SlotLock` does not protect other slots.
+  - For slot owners (`!scope.All`), never Retrieve or Delete the enable singleton unless this owner provably enabled it. A host-wide lease is the simplest way: a `flock` file per plugin under `/run/lock/ngfw-nat-<plugin>.lock` held shared by every user and taken exclusive to disable. The per-slot `SlotLock` does not protect other slots.
   - Tests should disable only under that exclusive lock.
   - Add the probe above as a unit test with the fake (foreign output interface → `ErrForeignObjects`).
 
@@ -79,7 +79,7 @@ Ran directly on the host with the slot-9 env (`eval "$(tools/lab env 9)"`, `VRX_
 
 ### 5. MEDIUM — production scope (`All`) claims everything, including interfaces tagged by other owners; Create accepts foreign interfaces
 - `natcommon/scope.go:98-107`: `OwnsInterface` returns true for **any** interface when `All`, including `w<N>:`-tagged loopbacks. `hasForeignObjects`/`inventory` short-circuit to "no foreign" for `All`.
-- **Failure scenario:** on this shared host, any run of the real agent with the default owner `vrx` (manager smoke test, E2E, a P05 restart-safety check) Retrieves every slot's NAT features, pools, translations and pnat bindings as "owned, not desired" and deletes them. It disables nat44/nat64/nat66 for all 12 slots.
+- **Failure scenario:** on this shared host, any run of the real agent with the default owner `ngfw` (manager smoke test, E2E, a P05 restart-safety check) Retrieves every slot's NAT features, pools, translations and pnat bindings as "owned, not desired" and deletes them. It disables nat44/nat64/nat66 for all 12 slots.
 - **Also:** `ResolveInterface` (`natcommon/ifaces.go:89-116`) is used by every Create without an ownership check. A slot's desired object on another slot's loopback is created there, is invisible to its own Retrieve (leak), and is re-created on every pass.
 - **Fix:**
   - For `All`, still reject interfaces whose tag parses as another owner's (`<x>:…` with `x ≠ owner`).
@@ -108,7 +108,7 @@ Ran directly on the host with the slot-9 env (`eval "$(tools/lab env 9)"`, `VRX_
 `git merge-tree main task/DF-3` → CONFLICT in `apps/agent/go.mod` and `go.sum`. Main already has `fsnotify`/`logrus`/`ftrvxmtrx/fd` (DF-4). Rebase and keep main's lines. The go.mod change is not mentioned in DF-3.md.
 
 ### 10. INFO
-- **det44 guard is complete:** no code path sends `det44_plugin_enable_disable(enable=0)`. The only calls are the Create enable and the unit-test fake. The integration test is opt-in (`VRX_DF3_DET44`), and V9 is recorded. Because det44 interfaces are removed by the test and the plugin stays enabled, any *manual* det44 disable on this VPP will now crash it. Keep the V9 warning prominent for the manager's sweep.
+- **det44 guard is complete:** no code path sends `det44_plugin_enable_disable(enable=0)`. The only calls are the Create enable and the unit-test fake. The integration test is opt-in (`NGFW_DF3_DET44`), and V9 is recorded. Because det44 interfaces are removed by the test and the plugin stays enabled, any *manual* det44 disable on this VPP will now crash it. Keep the V9 warning prominent for the manager's sweep.
 - **pnat lazy-init guard is sound:** `pnat_disable()` frees the flow hash only when the translation pool is empty, and `pnat_binding_detach` needs a live binding, so "≥1 pnat interface ⇒ hash initialised" holds. The cnat `n_paths=0` guard is correct.
 - **D-063 compliance:** no write-only type echoes cached desired state. The cnat exclude-prefix refcount growth on re-apply is documented.
 - **Ownership by address range after a VPP restart:** pools, prefixes and translations have no index-reuse exposure. Meta always comes from the live dump, and there is no persisted store (unlike DF-2 finding 1).

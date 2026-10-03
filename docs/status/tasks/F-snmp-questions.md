@@ -1,15 +1,15 @@
 # F-snmp — questions for the manager / product owner (none blocks the branch)
 
-1. **PEN (product owner).** VRX-MIB lives under the placeholder `1.3.6.1.4.1.8072.9999.9999.7853`
+1. **PEN (product owner).** NGFW-MIB lives under the placeholder `1.3.6.1.4.1.8072.9999.9999.7853`
    (net-snmp's `netSnmpPlaypen`, "for local experiments"). Register an IANA Private Enterprise Number, then change
-   `snmpagent.VRXMIBOID` and `deploy/snmp/VRX-MIB.txt` together. Default kept: placeholder.
+   `snmpagent.NGFWMIBOID` and `deploy/snmp/NGFW-MIB.txt` together. Default kept: placeholder.
 2. **Secret channel (manager; same case as PENDING-secret-channel for P11/F-wireguard/P12/F-unbound).** The agent
-   resolves `password/…` refs only from a slot-local fixture file (`VRX_SNMP_FIXTURE_SECRETS`, 0600, values must be
-   `VRX_TEST_PSK_F-snmp_*`); without it every community/passphrase is refused at projection time with
+   resolves `password/…` refs only from a slot-local fixture file (`NGFW_SNMP_FIXTURE_SECRETS`, 0600, values must be
+   `NGFW_TEST_PSK_F-snmp_*`); without it every community/passphrase is refused at projection time with
    "no API→agent secret channel yet (PENDING-secret-channel)". Only the end-to-end secret step waits.
 3. **IF-MIB for VPP interfaces (product owner).** net-snmp's IF-MIB shows the Linux taps. This build serves VPP
-   interfaces in `VRX-MIB::vrxIfTable` only; overriding IF-MIB (registering `.1.3.6.1.2.1.2.2` from the subagent at a
-   higher priority) is possible but would hide the Linux interfaces — not done. Default: VRX-MIB only.
+   interfaces in `NGFW-MIB::ngfwIfTable` only; overriding IF-MIB (registering `.1.3.6.1.2.1.2.2` from the subagent at a
+   higher priority) is possible but would hide the Linux interfaces — not done. Default: NGFW-MIB only.
 4. **"Last trap time" in /state/snmp.** snmpd does not expose when it last sent a notification (no MIB object, no
    log line we can rely on without parsing). Not in `SnmpStateResponse`; could come from a notification log MIB
    (`NOTIFICATION-LOG-MIB`, needs `notificationEvent` config) in a follow-up.

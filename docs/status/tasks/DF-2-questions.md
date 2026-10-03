@@ -1,13 +1,13 @@
 # DF-2 — questions for the manager (non-blocking; work continued)
 
 1. **ip6nd_proxy_add_del aborted the shared VPP — please record it in `docs/vpp-code-track.md` (D-064; DF-2 does not own that file).**
-   - When: 2026-09-23 15:52:38, VPP 26.06 (pid 1109) on vrx-a, first host run of `TestProxyNdOnHost` (slot 3).
+   - When: 2026-09-23 15:52:38, VPP 26.06 (pid 1109) on ngfw-a, first host run of `TestProxyNdOnHost` (slot 3).
    - Calls: `ip6nd_proxy_enable_disable` (loop305, enable) → `ip6nd_proxy_add_del` (loop305, 2001:db8:3:5::99, is_add),
      loop305 = loopback with 2001:db8:3:5::1/64, admin up.
    - Journal: `Out-of-memory, calling os_panic()` → SIGABRT; stack `os_panic ← clib_mem_heap_realloc_aligned ← _vec_realloc_internal
      ← vlib_put_next_frame ← vnet_interface_output_node_fn_x86_64_v3 ← vlib_main` — data-path frame growth in interface-output,
      consistent with an ND proxy loop on the loopback. systemd restarted VPP (restart #1).
-   - Done in DF-2: `ip6-nd.proxy` is out of the default `Register` (opt-in `RegisterProxyNd`), host test only with `VRX_DF2_PROXY_ND=1`,
+   - Done in DF-2: `ip6-nd.proxy` is out of the default `Register` (opt-in `RegisterProxyNd`), host test only with `NGFW_DF2_PROXY_ND=1`,
      doc says "unverified on host". Proposal: the manager reproduces it under the exclusive lab lock; if loopbacks are the trigger,
      DF-2 adds a Create guard refusing loopback / non-ethernet interfaces in a follow-up.
 2. **Write-only descriptors — answered by D-063.** `adl.allowlist`, `classify.interface-ip-table`, `classify.interface-l2-tables` stay

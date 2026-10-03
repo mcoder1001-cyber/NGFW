@@ -134,7 +134,9 @@ check_login() {
     log "database not reachable: bootstrap password kept (retried)"
     return 0
   fi
-  if ((n > 0)); then return 0; fi
+  # Compare decimal text: Bash arithmetic can overflow or interpret leading zeros
+  # as octal. Only a confirmed zero count permits credential removal.
+  if [[ ! $n =~ ^0+$ ]]; then return 0; fi
   rm -f -- "$PWFILE"
   log "first admin login seen: bootstrap password deleted"
   CONSOLE=0

@@ -62,6 +62,18 @@ class ConsoleRecoveryTests(unittest.TestCase):
     def test_partial_zero_from_failed_database_keeps_credentials_until_recovery(self):
         self.assert_preserved_then_recover('0\n', 2)
 
+    def test_large_and_leading_zero_positive_counts_preserve_credentials(self):
+        for output in ('9223372036854775808\n', '18446744073709551616\n', '008\n'):
+            with self.subTest(output=output):
+                self.initialize_fixture()
+                self.assert_preserved_then_recover(output, 0)
+
+    def test_decimal_zero_with_leading_zeros_permits_cleanup(self):
+        self.reply('000\n')
+        self.run_script('vrx-console-banner', 'check-login')
+        self.assertFalse(self.password.exists())
+        self.assertNotIn(self.secret, self.issue.read_text())
+
     def test_malformed_successful_database_responses_keep_credentials_until_recovery(self):
         for output in ('', '-1\n', 'not-a-count\n', '0\n0\n'):
             with self.subTest(output=output):

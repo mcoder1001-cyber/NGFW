@@ -138,22 +138,9 @@ VERSION=${VERSION:-$VRX_VERSION}
 [[ $VERSION =~ ^[0-9A-Za-z.+~-]+$ ]] || die "version '$VERSION' has odd characters"
 VPP_MANIFEST=${VPP_MANIFEST:-/srv/vrx-artifacts/vpp/$VPP_VERSION/manifest.json}
 [[ -f $VPP_MANIFEST ]] || die "VPP manifest $VPP_MANIFEST missing (--vpp-manifest)"
-python3 - "$VPP_MANIFEST" "$VRX_REPO" "$VPP_VERSION" > "$EVID/vpp-manifest-check.txt" <<'PY' || { cat "$EVID/vpp-manifest-check.txt"; die "VPP manifest does not match the repo"; }
-import hashlib, json, sys, glob, os
-m = json.load(open(sys.argv[1])); repo = sys.argv[2]
-assert m['schema'].startswith('vrx.vpp-debs.manifest/'), m['schema']
-assert m['version'] == sys.argv[3], (m['version'], sys.argv[3])
-ok = 0
-for p in m['packages']:
-    hits = glob.glob(os.path.join(repo, 'pool', '**', p['file']), recursive=True)
-    if not p['ship']:
-        assert not hits, 'non-shipped %s is in the repo (D-089)' % p['file']; continue
-    assert len(hits) == 1, 'shipped %s not in the repo' % p['file']
-    h = hashlib.sha256(open(hits[0], 'rb').read()).hexdigest()
-    assert h == p['sha256'], '%s sha256 %s != manifest %s' % (p['file'], h, p['sha256'])
-    print('ok', p['package'], p['version'], h); ok += 1
-print('VPP %s: %d shipped packages match the manifest; upstream commit %s' % (m['version'], ok, m['upstream']['commit']))
-PY
+python3 "$HERE/lib/verify-vpp-manifest.py" "$VPP_MANIFEST" "$VRX_REPO" "$VPP_VERSION" "$HERE/../../vpp/VERSION" > "$EVID/vpp-manifest-check.txt" || {
+  cat "$EVID/vpp-manifest-check.txt"; die "VPP manifest does not match the repo"
+}
 tail -1 "$EVID/vpp-manifest-check.txt" >&2
 [[ $STAGE == verify ]] && { log "stage verify done"; exit 0; }
 

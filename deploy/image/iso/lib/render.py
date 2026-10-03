@@ -40,7 +40,7 @@ def grub(cfg, ver, extra):
         'menuentry "%s" {\n\tset gfxpayload=keep\n\tlinux\t%s autoinstall%s ds=nocloud\\;s=/cdrom/nocloud/ ---%s\n'
         '\tinitrd\t%s\n}\n' % (title, kernel, arg, extra, initrd)
         for title, arg in (('Install VRX %s (unattended: ERASES the largest disk)' % ver, ''),
-                           ('Reinstall VRX %s (ERASES an existing VRX installation)' % ver, ' vrx.reinstall=1')))
+                           ('Reinstall VRX %s (ERASES the largest disk)' % ver, ' vrx.reinstall=1')))
     s = re.sub(r'^set default=.*\n?', '', cfg, flags=re.M)
     s = re.sub(r'^set timeout=.*$', 'set timeout=5', s, flags=re.M)
     if 'set timeout=' not in s:

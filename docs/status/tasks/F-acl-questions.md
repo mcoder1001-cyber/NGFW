@@ -62,12 +62,12 @@ line (like P08's `v.installIfExt()`). Also `agent/service_test.go` used `acl` as
 domain; that assertion now uses `management` (one line, like F-object-model's Q5).
 
 ## Q8 — the 100 000-rule step needs a manager window (and Q2's limits)
-Measured on the host (slot 3, `VRX_ACL_SCALE=10000 test/topology/acl/run.sh`, NRestarts 1 → 1): raw `acl_add_replace`
+Measured on the host (slot 3, `NGFW_ACL_SCALE=10000 test/topology/acl/run.sh`, NRestarts 1 → 1): raw `acl_add_replace`
 of 10 000 rules 0.013 s, CSV import 2.8 s, commit 10.8 s end to end (agent reconcile 2.26 s of it), rule editor first
 page 0.04 s (running) / 0.7 s (candidate). A 10 000-rule `ApplyRequest` is ≈ 1.2 MB of protobuf, so 100 000 rules are
 ≈ 12 MB: above the 4 MiB gRPC default on both sides (Q2) — the 100k commit will fail with RESOURCE_EXHAUSTED until the
 limits are raised; the raw `acl_add_replace` probe and the CSV import (≤ 64 MiB, streamed) do not depend on it. The
-step is opt-in and ready: `eval "$(tools/lab env 3)"; VRX_ACL_SCALE=100000 test/topology/acl/run.sh -run TestACLTopology`
+step is opt-in and ready: `eval "$(tools/lab env 3)"; NGFW_ACL_SCALE=100000 test/topology/acl/run.sh -run TestACLTopology`
 (it prints NRestarts before/after the step, the raw `acl_add_replace`/`acl_del` time of a 100 000-rule probe ACL
 tagged `w3-probe:scale`, the import/commit/first-page timings, and removes everything again). Please run it in a
 manager window (D-064) or tell me when I may; the unit-level projection of 100 000 rules takes 2.6 s
@@ -85,7 +85,7 @@ Slot agents are never the globals owner, so they never switch the counters on. W
 owner, or a test under `flock -x` on the globals lock) the per-rule counters are real, so AclState reports them as
 available whatever the role; when it is off, `counters_available=false` with the reason. The flag is read with the
 read-only CLI `show acl-plugin tables mask` (V7: no API getter). My topology test switched it on once (opt-in
-`VRX_ACL_STATS_GLOBALS=1`, flock -x) and — per the envelope — never off: it is on on the shared VPP now.
+`NGFW_ACL_STATS_GLOBALS=1`, flock -x) and — per the envelope — never off: it is on on the shared VPP now.
 
 ## Q11 — a candidate edit of a 100 000-rule list takes ~40 s (datastore, not F-acl)
 `POST /actions/acl/lists/{name}/rules/bulk` and the CSV import write the new rules array with ONE

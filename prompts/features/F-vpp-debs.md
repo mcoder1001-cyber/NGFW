@@ -6,7 +6,7 @@ Make the VPP that the product ships reproducible from this repository (WBS D0.2 
 runs today, and a manifest P10 (Debian packaging) and P14 (installer ISO) consume. **The live host's VPP is never touched.**
 
 ## Inputs to read first
-- `docs/lab/host-vrx-a.md` — what is installed today (vpp, vpp-plugin-core, vpp-plugin-dpdk, vpp-drivers, vpp-crypto-engines, libvppinfra,
+- `docs/lab/host-ngfw-a.md` — what is installed today (vpp, vpp-plugin-core, vpp-plugin-dpdk, vpp-drivers, vpp-crypto-engines, libvppinfra,
   python3-vpp-api 26.06-release; built from `/root/vpp`) and what was built but not installed (vpp-dev, libvppinfra-dev, vpp-dbg, devtools)
 - `/root/vpp` — **read only**: `git -C /root/vpp log -1`, `git -C /root/vpp status`, `build-root/*.deb` names, the build flags used
 - `docs/vpp-code-track.md` — V7…V18: candidate patches (the product owner decides funding; this task only provides the mechanism)
@@ -22,7 +22,7 @@ runs today, and a manifest P10 (Debian packaging) and P14 (installer ISO) consum
    product (tracedump/tracenode per V18 as an option flag), collect `.deb` + `SHA256SUMS` + a `manifest.json` (package, version, sha256).
 2. Long builds (> 8 min) run with `nohup … > /root/ngfw-wt/logs/F-vpp-debs-build.log 2>&1 &` and are polled.
 3. `deploy/vpp/README.md` — how to bump the tag, add a patch, rebuild, and how P10/P14 consume `manifest.json`; how the manager would
-   install the result on vrx-a only after handover (backup, flock -x, dpkg -i, restart, verify, rollback).
+   install the result on ngfw-a only after handover (backup, flock -x, dpkg -i, restart, verify, rollback).
 4. A CI-friendly check (`deploy/vpp/verify.sh`) that validates VERSION/series/manifest consistency without building (runs in `tools/ci.sh`
    only if it is cheap; otherwise document it as a manual gate).
 

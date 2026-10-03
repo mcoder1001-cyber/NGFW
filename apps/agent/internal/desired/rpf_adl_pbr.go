@@ -29,7 +29,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/abf"
 	"ngfw/agent/internal/descriptors/adl"
 	autosdl "ngfw/agent/internal/descriptors/auto_sdl"
@@ -130,7 +130,7 @@ func PolicyIDs(names []string, ids *df2.IDRange, recorded map[string]uint32) map
 
 // RpfAdlPbr emits the objects of the feature for the domains in `in`. vrfID maps a VRF name to its
 // table id (false: unknown VRF).
-func RpfAdlPbr(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), env RpfAdlPbrEnv) {
+func RpfAdlPbr(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool), env RpfAdlPbrEnv) {
 	if in["interfaces"] {
 		for _, name := range sortedKeys(ds.GetInterfaces()) {
 			itf := ds.GetInterfaces()[name]
@@ -148,7 +148,7 @@ func RpfAdlPbr(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(st
 
 var urpfModes = map[string]urpf.Interface_Mode{"loose": urpf.Interface_LOOSE, "strict": urpf.Interface_STRICT}
 
-func projectUrpf(s Sink, name string, itf *vrxv1.Interface, routing *vrxv1.RoutingConfig, vrfID func(string) (uint32, bool)) {
+func projectUrpf(s Sink, name string, itf *ngfwv1.Interface, routing *ngfwv1.RoutingConfig, vrfID func(string) (uint32, bool)) {
 	u := itf.GetUrpf()
 	if u == nil {
 		return
@@ -192,7 +192,7 @@ func projectUrpf(s Sink, name string, itf *vrxv1.Interface, routing *vrxv1.Routi
 
 // ecmpEgress returns a static route of the family that has several next hops, one of them out of
 // iface.
-func ecmpEgress(routing *vrxv1.RoutingConfig, iface string, v6 bool) (string, bool) {
+func ecmpEgress(routing *ngfwv1.RoutingConfig, iface string, v6 bool) (string, bool) {
 	for _, r := range routing.GetStatic() {
 		if len(r.GetNextHops()) < 2 {
 			continue
@@ -210,7 +210,7 @@ func ecmpEgress(routing *vrxv1.RoutingConfig, iface string, v6 bool) (string, bo
 	return "", false
 }
 
-func projectAdl(s Sink, name string, a *vrxv1.AdlConfig, vrfID func(string) (uint32, bool)) {
+func projectAdl(s Sink, name string, a *ngfwv1.AdlConfig, vrfID func(string) (uint32, bool)) {
 	if a == nil || (!a.GetIpv4() && !a.GetIpv6()) {
 		return // absent or nothing checked: ADL off
 	}
@@ -239,7 +239,7 @@ func projectAdl(s Sink, name string, a *vrxv1.AdlConfig, vrfID func(string) (uin
 
 // pathProto is the FIB next-hop protocol of an address-less path: the family its policy is
 // attached for (IPv4 when it is not attached, or attached for both — then an error).
-func pathProto(p *vrxv1.PbrConfig, policy string) (df2.FibPath_Proto, bool) {
+func pathProto(p *ngfwv1.PbrConfig, policy string) (df2.FibPath_Proto, bool) {
 	var v4, v6 bool
 	for _, a := range p.GetAttachments() {
 		if a.GetPolicy() == policy {
@@ -256,7 +256,7 @@ func pathProto(p *vrxv1.PbrConfig, policy string) (df2.FibPath_Proto, bool) {
 	return df2.FibPath_IP4, !v4 || !v6
 }
 
-func projectPbr(s Sink, p *vrxv1.PbrConfig, vrfID func(string) (uint32, bool), ids *df2.IDRange, recorded map[string]uint32) {
+func projectPbr(s Sink, p *ngfwv1.PbrConfig, vrfID func(string) (uint32, bool), ids *df2.IDRange, recorded map[string]uint32) {
 	names := sortedKeys(p.GetPolicies())
 	idOf := PolicyIDs(names, ids, recorded)
 	priority := map[string]uint32{}
@@ -320,7 +320,7 @@ func projectPbr(s Sink, p *vrxv1.PbrConfig, vrfID func(string) (uint32, bool), i
 	}
 }
 
-func pbrPaths(s Sink, p *vrxv1.PbrConfig, name string, pol *vrxv1.PbrPolicy, vrfID func(string) (uint32, bool)) ([]*df2.FibPath, bool) {
+func pbrPaths(s Sink, p *ngfwv1.PbrConfig, name string, pol *ngfwv1.PbrPolicy, vrfID func(string) (uint32, bool)) ([]*df2.FibPath, bool) {
 	if len(pol.GetPaths()) == 0 || len(pol.GetPaths()) > 255 {
 		s.Errorf(Ptr("routing", "pbr", "policies", name, "paths"), rulePbrPath, "a policy needs 1–255 paths")
 		return nil, false
@@ -380,7 +380,7 @@ func init() { ServicesImplemented["autoSdl"] = true }
 
 // projectServices projects services.autoSdl (globals owner only). Other unimplemented services members are reported
 // once per projection by the shared ServicesUnsupported (desired/qos_services.go), not here.
-func projectServices(s Sink, svc *vrxv1.ServicesConfig, autoSdl bool) {
+func projectServices(s Sink, svc *ngfwv1.ServicesConfig, autoSdl bool) {
 	if a := svc.GetAutoSdl(); a != nil {
 		pt := Ptr("services", "autoSdl")
 		switch {
@@ -411,14 +411,14 @@ func projectServices(s Sink, svc *vrxv1.ServicesConfig, autoSdl bool) {
 // policies and attachments. tableName names a FIB table; stored is the stored `interfaces`
 // document (an off-equivalent urpf/adl object the operator wrote is reported as written when VPP
 // has nothing on the interface — it is the canonical form of "off").
-func RpfAdlPbrAssemble(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*vrxv1.Interface) {
+func RpfAdlPbrAssemble(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*ngfwv1.Interface) {
 	if in["interfaces"] {
 		assembleRpfAdlInterfaces(ds, kvs, tableName, stored)
 	}
 	if in["routing"] {
 		if pbr := assemblePbr(kvs, tableName); pbr != nil {
 			if ds.Routing == nil {
-				ds.Routing = &vrxv1.RoutingConfig{}
+				ds.Routing = &ngfwv1.RoutingConfig{}
 			}
 			ds.Routing.Pbr = pbr
 		}
@@ -426,19 +426,19 @@ func RpfAdlPbrAssemble(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string
 	// services: present when requested (an implemented domain); no member is retrievable here (autoSdl is
 	// write-only, D-063), so the drift view skips the members by their field-level DryRun notes
 	if in["services"] && ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
 }
 
-func assembleRpfAdlInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName func(uint32) string, stored map[string]*vrxv1.Interface) {
-	get := func(name string) *vrxv1.Interface {
+func assembleRpfAdlInterfaces(ds *ngfwv1.DesiredState, kvs []scheduler.KV, tableName func(uint32) string, stored map[string]*ngfwv1.Interface) {
+	get := func(name string) *ngfwv1.Interface {
 		if ds.Interfaces == nil {
-			ds.Interfaces = map[string]*vrxv1.Interface{}
+			ds.Interfaces = map[string]*ngfwv1.Interface{}
 		}
 		itf, ok := ds.Interfaces[name]
 		if !ok {
 			// only our objects on it (e.g. a claimed port the stored document no longer names)
-			itf = &vrxv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
+			itf = &ngfwv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
 			ds.Interfaces[name] = itf
 		}
 		return itf
@@ -453,7 +453,7 @@ func assembleRpfAdlInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableN
 			}
 			itf := get(v.GetInterface())
 			if itf.Urpf == nil {
-				itf.Urpf = &vrxv1.UrpfConfig{Direction: proto.String("rx")}
+				itf.Urpf = &ngfwv1.UrpfConfig{Direction: proto.String("rx")}
 			}
 			if v.GetDirection() == urpf.Interface_TX {
 				itf.Urpf.Direction = proto.String("tx")
@@ -464,7 +464,7 @@ func assembleRpfAdlInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableN
 				itf.Urpf.Ipv4 = proto.String(m)
 			}
 		case *adl.Interface:
-			get(v.GetInterface()).Adl = &vrxv1.AdlConfig{} // the binding is write-only: only presence is known
+			get(v.GetInterface()).Adl = &ngfwv1.AdlConfig{} // the binding is write-only: only presence is known
 		}
 	}
 	// an off-equivalent object as the operator wrote it, where VPP has nothing either
@@ -474,15 +474,15 @@ func assembleRpfAdlInterfaces(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableN
 			continue
 		}
 		if u := s.GetUrpf(); u != nil && itf.Urpf == nil && u.Ipv4 == nil && u.Ipv6 == nil {
-			itf.Urpf = proto.Clone(u).(*vrxv1.UrpfConfig)
+			itf.Urpf = proto.Clone(u).(*ngfwv1.UrpfConfig)
 		}
 		if a := s.GetAdl(); a != nil && itf.Adl == nil && !a.GetIpv4() && !a.GetIpv6() {
-			itf.Adl = proto.Clone(a).(*vrxv1.AdlConfig)
+			itf.Adl = proto.Clone(a).(*ngfwv1.AdlConfig)
 		}
 	}
 }
 
-func assemblePbr(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.PbrConfig {
+func assemblePbr(kvs []scheduler.KV, tableName func(uint32) string) *ngfwv1.PbrConfig {
 	records := map[uint32]PbrPolicyRecord{}
 	policies := map[uint32]*abf.Policy{}
 	var attaches []*abf.Attach
@@ -511,15 +511,15 @@ func assemblePbr(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.PbrCo
 		}
 		return "#" + strconv.FormatUint(uint64(id), 10)
 	}
-	out := &vrxv1.PbrConfig{Policies: map[string]*vrxv1.PbrPolicy{}}
+	out := &ngfwv1.PbrConfig{Policies: map[string]*ngfwv1.PbrPolicy{}}
 	for id, pol := range policies {
 		prio := uint32(100)
 		if r, ok := records[id]; ok {
 			prio = r.Priority
 		}
-		pp := &vrxv1.PbrPolicy{Acl: proto.String(pol.GetAcl()), Priority: proto.Uint32(prio)}
+		pp := &ngfwv1.PbrPolicy{Acl: proto.String(pol.GetAcl()), Priority: proto.Uint32(prio)}
 		for _, fp := range pol.GetPaths() {
-			path := &vrxv1.PbrPath{Vrf: proto.String(tableName(fp.GetTableId())), Weight: proto.Uint32(fp.GetWeight())}
+			path := &ngfwv1.PbrPath{Vrf: proto.String(tableName(fp.GetTableId())), Weight: proto.Uint32(fp.GetWeight())}
 			if fp.GetNextHop() != "" {
 				path.Address = proto.String(fp.GetNextHop())
 			}
@@ -547,7 +547,7 @@ func assemblePbr(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.PbrCo
 		if a.GetIpv6() {
 			fam = "ipv6"
 		}
-		out.Attachments = append(out.Attachments, &vrxv1.PbrAttachment{Policy: proto.String(nameOf(a.GetPolicyId())), Interface: proto.String(a.GetInterface()), Family: proto.String(fam)})
+		out.Attachments = append(out.Attachments, &ngfwv1.PbrAttachment{Policy: proto.String(nameOf(a.GetPolicyId())), Interface: proto.String(a.GetInterface()), Family: proto.String(fam)})
 	}
 	return out
 }

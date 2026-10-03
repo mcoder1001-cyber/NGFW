@@ -24,7 +24,7 @@ function TopicPanel() {
         {t('dev:stream.lastMessage')}
         {topic.updatedAt !== undefined && ` — ${fmt.time(topic.updatedAt)}`}
       </Typography>
-      <Box component="pre" sx={{ m: 0, p: 2, border: 1, borderColor: 'divider', borderRadius: 1, fontFamily: theme.vrx.monoFontFamily, fontSize: 12 }}>
+      <Box component="pre" sx={{ m: 0, p: 2, border: 1, borderColor: 'divider', borderRadius: 1, fontFamily: theme.ngfw.monoFontFamily, fontSize: 12 }}>
         {topic.data === undefined ? t('dev:stream.noMessage') : JSON.stringify(topic.data, null, 2)}
       </Box>
     </Stack>

@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/snmpd"
@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	fixtureCommunity = "VRX_TEST_PSK_F-snmp_ro1"     //nolint:gosec // test literal (envelope: VRX_TEST_PSK_F-snmp_*)
-	fixtureAuth      = "VRX_TEST_PSK_F-snmp_auth1"   //nolint:gosec // test literal
-	fixturePriv      = "VRX_TEST_PSK_F-snmp_priv1"   //nolint:gosec // test literal
-	fixtureOther     = "VRX_TEST_PSK_F-snmp_other22" //nolint:gosec // test literal
+	fixtureCommunity = "NGFW_TEST_PSK_F-snmp_ro1"     //nolint:gosec // test literal (envelope: NGFW_TEST_PSK_F-snmp_*)
+	fixtureAuth      = "NGFW_TEST_PSK_F-snmp_auth1"   //nolint:gosec // test literal
+	fixturePriv      = "NGFW_TEST_PSK_F-snmp_priv1"   //nolint:gosec // test literal
+	fixtureOther     = "NGFW_TEST_PSK_F-snmp_other22" //nolint:gosec // test literal
 )
 
 type stoppedCtl struct{}
@@ -76,16 +76,16 @@ func newTestStage(t *testing.T, secrets map[string]string) (*SnmpStage, snmpd.Pa
 	return st, p, &logs
 }
 
-func snmpValue() *vrxv1.SnmpService {
-	return &vrxv1.SnmpService{
-		Enabled: proto.Bool(true), SysName: proto.String("vrx-a"),
-		Listen:      []*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(3961)}},
-		Communities: map[string]*vrxv1.SnmpService_Community{"ro": {SecretRef: proto.String("password/snmp-ro"), Sources: []string{"127.0.0.0/8"}}},
-		V3Users: map[string]*vrxv1.SnmpService_V3User{"noc": {
+func snmpValue() *ngfwv1.SnmpService {
+	return &ngfwv1.SnmpService{
+		Enabled: proto.Bool(true), SysName: proto.String("ngfw-a"),
+		Listen:      []*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(3961)}},
+		Communities: map[string]*ngfwv1.SnmpService_Community{"ro": {SecretRef: proto.String("password/snmp-ro"), Sources: []string{"127.0.0.0/8"}}},
+		V3Users: map[string]*ngfwv1.SnmpService_V3User{"noc": {
 			SecurityLevel: proto.String("authPriv"), AuthProtocol: proto.String("sha"), AuthRef: proto.String("password/noc-auth"),
 			PrivProtocol: proto.String("aes"), PrivRef: proto.String("password/noc-priv"),
 		}},
-		Views: map[string]*vrxv1.SnmpView{"vrx": {Include: []string{"system", snmpagentPlaypen}}},
+		Views: map[string]*ngfwv1.SnmpView{"ngfw": {Include: []string{"system", snmpagentPlaypen}}},
 	}
 }
 
@@ -152,8 +152,8 @@ func TestSnmpStageRollbackRemovesCommunity(t *testing.T) {
 	st, p, _ := newTestStage(t, allFixtures)
 	ctx := context.Background()
 	v1 := snmpValue()
-	v2 := proto.Clone(v1).(*vrxv1.SnmpService)
-	v2.Communities["other"] = &vrxv1.SnmpService_Community{SecretRef: proto.String("password/other")}
+	v2 := proto.Clone(v1).(*ngfwv1.SnmpService)
+	v2.Communities["other"] = &ngfwv1.SnmpService_Community{SecretRef: proto.String("password/other")}
 	if _, err := st.Create(ctx, v1); err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +182,7 @@ func TestSnmpProjectionChecksBeforeVPP(t *testing.T) {
 	desired.SetSnmpCheck("w9", st.Check)
 	t.Cleanup(func() { desired.SetSnmpCheck("w9", nil) })
 	sink := &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: snmpValue()}) // noc-auth is not resolvable
+	desired.Snmp(sink, &ngfwv1.ServicesConfig{Snmp: snmpValue()}) // noc-auth is not resolvable
 	if len(sink.errs) != 1 || !strings.HasPrefix(sink.errs[0], "/services/snmp/v3Users/noc/authRef ") || len(sink.kvs) != 0 {
 		t.Fatalf("errors %v kvs %d", sink.errs, len(sink.kvs))
 	}
@@ -191,13 +191,13 @@ func TestSnmpProjectionChecksBeforeVPP(t *testing.T) {
 	ok := snmpValue()
 	ok.V3Users = nil
 	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: ok}) // unsupported-field reporting: desired.unsupportedServices
+	desired.Snmp(sink, &ngfwv1.ServicesConfig{Snmp: ok}) // unsupported-field reporting: desired.unsupportedServices
 	if len(sink.errs) != 0 || len(sink.kvs) != 1 || len(sink.warns) != 0 {
 		t.Fatalf("errs %v warns %v kvs %d", sink.errs, sink.warns, len(sink.kvs))
 	}
 	// disabled → no object (an applied config is replaced by the disabled rendering through Delete)
 	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(false)}})
+	desired.Snmp(sink, &ngfwv1.ServicesConfig{Snmp: &ngfwv1.SnmpService{Enabled: proto.Bool(false)}})
 	if len(sink.kvs) != 0 || len(sink.errs) != 0 {
 		t.Fatalf("disabled: %+v", sink)
 	}
@@ -254,17 +254,17 @@ func TestSnmpCheckPerOwner(t *testing.T) {
 	desired.RestoreSnmpChecks(nil)
 	t.Cleanup(func() { desired.RestoreSnmpChecks(saved) })
 	calls := 0
-	desired.SetSnmpCheck("a", func(*vrxv1.SnmpService) error { calls++; return nil })
+	desired.SetSnmpCheck("a", func(*ngfwv1.SnmpService) error { calls++; return nil })
 	t.Cleanup(func() { desired.SetSnmpCheck("a", nil); desired.SetSnmpCheck("b", nil) })
 	v := snmpValue()
 	sink := &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: v})
+	desired.Snmp(sink, &ngfwv1.ServicesConfig{Snmp: v})
 	if calls != 1 || len(sink.kvs) != 1 {
 		t.Fatalf("calls %d kvs %d errs %v", calls, len(sink.kvs), sink.errs)
 	}
-	desired.SetSnmpCheck("b", func(*vrxv1.SnmpService) error { return nil })
+	desired.SetSnmpCheck("b", func(*ngfwv1.SnmpService) error { return nil })
 	sink = &recSink{}
-	desired.Snmp(sink, &vrxv1.ServicesConfig{Snmp: v})
+	desired.Snmp(sink, &ngfwv1.ServicesConfig{Snmp: v})
 	if len(sink.errs) != 1 || len(sink.kvs) != 0 {
 		t.Fatalf("two owners: %+v", sink)
 	}

@@ -12,13 +12,13 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 - 2026-09-24: DF-2 follow-ups N3 (same-shape table on a reused index still claimable while VPP stays up) and N5 (claim-store hygiene).
 - 2026-09-24 (DF-6 re-review): N4 write-only 6rd / SR-MPLS policy+steering / GPE entries accept an existing object on re-apply, so parameter changes made while the agent was down are not applied (fix: re-create when the claim record's parameters differ from desired); N6 tunnel create reuses any own interface with the same id; N7 claim file never pruned + crash window between add and record.
 - **[done: TD-1]** 2026-09-24: D-080 boot-identity triple must be retrofitted to merged DF-2 (classify store) and DF-4 (acl stats flag) — consolidate into one helper in P08.
-- 2026-09-24 (F-startup-gen Q4): tools/lab provision still has its own startup.conf template — switch it to vrx-startupgen.
+- 2026-09-24 (F-startup-gen Q4): tools/lab provision still has its own startup.conf template — switch it to ngfw-startupgen.
 - 2026-09-24 (P05 verify): a new Apply that itself FAILS still drops an owed revert → unconfirmed config stays until reconnect/restart. Fix: clear the owed revert only when the superseding Apply succeeds. Low: lcp-rt/FRR source handling on route delete (P05-verify.md).
 - 2026-09-24 (DF-8): L3 lcp host tap tagging (P12 decides — tagging would make DF-1's tap descriptor delete it); L4 merge `df2` and `dfkit` helpers; DHCP client `Reconnected()` must be called from P05's reconnect hook (P08).
 - **[done: tools/ci.sh deploy/vpp step — shellcheck + harness]** 2026-09-24 (F-startup-gen Q7): add deploy/vpp/test-apply-startup.sh + shellcheck deploy/**/*.sh to tools/ci.sh (manager-owned after P09).
 - 2026-09-24 (F-vpp-debs Q5): add deploy/vpp/verify.sh to tools/ci.sh quick gate (sub-second).
-- 2026-09-24 (DF-7): manager window — run `VRX_DF7_VRRP_HOST=1` and `VRX_DF7_IGMP_HOST=1` host tests each alone with VPP otherwise idle to pin the V22b ip4-options crash trigger; DF-7 L5/L6 open.
-- 2026-09-24 (P06): JWT signing-key rotation, `VRX_TRUST_PROXY` setting, owner check of the secret key file.
+- 2026-09-24 (DF-7): manager window — run `NGFW_DF7_VRRP_HOST=1` and `NGFW_DF7_IGMP_HOST=1` host tests each alone with VPP otherwise idle to pin the V22b ip4-options crash trigger; DF-7 L5/L6 open.
+- 2026-09-24 (P06): JWT signing-key rotation, `NGFW_TRUST_PROXY` setting, owner check of the secret key file.
 - **[partly done: per-API-key candidates by TD-2 (7082cc6); the sdk checks are still open, see the table]** 2026-09-24 (F-sdk): add `sdk/test.sh` and `sdk/gen.sh --check` to tools/ci.sh; P06 per-API-key (not per-user) candidates so parallel pipelines of one user cannot edit each other's candidate.
 - **[done: tools/ci.sh:410-412]** 2026-09-24 (P13): tools/ci.sh must run `make -C apps/cli lint test build` (apps/cli has its own Makefile, not in the pnpm workspace).
 - **[done: TD-2 (7082cc6)]** 2026-09-24 (P13 review H1): API must reject C0/C1 control characters and bidi overrides in commit comments and all free-text fields not covered by the schema (D-049 applies to the API layer too).
@@ -26,7 +26,7 @@ The manager pulls from here when nothing on the board is ready. Add items with a
 | 2026-09-24 | TD-3 re-review M3 | ifsanitize probes every create/delete: ~8 placeholder tables + 8 unbind probes per classify kind → 110–500 API calls per interface create on the fake, ~59 VPP journal lines per run on the host. Replace probing with an exact per-interface binding readback (classify_table_by_interface + the in/out ACL and policer dumps) where VPP offers one; keep probing only for kinds without a readback | — | slow bulk interface creation (1000 sub-interfaces ≈ 0.5 M API calls), log flooding on production boxes | medium | before any production image (P10/P14) |
 
 ## From the TD-6 review (D-116, 2026-09-24) — deploy/vpp/apply-startup.sh harness
-- F3 harness cache key misses the test fixtures; F4 `VRX_TEST_ROOT` guard does not cover driverctl/ifup/networkctl/netplan; F5 own rollback goes FORCED after 60 s when only the holder died; F6 no harness timeout in CI; F7 SIGTERM trap path untested (systemd kills the run unit after 90 s); F8 a flaky pass is warned once then cached; F9 minor rollback edge cases (details: TD-6-review.md in refs/archive/TD-6)
+- F3 harness cache key misses the test fixtures; F4 `NGFW_TEST_ROOT` guard does not cover driverctl/ifup/networkctl/netplan; F5 own rollback goes FORCED after 60 s when only the holder died; F6 no harness timeout in CI; F7 SIGTERM trap path untested (systemd kills the run unit after 90 s); F8 a flaky pass is warned once then cached; F9 minor rollback edge cases (details: TD-6-review.md in refs/archive/TD-6)
 - (pre-existing, TD-6 review) rollback verification never checks that VPP's boot identity changed (`apply-startup.sh` ~:753); `kill_recorded` may SIGKILL already-reaped PIDs (PID reuse)
 - (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
 
@@ -35,7 +35,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 
 | item | owner | due-before |
 |---|---|---|
-| P06: JWT signing-key rotation, `VRX_TRUST_PROXY`, owner check of the secret key file | TD-10b | P10 |
+| P06: JWT signing-key rotation, `NGFW_TRUST_PROXY`, owner check of the secret key file | TD-10b | P10 |
 | P05 verify: a failing superseding Apply drops the owed revert | TD-9 | P10, INTEGRATE-E2E |
 | DF-8: DHCP client `Reconnected()` called from the reconnect hook | TD-8 | TD-8 merge |
 | R2-stores (P08 re-review): claim-index refresh bounded at 5 s, attribute Create should claim before writing | TD-11b | TD-11b merge (before F-nat44-* merge) |
@@ -56,11 +56,11 @@ Items above that are not ticked keep their text; this table gives each one an ow
 | Audit ARCH-13 docs pass: drop "vppctl passthrough" from docs/04:88 (workers read it as sanctioned), apply D-050's ntp move, log Go 1.26; review C: docs/04:66 `/state/sessions` → `/state/nat/sessions` | manager | next docs pass |
 | Audit ARCH-14: vpn.proto comments say sha256 where the code uses hmac; fix and regenerate | next contract commit (P11) | P11 merge |
 | Review C/B prompt edits: 00-CONTEXT FAST-MODE DoD (2), FEATURE-TEMPLATE Acceptance and REVIEW-PROMPT §8 get the "reachable through API and UI" sentence; MANAGER-PROMPT §2 D-112 step gets "merge only after every merge-after row has merged"; P10 envelope time box 15 → 24 (:59); prompts/SECURITY-REVIEW.md (1 h) | manager | next spawn / next merge |
-| DF-7 manager window: pin the V22b ip4-options trigger (`VRX_DF7_VRRP_HOST=1`, `VRX_DF7_IGMP_HOST=1`, VPP idle) | manager | PENDING-vpp-c-track option 2 |
-| VRX_DEV_WEAK_PASSWORDS (dev-weak-passwords, product-owner request): the P10 vrx-api unit must set `Environment=NODE_ENV=production` (the API then refuses the flag at boot) and nothing packaged may set VRX_DEV_WEAK_PASSWORDS; add a P10 check that greps the unit/env files for it | P10 | P10 merge |
-| F-startup-gen Q4: tools/lab provision still has its own startup.conf template | idle pool (TD-19 owns the same provision hunk) | first `tools/lab provision vrx-b\|vrx-c --apply` |
+| DF-7 manager window: pin the V22b ip4-options trigger (`NGFW_DF7_VRRP_HOST=1`, `NGFW_DF7_IGMP_HOST=1`, VPP idle) | manager | PENDING-vpp-c-track option 2 |
+| NGFW_DEV_WEAK_PASSWORDS (dev-weak-passwords, product-owner request): the P10 ngfw-api unit must set `Environment=NODE_ENV=production` (the API then refuses the flag at boot) and nothing packaged may set NGFW_DEV_WEAK_PASSWORDS; add a P10 check that greps the unit/env files for it | P10 | P10 merge |
+| F-startup-gen Q4: tools/lab provision still has its own startup.conf template | idle pool (TD-19 owns the same provision hunk) | first `tools/lab provision ngfw-b\|ngfw-c --apply` |
 | D-100 shared single-line pattern in packages/schema; TD-6 review F3–F9 | idle pool | — |
-| TD-8b (D-129 Q3): the agent refuses to start without an id range — P10's packaged vrx-agent unit ships `VRX_VPP_ID_RANGE=all` in its EnvironmentFile (the product box is its own VPP), with a packaging test that the unit's environment resolves to `all` | P10 | P10 merge |
+| TD-8b (D-129 Q3): the agent refuses to start without an id range — P10's packaged ngfw-agent unit ships `NGFW_VPP_ID_RANGE=all` in its EnvironmentFile (the product box is its own VPP), with a packaging test that the unit's environment resolves to `all` | P10 | P10 merge |
 
 ## P08 re-review (D-118, 2026-09-24) — interfaces vertical slice, no code in P08's fix round 2
 - **R2-stores** (low; `apps/agent/internal/subsystems/stores.go:124`, DF-1 `attributes.go:259-260`): a DF-1 attribute Create on an
@@ -71,7 +71,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
   refresh by the caller's context (≥ the API deadline) or retry it once after a reconnect; and in DF-1, claim before writing (release
   on write failure) or undo the write when the claim fails — or let the scheduler journal a Create that returns Meta with an error.
 - **R3-gauge** (low; `apps/agent/internal/subsystems/subsystems.go:162`, ifsanitize = TD-3/TD-5 files): `AfterResync` calls
-  `ifsanitize.Release` but never sets `vrx_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
+  `ifsanitize.Release` but never sets `ngfw_agent_iface_quarantined` from the holders it found; after an agent restart the gauge reads 0
   while this owner's still-dirty quarantine holders are in VPP (TD-3 re-review L6). Fix: `Release` returns the number of holders left
   (holders − released) and the wiring sets `Stats.Quarantined` to that absolute number after every Release (not deltas).
 
@@ -80,13 +80,13 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - (TD-8 R5) metrics collectors run serially with a per-collector 5 s deadline that only a cooperative collector honours; bound the whole scrape before the first collector merges
 - (F-object-model Q2) FQDN refresh uses a fixed interval; DNS TTLs need golang.org/x/net promoted in go.mod
 - (WEB-2 M3) the config kit keeps writeOnly members (passwordHash) in mutation variables/React state — fix before any secret-leaf kit screen
-- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — all descriptors exposed; (Q9) CLI `vrx ping` sends no body (400 since ping is implemented)
+- (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — all descriptors exposed; (Q9) CLI `ngfw ping` sends no body (400 since ping is implemented)
 
 ## From the wave-A reviews, batch 2 (D-131/D-132, 2026-09-24)
 - (TD-7 finding) `check_health` (`deploy/vpp/apply-startup.sh:568`) reads `systemctl show` once without retry: a timed-out/partial D-Bus read counts as "vpp.service restarted" → needless rollback (never a false commit); harness scenarios 5/28/29 start with an unguarded apply so a very loaded host kills a whole shard instead of getting a rerun
 - (F-vrf-static-ecmp Q4) packages/schema/src/examples.test.ts rejects feature example files (`<slug>-*.json`) — widen the SIBLING regex once (F-vlan-qinq Q3, F-bridge-l2 Q4, F-neighbors-ra Q5 hit the same)
 - (F-vrf-static-ecmp Q8) govpp drops dump replies on a loaded host — needs a fix in apps/agent/internal/vpp (all descriptors exposed)
-- (F-vrf-static-ecmp Q9/L5) CLI `vrx ping`/`traceroute` send no body (400 since ping is implemented) and the CLI docs for /state/routes are stale
+- (F-vrf-static-ecmp Q9/L5) CLI `ngfw ping`/`traceroute` send no body (400 since ping is implemented) and the CLI docs for /state/routes are stale
 - (F-vrf-static-ecmp Q10, F-neighbors-ra Q9) the shared fake agent needs a per-feature Action dispatch table
 - (F-vrf-static-ecmp M2) FIB browser: keyset cursor instead of offset paging
 
@@ -99,7 +99,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 ## Review follow-ups (2026-09-25, manager cycle 21)
 - F-bonding verify (e30c49fb) LOW: bond.member accepts any interface with an L2 address — BVI, VXLAN, GENEVE, GRE-TEB, pipe, vhost-user and memif pass; deny those device classes in member.go:91-97 (crash-safe today, VPP fills l2_address only for Ethernet hw). Owner: F-bonding follow-up / TD-22.
 - 2026-09-25 04:27 VPP crash (NRestarts 1→2): dns_resolve_name with the dns plugin disabled / no name server → NULL deref in ip4_sas (dns.c vnet_dns_resolve_name l.780 → vnet_send_dns4_request l.234). F-unbound guards its action (5c80aba0, V-entry). The DF-8 helpers dns.ResolveName/ResolveIP on main have no caller yet but carry no precondition: add the "only after dns_name_server_add_del + dns_enable_disable(1)" precondition to their doc comment and a guard parameter. Owner: F-unbound-chrony-syslog (DF-8 hunk) or TD-22.
-- F-host-acl-nftables review M4 (298263fa): P10's planned `inet vrx_base` table with a drop policy would defeat host-ACL accepts in `inet vrx` (nftables evaluates every base chain; a drop in any hook chain is final). P10 must either not ship a drop-policy base table, or render host-ACL into the same table/chain. Owner: P10 (packaging), due before P10's nftables unit.
+- F-host-acl-nftables review M4 (298263fa): P10's planned `inet ngfw_base` table with a drop policy would defeat host-ACL accepts in `inet ngfw` (nftables evaluates every base chain; a drop in any hook chain is final). P10 must either not ship a drop-policy base table, or render host-ACL into the same table/chain. Owner: P10 (packaging), due before P10's nftables unit.
 - F-nat44-ed-sessions verify (4421baec) V1: no test fails if the filtered sessions grid starts polling again (apps/web …/SessionsTab.tsx:314) — pin the D-132 "filtered grids refresh by hand only" rule with a fake-timer test. Owner: F-nat44 follow-up / TD-22.
 - F-loopback review (777f629f): new row needed — ifsanitize should clear inherited SPAN source state and LLDP entries on interface Create (V19 family; today a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable). Owner: new TD row after TD-25 (manager-owned ifsanitize).
 - F-loopback review Q9: web — a generic `<slug>:group.title` i18n fallback so drawers never show a raw schema group name. Owner: web track (WEB-4a/b or UI-domain-editor follow-up).
@@ -114,16 +114,16 @@ Items above that are not ticked keep their text; this table gives each one an ow
 - TD-24 Q1 (M): a VRF change on a DHCP-client interface with a bound lease is refused by VPP and rolls back — dhcp/client.go needs an optional dependency on interface-ip.table/<if> (one line). Owner: TD-22 (after F-kea merges; the file is F-kea's/DF-8's).
 - TD-24 Q2 (M, bug on main): `dhcpClient: {}` without a hostname fails at apply ("hostname is empty") — default the hostname (system hostname or empty-allowed) or make the schema require it. Owner: TD-22.
 - TD-24 Q3 (L): VPP 26.06 has no dump for addresses it installs itself for IPv6 (SLAAC, DHCPv6) — the same deletion bug will apply once a product path enables them; V26 in vpp-code-track. Owner: F-neighbors-ra / the DHCPv6 client row.
-- F-kea verify (26a85d1b) V1/V2 LOW → TD-22: a lease read already in flight when an Apply drops the cache can store its pre-Apply result for ≤10 s; the "cancelled caller" test can flake (return early when the caller already cancelled). V3: with VRX_KEA_MODE=off (tools/app) any commit with a DHCP server is refused — intended until P12. Deferred L2→TD-22, L4→core Q5 row (before the next host run of that test), L5→F-unbound rebase, L6→TD-9, L8→DDNS/TSIG row, L9→F-kea at TD-23 rebase.
+- F-kea verify (26a85d1b) V1/V2 LOW → TD-22: a lease read already in flight when an Apply drops the cache can store its pre-Apply result for ≤10 s; the "cancelled caller" test can flake (return early when the caller already cancelled). V3: with NGFW_KEA_MODE=off (tools/app) any commit with a DHCP server is refused — intended until P12. Deferred L2→TD-22, L4→core Q5 row (before the next host run of that test), L5→F-unbound rebase, L6→TD-9, L8→DDNS/TSIG row, L9→F-kea at TD-23 rebase.
 
 ## Review follow-ups (2026-09-25, manager cycle 22)
 - F-acl review (d58b9105) Q2 → NEW TD row: agent gRPC message limit 4 MiB < a 100k-rule ACL request (~12 MB). Raise to 32 MiB with MaxConcurrentStreams + an API-side 413 size check; no chunking now. Owner: new TD row (agent server + API client), after TD-9.
 - F-acl review Q11 → NEW TD row: a candidate edit of a 100k-rule list takes ~40 s in the API datastore. Owner: TD-15 or a new datastore row.
-- F-acl review V7: host doc docs/lab/host-vrx-a.md needs a row — the VPP ACL counters flag (acl_stats_intf_counters_enable) is volatile (off after a VPP restart), readable read-only, and only the globals-owner product agent may set it; tests save/restore it (§7).
+- F-acl review V7: host doc docs/lab/host-ngfw-a.md needs a row — the VPP ACL counters flag (acl_stats_intf_counters_enable) is volatile (off after a VPP restart), readable read-only, and only the globals-owner product agent may set it; tests save/restore it (§7).
 - TD-13 fix round (04a51453) hand-offs: L8 one shared D-051 reference pattern for masking/validation across agent packages (owner TD-16); L9 validators abandoned on timeout keep running in their goroutine (bounded by their own ctx, but not joined) — document or join (owner TD-13 follow-up); apps/agent/internal/agent/dynsource.go:203 logs panic text unmasked (owner TD-8c).
 - F-unbound review (b665904f) M4: on a real box nothing acts on unbound/chrony restart requests (D-079 records them; no actor restarts the daemon) — needs the agent-privileges decision (PENDING-agent-privileges) or an operator action in the UI. Owner: SEC/agent-privileges row.
 - TD-25 review (0e7a39a0) L1: if unbinding the output-ACL probe placeholder P fails after P was bound, P is deleted anyway (near-impossible in 26.06) — keep P alive with a probeBound flag. Owner: TD-27 (ifsanitize follow-up). **Done in TD-27** (probeBound; docs/status/tasks/TD-27.md). L2 (manager): docs/agent/descriptors/interface.md:128-193 still describes FreshRun/PlaceholderCap — apply TD-25-questions Q1 text with the reviewer's four amendments. Close tech-debt rows "TD-3 re-review M3" and "L1".
-- F-object-model (8f5d90b8): move the objects counters from the core agent/metrics.go line onto TD-8's Wiring.AddMetricsCollector seam (renames vrx_agent_objects_* → vrx_objects_*; document the rename). Owner: F-object-model follow-up / TD-22.
+- F-object-model (8f5d90b8): move the objects counters from the core agent/metrics.go line onto TD-8's Wiring.AddMetricsCollector seam (renames ngfw_agent_objects_* → ngfw_objects_*; document the rename). Owner: F-object-model follow-up / TD-22.
 - UI-domain-editor review (3ac4825e) D-UDE-3: createMergePatch exists in 3+ copies (interfaces model, WEB-2 kit, UI-domain-editor) — hoist ONE pure copy into packages/schema next to mergePatch/mergePatchAt, then delete the copies. Owner: web track (WEB-4a) after WEB-1/WEB-2/UI-domain-editor merge.
 - UI-domain-editor review: WEB-2's "config screen kit over any candidate path" and UI-domain-editor's generic editor are two independently built mechanisms for the same job — reconcile into one (kit uses the editor's path/subtree primitives or vice versa) before a third appears. Owner: WEB-4a.
 - F-wireguard verify (4797e681): follow-ups F4–F8, F12–F14 (see F-wireguard-review.md) + a builder warning for road-warrior peers with no endpoint whose 0/0 route sits in the underlay VRF; stack re-run (rollback + 0/0, ::/0, IPv6 routes) after TD-25. Owner: F-wireguard follow-up row.
@@ -179,4 +179,4 @@ Items above that are not ticked keep their text; this table gives each one an ow
   binding/neighbor json -> mpls-route.ldp in table 0 via seam S1 + LCP mapping, hold-down/flush, PHP/ECMP) plus the
   neighbour poller are F-mpls-ldp-host. The contract, semantics, the MplsLdpState RPC + state routes, and the LDP tab
   are done and tested (the fake agent serves state from the applied config). Ingress label imposition and LDP IPv6 are
-  out of scope; table 0 needs VRX_DF7_GLOBALS.
+  out of scope; table 0 needs NGFW_DF7_GLOBALS.

@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/mapnat` (named `mapnat` because `map` is a Go keyword). Bindings are in
-`apps/agent/binapi/map` (plugin `map_plugin.so`, loaded on vrx-a) plus `binapi/feature` for `feature_is_enabled`.
+`apps/agent/binapi/map` (plugin `map_plugin.so`, loaded on ngfw-a) plus `binapi/feature` for `feature_is_enabled`.
 Entry point: `mapnat.Register(registry, client, owner)`. The desired-state carrier is `*structpb.Struct`, built from
 the typed specs (`DomainSpec`, `RuleSpec`, `ParamsSpec`, `InterfaceSpec`) with `natcommon.Encode` (D-055 stand-in
 until P03b adds NAT protos).

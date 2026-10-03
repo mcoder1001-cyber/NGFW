@@ -266,9 +266,9 @@ describe('form submits', () => {
       await signIn();
       render(app('/interfaces/lldp'));
       const name = await screen.findByLabelText(/^System name/, {}, { timeout: 20_000 });
-      fireEvent.change(name, { target: { value: 'vrx-lab' } });
+      fireEvent.change(name, { target: { value: 'ngfw-lab' } });
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      await waitFor(() => expect(patched).toEqual({ lldp: { systemName: 'vrx-lab' } }), {
+      await waitFor(() => expect(patched).toEqual({ lldp: { systemName: 'ngfw-lab' } }), {
         timeout: 20_000,
       });
     },

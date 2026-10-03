@@ -1,7 +1,7 @@
 // Desired-state model of the memif.* descriptors (task DF-1). Agent-internal, see interface/model.proto.
 syntax = "proto3";
 
-package vrx.agent.memif;
+package ngfw.agent.memif;
 
 option go_package = "ngfw/agent/internal/descriptors/memif;memif";
 

@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/det44`, binapi `apps/agent/binapi/det44` (plugin `det44_plugin.so`, loaded on
-vrx-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" getter → `det44.enable` is **write-only**
+ngfw-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" getter → `det44.enable` is **write-only**
 (`ErrRetrieveUnsupported`, D-063), as for nat64/nat66.
 
 | Descriptor | Key id | Create / Delete | Update | Retrieve | Dependencies | Notes / limitations |
@@ -21,7 +21,7 @@ Retrieve-only / actions: `Sessions(userIP, offset, limit)` over `det44_session_d
 **VPP 26.06 bugs (DF-3-questions.md Q0).** `det44_plugin_disable` iterates `vec_dup(dm->interfaces)`, but that
 field is a pool, so freed slots are iterated too. The failed delete is then logged with `unformat_vnet_sw_interface`
 used as a format function, which causes a SIGSEGV. As a result, disabling det44 after any det44 interface was ever
-removed crashes VPP (this happened twice on vrx-a). `det44.enable` Delete therefore only releases the singleton in the
+removed crashes VPP (this happened twice on ngfw-a). `det44.enable` Delete therefore only releases the singleton in the
 agent: the plugin stays enabled but idle until the next VPP restart, and a later Create finds it "already enabled".
 A second bug: `det44_interface_add_del(is_del)` calls `vnet_feature_enable_disable(..., 1)`, so the
 `det44-in2out/out2in` node stays on the interface after the det44 interface is deleted. The dump is correct, but the
@@ -29,4 +29,4 @@ feature node lingers until the interface is deleted.
 
 Tests: `det44_test.go` (fake), `det44_integration_test.go` (loopbacks `loop920/921`, map `10.9.44.0/24 → 10.9.45.0/30`).
 The integration test never disables det44, and it touches the det44 timeouts only when they are at VPP's defaults.
-Per D-064 it is **opt-in** (`VRX_DF3_DET44=1`), because its first host run crashed the shared VPP (before the fix).
+Per D-064 it is **opt-in** (`NGFW_DF3_DET44=1`), because its first host run crashed the shared VPP (before the fix).

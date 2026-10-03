@@ -65,7 +65,7 @@ export class SnmpStateController {
   @Get('snmp')
   @Protected()
   @ApiOperation({
-    summary: 'SNMP agent state: daemon read-back, pending daemon action, VRX-MIB subagent',
+    summary: 'SNMP agent state: daemon read-back, pending daemon action, NGFW-MIB subagent',
   })
   @ApiOkResponse({ schema: openapi(SnmpStateOut, 'output') })
   async snmp() {

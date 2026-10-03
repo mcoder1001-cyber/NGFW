@@ -22,7 +22,7 @@ function withoutPresentation(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => !['title', 'description', 'x-vrx-ui'].includes(key))
+      .filter(([key]) => !['title', 'description', 'x-ngfw-ui'].includes(key))
       .map(([key, child]) => [key, withoutPresentation(child)]),
   );
 }
@@ -40,7 +40,7 @@ describe('web schema presentation', () => {
       [rootInterfaces, rootSchema],
     ] as const) {
       const item = resolveRef(recordValueSchema(schema), root);
-      expect(item.properties?.lcp?.['x-vrx-ui']?.widget).toBe('hidden');
+      expect(item.properties?.lcp?.['x-ngfw-ui']?.widget).toBe('hidden');
       expect(item.properties?.lcp).toHaveProperty('properties.hostIfName');
     }
     const parse = compile(domainSchemas.interfaces, domainSchemas.interfaces);
@@ -54,8 +54,8 @@ describe('web schema presentation', () => {
 
   it('uses product wording for schema labels without changing configuration identifiers', () => {
     const item = recordValueSchema(domainSchemas.interfaces);
-    expect(item.properties?.lcp?.['x-vrx-ui']?.group).toBe('Routing');
-    expect(item.properties?.lcp?.['x-vrx-ui']?.help).not.toMatch(/FRR|VPP|strongSwan/i);
+    expect(item.properties?.lcp?.['x-ngfw-ui']?.group).toBe('Routing');
+    expect(item.properties?.lcp?.['x-ngfw-ui']?.help).not.toMatch(/FRR|VPP|strongSwan/i);
     expect(domainSchemas.interfaces.properties).toBeUndefined();
   });
 });

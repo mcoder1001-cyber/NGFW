@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/wireguard"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
@@ -24,12 +24,12 @@ import (
 var wireguardStateMu sync.Mutex
 
 // WireguardState implements the WireguardState RPC.
-func (g *server) WireguardState(ctx context.Context, req *vrxv1.WireguardStateRequest) (*vrxv1.WireguardStateResponse, error) {
+func (g *server) WireguardState(ctx context.Context, req *ngfwv1.WireguardStateRequest) (*ngfwv1.WireguardStateResponse, error) {
 	return g.svc.WireguardState(ctx, req, g.stats)
 }
 
 // WireguardState builds the response; stats (nil: no counters) is the stats-segment reader.
-func (s *Service) WireguardState(ctx context.Context, req *vrxv1.WireguardStateRequest, stats statsSource) (*vrxv1.WireguardStateResponse, error) {
+func (s *Service) WireguardState(ctx context.Context, req *ngfwv1.WireguardStateRequest, stats statsSource) (*ngfwv1.WireguardStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -57,16 +57,16 @@ func (s *Service) WireguardState(ctx context.Context, req *vrxv1.WireguardStateR
 		}
 	}
 	obs := subsystems.WireguardObserverFor(s.owner)
-	resp := &vrxv1.WireguardStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), EventsActive: obs != nil && obs.Active()}
+	resp := &ngfwv1.WireguardStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), EventsActive: obs != nil && obs.Active()}
 	for _, i := range st {
 		c := counters[i.SwIfIndex]
-		out := &vrxv1.WireguardInterfaceState{
+		out := &ngfwv1.WireguardInterfaceState{
 			Name: i.Name, Instance: i.Instance, SwIfIndex: i.SwIfIndex, PublicKey: i.PublicKey, ListenPort: i.Port,
 			ListenAddress: i.SrcIP, AdminUp: i.AdminUp, LinkUp: i.LinkUp,
 			RxPackets: c.rxp, RxBytes: c.rxb, TxPackets: c.txp, TxBytes: c.txb,
 		}
 		for _, p := range i.Peers {
-			ps := &vrxv1.WireguardPeerState{
+			ps := &ngfwv1.WireguardPeerState{
 				PublicKey: p.PublicKey, PeerIndex: p.PeerIndex, Established: p.Established, Dead: p.Dead,
 				Endpoint: p.Endpoint, EndpointPort: p.EndpointPort, PersistentKeepaliveSec: p.PersistentKeepalive,
 				AllowedIps: p.AllowedIps,

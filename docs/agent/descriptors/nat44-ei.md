@@ -3,9 +3,9 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/nat44ei`, binapi `apps/agent/binapi/nat44_ei` (plugin `nat44_ei_plugin.so`,
-loaded on vrx-a). Entry point `nat44ei.Register(registry, client, owner)`. Carrier and ownership rules as in
+loaded on ngfw-a). Entry point `nat44ei.Register(registry, client, owner)`. Carrier and ownership rules as in
 `nat44-ed.md` (`natcommon`). **nat44-ei and nat44-ed are mutually exclusive on one VPP** — the integration test skips
-when ED is enabled and serialises with this slot's ED test on `/run/vrx-test/w<N>/nat44.lock`.
+when ED is enabled and serialises with this slot's ED test on `/run/ngfw-test/w<N>/nat44.lock`.
 
 | Descriptor | Key id | Create / Delete | Update | Retrieve | Dependencies | Notes / limitations |
 |---|---|---|---|---|---|---|

@@ -27,7 +27,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/flowprobe"
 	"ngfw/agent/internal/descriptors/ipfix"
@@ -107,7 +107,7 @@ func orStr(p *string, d string) string {
 // SetIpfixExporterNames records the exporter names of the agent's STORED desired state (called by
 // the service when it refreshes its snapshot after a successful apply/revert and at start) — never
 // from a projection, so DryRun, failed or rolled-back transactions do not change them.
-func SetIpfixExporterNames(svc *vrxv1.ServicesConfig) {
+func SetIpfixExporterNames(svc *ngfwv1.ServicesConfig) {
 	names := map[string]string{}
 	for name, e := range svc.GetIpfix().GetExporters() {
 		if !orBool(e.Enabled, true) {
@@ -125,7 +125,7 @@ func SetIpfixExporterNames(svc *vrxv1.ServicesConfig) {
 }
 
 // IpfixSflow emits the objects of services.ipfix. vrfID maps a VRF name to its table id.
-func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, bool)) {
+func IpfixSflow(s Sink, svc *ngfwv1.ServicesConfig, vrfID func(string) (uint32, bool)) {
 	if svc == nil {
 		return
 	}
@@ -148,7 +148,7 @@ func IpfixSflow(s Sink, svc *vrxv1.ServicesConfig, vrfID func(string) (uint32, b
 }
 
 // exporters projects the exporters and returns the name of the one that became exporter 0 ("" when none).
-func exporters(s Sink, ix *vrxv1.IpfixService, vrfID func(string) (uint32, bool), owner bool, names map[string]string) string {
+func exporters(s Sink, ix *ngfwv1.IpfixService, vrfID func(string) (uint32, bool), owner bool, names map[string]string) string {
 	defaultName := ""
 	for _, name := range sortedKeys(ix.GetExporters()) {
 		e := ix.GetExporters()[name]
@@ -204,7 +204,7 @@ func exporters(s Sink, ix *vrxv1.IpfixService, vrfID func(string) (uint32, bool)
 	return defaultName
 }
 
-func flowprobeObjects(s Sink, fp *vrxv1.IpfixService_Flowprobe, owner bool, defaultName string) {
+func flowprobeObjects(s Sink, fp *ngfwv1.IpfixService_Flowprobe, owner bool, defaultName string) {
 	base := []string{"services", "ipfix", "flowprobe"}
 	params := flowprobe.Params{
 		RecordL2: orBool(fp.RecordL2, false), RecordL3: orBool(fp.RecordL3, true), RecordL4: orBool(fp.RecordL4, true),
@@ -256,7 +256,7 @@ func flowprobeObjects(s Sink, fp *vrxv1.IpfixService_Flowprobe, owner bool, defa
 	}
 }
 
-func sflowObjects(s Sink, sf *vrxv1.IpfixService_Sflow, owner bool) {
+func sflowObjects(s Sink, sf *ngfwv1.IpfixService_Sflow, owner bool) {
 	if sf == nil {
 		return
 	}
@@ -293,8 +293,8 @@ func sflowObjects(s Sink, sf *vrxv1.IpfixService_Sflow, owner bool) {
 
 // AssembleIpfixSflow adds services.ipfix to ds from retrieved KVs. tableName maps a table id to its
 // VRF name.
-func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName func(uint32) string) {
-	ix := &vrxv1.IpfixService{}
+func AssembleIpfixSflow(ds *ngfwv1.DesiredState, kvs []scheduler.KV, tableName func(uint32) string) {
+	ix := &ngfwv1.IpfixService{}
 	var exps []ipfix.Exporter
 	var defaultExp *ipfix.Exporter
 	var params *flowprobe.Params
@@ -341,15 +341,15 @@ func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName fu
 			name = fallback
 		}
 		if ix.Exporters == nil {
-			ix.Exporters = map[string]*vrxv1.IpfixService_Exporter{}
+			ix.Exporters = map[string]*ngfwv1.IpfixService_Exporter{}
 		}
 		vrf := "default"
 		if e.VRF != ipfix.NoVRF {
 			vrf = tableName(e.VRF)
 		}
-		ix.Exporters[name] = &vrxv1.IpfixService_Exporter{
+		ix.Exporters[name] = &ngfwv1.IpfixService_Exporter{
 			Enabled:             proto.Bool(true),
-			Collector:           &vrxv1.SocketAddress{Address: proto.String(e.Collector), Port: proto.Uint32(uint32(e.CollectorPort))},
+			Collector:           &ngfwv1.SocketAddress{Address: proto.String(e.Collector), Port: proto.Uint32(uint32(e.CollectorPort))},
 			SourceAddress:       proto.String(e.Src),
 			Vrf:                 proto.String(vrf),
 			PathMtu:             proto.Uint32(e.PathMTU),
@@ -364,7 +364,7 @@ func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName fu
 		addExp(e, "collector-"+sanitizeName(e.Collector))
 	}
 	if params != nil || len(fpIfs) > 0 {
-		fp := &vrxv1.IpfixService_Flowprobe{}
+		fp := &ngfwv1.IpfixService_Flowprobe{}
 		if params != nil {
 			fp.ActiveTimerSec = proto.Uint32(params.ActiveTimer)
 			fp.PassiveTimerSec = proto.Uint32(params.PassiveTimer)
@@ -374,7 +374,7 @@ func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName fu
 		}
 		sort.Slice(fpIfs, func(a, b int) bool { return fpIfs[a].Interface < fpIfs[b].Interface })
 		for _, f := range fpIfs {
-			fp.Interfaces = append(fp.Interfaces, &vrxv1.IpfixService_Flowprobe_Interface{
+			fp.Interfaces = append(fp.Interfaces, &ngfwv1.IpfixService_Flowprobe_Interface{
 				Interface: proto.String(f.Interface), Direction: proto.String(f.Direction),
 				L2: proto.Bool(f.Which == "l2"), Ip4: proto.Bool(f.Which == "ip4"), Ip6: proto.Bool(f.Which == "ip6"),
 			})
@@ -386,7 +386,7 @@ func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName fu
 		global = &g
 	}
 	if global != nil || len(sfIfs) > 0 {
-		sf := &vrxv1.IpfixService_Sflow{Enabled: proto.Bool(true)}
+		sf := &ngfwv1.IpfixService_Sflow{Enabled: proto.Bool(true)}
 		if global != nil {
 			sf.SamplingN = proto.Uint32(global.SamplingRate)
 			sf.PollingIntervalSec = proto.Uint32(global.PollingInterval)
@@ -400,7 +400,7 @@ func AssembleIpfixSflow(ds *vrxv1.DesiredState, kvs []scheduler.KV, tableName fu
 		return
 	}
 	if ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
 	ds.Services.Ipfix = ix
 }

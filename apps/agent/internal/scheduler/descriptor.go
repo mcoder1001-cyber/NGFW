@@ -104,8 +104,8 @@
 //
 // # Ownership (shared VPP)
 //
-// The agent is started with an owner id (VRX_OWNER, default "vrx"; tests use their slot's
-// VRX_TEST_PREFIX). Descriptors tag every object they create with it (interface tags via
+// The agent is started with an owner id (NGFW_OWNER, default "ngfw"; tests use their slot's
+// NGFW_TEST_PREFIX). Descriptors tag every object they create with it (interface tags via
 // sw_interface_tag_add_del, owner-prefixed names or an owner table for objects without tags)
 // and filter Retrieve by it. Two agents with different owners on one VPP must never touch
 // each other's objects. See internal/vpp OwnerTag and internal/descriptors/README.md.

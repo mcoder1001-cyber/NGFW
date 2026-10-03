@@ -14,6 +14,6 @@ Updated 2026-09-25 04:30 — task complete (see F-kea-dhcp-relay.md).
 ## Done at the end
 - `TMPDIR=/tmp/g-w2 tools/ci.sh --base main`: CI GATE PASSED (recorded in F-kea-dhcp-relay.md)
 - cleanup: worktree dist/ and apps/agent/bin removed; no w2 netns/veth/VPP interface/proxy/table left; Kea units disabled
-  and inactive. `/run/vrx-test/w2/kea` and `/run/vrx-test/w2/kea-relay` (test logs, Kea lease/log files of the slot
+  and inactive. `/run/ngfw-test/w2/kea` and `/run/ngfw-test/w2/kea-relay` (test logs, Kea lease/log files of the slot
   instance) remain: removing them outside the worktree was refused by the session's permissions — the next run of the
   topology test deletes and recreates them.

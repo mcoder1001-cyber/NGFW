@@ -15,13 +15,13 @@ import (
 // the production web build (apps/web/dist) on the slot web port, and a headless browser — an external node script with
 // playwright-core and a Chrome-for-Testing headless shell from env paths (nothing installed, as in P07a/P07b/P08).
 //
-//	VRX_NAT_SHOTS_OUT=<dir> VRX_PLAYWRIGHT_CORE=<pkg dir> VRX_CHROME=<chrome-headless-shell> run.sh -run TestNat44EdScreenshots
+//	NGFW_NAT_SHOTS_OUT=<dir> NGFW_PLAYWRIGHT_CORE=<pkg dir> NGFW_CHROME=<chrome-headless-shell> run.sh -run TestNat44EdScreenshots
 //
 // shots.mjs is called as: node shots.mjs <baseUrl> <outDir> <adminPasswordFile>.
 func TestNat44EdScreenshots(t *testing.T) {
-	out := os.Getenv("VRX_NAT_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || out == "" || os.Getenv("VRX_PLAYWRIGHT_CORE") == "" || os.Getenv("VRX_CHROME") == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_NAT_SHOTS_OUT, VRX_PLAYWRIGHT_CORE and VRX_CHROME")
+	out := os.Getenv("NGFW_NAT_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || out == "" || os.Getenv("NGFW_PLAYWRIGHT_CORE") == "" || os.Getenv("NGFW_CHROME") == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_NAT_SHOTS_OUT, NGFW_PLAYWRIGHT_CORE and NGFW_CHROME")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -65,15 +65,15 @@ func TestNat44EdScreenshots(t *testing.T) {
 	})
 	a := st.api
 
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
 	if _, err := os.Stat(filepath.Join(web, "dist", "index.html")); err != nil {
-		t.Fatalf("apps/web/dist missing — run.sh builds it when VRX_NAT_SHOTS_OUT is set: %v", err)
+		t.Fatalf("apps/web/dist missing — run.sh builds it when NGFW_NAT_SHOTS_OUT is set: %v", err)
 	}
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 
@@ -102,9 +102,9 @@ func TestNat44EdScreenshots(t *testing.T) {
 	for _, l := range v19Guard(t, conn, idx) {
 		t.Log("V19 guard: " + l)
 	}
-	if bin := os.Getenv("VRX_PREFLIGHT_BIN"); bin != "" {
+	if bin := os.Getenv("NGFW_PREFLIGHT_BIN"); bin != "" {
 		if o, err := run(t, bin); err != nil {
-			t.Fatalf("vrx-vpp-preflight: %v\n%s", err, o)
+			t.Fatalf("ngfw-vpp-preflight: %v\n%s", err, o)
 		}
 	}
 	r.peers(t, true)
@@ -135,7 +135,7 @@ func TestNat44EdScreenshots(t *testing.T) {
 	}) {
 		t.Fatal("vite preview did not come up")
 	}
-	chromeEnv := append(os.Environ(), "LD_LIBRARY_PATH="+os.Getenv("VRX_CHROME_LIBS"))
+	chromeEnv := append(os.Environ(), "LD_LIBRARY_PATH="+os.Getenv("NGFW_CHROME_LIBS"))
 	cmdOut, err := runEnv(t, chromeEnv, "node", filepath.Join(s.repo, "test", "topology", "nat44-ed-sessions", "shots.mjs"), "http://127.0.0.1:"+webPort, out, pwFile)
 	t.Log("screenshots:\n" + strings.TrimSpace(cmdOut))
 	if err != nil {

@@ -2,7 +2,7 @@
 // built-in dispatch capture (DF-8 descriptors pcap.capture, pcap.filter-function and
 // trace.bpf-filter), driven by the Action RPC — not a config domain. The agent keeps the files:
 // VPP writes /tmp/<owner>-….pcap world-readable (0664); after pcap_trace_off the file is moved to
-// the capture directory (default /var/lib/vrx/captures), chmod 0600, hashed and counted, and a
+// the capture directory (default /var/lib/ngfw/captures), chmod 0600, hashed and counted, and a
 // retention policy (count and bytes caps, oldest first) is applied.
 //
 // One capture per VPP: a second one is ErrBusy (this agent's own, or another owner's —
@@ -32,7 +32,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/pcap"
 	"ngfw/agent/internal/descriptors/trace"
@@ -98,7 +98,7 @@ func nameOK(v string, extra string) bool {
 
 // Validate checks a CaptureAction and fills the defaults. Error text starts with the field name
 // ("bpf: …"), which the API turns into a problem pointer.
-func Validate(a *vrxv1.CaptureAction) (Plan, error) {
+func Validate(a *ngfwv1.CaptureAction) (Plan, error) {
 	p := Plan{Interface: a.GetInterface(), BPF: strings.TrimSpace(a.GetBpf()), ErrorFilter: a.GetErrorFilter(),
 		MaxPackets: a.GetMaxPackets(), Seconds: a.GetSeconds(), Snaplen: a.GetSnaplen(), Drop: a.GetDrop()}
 	switch {
@@ -108,13 +108,13 @@ func Validate(a *vrxv1.CaptureAction) (Plan, error) {
 		return p, invalid("interface", "%q is not an interface name", p.Interface)
 	}
 	switch a.GetDirection() {
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_RX:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_RX:
 		p.Rx = true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_TX:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_TX:
 		p.Tx = true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_BOTH:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_BOTH:
 		p.Rx, p.Tx = true, true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_UNSPECIFIED:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_UNSPECIFIED:
 		p.Rx, p.Tx = !p.Drop, !p.Drop // drop alone = only drops
 	default:
 		return p, invalid("direction", "unknown value %d", a.GetDirection())
@@ -173,7 +173,7 @@ type Config struct {
 	Client       vpp.Client
 	Owner        string
 	GlobalsOwner bool
-	// Dir keeps the files and their records (0700). Default /var/lib/vrx/captures.
+	// Dir keeps the files and their records (0700). Default /var/lib/ngfw/captures.
 	Dir string
 	// VPPDir is where VPP writes capture files (pcap.FileDir; tests: a temp dir).
 	VPPDir string
@@ -218,7 +218,7 @@ type Manager struct {
 // New returns a Manager; it creates Dir (0700).
 func New(c Config) (*Manager, error) {
 	if c.Dir == "" {
-		c.Dir = "/var/lib/vrx/captures"
+		c.Dir = "/var/lib/ngfw/captures"
 	}
 	if c.VPPDir == "" {
 		c.VPPDir = pcap.FileDir
@@ -311,7 +311,7 @@ func (m *Manager) clearFilter(ctx context.Context) error {
 
 // Run starts one capture, streams progress lines, stops it on timeout or ctx cancellation, keeps
 // the file and ends with a done. The first line is "capture <id> started".
-func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput) error) error {
+func (m *Manager) Run(ctx context.Context, p Plan, send func(*ngfwv1.ActionOutput) error) error {
 	if err := m.Recover(ctx); err != nil {
 		return err
 	}
@@ -368,7 +368,7 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 	}
 
 	reason := "timeout"
-	if err := send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: "capture " + r.ID + " started"}}); err != nil {
+	if err := send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: "capture " + r.ID + " started"}}); err != nil {
 		reason = "cancelled"
 	}
 	timer := time.NewTimer(time.Duration(p.Seconds) * time.Second)
@@ -379,7 +379,7 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 			reason = "cancelled"
 		case <-tick.C:
 			line := fmt.Sprintf("capturing %s: %ds / %ds", r.ID, int(m.c.Now().Sub(r.StartedAt).Seconds()), p.Seconds)
-			if send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: line}}) != nil {
+			if send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: line}}) != nil {
 				reason = "cancelled"
 			}
 			continue
@@ -406,7 +406,7 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 	if reason == "cancelled" {
 		code = 1
 	}
-	_ = send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+	_ = send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 		Summary:  fmt.Sprintf("capture %s: %d packets, %d bytes (%s)", r.ID, r.Packets, r.Size, reason),
 		ExitCode: code,
 		Stats: map[string]string{"id": r.ID, "packets": fmt.Sprint(r.Packets), "bytes": fmt.Sprint(r.Size),
@@ -567,8 +567,8 @@ func (m *Manager) Recover(ctx context.Context) error {
 	return nil
 }
 
-func (r *Record) proto() *vrxv1.CaptureFile {
-	f := &vrxv1.CaptureFile{Id: r.ID, State: r.State, Interface: r.Interface, Direction: r.Direction, Bpf: r.BPF,
+func (r *Record) proto() *ngfwv1.CaptureFile {
+	f := &ngfwv1.CaptureFile{Id: r.ID, State: r.State, Interface: r.Interface, Direction: r.Direction, Bpf: r.BPF,
 		StartedAt: timestamppb.New(r.StartedAt), Size: r.Size, Packets: r.Packets, Sha256: r.Sha256,
 		MaxPackets: r.MaxPackets, Seconds: r.Seconds, Snaplen: r.Snaplen, Reason: r.Reason}
 	if !r.StoppedAt.IsZero() {
@@ -578,7 +578,7 @@ func (r *Record) proto() *vrxv1.CaptureFile {
 }
 
 // List returns the running capture (first) and the kept files, newest first.
-func (m *Manager) List(ctx context.Context) (*vrxv1.CaptureListResponse, error) {
+func (m *Manager) List(ctx context.Context) (*ngfwv1.CaptureListResponse, error) {
 	if err := m.Recover(ctx); err != nil {
 		return nil, err
 	}
@@ -586,7 +586,7 @@ func (m *Manager) List(ctx context.Context) (*vrxv1.CaptureListResponse, error) 
 	if err != nil {
 		return nil, err
 	}
-	out := &vrxv1.CaptureListResponse{MaxFiles: uint32(m.c.MaxFiles), MaxBytes: uint64(m.c.MaxBytes), //nolint:gosec // positive caps
+	out := &ngfwv1.CaptureListResponse{MaxFiles: uint32(m.c.MaxFiles), MaxBytes: uint64(m.c.MaxBytes), //nolint:gosec // positive caps
 		TraceReason: TraceReason, PgReason: PGReason}
 	sort.SliceStable(recs, func(i, j int) bool { return recs[i].State == "running" && recs[j].State != "running" })
 	for _, r := range recs {
@@ -611,7 +611,7 @@ func (m *Manager) get(id string) (*Record, error) {
 }
 
 // Read streams a kept file in chunks.
-func (m *Manager) Read(id string, send func(*vrxv1.CaptureChunk) error) error {
+func (m *Manager) Read(id string, send func(*ngfwv1.CaptureChunk) error) error {
 	r, err := m.get(id)
 	if err != nil {
 		return err
@@ -628,7 +628,7 @@ func (m *Manager) Read(id string, send func(*vrxv1.CaptureChunk) error) error {
 	for {
 		n, err := f.Read(buf)
 		if n > 0 {
-			if serr := send(&vrxv1.CaptureChunk{Data: append([]byte(nil), buf[:n]...)}); serr != nil {
+			if serr := send(&ngfwv1.CaptureChunk{Data: append([]byte(nil), buf[:n]...)}); serr != nil {
 				return serr
 			}
 		}

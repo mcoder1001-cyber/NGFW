@@ -1,8 +1,8 @@
 package agent
 
-// P12 topology test on this host (VRX_INTEGRATION=1, shared lab lock, slot prefix; docs/status/tasks/P12-questions.md Q1):
+// P12 topology test on this host (NGFW_INTEGRATION=1, shared lab lock, slot prefix; docs/status/tasks/P12-questions.md Q1):
 //
-//	VRX:   the in-process agent (owner = slot prefix, VRX_FRR_PATHSPACE = slot) → VPP af_packet interfaces host-<p>l0/w0 on
+//	NGFW:   the in-process agent (owner = slot prefix, NGFW_FRR_PATHSPACE = slot) → VPP af_packet interfaces host-<p>l0/w0 on
 //	       the slot's veth rig, each with a linux-cp pair whose tap lives in ns-<p>-frr, where the slot's FRR (frrtest,
 //	       bgpd) runs; FRR puts the VPP addresses on the taps (lcp-addresses, S2) and speaks BGP through the punt path.
 //	peers: two frrtest instances (p1 in ns-<p>-lan, p2 in ns-<p>-wan), eBGP, 100 prefixes each (10.<N>.64–163.x/25).
@@ -15,8 +15,8 @@ package agent
 // FIB proof (the VPP side of linux-nl; P12.md "P12-fib-proof"): linux_nl hears only pairs whose netns equals the lcp
 // default netns at pair-add time, from the one socket it opens in that netns with the first pair of the whole VPP
 // (lcp_nl.c, lcp_interface.c). On the shared VPP (default netns unset, D-071: never changed from a slot) FRR's routes in
-// ns-<p>-frr cannot reach VPP, so the VPP checks run only with VRX_P12_FIB=private: a VPP of this slot's own
-// (LAB-vpp-per-slot, VRX_VPP_API_SOCKET ≠ /run/vpp/api.sock) whose startup.conf has `linux-cp { default netns
+// ns-<p>-frr cannot reach VPP, so the VPP checks run only with NGFW_P12_FIB=private: a VPP of this slot's own
+// (LAB-vpp-per-slot, NGFW_VPP_API_SOCKET ≠ /run/vpp/api.sock) whose startup.conf has `linux-cp { default netns
 // ns-<p>-frr }`. The test refuses that mode on anything else and never changes a VPP-global setting itself.
 
 import (
@@ -40,7 +40,7 @@ import (
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	lcpapi "ngfw/agent/binapi/lcp"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	lcpdesc "ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/frrtest"
@@ -51,11 +51,11 @@ import (
 
 // EnvP12FIB = "private" adds the VPP FIB checks (row P12-fib-proof: a private VPP whose lcp default netns is
 // ns-<p>-frr); anything else leaves them out.
-const EnvP12FIB = "VRX_P12_FIB"
+const EnvP12FIB = "NGFW_P12_FIB"
 
 // EnvP12Topology runs the topology test (test/topology/bgp/run.sh sets it): it takes the slot's rig over (the agent
 // recreates its VPP side) and runs three FRR instances, so it is not part of a plain package run.
-const EnvP12Topology = "VRX_P12_TOPOLOGY"
+const EnvP12Topology = "NGFW_P12_TOPOLOGY"
 
 type p12Env struct {
 	t       *testing.T
@@ -63,12 +63,12 @@ type p12Env struct {
 	slot    int
 	repo    string
 	raw     vpp.Client
-	c       vrxv1.DataplaneClient
+	c       ngfwv1.DataplaneClient
 	a       *Agent
 	cfg     Config
 	fib     bool // linux-nl FIB checks enabled (T2)
 	frrNS   string
-	vrxFRR  *frrtest.Harness
+	ngfwFRR *frrtest.Harness
 	peerFRR [2]*frrtest.Harness
 }
 
@@ -178,12 +178,12 @@ func dumpNames(ctx context.Context, c vpp.Client) (map[string]uint32, error) {
 	return out, nil
 }
 
-// peerDoc is a peer's FRR document: eBGP to the VRX side, 100 /25 blackholes announced (third octet 64–163, the peer's
+// peerDoc is a peer's FRR document: eBGP to the NGFW side, 100 /25 blackholes announced (third octet 64–163, the peer's
 // half of each /24), or none when withdrawn.
-func peerDoc(t *testing.T, slot, n int, vrxAddr string, announce bool) *structpb.Struct {
+func peerDoc(t *testing.T, slot, n int, ngfwAddr string, announce bool) *structpb.Struct {
 	t.Helper()
 	b := map[string]any{"asn": 65080 + n, "ebgpRequiresPolicy": false,
-		"neighbors": map[string]any{vrxAddr: map[string]any{"remoteAs": 65080, "keepaliveSec": 3, "holdTimeSec": 9,
+		"neighbors": map[string]any{ngfwAddr: map[string]any{"remoteAs": 65080, "keepaliveSec": 3, "holdTimeSec": 9,
 			"afi": map[string]any{"ipv4Unicast": map[string]any{"enabled": true}}}}}
 	routing := map[string]any{"bgp": b}
 	if announce {
@@ -216,8 +216,8 @@ func applyFRR(t *testing.T, h *frrtest.Harness, d *structpb.Struct) {
 	}
 }
 
-// vrxDoc is the configuration document the agent gets.
-func (e *p12Env) vrxDoc(withBGP, denyHalf, lanUp bool) *vrxv1.DesiredState {
+// ngfwDoc is the configuration document the agent gets.
+func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 	e.t.Helper()
 	n, p := e.slot, e.prefix
 	lcp := func(host string) map[string]any {
@@ -266,33 +266,33 @@ func (e *p12Env) vrxDoc(withBGP, denyHalf, lanUp bool) *vrxv1.DesiredState {
 		e.t.Fatal(err)
 	}
 	js, _ := protojson.Marshal(raw)
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal(js, ds); err != nil {
 		e.t.Fatal(err)
 	}
 	return ds
 }
 
-func (e *p12Env) apply(id string, ds *vrxv1.DesiredState, subsystems ...string) *vrxv1.ApplyResponse {
+func (e *p12Env) apply(id string, ds *ngfwv1.DesiredState, subsystems ...string) *ngfwv1.ApplyResponse {
 	e.t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	if len(subsystems) == 0 {
 		subsystems = []string{"interfaces", "routing"}
 	}
-	resp, err := e.c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: e.prefix + "-p12-" + id, DesiredState: ds, Subsystems: subsystems})
-	if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp, err := e.c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: e.prefix + "-p12-" + id, DesiredState: ds, Subsystems: subsystems})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		e.t.Fatalf("apply %s: %v %s", id, err, protojson.Format(resp))
 	}
 	e.t.Logf("apply %s: %s", id, protojson.Format(resp.GetSummary()))
 	return resp
 }
 
-func (e *p12Env) state() *vrxv1.RoutingStateResponse {
+func (e *p12Env) state() *ngfwv1.RoutingStateResponse {
 	e.t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	st, err := e.c.RoutingState(ctx, &vrxv1.RoutingStateRequest{})
+	st, err := e.c.RoutingState(ctx, &ngfwv1.RoutingStateRequest{})
 	if err != nil {
 		e.t.Fatalf("RoutingState: %v", err)
 	}
@@ -300,8 +300,8 @@ func (e *p12Env) state() *vrxv1.RoutingStateResponse {
 }
 
 // neighbors returns peer address → (state, prefixes received).
-func neighborsOf(st *vrxv1.RoutingStateResponse) map[string]*vrxv1.BgpNeighborState {
-	out := map[string]*vrxv1.BgpNeighborState{}
+func neighborsOf(st *ngfwv1.RoutingStateResponse) map[string]*ngfwv1.BgpNeighborState {
+	out := map[string]*ngfwv1.BgpNeighborState{}
 	for _, in := range st.GetBgp() {
 		for _, n := range in.GetNeighbors() {
 			out[n.GetAddress()] = n
@@ -315,7 +315,7 @@ func (e *p12Env) vppFRRRoutes() int {
 	e.t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r, err := e.c.ListRoutes(ctx, &vrxv1.ListRoutesRequest{Family: "ipv4", Prefix: fmt.Sprintf("10.%d.0.0/16", e.slot), Source: "lcp-rt-dynamic", Limit: 1})
+	r, err := e.c.ListRoutes(ctx, &ngfwv1.ListRoutesRequest{Family: "ipv4", Prefix: fmt.Sprintf("10.%d.0.0/16", e.slot), Source: "lcp-rt-dynamic", Limit: 1})
 	if err != nil {
 		e.t.Fatalf("ListRoutes: %v", err)
 	}
@@ -348,7 +348,7 @@ func (e *p12Env) waitRoutes(what string, want int, within time.Duration) time.Du
 	}
 }
 
-func summarize(nb map[string]*vrxv1.BgpNeighborState) string {
+func summarize(nb map[string]*ngfwv1.BgpNeighborState) string {
 	var parts []string
 	for a, n := range nb {
 		parts = append(parts, fmt.Sprintf("%s %s rx=%d", a, n.GetState(), n.GetPrefixesReceived()))
@@ -383,8 +383,8 @@ func (e *p12Env) evidence(when string) {
 	e.t.Logf("[%s] vppctl show lcp:\n%s", when, lcp)
 	addrs, _ := e.cmd("ip", "-n", e.frrNS, "-br", "addr", "show")
 	e.t.Logf("[%s] ip -n %s -br addr show:\n%s", when, e.frrNS, addrs)
-	if out, err := e.vrxFRR.Renderer().Show(context.Background(), frr.ShowCommand("show bgp summary")); err == nil {
-		e.t.Logf("[%s] vtysh --vty_socket %s -N %s -c \"show bgp summary\":\n%s", when, e.vrxFRR.Paths.RunDir, e.vrxFRR.Paths.Namespace, out)
+	if out, err := e.ngfwFRR.Renderer().Show(context.Background(), frr.ShowCommand("show bgp summary")); err == nil {
+		e.t.Logf("[%s] vtysh --vty_socket %s -N %s -c \"show bgp summary\":\n%s", when, e.ngfwFRR.Paths.RunDir, e.ngfwFRR.Paths.Namespace, out)
 	}
 	if e.fib {
 		fib, _ := e.cmd("vppctl", "show", "ip", "fib", "summary")
@@ -392,13 +392,13 @@ func (e *p12Env) evidence(when string) {
 	}
 }
 
-// checkPrivateFIB enforces the preconditions of the FIB checks (VRX_P12_FIB=private): a VPP that is not the shared
+// checkPrivateFIB enforces the preconditions of the FIB checks (NGFW_P12_FIB=private): a VPP that is not the shared
 // one, whose linux-cp default netns is FRR's netns.
 func (e *p12Env) checkPrivateFIB() {
 	e.t.Helper()
 	sock := vppSocket()
 	if sock == "/run/vpp/api.sock" {
-		e.t.Fatalf("%s=private needs a VPP of this slot's own (VRX_VPP_API_SOCKET), not the shared %s (D-071)", EnvP12FIB, sock)
+		e.t.Fatalf("%s=private needs a VPP of this slot's own (NGFW_VPP_API_SOCKET), not the shared %s (D-071)", EnvP12FIB, sock)
 	}
 	cur, err := lcpdesc.NewDefaultNetns(e.raw).Current(context.Background())
 	if err != nil {
@@ -441,8 +441,8 @@ func TestP12TopologyOnHost(t *testing.T) {
 	}
 
 	// V19 preflight (D-095) before any packet crosses the rig
-	pre, err := e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/vrx-vpp-preflight")
-	t.Logf("vrx-vpp-preflight: %v\n%s", err, pre)
+	pre, err := e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	t.Logf("ngfw-vpp-preflight: %v\n%s", err, pre)
 	if err != nil {
 		t.Fatal("V19 preflight failed: no packet may cross the rig")
 	}
@@ -455,14 +455,14 @@ func TestP12TopologyOnHost(t *testing.T) {
 	e.peers(false)
 	e.handRigToAgent()
 
-	// FRR: the VRX side in its own netns, the peers in the rig namespaces
+	// FRR: the NGFW side in its own netns, the peers in the rig namespaces
 	daemons := []string{"mgmtd", "zebra", "staticd", "bgpd"}
-	e.vrxFRR = frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
+	e.ngfwFRR = frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
 	e.peerFRR[0] = frrtest.Start(t, frrtest.Options{Prefix: prefix, Instance: "p1", NetNS: "ns-" + prefix + "-lan", Daemons: daemons})
 	e.peerFRR[1] = frrtest.Start(t, frrtest.Options{Prefix: prefix, Instance: "p2", NetNS: "ns-" + prefix + "-wan", Daemons: daemons})
-	vrxLan, vrxWan := fmt.Sprintf("10.%d.1.1", slot), fmt.Sprintf("10.%d.2.1", slot)
-	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, true))
-	applyFRR(t, e.peerFRR[1], peerDoc(t, slot, 2, vrxWan, true))
+	ngfwLan, ngfwWan := fmt.Sprintf("10.%d.1.1", slot), fmt.Sprintf("10.%d.2.1", slot)
+	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, ngfwLan, true))
+	applyFRR(t, e.peerFRR[1], peerDoc(t, slot, 2, ngfwWan, true))
 
 	// the agent (FRR = the slot instance; table range of the slot)
 	t.Setenv(subsystems.EnvFRRPathspace, prefix)
@@ -491,7 +491,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 		// a client of its own: the dialAgent clients are closed by their cleanups (LIFO) before this one runs
 		cc, err := grpc.NewClient("unix://"+e.cfg.Socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			resp, aerr := vrxv1.NewDataplaneClient(cc).Apply(ctx, &vrxv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
+			resp, aerr := ngfwv1.NewDataplaneClient(cc).Apply(ctx, &ngfwv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
 			t.Logf("cleanup apply: %v %s", aerr, protojson.Format(resp.GetSummary()))
 			_ = cc.Close()
 		}
@@ -507,7 +507,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	} else {
 		t.Logf("VPP FIB checks not requested (%s=private on a VPP of the slot's own: row P12-fib-proof): FRR's RIB is checked", EnvP12FIB)
 	}
-	full := e.vrxDoc(true, false, true)
+	full := e.ngfwDoc(true, false, true)
 	e.apply("commit", full)
 	e.peers(true)
 	e.waitEstablished(90 * time.Second)
@@ -515,7 +515,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	e.evidence("after commit")
 
 	// Retrieve == desired for P12's leaves (routing.bgp, routing.policy, interfaces.<n>.lcp)
-	got, err := e.c.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
+	got, err := e.c.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,19 +534,19 @@ func TestP12TopologyOnHost(t *testing.T) {
 	}
 
 	// ---- 2. route map denying half → 100 remain (frr-reload.py, no daemon restart)
-	pids := e.vrxFRR.PIDs()
-	e.apply("deny-half", e.vrxDoc(true, true, true))
+	pids := e.ngfwFRR.PIDs()
+	e.apply("deny-half", e.ngfwDoc(true, true, true))
 	e.waitRoutes("route map denies half", 100, 30*time.Second)
-	if after := e.vrxFRR.PIDs(); fmt.Sprint(after) != fmt.Sprint(pids) {
+	if after := e.ngfwFRR.PIDs(); fmt.Sprint(after) != fmt.Sprint(pids) {
 		t.Errorf("FRR daemons restarted on a config edit: %v → %v", pids, after)
 	}
 
 	// ---- 3. withdraw on peer 1 → its 50 accepted prefixes are gone within 5 s
-	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, false))
+	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, ngfwLan, false))
 	if d := e.waitRoutes("peer 1 withdrew", 50, 5*time.Second); d > 5*time.Second {
 		t.Errorf("withdrawal took %v", d)
 	}
-	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, true))
+	applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, ngfwLan, true))
 	e.waitRoutes("peer 1 announces again", 100, 30*time.Second)
 
 	// ---- 4. agent restart with the pairs deleted behind its back → recreated, sessions back, no API involved
@@ -569,15 +569,15 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if e.fib {
 		// a deleted pair flushes no route (lcp_router.c), so the count alone cannot tell a live linux-nl from stale
 		// entries: a withdrawal must still reach VPP after the pairs were recreated
-		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, false))
+		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, ngfwLan, false))
 		e.waitRoutes("peer 1 withdrew after the restart", 50, 5*time.Second)
-		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, vrxLan, true))
+		applyFRR(t, e.peerFRR[0], peerDoc(t, slot, 1, ngfwLan, true))
 		e.waitRoutes("peer 1 announces again after the restart", 100, 30*time.Second)
 	}
 	e.evidence("after restart")
 
 	// ---- 5. link down on a VPP interface: what reaches the Linux pair, when BGP notices
-	e.apply("lan-down", e.vrxDoc(true, true, false))
+	e.apply("lan-down", e.ngfwDoc(true, true, false))
 	down := time.Now()
 	var tapState string
 	for time.Since(down) < 15*time.Second {
@@ -592,11 +592,11 @@ func TestP12TopologyOnHost(t *testing.T) {
 		}
 		time.Sleep(200 * time.Millisecond)
 	}
-	e.apply("lan-up", e.vrxDoc(true, true, true))
+	e.apply("lan-up", e.ngfwDoc(true, true, true))
 	e.waitEstablished(90 * time.Second)
 
 	// ---- 6. rollback of the whole BGP config → sessions torn down, no BGP route (FRR, and VPP with the FIB proof)
-	e.apply("rollback", e.vrxDoc(false, false, true))
+	e.apply("rollback", e.ngfwDoc(false, false, true))
 	e.waitRoutes("after rollback", 0, 30*time.Second)
 	if st := e.state(); len(st.GetBgp()) != 0 {
 		t.Errorf("BGP instance left after rollback: %v", st.GetBgp())
@@ -605,7 +605,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if addrs, _ := e.cmd("ip", "-n", e.frrNS, "-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
 		t.Errorf("tap %s-l0 lost its address with the BGP rollback: %s", prefix, addrs)
 	}
-	running, _ := e.vrxFRR.Renderer().Show(context.Background(), frr.ShowRunningConfig)
+	running, _ := e.ngfwFRR.Renderer().Show(context.Background(), frr.ShowRunningConfig)
 	if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
 		t.Errorf("FRR still runs BGP/policy after rollback:\n%s", running)
 	}

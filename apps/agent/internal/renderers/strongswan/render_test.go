@@ -15,14 +15,14 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
-// testPSK is the fixture secret (00-CONTEXT: test fixtures use VRX_TEST_PSK_<id>).
-const testPSK = "VRX_TEST_PSK_RF2"
+// testPSK is the fixture secret (00-CONTEXT: test fixtures use NGFW_TEST_PSK_<id>).
+const testPSK = "NGFW_TEST_PSK_RF2"
 
 func testResolver(values map[string]string) SecretResolver {
 	return SecretResolverFunc(func(_ context.Context, ref string) ([]byte, error) {
@@ -58,9 +58,9 @@ func goldenPaths() Paths {
 	return p
 }
 
-func doc(t *testing.T, js string) *vrxv1.DesiredState {
+func doc(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("fixture: %v", err)
 	}
@@ -144,8 +144,8 @@ func TestRenderGoldenFull(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := goldenPaths()
-	checkGolden(t, "full-vrx.conf", files[p.ConnsFile()].Content)
-	checkSecretsGolden(t, "full-vrx-secrets.conf", files[p.SecretsFile()].Content, map[string]string{
+	checkGolden(t, "full-ngfw.conf", files[p.ConnsFile()].Content)
+	checkSecretsGolden(t, "full-ngfw-secrets.conf", files[p.SecretsFile()].Content, map[string]string{
 		"ike-w3-site-a": fullSecrets["psk/w3-site-a"], "ike-w3+site-b": fullSecrets["psk/w3-site-b"], "ike-w3-route-d": fullSecrets["psk/w3-route-d"],
 	})
 	checkGolden(t, "full-strongswan.conf", files[p.StrongswanConf].Content)
@@ -153,7 +153,7 @@ func TestRenderGoldenFull(t *testing.T) {
 		t.Errorf("secrets file: Secret=%v mode=%v, want Secret 0600", f.Secret, f.Mode)
 	}
 	if f := files[p.ConnsFile()]; f.Secret || f.Mode != 0o640 {
-		t.Errorf("vrx.conf: Secret=%v mode=%v, want plain 0640", f.Secret, f.Mode)
+		t.Errorf("ngfw.conf: Secret=%v mode=%v, want plain 0640", f.Secret, f.Mode)
 	}
 	// Structural validation accepts what Render produced.
 	if err := r.Validate(context.Background(), files); err != nil {
@@ -247,25 +247,25 @@ func TestRenderGoldenModelExtras(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := goldenPaths()
-	checkGolden(t, "extras-vrx.conf", files[p.ConnsFile()].Content)
-	checkSecretsGolden(t, "extras-vrx-secrets.conf", files[p.SecretsFile()].Content, nil)
+	checkGolden(t, "extras-ngfw.conf", files[p.ConnsFile()].Content)
+	checkSecretsGolden(t, "extras-ngfw-secrets.conf", files[p.SecretsFile()].Content, nil)
 	if err := r.Validate(context.Background(), files); err != nil {
 		t.Fatalf("Validate(RenderModel()) = %v", err)
 	}
 }
 
 func TestRenderGoldenEmptyAndProduct(t *testing.T) {
-	if _, err := New(WithSecretResolver(testResolver(nil))).Render(context.Background(), &vrxv1.DesiredState{}); err == nil || !strings.Contains(err.Error(), "no Paths") {
+	if _, err := New(WithSecretResolver(testResolver(nil))).Render(context.Background(), &ngfwv1.DesiredState{}); err == nil || !strings.Contains(err.Error(), "no Paths") {
 		t.Fatalf("renderer without Paths: %v, want refusal (no implicit product default)", err)
 	}
 	r := New(WithPaths(ProductPaths()), WithSecretResolver(testResolver(nil)))
-	files, err := r.Render(context.Background(), &vrxv1.DesiredState{})
+	files, err := r.Render(context.Background(), &ngfwv1.DesiredState{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	p := ProductPaths()
-	checkGolden(t, "empty-vrx.conf", files[p.ConnsFile()].Content)
-	checkSecretsGolden(t, "empty-vrx-secrets.conf", files[p.SecretsFile()].Content, nil)
+	checkGolden(t, "empty-ngfw.conf", files[p.ConnsFile()].Content)
+	checkSecretsGolden(t, "empty-ngfw-secrets.conf", files[p.SecretsFile()].Content, nil)
 	checkGolden(t, "product-strongswan.conf", files[p.StrongswanConf].Content)
 	for path, f := range files {
 		if f.Owner != "root:root" {
@@ -403,7 +403,7 @@ func TestHostileStringsRejectedOrEscaped(t *testing.T) {
 				t.Errorf("%s=%q: rendered but Validate failed: %v", field, clip(h), err)
 				continue
 			}
-			tree, err := ParseSettings("vrx.conf", files[goldenPaths().ConnsFile()].Content)
+			tree, err := ParseSettings("ngfw.conf", files[goldenPaths().ConnsFile()].Content)
 			if err != nil {
 				t.Fatal(err)
 			}

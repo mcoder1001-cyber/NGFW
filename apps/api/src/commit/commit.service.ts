@@ -544,7 +544,7 @@ export class CommitService implements OnApplicationShutdown {
     return this.userSection(async () => {
       await this.assertNoPending();
       const c = await this.repo.candidate();
-      checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
+      checkLock(c, user, new Date(), this.env.NGFW_LOCK_TTL_SEC);
       if (c.payload === null)
         return {
           status: 'unchanged',
@@ -608,7 +608,7 @@ export class CommitService implements OnApplicationShutdown {
       const target = await this.repo.revision(rev);
       if (target === null) throw problems.notFound(`revision ${rev} does not exist`);
       const c = await this.repo.candidate();
-      checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
+      checkLock(c, user, new Date(), this.env.NGFW_LOCK_TTL_SEC);
       if (c.payload !== null) {
         throw problems.conflict(
           'candidate-dirty',

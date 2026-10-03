@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -43,7 +43,7 @@ func TestNat46DomainOnFake(t *testing.T) {
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	with := doc(t, strings.Replace(natIfDoc, "%s", nat46Part, 1))
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: with}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", DesiredState: with}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	want := doc(t, `{"nat":`+canonicalNat46+`}`).GetNat()
 	if got := natNat(t, s); !proto.Equal(got, want) {
 		t.Fatalf("Retrieve nat != canonical:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
@@ -51,7 +51,7 @@ func TestNat46DomainOnFake(t *testing.T) {
 	if d, tr, _ := mapObjects(v); d != 2 || tr != 2 {
 		t.Fatalf("after commit: %d domains, %d map-t interfaces (want 2, 2)", d, tr)
 	}
-	if resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: with}); len(resp.GetResults()) != 0 {
+	if resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", DesiredState: with}); len(resp.GetResults()) != 0 {
 		t.Fatalf("re-apply changed %v", resp.GetResults())
 	}
 
@@ -69,8 +69,8 @@ func TestNat46DomainOnFake(t *testing.T) {
 		t.Fatalf("after restart + resync:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
 	}
 
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)}),
-		vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, `{"vrfs": {"cust": {"id": 7001}}, "interfaces": {}, "nat": {}}`)}),
+		ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := natNat(t, s2); proto.Size(got) != 0 {
 		t.Fatalf("Retrieve after rollback: %s", protojson.Format(got))
 	}

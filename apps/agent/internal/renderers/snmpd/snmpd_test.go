@@ -20,7 +20,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/rfkit"
 )
@@ -29,11 +29,11 @@ var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
 // Planted secrets: every test that renders checks they appear only where they must.
 const (
-	secRO   = "VRX_TEST_PSK_RF4_ro"
-	secRW   = "VRX_TEST_PSK_RF4_rw"
-	secAuth = "VRX_TEST_PSK_RF4_auth"
-	secPriv = "VRX_TEST_PSK_RF4_priv"
-	secU2   = "VRX_TEST_PSK_RF4_u2auth"
+	secRO   = "NGFW_TEST_PSK_RF4_ro"
+	secRW   = "NGFW_TEST_PSK_RF4_rw"
+	secAuth = "NGFW_TEST_PSK_RF4_auth"
+	secPriv = "NGFW_TEST_PSK_RF4_priv"
+	secU2   = "NGFW_TEST_PSK_RF4_u2auth"
 )
 
 var plantedSecrets = []string{secRO, secRW, secAuth, secPriv, secU2}
@@ -72,7 +72,7 @@ func newRenderer(t testing.TB, opts ...Option) *Renderer {
 
 func base() map[string]any {
 	return map[string]any{
-		"enabled": true, "sysName": "vrx-w8", "sysLocation": "Rack 4, Hall B", "sysContact": "noc@example.net",
+		"enabled": true, "sysName": "ngfw-w8", "sysLocation": "Rack 4, Hall B", "sysContact": "noc@example.net",
 		"listen": []any{map[string]any{"address": "127.0.0.1", "port": 3861}},
 	}
 }
@@ -197,10 +197,10 @@ func TestRenderDeterministic(t *testing.T) {
 func TestTypedInput(t *testing.T) {
 	en, port := true, uint32(3861)
 	loc, ref, src := "Hall A", "password/snmp-ro", "127.0.0.1/32"
-	ds := &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Snmp: &vrxv1.SnmpService{
+	ds := &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Snmp: &ngfwv1.SnmpService{
 		Enabled: &en, SysLocation: &loc,
-		Listen:      []*vrxv1.SocketAddress{{Address: strp("127.0.0.1"), Port: &port}},
-		Communities: map[string]*vrxv1.SnmpService_Community{"ro": {SecretRef: &ref, Sources: []string{src}}},
+		Listen:      []*ngfwv1.SocketAddress{{Address: strp("127.0.0.1"), Port: &port}},
+		Communities: map[string]*ngfwv1.SnmpService_Community{"ro": {SecretRef: &ref, Sources: []string{src}}},
 	}}}
 	r := newRenderer(t)
 	files, err := r.Render(context.Background(), ds)
@@ -208,7 +208,7 @@ func TestTypedInput(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := string(files[r.paths.ConfFile].Content)
-	for _, want := range []string{"agentaddress udp:127.0.0.1:3861\n", "sysLocation Hall A\n", "rocommunity " + secRO + " 127.0.0.1/32 -V vrx_all\n"} {
+	for _, want := range []string{"agentaddress udp:127.0.0.1:3861\n", "sysLocation Hall A\n", "rocommunity " + secRO + " 127.0.0.1/32 -V ngfw_all\n"} {
 		if !strings.Contains(c, want) {
 			t.Errorf("missing %q in\n%s", want, c)
 		}
@@ -296,10 +296,10 @@ func TestHostileStrings(t *testing.T) {
 
 func TestInvalidUTF8Typed(t *testing.T) {
 	en := true
-	for _, ds := range []*vrxv1.DesiredState{
-		{Services: &vrxv1.ServicesConfig{Snmp: &vrxv1.SnmpService{Enabled: &en, SysLocation: strp("\xff\xfe")}}},
-		{Services: &vrxv1.ServicesConfig{Snmp: &vrxv1.SnmpService{Enabled: &en, SysName: strp("a\xffb")}}},
-		{Services: &vrxv1.ServicesConfig{Snmp: &vrxv1.SnmpService{Enabled: &en, V3Users: map[string]*vrxv1.SnmpService_V3User{"\xff": {}}}}},
+	for _, ds := range []*ngfwv1.DesiredState{
+		{Services: &ngfwv1.ServicesConfig{Snmp: &ngfwv1.SnmpService{Enabled: &en, SysLocation: strp("\xff\xfe")}}},
+		{Services: &ngfwv1.ServicesConfig{Snmp: &ngfwv1.SnmpService{Enabled: &en, SysName: strp("a\xffb")}}},
+		{Services: &ngfwv1.ServicesConfig{Snmp: &ngfwv1.SnmpService{Enabled: &en, V3Users: map[string]*ngfwv1.SnmpService_V3User{"\xff": {}}}}},
 	} {
 		if _, err := newRenderer(t).Render(context.Background(), ds); !errors.Is(err, ErrInput) {
 			t.Fatalf("invalid UTF-8 accepted: %v", err)
@@ -521,7 +521,7 @@ func (a *fakeAgent) Get(_ context.Context, tg Target, _ []string) (map[string]st
 
 func tempPaths(t *testing.T) Paths {
 	dir := t.TempDir()
-	return Paths{ConfFile: filepath.Join(dir, "snmpd.conf"), AgentXSocket: filepath.Join(dir, "agentx.sock"), PendingFile: filepath.Join(dir, "vrx.pending"), FileMode: 0o600}
+	return Paths{ConfFile: filepath.Join(dir, "snmpd.conf"), AgentXSocket: filepath.Join(dir, "agentx.sock"), PendingFile: filepath.Join(dir, "ngfw.pending"), FileMode: 0o600}
 }
 
 // fakeSockets reports the listen set of the file on disk (a daemon that restarted onto it), or
@@ -705,7 +705,7 @@ func TestRetrieveRedactsAndNeverFails(t *testing.T) {
 	agent.err = nil
 	msg, _ = r2.Retrieve(ctx)
 	st = msg.(*structpb.Struct)
-	if !st.Fields["reachable"].GetBoolValue() || st.Fields["sysName"].GetStringValue() != "vrx-w8" || st.Fields["credential"].GetStringValue() != "v2c community" {
+	if !st.Fields["reachable"].GetBoolValue() || st.Fields["sysName"].GetStringValue() != "ngfw-w8" || st.Fields["credential"].GetStringValue() != "v2c community" {
 		t.Fatalf("unexpected state %s", st)
 	}
 	// Events: a changed location after the baseline.
@@ -765,7 +765,7 @@ func TestDescriptionNeverRendered(t *testing.T) {
 }
 
 // TestTypedStandIns (F-snmp, D-086): the former stand-ins are contract fields now; a typed
-// *vrxv1.DesiredState renders byte-for-byte what the structpb document of the "full" golden renders,
+// *ngfwv1.DesiredState renders byte-for-byte what the structpb document of the "full" golden renders,
 // and a key the contract does not have (e.g. an `exec` monitor) cannot reach the file.
 func TestTypedStandIns(t *testing.T) {
 	r := newRenderer(t)
@@ -774,7 +774,7 @@ func TestTypedStandIns(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, ds); err != nil {
 		t.Fatal(err)
 	}

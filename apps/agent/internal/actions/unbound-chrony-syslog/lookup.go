@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dns"
 	"ngfw/agent/internal/vpp"
 )
@@ -34,7 +34,7 @@ const ErrCacheNotReady = "dns_lookup needs VPP's DNS cache live on this agent �
 // stats "ipv4"/"ipv6"; a VPP error (the plugin disabled — only the globals owner enables it, D-071 — an unreachable
 // upstream, the deadline) ends the stream with done{exit_code 1} and the reason. An invalid request is
 // InvalidArgument, a disconnected VPP Unavailable.
-func Lookup(ctx context.Context, c vpp.Client, a *vrxv1.DnsLookupAction, cacheReady bool, send func(*vrxv1.ActionOutput) error) error {
+func Lookup(ctx context.Context, c vpp.Client, a *ngfwv1.DnsLookupAction, cacheReady bool, send func(*ngfwv1.ActionOutput) error) error {
 	name := a.GetName()
 	if err := dns.ValidateName(name); err != nil {
 		return status.Errorf(codes.InvalidArgument, "dns_lookup: %v", err)
@@ -63,20 +63,20 @@ func Lookup(ctx context.Context, c vpp.Client, a *vrxv1.DnsLookupAction, cacheRe
 		if errors.Is(lctx.Err(), context.DeadlineExceeded) {
 			why = fmt.Sprintf("no answer within %v (%v)", timeout, err)
 		}
-		return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+		return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 			Summary: fmt.Sprintf("%s: lookup failed: %s", name, why), ExitCode: 1,
 		}}})
 	}
 	stats := map[string]string{}
 	if ip4.IsValid() {
 		stats["ipv4"] = ip4.String()
-		if err := send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: "A " + ip4.String()}}); err != nil {
+		if err := send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: "A " + ip4.String()}}); err != nil {
 			return err
 		}
 	}
 	if ip6.IsValid() {
 		stats["ipv6"] = ip6.String()
-		if err := send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: "AAAA " + ip6.String()}}); err != nil {
+		if err := send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: "AAAA " + ip6.String()}}); err != nil {
 			return err
 		}
 	}
@@ -84,5 +84,5 @@ func Lookup(ctx context.Context, c vpp.Client, a *vrxv1.DnsLookupAction, cacheRe
 	if len(stats) == 0 {
 		summary = name + ": no address"
 	}
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: summary, Stats: stats}}})
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: summary, Stats: stats}}})
 }

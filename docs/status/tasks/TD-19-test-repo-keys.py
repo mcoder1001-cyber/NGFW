@@ -97,7 +97,7 @@ else: raise SystemExit(91)
         for expected in ('', 'a'*40, 'A'*39, A+','+A, A+';echo unsafe'):
             with self.subTest(expected=expected):
                 result = subprocess.run(['bash','-c','set -euo pipefail\n'+source[start:end]+'\ncheck_key_pins'],capture_output=True,text=True,
-                    env=dict(os.environ, VRX_FRR_KEY_FINGERPRINTS=expected,VRX_NODESOURCE_KEY_FINGERPRINTS=B))
+                    env=dict(os.environ, NGFW_FRR_KEY_FINGERPRINTS=expected,NGFW_NODESOURCE_KEY_FINGERPRINTS=B))
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('trusted exact primary',result.stderr)
         self.assertLess(source.index('\ncheck_key_pins\n'),source.index('\ncurl -fsSL'))
@@ -109,12 +109,12 @@ else: raise SystemExit(91)
             script = root / 'setup.sh'
             source = (ROOT / 'scripts/00-add-repos.sh').read_text().replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
             script.write_text(source)
-            env = dict(os.environ, VRX_VPP_ARTIFACTS=str(root / 'missing-artifacts'))
-            env.pop('VRX_FRR_KEY_FINGERPRINTS', None)
-            env.pop('VRX_NODESOURCE_KEY_FINGERPRINTS', None)
+            env = dict(os.environ, NGFW_VPP_ARTIFACTS=str(root / 'missing-artifacts'))
+            env.pop('NGFW_FRR_KEY_FINGERPRINTS', None)
+            env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
             result = subprocess.run(['bash', str(script)], env=env, text=True, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('VRX_FRR_KEY_FINGERPRINTS', result.stderr)
+            self.assertIn('NGFW_FRR_KEY_FINGERPRINTS', result.stderr)
             self.assertNotIn('realpath:', result.stderr)
 
     def test_revoked_or_expired_primary_refused(self):

@@ -27,7 +27,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/l2"
@@ -101,11 +101,11 @@ func boolOr(p *bool, def bool) bool {
 type l2Port struct {
 	name string
 	ptr  string
-	l2   *vrxv1.BridgeL2Port
+	l2   *ngfwv1.BridgeL2Port
 	sub  bool
 }
 
-func l2Ports(ifs map[string]*vrxv1.Interface) []l2Port {
+func l2Ports(ifs map[string]*ngfwv1.Interface) []l2Port {
 	var out []l2Port
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
@@ -125,7 +125,7 @@ func ifRef(name string) string { return string(iface.AliasKey(name)) }
 
 // BridgeL2 emits the objects of the L2 model (interfaces.<if>.l2 + routing.l2). vrfID maps a VRF
 // name to its table id (false: unknown VRF).
-func BridgeL2(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bool)) {
+func BridgeL2(s Sink, ds *ngfwv1.DesiredState, vrfID func(string) (uint32, bool)) {
 	cfg := ds.GetRouting().GetL2()
 	bdID := map[string]uint32{}
 	for _, name := range sortedKeys(cfg.GetBridgeDomains()) {
@@ -228,7 +228,7 @@ func BridgeL2(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bool))
 		for _, fam := range []struct {
 			ipv6  bool
 			field string
-			paths []*vrxv1.BridgeL2L3XcPath
+			paths []*ngfwv1.BridgeL2L3XcPath
 		}{{false, "ipv4Paths", x.GetIpv4Paths()}, {true, "ipv6Paths", x.GetIpv6Paths()}} {
 			if len(fam.paths) == 0 {
 				continue
@@ -315,8 +315,8 @@ func BridgeL2(s Sink, ds *vrxv1.DesiredState, vrfID func(string) (uint32, bool))
 // on ds.Interfaces and routing.l2. stored is the agent's stored `interfaces` document (a leaf the
 // document sets on an existing interface without any L2 object is reported with its defaults, so a
 // removed membership shows as drift); tableName names a FIB table.
-func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string]*vrxv1.Interface, tableName func(uint32) string) {
-	cfg := &vrxv1.BridgeL2Config{}
+func AssembleBridgeL2(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, tableName func(uint32) string) {
+	cfg := &ngfwv1.BridgeL2Config{}
 	bdName := map[uint32]string{}
 	for _, kv := range kvs {
 		if b, ok := kv.Value.(*l2.BridgeDomain); ok {
@@ -326,9 +326,9 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 			}
 			bdName[b.GetId()] = name
 			if cfg.BridgeDomains == nil {
-				cfg.BridgeDomains = map[string]*vrxv1.BridgeL2Domain{}
+				cfg.BridgeDomains = map[string]*ngfwv1.BridgeL2Domain{}
 			}
-			cfg.BridgeDomains[name] = &vrxv1.BridgeL2Domain{
+			cfg.BridgeDomains[name] = &ngfwv1.BridgeL2Domain{
 				Id: proto.Uint32(b.GetId()), Flood: proto.Bool(b.GetFlood()), UuFlood: proto.Bool(b.GetUuFlood()),
 				Forward: proto.Bool(b.GetForward()), Learn: proto.Bool(b.GetLearn()), ArpTerm: proto.Bool(b.GetArpTerm()),
 				MacAgeMin: proto.Uint32(b.GetMacAge()),
@@ -341,12 +341,12 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 		}
 		return strconv.FormatUint(uint64(id), 10)
 	}
-	ports := map[string]*vrxv1.BridgeL2Port{}
-	port := func(name string) *vrxv1.BridgeL2Port {
+	ports := map[string]*ngfwv1.BridgeL2Port{}
+	port := func(name string) *ngfwv1.BridgeL2Port {
 		if p, ok := ports[name]; ok {
 			return p
 		}
-		p := &vrxv1.BridgeL2Port{}
+		p := &ngfwv1.BridgeL2Port{}
 		ports[name] = p
 		return p
 	}
@@ -359,7 +359,7 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 			p.Bvi = proto.Bool(v.GetPortType() == l2.PortType_PORT_TYPE_BVI)
 			p.UuFwd = proto.Bool(v.GetPortType() == l2.PortType_PORT_TYPE_UU_FWD)
 		case *l2.VlanTagRewrite:
-			tr := &vrxv1.BridgeL2TagRewrite{Op: proto.String(TagRewriteName(v.GetOp())), Dot1Ad: proto.Bool(false)}
+			tr := &ngfwv1.BridgeL2TagRewrite{Op: proto.String(TagRewriteName(v.GetOp())), Dot1Ad: proto.Bool(false)}
 			if n := vtrTags(v.GetOp()); n >= 1 {
 				tr.Tag1 = proto.Uint32(v.GetTag1())
 				tr.Dot1Ad = proto.Bool(!v.GetPushDot1Q())
@@ -371,26 +371,26 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 		case *l2.FibEntry:
 			bd := cfg.GetBridgeDomains()[nameOfBD(v.GetBridgeDomain())]
 			if bd != nil && v.GetStatic() && v.GetInterface() != "" {
-				bd.StaticMacs = append(bd.StaticMacs, &vrxv1.BridgeL2StaticMac{Mac: proto.String(v.GetMac()), Interface: proto.String(iface.RefID(v.GetInterface()))})
+				bd.StaticMacs = append(bd.StaticMacs, &ngfwv1.BridgeL2StaticMac{Mac: proto.String(v.GetMac()), Interface: proto.String(iface.RefID(v.GetInterface()))})
 			}
 		case *l2.Xconnect:
 			if cfg.Xconnects == nil {
-				cfg.Xconnects = map[string]*vrxv1.BridgeL2Xconnect{}
+				cfg.Xconnects = map[string]*ngfwv1.BridgeL2Xconnect{}
 			}
-			cfg.Xconnects[iface.RefID(v.GetRx())] = &vrxv1.BridgeL2Xconnect{Tx: proto.String(iface.RefID(v.GetTx()))}
+			cfg.Xconnects[iface.RefID(v.GetRx())] = &ngfwv1.BridgeL2Xconnect{Tx: proto.String(iface.RefID(v.GetTx()))}
 		case *l3xc.L3Xc:
 			if cfg.L3Xc == nil {
-				cfg.L3Xc = map[string]*vrxv1.BridgeL2L3Xc{}
+				cfg.L3Xc = map[string]*ngfwv1.BridgeL2L3Xc{}
 			}
 			rx := iface.RefID(v.GetInterface())
 			x := cfg.L3Xc[rx]
 			if x == nil {
-				x = &vrxv1.BridgeL2L3Xc{}
+				x = &ngfwv1.BridgeL2L3Xc{}
 				cfg.L3Xc[rx] = x
 			}
-			var paths []*vrxv1.BridgeL2L3XcPath
+			var paths []*ngfwv1.BridgeL2L3XcPath
 			for _, p := range v.GetPaths() {
-				out := &vrxv1.BridgeL2L3XcPath{Vrf: proto.String(tableName(p.GetTable())), Weight: proto.Uint32(p.GetWeight()), Preference: proto.Uint32(p.GetPreference())}
+				out := &ngfwv1.BridgeL2L3XcPath{Vrf: proto.String(tableName(p.GetTable())), Weight: proto.Uint32(p.GetWeight()), Preference: proto.Uint32(p.GetPreference())}
 				if p.GetNextHop() != "" {
 					out.NextHop = proto.String(p.GetNextHop())
 				}
@@ -412,7 +412,7 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 			var dev mactime.Device
 			if err := dfkit.Decode(kv.Value, &dev); err == nil {
 				if cfg.MacFilters == nil {
-					cfg.MacFilters = map[string]*vrxv1.BridgeL2MacFilter{}
+					cfg.MacFilters = map[string]*ngfwv1.BridgeL2MacFilter{}
 				}
 				cfg.MacFilters[dev.Name] = macFilterOf(dev)
 			}
@@ -449,7 +449,7 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 	}
 	if len(cfg.GetBridgeDomains())+len(cfg.GetXconnects())+len(cfg.GetL3Xc())+len(cfg.GetMacFilters()) > 0 {
 		if ds.Routing == nil {
-			ds.Routing = &vrxv1.RoutingConfig{}
+			ds.Routing = &ngfwv1.RoutingConfig{}
 		}
 		ds.Routing.L2 = cfg
 	}
@@ -458,12 +458,12 @@ func AssembleBridgeL2(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[str
 // macFilterOf turns VPP's per-day ranges back into the configuration's weekly ranges: ranges with
 // the same times are grouped (days in the configuration's mon…sun order), groups sorted by their
 // first day, then (start, end) — the canonical order Retrieve reports.
-func macFilterOf(dev mactime.Device) *vrxv1.BridgeL2MacFilter {
+func macFilterOf(dev mactime.Device) *ngfwv1.BridgeL2MacFilter {
 	action := "allow"
 	if dev.Drop {
 		action = "drop"
 	}
-	out := &vrxv1.BridgeL2MacFilter{Mac: proto.String(dev.MAC), Action: proto.String(action)}
+	out := &ngfwv1.BridgeL2MacFilter{Mac: proto.String(dev.MAC), Action: proto.String(action)}
 	type span struct{ start, end int }
 	days := map[span]map[string]bool{}
 	var spans []span
@@ -501,7 +501,7 @@ func macFilterOf(dev mactime.Device) *vrxv1.BridgeL2MacFilter {
 		return spans[i].end < spans[j].end
 	})
 	for _, sp := range spans {
-		r := &vrxv1.BridgeL2MacFilterRange{Start: proto.String(fmtHHMM(sp.start)), End: proto.String(fmtHHMM(sp.end))}
+		r := &ngfwv1.BridgeL2MacFilterRange{Start: proto.String(fmtHHMM(sp.start)), End: proto.String(fmtHHMM(sp.end))}
 		for _, d := range weekdayOrder {
 			if days[sp][d] {
 				r.Days = append(r.Days, d)
@@ -514,7 +514,7 @@ func macFilterOf(dev mactime.Device) *vrxv1.BridgeL2MacFilter {
 
 // lookupNode reports whether ds.Interfaces has the (sub-)interface name; with create it adds a
 // parent that is missing (a physical member the assembler did not name otherwise).
-func lookupNode(ds *vrxv1.DesiredState, name string, create bool) bool {
+func lookupNode(ds *ngfwv1.DesiredState, name string, create bool) bool {
 	parent, id, isSub := strings.Cut(name, ".")
 	itf := ds.GetInterfaces()[parent]
 	if itf == nil {
@@ -522,9 +522,9 @@ func lookupNode(ds *vrxv1.DesiredState, name string, create bool) bool {
 			return false
 		}
 		if ds.Interfaces == nil {
-			ds.Interfaces = map[string]*vrxv1.Interface{}
+			ds.Interfaces = map[string]*ngfwv1.Interface{}
 		}
-		ds.Interfaces[parent] = &vrxv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String("default")}
+		ds.Interfaces[parent] = &ngfwv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String("default")}
 		return true
 	}
 	if !isSub {
@@ -534,7 +534,7 @@ func lookupNode(ds *vrxv1.DesiredState, name string, create bool) bool {
 	return ok
 }
 
-func setPort(ds *vrxv1.DesiredState, name string, p *vrxv1.BridgeL2Port) {
+func setPort(ds *ngfwv1.DesiredState, name string, p *ngfwv1.BridgeL2Port) {
 	if !lookupNode(ds, name, true) {
 		return // a sub-interface the agent did not assemble: not ours to report
 	}

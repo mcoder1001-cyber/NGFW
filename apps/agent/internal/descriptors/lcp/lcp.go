@@ -4,7 +4,7 @@
 // only from apps/agent/binapi/lcp; docs/agent/descriptors/lcp.md is the object ↔ message table.
 // linux_nl (the netlink listener) has no binary API: it is configured in startup.conf only.
 //
-// linux_cp and linux_nl are loaded on vrx-a since 2026-09-24 (D-060). Where they are not, every
+// linux_cp and linux_nl are loaded on ngfw-a since 2026-09-24 (D-060). Where they are not, every
 // call fails with ErrPluginNotLoaded (govpp does not know the message ids).
 //
 // Ownership: a pair is owned through its VPP-side interface (logical name, D-069): this owner's

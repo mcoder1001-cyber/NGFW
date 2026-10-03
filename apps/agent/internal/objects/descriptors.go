@@ -6,7 +6,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -42,10 +42,10 @@ func DescriptorName(k Kind) string { return descriptorOf[k] }
 func Key(k Kind, name string) scheduler.Key { return scheduler.Join(descriptorOf[k], name) }
 
 // Value wraps one object as the family's value: an ObjectsConfig holding exactly that entry in
-// kind k's map (v is not cloned). v must be kind k's message type (*vrxv1.AddressObject for
+// kind k's map (v is not cloned). v must be kind k's message type (*ngfwv1.AddressObject for
 // KindAddresses, …).
-func Value(k Kind, name string, v proto.Message) (*vrxv1.ObjectsConfig, error) {
-	doc := &vrxv1.ObjectsConfig{}
+func Value(k Kind, name string, v proto.Message) (*ngfwv1.ObjectsConfig, error) {
+	doc := &ngfwv1.ObjectsConfig{}
 	if err := setEntry(doc, k, name, v); err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func Value(k Kind, name string, v proto.Message) (*vrxv1.ObjectsConfig, error) {
 // single returns the one entry of kind k in a family value — O(1): the scheduler calls KeyOf and
 // Dependencies for every object of a transaction many times (review F1 profile).
 func single(k Kind, obj proto.Message) (string, proto.Message, error) {
-	doc, ok := obj.(*vrxv1.ObjectsConfig)
+	doc, ok := obj.(*ngfwv1.ObjectsConfig)
 	if !ok {
 		return "", nil, fmt.Errorf("%w: value %T is not an ObjectsConfig", ErrInvalid, obj)
 	}
@@ -143,12 +143,12 @@ func (d *descriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 		deps = append(deps, scheduler.Dependency{Key: Key(k, name), Optional: true})
 	}
 	switch o := v.(type) {
-	case *vrxv1.AddressGroup:
+	case *ngfwv1.AddressGroup:
 		for _, m := range o.GetMembers() {
 			opt(KindAddresses, m)
 			opt(KindAddressGroups, m)
 		}
-	case *vrxv1.ServiceGroup:
+	case *ngfwv1.ServiceGroup:
 		for _, m := range o.GetMembers() {
 			opt(KindServices, m)
 			opt(KindServiceGroups, m)

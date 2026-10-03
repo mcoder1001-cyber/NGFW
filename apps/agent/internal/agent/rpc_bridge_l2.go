@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	l2api "ngfw/agent/binapi/l2"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/l2"
 	"ngfw/agent/internal/desired"
@@ -32,12 +32,12 @@ const (
 )
 
 // BridgeDomainState implements the BridgeDomainState RPC.
-func (g *server) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomainStateRequest) (*vrxv1.BridgeDomainStateResponse, error) {
+func (g *server) BridgeDomainState(ctx context.Context, req *ngfwv1.BridgeDomainStateRequest) (*ngfwv1.BridgeDomainStateResponse, error) {
 	return g.svc.BridgeDomainState(ctx, req)
 }
 
 // BridgeDomainMacs implements the BridgeDomainMacs RPC.
-func (g *server) BridgeDomainMacs(ctx context.Context, req *vrxv1.BridgeDomainMacsRequest) (*vrxv1.BridgeDomainMacsResponse, error) {
+func (g *server) BridgeDomainMacs(ctx context.Context, req *ngfwv1.BridgeDomainMacsRequest) (*ngfwv1.BridgeDomainMacsResponse, error) {
 	return g.svc.BridgeDomainMacs(ctx, req)
 }
 
@@ -105,7 +105,7 @@ func (s *Service) fibCounts(ctx context.Context, bd uint32) (static, learned uin
 }
 
 // BridgeDomainState implements the RPC.
-func (s *Service) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomainStateRequest) (*vrxv1.BridgeDomainStateResponse, error) {
+func (s *Service) BridgeDomainState(ctx context.Context, req *ngfwv1.BridgeDomainStateRequest) (*ngfwv1.BridgeDomainStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -124,20 +124,20 @@ func (s *Service) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomain
 	for _, id := range req.GetIds() {
 		want[id] = true
 	}
-	resp := &vrxv1.BridgeDomainStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.BridgeDomainStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
 	for _, bd := range bds {
 		if len(want) > 0 && !want[bd.BdID] {
 			continue
 		}
 		name, _ := l2.ParseBDTag(bd.BdTag, s.owner, bd.BdID)
-		st := &vrxv1.BridgeDomainStatus{
+		st := &ngfwv1.BridgeDomainStatus{
 			Id: bd.BdID, Name: name, Flood: bd.Flood, UuFlood: bd.UuFlood, Forward: bd.Forward, Learn: bd.Learn,
 			ArpTerm: bd.ArpTerm, ArpUfwd: bd.ArpUfwd, MacAgeMin: uint32(bd.MacAge),
 		}
 		bvi, uu := uint32(bd.BviSwIfIndex), uint32(bd.UuFwdSwIfIndex)
 		for _, sw := range bd.SwIfDetails {
 			idx := uint32(sw.SwIfIndex)
-			m := &vrxv1.BridgeDomainMember{Interface: ifName(t, idx), SwIfIndex: idx, PortType: "normal", Shg: uint32(sw.Shg)}
+			m := &ngfwv1.BridgeDomainMember{Interface: ifName(t, idx), SwIfIndex: idx, PortType: "normal", Shg: uint32(sw.Shg)}
 			switch idx {
 			case bvi:
 				m.PortType = "bvi"
@@ -162,7 +162,7 @@ func (s *Service) BridgeDomainState(ctx context.Context, req *vrxv1.BridgeDomain
 }
 
 // BridgeDomainMacs implements the RPC: one page of an owned bridge domain's L2 FIB, ordered by MAC.
-func (s *Service) BridgeDomainMacs(ctx context.Context, req *vrxv1.BridgeDomainMacsRequest) (*vrxv1.BridgeDomainMacsResponse, error) {
+func (s *Service) BridgeDomainMacs(ctx context.Context, req *ngfwv1.BridgeDomainMacsRequest) (*ngfwv1.BridgeDomainMacsResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (s *Service) BridgeDomainMacs(ctx context.Context, req *vrxv1.BridgeDomainM
 		return nil, grpcVPPError(err, "l2_fib_table_dump")
 	}
 	sort.Slice(fib, func(i, j int) bool { return bytes.Compare(fib[i].Mac[:], fib[j].Mac[:]) < 0 })
-	resp := &vrxv1.BridgeDomainMacsResponse{Total: uint32(len(fib)), Owner: s.owner, RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // an L2 FIB fits in 32 bits
+	resp := &ngfwv1.BridgeDomainMacsResponse{Total: uint32(len(fib)), Owner: s.owner, RetrievedAt: timestamppb.New(s.now())} //nolint:gosec // an L2 FIB fits in 32 bits
 	start := int(req.GetOffset())
 	if start >= len(fib) {
 		return resp, nil
@@ -208,7 +208,7 @@ func (s *Service) BridgeDomainMacs(ctx context.Context, req *vrxv1.BridgeDomainM
 		}
 	}
 	for _, e := range fib[start:end] {
-		m := &vrxv1.BridgeDomainMac{Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac && !e.FilterMac, Filter: e.FilterMac, Bvi: e.BviMac}
+		m := &ngfwv1.BridgeDomainMac{Mac: iface.FormatMAC(e.Mac), Static: e.StaticMac && !e.FilterMac, Filter: e.FilterMac, Bvi: e.BviMac}
 		if idx := uint32(e.SwIfIndex); idx != iface.AllInterfaces && !e.FilterMac {
 			m.SwIfIndex = idx
 			m.Interface = ifName(t, idx)

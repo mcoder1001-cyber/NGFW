@@ -273,7 +273,7 @@ func TestAcquireCappedAndUnclearable(t *testing.T) {
 	}
 	var b bytes.Buffer
 	ifsanitize.WriteMetrics(&b)
-	if !strings.Contains(b.String(), `vrx_agent_iface_sanitize_capped_total{phase="create"}`) {
+	if !strings.Contains(b.String(), `ngfw_agent_iface_sanitize_capped_total{phase="create"}`) {
 		t.Fatalf("metrics lack the capped counter:\n%s", b.String())
 	}
 }

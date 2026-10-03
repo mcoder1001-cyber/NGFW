@@ -25,7 +25,7 @@ ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
 ok: no Dockerfile/compose files
 ok: no kill-by-pattern in scripts
 ok: no secret-shaped strings
-ok: vrxtestsecrets only in test code
+ok: ngfwtestsecrets only in test code
 ok: gitleaks — scanned ~14677 bytes (14.68 KB) in 170ms no leaks found
 ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
 ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots

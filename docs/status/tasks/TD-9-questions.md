@@ -11,11 +11,11 @@ proto.md §2 item 3 and the Outcomes table (done on this branch); (b) the confir
 - The scope asks for "a Plan-only drift gauge" (1.1b) and a panic "metric" (1.1d). Both are agent families, and
   metrics.go is where the agent's families are rendered.
 - The hunk is additive: fields `drift` and `panics`, `panicked()` and `setDrift()`, and two families in `writeAgent`
-  (`vrx_agent_drift_objects`, `vrx_agent_panics_total{where}`). The names do not contain "collector", so TD-8's
+  (`ngfw_agent_drift_objects`, `ngfw_agent_panics_total{where}`). The names do not contain "collector", so TD-8's
   `TestMetricsCollectors` invariant holds.
 - It does not touch TD-8's collector hunks. The trial merge against main has no conflict in metrics.go.
 
-## Q3. The `ApplyResponse.validation` comment in `packages/proto/vrx/v1/dataplane.proto`
+## Q3. The `ApplyResponse.validation` comment in `packages/proto/ngfw/v1/dataplane.proto`
 - Line 172 says "Validation issues when status is FAILED because of validation (empty otherwise)."
 - Since review 1.2, APPLIED and ROLLED_BACK answers carry the projection's warnings (ok = true). The field and its
   wire format are unchanged, and proto.md §2 documents the new behaviour.

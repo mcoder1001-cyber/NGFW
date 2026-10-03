@@ -60,7 +60,7 @@ TestCurrentControlPingFails; `classify` TestStoreLegacyPIDOnlyFormat (old `vpp_i
 still untrusted, reset, rewritten as `"vpp_boot": "boot-a/4242/777"`); `dfkit` TestBootRecordLegacyFormat (`"1000"`,
 `"fake/1000"`, `""` never match; new format matches; restart → no match). `go test ./...` in apps/agent: all ok.
 
-### Host run, slot 12 (`eval "$(tools/lab env 12)"; VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -p 1 -count=1 -v ./internal/descriptors/classify/ ./internal/descriptors/acl/`)
+### Host run, slot 12 (`eval "$(tools/lab env 12)"; NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -p 1 -count=1 -v ./internal/descriptors/classify/ ./internal/descriptors/acl/`)
 `systemctl show vpp -p NRestarts`: before `NRestarts=3`, after `NRestarts=3`.
 ```
     integration_test.go:166: bindings applied on loop1209: input-acl, output-acl, ip-table, l2-tables (table index 7)

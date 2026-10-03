@@ -1,16 +1,16 @@
 # TD-2 — independent review (API follow-ups)
 
 Reviewer: independent review agent (did not write this code). Branch `task/TD-2` @ `7f4578f`, base `main`.
-Ran directly on the host, slot 7 (`w7`, DB `vrx_w7`, Valkey db 7). Probes were throw-away e2e files in the worktree. They were
-deleted after the runs and are not committed. Cleanup: `ok nothing named vrx_w7 / vrx_w7 remains`, `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0`.
-No processes were left running. The files in `/run/vrx-test/w7` are from 00:50–01:47 and are not mine.
+Ran directly on the host, slot 7 (`w7`, DB `ngfw_w7`, Valkey db 7). Probes were throw-away e2e files in the worktree. They were
+deleted after the runs and are not committed. Cleanup: `ok nothing named ngfw_w7 / ngfw_w7 remains`, `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0`.
+No processes were left running. The files in `/run/ngfw-test/w7` are from 00:50–01:47 and are not mine.
 
 ## What was run
 
 | run | result |
 |---|---|
 | `tools/ci.sh --base main` (HEAD 7f4578f) | **CI GATE PASSED**. Contract guard ok: only `packages/api-client/src/generated`, with `contract(api-client)` commits d7c83e2 and 097e014 plus `TD-2-contract.md`. The generated-output gate is clean, forbidden patterns and gitleaks are clean, turbo is 30/30 and agent `make` is ok. Log: `/root/ngfw-wt/logs/ci/TD-2-20260924-051524-2966541`. This matches the pasted run. |
-| `tools/lab lock shared vitest -c vitest.e2e.config.ts` (auth, config, stream, td2, integration) | **41 passed, 3 skipped (44)**, the same as the pasted run. The agent test skips without `VRX_INTEGRATION=1`, which is acceptable because TD-2 changes nothing agent-facing. |
+| `tools/lab lock shared vitest -c vitest.e2e.config.ts` (auth, config, stream, td2, integration) | **41 passed, 3 skipped (44)**, the same as the pasted run. The agent test skips without `NGFW_INTEGRATION=1`, which is acceptable because TD-2 changes nothing agent-facing. |
 | Review probes 1 + 2 (same harness: host PG + Valkey + fake agent) | the results are quoted with each finding below |
 
 ## Contract / scope
@@ -24,7 +24,7 @@ No processes were left running. The files in `/run/vrx-test/w7` are from 00:50�
 `apps/api/src/commit/commit.service.ts:544` (inflight `config: v.config`), `:684`, `:251` (`promote(f.config, …)`); `apps/api/src/commit/validation.service.ts:82` (the validated document is **hydrated with all app_user hashes**); `apps/api/src/datastore/pg-repo.ts:214` (`syncUsers` writes every hash the document carries); `apps/api/src/users/users.service.ts:92-116` (replaces the hash in the candidate and pending rows only, not in `CommitService.inflight`).
 
 TD-2.md claims "a later commit cannot write the old hash back". The claim fails on the M3 lost-track path, and that path is TD-2.md question #3.
-**Reproduced** with the fake agent and `VRX_AGENT_TIMEOUT_MS=800`:
+**Reproduced** with the fake agent and `NGFW_AGENT_TIMEOUT_MS=800`:
 1. `applyDelayMs=2500`, then commit → `504 running-unknown`.
 2. Admin `POST /users/victim/password` → `204`. The new password logs in (`200`).
 3. The agent comes back and `reconcile()` → `in-sync: "transaction … was applied; revision saved"`.
@@ -99,7 +99,7 @@ The usual reason for an admin reset is a compromised account. An attacker who he
 ### L3 — Access-token revocation lives in process memory (TD-2 question #1)
 `apps/api/src/auth/tokens.service.ts:46`.
 
-After an API restart, access tokens issued before the set are accepted again for up to `VRX_ACCESS_TTL_SEC`. The impact is low because the TTL is short and there is one process. The generation counter proposed in H2 covers this.
+After an API restart, access tokens issued before the set are accepted again for up to `NGFW_ACCESS_TTL_SEC`. The impact is low because the TTL is short and there is one process. The generation counter proposed in H2 covers this.
 
 ### L4 — A deleted API key keeps the candidate lock for the whole TTL
 `apps/api/src/auth/auth.service.ts:249` (`deleteApiKey`), `apps/api/src/datastore/lock.ts:59-74`.

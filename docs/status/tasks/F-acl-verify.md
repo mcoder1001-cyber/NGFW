@@ -75,7 +75,7 @@ Extensions to probe P1 (Apply A, then DryRuns of B, C and B again):
 
 ### M2 in detail
 `countersScope` (`test/topology/acl/aclvpp_test.go`) implements every §7 step:
-- **Change path** (opt-in `VRX_ACL_STATS_GLOBALS=1`): `flock -x`, save the current value (read with the CLI), switch on only if it was off, then `flock -s` while the test relies on it.
+- **Change path** (opt-in `NGFW_ACL_STATS_GLOBALS=1`): `flock -x`, save the current value (read with the CLI), switch on only if it was off, then `flock -s` while the test relies on it.
 - **Cleanup:** `flock -x`, restore **exactly** the saved value (never the VPP default), then unlock.
 - **Read-only path:** `flock -s` for the whole test.
 - The screenshot run uses the same helper.

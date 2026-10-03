@@ -89,9 +89,9 @@ describe('NatSchema', () => {
   it('exposes title, description and navigation order for the UI', () => {
     const js = z.toJSONSchema(NatSchema, { target: 'draft-2020-12', io: 'input' });
     expect(js.title).toBe('NAT');
-    expect(js['x-vrx-ui']).toMatchObject({ order: 60 });
+    expect(js['x-ngfw-ui']).toMatchObject({ order: 60 });
     const props = js.properties as Record<string, Record<string, unknown>>;
-    expect(props.pools?.['x-vrx-ui']).toMatchObject({ group: 'Pools' });
+    expect(props.pools?.['x-ngfw-ui']).toMatchObject({ group: 'Pools' });
     expect(props.sessionLimit).toMatchObject({ minimum: 1024 });
     // a pool is a two-way union (range | interface) in the generated JSON Schema
     const poolItems = props.pools?.items as { anyOf?: unknown[] } | undefined;
@@ -439,7 +439,7 @@ describe('other translators', () => {
 
 type JsonNode = Record<string, unknown>;
 
-/** JSON pointers of every node that carries `x-vrx-ui` and an address/prefix `format` but no `widget` (review H1). */
+/** JSON pointers of every node that carries `x-ngfw-ui` and an address/prefix `format` but no `widget` (review H1). */
 function leavesWithoutWidget(root: unknown): string[] {
   const out: string[] = [];
   const walk = (n: unknown, path: string): void => {
@@ -449,7 +449,7 @@ function leavesWithoutWidget(root: unknown): string[] {
       return;
     }
     const node = n as JsonNode;
-    const ui = node['x-vrx-ui'] as { widget?: string } | undefined;
+    const ui = node['x-ngfw-ui'] as { widget?: string } | undefined;
     const anyOf = node.anyOf as JsonNode[] | undefined;
     const formatted =
       typeof node.format === 'string' ||
@@ -471,30 +471,30 @@ describe('nat leaf UI hints survive re-wrapping (review H1)', () => {
   const js = z.toJSONSchema(NatSchema, { target: 'draft-2020-12', io: 'input' });
 
   it('keeps widget/help of re-wrapped primitives on leaf fields', () => {
-    expect(at(js, '/properties/inside')['x-vrx-ui'], '/properties/inside').toMatchObject({
+    expect(at(js, '/properties/inside')['x-ngfw-ui'], '/properties/inside').toMatchObject({
       widget: 'interface-picker',
       group: 'General',
       order: 3,
     });
     expect(
-      at(js, '/properties/outputFeature')['x-vrx-ui'],
+      at(js, '/properties/outputFeature')['x-ngfw-ui'],
       '/properties/outputFeature',
     ).toMatchObject({ widget: 'interface-picker' });
     expect(
-      at(js, '/properties/staticMappings/items/properties/local/properties/ip')['x-vrx-ui'],
+      at(js, '/properties/staticMappings/items/properties/local/properties/ip')['x-ngfw-ui'],
       '/properties/staticMappings/items/properties/local/properties/ip',
     ).toMatchObject({ widget: 'ip' });
     expect(
       at(js, '/properties/staticMappings/items/properties/external/properties/interface')[
-        'x-vrx-ui'
+        'x-ngfw-ui'
       ],
       '/properties/staticMappings/items/properties/external/properties/interface',
     ).toMatchObject({ widget: 'interface-picker', help: expect.any(String) });
     expect(
-      at(js, '/properties/det44/properties/mappings/items/properties/inside')['x-vrx-ui'],
+      at(js, '/properties/det44/properties/mappings/items/properties/inside')['x-ngfw-ui'],
       '/properties/det44/properties/mappings/items/properties/inside',
     ).toMatchObject({ widget: 'cidr', help: 'Network prefix — host bits must be zero' });
-    expect(at(js, '/properties/forwarding')['x-vrx-ui'], '/properties/forwarding').toMatchObject({
+    expect(at(js, '/properties/forwarding')['x-ngfw-ui'], '/properties/forwarding').toMatchObject({
       group: 'General',
       help: expect.any(String),
     });

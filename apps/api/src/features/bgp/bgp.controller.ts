@@ -6,7 +6,7 @@ import { AgentClient } from '../../agent/agent.client.js';
 import { Protected } from '../../common/responses.js';
 import { openapi } from '../../common/zod.js';
 
-/** One BGP neighbour's live session (vrx.v1.BgpNeighborState). */
+/** One BGP neighbour's live session (ngfw.v1.BgpNeighborState). */
 export const BgpNeighborOut = z.object({
   address: z.string().describe('neighbour address (the routing.bgp.neighbors key)'),
   remoteAs: z.number().int(),
@@ -59,7 +59,7 @@ export const BgpStateOut = z.object({
 });
 export type BgpStateOut = z.infer<typeof BgpStateOut>;
 
-/** vrx.v1.RoutingStateResponse → the `/state/bgp` body. */
+/** ngfw.v1.RoutingStateResponse → the `/state/bgp` body. */
 export function bgpStateOut(r: RoutingStateResponse): BgpStateOut {
   return {
     frrRunning: r.frrRunning,

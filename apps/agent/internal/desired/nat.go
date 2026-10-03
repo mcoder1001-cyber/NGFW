@@ -1,7 +1,7 @@
 package desired
 
 // The `nat` domain builder (F-nat44-ed-sessions): NAT44 with `mode: "ed"` onto DF-3's nat44-ed descriptors
-// (docs/agent/descriptors/nat44-ed.md, nat-common.md), and the assembler back to vrx.v1.NatConfig.
+// (docs/agent/descriptors/nat44-ed.md, nat-common.md), and the assembler back to ngfw.v1.NatConfig.
 //
 //	nat (NAT44 on, D-062 Nat44Enabled)      → nat44-ed.enable/global {sessions ← sessionLimit, inside/outside VRF}
 //	nat.timeouts (≠ VPP defaults)           → nat44-ed.timeouts/global
@@ -36,7 +36,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
@@ -55,7 +55,7 @@ const MaxPoolAddresses = 1024
 // Nat44Enabled is packages/schema's isNat44Enabled() (D-062): the explicit `enabled` when set, otherwise true
 // exactly when any NAT44 object (inside/outside/output-feature interface, pool, mapping) is configured. Callers
 // never read `nat.enabled` raw.
-func Nat44Enabled(n *vrxv1.NatConfig) bool {
+func Nat44Enabled(n *ngfwv1.NatConfig) bool {
 	if n == nil {
 		return false
 	}
@@ -67,7 +67,7 @@ func Nat44Enabled(n *vrxv1.NatConfig) bool {
 }
 
 // NatMode is `nat.mode` with its schema default ("ed").
-func NatMode(n *vrxv1.NatConfig) string {
+func NatMode(n *ngfwv1.NatConfig) string {
 	if n.GetMode() == "" {
 		return NatModeED
 	}
@@ -76,7 +76,7 @@ func NatMode(n *vrxv1.NatConfig) string {
 
 // Nat emits the objects of `nat`. vrfID maps a VRF name to its table id ("" and "default" → 0; false: unknown).
 // Dispatch: NAT44-ED here; every other translator is reported as not applied, in the sibling groups below.
-func Nat(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
+func Nat(s Sink, nat *ngfwv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	if nat == nil {
 		return
 	}
@@ -134,7 +134,7 @@ func natVRF(s Sink, name string, vrfID func(string) (uint32, bool), pointer stri
 	return id, ok
 }
 
-func nat44ED(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
+func nat44ED(s Sink, nat *ngfwv1.NatConfig, vrfID func(string) (uint32, bool)) {
 	// enable (VPP global, D-071): the plugin's session limit and inside/outside VRFs
 	en := nat44ed.EnableSpec{Sessions: nat.GetSessionLimit()}
 	okIn, okOut := true, true
@@ -190,7 +190,7 @@ func nat44ED(s Sink, nat *vrxv1.NatConfig, vrfID func(string) (uint32, bool)) {
 }
 
 // natTimeouts fills unset timeouts with VPP's defaults (the Zod defaults are the same values).
-func natTimeouts(t *vrxv1.NatTimeouts) nat44ed.TimeoutsSpec {
+func natTimeouts(t *ngfwv1.NatTimeouts) nat44ed.TimeoutsSpec {
 	out := nat44ed.DefaultTimeouts
 	if t == nil {
 		return out
@@ -232,7 +232,7 @@ func ParseNatRange(r string) (first, last netip.Addr, err error) {
 // interface pool's interface.
 type natPoolRef struct{ ip, iface string }
 
-func natPools(s Sink, pools []*vrxv1.NatPool, vrfID func(string) (uint32, bool)) map[string]natPoolRef {
+func natPools(s Sink, pools []*ngfwv1.NatPool, vrfID func(string) (uint32, bool)) map[string]natPoolRef {
 	refs := map[string]natPoolRef{}
 	for i, p := range pools {
 		pt := Ptr("nat", "pools", strconv.Itoa(i))
@@ -277,7 +277,7 @@ func natRangeSize(first, last netip.Addr) uint64 {
 	return y - x + 1
 }
 
-func natStatic(s Sink, m *vrxv1.NatStaticMapping, i int, pools map[string]natPoolRef, vrfID func(string) (uint32, bool)) {
+func natStatic(s Sink, m *ngfwv1.NatStaticMapping, i int, pools map[string]natPoolRef, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "staticMappings", strconv.Itoa(i))
 	ext := m.GetExternal()
 	spec := nat44ed.StaticMappingSpec{
@@ -333,7 +333,7 @@ func IdentityMappingName(spec nat44ed.IdentityMappingSpec) string {
 	return "id-" + hex.EncodeToString(sum[:8])
 }
 
-func natIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, vrfID func(string) (uint32, bool)) {
+func natIdentity(s Sink, m *ngfwv1.NatIdentityMapping, i int, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "identityMappings", strconv.Itoa(i))
 	if (m.Ip == nil) == (m.Interface == nil) {
 		s.Errorf(pt, "nat.identity-mappings", "exactly one of ip or interface is required")
@@ -362,7 +362,7 @@ func natIdentity(s Sink, m *vrxv1.NatIdentityMapping, i int, vrfID func(string) 
 	natAdd(s, nat44ed.NameIdentityMapping, spec.Name, &spec, pt)
 }
 
-func natLB(s Sink, m *vrxv1.NatLoadBalancedMapping, i int, vrfID func(string) (uint32, bool)) {
+func natLB(s Sink, m *ngfwv1.NatLoadBalancedMapping, i int, vrfID func(string) (uint32, bool)) {
 	pt := Ptr("nat", "loadBalancedMappings", strconv.Itoa(i))
 	spec := nat44ed.LBStaticMappingSpec{
 		Name:     m.GetName(),
@@ -389,8 +389,8 @@ func natLB(s Sink, m *vrxv1.NatLoadBalancedMapping, i int, vrfID func(string) (u
 // AssembleNat builds `nat` from retrieved objects in canonical form (docs/contracts/proto.md §5): sorted lists,
 // canonical addresses, explicit flags, VRF names through tableName (table 0 → unset). The VPP globals appear only
 // where this agent can retrieve them (globals owner); pool names and descriptions are never invented.
-func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *vrxv1.NatConfig {
-	out := &vrxv1.NatConfig{}
+func AssembleNat(kvs []scheduler.KV, tableName func(uint32) string) *ngfwv1.NatConfig {
+	out := &ngfwv1.NatConfig{}
 	assembleNat44ED(out, kvs, tableName)
 	// Sibling assemblers add their leaves below their anchors.
 	// wave-A: F-nat44-ei-64-66-nptv6
@@ -417,7 +417,7 @@ func natVRFName(id uint32, tableName func(uint32) string) *string {
 	return proto.String(tableName(id))
 }
 
-func assembleNat44ED(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
+func assembleNat44ED(out *ngfwv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
 	var (
 		any44                  bool
 		enable                 *nat44ed.EnableSpec
@@ -495,7 +495,7 @@ func assembleNat44ED(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 		if timeouts != nil {
 			t = *timeouts
 		}
-		out.Timeouts = &vrxv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
+		out.Timeouts = &ngfwv1.NatTimeouts{Udp: proto.Uint32(t.UDP), TcpEstablished: proto.Uint32(t.TCPEstablished), TcpTransitory: proto.Uint32(t.TCPTransitory), Icmp: proto.Uint32(t.ICMP)}
 	} else if forwarding {
 		out.Forwarding = proto.Bool(true)
 	}
@@ -519,19 +519,19 @@ func assembleNat44ED(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 		if p.Last != p.First {
 			r += "-" + p.Last
 		}
-		out.Pools = append(out.Pools, &vrxv1.NatPool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName), TwiceNat: proto.Bool(p.TwiceNAT)})
+		out.Pools = append(out.Pools, &ngfwv1.NatPool{Range: proto.String(r), Vrf: natVRFName(p.VRF, tableName), TwiceNat: proto.Bool(p.TwiceNAT)})
 	}
 	sort.Slice(ifPools, func(a, b int) bool { return ifPools[a].Interface < ifPools[b].Interface })
 	for _, p := range ifPools {
-		out.Pools = append(out.Pools, &vrxv1.NatPool{Interface: proto.String(p.Interface), TwiceNat: proto.Bool(p.TwiceNAT)})
+		out.Pools = append(out.Pools, &ngfwv1.NatPool{Interface: proto.String(p.Interface), TwiceNat: proto.Bool(p.TwiceNAT)})
 	}
 
 	sort.Slice(statics, func(a, b int) bool { return statics[a].Name < statics[b].Name })
 	for _, m := range statics {
-		sm := &vrxv1.NatStaticMapping{
+		sm := &ngfwv1.NatStaticMapping{
 			Name:     proto.String(m.Name),
-			Local:    &vrxv1.NatStaticMapping_Local{Ip: proto.String(m.Local.IP)},
-			External: &vrxv1.NatStaticMapping_External{},
+			Local:    &ngfwv1.NatStaticMapping_Local{Ip: proto.String(m.Local.IP)},
+			External: &ngfwv1.NatStaticMapping_External{},
 			Vrf:      natVRFName(m.VRF, tableName),
 			TwiceNat: proto.Bool(m.TwiceNAT), SelfTwiceNat: proto.Bool(m.SelfTwiceNAT), Out2InOnly: proto.Bool(m.Out2InOnly),
 		}
@@ -550,7 +550,7 @@ func assembleNat44ED(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 
 	sort.Slice(idents, func(a, b int) bool { return natIdentityKey(idents[a]) < natIdentityKey(idents[b]) })
 	for _, m := range idents {
-		im := &vrxv1.NatIdentityMapping{Vrf: natVRFName(m.VRF, tableName)}
+		im := &ngfwv1.NatIdentityMapping{Vrf: natVRFName(m.VRF, tableName)}
 		if m.Interface != "" {
 			im.Interface = proto.String(m.Interface)
 		} else {
@@ -565,14 +565,14 @@ func assembleNat44ED(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(ui
 
 	sort.Slice(lbs, func(a, b int) bool { return lbs[a].Name < lbs[b].Name })
 	for _, m := range lbs {
-		lm := &vrxv1.NatLoadBalancedMapping{
+		lm := &ngfwv1.NatLoadBalancedMapping{
 			Name: proto.String(m.Name), Protocol: proto.String(m.Protocol),
-			External: &vrxv1.NatLoadBalancedMapping_External{Ip: proto.String(m.External.IP), Port: proto.Uint32(m.External.Port)},
+			External: &ngfwv1.NatLoadBalancedMapping_External{Ip: proto.String(m.External.IP), Port: proto.Uint32(m.External.Port)},
 			Affinity: proto.Uint32(m.Affinity),
 			TwiceNat: proto.Bool(m.TwiceNAT), SelfTwiceNat: proto.Bool(m.SelfTwiceNAT), Out2InOnly: proto.Bool(m.Out2InOnly),
 		}
 		for _, l := range m.Locals { // DF-3 keeps them sorted (vrf, ip, port)
-			lm.Locals = append(lm.Locals, &vrxv1.NatLoadBalancedMapping_Local{Ip: proto.String(l.IP), Port: proto.Uint32(l.Port), Probability: proto.Uint32(l.Probability), Vrf: natVRFName(l.VRF, tableName)})
+			lm.Locals = append(lm.Locals, &ngfwv1.NatLoadBalancedMapping_Local{Ip: proto.String(l.IP), Port: proto.Uint32(l.Port), Probability: proto.Uint32(l.Probability), Vrf: natVRFName(l.VRF, tableName)})
 		}
 		out.LoadBalancedMappings = append(out.LoadBalancedMappings, lm)
 	}
@@ -601,7 +601,7 @@ const RuleExpired = "rule.expired"
 
 // natMappingExpired reports whether static mapping i has expired (F-rule-expiry): then it is left out of the
 // projection with a RuleExpired note; a later expiry is noted for the re-projection at that instant.
-func natMappingExpired(s Sink, m *vrxv1.NatStaticMapping, i int) bool {
+func natMappingExpired(s Sink, m *ngfwv1.NatStaticMapping, i int) bool {
 	pt := Ptr("nat", "staticMappings", strconv.Itoa(i))
 	expired, at, err := ruleexpiry.Expired(m.GetExpiresAt(), ruleexpiry.Now())
 	switch {

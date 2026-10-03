@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -100,7 +100,7 @@ func (c *ctxRecorder) Run(ctx context.Context, cmd renderers.Command) (renderers
 
 // ---------------------------------------------------------------- M2 secrets
 
-const plantedSecret = "VRX_TEST_PSK_RF1" //nolint:gosec // test placeholder (00-CONTEXT fixture convention)
+const plantedSecret = "NGFW_TEST_PSK_RF1" //nolint:gosec // test placeholder (00-CONTEXT fixture convention)
 
 // secretSection is what P12 will do for `neighbor … password`: resolve a D-051 reference.
 type secretSection struct{ ref string }
@@ -397,7 +397,7 @@ func TestStaticOwnership(t *testing.T) {
 		t.Fatalf("frr=%d vpp=%d", frrOwned, vppOwned)
 	}
 	// Default for proto input without a flag: nothing is FRR's.
-	if StaticOwnedByFRR(0, &vrxv1.StaticRoute{Prefix: ptr("10.0.0.0/8")}, nil) {
+	if StaticOwnedByFRR(0, &ngfwv1.StaticRoute{Prefix: ptr("10.0.0.0/8")}, nil) {
 		t.Error("unflagged route owned by FRR")
 	}
 	// The hook for the real flag (P03b/P12): registered once.
@@ -405,8 +405,8 @@ func TestStaticOwnership(t *testing.T) {
 	prev, prevSet := staticSelector, selectorSet
 	selectorMu.Unlock()
 	t.Cleanup(func() { selectorMu.Lock(); staticSelector, selectorSet = prev, prevSet; selectorMu.Unlock() })
-	RegisterStaticSelector(func(_ int, sr *vrxv1.StaticRoute, _ *Extensions) bool { return sr.GetDistance() == 7 })
-	if !StaticOwnedByFRR(0, &vrxv1.StaticRoute{Distance: ptr(uint32(7))}, nil) {
+	RegisterStaticSelector(func(_ int, sr *ngfwv1.StaticRoute, _ *Extensions) bool { return sr.GetDistance() == 7 })
+	if !StaticOwnedByFRR(0, &ngfwv1.StaticRoute{Distance: ptr(uint32(7))}, nil) {
 		t.Error("registered selector not used")
 	}
 	func() {

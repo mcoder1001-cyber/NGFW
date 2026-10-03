@@ -22,7 +22,7 @@ Commit: `contract(api-client): regenerate — login 403 tls-required, API-key st
 
 | change | where |
 |---|---|
-| `POST /api/v1/auth/api-keys` documents a **429** `application/problem+json` (`rate-limited`: the account's per-minute budget of current-password checks, `VRX_PASSWORD_RATE_PER_MIN`, shared with password changes) | review H1 |
+| `POST /api/v1/auth/api-keys` documents a **429** `application/problem+json` (`rate-limited`: the account's per-minute budget of current-password checks, `NGFW_PASSWORD_RATE_PER_MIN`, shared with password changes) | review H1 |
 | `current` description: rate-limited per account; **not allowed** with `Authorization: ApiKey` (400 `current-not-allowed-with-api-key`, never checked) | D-124 (review L1) |
 
 **Behaviour change on purpose (D-124):** an API-key caller that sends `current` now gets 400 (it was checked before).

@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/svs"
@@ -60,7 +60,7 @@ func newEcmpSvc(t *testing.T) (*Service, *coretest.VPP) {
 
 func TestVrfStaticEcmpApplyRetrieve(t *testing.T) {
 	s, v := newEcmpSvc(t)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "e1", DesiredState: doc(t, ecmpDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e1", DesiredState: doc(t, ecmpDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 
 	// D-072: the viaFrr route is not programmed by the agent
 	if v.HasRoute(0, "10.2.80.0/24") {
@@ -86,7 +86,7 @@ func TestVrfStaticEcmpApplyRetrieve(t *testing.T) {
 		}
 	}
 
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"vrfs", "routing"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"vrfs", "routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,27 +94,27 @@ func TestVrfStaticEcmpApplyRetrieve(t *testing.T) {
 	want.Interfaces = nil
 	// the viaFrr route is FRR's (not in the agent's Retrieve); canonical order is (VRF, prefix)
 	st3 := want.Routing.Static
-	want.Routing.Static = []*vrxv1.StaticRoute{st3[2], st3[0], st3[1]}
+	want.Routing.Static = []*ngfwv1.StaticRoute{st3[2], st3[0], st3[1]}
 	gotDS := got.GetDesiredState()
 	if !proto.Equal(gotDS.GetVrfs()["red"], want.GetVrfs()["red"]) || !proto.Equal(gotDS.GetRouting(), want.GetRouting()) {
 		t.Fatalf("retrieve\n got %s\nwant %s", protojson.Format(gotDS), protojson.Format(want))
 	}
 
 	// the same document again: empty plan
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "e2", DesiredState: doc(t, ecmpDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e2", DesiredState: doc(t, ecmpDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := resp.GetSummary().GetCreated() + resp.GetSummary().GetUpdated() + resp.GetSummary().GetDeleted(); n != 0 {
 		t.Fatalf("second apply changed %d objects: %v", n, resp.GetResults())
 	}
 
 	// DryRun names the viaFrr route as FRR's (drift ignores it)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, ecmpDoc)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, ecmpDoc)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := false
 	for _, is := range rep.GetErrors() {
-		if is.GetPointer() == "/routing/static/3" && is.GetRule() == "agent.unsupported-field" && is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+		if is.GetPointer() == "/routing/static/3" && is.GetRule() == "agent.unsupported-field" && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 			found = true
 		}
 	}
@@ -123,7 +123,7 @@ func TestVrfStaticEcmpApplyRetrieve(t *testing.T) {
 	}
 
 	// rollback to nothing: routes, svs entries, enablements and tables all gone (V15 order)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "e3", DesiredState: doc(t, `{}`), Subsystems: []string{"interfaces", "vrfs", "routing"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "e3", DesiredState: doc(t, `{}`), Subsystems: []string{"interfaces", "vrfs", "routing"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if v.RouteCount() != 0 || len(st.Routes) != 0 || len(st.Enabled) != 0 {
 		t.Fatalf("leftovers:\n%s\nsvs %v %v", v.Snapshot(), st.Routes, st.Enabled)
 	}
@@ -141,13 +141,13 @@ func TestVrfStaticEcmpNextHopVrfValidation(t *testing.T) {
 		{`{"vrfs": {"red": {"id": 2001}}, "routing": {"static": [{"prefix": "10.2.60.0/24", "vrf": "red", "nextHops": [{"address": "10.2.2.2", "interface": "loop201", "vrf": "default"}]}]}}`, "/routing/static/0/nextHops/0/vrf"},
 		{`{"vrfs": {"red": {"id": 2001, "sourceSelect": [{"prefix": "0.0.0.0/0", "interface": "loop201"}]}}}`, "/vrfs/red/sourceSelect/0/prefix"},
 	} {
-		resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v-" + tc.pointer + strings.Repeat("x", len(tc.js)%7), DesiredState: doc(t, tc.js)})
-		if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v-" + tc.pointer + strings.Repeat("x", len(tc.js)%7), DesiredState: doc(t, tc.js)})
+		if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 			t.Fatalf("%s: applied", tc.js)
 		}
 		ok := false
 		for _, is := range resp.GetValidation().GetErrors() {
-			if is.GetPointer() == tc.pointer && is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+			if is.GetPointer() == tc.pointer && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 				ok = true
 			}
 		}
@@ -160,13 +160,13 @@ func TestVrfStaticEcmpNextHopVrfValidation(t *testing.T) {
 func TestVrfStaticEcmpSelectorRegisteredOnce(t *testing.T) {
 	subsystems.RegisterStaticSelector()
 	subsystems.RegisterStaticSelector() // guarded by sync.Once: a second call must not panic
-	if !subsystems.ViaFrr(0, &vrxv1.StaticRoute{ViaFrr: proto.Bool(true)}, nil) || subsystems.ViaFrr(0, &vrxv1.StaticRoute{}, nil) {
+	if !subsystems.ViaFrr(0, &ngfwv1.StaticRoute{ViaFrr: proto.Bool(true)}, nil) || subsystems.ViaFrr(0, &ngfwv1.StaticRoute{}, nil) {
 		t.Fatal("selector does not read viaFrr")
 	}
 }
 
 // The svs range follows the agent's VPP id scope (TD-8, fail closed): the slot's top 100 ids, the product's high range
-// only with VRX_VPP_ID_RANGE=all, and nothing when no scope (or a bad one) is set.
+// only with NGFW_VPP_ID_RANGE=all, and nothing when no scope (or a bad one) is set.
 func TestSvsRangeFromSlot(t *testing.T) {
 	t.Setenv(subsystems.EnvIDRange, "")
 	t.Setenv(subsystems.EnvTableBase, "2000")
@@ -186,7 +186,7 @@ func TestSvsRangeFromSlot(t *testing.T) {
 		t.Fatal(err)
 	}
 	if r := subsystems.SvsRange(); r != svs.DefaultRange {
-		t.Fatalf("VRX_VPP_ID_RANGE=all → %v, want the product range", r)
+		t.Fatalf("NGFW_VPP_ID_RANGE=all → %v, want the product range", r)
 	}
 	if err := os.Unsetenv(subsystems.EnvIDRange); err != nil {
 		t.Fatal(err)
@@ -200,30 +200,30 @@ func TestSvsRangeFromSlot(t *testing.T) {
 	}
 }
 
-// actionStream is a minimal grpc.ServerStreamingServer[vrxv1.ActionOutput].
+// actionStream is a minimal grpc.ServerStreamingServer[ngfwv1.ActionOutput].
 type actionStream struct {
 	grpc.ServerStream
 	ctx context.Context
-	out []*vrxv1.ActionOutput
+	out []*ngfwv1.ActionOutput
 }
 
-func (a *actionStream) Context() context.Context         { return a.ctx }
-func (a *actionStream) Send(o *vrxv1.ActionOutput) error { a.out = append(a.out, o); return nil }
+func (a *actionStream) Context() context.Context          { return a.ctx }
+func (a *actionStream) Send(o *ngfwv1.ActionOutput) error { a.out = append(a.out, o); return nil }
 
 func TestVrfStaticEcmpRPCs(t *testing.T) {
 	s, v := newEcmpSvc(t)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, ecmpDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, ecmpDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	g := &server{svc: s}
 	ctx := context.Background()
 
-	page, err := g.ListRoutes(ctx, &vrxv1.ListRoutesRequest{Vrf: "red", Family: "ipv4", Limit: 10})
+	page, err := g.ListRoutes(ctx, &ngfwv1.ListRoutesRequest{Vrf: "red", Family: "ipv4", Limit: 10})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if page.GetTableId() != 2001 || page.GetVrf() != "red" || page.GetOwner() != testOwner {
 		t.Fatalf("page header %+v", page)
 	}
-	var def *vrxv1.ListRoutesEntry
+	var def *ngfwv1.ListRoutesEntry
 	for _, r := range page.GetRoutes() {
 		if r.GetPrefix() == "0.0.0.0/0" && r.GetSource() == "API" {
 			def = r
@@ -233,12 +233,12 @@ func TestVrfStaticEcmpRPCs(t *testing.T) {
 		t.Fatalf("ECMP default route in red: %v", page.GetRoutes())
 	}
 	for _, tc := range []struct {
-		req  *vrxv1.ListRoutesRequest
+		req  *ngfwv1.ListRoutesRequest
 		code codes.Code
 	}{
-		{&vrxv1.ListRoutesRequest{Vrf: "nope"}, codes.NotFound},
-		{&vrxv1.ListRoutesRequest{Vrf: "red", Limit: 5000}, codes.InvalidArgument},
-		{&vrxv1.ListRoutesRequest{Owner: "someone-else"}, codes.InvalidArgument},
+		{&ngfwv1.ListRoutesRequest{Vrf: "nope"}, codes.NotFound},
+		{&ngfwv1.ListRoutesRequest{Vrf: "red", Limit: 5000}, codes.InvalidArgument},
+		{&ngfwv1.ListRoutesRequest{Owner: "someone-else"}, codes.InvalidArgument},
 	} {
 		if _, err := g.ListRoutes(ctx, tc.req); status.Code(err) != tc.code {
 			t.Errorf("%v: %v, want %v", tc.req, err, tc.code)
@@ -246,7 +246,7 @@ func TestVrfStaticEcmpRPCs(t *testing.T) {
 	}
 
 	st := &actionStream{ctx: ctx}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2", Count: 3, IntervalMs: 100}}}, st); err != nil {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Ping{Ping: &ngfwv1.PingAction{Target: "10.2.2.2", Count: 3, IntervalMs: 100}}}, st); err != nil {
 		t.Fatal(err)
 	}
 	if len(st.out) != 2 || st.out[1].GetDone() == nil || st.out[1].GetDone().GetStats()["received"] != "3" {
@@ -257,21 +257,21 @@ func TestVrfStaticEcmpRPCs(t *testing.T) {
 	}
 	// review M1: a VPP with worker threads → FAILED_PRECONDITION (the API answers 409), nothing sent to the ping plugin
 	v.Svs().Workers = 2
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.FailedPrecondition || !strings.Contains(err.Error(), "2 worker thread(s)") {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Ping{Ping: &ngfwv1.PingAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.FailedPrecondition || !strings.Contains(err.Error(), "2 worker thread(s)") {
 		t.Fatalf("ping with workers: %v", err)
 	}
 	if len(v.Svs().Pings) != 1 {
 		t.Fatalf("ping with workers reached VPP: %v", v.Svs().Pings)
 	}
 	v.Svs().Workers = 0
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.2.2.2", Vrf: "red"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "VRF") {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Ping{Ping: &ngfwv1.PingAction{Target: "10.2.2.2", Vrf: "red"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "VRF") {
 		t.Fatalf("ping in red: %v", err)
 	}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Traceroute{Traceroute: &vrxv1.TracerouteAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Traceroute{Traceroute: &ngfwv1.TracerouteAction{Target: "10.2.2.2"}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("traceroute: %v", err)
 	}
 	// capture is F-capture-trace's now (invalid snaplen → INVALID_ARGUMENT before any VPP call)
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Capture{Capture: &vrxv1.CaptureAction{Interface: "loop201", Snaplen: 1}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Capture{Capture: &ngfwv1.CaptureAction{Interface: "loop201", Snaplen: 1}}}, &actionStream{ctx: ctx}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("capture: %v", err)
 	}
 }

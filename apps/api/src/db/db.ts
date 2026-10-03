@@ -10,7 +10,7 @@ export type Db = NodePgDatabase<typeof schema>;
 export type DbTx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
 /** DI token of the Drizzle database. */
-export const DB = Symbol('VRX_DB');
+export const DB = Symbol('NGFW_DB');
 
 export interface DbHandle {
   db: Db;
@@ -41,7 +41,7 @@ export function createDb(env: Env): DbHandle {
             typeof prop === 'string' &&
             /^(select|insert|update|delete|transaction|execute|query|\$count)$/.test(prop)
           ) {
-            throw problems.unavailable('no database configured (VRX_DATABASE_URL)');
+            throw problems.unavailable('no database configured (NGFW_DATABASE_URL)');
           }
           return undefined;
         },
@@ -51,7 +51,7 @@ export function createDb(env: Env): DbHandle {
   }
   const pool = new pg.Pool({
     connectionString: url,
-    max: env.VRX_DB_POOL_MAX,
+    max: env.NGFW_DB_POOL_MAX,
     connectionTimeoutMillis: POOL_CONNECT_TIMEOUT_MS,
   });
   // idle-client errors (server restart) must not crash the process; the next query reconnects

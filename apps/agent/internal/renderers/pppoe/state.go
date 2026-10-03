@@ -12,7 +12,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // maxStateFile bounds a hook state file (it holds a handful of short lines).
@@ -21,8 +21,8 @@ const maxStateFile = 64 << 10
 // ReadState parses the ip-up/ip-down hook's state file for one session's host interface into the proto
 // state. A missing file is the "down" state (the session never came up). fail and lastErr come from the
 // agent's supervisor (pppd exit tracking), not the hook, so they are passed in.
-func (r *Renderer) ReadState(hostIf string, failCount uint32, lastErr string) (*vrxv1.PppoeSessionState, error) {
-	st := &vrxv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}
+func (r *Renderer) ReadState(hostIf string, failCount uint32, lastErr string) (*ngfwv1.PppoeSessionState, error) {
+	st := &ngfwv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}
 	b, err := os.ReadFile(filepath.Join(r.paths.StateDir, hostIf+".state")) //nolint:gosec // StateDir is a fixed product path
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -3,11 +3,11 @@
 set -euo pipefail
 
 # Editable defaults. Environment variables override these values.
-KEY_DIR="${VRX_SIGNING_KEY_DIR:-${HOME}/.config/vrx/license-keys}"
-PRIVATE_KEY="${VRX_SIGNING_PRIVATE_KEY:-${KEY_DIR}/vrx-license-signing.pem}"
-PUBLIC_KEY="${VRX_SIGNING_PUBLIC_KEY:-${KEY_DIR}/vrx-license-public.pem}"
-DEFAULT_DAYS="${VRX_LICENSE_DAYS:-365}"
-DEFAULT_FEATURES="${VRX_LICENSE_FEATURES:-ipsec,wireguard,bgp,ospf,isis,ha}"
+KEY_DIR="${NGFW_SIGNING_KEY_DIR:-${HOME}/.config/ngfw/license-keys}"
+PRIVATE_KEY="${NGFW_SIGNING_PRIVATE_KEY:-${KEY_DIR}/ngfw-license-signing.pem}"
+PUBLIC_KEY="${NGFW_SIGNING_PUBLIC_KEY:-${KEY_DIR}/ngfw-license-public.pem}"
+DEFAULT_DAYS="${NGFW_LICENSE_DAYS:-365}"
+DEFAULT_FEATURES="${NGFW_LICENSE_FEATURES:-ipsec,wireguard,bgp,ospf,isis,ha}"
 # Current built-in API key, for reference only: its private half was discarded.
 # It cannot be used to issue licences. Configure the API with the generated public key.
 BUILTIN_PUBLIC_KEY='-----BEGIN PUBLIC KEY-----
@@ -15,32 +15,32 @@ MCowBQYDK2VwAyEALR/JBpNQfFbGNAdIRgUMaDpPzrkPZkbavNmpQC7CP2o=
 -----END PUBLIC KEY-----'
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CLI="${SCRIPT_DIR}/vrx-license.mjs"
+CLI="${SCRIPT_DIR}/ngfw-license.mjs"
 
 usage() {
   cat <<'HELP'
 Usage:
   generate-license.sh                         # Generate a full-feature licence
   generate-license.sh all [CUSTOMER [FILE]]    # Same, with optional name/path
-  sudo generate-license.sh trust FILE PUBLIC.pem  # Trust its signing key in vrx-api
+  sudo generate-license.sh trust FILE PUBLIC.pem  # Trust its signing key in ngfw-api
   generate-license.sh init
   generate-license.sh api-env
   generate-license.sh builtin-public-key
-  generate-license.sh issue --customer NAME --out FILE.vrxlic [issuer options]
-  generate-license.sh verify FILE.vrxlic [--at ISO]
-  generate-license.sh inspect FILE.vrxlic
+  generate-license.sh issue --customer NAME --out FILE.ngfwlic [issuer options]
+  generate-license.sh verify FILE.ngfwlic [--at ISO]
+  generate-license.sh inspect FILE.ngfwlic
 
 init generates signing keys outside Git; existing keys are never overwritten.
-api-env prints a shell export for VRX_LICENSE_PUBLIC_KEYS. Apply it to the API
+api-env prints a shell export for NGFW_LICENSE_PUBLIC_KEYS. Apply it to the API
 process environment and restart the API before uploading a generated licence.
 issue defaults to 365 days and all six licensed features, with unlimited limits.
 Override with --key, --days, --expires, --features, --serial, --machine-id,
 --machine-id-hash, --id, --not-before, or repeated --limit name=integer.
 Keys and defaults can also be changed in the variables at the top of this file.
-Requires Bash and Node 22; uses the existing vrx-license.mjs signing implementation.
+Requires Bash and Node 22; uses the existing ngfw-license.mjs signing implementation.
 The easy mode creates keys if missing, verifies the licence, and writes api.env
 next to it. All six features are enabled with no limits, valid for DEFAULT_DAYS.
-trust verifies FILE with PUBLIC.pem, configures the systemd vrx-api service to
+trust verifies FILE with PUBLIC.pem, configures the systemd ngfw-api service to
 trust that public key, and restarts the API. Upload FILE afterwards.
 This replaces the service's product-key setting; use the existing signing pair
 when previously issued licences must remain valid. It requires root/systemd.
@@ -59,10 +59,10 @@ case "$command" in
   trust)
     (($# == 2)) || { usage >&2; exit 2; }
     ((EUID == 0)) || { echo 'Run trust with sudo and pass the original public-key path.' >&2; exit 2; }
-    command -v systemctl >/dev/null || { echo 'trust requires the systemd vrx-api service.' >&2; exit 2; }
-    # Fail before changing service settings if this is not a VRX system or the
+    command -v systemctl >/dev/null || { echo 'trust requires the systemd ngfw-api service.' >&2; exit 2; }
+    # Fail before changing service settings if this is not a NGFW system or the
     # selected public key does not verify this exact licence.
-    systemctl cat vrx-api.service >/dev/null
+    systemctl cat ngfw-api.service >/dev/null
     node "$CLI" verify --pub "$2" "$1"
     node --input-type=module - "$2" <<'JS'
 import { readFileSync, mkdirSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
@@ -70,33 +70,33 @@ import { createPublicKey } from 'node:crypto';
 const key = createPublicKey(readFileSync(process.argv[2]));
 if (key.asymmetricKeyType !== 'ed25519') throw Error('Expected an Ed25519 public key');
 const pem = key.export({ type: 'spki', format: 'pem' }).trim().replace(/\n/g, '\\n');
-const dir = '/etc/systemd/system/vrx-api.service.d';
+const dir = '/etc/systemd/system/ngfw-api.service.d';
 const env = `${dir}/license-public.env`;
 const dropin = `${dir}/90-license-key.conf`;
 mkdirSync(dir, { recursive: true, mode: 0o755 });
 for (const path of [env, dropin]) {
   if (existsSync(path)) copyFileSync(path, `${path}.bak-${Date.now()}`);
 }
-writeFileSync(env, `VRX_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { mode: 0o644 });
+writeFileSync(env, `NGFW_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { mode: 0o644 });
 writeFileSync(dropin, `[Service]\nEnvironmentFile=${env}\n`, { mode: 0o644 });
 JS
     systemctl daemon-reload
-    systemctl restart vrx-api.service
-    systemctl is-active --quiet vrx-api.service
+    systemctl restart ngfw-api.service
+    systemctl is-active --quiet ngfw-api.service
     printf 'کلید عمومی در API تنظیم شد. اکنون فایل %s را دوباره در System → Licence بارگذاری کن.\n' "$1"
     ;;
   all)
     (($# <= 2)) || { usage >&2; exit 2; }
-    customer="${1:-${VRX_LICENSE_CUSTOMER:-Local administrator}}"
-    license_file="${2:-${VRX_LICENSE_OUTPUT:-license.vrxlic}}"
+    customer="${1:-${NGFW_LICENSE_CUSTOMER:-Local administrator}}"
+    license_file="${2:-${NGFW_LICENSE_OUTPUT:-license.ngfwlic}}"
     env_file="${license_file}.api.env"
     [[ ! -e "$license_file" && ! -e "$env_file" ]] || {
-      echo 'Output already exists. Choose a new path: all "Customer" new.vrxlic' >&2
+      echo 'Output already exists. Choose a new path: all "Customer" new.ngfwlic' >&2
       exit 2
     }
     if [[ ! -e "$PRIVATE_KEY" && ! -e "$PUBLIC_KEY" ]]; then
       # keygen writes these fixed filenames; custom paths must be supplied as a pair.
-      [[ "$PRIVATE_KEY" == "$KEY_DIR/vrx-license-signing.pem" && "$PUBLIC_KEY" == "$KEY_DIR/vrx-license-public.pem" ]] || {
+      [[ "$PRIVATE_KEY" == "$KEY_DIR/ngfw-license-signing.pem" && "$PUBLIC_KEY" == "$KEY_DIR/ngfw-license-public.pem" ]] || {
         echo 'Custom key paths require an existing private/public key pair.' >&2; exit 2;
       }
       node "$CLI" keygen --out-dir "$KEY_DIR"
@@ -125,10 +125,10 @@ JS
     node --input-type=module - "$PUBLIC_KEY" "$env_file" <<'JS'
 import { readFileSync, writeFileSync } from 'node:fs';
 const pem = readFileSync(process.argv[2], 'utf8').trim().replace(/\r?\n/g, '\\n');
-writeFileSync(process.argv[3], `VRX_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { flag: 'wx', mode: 0o644 });
+writeFileSync(process.argv[3], `NGFW_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { flag: 'wx', mode: 0o644 });
 JS
     printf '\nلایسنس همه قابلیت‌ها ساخته شد: %s\nاعتبار: %s روز؛ بدون محدودیت تعداد.\n' "$license_file" "$DEFAULT_DAYS"
-    printf 'برای پذیرش در همین دستگاه VRX، اجرا کن:\n'
+    printf 'برای پذیرش در همین دستگاه NGFW، اجرا کن:\n'
     printf 'sudo bash %q trust %q %q\n' "${SCRIPT_DIR}/generate-license.sh" "$(realpath -- "$license_file")" "$(realpath -- "$PUBLIC_KEY")"
     printf 'اگر دستگاه جداست، فایل لایسنس و کلید عمومی را به آن منتقل کن و فرمان trust را آنجا اجرا کن.\n'
     printf 'سپس فایل لایسنس را در System → Licence بارگذاری کن.\n'
@@ -142,7 +142,7 @@ JS
     (($# == 0)) || { usage >&2; exit 2; }
     [[ -r "$PUBLIC_KEY" ]] || { echo "Public key missing: $PUBLIC_KEY (run init first)." >&2; exit 2; }
     # Bash %q quotes PEM safely, including newlines, for sourcing in a shell.
-    printf 'export VRX_LICENSE_PUBLIC_KEYS=%q\n' "$(cat -- "$PUBLIC_KEY")"
+    printf 'export NGFW_LICENSE_PUBLIC_KEYS=%q\n' "$(cat -- "$PUBLIC_KEY")"
     ;;
   issue)
     args=(--key "$PRIVATE_KEY" --features "$DEFAULT_FEATURES")

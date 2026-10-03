@@ -2,7 +2,7 @@
 
 Reviewer: independent verify agent (did not write this code). Envelope `TD-2.verify3.md` (manager ngfw-46, 14:00), continuing
 `TD-2-verify2-partial.md`. Branch `task/TD-2` @ `899e919`. The product code is fix round 2 (`7ab9c83..84210b7`); `899e919` only adds
-the partial verify note. Base `main` @ `fc0fe68`. Slot 7 (`w7`, DB `vrx_w7`, Valkey db 7). I read TD-2-verify.md (V1–V5),
+the partial verify note. Base `main` @ `fc0fe68`. Slot 7 (`w7`, DB `ngfw_w7`, Valkey db 7). I read TD-2-verify.md (V1–V5),
 the "Fix round 2" section of TD-2.md, TD-2-review.md, TD-2-questions.md Q6/Q7, TD-2-contract.md and LOG D-097/D-100/D-102/D-105.
 I also re-read the round-2 code diff `ae52906..HEAD -- apps/api/src` and the new file `test/e2e/td2-verify.e2e.test.ts`.
 I changed no product or test code. The negative controls restored the round-1 `apps/api/src` temporarily and put HEAD back afterwards (pasted below).
@@ -25,11 +25,11 @@ V1 finished in the background with `working afterwards 0, api_key rows left 0` (
 ## 1. CI — `TMPDIR=/tmp/g-td2 tools/ci.sh --base main` (HEAD 899e919)
 ```
 START 2026-09-24T14:48:45+03:30 HEAD 899e919 TMPDIR=/tmp/g-td2
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /root/ngfw-wt/TD-2
 branch    task/TD-2 @ 899e919   (base: main)
 tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
-caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
 logs      /root/ngfw-wt/logs/ci/TD-2-20260924-144845-457906
 
 == contract guard: HEAD vs main ==
@@ -66,11 +66,11 @@ ok: gitleaks — scanned ~303525 bytes (303.52 KB) in 862ms no leaks found
 Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    2m4.196s
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	2.907s; ok  	ngfw/agent/internal/agent	15.844s; ok  	ngfw/agent/internal/contracttest	6.465s; ok  	ngfw/agent/internal/descriptors/abf	1.797s; ok  	ngfw/agent/internal/descriptors/acl	1.935s; ok  	ngfw/agent/internal/descriptors/adl	1.873s; ok  	ngfw/agent/internal/descriptors/af_packet	6.239s; …
+ok  	ngfw/agent/cmd/ngfw-startupgen	2.907s; ok  	ngfw/agent/internal/agent	15.844s; ok  	ngfw/agent/internal/contracttest	6.465s; ok  	ngfw/agent/internal/descriptors/abf	1.797s; ok  	ngfw/agent/internal/descriptors/acl	1.935s; ok  	ngfw/agent/internal/descriptors/adl	1.873s; ok  	ngfw/agent/internal/descriptors/af_packet	6.239s; …
 
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.066s;
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 
 == summary (quick) ==
   contract guard: HEAD vs main                       0m00s
@@ -129,8 +129,8 @@ Error: Hook timed out in 60000ms.
      46|   afterAll(async () => h?.close());
  Test Files  1 failed | 5 passed | 1 skipped (7)
       Tests  3 failed | 58 passed | 3 skipped (64)
-e2e teardown: deleted 1484 Valkey keys vrx:w7:e2e:* in db 7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 1484 Valkey keys ngfw:w7:e2e:* in db 7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 1 2026-09-24T14:21:56+03:30
 ```
 Run 2 (14:22, load at start `2.05 11.64 19.00`):
@@ -147,7 +147,7 @@ Run 2 (14:22, load at start `2.05 11.64 19.00`):
  ❯ test/e2e/td2-verify.e2e.test.ts:428:7          (the lockkey API key's PATCH /config/interfaces/loop7777)
  Test Files  1 failed | 5 passed | 1 skipped (7)
       Tests  3 failed | 58 passed | 3 skipped (64)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 1 2026-09-24T14:26:07+03:30 load: 7.42 16.51 20.15
 ```
 Run 3 (14:28, load at start `5.13 11.86 17.82`):
@@ -165,7 +165,7 @@ Error: Hook timed out in 60000ms.
  ❯ test/e2e/td2-verify.e2e.test.ts:46:3
  Test Files  1 failed | 5 passed | 1 skipped (7)
       Tests  4 failed | 57 passed | 3 skipped (64)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 1 2026-09-24T14:35:18+03:30 load: 5.42 10.24 15.88
 ```
 The `V1:` line is printed by the V1 test body. In run 3 it appeared during the V2 race test, so V1 kept running after vitest had
@@ -188,8 +188,8 @@ V4: reset answered 500 after a deadlock
  ✓ … > V5 — keepApiKeys and a discarded key-owned candidate are audited (and the discard is answered) 401ms
  Test Files  6 passed | 1 skipped (7)
       Tests  61 passed | 3 skipped (64)
-e2e teardown: deleted 1571 Valkey keys vrx:w7:e2e:* in db 7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 1571 Valkey keys ngfw:w7:e2e:* in db 7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 0 2026-09-24T14:40:39+03:30 load: 20.27 16.81 16.71
 ```
 H2 in the same run: `H2: 60 runs, 120 hammered chains + … racing logins that got in → survivors 0` (green in all four full runs).
@@ -210,7 +210,7 @@ V4: reset answered 500 after a deadlock
  ✓ … > V5 — … 372ms
  Test Files  1 passed (1)
       Tests  8 passed (8)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 0 2026-09-24T14:28:09+03:30
 ```
 
@@ -259,8 +259,8 @@ V4: reset answered 500 after a deadlock
     "self": false,
  ❯ test/e2e/td2-verify.e2e.test.ts:408:34
       Tests  7 failed | 1 passed (8)
-e2e teardown: deleted 158 Valkey keys vrx:w7:e2e:* in db 7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 158 Valkey keys ngfw:w7:e2e:* in db 7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 1 2026-09-24T14:48:29+03:30
 $ git checkout HEAD -- apps/api/src && echo RESTORED && git status --short
 RESTORED
@@ -297,8 +297,8 @@ What each failure shows:
 2. **Real verification.** The e2e runs on the host PostgreSQL 18.6 and Valkey (db 7), with only the in-process fake agent for Apply. It asserts on DB rows, audit rows, Valkey keys and HTTP results.
 3. **Restart safety / 4. VPP provenance.** Not applicable: round 2 touches no agent, VPP or binapi file (`git diff --name-only ae52906..HEAD -- apps/web apps/agent tools packages/schema packages/proto` → 0).
    L3 (revocations survive an API restart) is still green.
-5. **Shared host.** Everything used slot 7: `vrx_w7`, Valkey db 7 keys `vrx:w7:e2e:*`. Every run's teardown printed `ok nothing named vrx_w7 / vrx_w7 remains`.
-   After the runs, `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0` and `dbsize` → `0`. No server was started, and nothing listens on 3700/5700/9171.
+5. **Shared host.** Everything used slot 7: `ngfw_w7`, Valkey db 7 keys `ngfw:w7:e2e:*`. Every run's teardown printed `ok nothing named ngfw_w7 / ngfw_w7 remains`.
+   After the runs, `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0` and `dbsize` → `0`. No server was started, and nothing listens on 3700/5700/9171.
 6. **Security.** No `exec`, `child_process` or shell in the diff. The new log lines carry only the user id or username and the error message. No hash reaches an audit row: the e2e asserts `argon2id` never appears in `audit_log`.
 7. **Transaction semantics.** A promote that fails after `syncUsers` rolls back the generation and key deletes with it, and `configResets` runs only after the commit. The V4 abort leaves the hash, the inflight copy and the sessions alone.
 8–10. **UI / scope / i18n.** Round 2 has no web changes and no scope creep: every change maps to V1–V5 or D-102.

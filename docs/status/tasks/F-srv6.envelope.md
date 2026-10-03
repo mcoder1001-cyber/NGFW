@@ -8,16 +8,16 @@ merged deps you can rely on: P08, DF-6, W-seed (+ the wave-B/C anchor pass, docs
   - P08: desired/ + subsystems/ + projection patterns, `Wiring.IfaceClaims()` (= `df6.WithClaims` store), `Wiring.BootStore()`, `subsystems.SlotIDRange()` (W-seed), the vpn page shell + `vpnTabs` registry (W-seed)
   - also on main: TD-2, TD-3 (V19 sanitizer + preflight), TD-5 if merged
 read first: prompts/features/F-srv6.md · docs/status/wave-BC-numbers.md (Pack rules, section F-srv6) · docs/status/wave-A-hotspots.md (§0 rules; ids A1 A2 A6 C1–C7 P1 P4 P5 W1–W3 A7) · docs/agent/descriptors/{sr,df6}.md · docs/status/tasks/DF-6.md + DF-6-questions.md (Q6) · docs/vpp-code-track.md V14, V15, V19, V22 · docs/decisions/LOG.md D-063, D-071, D-074, D-076, D-080, D-082, D-085, D-087, D-094, D-095, D-101
-slot: 4 → VRX_SLOT=4 VRX_TEST_PREFIX=w4 VRX_HTTP_PORT=3000+100·4 VRX_WEB_PORT=5000+100·4 VRX_METRICS_PORT=9100+10·4+1 VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock VRX_PG_DATABASE=vrx_w4 VRX_VALKEY_DB=4 VRX_VPP_TABLE_BASE=4000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 4 → NGFW_SLOT=4 NGFW_TEST_PREFIX=w4 NGFW_HTTP_PORT=3000+100·4 NGFW_WEB_PORT=5000+100·4 NGFW_METRICS_PORT=9100+10·4+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w4/agent.sock NGFW_PG_DATABASE=ngfw_w4 NGFW_VALKEY_DB=4 NGFW_VPP_TABLE_BASE=4000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 4)"`
   - rig prefix w4 → 10.4.{1,2}.0/24; SIDs, BSIDs and steered prefixes inside one slot-unique IPv6 /48 (e.g. fd00:<SLOT hex>::/48, the natcommon.Scope convention); VRFs/tables in 4000–4999
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
   - D-104: use, do not rebuild — DF-6 `sr.*` descriptors are gap-only; `descriptors/df6/**` read-only
   - D-074: every encap policy carries its own source address (`encap_src`): the projection fills it from `routing.srv6.encapSource` (or a per-policy override if you model one) — encap without a source is a validation error; insert policies forbid it; every delete checks existence first
-  - D-071/D-082: `sr.encap-source` / `sr.encap-hop-limit` are VPP-global → setters only on the globals owner; slot agents require them; a test that changes them runs only behind an opt-in (`VRX_FSRV6_GLOBALS=1`) under `flock -x /run/lock/vrx-globals.lock`, restoring the previous value (write-only: record it before the change)
+  - D-071/D-082: `sr.encap-source` / `sr.encap-hop-limit` are VPP-global → setters only on the globals owner; slot agents require them; a test that changes them runs only behind an opt-in (`NGFW_FSRV6_GLOBALS=1`) under `flock -x /run/lock/ngfw-globals.lock`, restoring the previous value (write-only: record it before the change)
   - D-063/D-076/D-080: the globals are write-only (applied once per boot identity, store from `Wiring`); local SIDs / policies / steering have dumps — Retrieve covers them, never echo desired state
   - V15/V22a: steering before policies before SIDs before the VRF on every delete path (the scheduler's dependency order; `sr.ErrPolicyInUse` guards a policy with steering); never a table flush; prove "no leaked routes" in `show ip6 fib table <t>`
   - End.AD/AM/AS proxies: not built (no binary API) — write `### V-new (F-srv6)` and list them in F-srv6.md as have-not; SRv6-mobile (binapi `sr_mobile`): not modelled (D-074), noted as a vpp-code-track candidate
@@ -34,7 +34,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A1 apps/agent/internal/subsystems/subsystems.go: `sr.LocalSidName`, `sr.PolicyName`, `sr.SteeringName`, `sr.EncapSourceName`, `sr.EncapHopLimitName` into `Domains[Routing]`; one call into your subsystems/srv6.go at the end of `Register()`
   - A2 apps/agent/internal/agent/projection.go: one builder call in project(), one assembler call in assemble()
   - C1 packages/schema/src/domains/routing.ts: `RoutingSchema.srv6` key line (sub-schema in ext/srv6.ts) · C2 semantic/index.ts · C3 schema/src/index.ts · C4 new fixture files only
-  - C5 packages/proto/vrx/v1/dataplane.proto: `RoutingConfig` 17, the `Srv6State` rpc under the service anchor; new messages in `// ----- F-srv6 -----`
+  - C5 packages/proto/ngfw/v1/dataplane.proto: `RoutingConfig` 17, the `Srv6State` rpc under the service anchor; new messages in `// ----- F-srv6 -----`
   - C6 docs/contracts/proto.md (`### F-srv6: Srv6State`) · C7 generated, never hand-edited (apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md)
   - P1 apps/api/src/app.module.ts · P4 apps/api/src/agent/agent.client.ts · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub on the contract commit; real fake in features/srv6/fake.ts)
   - vpn page: apps/web/src/domains/vpn/tabs.ts (`vpnTabs`, W-seed shell — one `srv6` entry under your anchor; shared with P11, F-wireguard, F-ikev2-native, F-lisp, F-tunnels) · W1 apps/web/src/router.tsx only if the tab needs a sub-route · W2 apps/web/src/nav/nav.ts + nav.test.ts (`'vpn'` into BUILT_DOMAINS only if P11/F-wireguard have not added it) · W3 apps/web/src/i18n.ts
@@ -56,9 +56,9 @@ V19/V24 SAFETY (D-095, D-101): before ANY packet through the rig, run TD-3's pre
 evidence: Playwright is not installed — use the headless Chrome approach from P07a/P07b/P08 (kept outside the product code) for screenshots (en + fa/RTL: SRv6 tab — Local SIDs / Policies / Steering, SID-list editor, counters column); paste `vppctl show sr localsids`, `show sr policies`, `show sr steering-policies`, `show ip6 fib table <t>`
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-srv6.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-srv6-wip.md current
-CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-srv6.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · vrx_w4 dropped · no w4 SIDs/policies/steering/tables left (Retrieve + `show sr localsids` + `show ip6 fib table <t>` pasted) · globals restored to the recorded previous values (if you had the opt-in) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · ngfw_w4 dropped · no w4 SIDs/policies/steering/tables left (Retrieve + `show sr localsids` + `show ip6 fib table <t>` pasted) · globals restored to the recorded previous values (if you had the opt-in) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-srv6-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
 

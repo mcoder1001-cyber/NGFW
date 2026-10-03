@@ -47,16 +47,16 @@ describe('domain schemas', () => {
     expect(DOMAINS[key].safeParse({}).success).toBe(true);
   });
 
-  it.each(ROOT_KEYS)('%s carries a title and x-vrx-ui hints for the form renderer', (key) => {
+  it.each(ROOT_KEYS)('%s carries a title and x-ngfw-ui hints for the form renderer', (key) => {
     const js = z.toJSONSchema(DOMAINS[key], { target: 'draft-2020-12', io: 'input' });
     expect(typeof js.title).toBe('string');
-    expect(js['x-vrx-ui']).toMatchObject({ order: expect.any(Number) });
+    expect(js['x-ngfw-ui']).toMatchObject({ order: expect.any(Number) });
   });
 
   it('orders domains for navigation the same way as ROOT_KEYS', () => {
     const orders = ROOT_KEYS.map((key) => {
-      const js = z.toJSONSchema(DOMAINS[key]) as { 'x-vrx-ui'?: { order?: number } };
-      return js['x-vrx-ui']?.order ?? Number.NaN;
+      const js = z.toJSONSchema(DOMAINS[key]) as { 'x-ngfw-ui'?: { order?: number } };
+      return js['x-ngfw-ui']?.order ?? Number.NaN;
     });
     expect(orders).toEqual([...orders].sort((a, b) => a - b));
   });

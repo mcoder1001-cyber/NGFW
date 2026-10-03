@@ -48,7 +48,7 @@ DF-1's alias descriptor does not know these creators. If DF-1's alias descriptor
 
 ## Q6 — Contract placement of the VPN desired-state messages (D-055)
 `apps/agent/internal/descriptors/vpn/pb/vpn.proto` is agent-internal, written to move verbatim into
-`packages/proto/vrx/v1` (strings for enums, no VPP handles, secrets as references). P03b owns that
+`packages/proto/ngfw/v1` (strings for enums, no VPP handles, secrets as references). P03b owns that
 move; P11 / F-* consume the secret-reference contract documented in `docs/agent/descriptors/ipsec.md`.
 Note: since D-063 the IKEv2 responder hostname is its own message `Ikev2ResponderHostname`
 (`Ikev2Responder.hostname` is reserved) — P02c's `vpn.ipsec` schema maps onto that split.
@@ -73,7 +73,7 @@ acknowledges the restart. It does **not** remove charon's SPDs or bypass policie
 SPD holds only bypass policies until its first CHILD_SA and cannot be told apart from a stale one.
 Stock kernel-vpp allocates SPD and SA ids from 1 upward after every start (`ref_get(next_spd_id)`),
 so a restarted charon collides with its own leftovers and with any agent id in that range.
-Options: (a) P11's vrx-strongswan build takes an id base/range from config (disjoint from the
+Options: (a) P11's ngfw-strongswan build takes an id base/range from config (disjoint from the
 agent's descriptors; the sweep gets the same range) and P11 deletes charon SPDs before starting
 charon; (b) the sweep also deletes every unrecorded SPD in the charon range while charon is
 stopped (P11 would have to sequence stop → sweep → start); (c) leave as is. I recommend (a) + the

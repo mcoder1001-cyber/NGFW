@@ -2,7 +2,7 @@ package agent
 
 // F-nat44-ed-sessions: the NatSessions / NatSummary RPCs and the NatSessionKillAction case of Action
 // (docs/contracts/proto.md §11). Read-only except the kill; the logic lives in internal/actions/nat44-ed-sessions,
-// this file translates vrx.v1 ↔ the pure functions and reads VPP through DF-3's nat44ed helpers. The helpers are
+// this file translates ngfw.v1 ↔ the pure functions and reads VPP through DF-3's nat44ed helpers. The helpers are
 // built per call (nat44ed.New): they read state only, so they need neither the claim store nor the globals flag.
 
 import (
@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	natsessions "ngfw/agent/internal/actions/nat44-ed-sessions"
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/descriptors/natcommon"
@@ -43,7 +43,7 @@ var natSummaryTTL = 30 * time.Second
 type natSummaryCache struct {
 	mu   sync.Mutex
 	at   time.Time
-	resp *vrxv1.NatSummaryResponse
+	resp *ngfwv1.NatSummaryResponse
 }
 
 // natState is this feature's per-Service state (Service is A5 core, so it lives here, keyed by the Service).
@@ -72,11 +72,11 @@ func (s *Service) natWalk(ctx context.Context) (func(), error) {
 	}
 }
 
-func (g *server) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
+func (g *server) NatSessions(ctx context.Context, req *ngfwv1.NatSessionsRequest) (*ngfwv1.NatSessionsResponse, error) {
 	return g.svc.NatSessions(ctx, req)
 }
 
-func (g *server) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) (*vrxv1.NatSummaryResponse, error) {
+func (g *server) NatSummary(ctx context.Context, req *ngfwv1.NatSummaryRequest) (*ngfwv1.NatSummaryResponse, error) {
 	return g.svc.NatSummary(ctx, req)
 }
 
@@ -104,7 +104,7 @@ func (s *Service) natReady(owner string) error {
 }
 
 // natFilter parses the request filter (INVALID_ARGUMENT on a bad field).
-func (s *Service) natFilter(f *vrxv1.NatSessionFilter) (natsessions.Filter, error) {
+func (s *Service) natFilter(f *ngfwv1.NatSessionFilter) (natsessions.Filter, error) {
 	var out natsessions.Filter
 	var err error
 	if f == nil {
@@ -145,7 +145,7 @@ func (s *Service) natFilter(f *vrxv1.NatSessionFilter) (natsessions.Filter, erro
 }
 
 // NatSessions implements the NatSessions RPC: one bounded page of this owner's sessions.
-func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest) (*vrxv1.NatSessionsResponse, error) {
+func (s *Service) NatSessions(ctx context.Context, req *ngfwv1.NatSessionsRequest) (*ngfwv1.NatSessionsResponse, error) {
 	// wave-A: F-nat44-ei-64-66-nptv6 — variant dispatch (EI, NAT64: rpc_nat44_ei.go); unset / ED below
 	if natVariantOf(req.GetVariant()) {
 		return s.natSessionsVariant(ctx, req)
@@ -173,12 +173,12 @@ func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest
 	if err != nil {
 		return nil, natErr("nat sessions", err)
 	}
-	resp := &vrxv1.NatSessionsResponse{
+	resp := &ngfwv1.NatSessionsResponse{
 		NextOffset: page.Next, TotalUsers: page.TotalUsers, TotalSessions: page.TotalSessions, Truncated: page.Truncated,
 		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()),
 	}
 	for _, r := range page.Rows {
-		resp.Sessions = append(resp.Sessions, &vrxv1.NatSession{
+		resp.Sessions = append(resp.Sessions, &ngfwv1.NatSession{
 			InsideAddress: r.Inside.IP, InsidePort: r.Inside.Port, OutsideAddress: r.Outside.IP, OutsidePort: r.Outside.Port,
 			ExternalAddress: r.ExtHost.IP, ExternalPort: r.ExtHost.Port, ExternalNatAddress: r.ExtHostNAT.IP, ExternalNatPort: r.ExtHostNAT.Port,
 			Protocol: r.Protocol, Vrf: s.tableName(r.VRF), TableId: r.VRF, Static: r.Static, TwiceNat: r.TwiceNAT, TimedOut: r.TimedOut,
@@ -191,7 +191,7 @@ func (s *Service) NatSessions(ctx context.Context, req *vrxv1.NatSessionsRequest
 // natPools lists this owner's pools from its own Retrieve (the persisted claims decide what is owned), with the
 // current addresses of interface pools from the live interface table.
 func (s *Service) natPools(ctx context.Context) ([]natsessions.Pool, error) {
-	r, err := s.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"nat"}, Owner: s.owner})
+	r, err := s.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"nat"}, Owner: s.owner})
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,7 @@ func (s *Service) natPools(ctx context.Context) ([]natsessions.Pool, error) {
 }
 
 // NatSummary implements the NatSummary RPC from the per-Service cache (natSummaryTTL, single flight).
-func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) (*vrxv1.NatSummaryResponse, error) {
+func (s *Service) NatSummary(ctx context.Context, req *ngfwv1.NatSummaryRequest) (*ngfwv1.NatSummaryResponse, error) {
 	if err := s.natReady(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -241,18 +241,18 @@ func (s *Service) NatSummary(ctx context.Context, req *vrxv1.NatSummaryRequest) 
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
 	if now := s.now(); cache.resp != nil && now.Sub(cache.at) >= 0 && now.Sub(cache.at) < natSummaryTTL {
-		return proto.Clone(cache.resp).(*vrxv1.NatSummaryResponse), nil
+		return proto.Clone(cache.resp).(*ngfwv1.NatSummaryResponse), nil
 	}
 	resp, err := s.natSummary(ctx)
 	if err != nil {
 		return nil, err
 	}
 	cache.at, cache.resp = s.now(), resp
-	return proto.Clone(resp).(*vrxv1.NatSummaryResponse), nil
+	return proto.Clone(resp).(*ngfwv1.NatSummaryResponse), nil
 }
 
 // natSummary computes one summary: the running config, the user dump totals and the capped per-pool breakdown.
-func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, error) {
+func (s *Service) natSummary(ctx context.Context) (*ngfwv1.NatSummaryResponse, error) {
 	release, err := s.natWalk(ctx)
 	if err != nil {
 		return nil, err
@@ -262,7 +262,7 @@ func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, er
 	if err != nil {
 		return nil, natErr("nat summary", err)
 	}
-	resp := &vrxv1.NatSummaryResponse{Enabled: enabled, SessionLimit: limit, Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), SessionsByProtocol: map[string]uint64{}}
+	resp := &ngfwv1.NatSummaryResponse{Enabled: enabled, SessionLimit: limit, Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), SessionsByProtocol: map[string]uint64{}}
 	if !enabled {
 		return resp, nil // nothing to count; the plugin holds no pool either
 	}
@@ -277,7 +277,7 @@ func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, er
 	resp.TotalUsers, resp.TotalSessions, resp.StaticSessions, resp.Truncated = sum.TotalUsers, sum.TotalSessions, sum.StaticSessions, sum.Truncated
 	resp.SessionsByProtocol = sum.ByProtocol
 	for i, p := range pools {
-		u := &vrxv1.NatPoolUsage{Interface: p.Interface, Vrf: p.VRF, TwiceNat: p.TwiceNAT, Addresses: p.Size(), Sessions: sum.PoolSessions[i]}
+		u := &ngfwv1.NatPoolUsage{Interface: p.Interface, Vrf: p.VRF, TwiceNat: p.TwiceNAT, Addresses: p.Size(), Sessions: sum.PoolSessions[i]}
 		if p.First.IsValid() {
 			u.FirstAddress, u.LastAddress = p.First.String(), p.Last.String()
 		}
@@ -288,7 +288,7 @@ func (s *Service) natSummary(ctx context.Context) (*vrxv1.NatSummaryResponse, er
 
 // natSessionKill runs a NatSessionKillAction: validation errors are INVALID_ARGUMENT before any output; the stream
 // is exactly one `done` (exit 0 deleted, 1 no such session, 2 VPP error).
-func (s *Service) natSessionKill(ctx context.Context, a *vrxv1.NatSessionKillAction, send func(*vrxv1.ActionOutput) error) error {
+func (s *Service) natSessionKill(ctx context.Context, a *ngfwv1.NatSessionKillAction, send func(*ngfwv1.ActionOutput) error) error {
 	if !s.vpp.Connected() {
 		return status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
@@ -299,10 +299,10 @@ func (s *Service) natSessionKill(ctx context.Context, a *vrxv1.NatSessionKillAct
 	}
 	code, summary := k.Do(ctx, nat44ed.New(s.vpp, s.owner))
 	s.log.Info("nat session kill", "protocol", k.Protocol, "inside", k.Inside.String(), "external", k.External.String(), "table", k.Table, "exit_code", code, "summary", summary)
-	return send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: summary, ExitCode: int32(code), Stats: k.Stats()}}}) //nolint:gosec // 0–2
+	return send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: summary, ExitCode: int32(code), Stats: k.Stats()}}}) //nolint:gosec // 0–2
 }
 
 // natSessionKillStream adapts the Action stream (server.go's case under the F-nat44-ed-sessions anchor).
-func (g *server) natSessionKill(req *vrxv1.ActionRequest, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) natSessionKill(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	return g.svc.natSessionKill(stream.Context(), req.GetNatSessionKill(), stream.Send)
 }

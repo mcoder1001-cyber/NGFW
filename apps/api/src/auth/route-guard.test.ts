@@ -87,7 +87,7 @@ describe('route guard', () => {
       order: ['local'],
       fallbackLocal: true,
       mfaRequired: 'none',
-      mfaIssuer: 'vrx',
+      mfaIssuer: 'ngfw',
     });
     const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
     await app.init();
@@ -130,7 +130,7 @@ describe('route guard', () => {
   it('rejects forged and garbage credentials the same way', async () => {
     for (const authorization of [
       'Bearer abc.def.ghi',
-      'ApiKey vrxk_nope',
+      'ApiKey ngfwk_nope',
       'Basic YWRtaW46YWRtaW4=',
       'Bearer',
     ]) {
@@ -181,7 +181,7 @@ describe('route guard', () => {
     });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toHaveProperty('openapi', '3.1.0');
-    // both password routes publish the product rule, whatever VRX_DEV_WEAK_PASSWORDS says at runtime
+    // both password routes publish the product rule, whatever NGFW_DEV_WEAK_PASSWORDS says at runtime
     const paths = ok.json().paths;
     for (const p of ['/api/v1/auth/password', '/api/v1/users/{name}/password']) {
       const body = paths[p].post.requestBody.content['application/json'].schema;
@@ -203,7 +203,7 @@ describe('route guard', () => {
     const token = await app
       .get(TokensService)
       .signAccess({ id: 9001, username: 'ro-matrix', role: 'readonly' });
-    const cookie = { cookie: `vrx_docs=${token}` };
+    const cookie = { cookie: `ngfw_docs=${token}` };
     expect((await app.inject({ method: 'GET', url: '/api/docs-json' })).statusCode).toBe(401);
     // the Swagger UI page and its init script (which inlines the spec) — what a browser loads
     const page = await app.inject({ method: 'GET', url: '/api/docs', headers: cookie });
@@ -224,7 +224,7 @@ describe('route guard', () => {
         await app.inject({
           method: 'GET',
           url: '/api/docs',
-          headers: { cookie: 'vrx_docs=abc.def.ghi' },
+          headers: { cookie: 'ngfw_docs=abc.def.ghi' },
         })
       ).statusCode,
     ).toBe(401);

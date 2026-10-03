@@ -7,14 +7,14 @@ import {
 import { isPlainObject } from '@ngfw/schema';
 import { from, mergeMap, type Observable } from 'rxjs';
 import { AuditService } from '../../audit/audit.service.js';
-import { sourceIp, type VrxRequest } from '../../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../../common/principal.js';
 import { ProblemError } from '../../common/problem.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
 
 type Json = Record<string, unknown>;
 
-/** The lab gate of the delay simulator (review M2): `VRX_NSIM=lab` in the API's (and the agent's) environment. */
-export const NSIM_ENV = 'VRX_NSIM';
+/** The lab gate of the delay simulator (review M2): `NGFW_NSIM=lab` in the API's (and the agent's) environment. */
+export const NSIM_ENV = 'NGFW_NSIM';
 export const NSIM_LAB = 'lab';
 
 /** Whether the nsim lab tool is enabled for this API process (read per request; off by default). */
@@ -53,7 +53,7 @@ const ROLLBACK = /^\/api\/v1\/config\/rollback\/(\d+)$/;
  * Refuses (409 problem+json, pointer `/services/nsim`) a commit of a candidate — or a rollback to a revision — that carries
  * `services.nsim` while the lab gate is off (review M2: nsim can crash a VPP with worker threads and keeps the main thread
  * polling until VPP restarts). Everything else passes through unchanged. Registered as a global interceptor by this
- * feature's providers; the agent enforces the same gate (it applies nsim only as the globals owner with VRX_NSIM=lab).
+ * feature's providers; the agent enforces the same gate (it applies nsim only as the globals owner with NGFW_NSIM=lab).
  *
  * The refusal is audited here (TD-10b 2.3e: every config mutation attempt leaves a row, refusals included): this
  * interceptor is registered before the global AuditInterceptor, so it is the outer one and the audit interceptor
@@ -69,7 +69,7 @@ export class NsimGateInterceptor implements NestInterceptor {
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
     if (ctx.getType() !== 'http' || nsimEnabled()) return next.handle();
-    const req = ctx.switchToHttp().getRequest<VrxRequest>();
+    const req = ctx.switchToHttp().getRequest<NgfwRequest>();
     if (req.method !== 'POST') return next.handle();
     const path = req.url.split('?')[0] ?? '';
     const rb = ROLLBACK.exec(path);
@@ -89,7 +89,7 @@ export class NsimGateInterceptor implements NestInterceptor {
   }
 
   /** The audit row of a refused commit or rollback (AuditService.write never throws). */
-  private refused(req: VrxRequest): Promise<void> {
+  private refused(req: NgfwRequest): Promise<void> {
     return this.audit.write({
       userId: req.principal?.id ?? null,
       username: req.principal?.username ?? null,

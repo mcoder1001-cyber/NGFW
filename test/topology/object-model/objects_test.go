@@ -14,14 +14,14 @@ import (
 // TestObjectModelTopology is F-object-model's end-to-end run on the slot: the real agent (objects domain, FQDN resolver
 // against the test's DNS responder), the real API on the slot database, no VPP object and no rig.
 //
-//	commit objects + an ACL using them → the agent's Retrieve (vrx-agentctl) equals the committed objects, /state/drift is
+//	commit objects + an ACL using them → the agent's Retrieve (ngfw-agentctl) equals the committed objects, /state/drift is
 //	clean → the FQDN objects resolve → a changed answer is picked up by the 30 s refresh → the agent is stopped, its objects
 //	store deleted (simulated loss) and started again: it reloads the FQDN answers without querying and the resync
 //	recreates the store → the resolver goes down: last-good answers kept → deleting a referenced object is refused with the
 //	rule's pointer → rollback restores the earlier object set (Retrieve + where-used) → everything is deleted again.
 func TestObjectModelTopology(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-object-model topology test: set VRX_INTEGRATION=1 (real agent + API + slot PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-object-model topology test: set NGFW_INTEGRATION=1 (real agent + API + slot PostgreSQL) — run.sh does")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -61,7 +61,7 @@ func TestObjectModelTopology(t *testing.T) {
 		if !reflect.DeepEqual(normalize(got), normalize(running)) {
 			t.Fatalf("agent Retrieve != committed objects:\nretrieve %s\nrunning  %s", js(normalize(got)), js(normalize(running)))
 		}
-		t.Logf("vrx-agentctl retrieve -subsystems objects == running objects (%d kinds, %d address objects)", len(normalize(got)), len(got["addresses"].(map[string]any)))
+		t.Logf("ngfw-agentctl retrieve -subsystems objects == running objects (%d kinds, %d address objects)", len(normalize(got)), len(got["addresses"].(map[string]any)))
 		d := a.must(200, "GET", "/api/v1/state/drift", nil).body
 		for _, ch := range d["changes"].([]any) {
 			if p, _ := ch.(map[string]any)["pointer"].(string); strings.HasPrefix(p, "/objects") {
@@ -134,7 +134,7 @@ func TestObjectModelTopology(t *testing.T) {
 			t.Fatalf("restart re-queried %d times right away (query storm)", n)
 		}
 		t.Logf("FQDN state reloaded from the state dir: cdn lastResolved %s unchanged, 0 DNS queries in the first %.1f s after start", lastResolved, time.Since(started).Seconds())
-		for _, l := range st.agentLogLines(t, off, `"fqdn state reloaded"`, `"objects domain wired"`, `"reconcile done"`, `"vrx-agent listening"`) {
+		for _, l := range st.agentLogLines(t, off, `"fqdn state reloaded"`, `"objects domain wired"`, `"reconcile done"`, `"ngfw-agent listening"`) {
 			t.Log("agent: " + l)
 		}
 	})

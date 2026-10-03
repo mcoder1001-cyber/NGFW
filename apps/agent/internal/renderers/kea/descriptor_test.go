@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -100,15 +100,15 @@ func descRenderer(t *testing.T, m *keaModel, opts ...Option) (*Renderer, Paths) 
 	return New(run, append(base, opts...)...), p
 }
 
-func doc(servers map[string]*vrxv1.DhcpServer) *vrxv1.DesiredState {
-	return &vrxv1.DesiredState{
-		Interfaces: map[string]*vrxv1.Interface{"w0-a": {Ipv4: []string{"10.6.10.1/24"}}, "other": {Ipv4: []string{"192.0.2.1/24"}}},
-		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{Servers: servers}},
+func doc(servers map[string]*ngfwv1.DhcpServer) *ngfwv1.DesiredState {
+	return &ngfwv1.DesiredState{
+		Interfaces: map[string]*ngfwv1.Interface{"w0-a": {Ipv4: []string{"10.6.10.1/24"}}, "other": {Ipv4: []string{"192.0.2.1/24"}}},
+		Services:   &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{Servers: servers}},
 	}
 }
 
 func TestInput(t *testing.T) {
-	ds := doc(map[string]*vrxv1.DhcpServer{"lan": v4Server(), "lan6": v6Server(), "off": {Enabled: proto.Bool(false), Interfaces: []string{"other"}}})
+	ds := doc(map[string]*ngfwv1.DhcpServer{"lan": v4Server(), "lan6": v6Server(), "off": {Enabled: proto.Bool(false), Interfaces: []string{"other"}}})
 	in4 := Input(ds, 4)
 	if got := ServerKeys(in4); got != "lan,off" {
 		t.Fatalf("v4 servers %s", got)
@@ -140,7 +140,7 @@ func TestInput(t *testing.T) {
 	if _, ok, err := EmbeddedInput(idle[r.paths.Dhcp4Conf()].Content); ok || err != nil {
 		t.Fatalf("idle config has no input: ok=%v err=%v", ok, err)
 	}
-	if _, _, err := EmbeddedInput([]byte(`{"Dhcp4": {"user-context": {"vrx": {"input": "!!"}}}}`)); err == nil {
+	if _, _, err := EmbeddedInput([]byte(`{"Dhcp4": {"user-context": {"ngfw": {"input": "!!"}}}}`)); err == nil {
 		t.Fatal("bad base64 must be an error")
 	}
 	if _, err := r.RenderFamily(in4, 5); err == nil {
@@ -149,7 +149,7 @@ func TestInput(t *testing.T) {
 }
 
 // ServerKeys is a test helper: the sorted server names of an input, comma-joined.
-func ServerKeys(in *vrxv1.DesiredState) string {
+func ServerKeys(in *ngfwv1.DesiredState) string {
 	return strings.Join(sortedKeys(in.GetServices().GetDhcp().GetServers()), ",")
 }
 
@@ -158,10 +158,10 @@ func TestDescriptorLifecycle(t *testing.T) {
 	m := newModel(4, 6)
 	r, p := descRenderer(t, m)
 	d4 := NewDescriptor(r, 4)
-	if d4.Name() != NameDhcp4 || d4.KeyOf(nil) != "kea.dhcp4/vrx" || Key(6) != "kea.dhcp6/vrx" || NewDescriptor(r, 6).Name() != NameDhcp6 {
+	if d4.Name() != NameDhcp4 || d4.KeyOf(nil) != "kea.dhcp4/ngfw" || Key(6) != "kea.dhcp6/ngfw" || NewDescriptor(r, 6).Name() != NameDhcp6 {
 		t.Fatal("names/keys")
 	}
-	in := Input(doc(map[string]*vrxv1.DhcpServer{"lan": v4Server()}), 4)
+	in := Input(doc(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}), 4)
 	deps := d4.Dependencies(in)
 	if len(deps) != 1 || deps[0].Key != "interface/w0-a" || !deps[0].Optional {
 		t.Fatalf("deps %v", deps)
@@ -199,7 +199,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	if err != nil || len(kvs) != 1 || !proto.Equal(kvs[0].Value, in) {
 		t.Fatalf("not running: %v %v", kvs, err)
 	}
-	in2 := Input(doc(map[string]*vrxv1.DhcpServer{"lan": func() *vrxv1.DhcpServer { s := v4Server(); s.LeaseTimeSec = proto.Uint32(9000); return s }()}), 4)
+	in2 := Input(doc(map[string]*ngfwv1.DhcpServer{"lan": func() *ngfwv1.DhcpServer { s := v4Server(); s.LeaseTimeSec = proto.Uint32(9000); return s }()}), 4)
 	if _, err := d4.Update(ctx, in, in2, nil); err != nil {
 		t.Fatalf("an inactive daemon is a start request, not an error: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestStatusAndLeasePage(t *testing.T) {
 	ctx := context.Background()
 	m := newModel(4)
 	r, _ := descRenderer(t, m)
-	in := Input(doc(map[string]*vrxv1.DhcpServer{"lan": v4Server()}), 4)
+	in := Input(doc(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}), 4)
 	if err := NewDescriptor(r, 4).apply(ctx, in); err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +327,7 @@ func mustConfig(t *testing.T, r *Renderer, fam int) []byte {
 
 // TestAddressBindingOff: WithAddressBinding(false) keeps plain interface names (the lab relay rig).
 func TestAddressBindingOff(t *testing.T) {
-	ds := doc(map[string]*vrxv1.DhcpServer{"lan": v4Server()})
+	ds := doc(map[string]*ngfwv1.DhcpServer{"lan": v4Server()})
 	on, _ := newUnit().RenderFamily(Input(ds, 4), 4)
 	off, _ := newUnit(WithAddressBinding(false)).RenderFamily(Input(ds, 4), 4)
 	p := unitPaths().Dhcp4Conf()
@@ -431,7 +431,7 @@ func TestLeaseReadsSharedAndCached(t *testing.T) {
 		t.Fatalf("after the TTL: %d requests, want 6", n)
 	}
 	// an Apply drops the cache
-	if err := NewDescriptor(r, 4).apply(ctx, Input(doc(map[string]*vrxv1.DhcpServer{"lan": v4Server()}), 4)); err != nil {
+	if err := NewDescriptor(r, 4).apply(ctx, Input(doc(map[string]*ngfwv1.DhcpServer{"lan": v4Server()}), 4)); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, _, err := r.LeasePage(ctx, LeaseQuery{Families: []int{4}}); err != nil {

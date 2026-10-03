@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# ngfw-image-setup — put the shared image pieces (deploy/image common: P14 ISO, F-images) into an installed root.
+#
+#   ngfw-image-setup --root DIR [--profile iso|vm|cloud] [--serial-console] [--build-info FILE] [--dry-run]
+#
+# Into DIR (the installer's /target, an image builder's mount, or a test tree) — files only, nothing is executed there:
+#   usr/lib/ngfw-image/{ngfw-bootstrap-password,ngfw-console-banner}       0755 root
+#   usr/lib/ngfw-image/build-info.json                                   0644 (with --build-info: the image build info)
+#   etc/systemd/system/ngfw-console-banner.service, ngfw-console-banner-login.{service,timer},
+#     ngfw-bootstrap-password.service                                    enabled by their [Install] WantedBy= (symlinks)
+#   etc/default/grub.d/90-ngfw-dataplane.cfg   kernel/cmdline appended to GRUB_CMDLINE_LINUX_DEFAULT (the caller runs
+#                                             update-grub in the target; --serial-console adds console=tty0 console=ttyS0,115200n8)
+#   etc/sysctl.d/80-ngfw-dataplane.conf, etc/modules-load.d/ngfw-dataplane.conf
+#   etc/issue.d/ (0755), var/lib/ngfw-image/ (0755)
+# Not here (they need the target's package manager / systemctl, the caller does them): installing packages.list,
+# purging purge.list, disabling units-disable.list, update-grub, the bootstrap password (ngfw-bootstrap-password --root).
+# --dry-run prints what would be written. Exit 0 on success; any missing source file is an error.
+set -euo pipefail
+export LC_ALL=C
+
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+COMMON=$(cd "$HERE/.." && pwd -P)
+ROOT='' PROFILE=iso SERIAL=0 BUILD_INFO='' DRY=0
+die() { printf 'ngfw-image-setup: ERROR: %s\n' "$*" >&2; exit 1; }
+log() { printf 'ngfw-image-setup: %s\n' "$*"; }
+
+while (($#)); do
+  case $1 in
+    --root) ROOT=${2:?--root needs a directory}; shift ;;
+    --profile) PROFILE=${2:?--profile needs iso, vm or cloud}; shift ;;
+    --serial-console) SERIAL=1 ;;
+    --build-info) BUILD_INFO=${2:?--build-info needs a file}; shift ;;
+    --dry-run) DRY=1 ;;
+    -h|--help) sed -n '2,/^set -euo pipefail/{/^set -euo pipefail/!p}' "$0" | sed -E 's/^# ?//'; exit 0 ;;
+    *) die "unknown argument '$1' (try --help)" ;;
+  esac
+  shift
+done
+[[ -n $ROOT ]] || die "give --root DIR (the target root; never defaults to /)"
+[[ -d $ROOT ]] || die "--root $ROOT is not a directory"
+ROOT=$(cd "$ROOT" && pwd -P)
+[[ $ROOT != / ]] || die "--root / refused: this tool prepares an image or installer target, never the running system"
+[[ $PROFILE =~ ^(iso|vm|cloud)$ ]] || die "--profile must be iso, vm or cloud"
+[[ -z $BUILD_INFO || -f $BUILD_INFO ]] || die "--build-info $BUILD_INFO: no such file"
+
+# kernel/cmdline → one line of arguments (comments and blank lines dropped); every token is checked so that nothing
+# but plain kernel parameters can reach the GRUB shell fragment below
+kernel_args() {
+  local line out=()
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%#*}; line=${line//[[:space:]]/}
+    [[ -z $line ]] && continue
+    [[ $line =~ ^[A-Za-z0-9_.,:=/-]+$ ]] || die "kernel/cmdline: refused token '$line'"
+    out+=("$line")
+  done < "$COMMON/kernel/cmdline"
+  if ((SERIAL)); then out+=('console=tty0' 'console=ttyS0,115200n8'); fi
+  printf '%s' "${out[*]}"
+}
+
+put() { # put <mode> <source-file|-> <dest-relative-to-root>
+  local mode=$1 src=$2 dst=$ROOT/$3
+  if ((DRY)); then log "would write /$3 ($mode)"; [[ $src == - ]] && cat > /dev/null; return 0; fi
+  install -d -m 0755 "$(dirname "$dst")"
+  if [[ $src == - ]]; then
+    local tmp; tmp=$(mktemp "$dst.XXXXXX"); cat > "$tmp"; chmod "$mode" "$tmp"; mv -f "$tmp" "$dst"
+  else
+    install -m "$mode" "$src" "$dst"
+  fi
+  if [[ $EUID -eq 0 ]]; then chown 0:0 "$dst"; fi
+}
+
+enable_unit() { # symlink <unit> into every <target>.wants named by its [Install] WantedBy= (what systemctl enable does)
+  local unit=$1 wants target
+  wants=$(sed -n '/^\[Install\]/,/^\[/{s/^WantedBy=//p}' "$COMMON/systemd/$unit")
+  [[ -n $wants ]] || die "$unit has no WantedBy="
+  for target in $wants; do
+    [[ $target =~ ^[A-Za-z0-9@._-]+\.target$ ]] || die "$unit: odd WantedBy '$target'"
+    if ((DRY)); then log "would enable $unit in $target"; continue; fi
+    install -d -m 0755 "$ROOT/etc/systemd/system/$target.wants"
+    ln -sfn "/etc/systemd/system/$unit" "$ROOT/etc/systemd/system/$target.wants/$unit"
+  done
+}
+
+for f in bin/ngfw-bootstrap-password bin/ngfw-console-banner kernel/cmdline kernel/80-ngfw-dataplane.conf \
+  kernel/modules-ngfw-dataplane.conf systemd/ngfw-console-banner.service systemd/ngfw-console-banner-login.service \
+  systemd/ngfw-console-banner-login.timer systemd/ngfw-bootstrap-password.service; do
+  [[ -f $COMMON/$f ]] || die "missing $COMMON/$f"
+done
+
+put 0755 "$COMMON/bin/ngfw-bootstrap-password" usr/lib/ngfw-image/ngfw-bootstrap-password
+put 0755 "$COMMON/bin/ngfw-console-banner" usr/lib/ngfw-image/ngfw-console-banner
+if [[ -n $BUILD_INFO ]]; then put 0644 "$BUILD_INFO" usr/lib/ngfw-image/build-info.json; fi
+for u in ngfw-console-banner.service ngfw-console-banner-login.service ngfw-console-banner-login.timer ngfw-bootstrap-password.service; do
+  put 0644 "$COMMON/systemd/$u" "etc/systemd/system/$u"
+done
+for u in ngfw-console-banner.service ngfw-console-banner-login.timer ngfw-bootstrap-password.service; do
+  enable_unit "$u"
+done
+
+ARGS=$(kernel_args)
+put 0644 - etc/default/grub.d/90-ngfw-dataplane.cfg <<EOF
+# Written by ngfw-image-setup (deploy/image common, P14): NGFW kernel command line defaults (common/kernel/cmdline).
+# Hardware-dependent values (isolcpus, 1 GiB hugepages) are set later by the hardware wizard, not here.
+GRUB_CMDLINE_LINUX_DEFAULT="\${GRUB_CMDLINE_LINUX_DEFAULT:+\$GRUB_CMDLINE_LINUX_DEFAULT }$ARGS"
+EOF
+put 0644 "$COMMON/kernel/80-ngfw-dataplane.conf" etc/sysctl.d/80-ngfw-dataplane.conf
+put 0644 "$COMMON/kernel/modules-ngfw-dataplane.conf" etc/modules-load.d/ngfw-dataplane.conf
+if ((!DRY)); then
+  install -d -m 0755 "$ROOT/etc/issue.d" "$ROOT/var/lib/ngfw-image"
+fi
+log "profile $PROFILE: common pieces installed under $ROOT (kernel args: $ARGS)"

@@ -2,11 +2,11 @@ import { createHash, createPublicKey, verify, type KeyObject } from 'node:crypto
 import { z } from 'zod';
 
 /**
- * `.vrxlic` licence file (F-licensing): one JSON object `{format, license, signature}`. `signature` is a detached
+ * `.ngfwlic` licence file (F-licensing): one JSON object `{format, license, signature}`. `signature` is a detached
  * Ed25519 signature (base64) over the canonical JSON of `license` (keys sorted recursively, no whitespace). The same
- * canonicalisation lives in `tools/license/vrx-license.mjs` (dependency-free CLI); `cli.test.ts` proves both agree.
+ * canonicalisation lives in `tools/license/ngfw-license.mjs` (dependency-free CLI); `cli.test.ts` proves both agree.
  */
-export const LICENSE_FORMAT = 'vrxlic/1';
+export const LICENSE_FORMAT = 'ngfwlic/1';
 
 export const LicenseSchema = z.strictObject({
   version: z.literal(1),
@@ -68,7 +68,7 @@ export function publicKeyFrom(pem: string): KeyObject {
 }
 
 /**
- * Parse a `.vrxlic` file and verify its signature against any of `keys`. Throws LicenseFormatError on a malformed
+ * Parse a `.ngfwlic` file and verify its signature against any of `keys`. Throws LicenseFormatError on a malformed
  * file or a bad signature (tampered byte, wrong key). Time and host binding are checked by `evaluate()`.
  */
 export function parseAndVerify(text: string, keys: readonly KeyObject[]): License {
@@ -79,7 +79,7 @@ export function parseAndVerify(text: string, keys: readonly KeyObject[]): Licens
     throw new LicenseFormatError('malformed', 'licence file is not JSON');
   }
   const file = FileSchema.safeParse(raw);
-  if (!file.success) throw new LicenseFormatError('malformed', 'not a vrxlic/1 licence file');
+  if (!file.success) throw new LicenseFormatError('malformed', 'not a ngfwlic/1 licence file');
   const payload = Buffer.from(canonicalJson(file.data.license), 'utf8');
   const sig = Buffer.from(file.data.signature, 'base64');
   const ok = sig.length === 64 && keys.some((k) => verify(null, payload, k, sig));
@@ -97,7 +97,7 @@ export type LicenseStatus = 'community' | 'valid' | 'grace' | 'expired' | 'inval
 export interface HostIdentity {
   /** sha256 hex of /etc/machine-id (undefined when unreadable). */
   machineIdHash?: string | undefined;
-  /** DMI product serial (or the VRX_LICENSE_SERIAL override). */
+  /** DMI product serial (or the NGFW_LICENSE_SERIAL override). */
   serial?: string | undefined;
 }
 

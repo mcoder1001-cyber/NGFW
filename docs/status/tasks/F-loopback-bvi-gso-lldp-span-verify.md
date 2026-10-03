@@ -13,7 +13,7 @@ remain for the rebase round; they are listed at the end.
 
 ## What I ran (real output, HEAD 1ca7f9c3)
 
-Go, with the race detector. `VRX_INTEGRATION`, `VRX_NSIM_HOST`, `VRX_NSIM` and `VRX_NSIM_POLL_MAIN_THREAD` were unset.
+Go, with the race detector. `NGFW_INTEGRATION`, `NGFW_NSIM_HOST`, `NGFW_NSIM` and `NGFW_NSIM_POLL_MAIN_THREAD` were unset.
 ```
 $ cd apps/agent && go test -race -count=1 ./internal/descriptors/{gso,nsim,span,lldp,core}/... ./internal/desired/... ./internal/subsystems/... ./internal/agent/...
 ok  	ngfw/agent/internal/descriptors/gso	1.130s
@@ -68,11 +68,11 @@ eslint and prettier.
 
 **(a) Worker threads.**
 - `nsim.config` Create asks `show_threads` (binapi `vlib`). The VPP handler (`vlibmemory/vlib_api.c:182-209`) counts `vlib_worker_threads`, which includes the main thread at index 0, so `len-1` is the number of workers.
-- It returns `ErrWorkerThreads` before any `nsim_configure2`, unless `VRX_NSIM_POLL_MAIN_THREAD=1`.
+- It returns `ErrWorkerThreads` before any `nsim_configure2`, unless `NGFW_NSIM_POLL_MAIN_THREAD=1`.
 - Tested by `TestConfigRefusesWorkerThreads`: nothing is sent to VPP.
 
 **(b) Lab gate.**
-- Registration and projection happen only when the agent is the globals owner **and** `VRX_NSIM=lab` (`subsystems/loopback_bvi_gso_lldp_span.go:80-98`, `desired/nsim.go:49-56`). Otherwise the agent reports `agent.unsupported-field`.
+- Registration and projection happen only when the agent is the globals owner **and** `NGFW_NSIM=lab` (`subsystems/loopback_bvi_gso_lldp_span.go:80-98`, `desired/nsim.go:49-56`). Otherwise the agent reports `agent.unsupported-field`.
 - The API interceptor answers 409 problem+json with pointer `/services/nsim` for a commit or rollback to a document carrying `services.nsim` (`nsim-gate.ts`).
 
 **Docs and UI checked against VPP:**
@@ -133,7 +133,7 @@ The cross-connect is now its own switch (`NsimPage.tsx`, `withoutProps`), so Sch
 
 - **No contract change:** proto, `apps/agent/gen`, `packages/api-client` and the CLI's generated files are unchanged since 777f629f. The only schema change is the help text in L1.
 - **Test-file edits are for the new gate only:**
-  - `rpc_…_test.go` adds `t.Setenv("VRX_NSIM", "lab")` to the globals-owner test, which is not parallel.
+  - `rpc_…_test.go` adds `t.Setenv("NGFW_NSIM", "lab")` to the globals-owner test, which is not parallel.
   - The coretest fake answers `show_threads` with a main-only VPP.
   - `mirror_test.go` updates the `Nsim(…)` signature and adds the owner-without-gate case.
 - **Behaviour kept:**

@@ -123,7 +123,7 @@ export function InterfacesPage() {
         flex: 1,
         renderCell: (p) => (
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
-            <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, paddingInlineStart: p.row.item.kind === 'subinterface' ? 2 : 0 }}>
+            <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, paddingInlineStart: p.row.item.kind === 'subinterface' ? 2 : 0 }}>
               {p.row.name}
             </Box>
             {p.row.item.hasPendingChange && <Chip size="small" color="warning" variant="outlined" label={t('pending')} />}
@@ -150,7 +150,7 @@ export function InterfacesPage() {
         minWidth: 180,
         flex: 1,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12 }}>
+          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}>
             {p.row.addresses}
           </Box>
         ),

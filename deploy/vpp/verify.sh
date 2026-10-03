@@ -6,7 +6,7 @@
 #   deploy/vpp/verify.sh --require-files <out>   + a produced output dir: manifest.json vs VERSION/series/lock, SHA256SUMS,
 #                                                  every .deb present (no missing, no extra), each .deb's Package/Version/
 #                                                  Architecture fields and sha256 equal to its manifest entry
-#   ... --require-files <out> --install-gate     + only an installable build: version <base>+vrx<N>, no demo patch, clean builder
+#   ... --require-files <out> --install-gate     + only an installable build: version <base>+ngfw<N>, no demo patch, clean builder
 #   --no-tests                                   skip tests/run.sh (the tests call verify.sh themselves)
 #
 # Exit 0 = OK, 1 = findings (printed as FAIL lines).
@@ -16,7 +16,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=SCRIPTDIR/lib.sh
 source "$HERE/lib.sh"
 OUT=""; GATE=0; TESTS=1
-[[ -z ${VRX_VPP_IN_TESTS:-} ]] || TESTS=0
+[[ -z ${NGFW_VPP_IN_TESTS:-} ]] || TESTS=0
 while (($#)); do
   case "$1" in
     --require-files) OUT=${2:?}; shift ;;
@@ -34,9 +34,9 @@ bad() { printf 'FAIL %s\n' "$*"; errs=$((errs + 1)); }
 ok() { printf 'ok   %s\n' "$*"; }
 
 # ------------------------------------------------------------------ VERSION (data; stop at the first format error)
-if ! msg=$(vrx_parse_version "$HERE/VERSION" 2>&1); then bad "$msg"; echo "verify.sh: VERSION unusable — stopping"; exit 1; fi
-vrx_parse_version "$HERE/VERSION"
-ok "VERSION: $VPP_TAG $VPP_COMMIT → $VPP_DEB_VERSION (patched: $VPP_DEB_VERSION+vrx$VPP_LOCAL_REV), $(wc -w <<<"$VPP_PACKAGES") packages, ship $(wc -w <<<"$VPP_PACKAGES_SHIP")"
+if ! msg=$(ngfw_parse_version "$HERE/VERSION" 2>&1); then bad "$msg"; echo "verify.sh: VERSION unusable — stopping"; exit 1; fi
+ngfw_parse_version "$HERE/VERSION"
+ok "VERSION: $VPP_TAG $VPP_COMMIT → $VPP_DEB_VERSION (patched: $VPP_DEB_VERSION+ngfw$VPP_LOCAL_REV), $(wc -w <<<"$VPP_PACKAGES") packages, ship $(wc -w <<<"$VPP_PACKAGES_SHIP")"
 
 # ------------------------------------------------------------------ patch series
 check_patch() {  # check_patch <path> <label> <allowed statuses regex> [build]
@@ -44,7 +44,7 @@ check_patch() {  # check_patch <path> <label> <allowed statuses regex> [build]
   [[ -f $f ]] || { bad "patch $l listed but missing"; return; }
   for h in Subject Track Status Upstream; do grep -qE "^$h: " "$f" || bad "patch $l: header '$h:' missing"; done
   if ! grep -qE '^\+\+\+ b/' "$f" || ! grep -qE '^@@ ' "$f"; then bad "patch $l: no unified diff (--- a/ +++ b/ @@)"; fi
-  st=$(vrx_patch_status "$f")
+  st=$(ngfw_patch_status "$f")
   [[ $st =~ ^($3)$ ]] || bad "patch $l: Status '$st' not allowed here ($3)"
   if [[ $l == *DEMO* && $st != demo ]]; then bad "patch $l: DEMO in the name needs 'Status: demo'"; fi
   if [[ $st == demo && $l != *DEMO* ]]; then bad "patch $l: 'Status: demo' needs DEMO in the file name"; fi
@@ -64,7 +64,7 @@ check_series() {  # check_series <dir> <statuses> [build]; sets SERIES_N
     [[ $seen != *" $name "* ]] || bad "${dir##*/}/series: $name listed twice"
     seen+="$name "; SERIES_N=$((SERIES_N + 1))
     check_patch "$dir/$name" "${dir##*/}/$name" "$2" "${3:-}"
-  done < <(vrx_series "$dir/series")
+  done < <(ngfw_series "$dir/series")
   for f in "$dir"/*.patch; do
     [[ -e $f ]] || continue
     [[ $seen == *" ${f##*/} "* ]] || bad "${dir##*/}/${f##*/} is not in the series (orphan)"
@@ -79,7 +79,7 @@ for f in "$HERE"/patches/optional/*.patch; do check_patch "$f" "optional/${f##*/
 
 # ------------------------------------------------------------------ pydeps.lock
 e0=$errs
-if ! entries=$(vrx_pydeps_parse "$HERE/pydeps.lock" 2>&1); then bad "$entries"; else
+if ! entries=$(ngfw_pydeps_parse "$HERE/pydeps.lock" 2>&1); then bad "$entries"; else
   dups=$(awk '{print tolower($1)}' <<<"$entries" | sort | uniq -d)
   [[ -z $dups ]] || bad "pydeps.lock: duplicate entries: $dups"
   for need in meson pyelftools; do
@@ -95,7 +95,7 @@ for s in build.sh verify.sh tests/run.sh; do
   [[ -x $HERE/$s ]] || bad "$s is not executable"
 done
 bash -n "$HERE/lib.sh" || bad "lib.sh: bash syntax error"
-if [[ -z ${VRX_VPP_IN_TESTS:-} ]] && command -v shellcheck >/dev/null 2>&1; then
+if [[ -z ${NGFW_VPP_IN_TESTS:-} ]] && command -v shellcheck >/dev/null 2>&1; then
   (cd "$HERE" && shellcheck -x -S warning build.sh verify.sh lib.sh tests/run.sh >/dev/null) \
     || bad "shellcheck warnings (run: cd deploy/vpp && shellcheck -x build.sh verify.sh lib.sh tests/run.sh)"
 fi
@@ -116,17 +116,17 @@ fi
 if [[ -n $OUT ]]; then
   series_lines=$(for d in build-patches patches; do
       while read -r name _; do
-        printf '%s/%s\t%s\t%s\n' "$d" "$name" "$(vrx_sha256 "$HERE/$d/$name")" "$(vrx_patch_status "$HERE/$d/$name")"
-      done < <(vrx_series "$HERE/$d/series")
+        printf '%s/%s\t%s\t%s\n' "$d" "$name" "$(ngfw_sha256 "$HERE/$d/$name")" "$(ngfw_patch_status "$HERE/$d/$name")"
+      done < <(ngfw_series "$HERE/$d/series")
     done
-    for f in "$HERE"/patches/optional/*.patch; do printf 'patches/optional/%s\t%s\toptional\n' "${f##*/}" "$(vrx_sha256 "$f")"; done)
-  out=$(VRX_OUT="$OUT" VRX_GATE="$GATE" VRX_SERIES="$series_lines" VRX_PYDEPS="$(vrx_pydeps_parse "$HERE/pydeps.lock")" \
+    for f in "$HERE"/patches/optional/*.patch; do printf 'patches/optional/%s\t%s\toptional\n' "${f##*/}" "$(ngfw_sha256 "$f")"; done)
+  out=$(NGFW_OUT="$OUT" NGFW_GATE="$GATE" NGFW_SERIES="$series_lines" NGFW_PYDEPS="$(ngfw_pydeps_parse "$HERE/pydeps.lock")" \
     VPP_UPSTREAM_URL="$VPP_UPSTREAM_URL" VPP_TAG="$VPP_TAG" VPP_TAG_OBJECT="$VPP_TAG_OBJECT" VPP_COMMIT="$VPP_COMMIT" \
     VPP_DEB_VERSION="$VPP_DEB_VERSION" VPP_LOCAL_REV="$VPP_LOCAL_REV" VPP_PACKAGES="$VPP_PACKAGES" \
     VPP_PACKAGES_SHIP="$VPP_PACKAGES_SHIP" python3 - <<'PY'
 import glob, hashlib, json, os, subprocess
 e = os.environ
-d = e["VRX_OUT"]
+d = e["NGFW_OUT"]
 errs = []
 fail = errs.append
 def sha(p):
@@ -140,14 +140,14 @@ try:
 except Exception as x:  # noqa: BLE001
     print(f"FAIL output: cannot read {d}/manifest.json: {x}")
     raise SystemExit(0)
-if m.get("schema") != "vrx.vpp-debs.manifest/v2":
-    fail(f"schema is {m.get('schema')!r}, want vrx.vpp-debs.manifest/v2")
+if m.get("schema") != "ngfw.vpp-debs.manifest/v2":
+    fail(f"schema is {m.get('schema')!r}, want ngfw.vpp-debs.manifest/v2")
 up = m.get("upstream", {})
 for k, env in (("url", "VPP_UPSTREAM_URL"), ("tag", "VPP_TAG"), ("tag_object", "VPP_TAG_OBJECT"), ("commit", "VPP_COMMIT")):
     if up.get(k) != e[env]:
         fail(f"upstream.{k}={up.get(k)!r} != VERSION {e[env]!r}")
 known = {}
-for l in e["VRX_SERIES"].splitlines():
+for l in e["NGFW_SERIES"].splitlines():
     if l.strip():
         n, s, k = l.split("\t")
         known[n] = (s, k)
@@ -166,9 +166,9 @@ if got_build != want_build:
 if any(p.get("kind") == "build" for p in patches):
     fail("a build patch is listed under patches[]")
 base, rev = e["VPP_DEB_VERSION"], e["VPP_LOCAL_REV"]
-# D-092: any applied patch (build-patches included) → +vrx<N>; only an untouched upstream tree is <tag>-release
+# D-092: any applied patch (build-patches included) → +ngfw<N>; only an untouched upstream tree is <tag>-release
 changed = bool(patches or build.get("build_patches"))
-want_version = f"{base}+vrx{rev}" if changed else base
+want_version = f"{base}+ngfw{rev}" if changed else base
 if m.get("version") != want_version:
     fail(f"version {m.get('version')!r}, but D-089/D-092 require {want_version!r} ({len(patches)} patch(es) + {len(build.get("build_patches", []))} build patch(es))")
 kinds = [p.get("kind") for p in patches]
@@ -176,7 +176,7 @@ if "demo" in kinds and not m.get("options", {}).get("demo"):
     fail("demo patch applied without options.demo")
 if ("demo" in kinds) != ("demo" in str(m.get("variant", ""))):
     fail(f"variant {m.get('variant')!r} does not reflect the demo patches")
-lock = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["VRX_PYDEPS"].splitlines() if l.strip()]
+lock = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["NGFW_PYDEPS"].splitlines() if l.strip()]
 if build.get("inputs", {}).get("python") != lock:
     fail("build.inputs.python differs from pydeps.lock")
 venv = sorted(x.lower() for x in build.get("inputs", {}).get("dpdk_meson_venv", []))
@@ -221,7 +221,7 @@ except OSError as x:
     fail(f"SHA256SUMS: {x}")
 if sums != {f: p.get("sha256") for f, p in files.items()}:
     fail("SHA256SUMS and manifest.json disagree (file set or hashes)")
-if e["VRX_GATE"] == "1":
+if e["NGFW_GATE"] == "1":
     if m.get("version") == base:
         fail("install gate: unsuffixed build (version == upstream) — never an install target (D-089/D-092)")
     if "demo" in kinds or "demo" in str(m.get("variant", "")):
@@ -233,7 +233,7 @@ for x in errs:
 if not errs:
     print(f"ok   output {d}: {len(files)} .deb, version {m.get('version')}, variant {m.get('variant')}, "
           f"patches {[p.get('name') for p in patches]}; files/control fields/sha256/SHA256SUMS consistent"
-          + ("; install gate passed" if e["VRX_GATE"] == "1" else ""))
+          + ("; install gate passed" if e["NGFW_GATE"] == "1" else ""))
 PY
 )
   printf '%s\n' "$out"

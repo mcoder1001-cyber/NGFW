@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import { StatusChip, UI_KIT_NS, useFormatters, type VrxStatus } from '@ngfw/ui-kit';
+import { StatusChip, UI_KIT_NS, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RowState } from '../collection/model';
@@ -11,14 +11,14 @@ import { formatCounter, type CounterValue } from './format';
 /** An identifier (interface name, prefix, MAC, ref): left-to-right monospace inside any reading direction. */
 export function IdText({ children, small = false }: { children: ReactNode; small?: boolean }) {
   return (
-    <Box component="bdi" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, ...(small ? { fontSize: 12 } : {}) }}>
+    <Box component="bdi" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, ...(small ? { fontSize: 12 } : {}) }}>
       {children}
     </Box>
   );
 }
 
 /** Live status of a row: a StatusChip, or a quiet text when the data plane has no such object (`not in the data plane`). */
-export function StatusCell({ status, label, missing }: { status: VrxStatus | undefined; label?: ReactNode; missing?: ReactNode }) {
+export function StatusCell({ status, label, missing }: { status: NgfwStatus | undefined; label?: ReactNode; missing?: ReactNode }) {
   const { t } = useTranslation('config');
   if (status) return <StatusChip size="small" status={status} {...(label !== undefined ? { label } : {})} />;
   return (

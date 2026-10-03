@@ -5,11 +5,11 @@ Use the signed package repository only after release-builder and deferred applia
 acceptance. Never point a running device at WIP/checkpoint packages.
 
 Before upgrade, export a verified configuration/backup, record current package
-versions and confirm console access/recovery. Preserve `/var/lib/vrx`, PostgreSQL
-state, `/etc/vrx/api.env`, the secret master key and operator TLS certificates.
+versions and confirm console access/recovery. Preserve `/var/lib/ngfw`, PostgreSQL
+state, `/etc/ngfw/api.env`, the secret master key and operator TLS certificates.
 Losing the secret key makes existing encrypted secrets unreadable.
 
-Upgrade the matching-version `vrx-meta` package and its management packages
+Upgrade the matching-version `ngfw-meta` package and its management packages
 through APT. The meta dependency pins the exact verified product VPP version.
 Maintainer scripts preserve configuration/data and do not start/restart VPP.
 Firstboot completion remains durable; upgrades never reseed users or regenerate

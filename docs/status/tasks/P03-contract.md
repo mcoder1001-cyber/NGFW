@@ -1,6 +1,6 @@
 # P03 — contract change summary (`contract(proto)`) for the manager's review
 
-Branch `task/P03`, worktree `/root/ngfw-wt/P03`. What the `vrx.v1.Dataplane` contract looks like after the review round
+Branch `task/P03`, worktree `/root/ngfw-wt/P03`. What the `ngfw.v1.Dataplane` contract looks like after the review round
 (`P03-review.md`, APPROVE WITH CHANGES) and *why* each change is in — every design point below is a manager decision in
 `docs/decisions/LOG.md`; this file only records how it was applied. Full semantics: `docs/contracts/proto.md`; evidence
 with pasted output: `docs/status/tasks/P03.md` §"Review fixes".
@@ -14,7 +14,7 @@ with pasted output: `docs/status/tasks/P03.md` §"Review fixes".
 | `ManagementUser.password_hash` removed (`reserved 4; reserved "password_hash"`); rule "schema leaves flagged `secret: true` have no proto field" in the file header and `proto.md` §1; structural test forbids secret-named leaves | **D-040** | Authentication material never crosses the API↔agent boundary; P05 persists the whole desired state to `desired.pb`, so any such field would land on disk (00-CONTEXT rule 10; review F4). The API strips secret-flagged leaves generically before `fromJSON`; strict decode now rejects a document that still carries one. |
 | Domain presence semantics: a domain **unset** in `ApplyRequest.desired_state` (and not named in `subsystems`) is skipped; a **present** domain, even `{}`, is authoritative (delete everything owned that is absent); `subsystems` narrows and can force an unset/empty map domain to be authoritative | **D-041** | With "unset = no objects", a partial document wiped interfaces/VRFs/routes with a valid `APPLIED` (review F7). Semantics only, no wire change; written into the proto comments and `proto.md` §2 as a decision table so P05 implements exactly one reading. |
 | P02a HEAD (`df554dc`) shapes: `system.banner` → `SystemBanner{login?, motd?}`; `dataplane.corelist` → `repeated uint32`; `Interface.rx_mode`, `NextHop.address` → `optional`; flat additive P02a leaves taken along (`promiscuous`, `dot1ad`, `tx_queues`, `distance`, `description`, `ssh_keys`, `full_name`, `disabled`) | **D-042** | Each retype/presence change would trip `buf breaking` after the tag (review F2 proved it on a scratch copy); P02a is committed, so guessing is over. Shells (`SystemNtp`, `BgpConfig`, `ManagementAaa`, …) and P02b/P02c leaf additions stay for P03b — additive only. P02b/P02c re-checked for renames since the mirrored commits: none. |
-| Enum renames `Operation`→`ApplyOperation`, `ResultCode`→`ObjectResultCode`, `Severity`→`IssueSeverity`; `Event.interface` → `optional`; numbering convention "append-only, next free number"; `rx_misses` comment | review F10 (manager: "wording fixes … `Event.interface` → optional; enum names; numbering sentence") | Free today, impossible after the tag; generic names in package `vrx.v1` would collide with later state/event files. `HealthResponse` fields 1–3 untouched (P05a's stub). |
+| Enum renames `Operation`→`ApplyOperation`, `ResultCode`→`ObjectResultCode`, `Severity`→`IssueSeverity`; `Event.interface` → `optional`; numbering convention "append-only, next free number"; `rx_misses` comment | review F10 (manager: "wording fixes … `Event.interface` → optional; enum names; numbering sentence") | Free today, impossible after the tag; generic names in package `ngfw.v1` would collide with later state/event files. `HealthResponse` fields 1–3 untouched (P05a's stub). |
 
 ## What did not change
 
@@ -27,7 +27,7 @@ for planned fields, lint exceptions). `buf breaking --against main` is green (ma
 
 - Go contract test moved out of the generated tree to `apps/agent/internal/contracttest/` (review F8); `gen.sh` wipes
   `apps/agent/gen` fully again.
-- `@ngfw/proto` gets a real `build` (`tsconfig.build.json` → `dist/`, `exports` → `dist/vrx/v1/dataplane.js`), so a
+- `@ngfw/proto` gets a real `build` (`tsconfig.build.json` → `dist/`, `exports` → `dist/ngfw/v1/dataplane.js`), so a
   Node ESM import from `apps/api` resolves (review F9; verified).
 - Test corpus: every `packages/schema/examples/*.json` plus `packages/proto/test/fixtures/all-domains.json`; Go strict
   (`DiscardUnknown=false`) with negative cases; TS structural (`toJSON∘fromJSON == doc`) because ts-proto `fromJSON` is

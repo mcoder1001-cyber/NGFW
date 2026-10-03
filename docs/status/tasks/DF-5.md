@@ -73,7 +73,7 @@ and after every run: 4 → 4 each time (the earlier restarts are the incidents o
 **Note for the manager:** NRestarts rose to 5 at 04:50:26 (SIGSEGV, PC 0x7b4f1a3c92bb, faulting
 address 0x58, no backtrace in the journal) while no DF-5 process was talking to VPP — the last
 DF-5 host run ended at ~04:47 with NRestarts 4; at 04:50 only the unit-only CI gate (no
-VRX_INTEGRATION) was running in this worktree. No DF-5 host test was run after it.
+NGFW_INTEGRATION) was running in this worktree. No DF-5 host test was run after it.
 
 ### Unit tests (fake VPP)
 
@@ -89,7 +89,7 @@ $ golangci-lint run ./internal/descriptors/vpn/... ./internal/descriptors/ipsec/
 0 issues.
 ```
 
-### Host checks through P05 (VRX_INTEGRATION=1, `eval "$(tools/lab env 4)"`)
+### Host checks through P05 (NGFW_INTEGRATION=1, `eval "$(tools/lab env 4)"`)
 
 `TestIpsecOnHost` (excerpt, prototext bodies elided):
 
@@ -146,7 +146,7 @@ apply: APPLIED {Created:0 Updated:0 Deleted:3 Unchanged:0 Failed:0 Reverted:0}
 ikev2.profile: ikev2.profile/df5-psk gone
 ikev2.profile: ikev2.profile/df5-rsa gone
 --- PASS: TestIkev2OnHost (0.52s)
---- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS=1 only: getter-less globals cannot be restored)
+--- SKIP: TestIkev2GlobalsOwnerOnHost (NGFW_DF5_GLOBALS=1 only: getter-less globals cannot be restored)
 ```
 
 `TestWireguardOnHost`:
@@ -171,7 +171,7 @@ wireguard.interface / wireguard.peer: nothing retrieved after the empty desired 
 
 ### CLI evidence (read-only `vppctl show`, redacted, leak guard)
 
-Captured with `VRX_DF5_PAUSE=10` while each test held its objects, then after the empty desired
+Captured with `NGFW_DF5_PAUSE=10` while each test held its objects, then after the empty desired
 state. Every line from a key / auth-data word onward is replaced by `<redacted>`; a leak guard
 greps the capture for the raw and hex test vectors and for any 32-byte key in base64 / hex. Full
 file: `/root/ngfw-wt/logs/DF-5-vppctl-evidence.txt`.
@@ -213,8 +213,8 @@ loop402                           4     down         9000/0/0/0
 $ vppctl show ikev2 profile | profiles w4-*
 profile w4-df5-psk
   auth-method shared-key <redacted>
-  local id-type fqdn data w4-local.vrx.test
-  remote id-type rfc822 data peer@w4.vrx.test
+  local id-type fqdn data w4-local.ngfw.test
+  remote id-type rfc822 data peer@w4.ngfw.test
   local traffic-selector addr 10.4.6.0 - 10.4.6.255 port 0 - 65535 protocol 0
   remote traffic-selector addr 10.4.7.0 - 10.4.7.255 port 1000 - 2000 protocol 17
   protected tunnel loop403
@@ -228,7 +228,7 @@ profile w4-df5-psk
 profile w4-df5-rsa
   auth-method rsa-sig auth data <redacted>
   local id-type ip4-addr data 10.4.5.1
-  responder loop402 0.0.0.0 peer.w4.vrx.test
+  responder loop402 0.0.0.0 peer.w4.ngfw.test
   lifetime 0 jitter 0 handover 0 maxdata 0
 ===== ikev2: after the empty desired state =====
 (no lines)
@@ -259,7 +259,7 @@ leak guard: clean
 ```
 $ grep -rn "vppctl\|exec.Command" internal/descriptors/{ipsec,ikev2,wireguard,vpn}
 (no output)
-$ grep -rniE "VRX_TEST_PSK|private_key" <the three host test logs>
+$ grep -rniE "NGFW_TEST_PSK|private_key" <the three host test logs>
 ev-wireguard.log:4:        private_key:  "x25519:bJoxz03VtfsctmGeCV0KWoQdMXg/9MJy1BL/zwYc0xM="
 ```
 
@@ -293,7 +293,7 @@ CI GATE PASSED
 ## Out of scope / left undone
 
 * Globals-owner setters of getter-less globals on the host (ikev2 liveness/local key, async modes):
-  unit-tested on the fake; `TestIkev2GlobalsOwnerOnHost` runs only with `VRX_DF5_GLOBALS=1` in a
+  unit-tested on the fake; `TestIkev2GlobalsOwnerOnHost` runs only with `NGFW_DF5_GLOBALS=1` in a
   manager window (their previous values cannot be read back and restored, §7). Async modes: no
   worker threads on the host.
 * Charon SPD / bypass-policy cleanup and charon id allocation (Q10, P11).
@@ -327,7 +327,7 @@ recommend keyed digest), **Q12** (persisted record store for P05/P08). Q4 and Q7
 
 | Finding | Fix |
 |---|---|
-| **H1** (D-096) | `vpn.Keyer`: references are `hmac:<hex>` = HMAC-SHA256 under an agent-local key. `vpn.LoadOrCreateKeyFile(<state dir>/…)` creates 32 random bytes with mode 0600 (dir 0700) on first use. It refuses an existing file that is readable by group or other, or that has the wrong size, and never logs the key. The Keyer formats as `vpn.Keyer(hmac-sha256)`. It is injected with `WithKeyer` in ipsec, ikev2 and wireguard (no package global). `Verify`/`Resolve` take the keyer; `MapResolver` keys with it. `x25519:<public key>` stays. **Migration:** old `sha256:` references still resolve (legacy verify), and Retrieve always reports `hmac:`. So an old desired value is a mismatch, re-applied once, and converges once the desired state carries the keyed ref (`TestLegacyReferenceMigration`). Ownership and applied-once records never held fingerprints, so none needed migrating. **Scheduler (authorised):** `reconciler.go` `diffErr` now prints `<key> differs: <type> fields [<names>] (values redacted)` via the new `scheduler.DiffSummary`. That was the only place in the scheduler that formatted values. `TestErrorsAndLogsNeverPrintValues` plants `VRX_TEST_PSK_…` in a desired value, forces a verification failure and asserts that neither the txn error, nor any op result, nor any slog line contains it. |
+| **H1** (D-096) | `vpn.Keyer`: references are `hmac:<hex>` = HMAC-SHA256 under an agent-local key. `vpn.LoadOrCreateKeyFile(<state dir>/…)` creates 32 random bytes with mode 0600 (dir 0700) on first use. It refuses an existing file that is readable by group or other, or that has the wrong size, and never logs the key. The Keyer formats as `vpn.Keyer(hmac-sha256)`. It is injected with `WithKeyer` in ipsec, ikev2 and wireguard (no package global). `Verify`/`Resolve` take the keyer; `MapResolver` keys with it. `x25519:<public key>` stays. **Migration:** old `sha256:` references still resolve (legacy verify), and Retrieve always reports `hmac:`. So an old desired value is a mismatch, re-applied once, and converges once the desired state carries the keyed ref (`TestLegacyReferenceMigration`). Ownership and applied-once records never held fingerprints, so none needed migrating. **Scheduler (authorised):** `reconciler.go` `diffErr` now prints `<key> differs: <type> fields [<names>] (values redacted)` via the new `scheduler.DiffSummary`. That was the only place in the scheduler that formatted values. `TestErrorsAndLogsNeverPrintValues` plants `NGFW_TEST_PSK_…` in a desired value, forces a verification failure and asserts that neither the txn error, nor any op result, nor any slog line contains it. |
 | **M1** | `vpn.CheckRef` checks the reference grammar (`hmac:`64 hex, `x25519:`base64-32, legacy `sha256:`64 hex) first, in every validate/encode path (SA keys, IKEv2 psk, WG preshared key) and in `Resolve`. A malformed value fails with a bare `ErrBadRef`. `Redact` returns `<redacted>` for anything that is not a well-formed reference (a D-051 `<kind>/<name>` passes as is; a legacy sha256 shows only its prefix). Tests: `TestPastedPlaintextNeverEchoed`, `TestPastedPlaintextKey` (VPP is not called). |
 | **H2** | `ipsec.NewCharonSweeper(cfg, charonRange)` validates at startup and refuses in each of these cases: zero range; range ≥ 0x80000000 (ikev2 plugin SA ids); `cfg.IDs` unset (the descriptors would own all ids); any overlap; a non-persisted record store (only `*dfkit.FileBootStore` or `Persistent()`); no keyer. Anything with a record (valid, pending or stale) is never touched. `TestCharonSweeperValidation`. |
 | **H3** | Per orphan SA: if a tunnel protection uses it → `InUse`. Otherwise its protect policies are deleted in **all** SPDs (an SPD with our record → `InUse`), then a fresh dump must show no reference, then the SA is re-read and unlocked once. Any failure stops the sweep for that SA and writes no completion marker. `ipsec.sa` Delete refuses to unlock while any policy or protection references the SA. The fake now models VPP's lock counting (add = 1 lock, +1 per protect policy and per protection, `ipsec_sad_entry_del` = unlock, free at 0, use-after-free recorded). `TestCharonSweepNeverFreesReferencedSA`: a failing policy delete, swept twice, gives 0 unlocks, locks stay at 2 and no UAF; after the failure is cleared the SA is swept. Also `TestSaDeleteNeverUnlocksReferencedSA`. |
@@ -376,12 +376,12 @@ charon sweep (charon stopped): SPDs [4501], policies 0, SAs [4502], in use []
 AckRestart after the completed sweep: ok (calls 1)
 after the charon sweep (our SAs untouched): P05 plan … 0 create, 0 update, 0 delete, 10 unchanged
 --- PASS: TestIpsecOnHost (0.15s)
---- PASS: TestIkev2OnHost (0.41s)     --- SKIP: TestIkev2GlobalsOwnerOnHost (VRX_DF5_GLOBALS unset)
+--- PASS: TestIkev2OnHost (0.41s)     --- SKIP: TestIkev2GlobalsOwnerOnHost (NGFW_DF5_GLOBALS unset)
 --- PASS: TestWireguardOnHost (0.56s)
 ```
 
 The logged references in the host test logs are all `hmac:` (ipsec 5, ikev2 2, wireguard 1), there
-is no `sha256:` and no `VRX_TEST_PSK` string, and `sha256(VRX_TEST_PSK_DF5_ikev2)` occurs 0 times
+is no `sha256:` and no `NGFW_TEST_PSK` string, and `sha256(NGFW_TEST_PSK_DF5_ikev2)` occurs 0 times
 (it was present before the fix).
 
 CI gate on `c283f5e` (`/root/ngfw-wt/logs/DF-5-ci-fix.log`; the only warning is main's own `review(DF-5): findings` subject):

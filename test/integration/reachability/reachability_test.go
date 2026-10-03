@@ -92,17 +92,17 @@ func TestHTTPErrorSurfaces(t *testing.T) {
 }
 
 // TestReachabilityLoopback is the live DoD check against a running API + agent + VPP. It needs
-// VRX_INTEGRATION=1, VRX_API_URL and VRX_API_TOKEN (a bearer token; never printed) and edits the
+// NGFW_INTEGRATION=1, NGFW_API_URL and NGFW_API_TOKEN (a bearer token; never printed) and edits the
 // running configuration of that box, so it runs only in a lab slot.
 func TestReachabilityLoopback(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("VRX_INTEGRATION != 1: live API reachability check not run (this is a skip, not a pass)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("NGFW_INTEGRATION != 1: live API reachability check not run (this is a skip, not a pass)")
 	}
-	base, tok := os.Getenv("VRX_API_URL"), os.Getenv("VRX_API_TOKEN")
+	base, tok := os.Getenv("NGFW_API_URL"), os.Getenv("NGFW_API_TOKEN")
 	if base == "" || tok == "" {
-		t.Skip("VRX_API_URL / VRX_API_TOKEN unset: no API to check against")
+		t.Skip("NGFW_API_URL / NGFW_API_TOKEN unset: no API to check against")
 	}
-	n := os.Getenv("VRX_REACH_LOOPBACK") // loopbacks are named loop<N> (desired/interfaces.go); pick a slot-free N
+	n := os.Getenv("NGFW_REACH_LOOPBACK") // loopbacks are named loop<N> (desired/interfaces.go); pick a slot-free N
 	if n == "" {
 		n = "9099"
 	}

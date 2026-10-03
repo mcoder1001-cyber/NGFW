@@ -97,10 +97,10 @@ type subnet struct {
 // userContext carries the document names back through config-get (Retrieve maps Kea's
 // subnets to services.dhcp.servers.<server>.subnets.<subnet> with it).
 type userContext struct {
-	VRX vrxContext `json:"vrx"`
+	NGFW ngfwContext `json:"ngfw"`
 }
 
-type vrxContext struct {
+type ngfwContext struct {
 	Server      string `json:"server,omitempty"`
 	Subnet      string `json:"subnet,omitempty"`
 	Reservation string `json:"reservation,omitempty"`

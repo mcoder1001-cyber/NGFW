@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rfkit"
 	"ngfw/agent/internal/scheduler"
 )
@@ -19,7 +19,7 @@ import (
 // The rsyslog export renderer inside the agent (F-unbound-chrony-syslog; D-109 d: one singleton scheduler
 // descriptor):
 //
-//	rsyslog.config/vrx   Value = Input(document) (*vrxv1.ManagementConfig carrying management.syslog only)
+//	rsyslog.config/ngfw   Value = Input(document) (*ngfwv1.ManagementConfig carrying management.syslog only)
 //	Create / Update      Render → Validate (rsyslogd -N1 on a staged copy) → Apply (atomic write → restart +
 //	                     impstats convergence; with a DeferredController — test slots — a restart request instead)
 //	Delete               the empty export (no action)
@@ -31,7 +31,7 @@ import (
 // Descriptor name and singleton object id.
 const (
 	Name     = "rsyslog.config"
-	ObjectID = "vrx"
+	ObjectID = "ngfw"
 )
 
 // Key is the key of the singleton object.
@@ -75,9 +75,9 @@ func (d *Descriptor) Dependencies(proto.Message) []scheduler.Dependency { return
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*vrxv1.ManagementConfig)
+	in, ok := obj.(*ngfwv1.ManagementConfig)
 	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *vrx.v1.ManagementConfig", ErrInput, Name, obj)
+		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.ManagementConfig", ErrInput, Name, obj)
 	}
 	return nil, d.apply(ctx, in)
 }
@@ -92,7 +92,7 @@ func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
 	return d.apply(ctx, nil)
 }
 
-func (d *Descriptor) apply(ctx context.Context, in *vrxv1.ManagementConfig) error {
+func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.ManagementConfig) error {
 	if d.prepare != nil {
 		if err := d.prepare(); err != nil {
 			return err

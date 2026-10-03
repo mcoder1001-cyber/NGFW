@@ -30,7 +30,7 @@ import {
   StatsBatch,
   type Interface,
   type StaticRoute,
-} from '../gen/ts/vrx/v1/dataplane.js';
+} from '../gen/ts/ngfw/v1/dataplane.js';
 
 
 /** Document corpora: the schema package's examples plus the proto-local fixtures. */
@@ -103,9 +103,9 @@ describe('DesiredState mirrors RootConfig', () => {
     const bad = load(corpora.examples, 'invalid-unknown-root-key.json');
     expect(() => DesiredState.fromJSON(bad)).not.toThrow(); // lenient (the limitation)
     expect(DesiredState.toJSON(DesiredState.fromJSON(bad))).not.toEqual(bad); // `tenants` is gone
-    const nested = { system: { hostname: 'vrx-a', bogusField: 1 } };
+    const nested = { system: { hostname: 'ngfw-a', bogusField: 1 } };
     expect(DesiredState.toJSON(DesiredState.fromJSON(nested))).toEqual({
-      system: { hostname: 'vrx-a' },
+      system: { hostname: 'ngfw-a' },
     });
   });
 
@@ -138,7 +138,7 @@ describe('DesiredState mirrors RootConfig', () => {
 
   it('two-interfaces.json values land in the typed fields', () => {
     const ds = DesiredState.fromJSON(load(corpora.examples, 'two-interfaces.json'));
-    expect(ds.system?.hostname).toBe('vrx-a');
+    expect(ds.system?.hostname).toBe('ngfw-a');
     expect(ds.system?.timezone).toBe('UTC');
     expect(ds.system?.banner).toBeUndefined();
 
@@ -271,7 +271,7 @@ describe('DesiredState mirrors RootConfig', () => {
 
   it('typed construction compiles for every domain and the envelopes', () => {
     const ds = DesiredState.fromPartial({
-      system: { hostname: 'vrx-a', timezone: 'UTC', banner: { login: 'hi' }, dns: {} },
+      system: { hostname: 'ngfw-a', timezone: 'UTC', banner: { login: 'hi' }, dns: {} },
       dataplane: { workers: 2, corelist: [2, 3], pciWhitelist: [] },
       interfaces: {
         loop700: {

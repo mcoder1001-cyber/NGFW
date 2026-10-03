@@ -14,7 +14,7 @@ import (
 // runChecker loads a staged copy of files into the scratch charon with
 // `swanctl --load-all --noprompt --file <staged swanctl.conf> --uri unix://<scratch socket>`
 // (fixed argv; the rendered content travels through the staged files only). The staged
-// vrx.conf has every start_action rewritten to none so the scratch charon never initiates or
+// ngfw.conf has every start_action rewritten to none so the scratch charon never initiates or
 // installs trap policies; everything else is exactly what Apply would load.
 func (r *Renderer) runChecker(ctx context.Context, files renderers.Files) error {
 	if r.checker.Runner == nil || !pathRe.MatchString(r.checker.ViciSocket) {
@@ -24,7 +24,7 @@ func (r *Renderer) runChecker(ctx context.Context, files renderers.Files) error 
 	for p, f := range files {
 		check[p] = f
 	}
-	conns, err := ParseSettings("vrx.conf", files[r.paths.ConnsFile()].Content)
+	conns, err := ParseSettings("ngfw.conf", files[r.paths.ConnsFile()].Content)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (r *Renderer) runChecker(ctx context.Context, files renderers.Files) error 
 	f.Content = staged
 	check[r.paths.ConnsFile()] = f
 	// The packaged top-level swanctl.conf: a constant, never user data.
-	check[r.paths.SwanctlConf()] = renderers.File{Mode: 0o600, Content: []byte("include conf.d/vrx.conf\ninclude conf.d/vrx-secrets.conf\n")}
+	check[r.paths.SwanctlConf()] = renderers.File{Mode: 0o600, Content: []byte("include conf.d/ngfw.conf\ninclude conf.d/ngfw-secrets.conf\n")}
 	st, err := renderers.Stage(check)
 	if err != nil {
 		return err

@@ -17,12 +17,12 @@ Read-only input inventory:
 | Input | Expected path | Available | Size |
 |---|---|---|---|
 | Ubuntu ISO, signed sums | `.scratch/base/ubuntu-26.04.1-live-server-amd64.iso`, adjacent SHA256SUMS and SHA256SUMS.gpg | Missing in integration and original P14 scratch | Exact size unknown; task estimates approximately 3 GB for ISO |
-| VRX signed APT repository | `/srv/vrx-artifacts/apt` or explicit `--vrx-repo` | Canonical directory missing | Unknown until published; includes all shipped VRX/VPP debs |
-| Matching VPP manifest | `/srv/vrx-artifacts/vpp/<version>/manifest.json` or explicit path | Canonical parent missing | Unknown; JSON metadata |
+| NGFW signed APT repository | `/srv/ngfw-artifacts/apt` or explicit `--ngfw-repo` | Canonical directory missing | Unknown until published; includes all shipped NGFW/VPP debs |
+| Matching VPP manifest | `/srv/ngfw-artifacts/vpp/<version>/manifest.json` or explicit path | Canonical parent missing | Unknown; JSON metadata |
 | Build chroot | `.scratch/chroot` | Missing in integration and original P14 scratch | Unknown; needs OS tools and extracted base package status |
 | Ubuntu public keyring | `/usr/share/keyrings/ubuntu-archive-keyring.gpg` | Present | 3,607 bytes |
 | FRR public keyring | `/usr/share/keyrings/frrouting.gpg` | Present | 16,112 bytes |
-| Trusted VRX signer fingerprint | `--vrx-key-fpr` | Not supplied | 40 hex characters; public trust input |
+| Trusted NGFW signer fingerprint | `--ngfw-key-fpr` | Not supplied | 40 hex characters; public trust input |
 | ISO signing key | External `--gpg-home` | Not inspected; private material deliberately not read | Unknown |
 | Production dependency closure | Downloaded `.scratch/work/debs`/embedded pool | Not prepared | Unknown until signed-repository resolution |
 

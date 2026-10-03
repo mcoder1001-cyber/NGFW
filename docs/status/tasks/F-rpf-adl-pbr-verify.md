@@ -13,7 +13,7 @@ end, which is for the manager.
 apps/agent: go vet ./... && go test -count=1 ./...                         → exit 0
   focused -v: TestACLBridgeRegistration PASS · TestPolicyIDs PASS · TestRpfAdlPbrOnFake PASS · TestRpfAdlPbrPolicyNamesPersist PASS
               TestRpfAdlPbrWithoutFAcl PASS · TestRpfAdlPbrProjection/Errors/Assemble PASS · (P08) TestApplyRetrieveIdempotent PASS
-              TestGRPCRoundTrip PASS · TestRpfAdlPbrOnHost SKIP (no VRX_INTEGRATION)
+              TestGRPCRoundTrip PASS · TestRpfAdlPbrOnHost SKIP (no NGFW_INTEGRATION)
 apps/api:   vitest src/features/rpf-adl-pbr → drift.test.ts 3 passed, pbr-state.test.ts 3 passed
 apps/web:   vitest src/nav src/domains/routing/rpf-adl-pbr → 13 passed
 packages/schema: vitest src/semantic/rpf-adl-pbr.test.ts → 10 passed

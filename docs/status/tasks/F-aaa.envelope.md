@@ -2,17 +2,17 @@
 id: F-aaa   branch: task/F-aaa   worktree: /root/ngfw-wt/F-aaa   base: main@<BASE>   started: <STARTED>
 title: S5 system (day 16-18): external AAA for management login (RADIUS, TOTP MFA, LDAP, OIDC, TACACS+, SAML)
 prompt: prompts/features/F-aaa.md   (template: prompts/FEATURE-TEMPLATE.md; refreshed on task/prep-rest against main@11a175b + task/TD-2, task/TD-4)   wbs: D10.2
-scope: vrx-api only: an `AuthBackend` interface with RADIUS → TOTP MFA → LDAP → OIDC → TACACS+ → SAML in that priority order (stop at the time box, list what is left); `management.aaa` contract + proto mirror; login/MFA/OIDC routes; AAA settings and MFA screens; the Users page password change moves to `POST /api/v1/users/{name}/password` (D-102). The agent is not touched (D-040)
+scope: ngfw-api only: an `AuthBackend` interface with RADIUS → TOTP MFA → LDAP → OIDC → TACACS+ → SAML in that priority order (stop at the time box, list what is left); `management.aaa` contract + proto mirror; login/MFA/OIDC routes; AAA settings and MFA screens; the Users page password change moves to `POST /api/v1/users/{name}/password` (D-102). The agent is not touched (D-040)
 merged deps you can rely on: P06, P07b, P08 (+ TD-2 and TD-4 — the manager should add TD-4 as a board dep: until it merges it owns apps/api/src/{auth,users}/**)
   - P06: argon2id local users, JWT + rotating refresh cookie, API keys, roles admin/operator/readonly, lockout; the secrets service (AES-GCM with the name as AAD, `<kind>/<name>` refs, admin-only writes, versioned, D-091); audit; RBAC
   - TD-2: `app_user` credential generation, D-097 reset path (sessions + refresh chains + API keys revoked), `POST /api/v1/users/{name}/password`, the secure-transport check, D-102 post-promote hook
   - TD-4: D-100 (1)–(3): login transport check, API-key creation from a JWT session needs the current password, disabling bumps the credential generation
   - P07b: `apps/web/src/pages/{LoginPage,UsersPage}.tsx`, `apps/web/src/shell/UserMenu.tsx`, `apps/web/src/auth/{session.ts,AuthProvider.tsx}` · P08: the `apps/web/src/domains/` layout
 read first: prompts/features/F-aaa.md · docs/status/wave-BC-numbers.md (section "S5 system": pack rules SY1–SY9 + "F-aaa") · docs/status/wave-A-hotspots.md (§0 rules; C1–C7 P1 W1–W3 D4) · docs/status/tasks/TD-2.md + TD-4.md (merged) · apps/api/src/auth/route-guard.test.ts · apps/agent/internal/contracttest/drift_test.go (header) · docs/decisions/LOG.md D-003, D-040, D-046, D-051, D-091, D-097, D-100, D-102
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: <SLOT> → NGFW_SLOT=<SLOT> NGFW_TEST_PREFIX=w<SLOT> NGFW_HTTP_PORT=3000+100·<SLOT> NGFW_WEB_PORT=5000+100·<SLOT> NGFW_METRICS_PORT=9100+10·<SLOT>+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w<SLOT>/agent.sock NGFW_PG_DATABASE=ngfw_w<SLOT> NGFW_VALKEY_DB=<SLOT> NGFW_VPP_TABLE_BASE=<SLOT>000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env <SLOT>)"`
   - in-process fake servers listen on 127.0.0.1 only: RADIUS udp 3000+100·<SLOT>+71, LDAP tcp +72, TACACS+ tcp +73, OIDC provider (discovery/token/JWKS) +74 — never 1812/389/49/443
-  - test users and groups start with w<SLOT>; test shared secrets are the literals `VRX_TEST_PSK_FAAA_*`
+  - test users and groups start with w<SLOT>; test shared secrets are the literals `NGFW_TEST_PSK_FAAA_*`
   - slots 1–11 only; 12 is CI
 daemon-owner: none (freeradius, slapd and tac_plus are not installed and are never installed; in-process fakes are test fixtures)
 obligations:
@@ -35,7 +35,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge; ids fr
   - protocol: docs/status/wave-A-hotspots.md §0. Insert only directly below your own anchor `// wave-BC: F-aaa` (the manager seeds it before spawn; if absent, at the end of the block). Never reorder or reformat other lines. List every hunk under "Shared hunks" in docs/status/tasks/F-aaa.md
   - SY4 packages/schema/src/domains/management.ts: `AaaSchema` only. Widen `AuthMethod` (+ `ldap`, `oidc`, `saml`) and `order.max(3)` in place; one key line per new key (sub-schemas in ext/aaa.ts). `ManagementSchema` and `SyslogTargetSchema` are other tasks'
   - C2 packages/schema/src/semantic/index.ts: one spread · C3 packages/schema/src/index.ts: one export if needed · C4: new fixture files only
-  - C5 packages/proto/vrx/v1/dataplane.proto: `ManagementAaa` 4–9 as one-line insertions inside P02a's block (you are its only toucher); `Aaa*` messages in a `// ----- F-aaa -----` section at the end
+  - C5 packages/proto/ngfw/v1/dataplane.proto: `ManagementAaa` 4–9 as one-line insertions inside P02a's block (you are its only toucher); `Aaa*` messages in a `// ----- F-aaa -----` section at the end
   - C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
   - SY1 apps/api/src/auth/route-guard.test.ts: PUBLIC += MFA verify, OIDC start, OIDC callback; ADMIN_ONLY += `POST /api/v1/actions/aaa/test`
   - SY3 apps/api/src/db/schema.ts + apps/api/migrations/**: your tables under the anchor; migration via `pnpm -C apps/api db:generate --name f_aaa_mfa`; regenerated on top of main at merge, never hand-merged
@@ -59,8 +59,8 @@ coordination:
 evidence: RADIUS login → JWT with the mapped role, wrong password → 401, server down + `fallbackLocal` → local admin (pasted); TOTP enrol/login/replay/recovery test output; grep over logs, fixtures, audit rows and GET `/config/management` showing no secret or seed. Playwright is not installed: screenshots (AAA page + MFA login step, en + fa/RTL) with the headless Chrome approach from P07a/P07b/P08, kept outside the product code, and say so
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-aaa.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-aaa-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-aaa.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite/fake servers), by PID · lab lock released if taken · vrx_w<SLOT> dropped · Valkey db <SLOT> keys of your runs deleted · dist/ removed
+cleanup: stop every process you started (API/agent/vite/fake servers), by PID · lab lock released if taken · ngfw_w<SLOT> dropped · Valkey db <SLOT> keys of your runs deleted · dist/ removed
 questions: docs/status/tasks/F-aaa-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

@@ -13,7 +13,7 @@ import {
   type L3xcConfig,
   type MacFilterConfig,
 } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { z } from 'zod';
 
@@ -154,7 +154,7 @@ export const L2_TABLES = {
 } as const;
 
 /** Chip status of "present in VPP". */
-export function presence(live: boolean): VrxStatus {
+export function presence(live: boolean): NgfwStatus {
   return live ? 'up' : 'down';
 }
 
@@ -185,8 +185,8 @@ export function drawerSafeL2(item: JsonSchema): JsonSchema {
     const props = (s.properties ?? {}) as Record<string, JsonSchema>;
     const l2 = props['l2'];
     if (!l2) return s;
-    const hints = (l2['x-vrx-ui'] ?? {}) as Record<string, unknown>;
-    const out: JsonSchema = { 'x-vrx-ui': { ...hints, widget: 'json' } } as JsonSchema;
+    const hints = (l2['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
+    const out: JsonSchema = { 'x-ngfw-ui': { ...hints, widget: 'json' } } as JsonSchema;
     if (l2.title !== undefined) out.title = l2.title;
     if (l2.description !== undefined) out.description = l2.description;
     return { ...s, properties: { ...props, l2: out } } as JsonSchema;

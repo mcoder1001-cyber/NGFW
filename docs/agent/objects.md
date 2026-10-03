@@ -8,11 +8,11 @@ There are no VPP objects in this domain.
 
 | API | contract |
 |---|---|
-| `Expand(doc *vrxv1.ObjectsConfig, ref string, opts ...Option) (Addresses, error)` | address object or address group → `Addresses{V4, V6 []netip.Prefix, Unresolved []string}`: host → /32 or /128, network → its prefix (masked), range → the minimal CIDR set, fqdn → the resolved addresses (`WithFQDN`), group → the union of its members, recursively. Output is masked, **aggregated** (covered prefixes dropped, sibling pairs merged), sorted, split by family, deterministic. An empty group expands to nothing |
+| `Expand(doc *ngfwv1.ObjectsConfig, ref string, opts ...Option) (Addresses, error)` | address object or address group → `Addresses{V4, V6 []netip.Prefix, Unresolved []string}`: host → /32 or /128, network → its prefix (masked), range → the minimal CIDR set, fqdn → the resolved addresses (`WithFQDN`), group → the union of its members, recursively. Output is masked, **aggregated** (covered prefixes dropped, sibling pairs merged), sorted, split by family, deterministic. An empty group expands to nothing |
 | `ExpandService(doc, ref, opts...) ([]PortSpec, error)` | service object or service group → `PortSpec`s (sorted, deduplicated) |
-| `ExpandServiceSpec(*vrxv1.ServiceSpec) ([]PortSpec, error)` | an ACL rule's inline service; `ServiceSpecOf(*vrxv1.ServiceObject)` converts an object |
+| `ExpandServiceSpec(*ngfwv1.ServiceSpec) ([]PortSpec, error)` | an ACL rule's inline service; `ServiceSpecOf(*ngfwv1.ServiceObject)` converts an object |
 | `PortSpec{Proto, SrcPortFirst, SrcPortLast, DstPortFirst, DstPortLast, TCPFlagsMask, TCPFlagsValue}` | the shape of `descriptors/acl.Rule`: Proto 0 = any; TCP/UDP/SCTP ports are inclusive ranges, 0–65535 = any; ICMP/ICMPv6: `SrcPort*` = type range, `DstPort*` = code range (0–255 = any); `tcp-udp` yields a TCP and a UDP entry, TCP flags only on the TCP one. One entry per protocol × source range × destination range |
-| `Active(s *vrxv1.Schedule, now time.Time, loc *time.Location) (bool, error)` | recurring: the weekday and time of day **on the wall clock of `loc`** (nil = UTC; pass `system.timezone`), window `[start, end)`; once: `start ≤ now < end` with the absolute RFC 3339 instants. DST: a window inside the skipped spring-forward hour is never active, one inside the repeated fall-back hour is active twice |
+| `Active(s *ngfwv1.Schedule, now time.Time, loc *time.Location) (bool, error)` | recurring: the weekday and time of day **on the wall clock of `loc`** (nil = UTC; pass `system.timezone`), window `[start, end)`; once: `start ≤ now < end` with the absolute RFC 3339 instants. DST: a window inside the skipped spring-forward hour is never active, one inside the repeated fall-back hour is active twice |
 | `ZoneInterfaces(doc, zone) ([]string, error)` | the zone's interfaces, sorted |
 | `WithFQDN(FQDNLookup)`, `WithLimit(n)` | options; without `WithFQDN` every fqdn object is `Unresolved` |
 | `MaxEntries = 10000`, `CheckLimit(ref, n) error`, `*LimitError{Ref, Count, Limit}` | the cap: one expansion above it fails with `*LimitError`; a consumer that multiplies expansions into rules (sources × destinations × services) checks the product with `CheckLimit` and reports the error as a DryRun issue **at the rule's pointer** |
@@ -35,7 +35,7 @@ The objects a consumer expands against are **the transaction's own** `ds.GetObje
 from PostgreSQL (rule 2: RPCs carry desired state). The product API sends every implemented domain in every Apply, so
 `objects` is in the transaction whenever `acl` is; a transaction with `objects` present but empty (`{}`, or nil after
 protobuf decoding — the same thing, proto.md §1) means *no objects*, not "use what is applied". If a partial Apply
-(`vrx-agentctl`, tests) manages `acl` without `objects`, the consumer reports an error at the rule (e.g.
+(`ngfw-agentctl`, tests) manages `acl` without `objects`, the consumer reports an error at the rule (e.g.
 `acl.objects-required`) instead of guessing. Out-of-band re-projection (an FQDN change, a schedule tick) goes through a
 resync of the agent's stored desired state, which carries its objects. The applied store (`Runtime.Snapshot`) is for
 diagnostics and tests only and is deliberately not part of the stable API.
@@ -79,9 +79,9 @@ order: `objects.tag`, `objects.address`, `objects.address-group`, `objects.servi
   re-applies). 4 000 objects: 0.17 s in the store, 13.7 s for the whole scheduler transaction (review F1; the rest is
   the scheduler's own per-operation cost, questions Q9). Only FQDN objects reach the resolver.
 - A **corrupt** store never stops the agent (review F2): it is moved to `objects-<owner>.json.corrupt-<unix time>`,
-  logged as an ERROR and counted (`vrx_agent_objects_store_corrupt_total`); the store starts empty and the resync
+  logged as an ERROR and counted (`ngfw_agent_objects_store_corrupt_total`); the store starts empty and the resync
   rebuilds it from the stored desired state. A failed write is logged and counted
-  (`vrx_agent_objects_store_persist_errors_total`); the changes stay in memory and the next flush writes them.
+  (`ngfw_agent_objects_store_persist_errors_total`); the changes stay in memory and the next flush writes them.
 - Dependencies are optional (ordering only): groups after their members, tagged objects after their tags.
 - Apply, rollback, confirm-revert and resync work through the scheduler like any domain; after an agent restart
   Retrieve comes from the persisted store (D-063: real agent state, never an echo of the request). An explicitly empty
@@ -96,9 +96,9 @@ order: `objects.tag`, `objects.address`, `objects.address-group`, `objects.servi
 - **How:** Go's resolver, `PreferGo` (no cgo, **no exec, no shell** — 00-CONTEXT rule 9), over the system configuration
   (`/etc/resolv.conf`, `/etc/hosts` per nsswitch): the management resolver of the box, never configured by this task
   (the box's Unbound belongs to F-unbound-chrony-syslog). Names are queried fully qualified (trailing dot: no search
-  domains), A and AAAA in parallel, 5 s budget. `VRX_OBJECTS_DNS_SERVERS=ip:port[,…]` replaces the system servers
+  domains), A and AAAA in parallel, 5 s budget. `NGFW_OBJECTS_DNS_SERVERS=ip:port[,…]` replaces the system servers
   (test slots and their in-process responder).
-- **Refresh:** a **fixed interval**, default **60 s**, `VRX_OBJECTS_FQDN_REFRESH_SEC` overrides it, clamped to
+- **Refresh:** a **fixed interval**, default **60 s**, `NGFW_OBJECTS_FQDN_REFRESH_SEC` overrides it, clamped to
   **[30 s, 1 h]**. Go's resolver does not return TTLs (questions Q2: a `dnsmessage` lookup that does would change
   `apps/agent/go.mod`); the `Lookup` interface already carries a TTL and a TTL-reporting lookup is honoured with the same
   clamp. After a failure: retry in 30 s, doubling, at most the refresh interval.
@@ -107,8 +107,8 @@ order: `objects.tag`, `objects.address`, `objects.address-group`, `objects.servi
   addresses kept`. NXDOMAIN or no A/AAAA at all counts as a failure too (the old answers stay); a name that never
   resolved has no address and expands to nothing.
 - **Maximum staleness (D-129):** a failing family keeps its last good answers for at most **24 h** after it last
-  answered (`VRX_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN
-  `fqdn last-good answers expired …` (`stale_for`, `max_stale`), counted (`vrx_agent_objects_fqdn_stale_expired_total`),
+  answered (`NGFW_OBJECTS_FQDN_MAX_STALE_SEC`, clamped to 60 s – 30 days). After that they are dropped with a WARN
+  `fqdn last-good answers expired …` (`stale_for`, `max_stale`), counted (`ngfw_agent_objects_fqdn_stale_expired_total`),
   and subscribers are told: the object expands to nothing until the name resolves again.
 - **Clock steps (review F6):** a persisted next refresh more than one interval ahead is pulled in at start, and one
   more than 1 h ahead at run time counts as due.

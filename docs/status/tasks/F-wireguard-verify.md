@@ -44,16 +44,16 @@ All required findings are fixed and tested. The remaining notes are low severity
 
 - **`wireguard_fixture_guard_test.go`.** An untagged static AST scan of the package's non-test `.go` files. The only
   assignment to `wireguardFixture` must be in `wireguard_fixture.go`, and that file must begin with the build tag.
-- **`wireguard_fixture_nil_test.go`.** Tagged `!vrxtestsecrets`: in a product build the hook is nil.
+- **`wireguard_fixture_nil_test.go`.** Tagged `!ngfwtestsecrets`: in a product build the hook is nil.
   - Together they cover both the moved-init case and the dropped-tag case. A declaration-with-initialiser in an
     untagged file is caught by the nil test.
-  - Both pass. With `-tags vrxtestsecrets`, the static guard passes and the nil test is correctly excluded.
+  - Both pass. With `-tags ngfwtestsecrets`, the static guard passes and the nil test is correctly excluded.
 - **`tools/ci.sh:379` (one line, `do_forbidden` 4b).** A `git grep -Iw --untracked` that excludes `*_test.go`, the
   tagged fixture, `test/`, `docs/`, `*.md` and `ci.sh` itself.
   - On the current tree it returns no hits (exit 1), even though the tag appears in the fixture, both guard tests,
     `stack.sh`, and docs. So there are no false positives.
-  - Probe: I added two temporary untracked files, `apps/agent/zz-review-probe.mk` (`go build -tags vrxtestsecrets`)
-    and `apps/agent/internal/subsystems/zz-review-probe.txt` (`GOFLAGS=-tags=vrxtestsecrets,netgo`). The line reports
+  - Probe: I added two temporary untracked files, `apps/agent/zz-review-probe.mk` (`go build -tags ngfwtestsecrets`)
+    and `apps/agent/internal/subsystems/zz-review-probe.txt` (`GOFLAGS=-tags=ngfwtestsecrets,netgo`). The line reports
     both. I removed the files afterwards, and the worktree is clean.
   - No other task branch touches `tools/ci.sh`, so the line merges without conflict.
 
@@ -105,7 +105,7 @@ I accept it as manual refresh, which D-132 allows.
 
 ```
 apps/agent: go test -race -count=1 ./internal/desired/ ./internal/subsystems/ ./internal/agent/ ./internal/descriptors/wireguard/  → ok ×4
-apps/agent: go test -count=1 -tags vrxtestsecrets -run TestWireguardFixture ./internal/subsystems/                              → ok
+apps/agent: go test -count=1 -tags ngfwtestsecrets -run TestWireguardFixture ./internal/subsystems/                              → ok
 apps/agent: overlay probe TestReviewProbeRouteLoopV6 (6 cases, scratch file)                                                    → PASS
 apps/web:   vitest run src/domains/vpn            → 6 tests passed
 packages/schema: vitest run src/semantic/wireguard.test.ts → 7 tests passed

@@ -10,7 +10,7 @@ import { ApiResponse } from '@nestjs/swagger';
 import { MergePatchError } from '@ngfw/schema';
 import { catchError, from, mergeMap, type Observable, throwError } from 'rxjs';
 import { NO_AUDIT_KEY } from '../auth/decorators.js';
-import { sourceIp, type VrxRequest } from '../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../common/principal.js';
 import { ProblemError } from '../common/problem.js';
 import { ref } from '../common/zod.js';
 import { AuditService, type AuditEntry } from './audit.service.js';
@@ -76,7 +76,7 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const req = ctx.switchToHttp().getRequest<VrxRequest>();
+    const req = ctx.switchToHttp().getRequest<NgfwRequest>();
     if (
       !MUTATING.has(req.method) ||
       this.reflector.getAllAndOverride<boolean>(NO_AUDIT_KEY, [ctx.getHandler(), ctx.getClass()])

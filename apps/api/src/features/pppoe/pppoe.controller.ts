@@ -2,7 +2,7 @@ import { Controller, HttpCode, Param, Post, Req } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, SafeParamPipe } from '../../common/zod.js';
 
@@ -34,7 +34,7 @@ export class PppoeController {
       'Redial a PPPoE client now (ignores the hold-off); the session comes up asynchronously',
   })
   @ApiOkResponse({ schema: openapi(ReconnectOut, 'output') })
-  async reconnect(@Param('name', new SafeParamPipe('name')) name: string, @Req() req: VrxRequest) {
+  async reconnect(@Param('name', new SafeParamPipe('name')) name: string, @Req() req: NgfwRequest) {
     const r = await this.agent.pppoeReconnect(name);
     req.audit = {
       resource: `actions/interfaces/${name}/pppoe/reconnect`,

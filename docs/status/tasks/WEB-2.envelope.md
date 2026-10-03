@@ -5,7 +5,7 @@ scope: a reusable config-screen kit in apps/web/src/config/{collection,widgets}/
 files you own: apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.* keys only) docs/status/tasks/WEB-2*
 est/time box: 9 h / 13 h.
 GIT RULE: run git ONLY inside your own worktree (`git -C <worktree> …`); NEVER in /root/ngfw (main — the merger works there).
-CI: `TMPDIR=/tmp/g-<id> tools/ci.sh --base main` (short TMPDIR). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to tools/app — never touch them. Stagger heavy test runs (host load; D-121).
+CI: `TMPDIR=/tmp/g-<id> tools/ci.sh --base main` (short TMPDIR). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to tools/app — never touch them. Stagger heavy test runs (host load; D-121).
 Architecture (00-CONTEXT) is non-negotiable: one schema → three consumers (never hand-duplicate a type; UI derives from packages/schema); every UI string through t() with identical en/fa keys; logical CSS only; no UI screen with a stubbed backend is routed; secrets never enter form state, query cache or logs.
 WIP commits every 45 min; finish with docs/status/tasks/<id>.md (what / how verified with pasted output / out of scope / questions), all committed, final message = 8-line summary.
 never: merge · edit files you do not own · restart/kill VPP · pkill

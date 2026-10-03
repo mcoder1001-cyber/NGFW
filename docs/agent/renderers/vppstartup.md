@@ -1,10 +1,10 @@
 # VPP startup.conf generator — dataplane domain ↔ startup.conf (F-startup-gen, WBS D0.6)
 
 Code: `apps/agent/internal/renderers/vppstartup` (pure generator, host-fact reader, `renderers.Renderer` for dry runs),
-and the CLI `apps/agent/cmd/vrx-startupgen`. File:
+and the CLI `apps/agent/cmd/ngfw-startupgen`. File:
 `/etc/vpp/startup.conf`, mode 0644. VPP reads it only at start, so every change needs a **VPP restart**, which is a
 **manager step** (`deploy/vpp/apply-startup.sh`, procedure below; D-088). The agent never applies it: `Renderer.Apply` returns `ErrManagerStep`, `Retrieve`
-returns `ErrRetrieveUnsupported` (VPP has no API that reports its start-up config; compare with `vrx-startupgen --diff`).
+returns `ErrRetrieveUnsupported` (VPP has no API that reports its start-up config; compare with `ngfw-startupgen --diff`).
 
 ## Pipeline
 
@@ -57,13 +57,13 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | `dataplane.devices.<pci>.name` | `name <logical>` — the logical interface name (D-069: equals the `interface/<name>` key) | `[a-z][a-z0-9_-]{0,14}` (15 = Linux IFNAMSIZ−1), not ending in `-`/`_`; not `local0`/`default`/`none`/`any`/`all`; not a VPP-created stem followed by digit/`_`/`-` (`loop0`, `gre1`, `host-x`, `tap0`, `vxlan_tunnel0`, …); unique. A device without a name gets a warning |
 | `dataplane.devices.<pci>.rxQueues` / `.txQueues` | `num-rx-queues` / `num-tx-queues` | 1–256; rxQueues ≤ max(workers, 1) |
 | `dataplane.devices.<pci>.rxDesc` / `.txDesc` | `num-rx-desc` / `num-tx-desc` | power of two, 64–16384 |
-| no device at all | `dpdk { no-pci }` + the host blacklist (the current vrx-a semantics) | — |
+| no device at all | `dpdk { no-pci }` + the host blacklist (the current ngfw-a semantics) | — |
 | `dataplane.plugins` **present** | authoritative: `plugin <file> { enable }` (`true`) / `{ disable }` (`false`) for exactly `switches.<file>`; switches of the current file that are not listed disappear (warning each); `{}` / `{switches:{}}` = no plugins block | names `[a-z0-9][a-z0-9_-]*_plugin.so`, **must exist in the plugin directory**; ≤ 128; `dpdk_plugin.so: false` is rejected while devices are listed; warning for each D-060 plugin (`linux_cp`, `linux_nl`, `npt66`) not listed |
 | `dataplane.plugins` **absent** | the current file's switches are kept (a warning names each) — a document without `plugins` never drops the D-060 block | the kept names must exist on disk too |
 
 **Hugepage budget:** `buffersPerNuma (default 16384) × NUMA nodes × 2560 B` must fit in `min(hugepagesGb, host reservation)`
 (always checked — the host value is required). 2560 B is a conservative per-buffer figure (2048 B data + metadata +
-headroom + mempool overhead). Default on vrx-a: 16384 × 2 × 2560 B = 80 MiB of 2 GiB.
+headroom + mempool overhead). Default on ngfw-a: 16384 × 2 × 2560 B = 80 MiB of 2 GiB.
 
 **Escaping:** every string passes a validator above *and* a template helper (`ident` for PCI/names/plugins, `pathtok`
 for paths); numbers are bounded (VPP's `~0` sentinel 4294967295 is rejected). `renderers.Execute` runs `CheckRendered` as a
@@ -76,7 +76,7 @@ Contract: the four fields `managementPci`, `devices`, `buffersPerNuma`, `plugins
 ## CLI
 
 ```
-vrx-startupgen [flags] [document.json|-]
+ngfw-startupgen [flags] [document.json|-]
   -o <path>            write atomically (temp file + rename, 0644) instead of stdout
   --diff <existing>    unified diff existing → rendering; exit 1 when different
   --semantic           with --diff: compare sections/entries, ignoring comments ('#' anywhere, as VPP), order, indentation
@@ -90,7 +90,7 @@ vrx-startupgen [flags] [document.json|-]
 exit: 0 ok / identical · 1 different · 2 invalid input, missing host facts or error
 ```
 
-The CLI never restarts VPP, never talks to VPP and runs no other process. Build: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen`.
+The CLI never restarts VPP, never talks to VPP and runs no other process. Build: `cd apps/agent && go build -o bin/ngfw-startupgen ./cmd/ngfw-startupgen`.
 
 ## Manager apply procedure — `deploy/vpp/apply-startup.sh` (F-startup-apply, manager-only)
 
@@ -101,19 +101,19 @@ Only the manager applies a start-up file, and only when a VPP restart is allowed
 its subject (a mention elsewhere in a row does not count) **and names the sha256 of the rendering** (`--expect-new-sha256`,
 printed by the dry run). The approval therefore covers exactly one rendering; once that rendering was committed by the
 tool (a committed work dir whose gate names the same PENDING and sum) it is spent and refused. Resolved and recorded:
-file blob, D ids and the sum, in the run log, `<work>/gate` and syslog tag `vrx-startup-apply`. Workers and tests never
+file blob, D ids and the sum, in the run log, `<work>/gate` and syslog tag `ngfw-startup-apply`. Workers and tests never
 touch `/etc/vpp/startup.conf`; the script is tested only against a fake host (`deploy/vpp/test-apply-startup.sh`, which
-uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path lives under it).
+uses a fixture repo via `NGFW_TEST_ROOT`, honoured only when every mutating path lives under it).
 
-1. Build both tools from a known tree: `cd apps/agent && go build -o bin/vrx-startupgen ./cmd/vrx-startupgen &&
-   go build -o bin/vrx-vppcheck ./cmd/vrx-vppcheck` (or point `VRX_STARTUPGEN` / `VRX_VPPCHECK` at absolute paths).
+1. Build both tools from a known tree: `cd apps/agent && go build -o bin/ngfw-startupgen ./cmd/ngfw-startupgen &&
+   go build -o bin/ngfw-vppcheck ./cmd/ngfw-vppcheck` (or point `NGFW_STARTUPGEN` / `NGFW_VPPCHECK` at absolute paths).
 2. Dry run (changes nothing): `deploy/vpp/apply-startup.sh --doc running.json [-- <generator flags>]`. Review the diffs,
    the drivers of every PCI device involved, the **protected management interfaces** (every default route v4/v6, the path
    to the SSH peer — shown —, `--mgmt-if`) with their network manager and exact `ip … replace` restore plan, the
    **management reachability check** that will be used, the VPP preflight + boot identity, the gate (evaluated against
    this rendering's sum) and both sums. Exit 3 = `--apply` would refuse (no viable reachability check, no `systemd-run`).
 3. Reachability check (`--mgmt-probe`, re-review N1): `auto` = `neigh` — every default gateway of a protected interface
-   must become REACHABLE in the neighbour table after a nudge (ARP/ND; vrx-a's gateway drops ICMP but answers ARP); or
+   must become REACHABLE in the neighbour table after a nudge (ARP/ND; ngfw-a's gateway drops ICMP but answers ARP); or
    `gateway-ping`, or `tcp:HOST:PORT` (a TCP connect to a target routed through a management interface — loopback or
    other interfaces are refused). In every mode the management interface must also keep its addresses and routes
    exactly as snapshotted, and its NIC driver. **The manager's SSH session is not a verdict**: it is logged as an extra
@@ -121,15 +121,15 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
    makes a rollback "incomplete".
 4. Apply with both sums the dry run printed:
    `apply-startup.sh --doc running.json --apply --expect-sha256 <live> --expect-new-sha256 <rendered> [-- <same flags>]`.
-   The planner copies the document, both binaries and the script into `/var/lib/vrx/startup-apply/<stamp>/`, records every
+   The planner copies the document, both binaries and the script into `/var/lib/ngfw/startup-apply/<stamp>/`, records every
    setting in `<work>/settings`, seals the plan (`plan.sha256` over settings, document, binaries and the gate record) and
-   starts the run as its own unit (`systemd-run --unit=vrx-startup-apply-<stamp>`, settings as `--setenv`); the caller
-   returns at once — follow `journalctl -fu vrx-startup-apply-<stamp>` or `<work>/log`. **There is no `setsid`
+   starts the run as its own unit (`systemd-run --unit=ngfw-startup-apply-<stamp>`, settings as `--setenv`); the caller
+   returns at once — follow `journalctl -fu ngfw-startup-apply-<stamp>` or `<work>/log`. **There is no `setsid`
    fallback** (re-review N2): if `systemd-run` cannot start the run, the lock holder or the dead-man timer, `--apply` is
    refused before anything changes (exit 3). `--foreground` is refused over SSH (`--console`). A work dir runs once:
    `--stage run` on a dir that was already installed from is refused.
 5. The run: verifies the seal and re-evaluates the gate (must equal the sealed record) → a **lock holder unit** takes
-   `vrx-vpp.lock` then `vrx-lab.lock` and keeps them until commit or the end of the rollback → both sha256 re-checked →
+   `ngfw-vpp.lock` then `ngfw-lab.lock` and keeps them until commit or the end of the rollback → both sha256 re-checked →
    VPP preflight → reachability baseline → snapshot (addresses/routes, drivers, plugins, D-080 boot identity) → backup →
    dead-man timer → install → `systemctl restart vpp` → `MainPID`, `ActiveEnterTimestampMonotonic` and `NRestarts` read
    **right after the restart job** (NRestarts is 0 then) → API up → `--settle` s (10) → a **new, complete** boot identity
@@ -166,7 +166,7 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
   (systemd resets the counter on an explicit restart), so a crash + `Restart=always` before the first read is rejected.
 - **The run's own rollback after the holder died takes the locks (V5)** exclusively and bounded, like the dead-man;
   FORCED (without locks) only when a foreign holder keeps them.
-- **`VRX_TEST_ROOT` guard resolves paths (V6)** (`realpath`: `/.`, `..`, symlinks out of the test root are refused).
+- **`NGFW_TEST_ROOT` guard resolves paths (V6)** (`realpath`: `/.`, `..`, symlinks out of the test root are refused).
 - **The holder follows the run's real deadline (V7):** after the snapshot the run writes `<work>/hold-until` (its dead-man
   deadline + lock wait + one rollback); the holder's default-count `HOLD_MAX` applies only until then.
 - **`neigh` probe (V8):** a link-local gateway (`fe80::/10`) is nudged with its `%<if>` scope; each nudge and `ip neigh`
@@ -179,7 +179,7 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
   <dir>` by hand while that apply's dead-man timer was still armed. If the timer fired during the manual rollback, both
   processes stopped and started VPP: a second outage, and one's health check could land in the other's stop. Now:
   - the refusal (planner, run and dry run) prints the safe command, the dead-man's own unit:
-    `systemctl start vrx-startup-apply-deadman-<stamp>.service`. systemd starts a unit only once, so it cannot run next
+    `systemctl start ngfw-startup-apply-deadman-<stamp>.service`. systemd starts a unit only once, so it cannot run next
     to the timer's own start, and it runs detached from the SSH session. The stage by hand
     (`<work>/bin/apply-startup.sh --stage rollback --work <work>`) is only the fallback when no dead-man unit was
     recorded, or systemd no longer knows it. Run it from a console: it is not detached.
@@ -197,11 +197,11 @@ uses a fixture repo via `VRX_TEST_ROOT`, honoured only when every mutating path 
   2 × cmd-timeout = 6.
 
 Tests: `deploy/vpp/test-apply-startup.sh` (fake host; scenarios 32–41 cover V1–V9, each failed on the pre-TD-6 script
-via `VRX_TEST_APPLY_SCRIPT`; 42–43 and the refusal check in 32 cover F1, each failed on TD-6's script; 40 fails on the
+via `NGFW_TEST_APPLY_SCRIPT`; 42–43 and the refusal check in 32 cover F1, each failed on TD-6's script; 40 fails on the
 pre-TD-6 script at any load). `tools/ci.sh quick` runs `shellcheck -x` on `deploy/vpp/*.sh` and the harness in 4
-parallel shards (`VRX_CI_APPLY_SHARDS`); a green run is cached by the sha256 of `deploy/vpp/*` + the built generator, so
+parallel shards (`NGFW_CI_APPLY_SHARDS`); a green run is cached by the sha256 of `deploy/vpp/*` + the built generator, so
 an unchanged tree skips it. Failed scenarios get one serial rerun: green → a WARN naming them, failing again → the gate
-fails. `VRX_TEST_ONLY`/`VRX_TEST_SHARD` never leak in from the caller; `VRX_TEST_APPLY_SCRIPT` is honoured but never
+fails. `NGFW_TEST_ONLY`/`NGFW_TEST_SHARD` never leak in from the caller; `NGFW_TEST_APPLY_SCRIPT` is honoured but never
 cached. The harness is meant to be green next to other workers' CI (load average up to ~50 on 32 CPUs): the fake host
 runs with `--cmd-timeout 3 --svc-timeout 6`, waits for files with long ceilings (they return as soon as the file
 exists), and the "bounded" checks (hangs cost the configured timeouts, not the fake's `sleep 300–1000`) scale their
@@ -230,7 +230,7 @@ the data NICs under their logical names; the `interface/<name>` alias keys (D-06
 
 - No offline checker exists for startup.conf; `Validate` is structural (one file, balanced braces, no control characters).
 - The semantic diff compares entries line by line in the layout VPP ships and we render; a review aid, not VPP's parser.
-- NIC → port-group mapping on vrx-a is still unknown: the six-NIC golden (`testdata/six-nic-sample.golden`) uses a
+- NIC → port-group mapping on ngfw-a is still unknown: the six-NIC golden (`testdata/six-nic-sample.golden`) uses a
   **SAMPLE** mapping (`04:00.0 wan`, `0c:00.0 lan`, `13:00.0 dmz`, `14:00.0 p2p`, `1b:00.0 lan2`, `1c:00.0 sync`).
 - A management path through a bond/VLAN is resolved through its `lower_*` members; anything else without a PCI device
   (and not a linux-cp tap) needs `--mgmt-pci`.

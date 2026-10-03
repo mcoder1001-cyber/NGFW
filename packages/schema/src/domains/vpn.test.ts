@@ -38,7 +38,7 @@ describe('group-(c) shared primitives (domains/_shared, not re-exported — D-05
   it.each([
     'psk/site-b',
     'key/wg0',
-    'cert/vrx-a.2026',
+    'cert/ngfw-a.2026',
     'password/alice',
     'token/acme-eab',
     `psk/${'A'.repeat(63)}`,
@@ -180,7 +180,7 @@ describe('IpsecTunnelSchema', () => {
     ).toBe(true);
   });
   it.each([
-    ['inline PSK', tunnel({ auth: { method: 'psk', psk: 'VRX_TEST_PSK_x' } }), 'auth.psk'],
+    ['inline PSK', tunnel({ auth: { method: 'psk', psk: 'NGFW_TEST_PSK_x' } }), 'auth.psk'],
     ['PSK without secretRef', tunnel({ auth: { method: 'psk' } }), 'auth.secretRef'],
     [
       'PEM in secretRef',
@@ -189,7 +189,7 @@ describe('IpsecTunnelSchema', () => {
     ],
     [
       'PSK pasted as reference',
-      tunnel({ auth: { method: 'psk', secretRef: 'VRX_TEST_PSK_P02c' } }),
+      tunnel({ auth: { method: 'psk', secretRef: 'NGFW_TEST_PSK_P02c' } }),
       'auth.secretRef',
     ],
     [
@@ -249,7 +249,7 @@ describe('WireguardInterfaceSchema', () => {
     });
   });
   it.each([
-    ['inline private key', wg({ privateKey: 'VRX_TEST_PSK_P02c_wg' }), 'privateKey'],
+    ['inline private key', wg({ privateKey: 'NGFW_TEST_PSK_P02c_wg' }), 'privateKey'],
     ['missing private key reference', { ...wg(), privateKeyRef: undefined }, 'privateKeyRef'],
     [
       'inline preshared key on a peer',
@@ -327,7 +327,7 @@ describe('PKI and remote access', () => {
   });
   const profile = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     localAddr: '198.51.100.2',
-    certificate: 'vrx-a',
+    certificate: 'ngfw-a',
     proposal: 'p',
     pools: [{ name: 'p4', prefix: '10.250.0.0/24' }],
     users: [{ username: 'alice', passwordRef: 'password/alice' }],

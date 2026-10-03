@@ -1,5 +1,5 @@
 #!/bin/sh
-# vrx-agent PPPoE {{.Kind}} hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+# ngfw-agent PPPoE {{.Kind}} hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
 # IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
 # and writes a state file the agent reads. Rendered; hand edits are overwritten.
 set -eu

@@ -1,5 +1,5 @@
 {
-  "system": { "hostname": "vrx-a", "timezone": "UTC" },
+  "system": { "hostname": "ngfw-a", "timezone": "UTC" },
   "vrfs": {
     "default": { "id": 0, "description": "global routing table" },
     "customer-a": { "id": 10, "description": "customer A" }

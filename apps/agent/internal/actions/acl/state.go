@@ -1,7 +1,7 @@
 package acl
 
 import (
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	descacl "ngfw/agent/internal/descriptors/acl"
 )
 
@@ -37,7 +37,7 @@ func Sum(counters []descacl.RuleCounter, n int) (packets, bytes uint64) {
 // RulePage maps VPP rule counters back to the configuration rules of exp and returns the page
 // [offset, offset+limit) of the rules that pass the filter (sequence order), and the filtered total.
 // counters may be nil (unavailable): every rule then reports 0, and hits_only selects nothing.
-func RulePage(exp *Expansion, counters []descacl.RuleCounter, f *vrxv1.AclStateFilter, offset, limit int) ([]*vrxv1.AclRuleState, int) {
+func RulePage(exp *Expansion, counters []descacl.RuleCounter, f *ngfwv1.AclStateFilter, offset, limit int) ([]*ngfwv1.AclRuleState, int) {
 	var want map[uint32]bool
 	if seqs := f.GetSequences(); len(seqs) > 0 {
 		want = make(map[uint32]bool, len(seqs))
@@ -46,7 +46,7 @@ func RulePage(exp *Expansion, counters []descacl.RuleCounter, f *vrxv1.AclStateF
 		}
 	}
 	total := 0
-	var page []*vrxv1.AclRuleState
+	var page []*ngfwv1.AclRuleState
 	for _, r := range exp.Rules {
 		if want != nil && !want[r.Sequence] {
 			continue
@@ -59,7 +59,7 @@ func RulePage(exp *Expansion, counters []descacl.RuleCounter, f *vrxv1.AclStateF
 			continue
 		}
 		if total >= offset && len(page) < limit {
-			page = append(page, &vrxv1.AclRuleState{
+			page = append(page, &ngfwv1.AclRuleState{
 				Sequence: r.Sequence, Status: r.Status, VppRules: r.Count, FirstVppRule: r.First,
 				Packets: packets, Bytes: bytes,
 			})
@@ -70,8 +70,8 @@ func RulePage(exp *Expansion, counters []descacl.RuleCounter, f *vrxv1.AclStateF
 }
 
 // ListState is the summary of one tracked ACL (mapping known when exp is not nil).
-func ListState(a Applied, exp *Expansion, counters []descacl.RuleCounter) *vrxv1.AclListState {
-	st := &vrxv1.AclListState{Name: a.Name, AclIndex: a.Index, VppRules: uint32(min(a.VPPRules, maxRuleCounts))} //nolint:gosec // bounded
+func ListState(a Applied, exp *Expansion, counters []descacl.RuleCounter) *ngfwv1.AclListState {
+	st := &ngfwv1.AclListState{Name: a.Name, AclIndex: a.Index, VppRules: uint32(min(a.VPPRules, maxRuleCounts))} //nolint:gosec // bounded
 	if exp != nil {
 		st.MappingKnown = true
 		st.ConfigRules = uint32(min(len(exp.Rules), maxRuleCounts)) //nolint:gosec // bounded

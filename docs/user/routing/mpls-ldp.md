@@ -1,6 +1,6 @@
 # MPLS LDP
 
-LDP (Label Distribution Protocol, RFC 5036, IPv4) distributes MPLS labels between routers. On VRX, FRR `ldpd` runs the
+LDP (Label Distribution Protocol, RFC 5036, IPv4) distributes MPLS labels between routers. On NGFW, FRR `ldpd` runs the
 protocol and the box syncs the resulting labels into the VPP MPLS FIB (the V5 agent-side sync). The result is a
 transit LSR / penultimate-hop router. Configure it under **Config → Routing → MPLS** (`routing.mpls.ldp`); the live
 state is the **LDP** tab of **Routing → MPLS**.

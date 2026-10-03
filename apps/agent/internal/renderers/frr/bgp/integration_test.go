@@ -1,7 +1,7 @@
 package bgp_test
 
-// Live test of the bgp + policy sections against FRR 10.7 (VRX_INTEGRATION=1): two slot-scoped FRR instances (frrtest:
-// the VRX side in ns-<prefix>-frr, a peer in ns-<prefix>-p1) joined by a veth pair inside the slot's namespaces — no VPP,
+// Live test of the bgp + policy sections against FRR 10.7 (NGFW_INTEGRATION=1): two slot-scoped FRR instances (frrtest:
+// the NGFW side in ns-<prefix>-frr, a peer in ns-<prefix>-p1) joined by a veth pair inside the slot's namespaces — no VPP,
 // no root namespace, nothing under /etc/frr. It proves the canonical forms (every Apply runs the framework's convergence
 // check), the session with an MD5 password from a fixture resolver, route-map filtering, withdrawal, the neighbour
 // poller, the summary parser and the redaction of the password everywhere the renderer answers.
@@ -24,7 +24,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-const testPassword = "VRX_TEST_PSK_P12_1" //nolint:gosec // G101: the test fixture literal (00-CONTEXT: VRX_TEST_PSK_<id>)
+const testPassword = "NGFW_TEST_PSK_P12_1" //nolint:gosec // G101: the test fixture literal (00-CONTEXT: NGFW_TEST_PSK_<id>)
 
 func fixtureResolver() frr.SecretResolver {
 	return frr.SecretResolverFunc(func(_ context.Context, ref string) (string, error) {
@@ -68,7 +68,7 @@ func apply(t *testing.T, r *frr.Renderer, h *frrtest.Harness, d *structpb.Struct
 	}
 }
 
-// neighbor returns the VRX side's view of peer.
+// neighbor returns the NGFW side's view of peer.
 func neighbor(t *testing.T, r *frr.Renderer, peer string) (bgp.Neighbor, bool) {
 	t.Helper()
 	insts, err := bgp.Summary(context.Background(), r.ShowJSON)
@@ -109,18 +109,18 @@ func TestBGPLive(t *testing.T) {
 	ctx := context.Background()
 	daemons := []string{"mgmtd", "zebra", "staticd", "bgpd"}
 
-	vrx := frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
+	ngfw := frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
 	peer := frrtest.Start(t, frrtest.Options{Prefix: prefix, Instance: "p1", Daemons: daemons})
 	vIf, pIf := prefix+"v0", prefix+"v1"
 	vAddr, pAddr := fmt.Sprintf("10.%d.9.1", slot), fmt.Sprintf("10.%d.9.2", slot)
-	ip(t, vrx, "link", "add", vIf, "netns", vrx.NetNS, "type", "veth", "peer", "name", pIf, "netns", peer.NetNS)
-	ip(t, vrx, "-n", vrx.NetNS, "addr", "add", vAddr+"/24", "dev", vIf)
-	ip(t, vrx, "-n", peer.NetNS, "addr", "add", pAddr+"/24", "dev", pIf)
-	ip(t, vrx, "-n", vrx.NetNS, "link", "set", vIf, "up")
-	ip(t, vrx, "-n", peer.NetNS, "link", "set", pIf, "up")
-	t.Logf("vrx %s (pathspace %s), peer %s (pathspace %s), veth %s %s ↔ %s %s", vrx.NetNS, vrx.Paths.Namespace, peer.NetNS, peer.Paths.Namespace, vIf, vAddr, pIf, pAddr)
+	ip(t, ngfw, "link", "add", vIf, "netns", ngfw.NetNS, "type", "veth", "peer", "name", pIf, "netns", peer.NetNS)
+	ip(t, ngfw, "-n", ngfw.NetNS, "addr", "add", vAddr+"/24", "dev", vIf)
+	ip(t, ngfw, "-n", peer.NetNS, "addr", "add", pAddr+"/24", "dev", pIf)
+	ip(t, ngfw, "-n", ngfw.NetNS, "link", "set", vIf, "up")
+	ip(t, ngfw, "-n", peer.NetNS, "link", "set", pIf, "up")
+	t.Logf("ngfw %s (pathspace %s), peer %s (pathspace %s), veth %s %s ↔ %s %s", ngfw.NetNS, ngfw.Paths.Namespace, peer.NetNS, peer.Paths.Namespace, vIf, vAddr, pIf, pAddr)
 
-	rv := vrx.Renderer(frr.WithSecretResolver(fixtureResolver()))
+	rv := ngfw.Renderer(frr.WithSecretResolver(fixtureResolver()))
 	rp := peer.Renderer(frr.WithSecretResolver(fixtureResolver()))
 
 	// the peer announces 100 /25s: 50 in 10.<N>.64.0/18 (denied later) and 50 in 10.<N>.128.0/18
@@ -145,7 +145,7 @@ func TestBGPLive(t *testing.T) {
 		}
 		return doc(t, d)
 	}
-	vrxDoc := func(denyLow bool) *structpb.Struct {
+	ngfwDoc := func(denyLow bool) *structpb.Struct {
 		inEntries := []any{map[string]any{"seq": 20, "action": "permit", "set": map[string]any{"localPref": 150, "community": []any{"65080:20"}, "communityAdditive": true}}}
 		if denyLow {
 			inEntries = append([]any{map[string]any{"seq": 10, "action": "deny", "description": "drop the low half", "match": map[string]any{"prefixList": "pl-low"}}}, inEntries...)
@@ -185,7 +185,7 @@ func TestBGPLive(t *testing.T) {
 	}
 
 	apply(t, rp, peer, peerDoc(true))
-	apply(t, rv, vrx, vrxDoc(false))
+	apply(t, rv, ngfw, ngfwDoc(false))
 	t.Log(waitFor(t, "session Established with 100 prefixes", 60*time.Second, func() (bool, string) {
 		n, ok := neighbor(t, rv, pAddr)
 		return ok && n.State == "Established" && n.PrefixesReceived == 100, fmt.Sprintf("%+v", n)
@@ -194,7 +194,7 @@ func TestBGPLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("vrx show running-config (redacted):\n%s", rc)
+	t.Logf("ngfw show running-config (redacted):\n%s", rc)
 	if strings.Contains(string(rc), testPassword) {
 		t.Fatal("running-config through the renderer shows the password")
 	}
@@ -210,14 +210,14 @@ func TestBGPLive(t *testing.T) {
 	} else if !strings.Contains(string(b), `"bgpSummary"`) {
 		t.Errorf("Retrieve has no bgpSummary reader output")
 	}
-	dry, err := rv.DryRun(ctx, mustRender(t, rv, vrxDoc(false)))
+	dry, err := rv.DryRun(ctx, mustRender(t, rv, ngfwDoc(false)))
 	if err != nil || dry != "" {
 		t.Fatalf("DryRun of the applied config: %q %v (want no diff)", dry, err)
 	}
 
 	// route map denies the low half → 50 remain (FRR re-runs the inbound policy on the soft-reconfig copy)
 	start := time.Now()
-	apply(t, rv, vrx, vrxDoc(true))
+	apply(t, rv, ngfw, ngfwDoc(true))
 	t.Log(waitFor(t, "50 prefixes after the deny entry", 30*time.Second, func() (bool, string) {
 		n, _ := neighbor(t, rv, pAddr)
 		return n.PrefixesReceived == 50, fmt.Sprintf("pfxRcd=%d", n.PrefixesReceived)
@@ -249,7 +249,7 @@ func TestBGPLive(t *testing.T) {
 	}))
 
 	// removing BGP from the document removes `router bgp` and the filters
-	apply(t, rv, vrx, doc(t, map[string]any{}))
+	apply(t, rv, ngfw, doc(t, map[string]any{}))
 	rc, _ = rv.Show(ctx, frr.ShowRunningConfig)
 	for _, gone := range []string{"router bgp", "prefix-list", "route-map", "community-list", "as-path"} {
 		if strings.Contains(string(rc), gone) {

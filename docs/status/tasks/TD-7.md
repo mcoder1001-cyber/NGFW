@@ -3,7 +3,7 @@
 Branch `task/TD-7` (worktree `/root/ngfw-wt/TD-7`, slot 6), speculative base `task/TD-6@621d1e2` (D-114). Scope: F1 and F2 of
 `TD-6-review.md`; F3–F9 stay in `docs/tech-debt.md`. Nothing ran `apply-startup.sh --apply` against real paths. VPP was not
 restarted, nothing under `/etc` was written, and no process was killed by pattern. Every run used the fake-host harness
-(`VRX_TEST_ROOT` fixture) with scratch dirs under `/tmp/g-td7`. The worker was stopped once by the usage limit (16:40); its
+(`NGFW_TEST_ROOT` fixture) with scratch dirs under `/tmp/g-td7`. The worker was stopped once by the usage limit (16:40); its
 edits were salvaged in f6e5f9d and this session (16:53, `CONTINUE-quota.md`) verified and finished them.
 
 Files: `deploy/vpp/apply-startup.sh`, `deploy/vpp/test-apply-startup.sh`, `docs/agent/renderers/vppstartup.md`, this file.
@@ -16,22 +16,22 @@ Files: `deploy/vpp/apply-startup.sh`, `deploy/vpp/test-apply-startup.sh`, `docs/
 | F1 per-apply lock | `stage_rollback` opens the apply's work dir on fd 7 (`exec 7<"$WORK"`) and takes `flock -n 7` before anything else: before the `finished` check, `touch deadman-fired`, `secure_locks`, `kill_run` or VPP. A second rollback stage of the same apply logs `a rollback of <work> is already running (pid N) — nothing to do`, sends that to syslog and exits 0 without touching anything. The work dir itself is the lock file: it is keyed by the apply id and nothing has to be created, so a full disk cannot stop the dead-man. The holder's pid goes to `<work>/rollback-pid` | `apply-startup.sh` `stage_rollback` (`:999-1030`) |
 | F1 fd hygiene | `tmo`, `svc`, `vppcheck`, `sysfs_write`, `tcp_connect` and the two `flock -w` waits in `secure_locks` close fd 7 (as they already closed 8/9). An orphaned child therefore never keeps the per-apply lock. The log's `tee` is opened before fd 7, so it never inherits it | `:190-196`, `:294-296`, `:517` |
 | F1 timer | after the lock, `cancel_deadman` (`systemctl stop <unit>.timer`, only the timer) disarms the armed dead-man before a rollback started by hand touches the run or VPP. This is harmless inside the timer's own service | `:1016` |
-| F1 refusal text | the planner (`--apply`), the run (inside the locks) and the dry run now print the safe command through `finish_hint`: `systemctl start vrx-startup-apply-deadman-<stamp>.service`. systemd starts a unit only once, so this cannot run next to the timer's own start, and it runs detached from the SSH session. The stage by hand (`<work>/bin/apply-startup.sh --stage rollback --work <work>`) is printed only when no dead-man unit was recorded | `finish_hint` `:669-681`; `:451`, `:887`, `:1060` |
+| F1 refusal text | the planner (`--apply`), the run (inside the locks) and the dry run now print the safe command through `finish_hint`: `systemctl start ngfw-startup-apply-deadman-<stamp>.service`. systemd starts a unit only once, so this cannot run next to the timer's own start, and it runs detached from the SSH session. The stage by hand (`<work>/bin/apply-startup.sh --stage rollback --work <work>`) is printed only when no dead-man unit was recorded | `finish_hint` `:669-681`; `:451`, `:887`, `:1060` |
 | F2 | scenario 40 counts the fake's `ip -j neigh show 10.0.0.1 dev ens192` calls instead of a load-scaled time bound. Every read hangs until the 3 s cmd-timeout, so the time-bounded poll makes 1 read (at most 2 are accepted), while the pre-V8 count-bounded poll makes 2 × cmd-timeout = 6 on any host. An outer `timeout 300` turns a regression into an unbounded loop into a failure instead of a stuck harness. The comment on `load_limit` and `vppstartup.md` no longer claim "always below the unbounded case" for every check | `test-apply-startup.sh` `:80-86`, `:851-868` |
 | scenarios | 42: holder gone, rollback 1 held inside its `systemctl stop vpp` (fake stop hook), rollback 2 runs meanwhile → refused, VPP stopped and started once, never FORCED. 43: the same with the holder alive (run stuck in `systemctl restart`, dead-man armed) → the timer is disarmed before VPP is stopped, rollback 2 is refused, one stop and one start. 32 gets one more check: the refusal names `systemctl start <dead-man unit>.service` | `two_rollbacks` `:302-321`, `:877-909`, `:737` |
 | doc | `vppstartup.md`: the V1 bullet no longer prescribes the hand-run stage; new section "Follow-ups from the TD-6 review (TD-7, D-116)"; the Tests paragraph lists 42–43, names the six load-scaled `bounded` checks and describes scenario 40's count check (scope addition below) | `docs/agent/renderers/vppstartup.md` |
 
 ## Proof: the new checks fail on the old scripts and pass on this branch
 
-All three runs use this branch's harness. `VRX_TEST_APPLY_SCRIPT` selects the script under test. The reference copies are
+All three runs use this branch's harness. `NGFW_TEST_APPLY_SCRIPT` selects the script under test. The reference copies are
 `git show 621d1e2:deploy/vpp/apply-startup.sh` (TD-6) and `git show main:deploy/vpp/apply-startup.sh` (main, pre-TD-6;
 main has not touched `deploy/vpp` since 2d622eb), both checked with `cmp` against git. Generator built from this tree.
 The three runs ran in parallel at 16:54 (load 12 → 35).
 
-### F1 on TD-6's script (`VRX_TEST_ONLY="32 42 43"`) — 6 FAIL
+### F1 on TD-6's script (`NGFW_TEST_ONLY="32 42 43"`) — 6 FAIL
 ```
  16:54:22 up  7:06,  2 users,  load average: 12.13, 5.74, 12.98
-$ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY="32 42 43" VRX_TEST_APPLY_SCRIPT=/tmp/g-td7/ref/td6-apply-startup.sh deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7/tmp NGFW_TEST_ONLY="32 42 43" NGFW_TEST_APPLY_SCRIPT=/tmp/g-td7/ref/td6-apply-startup.sh deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/ngfw-startupgen
 == 32. V1: a dead run's armed dead-man never reverts a newer apply — the planner refuses while an apply is unfinished; a superseded dead-man changes nothing
   ok   run 1 died after installing; its holder is gone; its dead-man is still armed
     state: rc=3 finished=[] vpp=active locks-free=y timer-cancelled=n live==new=y live==orig=n
@@ -53,7 +53,7 @@ $ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY="32 42 43" VRX_TEST_APPLY_SCRIPT=/tmp/g-td
   ok   the first one rolls back alone (exit 1): original file, VPP active, locks released
   FAIL VPP stopped and started exactly once (stops=2 starts=2); the locks taken exclusively, never FORCED
 == 43. F1: the same overlap while the holder is alive (the run hangs in `systemctl restart`, its dead-man armed) → the rollback disarms the timer first; the second is refused; VPP stopped and starte
-  ok   the run is stuck in 'systemctl restart'; holder 1194662 owns the locks; the dead-man vrx-startup-apply-deadman-20260924-165628-1192888 is armed
+  ok   the run is stuck in 'systemctl restart'; holder 1194662 owns the locks; the dead-man ngfw-startup-apply-deadman-20260924-165628-1192888 is armed
     rollback 1 (pid 1196829): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=1; VPP stops=2 starts=2
     | rollback 2: apply-startup: 2026-09-24 16:56:38 dead-man: lock holder 1194662 still owns the locks
     | rollback 2: apply-startup: 2026-09-24 16:56:38 ROLLBACK: dead-man: the apply did not finish within 3574s
@@ -69,10 +69,10 @@ rc=1
  16:56:55 up  7:09,  2 users,  load average: 25.19, 13.72, 14.92
 ```
 
-### F2 on main's pre-TD-6 script (`VRX_TEST_ONLY=40`) — FAIL, 6 reads
+### F2 on main's pre-TD-6 script (`NGFW_TEST_ONLY=40`) — FAIL, 6 reads
 ```
  16:54:22 up  7:06,  2 users,  load average: 12.13, 5.74, 12.98
-$ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY=40 VRX_TEST_APPLY_SCRIPT=/tmp/g-td7/ref/main-apply-startup.sh deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7/tmp NGFW_TEST_ONLY=40 NGFW_TEST_APPLY_SCRIPT=/tmp/g-td7/ref/main-apply-startup.sh deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/ngfw-startupgen
 == 40. V8: neigh probe — a link-local IPv6 default gateway is nudged with its scope; a hanging `ip neigh` is bounded by time
       NONE VIABLE — --apply will refuse: no viable management reachability check on this host: next hop fe80::1 on ens192 is not REACHABLE (neighbour state STALE) — pass --mgmt-probe tcp:HOST:PORT
   FAIL dual stack, gateway fe80::1: nudged as fe80::1%ens192, neigh viable (exit 3)
@@ -88,10 +88,10 @@ The elapsed time was 26 s at load 20.6. The old check's limit at that load was 1
 `bounded 10` would have passed here. That is exactly the gap the review describes. The count does not depend on the load.
 (The first FAIL in this scenario, the fe80 nudge, is V8's other half and was already caught before.)
 
-### This branch (`VRX_TEST_ONLY="32 40 42 43"`) — 19 passed, 0 failed
+### This branch (`NGFW_TEST_ONLY="32 40 42 43"`) — 19 passed, 0 failed
 ```
  16:54:22 up  7:06,  2 users,  load average: 12.13, 5.74, 12.98
-$ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY="32 40 42 43" deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7/tmp NGFW_TEST_ONLY="32 40 42 43" deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/ngfw-startupgen
 == 32. V1: a dead run's armed dead-man never reverts a newer apply — the planner refuses while an apply is unfinished; a superseded dead-man changes nothing
   ok   run 1 died after installing; its holder is gone; its dead-man is still armed
     state: rc=3 finished=[] vpp=active locks-free=y timer-cancelled=n live==new=y live==orig=n
@@ -117,7 +117,7 @@ $ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY="32 40 42 43" deploy/vpp/test-apply-startu
   ok   the first one rolls back alone (exit 1): original file, VPP active, locks released
   ok   VPP stopped and started exactly once (stops=1 starts=1); the locks taken exclusively, never FORCED
 == 43. F1: the same overlap while the holder is alive (the run hangs in `systemctl restart`, its dead-man armed) → the rollback disarms the timer first; the second is refused; VPP stopped and starte
-  ok   the run is stuck in 'systemctl restart'; holder 1198255 owns the locks; the dead-man vrx-startup-apply-deadman-20260924-165636-1196655 is armed
+  ok   the run is stuck in 'systemctl restart'; holder 1198255 owns the locks; the dead-man ngfw-startup-apply-deadman-20260924-165636-1196655 is armed
     rollback 1 (pid 1199554): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=0; VPP stops=1 starts=1
     | rollback 2: apply-startup: 2026-09-24 16:56:55 a rollback of $T/apply/20260924-165636-1196655 is already running (pid 1199554) — nothing to do
     state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
@@ -134,7 +134,7 @@ rc=0
 ## Full harness (4 parallel shards, as `tools/ci.sh` runs it)
 ```
  17:00:42 up  7:13,  2 users,  load average: 60.06, 33.77, 22.70
-$ for i in 1 2 3 4; do TMPDIR=/tmp/g-td7/tmp VRX_TEST_SHARD=$i/4 timeout -k 30 1800 deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/vrx-startupgen > full-shard$i.log & done; wait
+$ for i in 1 2 3 4; do TMPDIR=/tmp/g-td7/tmp NGFW_TEST_SHARD=$i/4 timeout -k 30 1800 deploy/vpp/test-apply-startup.sh /tmp/g-td7/gen/ngfw-startupgen > full-shard$i.log & done; wait
 wall 933s
  17:16:15 up  7:28,  2 users,  load average: 14.24, 51.67, 56.18
 shard 1: NO RESULT LINE — died in: == 5. --stage run verifies the sealed plan (forged gate / altered sett rc=1
@@ -147,11 +147,11 @@ shard 4: apply-startup tests: 49 passed, 1 failed rc=1
 
 # serial reruns once the load fell (what tools/ci.sh does for a FAIL; a died shard would fail its gate outright):
  17:17:05 up  7:29,  2 users,  load average: 11.70, 45.30, 53.78
-$ TMPDIR=/tmp/g-td7/tmp VRX_TEST_SHARD=1/4 deploy/vpp/test-apply-startup.sh …   # the whole of shard 1 (1 5 9 … 41)
+$ TMPDIR=/tmp/g-td7/tmp NGFW_TEST_SHARD=1/4 deploy/vpp/test-apply-startup.sh …   # the whole of shard 1 (1 5 9 … 41)
 apply-startup tests: 33 passed, 0 failed
 rc=0
  17:23:18 up  7:35,  2 users,  load average: 12.42, 22.91, 40.70
-$ TMPDIR=/tmp/g-td7/tmp VRX_TEST_ONLY=4 deploy/vpp/test-apply-startup.sh …
+$ TMPDIR=/tmp/g-td7/tmp NGFW_TEST_ONLY=4 deploy/vpp/test-apply-startup.sh …
 apply-startup tests: 13 passed, 0 failed
 rc=0
  17:19:13 up  7:31,  2 users,  load average: 13.39, 34.49, 48.68
@@ -161,7 +161,7 @@ rollback refused (exit 0); 40 with `1 \`ip neigh\` read(s)` at load 14. All 138 
 and 5 in 43) are green: 33 + 29 + 26 + 49 in the shards and reruns, plus scenario 4's check on its rerun.
 
 **The two misses are load, not TD-7.** The run overlapped another agent's burst: load 60 at the start, 168.5 at 17:06,
-14 at the end. Scenario 4 failed with `REFUSED: VPP did not list its plugins`, which means the fake `vrx-vppcheck` did
+14 at the end. Scenario 4 failed with `REFUSED: VPP did not list its plugins`, which means the fake `ngfw-vppcheck` did
 not answer within the 3 s cmd-timeout. Shard 1 died in scenario 5, which TD-6 left unchanged: its first line
 `apply >/dev/null 2>&1` has no `|| rc=$?`, so under `set -e` the same load-induced refusal ends the whole shard with no
 result line. `tools/ci.sh` gives a FAIL one serial rerun, but it fails a died shard outright. Both went green in a
@@ -177,7 +177,7 @@ SHELLCHECK-CLEAN
 ## CI
 ```
  17:23:53 up  7:36,  2 users,  load average: 10.19, 21.18, 39.46
-$ TMPDIR=/tmp/g-td7 VRX_CI_CACHE_DIR=/tmp/g-td7/cache tools/ci.sh --base main      # fresh cache dir: the harness really runs
+$ TMPDIR=/tmp/g-td7 NGFW_CI_CACHE_DIR=/tmp/g-td7/cache tools/ci.sh --base main      # fresh cache dir: the harness really runs
 == deploy/vpp: shellcheck + apply-startup fake-host harness ==
 shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
   FAIL the run records hold-until ≥ its dead-man deadline + lock wait + one rollback

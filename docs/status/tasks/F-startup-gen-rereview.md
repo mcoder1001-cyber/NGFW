@@ -3,7 +3,7 @@
 Scope: `task/F-startup-gen` @ 130cc33 (fixes since the BLOCK at e049b31) and `contract/F-startup-gen` @ b662ff8.
 Run on the host, read-only: `/etc/vpp/startup.conf`, `/sys`, `/proc` read; nothing written under `/etc`; VPP not
 restarted; no NIC bound/unbound; `apply-startup.sh` never run in `--apply` mode against real paths (one `--stage rollback`
-run with every `VRX_*` path pointed at scratch fakes, see N1). Probes that needed a fake `/sys`+`/proc` ran through
+run with every `NGFW_*` path pointed at scratch fakes, see N1). Probes that needed a fake `/sys`+`/proc` ran through
 `go test -overlay` (no file added to the worktree).
 
 ## What I ran
@@ -13,18 +13,18 @@ run with every `VRX_*` path pointed at scratch fakes, see N1). Probes that neede
 | `tools/ci.sh --base main` on task branch @ 130cc33 | **CI GATE PASSED** (quick, 1m21s, logs `/root/ngfw-wt/logs/ci/F-startup-gen-20260924-023006-2029831`); contract guard lists the 4 `contract(` commits; only warning = the manager's `review(F-startup-gen): findings` subject |
 | `tools/ci.sh --base main` on contract branch @ b662ff8 (temp worktree in scratchpad, removed afterwards) | **CI GATE PASSED** (quick, 1m40s, logs `/root/ngfw-wt/logs/ci/contract-wt-20260924-023156-2050590`) |
 | drift guard on contract branch | `876 scalar leaves and 193 messages compared, 4 accepted difference(s), 0 finding(s)` — matches the pasted output |
-| `go test ./internal/renderers/vppstartup/ ./cmd/vrx-startupgen/` | ok / ok |
+| `go test ./internal/renderers/vppstartup/ ./cmd/ngfw-startupgen/` | ok / ok |
 | `deploy/vpp/test-apply-startup.sh <built generator>` | `36 passed, 0 failed` — matches |
 | `shellcheck deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh` | clean |
 | contract branch additive? | yes: proto fields 8–11 + new messages `PluginSet`, `DataplaneDevice`; schema adds 4 optional/defaulted keys + 4 semantic validators; one existing test expectation (`parse({})` defaults), no rename/reshape of a field on main. Merges cleanly into current main (`git merge-tree`) |
-| renderer registered anywhere? | no — only `cmd/vrx-startupgen` imports the package; `Apply` = `ErrManagerStep` |
+| renderer registered anywhere? | no — only `cmd/ngfw-startupgen` imports the package; `Apply` = `ErrManagerStep` |
 
 ## Original findings
 
 | # | verdict | evidence |
 |---|---|---|
 | F1 mgmt NIC from the document | **PARTIAL** | Host fact now authoritative (`hostfacts.go:90-118`, `model.go:505-534, 594-596`). Reviewer repro → `managementPci … does not match the host's management NIC(s) 0000:0b:00.0` exit 2; `{}` renders `blacklist 0000:0b:00.0`; doc `managementPci` as a strict subset of a 2-NIC host set → rejected; upper-case `0000:0B:00.0` canonicalised and accepted as equal; no route files → `ErrHost` "management NIC is unknown"; IPv6-only default → protected. **Not covered:** the management path that is *not* a default route (N4) — a document can still hand the NIC the manager is SSH'd on to DPDK when that NIC only carries a connected subnet. The original fix text asked for "default route / the address the manager is connected on"; only the first half was done |
-| F2 apply procedure | **PARTIAL** | Fixed: detached via `systemd-run --unit … --collect` (fallback `setsid nohup`) (`apply-startup.sh:217-221`); locks before sha/backup/diff (231-240); sha check inside the lock (233-234); dead-man armed before `install`/restart (255-263) and cancelled only after the full window (273-274); interface check by API not `vppctl` exit code; plugin checks by `show plugins` content; NRestarts used; driver rebind on rollback (173-184, matches VPP's own `driver_override`/`bind` sequence in `vlib/linux/pci.c:577-605`). **Still broken:** dead-man cannot roll back a hung run (N1); on vrx-a the rollback cannot restore the management address (N2); the interface checker cannot run on vrx-a, so every apply with a logical name rolls back (N3); the reviewed rendering is not pinned (N5) |
+| F2 apply procedure | **PARTIAL** | Fixed: detached via `systemd-run --unit … --collect` (fallback `setsid nohup`) (`apply-startup.sh:217-221`); locks before sha/backup/diff (231-240); sha check inside the lock (233-234); dead-man armed before `install`/restart (255-263) and cancelled only after the full window (273-274); interface check by API not `vppctl` exit code; plugin checks by `show plugins` content; NRestarts used; driver rebind on rollback (173-184, matches VPP's own `driver_override`/`bind` sequence in `vlib/linux/pci.c:577-605`). **Still broken:** dead-man cannot roll back a hung run (N1); on ngfw-a the rollback cannot restore the management address (N2); the interface checker cannot run on ngfw-a, so every apply with a logical name rolls back (N3); the reviewed rendering is not pinned (N5) |
 | F3 stand-ins drop plugins / mgmt | **FIXED** | Contract fields real (D-081) and `plugins` wrapped (D-084). Probed with live host facts: absent → current switches kept with warnings; `{"plugins":{}}` → authoritative empty, one warning per D-060 plugin and per removed switch, exit 0; bare map `{"plugins":{"linux_cp_plugin.so":true}}` → `unknown field` exit 2; `dpdk_plugin.so: false` with devices → exit 2. Strict decode confirmed (`maincore`, `Devices` rejected). Residual inconsistencies in N6/N12 |
 | F4 CPU model | **FIXED** | Always explicit `main-core` + `corelist-workers` (`model.go:402-503`). Checked against VPP 26.06 `vlib/threads.c:226-400`: non-relative mode uses the *online* bitmap (not the affinity mask), so isolcpus does not make pinned workers "unavailable"; explicit values leave VPP no choice. `{"mainCore":5,"workers":2}` + isolcpus 6-7 → `corelist-workers 6-7`; corelist 40 on a 0-31 host rejected; mainCore in corelist rejected |
 | F5 hugepages | **FIXED** | `hugepagesGb: 0` → `0 not in 1..1024`; `hugepagesGb: 64, buffersPerNuma: 500000` → error against the 2 GiB host reservation; `hugepagesGb: 1` → error against 1 GiB; `HugePages_Total = 0` → `ErrHost` |
@@ -41,24 +41,24 @@ run with every `VRX_*` path pointed at scratch fakes, see N1). Probes that neede
 `vppctl` waits for output with `epoll_wait(efd, &event, 1, -1)` (`/root/vpp/src/vpp/app/vppctl.c:369`), with no timeout.
 When VPP accepts the CLI socket but its main loop is stuck (e.g. DPDK device init hanging in a process node after
 the new `dev` lines — exactly the case a start-up change causes), `wait_api` / `check_health` / `loaded_plugins`
-block forever. The run keeps `flock -x` on `vrx-vpp.lock` + `vrx-lab.lock`. The dead-man fires after
+block forever. The run keeps `flock -x` on `ngfw-vpp.lock` + `ngfw-lab.lock`. The dead-man fires after
 `window+api_wait+120` s, calls `take_locks` with the **default 1800 s** timeout (no `--lock-timeout` is passed at :258),
 then gives up with exit 3 and **never rolls back**. Reproduced with scratch paths (lock held by another process):
 ```
-$ VRX_VPP_LOCK=…/vpp.lock … apply-startup.sh --stage rollback --work …/work --lock-timeout 3
+$ NGFW_VPP_LOCK=…/vpp.lock … apply-startup.sh --stage rollback --work …/work --lock-timeout 3
 apply-startup: 2026-09-24 02:34:56 REFUSED: …/vpp.lock busy for 3s
 exit=3          (startup.conf still the new file)
 ```
 `systemctl restart vpp` itself does not hang (`Type=simple`), and a crash is caught (`Restart=always` → NRestarts), so
 the hang is the uncovered failure mode. Fix: wrap every `vppctl`/`ip`/checker call in `timeout 10`; make the dead-man
-**stop the run unit first** (`systemctl kill --signal=KILL vrx-startup-apply-<stamp>`, or kill the recorded run PID
+**stop the run unit first** (`systemctl kill --signal=KILL ngfw-startup-apply-<stamp>`, or kill the recorded run PID
 from the setsid fallback) so its locks are released, then take the locks with a short timeout; add a fake-host
 scenario "vppctl hangs" (fake `vppctl` that `sleep infinity`s).
 
-### N2 — HIGH (blocking): on vrx-a the rollback cannot restore the management address (no netplan; ifupdown host)
+### N2 — HIGH (blocking): on ngfw-a the rollback cannot restore the management address (no netplan; ifupdown host)
 `deploy/vpp/apply-startup.sh:191-196`
 
-vrx-a has no `netplan` binary and no `/etc/netplan`; `ens192` is configured by ifupdown
+ngfw-a has no `netplan` binary and no `/etc/netplan`; `ens192` is configured by ifupdown
 (`/etc/network/interfaces.d/ens192.cfg`: `auto ens192` / `iface ens192 inet static` / `gateway 172.30.126.1`;
 `networking.service` active, networkd/NetworkManager inactive). After a driver steal is undone (vfio-pci → vmxnet3),
 the kernel re-creates `ens192` **without** its address and default route; `auto` (not `allow-hotplug`) means nothing
@@ -69,7 +69,7 @@ The fake-host scenario 8 passes only because the test provides a fake `netplan`.
 manager), then additionally try `ifup --force <dev>` / `netplan apply` / `networkctl reconfigure` whichever exists;
 fake-host test without netplan.
 
-### N3 — HIGH: the interface checker cannot run on vrx-a → every apply with a logical interface name rolls back
+### N3 — HIGH: the interface checker cannot run on ngfw-a → every apply with a logical interface name rolls back
 `deploy/vpp/vpp-iface-check.py:14`, `apply-startup.sh:165-168`
 
 ```
@@ -80,7 +80,7 @@ exit=2
 `dpkg -l` lists `python3-vpp-api 26.06-release`, but `/usr/lib/python3/dist-packages/vpp_papi/` does not exist on this
 host (Python 3.14). Exit 2 → `check_health` "logical interface(s) missing" → rollback, i.e. two VPP restarts for every
 apply that names a NIC (every D-069 apply). The checker was never executed against a real VPP (the fake-host test
-substitutes `VRX_IFACE_CHECK`). Fix: preflight in the dry run **and** in `stage_run` before arming/installing — run the
+substitutes `NGFW_IFACE_CHECK`). Fix: preflight in the dry run **and** in `stage_run` before arming/installing — run the
 checker against the running VPP (`local0` must be found), refuse with exit 3 otherwise; paste one real read-only run
 (`sw_interface_dump` is read-only) in the status file. Remove the committed `__pycache__` (N10).
 
@@ -105,8 +105,8 @@ failing, and let the script watch every protected interface, not the first IPv4 
 
 The dry run reviews a rendering; the detached run renders **again** from a document copied at `--apply` time (not at
 dry-run time), with whatever generator is at `STARTUPGEN`. `systemd-run` starts the unit with systemd's environment, not
-the caller's (no `-E`/`--setenv`), so a `VRX_STARTUPGEN=…` override used for the dry run is silently dropped and the
-detached run uses `/root/ngfw/apps/agent/bin/vrx-startupgen` — in the shared main tree that another agent rebuilds.
+the caller's (no `-E`/`--setenv`), so a `NGFW_STARTUPGEN=…` override used for the dry run is silently dropped and the
+detached run uses `/root/ngfw/apps/agent/bin/ngfw-startupgen` — in the shared main tree that another agent rebuilds.
 Host facts (default route, hugepages) can also change in between. Fix: print `sha256(new.conf)` in the dry run, require
 `--expect-new-sha256` and compare inside the lock before `install`; pass the generator path explicitly
 (`--startupgen <abs path>` recorded in `$WORK`) instead of via the environment.
@@ -130,13 +130,13 @@ error. Only `--no-host` with every fact by hand works. Fail-closed, but fix the 
 / `--mgmt-if` supplies the NIC, or resolve bond slaves via `/sys/class/net/<bond>/lower_*`) or the doc.
 
 ### N8 — LOW: the script does not enforce the handover gate
-`apply-startup.sh:290-304`. `tools/lab restart-vpp` refuses while `docs/lab/host-vrx-a.md` says `handover: pending`
+`apply-startup.sh:290-304`. `tools/lab restart-vpp` refuses while `docs/lab/host-ngfw-a.md` says `handover: pending`
 (D-012; it still says so). The apply script restarts VPP with only a comment saying "manager only". Fix: the same
 `handover_state` check (or `--i-have-a-decision D-xxx` recorded in the log).
 
 ### N9 — LOW: the setsid dead-man fallback keeps the VPP and lab locks held after commit
 `apply-startup.sh:259`. The background child inherits fds 8/9 (the flocks) and sleeps `window+api_wait+120` s, so after
-a successful commit `vrx-vpp.lock`/`vrx-lab.lock` stay locked for up to ~3.5 min (CI and `tools/lab` block). Fix:
+a successful commit `ngfw-vpp.lock`/`ngfw-lab.lock` stay locked for up to ~3.5 min (CI and `tools/lab` block). Fix:
 `… 8>&- 9>&- &`.
 
 ### N10 — LOW: compiled Python committed

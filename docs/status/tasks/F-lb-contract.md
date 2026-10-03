@@ -27,7 +27,7 @@ per prefix — lb.c lb_vip_add); unique servers per VIP; no two NAT VIPs share a
 keys the SNAT mapping by exactly that pair; V20 follow-up in F-lb.md). Semantic (`semantic/lb.ts`):
 `services.lb-nat-interface-exists`.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`)
 
 - `ServicesConfig`: `LbService lb = 11;` (under the `// wave-BC: F-lb` anchor).
 - `// ----- F-lb -----` section: `LbService{settings=1, vips=2 map, nat_interfaces=3}`, `LbSettings{1–4}`,

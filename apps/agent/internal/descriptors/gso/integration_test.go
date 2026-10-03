@@ -14,7 +14,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// Host test (VRX_INTEGRATION=1, shared lab lock): gso.interface on one of this slot's tagged loopbacks
+// Host test (NGFW_INTEGRATION=1, shared lab lock): gso.interface on one of this slot's tagged loopbacks
 // (loop<slot>60). VPP stacks the feature on every enable, so the proof that a re-applied Create is idempotent
 // is that ONE Delete after three Creates leaves the feature off (feature_is_enabled), and Retrieve reports the
 // object exactly while it is on. No packets are sent.

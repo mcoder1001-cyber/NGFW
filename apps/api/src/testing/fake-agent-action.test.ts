@@ -34,7 +34,7 @@ function collect(
 }
 
 describe('FakeAgent action dispatch', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-td23-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-td23-'));
   const socket = join(dir, 'agent.sock');
   let fake: FakeAgent;
   let client: DataplaneClient;

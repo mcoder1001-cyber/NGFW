@@ -1,6 +1,6 @@
 package subsystems_test
 
-// Host integration test of F-rpf-adl-pbr (VRX_INTEGRATION=1, shared lab lock, slot prefix): the agent
+// Host integration test of F-rpf-adl-pbr (NGFW_INTEGRATION=1, shared lab lock, slot prefix): the agent
 // service with the product registry against the VPP on this host — loopbacks loop<slot>01/02 and VRFs in
 // the slot's table range, created by the agent through the same document; an ACL "<prefix>:lan-b" created
 // through binapi (F-acl creates ACLs in the product). No packets are sent; no af_packet interface is used.
@@ -12,7 +12,7 @@ package subsystems_test
 //	rollback to the document without the feature → nothing of it left (Retrieve + dumps)
 //	V23 (a): a fresh loopback never reads as "ADL on", whatever the raw feature_is_enabled says
 //
-// VRX_RPF_VPPCTL=1 logs `vppctl show abf policy` / `show abf attach` / `show interface features` at
+// NGFW_RPF_VPPCTL=1 logs `vppctl show abf policy` / `show abf attach` / `show interface features` at
 // each stage (evidence; read-only CLI, test code only).
 
 import (
@@ -37,7 +37,7 @@ import (
 	featureapi "ngfw/agent/binapi/feature"
 	"ngfw/agent/binapi/interface_types"
 	urpfapi "ngfw/agent/binapi/urpf"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/adl"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/descriptors/df2/df2test"
@@ -67,7 +67,7 @@ func (c *countingClient) count(name string) int {
 
 func vppctl(t *testing.T, args ...string) {
 	t.Helper()
-	if os.Getenv("VRX_RPF_VPPCTL") != "1" {
+	if os.Getenv("NGFW_RPF_VPPCTL") != "1" {
 		return
 	}
 	out, err := exec.Command("vppctl", args...).CombinedOutput() //nolint:gosec // fixed evidence commands, test only
@@ -218,15 +218,15 @@ func TestRpfAdlPbrOnHost(t *testing.T) {
 	t.Cleanup(func() {
 		// everything goes: feature objects first (the scheduler orders them), then interfaces and VRFs
 		s := rpfService(t, cc, owner, dir, log)
-		resp, err := s.Apply(context.Background(), &vrxv1.ApplyRequest{TxnId: owner + "-rpf-cleanup", Subsystems: domains, DesiredState: &vrxv1.DesiredState{}})
-		if err != nil || resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		resp, err := s.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: owner + "-rpf-cleanup", Subsystems: domains, DesiredState: &ngfwv1.DesiredState{}})
+		if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 			t.Errorf("cleanup apply: %v %s", err, protojson.Format(resp))
 		}
 	})
 
 	// 1. apply → Retrieve == desired
 	start := time.Now()
-	resp, err := svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-rpf-1", Subsystems: domains, DesiredState: desired})
+	resp, err := svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-rpf-1", Subsystems: domains, DesiredState: desired})
 	mustApplied(t, resp, err)
 	t.Logf("apply: %s in %v", protojson.Format(resp.GetSummary()), time.Since(start))
 	for _, r := range resp.GetResults() {
@@ -243,7 +243,7 @@ func TestRpfAdlPbrOnHost(t *testing.T) {
 
 	// 2. idempotent: nothing but reads
 	before := cc.count("adl_allowlist_enable_disable")
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-rpf-2", Subsystems: domains, DesiredState: desired})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-rpf-2", Subsystems: domains, DesiredState: desired})
 	mustApplied(t, resp, err)
 	if len(resp.GetResults()) != 0 || cc.count("adl_allowlist_enable_disable") != before {
 		t.Fatalf("idempotent apply changed something: %s", protojson.Format(resp))
@@ -261,7 +261,7 @@ func TestRpfAdlPbrOnHost(t *testing.T) {
 	start = time.Now()
 	svc = rpfService(t, cc, owner, dir, log)
 	resp = svc.Resync(ctx)
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("resync: %s", protojson.Format(resp))
 	}
 	got = retrieveDomains(t, svc)
@@ -282,13 +282,13 @@ func TestRpfAdlPbrOnHost(t *testing.T) {
 	evidence(t, "after the restart", l1, l2)
 
 	// 4. rollback to the document without the feature
-	plain := proto.Clone(desired).(*vrxv1.DesiredState)
+	plain := proto.Clone(desired).(*ngfwv1.DesiredState)
 	for _, itf := range plain.GetInterfaces() {
 		itf.Urpf, itf.Adl = nil, nil
 	}
-	plain.Routing = &vrxv1.RoutingConfig{}
+	plain.Routing = &ngfwv1.RoutingConfig{}
 	before = cc.count("adl_allowlist_enable_disable")
-	resp, err = svc.Apply(ctx, &vrxv1.ApplyRequest{TxnId: owner + "-rpf-3", Subsystems: domains, DesiredState: plain})
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-rpf-3", Subsystems: domains, DesiredState: plain})
 	mustApplied(t, resp, err)
 	for _, r := range resp.GetResults() {
 		t.Logf("  rollback %s %s %s", r.GetOp(), r.GetKey(), r.GetCode())
@@ -320,7 +320,7 @@ func TestADLRetrieveV23OnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bogus, err := f.FeatureIsEnabled(ctx, &featureapi.FeatureIsEnabled{ArcName: "device-input", FeatureName: "vrx-no-such-feature", SwIfIndex: interface_types.InterfaceIndex(idx)})
+	bogus, err := f.FeatureIsEnabled(ctx, &featureapi.FeatureIsEnabled{ArcName: "device-input", FeatureName: "ngfw-no-such-feature", SwIfIndex: interface_types.InterfaceIndex(idx)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +357,7 @@ func TestADLRetrieveV23OnHost(t *testing.T) {
 }
 
 func vppSocket() string {
-	if p := os.Getenv("VRX_VPP_API_SOCKET"); p != "" {
+	if p := os.Getenv("NGFW_VPP_API_SOCKET"); p != "" {
 		return p
 	}
 	return "/run/vpp/api.sock"

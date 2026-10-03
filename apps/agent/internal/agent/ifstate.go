@@ -20,7 +20,7 @@ import (
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/desired"
@@ -31,9 +31,9 @@ import (
 var claimHolders = []string{iface.AdminStateName, iface.MtuName, iface.MacAddressName, iface.PromiscName, iface.RxModeName}
 
 // ifTable is desired.Live over a snapshot of the interface table.
-type ifTable map[string]*vrxv1.InterfaceState
+type ifTable map[string]*ngfwv1.InterfaceState
 
-func (t ifTable) State(name string) (*vrxv1.InterfaceState, bool) {
+func (t ifTable) State(name string) (*ngfwv1.InterfaceState, bool) {
 	st, ok := t[name]
 	return st, ok
 }
@@ -79,7 +79,7 @@ func (s *Service) interfaceTable(ctx context.Context) (ifTable, error) {
 			continue // an untagged interface with our interface's name: ours wins (alias Retrieve rule)
 		}
 		d, _ := t.Details(idx)
-		st := &vrxv1.InterfaceState{
+		st := &ngfwv1.InterfaceState{
 			Name: name, VppName: t.VPPName(idx), SwIfIndex: idx, Type: typeOf(d),
 			AdminUp:       d.Flags&interface_types.IF_STATUS_API_FLAG_ADMIN_UP != 0,
 			LinkUp:        d.Flags&interface_types.IF_STATUS_API_FLAG_LINK_UP != 0,
@@ -191,7 +191,7 @@ func rxModes(ctx context.Context, c vpp.Client) (map[uint32]string, error) {
 }
 
 // descriptionOf returns the stored description of an interface or sub-interface (D-073b).
-func descriptionOf(stored map[string]*vrxv1.Interface, name, parent string) string {
+func descriptionOf(stored map[string]*ngfwv1.Interface, name, parent string) string {
 	if itf, ok := stored[name]; ok {
 		return itf.GetDescription()
 	}
@@ -219,7 +219,7 @@ func (s *Service) tableName(id uint32) string {
 }
 
 // InterfaceState implements the InterfaceState RPC.
-func (s *Service) InterfaceState(ctx context.Context, req *vrxv1.InterfaceStateRequest) (*vrxv1.InterfaceStateResponse, error) {
+func (s *Service) InterfaceState(ctx context.Context, req *ngfwv1.InterfaceStateRequest) (*ngfwv1.InterfaceStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -237,7 +237,7 @@ func (s *Service) InterfaceState(ctx context.Context, req *vrxv1.InterfaceStateR
 	for _, n := range req.GetNames() {
 		want[n] = true
 	}
-	resp := &vrxv1.InterfaceStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.InterfaceStateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
 	for _, name := range sortedMapKeys(tbl) {
 		if len(want) > 0 && !want[name] {
 			continue

@@ -27,7 +27,7 @@ Source frozen at local `2892785f1006eb990f977ebcb8609d084c7a7a28`, published as
 ## Actual checks
 
 At source `2892785f`, `python3 -m unittest discover -s
- deploy/debian/vrx/tests -p 'test_*.py'` ran **23 tests in 4.892 seconds:
+ deploy/debian/ngfw/tests -p 'test_*.py'` ran **23 tests in 4.892 seconds:
 22 PASS, 1 SKIP**. The skip is real GPG signing because the isolated environment
 cannot start/connect its GPG agent; signing is not reported as passed. Checks
 include real TLS generation, Debian fixture inspection, canonical firstboot
@@ -46,7 +46,7 @@ The unchanged local full quick gate at `8b761430` did **not pass**: 34 of 35
 Turbo tasks succeeded before API unit tests failed on environment restrictions
 (Unix socket listen EPERM and foreign-owner chown EINVAL, with cleanup cascades).
 Go steps were not reached. Evidence: `.scratch/p10-quick.log` and
-`/tmp/vrx-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log` in that run.
+`/tmp/ngfw-ci/NGFW-packaging-finish-20261002-165449-5/08-turbo.log` in that run.
 No assertions or CI gates were weakened. An unchanged hosted full quick gate on
 the final integration commit is required before merge; prior main success is
 not evidence for this feature commit.

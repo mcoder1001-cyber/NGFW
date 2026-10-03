@@ -70,7 +70,7 @@ function Value({
       aria-label={label}
       dir="ltr"
       sx={{
-        fontFamily: (t) => t.vrx.monoFontFamily,
+        fontFamily: (t) => t.ngfw.monoFontFamily,
         fontSize: '0.8125rem',
         m: 0,
         p: multiline ? 1 : 0,
@@ -147,7 +147,7 @@ export function DiffView({
                         component="code"
                         dir="ltr"
                         sx={{
-                          fontFamily: (th) => th.vrx.monoFontFamily,
+                          fontFamily: (th) => th.ngfw.monoFontFamily,
                           fontSize: '0.8125rem',
                           wordBreak: 'break-all',
                         }}

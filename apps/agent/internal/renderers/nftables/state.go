@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Runtime is the host firewall of one running agent: its renderer and descriptor (for HostAclState).
@@ -36,10 +36,10 @@ func RuntimeFor(stateDir, owner string) *Runtime {
 
 // State is the HostAclState answer: the kernel table (mode check: the stored rendering, never loaded)
 // annotated with the stored value, per-rule counters and the in-sync flag.
-func (rt *Runtime) State(ctx context.Context, now time.Time) (*vrxv1.HostAclStateResponse, error) {
+func (rt *Runtime) State(ctx context.Context, now time.Time) (*ngfwv1.HostAclStateResponse, error) {
 	d := rt.Descriptor
 	p := d.r.paths
-	resp := &vrxv1.HostAclStateResponse{Owner: rt.Owner, RetrievedAt: timestamppb.New(now), Table: p.Table, Mode: p.Mode}
+	resp := &ngfwv1.HostAclStateResponse{Owner: rt.Owner, RetrievedAt: timestamppb.New(now), Table: p.Table, Mode: p.Mode}
 	stored, err := d.st.Load()
 	if err != nil {
 		return nil, err
@@ -74,14 +74,14 @@ func stripConfig(v *HostTable) *HostTable {
 }
 
 // fill copies sets and chains of v into resp, with the counters of k (same chain and rule order).
-func fill(resp *vrxv1.HostAclStateResponse, v *HostTable, k *KernelTable) {
+func fill(resp *ngfwv1.HostAclStateResponse, v *HostTable, k *KernelTable) {
 	for _, s := range v.GetSets() {
-		resp.Sets = append(resp.Sets, &vrxv1.HostAclSetState{Name: s.GetName(), Type: s.GetType(), Object: objectOfSet(s.GetName()), Elements: s.GetElements()})
+		resp.Sets = append(resp.Sets, &ngfwv1.HostAclSetState{Name: s.GetName(), Type: s.GetType(), Object: objectOfSet(s.GetName()), Elements: s.GetElements()})
 	}
 	for ci, c := range v.GetChains() {
-		cs := &vrxv1.HostAclChainState{Name: c.GetName(), Hook: c.GetHook(), Priority: c.GetPriority(), Policy: c.GetPolicy(), List: listOfChain(c.GetName())}
+		cs := &ngfwv1.HostAclChainState{Name: c.GetName(), Hook: c.GetHook(), Priority: c.GetPriority(), Policy: c.GetPolicy(), List: listOfChain(c.GetName())}
 		for ri, r := range c.GetRules() {
-			rs := &vrxv1.HostAclRuleState{Kind: r.GetKind(), List: r.GetList(), Sequence: r.GetSequence(), Pointer: r.GetPointer(), Text: r.GetText(), Verdict: r.GetVerdict(), Comment: r.GetComment()}
+			rs := &ngfwv1.HostAclRuleState{Kind: r.GetKind(), List: r.GetList(), Sequence: r.GetSequence(), Pointer: r.GetPointer(), Text: r.GetText(), Verdict: r.GetVerdict(), Comment: r.GetComment()}
 			if k != nil && ci < len(k.Chains) && ri < len(k.Chains[ci].Rules) {
 				kr := k.Chains[ci].Rules[ri]
 				rs.Packets, rs.Bytes = kr.Packets, kr.Bytes

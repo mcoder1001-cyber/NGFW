@@ -170,7 +170,7 @@ export function ListSection({
                     c.ltr
                       ? {
                           textAlign: 'start',
-                          fontFamily: (th) => th.vrx.monoFontFamily,
+                          fontFamily: (th) => th.ngfw.monoFontFamily,
                           fontSize: 12,
                         }
                       : {}

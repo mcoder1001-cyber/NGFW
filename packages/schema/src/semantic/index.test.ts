@@ -78,7 +78,7 @@ describe('validateSemantics (process-wide registry)', () => {
     const minimal = RootConfig.parse({
       management: {
         users: [
-          { username: 'admin', role: 'admin', passwordHash: '$vrx-test$VRX_TEST_HASH_admin' },
+          { username: 'admin', role: 'admin', passwordHash: '$ngfw-test$NGFW_TEST_HASH_admin' },
         ],
       },
     });

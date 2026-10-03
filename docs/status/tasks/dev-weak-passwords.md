@@ -1,24 +1,24 @@
-# dev-weak-passwords — VRX_DEV_WEAK_PASSWORDS (development only)
+# dev-weak-passwords — NGFW_DEV_WEAK_PASSWORDS (development only)
 
 Product-owner request (2026-09-24): set the tools/app admin password to `admin`. The product requires ≥ 12 characters;
 the owner chose a development switch in the product over a one-off bypass of this instance.
 
 ## What
-- `VRX_DEV_WEAK_PASSWORDS` (apps/api/src/config.ts): `0|1|true|false`, **default off**; **refused at boot with
-  `NODE_ENV=production`** (loadEnv error `VRX_DEV_WEAK_PASSWORDS: development only: refused with NODE_ENV=production`);
+- `NGFW_DEV_WEAK_PASSWORDS` (apps/api/src/config.ts): `0|1|true|false`, **default off**; **refused at boot with
+  `NODE_ENV=production`** (loadEnv error `NGFW_DEV_WEAK_PASSWORDS: development only: refused with NODE_ENV=production`);
   a warning is logged at boot while it is on.
 - Both password routes (`POST /api/v1/auth/password`, `POST /api/v1/users/{name}/password`) parse their body with
   `EnvZodPipe`: flag off → exactly main's schema (`min(PASSWORD_MIN = 12)`, every issue reported together as before);
   flag on → any non-empty password. Strictness, `current`, 1024 max, rate limits, lockout, TD-4 step-up and argon2 unchanged.
 - `UsersService.setPassword`: a 2-line defence-in-depth `assertPasswordPolicy` at the top (same rule, same flag).
 - The OpenAPI keeps documenting the product rule (`minLength: 12`): `openapi.json` regenerated with zero diff.
-- `tools/app`: `VRX_APP_WEAK_PASSWORDS=1` passes the flag (validated `0|1|true|false` before anything runs);
+- `tools/app`: `NGFW_APP_WEAK_PASSWORDS=1` passes the flag (validated `0|1|true|false` before anything runs);
   `status` warns, reading the flag from the running API process (`/proc/<pid>/environ`).
-- docs/tech-debt.md: P10 row — the vrx-api unit sets `NODE_ENV=production`, nothing packaged sets the flag.
+- docs/tech-debt.md: P10 row — the ngfw-api unit sets `NODE_ENV=production`, nothing packaged sets the flag.
 
 ## Out of scope
 The web "Change password" dialog still requires 12 characters (apps/web/src/shell/UserMenu.tsx, unchanged): a short
-password is set through the API. Bootstrap password minimum (`VRX_BOOTSTRAP_ADMIN_PASSWORD` ≥ 8) unchanged.
+password is set through the API. Bootstrap password minimum (`NGFW_BOOTSTRAP_ADMIN_PASSWORD` ≥ 8) unchanged.
 
 ## How verified
 ```
@@ -45,4 +45,4 @@ auth route publishes the weak schema → FAIL (route-guard contract check); serv
 
 Review: adversarial, 5 lenses (security, correctness, contract, tests, ops) + an independent refuter per claim — 10
 confirmed (low/medium), all fixed in 2546ad81 / 10d4cd06; 8 refuted (web dialog unchanged on this branch, pre-existing).
-Slot 11 torn down: vrx_w11 dropped, Valkey db 11 = 0 keys, /run/vrx-test/w11 absent, ports 4100/6100/9211 closed.
+Slot 11 torn down: ngfw_w11 dropped, Valkey db 11 = 0 keys, /run/ngfw-test/w11 absent, ports 4100/6100/9211 closed.

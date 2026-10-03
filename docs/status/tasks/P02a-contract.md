@@ -31,7 +31,7 @@ Branch `task/P02a`. Schema commits: `contract(schema): …`; proto commit: `cont
 | `withUi` merges hints of the wrapped schema | behaviour | D-043, P02b review H1 |
 | `acl.macip.rules[].sourceMac/sourceMacMask` use `macPattern` (group (b) file, 2 lines) | fix at merge | masks/wildcards are not unicast MACs; the group (a) `macAddress` correctly rejects them |
 
-## `packages/proto/vrx/v1/dataplane.proto` (group (a) messages only; nat/vpn/tunnels/services/ha untouched)
+## `packages/proto/ngfw/v1/dataplane.proto` (group (a) messages only; nat/vpn/tunnels/services/ha untouched)
 
 | message | change | kind |
 |---|---|---|

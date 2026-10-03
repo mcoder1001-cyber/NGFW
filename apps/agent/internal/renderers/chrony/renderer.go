@@ -1,5 +1,5 @@
 // Package chrony is the chrony renderer (RF-3, WBS D7.4; services.ntp, D-050): desired
-// state → chrony.conf + sources.d/vrx.sources + chrony.keys (text/template + strict escaping)
+// state → chrony.conf + sources.d/ngfw.sources + chrony.keys (text/template + strict escaping)
 // → validated with `chronyd -p` → applied with `chronyc reload sources` / `chronyc rekey`
 // over the unix command socket, or a typed restart request for any other change → state
 // read back with `chronyc -c sources | sourcestats | tracking | serverstats` → change events
@@ -114,7 +114,7 @@ func (r *Renderer) check() error {
 	return r.paths.Validate()
 }
 
-// Render implements renderers.Renderer: chrony.conf, sources.d/vrx.sources and chrony.keys
+// Render implements renderers.Renderer: chrony.conf, sources.d/ngfw.sources and chrony.keys
 // (Secret, KeyMode). Pure apart from the secret resolver lookup.
 func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {
@@ -136,7 +136,7 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	if err != nil {
 		return nil, err
 	}
-	src, err := renderers.ExecuteTemplate(tmpl, "vrx.sources.tmpl", sourcesData{Input: input, Sources: rd.sources})
+	src, err := renderers.ExecuteTemplate(tmpl, "ngfw.sources.tmpl", sourcesData{Input: input, Sources: rd.sources})
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
@@ -176,7 +176,7 @@ var chronycErrRe = regexp.MustCompile(`^5[0-9]{2} `)
 var keyLineRe = regexp.MustCompile(`^[1-9][0-9]{0,9} SHA256 HEX:[0-9A-F]{2,256}$`)
 
 // Validate implements renderers.Renderer: `chronyd -p -f <staged chrony.conf>` and
-// `chronyd -p -f <staged vrx.sources>` (chrony ≥ 4: parse every directive, print, exit — no
+// `chronyd -p -f <staged ngfw.sources>` (chrony ≥ 4: parse every directive, print, exit — no
 // socket, no clock access; the sources file holds server/pool directives that are also valid
 // in chrony.conf). chrony.keys has no checker: it is validated structurally here, and its
 // content never reaches an error message.

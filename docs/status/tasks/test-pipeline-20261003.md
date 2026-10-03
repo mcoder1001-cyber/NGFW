@@ -4,9 +4,9 @@ Owner requested parallel testing and transferring test waits from developers to 
 
 ## Active host arrangement
 
-Existing heavy.sh allowed three jobs from one pool. A long lab job could repeatedly take a freed slot ahead of short unit/type checks. Created the previously absent /run/lock/vrx-heavy-max with value2: heavy.sh admits long jobs to slots1/2; tools/test-fast.sh admits short host-independent tests to the SAME slot3 flock. Total remains3. Existing holders drain normally; no process was killed or existing lock stolen. Emergency cap1 disables fast admission too. Resource admission requires >=8GiB available and load<20. Fast executions have a default5-minute timeout; queue wait is bounded10 minutes.
+Existing heavy.sh allowed three jobs from one pool. A long lab job could repeatedly take a freed slot ahead of short unit/type checks. Created the previously absent /run/lock/ngfw-heavy-max with value2: heavy.sh admits long jobs to slots1/2; tools/test-fast.sh admits short host-independent tests to the SAME slot3 flock. Total remains3. Existing holders drain normally; no process was killed or existing lock stolen. Emergency cap1 disables fast admission too. Resource admission requires >=8GiB available and load<20. Fast executions have a default5-minute timeout; queue wait is bounded10 minutes.
 
-The reservation is intentionally host-wide. Other worktrees using existing heavy.sh honor max2 automatically. Do not launch jobs outside wrappers or expand the global cap. To retire this arrangement, stop submitting fast jobs, wait until slot3 is unheld, verify this coordinator's originally-created cap is still2, then remove /run/lock/vrx-heavy-max. Preserve any later emergency cap or another manager's setting. No 24-hour AI supervisor is claimed.
+The reservation is intentionally host-wide. Other worktrees using existing heavy.sh honor max2 automatically. Do not launch jobs outside wrappers or expand the global cap. To retire this arrangement, stop submitting fast jobs, wait until slot3 is unheld, verify this coordinator's originally-created cap is still2, then remove /run/lock/ngfw-heavy-max. Preserve any later emergency cap or another manager's setting. No 24-hour AI supervisor is claimed.
 
 ## Handoff
 

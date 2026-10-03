@@ -1,6 +1,6 @@
 package qosflat
 
-// F-qos-flat host test (FAST-MODE definition of done): the real vrx-agent binary (owner = the slot prefix, the slot's
+// F-qos-flat host test (FAST-MODE definition of done): the real ngfw-agent binary (owner = the slot prefix, the slot's
 // id range) on the host VPP, driven through its gRPC API — no API/DB needed for the data-plane evidence. Only the
 // slot's loopbacks carry QoS (loop<N>71..73), no packets are sent (no rig, no V19 preflight), policer names carry the
 // slot prefix twice (VPP name "w<N>:w<N>-gold"), egress map ids come from the slot range (<N>000–<N>999).
@@ -39,11 +39,11 @@ import (
 
 	"ngfw/agent/binapi/policer"
 	"ngfw/agent/binapi/qos"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 const (
-	labLock   = "/run/lock/vrx-lab.lock"
+	labLock   = "/run/lock/ngfw-lab.lock"
 	apiSocket = "/run/vpp/api.sock"
 )
 
@@ -53,15 +53,15 @@ type slot struct {
 	metrics string
 	runDir  string
 	socket  string
-	base    int // VRX_VPP_TABLE_BASE
+	base    int // NGFW_VPP_TABLE_BASE
 }
 
 func slotFromEnv(t *testing.T) slot {
 	t.Helper()
-	p := os.Getenv("VRX_TEST_PREFIX")
+	p := os.Getenv("NGFW_TEST_PREFIX")
 	m := regexp.MustCompile(`^w([0-9]{1,2})$`).FindStringSubmatch(p)
 	if m == nil {
-		t.Fatalf("VRX_TEST_PREFIX=%q: eval \"$(tools/lab env <N>)\" first", p)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: eval \"$(tools/lab env <N>)\" first", p)
 	}
 	n, _ := strconv.Atoi(m[1])
 	env := func(k, def string) string {
@@ -70,12 +70,12 @@ func slotFromEnv(t *testing.T) slot {
 		}
 		return def
 	}
-	base, err := strconv.Atoi(env("VRX_VPP_TABLE_BASE", strconv.Itoa(1000*n)))
+	base, err := strconv.Atoi(env("NGFW_VPP_TABLE_BASE", strconv.Itoa(1000*n)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := slot{prefix: p, num: n, metrics: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)), runDir: "/run/vrx-test/" + p, base: base}
-	s.socket = env("VRX_AGENT_SOCKET", s.runDir+"/agent.sock")
+	s := slot{prefix: p, num: n, metrics: env("NGFW_METRICS_PORT", strconv.Itoa(9100+10*n+1)), runDir: "/run/ngfw-test/" + p, base: base}
+	s.socket = env("NGFW_AGENT_SOCKET", s.runDir+"/agent.sock")
 	return s
 }
 
@@ -130,9 +130,9 @@ type proc struct {
 
 func startAgent(t *testing.T, s slot, work string) *proc {
 	t.Helper()
-	bin := os.Getenv("VRX_QOS_AGENT_BIN")
+	bin := os.Getenv("NGFW_QOS_AGENT_BIN")
 	if bin == "" {
-		t.Fatal("VRX_QOS_AGENT_BIN unset (use run.sh)")
+		t.Fatal("NGFW_QOS_AGENT_BIN unset (use run.sh)")
 	}
 	f, err := os.OpenFile(filepath.Join(work, "agent.log"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
 	if err != nil {
@@ -140,16 +140,16 @@ func startAgent(t *testing.T, s slot, work string) *proc {
 	}
 	cmd := exec.Command(bin) //nolint:gosec // the agent binary run.sh built from this tree
 	cmd.Env = append(os.Environ()[:0:0], "PATH="+os.Getenv("PATH"),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: a slot never owns globals
-		"VRX_AGENT_STATE_DIR="+filepath.Join(work, "state"), "VRX_METRICS_PORT="+s.metrics, "VRX_SOCKET_GROUP=root",
-		"VRX_VPP_TABLE_BASE="+strconv.Itoa(s.base), "VRX_LOG_LEVEL=info")
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: a slot never owns globals
+		"NGFW_AGENT_STATE_DIR="+filepath.Join(work, "state"), "NGFW_METRICS_PORT="+s.metrics, "NGFW_SOCKET_GROUP=root",
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(s.base), "NGFW_LOG_LEVEL=info")
 	cmd.Stdout, cmd.Stderr = f, f
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
 	p := &proc{cmd: cmd, done: make(chan struct{})}
 	go func() { _ = cmd.Wait(); _ = f.Close(); close(p.done) }()
-	t.Logf("started vrx-agent pid %d (owner %s, log %s)", cmd.Process.Pid, s.prefix, filepath.Join(work, "agent.log"))
+	t.Logf("started ngfw-agent pid %d (owner %s, log %s)", cmd.Process.Pid, s.prefix, filepath.Join(work, "agent.log"))
 	return p
 }
 
@@ -166,17 +166,17 @@ func (p *proc) stop(t *testing.T) {
 		_ = p.cmd.Process.Kill()
 		<-p.done
 	}
-	t.Logf("stopped vrx-agent pid %d", p.cmd.Process.Pid)
+	t.Logf("stopped ngfw-agent pid %d", p.cmd.Process.Pid)
 }
 
-func dial(t *testing.T, socket string) vrxv1.DataplaneClient {
+func dial(t *testing.T, socket string) ngfwv1.DataplaneClient {
 	t.Helper()
 	cc, err := grpc.NewClient("unix:"+socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cc.Close() })
-	return vrxv1.NewDataplaneClient(cc)
+	return ngfwv1.NewDataplaneClient(cc)
 }
 
 func waitFor(timeout time.Duration, f func() bool) bool {
@@ -233,20 +233,20 @@ func retrievedQoS(s slot) string {
 }}}`)
 }
 
-func parse(t *testing.T, js string) *vrxv1.DesiredState {
+func parse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
 	return ds
 }
 
-func applyDoc(t *testing.T, c vrxv1.DataplaneClient, s slot, id, js string) *vrxv1.ApplyResponse {
+func applyDoc(t *testing.T, c ngfwv1.DataplaneClient, s slot, id, js string) *ngfwv1.ApplyResponse {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	resp, err := c.Apply(ctx, &vrxv1.ApplyRequest{TxnId: fmt.Sprintf("%s-qos-%s-%d", s.prefix, id, time.Now().UnixNano()), Owner: s.prefix,
+	resp, err := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: fmt.Sprintf("%s-qos-%s-%d", s.prefix, id, time.Now().UnixNano()), Owner: s.prefix,
 		DesiredState: parse(t, js), Subsystems: []string{"interfaces", "services"}})
 	if err != nil {
 		t.Fatalf("apply %s: %v", id, err)
@@ -254,11 +254,11 @@ func applyDoc(t *testing.T, c vrxv1.DataplaneClient, s slot, id, js string) *vrx
 	return resp
 }
 
-func retrieveQoS(t *testing.T, c vrxv1.DataplaneClient, s slot) *vrxv1.QosService {
+func retrieveQoS(t *testing.T, c ngfwv1.DataplaneClient, s slot) *ngfwv1.QosService {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	r, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{Owner: s.prefix, Subsystems: []string{"services"}})
+	r, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: s.prefix, Subsystems: []string{"services"}})
 	if err != nil {
 		t.Fatalf("retrieve: %v", err)
 	}
@@ -311,8 +311,8 @@ func policerIndex(t *testing.T, conn vppapi.Connection, name string) (uint32, bo
 }
 
 func TestQoSFlatHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("host test (VRX_INTEGRATION=1 via run.sh); host runs on the shared VPP wait for TD-25")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("host test (NGFW_INTEGRATION=1 via run.sh); host runs on the shared VPP wait for TD-25")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -333,14 +333,14 @@ func TestQoSFlatHost(t *testing.T) {
 	t.Cleanup(func() { agent.stop(t) })
 	c := dial(t, s.socket)
 	if !waitFor(30*time.Second, func() bool {
-		h, err := c.Health(context.Background(), &vrxv1.HealthRequest{})
+		h, err := c.Health(context.Background(), &ngfwv1.HealthRequest{})
 		return err == nil && h.GetVppConnected() && !h.GetReconcileInProgress()
 	}) {
 		t.Fatal("agent not connected to VPP within 30 s")
 	}
 	empty := `{"interfaces": {}, "services": {}}`
 	t.Cleanup(func() { // rollback also when the test failed half-way (the agent may have been restarted)
-		if resp := applyDoc(t, c, s, "cleanup", empty); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		if resp := applyDoc(t, c, s, "cleanup", empty); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 			t.Errorf("cleanup apply: %v", resp)
 		}
 	})
@@ -348,7 +348,7 @@ func TestQoSFlatHost(t *testing.T) {
 	vppName := func(n string) string { return s.prefix + ":" + s.prefix + "-" + n }
 
 	// 1. commit → Retrieve, vppctl, attachments exactly once
-	if resp := applyDoc(t, c, s, "apply", qosDoc(s)); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp := applyDoc(t, c, s, "apply", qosDoc(s)); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %v", resp)
 	}
 	want := parse(t, retrievedQoS(s)).GetServices().GetQos()
@@ -389,19 +389,19 @@ func TestQoSFlatHost(t *testing.T) {
 	}
 	checkOnce("after commit")
 	// a repeat is an empty plan (write-only attachments are not applied again)
-	if resp := applyDoc(t, c, s, "repeat", qosDoc(s)); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || len(resp.GetResults()) != 0 {
+	if resp := applyDoc(t, c, s, "repeat", qosDoc(s)); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || len(resp.GetResults()) != 0 {
 		t.Fatalf("repeat: %v", resp)
 	}
 	checkOnce("after a repeated commit")
 
 	// 2. RPCs
 	ctx := context.Background()
-	st, err := c.QosPolicerState(ctx, &vrxv1.QosPolicerStateRequest{Owner: s.prefix})
+	st, err := c.QosPolicerState(ctx, &ngfwv1.QosPolicerStateRequest{Owner: s.prefix})
 	if err != nil || len(st.GetPolicers()) != 3 {
 		t.Fatalf("QosPolicerState %v %v", st, err)
 	}
 	t.Logf("QosPolicerState: %s", protojson.Format(st))
-	if r, err := c.QosPolicerReset(ctx, &vrxv1.QosPolicerResetRequest{Owner: s.prefix, Name: s.prefix + "-gold"}); err != nil {
+	if r, err := c.QosPolicerReset(ctx, &ngfwv1.QosPolicerResetRequest{Owner: s.prefix, Name: s.prefix + "-gold"}); err != nil {
 		t.Fatalf("QosPolicerReset: %v", err)
 	} else {
 		t.Logf("QosPolicerReset: %s", protojson.Format(r))
@@ -432,7 +432,7 @@ func TestQoSFlatHost(t *testing.T) {
 	agent = startAgent(t, s, work)
 	start := time.Now()
 	if !waitFor(30*time.Second, func() bool {
-		h, err := c.Health(ctx, &vrxv1.HealthRequest{})
+		h, err := c.Health(ctx, &ngfwv1.HealthRequest{})
 		if err != nil || !h.GetVppConnected() || h.GetReconcileInProgress() {
 			return false
 		}
@@ -444,10 +444,10 @@ func TestQoSFlatHost(t *testing.T) {
 	checkOnce("after the agent restart")
 
 	// 4. rollback
-	if resp := applyDoc(t, c, s, "rollback", empty); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp := applyDoc(t, c, s, "rollback", empty); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("rollback: %v", resp)
 	}
-	if got := retrieveQoS(t, c, s); !proto.Equal(got, &vrxv1.QosService{}) {
+	if got := retrieveQoS(t, c, s); !proto.Equal(got, &ngfwv1.QosService{}) {
 		t.Fatalf("after rollback Retrieve: %s", protojson.Format(got))
 	}
 	pol = vppctl(t, "show", "policer")

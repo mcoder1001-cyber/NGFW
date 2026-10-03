@@ -11,13 +11,13 @@ package desired
 import (
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/gso"
 	"ngfw/agent/internal/scheduler"
 )
 
 // Gso emits gso.interface/<if> for every interface of ifs with gso: true.
-func Gso(s Sink, ifs map[string]*vrxv1.Interface) {
+func Gso(s Sink, ifs map[string]*ngfwv1.Interface) {
 	for _, name := range sortedKeys(ifs) {
 		if ifs[name].GetGso() {
 			s.Add(gso.Key(name), gso.Interface{Interface: name}.Proto(), Ptr("interfaces", name, "gso"))
@@ -27,7 +27,7 @@ func Gso(s Sink, ifs map[string]*vrxv1.Interface) {
 
 // AssembleGso sets interfaces.<if>.gso from the retrieved gso.interface objects (see the file
 // comment); stored is the agent's stored `interfaces` document.
-func AssembleGso(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string]*vrxv1.Interface) {
+func AssembleGso(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[string]*ngfwv1.Interface) {
 	on := map[string]bool{}
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() == gso.Name {

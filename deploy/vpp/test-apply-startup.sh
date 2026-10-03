@@ -1,41 +1,41 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090,SC2016,SC2034,SC2119,SC2120  # apply() takes optional extra flags; ok() evaluates its single-quoted condition later (uses $out, $rc, $W, …); scenarios source the script under test
 # deploy/vpp/test-apply-startup.sh — exercises apply-startup.sh against a FAKE host: fake systemctl (MainPID,
-# ActiveEnterTimestampMonotonic, NRestarts reset on restart — as systemd does), systemd-run, vrx-vppcheck
+# ActiveEnterTimestampMonotonic, NRestarts reset on restart — as systemd does), systemd-run, ngfw-vppcheck
 # (incl. the D-080 boot identity), ip, ss, ping (a gateway that may drop ICMP), a TCP prober, driverctl,
 # ifup / networkctl / netplan, logger, lslocks, a fake sysfs tree, a fake /etc (network configuration only),
-# temp locks, a temp startup.conf and a fixture "canonical repo" (VRX_TEST_ROOT/canon: handover flag, PENDING
+# temp locks, a temp startup.conf and a fixture "canonical repo" (NGFW_TEST_ROOT/canon: handover flag, PENDING
 # files, LOG.md on branch main). Nothing on the real host is read or changed (no VPP, no /etc, no /sys, no real
 # locks, not /root/ngfw).
 #
-#   deploy/vpp/test-apply-startup.sh [path/to/vrx-startupgen]
+#   deploy/vpp/test-apply-startup.sh [path/to/ngfw-startupgen]
 #
 # Without an argument the generator is built from apps/agent into a temp dir. Every process a scenario
 # starts is killed by PID (never by pattern).
-#   VRX_TEST_ONLY="8 32"        run only these scenarios (numbers as printed)
-#   VRX_TEST_SHARD=i/n          run scenario N only when (N-1) % n == i-1 (tools/ci.sh runs n shards in parallel)
-#   VRX_TEST_APPLY_SCRIPT=path  exercise another copy of apply-startup.sh (e.g. main's, to show a scenario failing before a fix)
+#   NGFW_TEST_ONLY="8 32"        run only these scenarios (numbers as printed)
+#   NGFW_TEST_SHARD=i/n          run scenario N only when (N-1) % n == i-1 (tools/ci.sh runs n shards in parallel)
+#   NGFW_TEST_APPLY_SCRIPT=path  exercise another copy of apply-startup.sh (e.g. main's, to show a scenario failing before a fix)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-SCRIPT="${VRX_TEST_APPLY_SCRIPT:-$HERE/apply-startup.sh}"
+SCRIPT="${NGFW_TEST_APPLY_SCRIPT:-$HERE/apply-startup.sh}"
 scen() {  # <N> → is scenario N selected?
-  local shard="${VRX_TEST_SHARD:-1/1}"
-  [[ -z ${VRX_TEST_ONLY:-} || " $VRX_TEST_ONLY " == *" $1 "* ]] || return 1
-  [[ $shard =~ ^([0-9]+)/([0-9]+)$ ]] || { echo "VRX_TEST_SHARD must be i/n" >&2; exit 2; }
+  local shard="${NGFW_TEST_SHARD:-1/1}"
+  [[ -z ${NGFW_TEST_ONLY:-} || " $NGFW_TEST_ONLY " == *" $1 "* ]] || return 1
+  [[ $shard =~ ^([0-9]+)/([0-9]+)$ ]] || { echo "NGFW_TEST_SHARD must be i/n" >&2; exit 2; }
   (( ($1 - 1) % BASH_REMATCH[2] == BASH_REMATCH[1] - 1 ))
 }
 FIX="$REPO/apps/agent/internal/renderers/vppstartup/testdata"
 TOP="$(mktemp -d)"
 PIDS=()
-export VRX_TEST_ROOT="$TOP"
+export NGFW_TEST_ROOT="$TOP"
 # fixture canonical repo: host flag pending; PENDING-fake-change answered by D-900 (subject) naming the rendering's sha256
 # (row added by approve_rendering once the sum is known); PENDING-closed answered by D-901 for another change; PENDING-
 # mentioned that a D-row only mentions in passing
 CANON="$TOP/canon"
 mkdir -p "$CANON/docs/lab" "$CANON/docs/decisions"
-printf '# vrx-a\n\n`handover: pending`\n' > "$CANON/docs/lab/host-vrx-a.md"
+printf '# ngfw-a\n\n`handover: pending`\n' > "$CANON/docs/lab/host-ngfw-a.md"
 printf '# PENDING: fake-change\n\n- raised: 2026-09-24 by test\n- decision: **option 1** — product owner (D-900)\n' > "$CANON/docs/decisions/PENDING-fake-change.md"
 printf '# PENDING: closed\n\n- raised: 2026-09-20 by test\n- decision: **option 1** — product owner; executed 2026-09-21\n' > "$CANON/docs/decisions/PENDING-closed.md"
 printf '# PENDING: mentioned\n\n- raised: 2026-09-24 by test\n- decision: pending\n' > "$CANON/docs/decisions/PENDING-mentioned.md"
@@ -63,8 +63,8 @@ trap cleanup EXIT
 
 GEN="${1:-}"
 if [[ -z $GEN ]]; then
-  GEN="$TOP/vrx-startupgen"
-  (cd "$REPO/apps/agent" && go build -o "$GEN" ./cmd/vrx-startupgen)
+  GEN="$TOP/ngfw-startupgen"
+  (cd "$REPO/apps/agent" && go build -o "$GEN" ./cmd/ngfw-startupgen)
 fi
 
 PASS=0 FAIL=0
@@ -110,9 +110,9 @@ setup() {
     ln -s "$T/sys/bus/pci/drivers/vmxnet3" "$T/sys/bus/pci/devices/$p/driver"
   done
   ln -s "$T/sys/bus/pci/devices/0000:0b:00.0" "$T/sys/class/net/ens192/device"
-  xargs -I{} touch "$T/plugins/{}" < "$FIX/plugins-vrx-a.txt"
+  xargs -I{} touch "$T/plugins/{}" < "$FIX/plugins-ngfw-a.txt"
   cp "$FIX/host-startup.conf" "$T/etc/vpp/startup.conf"
-  # vrx-a: ifupdown owns ens192 (docs/lab/host-vrx-a.md)
+  # ngfw-a: ifupdown owns ens192 (docs/lab/host-ngfw-a.md)
   printf 'auto ens192\niface ens192 inet static\n  address 10.0.0.5/24\n  gateway 10.0.0.1\n' > "$T/etc/network/interfaces.d/ens192.cfg"
   python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$T/api.sock"
   echo active > "$T/state/vpp"; echo 4 > "$T/state/nrestarts"; echo 0 > "$T/state/ping"; : > "$T/state/pids"
@@ -156,7 +156,7 @@ while [[ $1 == --* ]]; do case "$1" in --setenv=*) envs+=("${1#--setenv=}") ;; e
 setsid env -i "${envs[@]}" "$@" </dev/null >/dev/null 2>&1 &
 echo $! >> "$FAKE/state/pids"
 EOF
-  cat > "$T/bin/vrx-vppcheck" <<'EOF'
+  cat > "$T/bin/ngfw-vppcheck" <<'EOF'
 #!/usr/bin/env bash
 while [[ $1 == --* ]]; do shift 2; done
 echo "vppcheck $*" >> "$FAKE/calls"
@@ -170,7 +170,7 @@ if [[ -e $S/crash-after ]]; then   # VPP crashes; systemd (Restart=always) bring
   else echo $((n - 1)) > "$S/crash-after"; fi
 fi
 [[ ! -e $S/hang ]] || exec sleep 1000          # VPP accepts the socket and never answers
-[[ $(cat "$S/vpp") == active ]] || { echo "vrx-vppcheck: cannot reach VPP" >&2; exit 2; }
+[[ $(cat "$S/vpp") == active ]] || { echo "ngfw-vppcheck: cannot reach VPP" >&2; exit 2; }
 case "$1" in
   version) echo "vpp 26.06-release" ;;
   bootid) echo "fake-boot/$(cat "$S/mainpid")/$(cat "$S/start")" ;;
@@ -221,7 +221,7 @@ case "$*" in
 esac
 exit 0
 EOF
-  # the gateway answers ICMP unless state/no-icmp (vrx-a's gateway does not); TCP / the manager's session
+  # the gateway answers ICMP unless state/no-icmp (ngfw-a's gateway does not); TCP / the manager's session
   # work while the management path (address + default route) is there
   cat > "$T/bin/ping" <<'EOF'
 #!/usr/bin/env bash
@@ -258,13 +258,13 @@ EOF
   sed -i "s#\\\$FAKE#$T#g" "$T"/bin/*   # fakes carry their root literally: a unit runs under env -i
   chmod +x "$T"/bin/*
   : > "$T/calls"
-  export VRX_STARTUP_CONF="$T/etc/vpp/startup.conf" VRX_SYSFS="$T/sys" VRX_ETC="$T/etc" VRX_APPLY_STATE="$T/apply" \
-    VRX_LAB_LOCK="$T/lab.lock" VRX_VPP_LOCK="$T/vpp.lock" VRX_VPP_API_SOCKET="$T/api.sock" \
-    VRX_SYSTEMCTL="$T/bin/systemctl" VRX_SYSTEMD_RUN="$T/bin/systemd-run" VRX_IP="$T/bin/ip" VRX_PING="$T/bin/ping" \
-    VRX_SS="$T/bin/ss" VRX_TCPCONNECT="$T/bin/tcpconnect" VRX_LSLOCKS="$T/bin/lslocks" \
-    VRX_DRIVERCTL="$T/bin/driverctl" VRX_NETPLAN="$T/bin/netplan.absent" VRX_IFUP="$T/bin/ifup" VRX_NETWORKCTL="$T/bin/networkctl" \
-    VRX_LOGGER="$T/bin/logger" VRX_VPPCHECK="$T/bin/vrx-vppcheck" VRX_STARTUPGEN="$GEN" VRX_HANDOVER_EXTRA="" \
-    VRX_MGMT_PEERS="" VRX_MGMT_IFS="" VRX_MGMT_PROBE="auto"
+  export NGFW_STARTUP_CONF="$T/etc/vpp/startup.conf" NGFW_SYSFS="$T/sys" NGFW_ETC="$T/etc" NGFW_APPLY_STATE="$T/apply" \
+    NGFW_LAB_LOCK="$T/lab.lock" NGFW_VPP_LOCK="$T/vpp.lock" NGFW_VPP_API_SOCKET="$T/api.sock" \
+    NGFW_SYSTEMCTL="$T/bin/systemctl" NGFW_SYSTEMD_RUN="$T/bin/systemd-run" NGFW_IP="$T/bin/ip" NGFW_PING="$T/bin/ping" \
+    NGFW_SS="$T/bin/ss" NGFW_TCPCONNECT="$T/bin/tcpconnect" NGFW_LSLOCKS="$T/bin/lslocks" \
+    NGFW_DRIVERCTL="$T/bin/driverctl" NGFW_NETPLAN="$T/bin/netplan.absent" NGFW_IFUP="$T/bin/ifup" NGFW_NETWORKCTL="$T/bin/networkctl" \
+    NGFW_LOGGER="$T/bin/logger" NGFW_VPPCHECK="$T/bin/ngfw-vppcheck" NGFW_STARTUPGEN="$GEN" NGFW_HANDOVER_EXTRA="" \
+    NGFW_MGMT_PEERS="" NGFW_MGMT_IFS="" NGFW_MGMT_PROBE="auto"
   unset SSH_CONNECTION
   DOCF="$FIX/cases/six-nic-sample.json"
   HOSTARGS=(-- --no-host --mgmt-pci 0000:0b:00.0 --plugin-dir "$T/plugins" --online-cpus 0-31 --numa-nodes 2 --hugepages-mb 2048)
@@ -273,10 +273,10 @@ EOF
   approve_rendering "$NEW"
   T0=$SECONDS
 }
-rendered() { "$GEN" --current "$VRX_STARTUP_CONF" "${HOSTARGS[@]:1}" "$1" 2>/dev/null | sha256sum | awk '{print $1}'; }
-# CT/ST: every fake command must answer within CT (vrx-vppcheck: CT+2) and every fake systemctl job within ST even on a
+rendered() { "$GEN" --current "$NGFW_STARTUP_CONF" "${HOSTARGS[@]:1}" "$1" 2>/dev/null | sha256sum | awk '{print $1}'; }
+# CT/ST: every fake command must answer within CT (ngfw-vppcheck: CT+2) and every fake systemctl job within ST even on a
 # loaded CI host (TD-6: 1 s / 3 s failed under load 35–45 — `hook restart 'sleep 2'` had 1 s to spare; with CT=2 one
-# vrx-vppcheck still missed its 4 s in a burst to load 37); the hang scenarios wait for them
+# ngfw-vppcheck still missed its 4 s in a burst to load 37); the hang scenarios wait for them
 CT=3 ST=6
 TIMING=(--window 2 --interval 1 --settle 1 --api-wait 2 --lock-timeout 2 --cmd-timeout "$CT" --svc-timeout "$ST" --deadman-lock-timeout 1)
 APPROVE=(--i-have-product-owner-approval PENDING-fake-change)   # fixture: D-900 has it as subject and names the rendering
@@ -296,7 +296,7 @@ finished_dir() { [[ -e $1/committed || -e $1/rolled-back || -e $1/console-needed
 state_line() {  # <work dir> <rc> → one evidence line (what the host looks like after a scenario)
   local w="$1" m="" f
   for f in committed rolled-back console-needed superseded; do [[ -e $w/$f ]] && m+="$f "; done
-  echo "    state: rc=$2 finished=[${m% }] vpp=$(cat "$T/state/vpp") locks-free=$(locks_free && echo y || echo n) timer-cancelled=$(grep -q "systemctl stop vrx-startup-apply-deadman-$(basename "$w").timer" "$T/calls" && echo y || echo n) live==new=$(cmp -s "$T/etc/vpp/startup.conf" "$w/new.conf" 2>/dev/null && echo y || echo n) live==orig=$(unchanged 2>/dev/null && echo y || echo n)"
+  echo "    state: rc=$2 finished=[${m% }] vpp=$(cat "$T/state/vpp") locks-free=$(locks_free && echo y || echo n) timer-cancelled=$(grep -q "systemctl stop ngfw-startup-apply-deadman-$(basename "$w").timer" "$T/calls" && echo y || echo n) live==new=$(cmp -s "$T/etc/vpp/startup.conf" "$w/new.conf" 2>/dev/null && echo y || echo n) live==orig=$(unchanged 2>/dev/null && echo y || echo n)"
 }
 restarts() { grep -cE "^systemctl (restart|start) vpp" "$T/calls" || true; }   # VPP (re)starts done by the script
 # TD-7 F1: two `--stage rollback` of one work dir $W at once. Rollback 1 runs in the background and is held inside its
@@ -331,14 +331,14 @@ ok 'grep -q "ens192 pci=0000:0b:00.0 driver=vmxnet3 manager=ifupdown addrs=10.0.
 ok 'grep -q "ip addr replace 10.0.0.5/24 broadcast 10.0.0.255 dev ens192" <<<"$out" && grep -q "ip -4 route replace default via 10.0.0.1 dev ens192 onlink" <<<"$out"' "exact restore plan printed (address + default route)"
 ok '! grep -q "fe80\|proto kernel" <<<"$(sed -n "/restore plan/,/reachability/p" <<<"$out")"' "link-local address and kernel routes are not in the plan"
 ok 'grep -q "will use: neigh (passes now)" <<<"$out"' "reachability check chosen and shown: neigh (next hop REACHABLE)"
-ok 'grep -q "present: local0" <<<"$out" && grep -q "boot identity: fake-boot/1000/5000" <<<"$out" && grep -q "REFUSED: docs/lab/host-vrx-a.md says handover: pending" <<<"$out"' "VPP preflight + boot identity; gate state shown"
+ok 'grep -q "present: local0" <<<"$out" && grep -q "boot identity: fake-boot/1000/5000" <<<"$out" && grep -q "REFUSED: docs/lab/host-ngfw-a.md says handover: pending" <<<"$out"' "VPP preflight + boot identity; gate state shown"
 ok 'grep -qx "$ORIG" <<<"$out" && grep -qx "$NEW" <<<"$out"' "sha256 of the live file and of the rendering printed"
 ok 'unchanged && ! grep -qE "systemctl (restart|stop|start)|addr replace" "$T/calls"' "live file untouched, VPP not restarted, no ip change"
 ok '[[ -z $(ls -A "$T/tmp") ]]' "dry run removed its temp dir"
 
 fi
 if scen 2; then
-echo "== 2. dry run: reachability — gateway drops ICMP (vrx-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected"
+echo "== 2. dry run: reachability — gateway drops ICMP (ngfw-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected"
 setup
 touch "$T/state/no-icmp" "$T/state/ssh-est"
 rc=0; out="$(SSH_CONNECTION="10.0.0.9 51234 10.0.0.5 22" "$SCRIPT" --doc "$DOCF" --cmd-timeout "$CT" "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
@@ -365,15 +365,15 @@ rc=0; "$SCRIPT" --doc "$DOCF" --window 0 "${HOSTARGS[@]}" >/dev/null 2>&1 || rc=
 ok '[[ $rc == 2 ]]' "--window 0 refused (exit $rc)"
 rc=0; SSH_CONNECTION="10.0.0.9 1 10.0.0.5 22" "$SCRIPT" --doc "$DOCF" --apply --foreground "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 2 ]] && unchanged && grep -q "foreground over SSH" "$T/out"' "--foreground over SSH without --console refused (exit $rc)"
-rc=0; VRX_STARTUP_CONF=/etc/vpp/startup.conf "$SCRIPT" --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
-ok '[[ $rc == 2 ]] && grep -q "VRX_TEST_ROOT is only honoured when" "$T/out"' "a test root with the real startup.conf is refused (exit $rc)"
+rc=0; NGFW_STARTUP_CONF=/etc/vpp/startup.conf "$SCRIPT" --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]] && grep -q "NGFW_TEST_ROOT is only honoured when" "$T/out"' "a test root with the real startup.conf is refused (exit $rc)"
 
 fi
 if scen 4; then
 echo "== 4. gate: pending → refused; approval only when a D-row has the PENDING as subject AND names this rendering; spent approval refused (N4)"
 setup
 rc=0; out="$("$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" 2>&1)" || rc=$?
-ok '[[ $rc == 3 ]] && unchanged && [[ -z $(work) ]] && grep -q "REFUSED: docs/lab/host-vrx-a.md says handover: pending" <<<"$out"' "no approval: exit $rc, no work dir"
+ok '[[ $rc == 3 ]] && unchanged && [[ -z $(work) ]] && grep -q "REFUSED: docs/lab/host-ngfw-a.md says handover: pending" <<<"$out"' "no approval: exit $rc, no work dir"
 for bad in "PENDING-no-such:does not exist on main" "PENDING-closed:no D-row on main answering PENDING-closed names this rendering" "PENDING-mentioned:no D-row on main has PENDING-mentioned as the subject"; do
   id="${bad%%:*}" msg="${bad#*:}"
   rc=0; out="$("$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --i-have-product-owner-approval "$id" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" 2>&1)" || rc=$?
@@ -383,7 +383,7 @@ ok '! grep -q "systemctl" "$T/calls"' "systemd never touched"
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 W="$(work)"
 ok '[[ $rc == 0 ]] && grep -q "PRODUCT-OWNER APPROVAL PENDING-fake-change (docs/decisions/PENDING-fake-change.md@[0-9a-f]\{12\} + LOG D-900 for rendering $NEW)" "$W/gate" "$W/log"' "D-900 has the PENDING as subject and names this rendering: accepted, recorded in gate + log (exit $rc)"
-ok 'grep -q "logger -t vrx-startup-apply -- gate: handover pending.*PENDING-fake-change" "$T/calls"' "approval sent to syslog"
+ok 'grep -q "logger -t ngfw-startup-apply -- gate: handover pending.*PENDING-fake-change" "$T/calls"' "approval sent to syslog"
 cp "$FIX/host-startup.conf" "$T/etc/vpp/startup.conf"
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 3 ]] && unchanged && [[ $(find "$T/apply" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 ]] && grep -q "PENDING-fake-change was already executed for this rendering (.* committed) — a spent approval cannot be replayed" "$T/out"' "same approval + same rendering again after the commit: spent, exit $rc, no new work dir"
@@ -393,11 +393,11 @@ ok '[[ $rc == 3 ]] && unchanged && grep -q "no D-row on main answering PENDING-f
 rc=0; out="$("$SCRIPT" --doc "$T/other.json" --cmd-timeout "$CT" "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
 ok 'grep -q "does not cover this change" <<<"$out"' "the dry run shows the gate against its own rendering"
 setup
-sed -i 's/handover: pending/handover: done/' "$CANON/docs/lab/host-vrx-a.md"
+sed -i 's/handover: pending/handover: done/' "$CANON/docs/lab/host-ngfw-a.md"
 rc=0; "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 0 ]] && grep -q "gate: handover done" "$T/out"' "handover: done → accepted without approval (exit $rc)"
-rc=0; VRX_HANDOVER_EXTRA="$T/host-pending.md" "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}')" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
-sed -i 's/handover: done/handover: pending/' "$CANON/docs/lab/host-vrx-a.md"
+rc=0; NGFW_HANDOVER_EXTRA="$T/host-pending.md" "$SCRIPT" --doc "$DOCF" --apply --foreground "${TIMING[@]}" --expect-sha256 "$(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}')" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+sed -i 's/handover: done/handover: pending/' "$CANON/docs/lab/host-ngfw-a.md"
 ok '[[ $rc == 3 ]] && grep -q "host-pending.md=pending" "$T/out"' "one more pending source keeps it pending (exit $rc)"
 ok '[[ $( (. "$SCRIPT"; printf "x\n\`handover: done\`\n" | handover_flag) ) == done && $( (. "$SCRIPT"; printf "nothing\n" | handover_flag) ) == pending ]] && [[ $( (. "$SCRIPT"; ere_escape "ens192.10") ) == "ens192\\.10" ]]' "flag parser (tools/lab rule); interface names regex-escaped"
 
@@ -445,11 +445,11 @@ ok '[[ $rc == 0 && -e $W/committed && ! -e $W/rolled-back ]] && [[ $(cat "$T/sta
 ok '[[ $(cat "$W/ident.before") == fake-boot/1000/5000 && $(cat "$W/ident.after") == fake-boot/1001/5100 ]] && grep -q "MainPID=1001 NRestarts=0" "$W/unit.restart"' "new boot identity = the unit's MainPID, NRestarts 0 right after the restart"
 ok '(( $(wc -l < "$W/ident.reads") >= 2 ))' "identity stable across $(wc -l < "$W/ident.reads" 2>/dev/null || echo 0) reads in the window"
 ok 'cmp -s "$T/etc/vpp/startup.conf" "$W/new.conf" && cmp -s "$W/backup.conf" "$FIX/host-startup.conf" && ls "$T/etc/vpp/" | grep -q "startup.conf.bak-"' "new file installed, backup kept"
-ok 'grep -q "vppcheck ifaces dmz lan lan2 p2p sync wan" "$T/calls" && grep -q "vppcheck plugins" "$T/calls"' "logical interfaces + plugins verified through vrx-vppcheck"
+ok 'grep -q "vppcheck ifaces dmz lan lan2 p2p sync wan" "$T/calls" && grep -q "vppcheck plugins" "$T/calls"' "logical interfaces + plugins verified through ngfw-vppcheck"
 ok '[[ $(cat "$W/mgmt.ifs") == ens192 && $(cat "$W/mgmt/ens192.netmgr") == ifupdown && $(cat "$W/probe") == neigh ]] && grep -q "ip -j neigh show 10.0.0.1 dev ens192" "$T/calls"' "management snapshot: ens192, ifupdown; check neigh (ARP of the next hop)"
 ok '[[ $(grep -n "locks held by holder" "$T/out" | cut -d: -f1) -lt $(grep -n "backup:" "$T/out" | cut -d: -f1) ]]' "locks taken (holder unit) before backup and diff"
-ok 'grep -q "systemd-run --unit=vrx-startup-apply-deadman-.* --on-active=.*--setenv=VRX_STARTUP_CONF=$T/etc/vpp/startup.conf.* --stage rollback" "$T/calls" && grep -q "systemd-run --unit=vrx-startup-apply-lock-.* --stage hold" "$T/calls"' "dead-man timer and lock holder units started with the settings as --setenv"
-ok 'grep -q "systemctl stop vrx-startup-apply-deadman-.*\.timer" "$T/calls" && locks_free && [[ $(restarts) == 1 ]]' "timer cancelled, locks released, exactly one VPP restart"
+ok 'grep -q "systemd-run --unit=ngfw-startup-apply-deadman-.* --on-active=.*--setenv=NGFW_STARTUP_CONF=$T/etc/vpp/startup.conf.* --stage rollback" "$T/calls" && grep -q "systemd-run --unit=ngfw-startup-apply-lock-.* --stage hold" "$T/calls"' "dead-man timer and lock holder units started with the settings as --setenv"
+ok 'grep -q "systemctl stop ngfw-startup-apply-deadman-.*\.timer" "$T/calls" && locks_free && [[ $(restarts) == 1 ]]' "timer cancelled, locks released, exactly one VPP restart"
 ok 'read -r a r b < <(sed -nE "s/.*rollback in ([0-9]+)s .*run budget ([0-9]+)s, rollback budget ([0-9]+)s.*/\1 \2 \3/p" "$T/out"); (( a > r + b ))' "dead-man deadline > run budget + rollback budget"
 
 fi
@@ -476,7 +476,7 @@ fi
 if scen 11; then
 echo "== 11. reviewer's scenario: gateway drops ICMP, the manager's SSH session closes during the window → commits (N1)"
 setup
-touch "$T/state/no-icmp" "$T/state/ssh-est"; export VRX_MGMT_PEERS="10.0.0.9"
+touch "$T/state/no-icmp" "$T/state/ssh-est"; export NGFW_MGMT_PEERS="10.0.0.9"
 hook restart 'rm -f "$FAKE/state/ssh-est"'
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 W="$(work)"
@@ -503,7 +503,7 @@ hook restart 'touch "$FAKE/state/arp-dead"'
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 W="$(work)"
 ok '[[ $rc == 1 && -e $W/console-needed && ! -e $W/rolled-back ]] && unchanged && grep -q "CONSOLE NEEDED" "$T/out"' "exit $rc, file restored, console-needed marker"
-ok 'locks_free && grep -q "systemctl stop vrx-startup-apply-deadman-.*\.timer" "$T/calls" && [[ $(restarts) == 2 ]]' "locks released, timer cancelled, VPP (re)started twice in total (apply + one rollback)"
+ok 'locks_free && grep -q "systemctl stop ngfw-startup-apply-deadman-.*\.timer" "$T/calls" && [[ $(restarts) == 2 ]]' "locks released, timer cancelled, VPP (re)started twice in total (apply + one rollback)"
 out="$("$W/bin/apply-startup.sh" --stage rollback --work "$W" 2>&1)"
 ok 'grep -q "nothing to do (the apply already finished)" <<<"$out" && [[ $(restarts) == 2 ]]' "a late dead-man does nothing — no further restart"
 
@@ -530,7 +530,7 @@ ok '[[ $rc == 3 ]] && unchanged && [[ $(restarts) == "$n" ]] && grep -q "REFUSED
 
 fi
 if scen 16; then
-echo "== 16. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore"
+echo "== 16. ifupdown host (ngfw-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore"
 setup
 steal_mgmt_nic
 rc=0; apply > "$T/out" 2>&1 || rc=$?
@@ -564,7 +564,7 @@ if scen 19; then
 echo "== 19. netplan host → netplan apply"
 setup
 rm -f "$T/etc/network/interfaces.d/ens192.cfg"; mkdir -p "$T/etc/netplan"; echo "network: {version: 2}" > "$T/etc/netplan/50-cloud-init.yaml"
-export VRX_NETPLAN="$T/bin/netplan"
+export NGFW_NETPLAN="$T/bin/netplan"
 steal_mgmt_nic; touch "$T/state/ip-readonly"
 rc=0; apply > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 1 ]] && unchanged && [[ $(cat "$(work)/mgmt/ens192.netmgr") == netplan ]] && grep -q "netplan apply" "$T/calls" && [[ -e $(work)/rolled-back ]]' "exit $rc, netplan detected, netplan apply used, rollback healthy"
@@ -624,8 +624,8 @@ sleep 0.2
 ok '[[ -e $W/installed && ! -e $W/committed ]] && ! kill -0 "$SSH" 2>/dev/null' "session killed after install, before commit"
 waitfor "$W/committed" 300 || true
 ok '[[ -e $W/committed ]] && cmp -s "$T/etc/vpp/startup.conf" "$W/new.conf"' "detached run committed anyway"
-ok 'grep -q "systemd-run --unit=vrx-startup-apply-[0-9-]* --collect --quiet --property=KillMode=process --setenv=VRX_STARTUP_CONF=.*--setenv=VRX_STARTUPGEN=$GEN .*--setenv=PATH=.*/bin/apply-startup.sh --stage run --work $W" "$T/calls"' "unit started with every setting as --setenv"
-ok '! grep -q "WARNING: environment" "$W/log" && grep -q "journalctl -fu vrx-startup-apply-" "$T/caller.out"' "the unit saw exactly the recorded settings under env -i"
+ok 'grep -q "systemd-run --unit=ngfw-startup-apply-[0-9-]* --collect --quiet --property=KillMode=process --setenv=NGFW_STARTUP_CONF=.*--setenv=NGFW_STARTUPGEN=$GEN .*--setenv=PATH=.*/bin/apply-startup.sh --stage run --work $W" "$T/calls"' "unit started with every setting as --setenv"
+ok '! grep -q "WARNING: environment" "$W/log" && grep -q "journalctl -fu ngfw-startup-apply-" "$T/caller.out"' "the unit saw exactly the recorded settings under env -i"
 
 fi
 if scen 25; then
@@ -733,7 +733,7 @@ rm -f "$T/hooks/restart"; sleep 0.3                                      # (the 
 ok '[[ -e $W1/installed ]] && ! finished_dir "$W1" && cmp -s "$T/etc/vpp/startup.conf" "$W1/new.conf" && locks_free' "run 1 died after installing; its holder is gone; its dead-man is still armed"
 rc=0; apply2 "$(sha256sum "$T/etc/vpp/startup.conf" | awk '{print $1}')" > "$T/out" 2>&1 || rc=$?
 state_line "$W1" "$rc"
-ok '[[ $rc == 3 ]] && grep -q "REFUSED: an earlier apply has not finished: $W1 (dead-man vrx-startup-apply-deadman-.*\.timer)" "$T/out" && cmp -s "$T/etc/vpp/startup.conf" "$W1/new.conf" && [[ $(find "$T/apply" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 ]]' "a new apply is refused while run 1 is unfinished (exit $rc; dir and timer named), nothing changed"
+ok '[[ $rc == 3 ]] && grep -q "REFUSED: an earlier apply has not finished: $W1 (dead-man ngfw-startup-apply-deadman-.*\.timer)" "$T/out" && cmp -s "$T/etc/vpp/startup.conf" "$W1/new.conf" && [[ $(find "$T/apply" -mindepth 1 -maxdepth 1 -type d | wc -l) == 1 ]]' "a new apply is refused while run 1 is unfinished (exit $rc; dir and timer named), nothing changed"
 ok 'grep -qF "through the dead-man'"'"'s own unit: systemctl start $(cat "$W1/deadman-unit").service" "$T/out"' "TD-7 F1: the refusal points at the safe command, the dead-man's own unit (systemctl start <unit>.service), not a second rollback by hand"
 rc=0; "$W1/bin/apply-startup.sh" --stage rollback --work "$W1" > "$T/dm1.out" 2>&1 || rc=$?
 ok '[[ $rc == 1 && -e $W1/rolled-back ]] && unchanged' "run 1's dead-man makes its one rollback (exit $rc): original file back"
@@ -756,7 +756,7 @@ rc=0; apply > "$T/out" 2>&1 || rc=$?
 W="$(work)"
 state_line "$W" "$rc"
 ok '[[ $rc == 1 && -e $W/console-needed && ! -e $W/rolled-back ]] && grep -q "cannot restore" "$W/console-needed" && grep -q "CONSOLE NEEDED" "$T/out"' "exit $rc, console-needed names the failed restore"
-ok '[[ $(cat "$T/state/vpp") == active ]] && ! grep -q "^systemctl stop vpp" "$T/calls" && locks_free && grep -q "systemctl stop vrx-startup-apply-deadman-.*\.timer" "$T/calls"' "VPP left running (never stopped), locks released, timer cancelled"
+ok '[[ $(cat "$T/state/vpp") == active ]] && ! grep -q "^systemctl stop vpp" "$T/calls" && locks_free && grep -q "systemctl stop ngfw-startup-apply-deadman-.*\.timer" "$T/calls"' "VPP left running (never stopped), locks released, timer cancelled"
 out="$("$W/bin/apply-startup.sh" --stage rollback --work "$W" 2>&1)" || true
 ok 'grep -q "nothing to do (the apply already finished)" <<<"$out" && ! grep -q "^systemctl stop vpp" "$T/calls"' "a late dead-man does nothing"
 fi
@@ -816,15 +816,15 @@ ok '[[ -n $wi && -n $wo && -n $rs && -n $re ]] && (( wo < rs || wi > re ))' "the
 ok 'grep -q "took the locks exclusively" "$T/run.out" && ! grep -q FORCED "$T/run.out" && locks_free' "the rollback took the locks exclusively (not FORCED) and released them"
 fi
 if scen 38; then
-echo "== 38. V6: the VRX_TEST_ROOT guard resolves paths — '/.' and a symlink out of the test root are refused"
+echo "== 38. V6: the NGFW_TEST_ROOT guard resolves paths — '/.' and a symlink out of the test root are refused"
 setup
-rc=0; out="$( (. "$SCRIPT"; VRX_TEST_ROOT=/. VRX_STARTUP_CONF=/./etc/vpp/startup.conf VRX_SYSFS=/./sys VRX_SYSTEMCTL=/./usr/bin/systemctl VRX_SYSTEMD_RUN=/./usr/bin/systemd-run VRX_IP=/./usr/bin/ip VRX_APPLY_STATE=/./var/lib/vrx/startup-apply VRX_VPP_LOCK=/./run/lock/vrx-vpp.lock VRX_LAB_LOCK=/./run/lock/vrx-lab.lock; canon_root) 2>&1)" || rc=$?
-echo "    canon_root with VRX_TEST_ROOT=/. → rc=$rc: $out"
-ok '[[ $rc == 2 ]] && grep -q "VRX_TEST_ROOT" <<<"$out"' "test root '/.' with /./etc/vpp/startup.conf refused (exit $rc)"
+rc=0; out="$( (. "$SCRIPT"; NGFW_TEST_ROOT=/. NGFW_STARTUP_CONF=/./etc/vpp/startup.conf NGFW_SYSFS=/./sys NGFW_SYSTEMCTL=/./usr/bin/systemctl NGFW_SYSTEMD_RUN=/./usr/bin/systemd-run NGFW_IP=/./usr/bin/ip NGFW_APPLY_STATE=/./var/lib/ngfw/startup-apply NGFW_VPP_LOCK=/./run/lock/ngfw-vpp.lock NGFW_LAB_LOCK=/./run/lock/ngfw-lab.lock; canon_root) 2>&1)" || rc=$?
+echo "    canon_root with NGFW_TEST_ROOT=/. → rc=$rc: $out"
+ok '[[ $rc == 2 ]] && grep -q "NGFW_TEST_ROOT" <<<"$out"' "test root '/.' with /./etc/vpp/startup.conf refused (exit $rc)"
 ln -s /etc "$TOP/esc"
-rc=0; out="$( (. "$SCRIPT"; VRX_STARTUP_CONF="$TOP/esc/vpp/startup.conf"; canon_root) 2>&1)" || rc=$?
+rc=0; out="$( (. "$SCRIPT"; NGFW_STARTUP_CONF="$TOP/esc/vpp/startup.conf"; canon_root) 2>&1)" || rc=$?
 echo "    canon_root with startup.conf behind a symlink to /etc → rc=$rc: $out"
-ok '[[ $rc == 2 ]] && grep -q "VRX_TEST_ROOT is only honoured when" <<<"$out"' "startup.conf reached through a symlink to /etc refused (exit $rc)"
+ok '[[ $rc == 2 ]] && grep -q "NGFW_TEST_ROOT is only honoured when" <<<"$out"' "startup.conf reached through a symlink to /etc refused (exit $rc)"
 rm -f "$TOP/esc"
 rc=0; out="$( (. "$SCRIPT"; canon_root) 2>&1)" || rc=$?
 ok '[[ $rc == 0 && $out == "$(realpath -m "$TOP")/canon" ]]' "the harness's own test root is still accepted"
@@ -870,7 +870,7 @@ if scen 41; then
 echo "== 41. V9: the dry run exits 3 when --apply would be refused by the gate, 0 when the approval covers this rendering"
 setup
 rc=0; out="$("$SCRIPT" --doc "$DOCF" --cmd-timeout "$CT" "${HOSTARGS[@]}" 2>&1)" || rc=$?
-ok '[[ $rc == 3 ]] && grep -q "REFUSED: docs/lab/host-vrx-a.md says handover: pending" <<<"$out" && grep -qx "$NEW" <<<"$out"' "handover pending, no approval: exit $rc (sums still printed)"
+ok '[[ $rc == 3 ]] && grep -q "REFUSED: docs/lab/host-ngfw-a.md says handover: pending" <<<"$out" && grep -qx "$NEW" <<<"$out"' "handover pending, no approval: exit $rc (sums still printed)"
 rc=0; out="$("$SCRIPT" --doc "$DOCF" --cmd-timeout "$CT" "${APPROVE[@]}" "${HOSTARGS[@]}" 2>&1)" || rc=$?
 ok '[[ $rc == 0 ]] && grep -q "PRODUCT-OWNER APPROVAL PENDING-fake-change" <<<"$out"' "approval names this rendering: exit $rc"
 fi
@@ -908,18 +908,18 @@ ok '[[ $RC1 == 1 && -e $W/rolled-back ]] && unchanged && grep -q "lock holder $H
 ok '[[ $STOPS == 1 && $STARTS == 1 ]]' "VPP stopped and started exactly once (stops=$STOPS starts=$STARTS)"
 fi
 if scen 44; then
-echo "== 44. TD-17 product mode: installed binaries (VRX_LIB_BIN), appliance approval bound to the rendering's sha256, no docs/lab or PENDING read; lab-only flags refused"
+echo "== 44. TD-17 product mode: installed binaries (NGFW_LIB_BIN), appliance approval bound to the rendering's sha256, no docs/lab or PENDING read; lab-only flags refused"
 setup
-mkdir -p "$T/lib"; cp "$GEN" "$T/lib/vrx-startupgen"; cp "$T/bin/vrx-vppcheck" "$T/lib/vrx-vppcheck"
-prod() { env -u VRX_STARTUPGEN -u VRX_VPPCHECK VRX_LIB_BIN="$T/lib" "$SCRIPT" --mode product "$@"; }
+mkdir -p "$T/lib"; cp "$GEN" "$T/lib/ngfw-startupgen"; cp "$T/bin/ngfw-vppcheck" "$T/lib/ngfw-vppcheck"
+prod() { env -u NGFW_STARTUPGEN -u NGFW_VPPCHECK NGFW_LIB_BIN="$T/lib" "$SCRIPT" --mode product "$@"; }
 rc=0; "$SCRIPT" --doc "$DOCF" --approve-rendering "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 2 ]] && grep -q "product-mode gate" "$T/out"' "--approve-rendering in lab mode refused (exit $rc)"
 rc=0; prod --doc "$DOCF" "${APPROVE[@]}" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 2 ]] && grep -q "lab-mode gate" "$T/out"' "--i-have-product-owner-approval in product mode refused (exit $rc)"
 rc=0; prod --doc "$DOCF" --mode bogus "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 2 ]]' "unknown --mode refused (exit $rc)"
-rc=0; env -u VRX_STARTUPGEN -u VRX_VPPCHECK VRX_LIB_BIN="$T/nolib" "$SCRIPT" --mode product --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
-ok '[[ $rc == 2 ]] && grep -q "$T/nolib/vrx-startupgen not found (install the vrx-agent package)" "$T/out"' "product mode looks for the installed binaries under VRX_LIB_BIN (exit $rc)"
+rc=0; env -u NGFW_STARTUPGEN -u NGFW_VPPCHECK NGFW_LIB_BIN="$T/nolib" "$SCRIPT" --mode product --doc "$DOCF" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
+ok '[[ $rc == 2 ]] && grep -q "$T/nolib/ngfw-startupgen not found (install the ngfw-agent package)" "$T/out"' "product mode looks for the installed binaries under NGFW_LIB_BIN (exit $rc)"
 mv "$CANON" "$CANON.off"   # product mode must not need the canonical repo, docs/lab, PENDING or LOG files
 rc=0; out="$(prod --doc "$DOCF" --cmd-timeout "$CT" "${HOSTARGS[@]}" 2>&1)" || rc=$?
 ok '[[ $rc == 3 ]] && grep -q "appliance approval gate" <<<"$out" && grep -q "REFUSED: product mode needs --approve-rendering" <<<"$out" && ! grep -qE "handover gate|docs/lab/host-" <<<"$out"' "dry run without approval: exit $rc, appliance gate shown, no handover gate"
@@ -931,10 +931,10 @@ rc=0; prod --doc "$DOCF" --apply --foreground "${TIMING[@]}" --approve-rendering
 W="$(work)"
 mv "$CANON.off" "$CANON"
 ok '[[ $rc == 0 && -e $W/committed ]] && cmp -s "$T/etc/vpp/startup.conf" "$W/new.conf" && grep -q "gate: product mode" "$W/gate"' "product apply with the approval commits (exit $rc); gate recorded"
-ok 'grep -qx "VRX_APPLY_MODE=product" "$W/settings" && grep -qx "VRX_STARTUPGEN=$T/lib/vrx-startupgen" "$W/settings" && cmp -s "$W/bin/vrx-startupgen" "$T/lib/vrx-startupgen"' "mode and installed binary paths recorded and pinned in the work dir"
-ok 'grep -q "systemd-run --unit=vrx-startup-apply-deadman-.* --on-active=.*--setenv=VRX_APPLY_MODE=product.* --stage rollback" "$T/calls" && grep -q "systemctl stop vrx-startup-apply-deadman-.*\.timer" "$T/calls" && locks_free && [[ $(restarts) == 1 ]]' "dead-man armed (in product mode) and cancelled after the commit; locks released; one VPP restart"
+ok 'grep -qx "NGFW_APPLY_MODE=product" "$W/settings" && grep -qx "NGFW_STARTUPGEN=$T/lib/ngfw-startupgen" "$W/settings" && cmp -s "$W/bin/ngfw-startupgen" "$T/lib/ngfw-startupgen"' "mode and installed binary paths recorded and pinned in the work dir"
+ok 'grep -q "systemd-run --unit=ngfw-startup-apply-deadman-.* --on-active=.*--setenv=NGFW_APPLY_MODE=product.* --stage rollback" "$T/calls" && grep -q "systemctl stop ngfw-startup-apply-deadman-.*\.timer" "$T/calls" && locks_free && [[ $(restarts) == 1 ]]' "dead-man armed (in product mode) and cancelled after the commit; locks released; one VPP restart"
 setup
-mkdir -p "$T/lib"; cp "$GEN" "$T/lib/vrx-startupgen"; cp "$T/bin/vrx-vppcheck" "$T/lib/vrx-vppcheck"
+mkdir -p "$T/lib"; cp "$GEN" "$T/lib/ngfw-startupgen"; cp "$T/bin/ngfw-vppcheck" "$T/lib/ngfw-vppcheck"
 touch "$T/state/timer-fail"
 rc=0; prod --doc "$DOCF" --apply --foreground "${TIMING[@]}" --approve-rendering "$NEW" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/out" 2>&1 || rc=$?
 ok '[[ $rc == 3 ]] && unchanged && [[ $(restarts) == 0 ]]' "product mode: the dead-man cannot be armed → refused (exit $rc), VPP not restarted"

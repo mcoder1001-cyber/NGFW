@@ -13,20 +13,20 @@ import (
 // table shows the stack VPP still has, and `vite preview` of the production web build (apps/web/dist) on the slot web
 // port while shots.mjs (headless Chrome, nothing installed) takes the screenshots.
 //
-//	VRX_QINQ_SHOTS=test/topology/vlan-qinq/shots.mjs VRX_QINQ_SHOTS_OUT=<dir> VRX_PLAYWRIGHT_CORE=<dir> VRX_CHROME=<bin> \
+//	NGFW_QINQ_SHOTS=test/topology/vlan-qinq/shots.mjs NGFW_QINQ_SHOTS_OUT=<dir> NGFW_PLAYWRIGHT_CORE=<dir> NGFW_CHROME=<bin> \
 //	  run.sh -run TestVlanQinqScreenshots
 func TestVlanQinqScreenshots(t *testing.T) {
-	script, out := os.Getenv("VRX_QINQ_SHOTS"), os.Getenv("VRX_QINQ_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || script == "" || out == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_QINQ_SHOTS (node script) and VRX_QINQ_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_QINQ_SHOTS"), os.Getenv("NGFW_QINQ_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || script == "" || out == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_QINQ_SHOTS (node script) and NGFW_QINQ_SHOTS_OUT")
 	}
 	if !filepath.IsAbs(script) {
 		wd, _ := os.Getwd()
 		script = filepath.Join(wd, filepath.Base(script))
 	}
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	s, r, conn, st := setup(t)
 	a := st.api
@@ -42,9 +42,9 @@ func TestVlanQinqScreenshots(t *testing.T) {
 	// vite preview of the production build (preview.proxy = server.proxy → the slot API port)
 	web := filepath.Join(s.repo, "apps", "web")
 	if _, err := os.Stat(filepath.Join(web, "dist", "index.html")); err != nil {
-		t.Fatalf("apps/web/dist missing — run.sh builds it when VRX_QINQ_SHOTS is set: %v", err)
+		t.Fatalf("apps/web/dist missing — run.sh builds it when NGFW_QINQ_SHOTS is set: %v", err)
 	}
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(st.work, "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 

@@ -46,12 +46,12 @@ const applies = (fake: FakeAgent) =>
   fake.calls.filter((c) => c.method === 'Apply').map((c) => c.request as ApplyRequest);
 
 describe('CommitService (fake agent over gRPC)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-p06-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-p06-'));
   const socket = join(dir, 'agent.sock');
   const env = testEnv({
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: 'w1',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: 'w1',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;
@@ -226,7 +226,7 @@ describe('CommitService (fake agent over gRPC)', () => {
     expect(p.status).toBe(422);
     expect(p.body).toMatchObject({
       applyStatus: 'rolled_back',
-      type: 'https://vrx.dev/problems/apply-failed',
+      type: 'https://ngfw.dev/problems/apply-failed',
     });
     expect(p.body['results']).toEqual([
       expect.objectContaining({ key: 'interface/loop1', code: 'failed' }),
@@ -333,8 +333,8 @@ describe('CommitService (fake agent over gRPC)', () => {
     ]);
     const r1 = await commits.commit(ADMIN, {});
     expect(r1.status).toBe('applied');
-    expect(JSON.stringify(repo.state.revisions)).not.toContain('VRX_TEST_HASH');
-    expect(JSON.stringify(fake.calls)).not.toContain('VRX_TEST_HASH');
+    expect(JSON.stringify(repo.state.revisions)).not.toContain('NGFW_TEST_HASH');
+    expect(JSON.stringify(fake.calls)).not.toContain('NGFW_TEST_HASH');
     expect(repo.state.users.get('alice')).toMatchObject({
       role: 'admin',
       hash: TEST_HASH,
@@ -355,7 +355,7 @@ describe('CommitService (fake agent over gRPC)', () => {
   });
 
   it('D-102: a hash changed through the config API ends the user’s sessions after the promote, audited via: config', async () => {
-    const OTHER = '$vrx-test$VRX_TEST_HASH_D102';
+    const OTHER = '$ngfw-test$NGFW_TEST_HASH_D102';
     await ds.putCandidate(ADMIN, '/management/users', [
       { username: 'admin', role: 'admin' },
       { username: 'alice', role: 'operator', passwordHash: TEST_HASH },
@@ -394,7 +394,7 @@ describe('CommitService (fake agent over gRPC)', () => {
         }),
       }),
     );
-    expect(JSON.stringify(audit.write.mock.calls)).not.toContain('VRX_TEST_HASH');
+    expect(JSON.stringify(audit.write.mock.calls)).not.toContain('NGFW_TEST_HASH');
   });
 
   it('D-102: a confirmed commit resets at CONFIRM (when the hash reaches app_user), not while pending', async () => {
@@ -404,7 +404,7 @@ describe('CommitService (fake agent over gRPC)', () => {
     ]);
     await commits.commit(ADMIN, {});
     await ds.patchCandidate(ADMIN, '/management/users/1', {
-      passwordHash: '$vrx-test$VRX_TEST_HASH_D102C',
+      passwordHash: '$ngfw-test$NGFW_TEST_HASH_D102C',
     });
     expect((await commits.commit(ADMIN, { confirmSec: 30 })).status).toBe('pending');
     expect(tokens.revokeUser).not.toHaveBeenCalled();
@@ -462,7 +462,7 @@ describe('CommitService (fake agent over gRPC)', () => {
   });
 
   it('D-100 (3): a hash change plus a disable in one commit bumps ONCE and writes two audit rows (the D-102 row unchanged)', async () => {
-    const OTHER = '$vrx-test$VRX_TEST_HASH_TD4';
+    const OTHER = '$ngfw-test$NGFW_TEST_HASH_TD4';
     await ds.putCandidate(ADMIN, '/management/users', [
       { username: 'admin', role: 'admin' },
       { username: 'frank', role: 'operator', passwordHash: TEST_HASH },
@@ -504,7 +504,7 @@ describe('CommitService (fake agent over gRPC)', () => {
         status: null,
       },
     ]);
-    expect(JSON.stringify(audit.write.mock.calls)).not.toContain('VRX_TEST_HASH');
+    expect(JSON.stringify(audit.write.mock.calls)).not.toContain('NGFW_TEST_HASH');
   });
 
   it('D-100 (3): a confirmed commit disables at CONFIRM, not while pending; Valkey failing is recorded on the row', async () => {
@@ -570,9 +570,9 @@ describe('CommitService (fake agent over gRPC)', () => {
 
   it('M3: a lost Apply answer marks running UNKNOWN; reconcile finds the txn applied and saves the revision', async () => {
     const shortEnv = testEnv({
-      VRX_AGENT_SOCKET: socket,
-      VRX_AGENT_OWNER: 'w1',
-      VRX_AGENT_TIMEOUT_MS: '300',
+      NGFW_AGENT_SOCKET: socket,
+      NGFW_AGENT_OWNER: 'w1',
+      NGFW_AGENT_TIMEOUT_MS: '300',
     });
     const shortAgent = new AgentClient(shortEnv);
     const c2 = new CommitService(
@@ -591,7 +591,7 @@ describe('CommitService (fake agent over gRPC)', () => {
       const p = await problem(c2.commit(ADMIN, {}));
       expect(p.status).toBe(504);
       expect(p.body).toMatchObject({
-        type: 'https://vrx.dev/problems/running-unknown',
+        type: 'https://ngfw.dev/problems/running-unknown',
         sync: { state: 'unknown' },
       });
       expect(String(p.body['detail'])).not.toMatch(/running is unchanged/);
@@ -636,7 +636,7 @@ describe('CommitService (fake agent over gRPC)', () => {
     const p = await problem(commits.commit(ADMIN, {}));
     expect(p.status).toBe(500);
     expect(p.body).toMatchObject({
-      type: 'https://vrx.dev/problems/running-unknown',
+      type: 'https://ngfw.dev/problems/running-unknown',
       sync: { state: 'unknown' },
     });
     await vi.waitFor(async () => expect((await commits.syncStatus()).state).toBe('in-sync'), {

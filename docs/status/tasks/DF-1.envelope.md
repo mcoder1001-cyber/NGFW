@@ -4,7 +4,7 @@ title: Descriptors: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_p
 prompt: prompts/factories/DF-1.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D1.2, D1.4, D1.5, D1.6
 scope: bond, l2 (bridge, xconnect), memif, tap, host-interface/af_packet, subinterface, admin-state, mtu, rx-mode
 merged deps you can rely on: P05a, P04
-slot: 2 → VRX_TEST_PREFIX=w2  VRX_HTTP_PORT=3200  VRX_WEB_PORT=5200  VRX_METRICS_PORT=9121  VRX_AGENT_SOCKET=/run/vrx-test/w2/agent.sock  VRX_PG_DATABASE=vrx_w2  VRX_VPP_TABLE_BASE=2000
+slot: 2 → NGFW_TEST_PREFIX=w2  NGFW_HTTP_PORT=3200  NGFW_WEB_PORT=5200  NGFW_METRICS_PORT=9121  NGFW_AGENT_SOCKET=/run/ngfw-test/w2/agent.sock  NGFW_PG_DATABASE=ngfw_w2  NGFW_VPP_TABLE_BASE=2000
 daemon-owner: none
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-1>/** docs/agent/descriptors/<plugins>.md
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

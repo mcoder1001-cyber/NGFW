@@ -1,28 +1,28 @@
 # curtin storage config generated from common/layout.tsv (data partitions on LUKS); tests/run.sh checks they agree.
-# grub_device sits on the ESP (UEFI); vrx-early.sh moves it to the disk when the installer booted in BIOS mode.
+# grub_device sits on the ESP (UEFI); ngfw-early.sh moves it to the disk when the installer booted in BIOS mode.
 storage:
   swap:
     size: 0
   config:
     - {type: disk, id: disk0, match: {size: largest}, ptable: gpt, wipe: superblock-recursive, preserve: false, grub_device: false}
     - {type: partition, id: part-bios, device: disk0, number: 1, size: 1M, flag: bios_grub, preserve: false}
-    - {type: partition, id: part-vrx-efi, device: disk0, number: 2, size: 1G, flag: boot, grub_device: true, partition_name: VRX-EFI, preserve: false}
-    - {type: format, id: fmt-vrx-efi, volume: part-vrx-efi, fstype: fat32, label: VRX-EFI, preserve: false}
-    - {type: partition, id: part-vrx-roota, device: disk0, number: 3, size: 20G, partition_name: vrx-rootA, preserve: false}
-    - {type: format, id: fmt-vrx-roota, volume: part-vrx-roota, fstype: ext4, label: vrx-rootA, preserve: false}
-    - {type: partition, id: part-vrx-rootb, device: disk0, number: 4, size: 20G, partition_name: vrx-rootB, preserve: false}
-    - {type: format, id: fmt-vrx-rootb, volume: part-vrx-rootb, fstype: ext4, label: vrx-rootB, preserve: false}
-    - {type: partition, id: part-vrx-log, device: disk0, number: 5, size: 20G, partition_name: vrx-log, preserve: false}
-    - {type: dm_crypt, id: crypt-vrx-log, volume: part-vrx-log, dm_name: vrx-log_crypt, keyfile: /run/vrx-luks.key, preserve: false}
-    - {type: format, id: fmt-vrx-log, volume: crypt-vrx-log, fstype: ext4, label: vrx-log, preserve: false}
-    - {type: partition, id: part-vrx-pg, device: disk0, number: 6, size: 20G, partition_name: vrx-pg, preserve: false}
-    - {type: dm_crypt, id: crypt-vrx-pg, volume: part-vrx-pg, dm_name: vrx-pg_crypt, keyfile: /run/vrx-luks.key, preserve: false}
-    - {type: format, id: fmt-vrx-pg, volume: crypt-vrx-pg, fstype: ext4, label: vrx-pg, preserve: false}
-    - {type: partition, id: part-vrx-data, device: disk0, number: 7, size: -1, partition_name: vrx-data, preserve: false}
-    - {type: dm_crypt, id: crypt-vrx-data, volume: part-vrx-data, dm_name: vrx-data_crypt, keyfile: /run/vrx-luks.key, preserve: false}
-    - {type: format, id: fmt-vrx-data, volume: crypt-vrx-data, fstype: ext4, label: vrx-data, preserve: false}
-    - {type: mount, id: mnt-vrx-roota, device: fmt-vrx-roota, path: /}
-    - {type: mount, id: mnt-vrx-data, device: fmt-vrx-data, path: /data}
-    - {type: mount, id: mnt-vrx-log, device: fmt-vrx-log, path: /var/log}
-    - {type: mount, id: mnt-vrx-efi, device: fmt-vrx-efi, path: /boot/efi}
-    - {type: mount, id: mnt-vrx-pg, device: fmt-vrx-pg, path: /var/lib/postgresql}
+    - {type: partition, id: part-ngfw-efi, device: disk0, number: 2, size: 1G, flag: boot, grub_device: true, partition_name: NGFW-EFI, preserve: false}
+    - {type: format, id: fmt-ngfw-efi, volume: part-ngfw-efi, fstype: fat32, label: NGFW-EFI, preserve: false}
+    - {type: partition, id: part-ngfw-roota, device: disk0, number: 3, size: 20G, partition_name: ngfw-rootA, preserve: false}
+    - {type: format, id: fmt-ngfw-roota, volume: part-ngfw-roota, fstype: ext4, label: ngfw-rootA, preserve: false}
+    - {type: partition, id: part-ngfw-rootb, device: disk0, number: 4, size: 20G, partition_name: ngfw-rootB, preserve: false}
+    - {type: format, id: fmt-ngfw-rootb, volume: part-ngfw-rootb, fstype: ext4, label: ngfw-rootB, preserve: false}
+    - {type: partition, id: part-ngfw-log, device: disk0, number: 5, size: 20G, partition_name: ngfw-log, preserve: false}
+    - {type: dm_crypt, id: crypt-ngfw-log, volume: part-ngfw-log, dm_name: ngfw-log_crypt, keyfile: /run/ngfw-luks.key, preserve: false}
+    - {type: format, id: fmt-ngfw-log, volume: crypt-ngfw-log, fstype: ext4, label: ngfw-log, preserve: false}
+    - {type: partition, id: part-ngfw-pg, device: disk0, number: 6, size: 20G, partition_name: ngfw-pg, preserve: false}
+    - {type: dm_crypt, id: crypt-ngfw-pg, volume: part-ngfw-pg, dm_name: ngfw-pg_crypt, keyfile: /run/ngfw-luks.key, preserve: false}
+    - {type: format, id: fmt-ngfw-pg, volume: crypt-ngfw-pg, fstype: ext4, label: ngfw-pg, preserve: false}
+    - {type: partition, id: part-ngfw-data, device: disk0, number: 7, size: -1, partition_name: ngfw-data, preserve: false}
+    - {type: dm_crypt, id: crypt-ngfw-data, volume: part-ngfw-data, dm_name: ngfw-data_crypt, keyfile: /run/ngfw-luks.key, preserve: false}
+    - {type: format, id: fmt-ngfw-data, volume: crypt-ngfw-data, fstype: ext4, label: ngfw-data, preserve: false}
+    - {type: mount, id: mnt-ngfw-roota, device: fmt-ngfw-roota, path: /}
+    - {type: mount, id: mnt-ngfw-data, device: fmt-ngfw-data, path: /data}
+    - {type: mount, id: mnt-ngfw-log, device: fmt-ngfw-log, path: /var/log}
+    - {type: mount, id: mnt-ngfw-efi, device: fmt-ngfw-efi, path: /boot/efi}
+    - {type: mount, id: mnt-ngfw-pg, device: fmt-ngfw-pg, path: /var/lib/postgresql}

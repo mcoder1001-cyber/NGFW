@@ -44,8 +44,8 @@ Installed: **Unbound 1.24.2**, trust anchor from `dns-root-data` (`/usr/share/dn
 ## Tests
 
 Goldens (`testdata/*.golden`, `-update`), hostile strings in every user field, argv, Apply with
-a recording runner. Integration (`VRX_INTEGRATION=1`): `unbound -d -c <cfg>` on
-127.0.0.1:3<slot>53 under /run/vrx-test/<prefix>/unbound; `list_forwards`, `net.Resolver`
+a recording runner. Integration (`NGFW_INTEGRATION=1`): `unbound -d -c <cfg>` on
+127.0.0.1:3<slot>53 under /run/ngfw-test/<prefix>/unbound; `list_forwards`, `net.Resolver`
 lookups (A and a hostile TXT that must round-trip verbatim), change + reload + rollback.
 
 ## Paths (review M4, L5)
@@ -53,7 +53,7 @@ lookups (A and a hostile TXT that must round-trip verbatim), change + reload + r
 Product: `/etc/unbound/unbound.conf`, control socket `/run/unbound.ctl` and pidfile
 `/run/unbound.pid` directly in `/run` (the packaged `unbound.service` has no `RuntimeDirectory`, so
 `/run/unbound` does not exist; `Apply` also creates missing parent directories),
-`/var/lib/unbound/root.key`, pending requests `/run/vrx/renderers/unbound.pending` (cleared by a
+`/var/lib/unbound/root.key`, pending requests `/run/ngfw/renderers/unbound.pending` (cleared by a
 reboot, which restarts unbound anyway). `TestProductPaths` pins them and the integration test runs
 `unbound-checkconf` on the staged product render. An idle instance binds `127.0.0.1@IdlePort`
 (product 53, tests 3<slot>53 — never :53 on the shared host).

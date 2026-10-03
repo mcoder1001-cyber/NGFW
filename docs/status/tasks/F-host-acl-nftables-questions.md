@@ -8,7 +8,7 @@ The envelope says a DesiredState field number for a config gap needs the manager
 `contract(proto): host acl state`). If you allocate another number, it is a one-line proto change + `pnpm gen`.
 
 ## Q2 — Decision: how the agent runs the renderer (prompt "Inputs", envelope "decision you must log")
-- (a) one singleton scheduler descriptor `host-acl.nftables/vrx` wrapping the renderer, registered under `Domains["acl"]`
+- (a) one singleton scheduler descriptor `host-acl.nftables/ngfw` wrapping the renderer, registered under `Domains["acl"]`
   (Create/Update = Render → `nft -c` → `nft -f`, Delete = remove the table, Retrieve = normalised `nft -j list table`)
   — no change to the agent core;
 - (b) a renderer step in `agent/service.go` that P11/P12 reuse — the core is read-only in wave A (A5).
@@ -28,11 +28,11 @@ carrying the API's listen address once the API passes it (e.g. a `management.lis
 No setting added.
 
 ## Q5 — Product mode on this shared host (safety)
-The product agent (owner `vrx`) renders `table inet vrx` into the **root** network namespace (mode `apply`) — that is the
+The product agent (owner `ngfw`) renders `table inet ngfw` into the **root** network namespace (mode `apply`) — that is the
 product. On this dev host the product stack (`tools/app`, ports 3000/8080/9101) would therefore load a host firewall into the
 root netns as soon as somebody commits `acl.hostAttachments` through the product UI. Nothing is loaded while no host list is
 attached (no table at all), and the anti-lockout rule keeps TCP 22/443 open, but the product UI port here is 3000/8080, not 443.
-**Proposal:** `tools/app` (manager-owned) exports `VRX_HOST_ACL_MODE=check` on this host (validate with `nft -c`, never load).
+**Proposal:** `tools/app` (manager-owned) exports `NGFW_HOST_ACL_MODE=check` on this host (validate with `nft -c`, never load).
 The worker never runs the product stack.
 
 ## Q6 — FQDN changes do not re-render yet

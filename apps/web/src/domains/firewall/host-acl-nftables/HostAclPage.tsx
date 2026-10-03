@@ -107,7 +107,7 @@ function Code({ children, size = 12 }: { children: ReactNode; size?: number }) {
       component="span"
       dir="ltr"
       sx={{
-        fontFamily: (th) => th.vrx.monoFontFamily,
+        fontFamily: (th) => th.ngfw.monoFontFamily,
         fontSize: size,
         textAlign: 'start',
         unicodeBidi: 'isolate',
@@ -121,7 +121,7 @@ function Code({ children, size = 12 }: { children: ReactNode; size?: number }) {
 /**
  * F-host-acl-nftables: the Host ACL page (`/firewall/host-acl`) — host lists with their rules and live counters,
  * attachments to the input/output/forward hooks, the host firewall settings (default input policy, ICMP, anti-lockout)
- * and the table as the agent rendered it (nftables `inet vrx`, HostAclState). Every edit is a merge patch of the
+ * and the table as the agent rendered it (nftables `inet ngfw`, HostAclState). Every edit is a merge patch of the
  * candidate's `acl`; the shell's pending-change bar shows the diff and commits.
  */
 export function HostAclPage() {

@@ -28,7 +28,7 @@ for prerequisite in curl dpkg-deb dpkg-query sha256sum mktemp; do
   command -v "$prerequisite" >/dev/null || { echo "missing bootstrap prerequisite: $prerequisite" >&2; exit 1; }
 done
 # BEGIN VERIFIED CONTAINERLAB
-containerlab_work=$(mktemp -d /tmp/vrx-containerlab.XXXXXXXX)
+containerlab_work=$(mktemp -d /tmp/ngfw-containerlab.XXXXXXXX)
 trap 'rm -rf -- "$containerlab_work"' EXIT
 containerlab_deb="$containerlab_work/containerlab_${CONTAINERLAB_VER}_linux_amd64.deb"
 curl -fsSL "$CONTAINERLAB_URL" -o "$containerlab_deb"
@@ -49,12 +49,12 @@ apt-get install -y "${VIRT[@]}" "${TRAFFIC[@]}" "${ANALYSIS[@]}" "${BASE[@]}" "$
 # END VERIFIED CONTAINERLAB
 
 # Test automation in a venv - never into the system Python.
-python3 -m venv /opt/vrx-test
-/opt/vrx-test/bin/pip install --quiet --upgrade pip
-/opt/vrx-test/bin/pip install --quiet robotframework robotframework-sshlibrary scapy pytest requests
+python3 -m venv /opt/ngfw-test
+/opt/ngfw-test/bin/pip install --quiet --upgrade pip
+/opt/ngfw-test/bin/pip install --quiet robotframework robotframework-sshlibrary scapy pytest requests
 
 echo
-echo "Lab tools installed. Activate test env: source /opt/vrx-test/bin/activate"
+echo "Lab tools installed. Activate test env: source /opt/ngfw-test/bin/activate"
 echo "TRex is NOT packaged - download the official tarball from Cisco:"
 echo "  https://trex-tgn.cisco.com/trex/release/  (extract to /opt/trex)"
 echo "Without a TRex box you cannot defend any performance number - see docs/08 CapEx, month 4."

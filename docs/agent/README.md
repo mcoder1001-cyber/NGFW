@@ -1,4 +1,4 @@
-# vrx-agent: coverage and seams
+# ngfw-agent: coverage and seams
 
 The agent (`apps/agent`) is declarative. The configuration document becomes per-object desired state
 (the projection in `internal/agent/projection.go` and `internal/desired`). The scheduler
@@ -35,7 +35,7 @@ merge. A feature does not edit these rows. Its status file says which rows it ch
 | `tunnels` | not implemented | none | no | F-tunnels, F-lisp |
 | `ha` | not implemented | none | no | F-vrrp-config-sync |
 | `management` | not implemented | none | no | F-dashboard-prom-alarms (`prometheus`, `alarms`) |
-| `dataplane` | not implemented by the agent. `startup.conf` is rendered by `cmd/vrx-startupgen` | none | no | F-startup-gen |
+| `dataplane` | not implemented by the agent. `startup.conf` is rendered by `cmd/ngfw-startupgen` | none | no | F-startup-gen |
 | `system` | not implemented | none | no | no agent-side owner named yet |
 
 A domain that is "not implemented" is absent from `Health.subsystems`. When Apply receives one that is
@@ -92,7 +92,7 @@ not empty, it warns with `agent.unimplemented-domain` and applies nothing for it
 | `snmpd` | package | F-snmp |
 | `keepalived` | package | F-vrrp-config-sync |
 | `rfkit` | shared kit (not a renderer): the control channel, apply and file helpers the single-file renderers `snmpd`, `keepalived` and `rsyslog` share, as `dfkit` serves the descriptor families | used by the renderers above |
-| `vppstartup` | tool: `cmd/vrx-startupgen` renders `startup.conf` outside the agent's reconcile | F-startup-gen |
+| `vppstartup` | tool: `cmd/ngfw-startupgen` renders `startup.conf` outside the agent's reconcile | F-startup-gen |
 
 ## Seams (TD-8)
 
@@ -105,9 +105,9 @@ VPP, under the agent's transaction lock.
 |---|---|---|
 | events (A5) | `w.Publish(ev)` | Every `StreamEvents` subscriber receives a copy. The stream sets `seq`, and the bus sets `ts` when it is unset. `EVENT_KIND_UNSPECIFIED` is dropped. |
 | resync (A5) | `w.RequestResync()` never blocks and is safe inside a descriptor call | `watchVPP` runs `Service.Resync` and `Wiring.AfterResync`. Requests coalesce. A request made while VPP is down is dropped, because the reconnect resyncs anyway. A request within 5 s of the last requested resync is deferred to the end of those 5 s (with a WARN), so a descriptor that requests a resync on every resync cannot loop. |
-| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or the empty range with `ErrNoIDRange` (a family that ignores the error still owns nothing). Convert with `ids.DF2()`, `ids.DF7()` or `ids.VPN()` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `VRX_VPP_TABLE_BASE=<base>` gives base..base+999. `VRX_VPP_ID_RANGE=all` gives every id. If neither is set, start-up is refused (`ErrNoIDRange`, TD-8b; `docs/lab/shared-host-rules.md` §12); only a `Config` built in code without a range owns no id, so a family that asks for one fails its registration. A malformed value, or both variables set, refuses start-up too. A df7 family registers with `df7.WithIDs(ids.DF7())`. |
+| id range | `w.IDRange()`: the slot's or reserved range, `nil` = every id, or the empty range with `ErrNoIDRange` (a family that ignores the error still owns nothing). Convert with `ids.DF2()`, `ids.DF7()` or `ids.VPN()` | `Config.IDs` comes from `subsystems.ResolveIDScope` and reaches `Env.IDs`. It fails closed. `NGFW_VPP_TABLE_BASE=<base>` gives base..base+999. `NGFW_VPP_ID_RANGE=all` gives every id. If neither is set, start-up is refused (`ErrNoIDRange`, TD-8b; `docs/lab/shared-host-rules.md` §12); only a `Config` built in code without a range owns no id, so a family that asks for one fails its registration. A malformed value, or both variables set, refuses start-up too. A df7 family registers with `df7.WithIDs(ids.DF7())`. |
 | S1 dynamic desired source | `w.AddDynamicSource(DynamicSource{Name, Descriptors, Desired, Run})` | A source **in sync** is merged into every transaction under the txn lock (Apply, resync, confirm revert) and into DryRun's plan, which runs without the lock, so Desired must be safe to call concurrently. Its descriptors are in scope, and its view is the document as stored after the transaction. `Run` starts once after the first resync and stops with the agent. Its `sync(ctx)` runs a transaction scoped to the source's descriptors. A source's descriptors must be registered and belong to no domain. The failure semantics are below. |
-| metrics | `w.AddMetricsCollector(MetricsCollector{Name, Collect})` | Every scrape of `/metrics` appends the collector's families after the agent's own. Collectors run outside every agent lock, with a 5 s deadline each. A collector that fails or panics serves nothing, and `vrx_agent_metrics_collector_errors_total{collector}` counts the failure. |
+| metrics | `w.AddMetricsCollector(MetricsCollector{Name, Collect})` | Every scrape of `/metrics` appends the collector's families after the agent's own. Collectors run outside every agent lock, with a 5 s deadline each. A collector that fails or panics serves nothing, and `ngfw_agent_metrics_collector_errors_total{collector}` counts the failure. |
 
 Dynamic objects are not configuration, so Retrieve never returns them. In Apply results they have no
 JSON pointer and no `subsystem`.
@@ -139,7 +139,7 @@ that object cannot go (its source is out of sync, or VPP refuses to delete it).
   same lock. There is no second run after DEGRADED.
   - Each culprit, key or source, is reported three ways: a SKIPPED result with its key, an `ERROR`
     event with the attributes `source`, `reason` and `key`, and a count in
-    `vrx_agent_dynamic_source_errors_total{source,reason}` (reason `invalid`, `panic`, `rejected`,
+    `ngfw_agent_dynamic_source_errors_total{source,reason}` (reason `invalid`, `panic`, `rejected`,
     `stopped`).
   - DryRun reports a key it would quarantine as a WARNING issue `agent.dynamic-object-quarantined`,
     and a source it would leave out as `agent.dynamic-source-skipped`.

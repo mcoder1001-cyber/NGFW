@@ -18,31 +18,31 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/strongswan"
 	"ngfw/agent/internal/renderers/strongswan/swantest"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// integrationPSK is the fixture PSK (00-CONTEXT: VRX_TEST_PSK_<id>); the test proves it never
+// integrationPSK is the fixture PSK (00-CONTEXT: NGFW_TEST_PSK_<id>); the test proves it never
 // leaves the 0600 secrets file and charon's memory.
-const integrationPSK = "VRX_TEST_PSK_RF2_integration"
+const integrationPSK = "NGFW_TEST_PSK_RF2_integration"
 
 // siteDoc renders one side of the w<N>-ab tunnel.
-func siteDoc(t *testing.T, slot int, local, remote, lts, rts, start string, extra string) *vrxv1.DesiredState {
+func siteDoc(t *testing.T, slot int, local, remote, lts, rts, start string, extra string) *ngfwv1.DesiredState {
 	t.Helper()
 	return siteDocX(t, slot, local, remote, lts, rts, start, 30, extra)
 }
 
-func siteDocX(t *testing.T, slot int, local, remote, lts, rts, start string, dpd int, extra string) *vrxv1.DesiredState {
+func siteDocX(t *testing.T, slot int, local, remote, lts, rts, start string, dpd int, extra string) *ngfwv1.DesiredState {
 	t.Helper()
 	js := fmt.Sprintf(`{"vpn":{"ipsec":{
 	 "proposals":{"gcm":{"ike":{"encr":"aes256gcm16","prf":"prfsha256","dh":"curve25519"},"esp":{"encr":"aes256gcm16"}}},
 	 "tunnels":{"w%[1]d-ab":{"ikeVersion":2,"localAddr":%[2]q,"remoteAddr":%[3]q,
 	   "auth":{"method":"psk","secretRef":"psk/w%[1]d-ab"},"proposal":"gcm","localTs":[%[4]q],"remoteTs":[%[5]q],
 	   "dpd":{"enabled":true,"delaySec":%[8]d,"action":"clear"},"startAction":%[6]q}%[7]s}}}}`, slot, local, remote, lts, rts, start, extra, dpd)
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatalf("fixture: %v\n%s", err, js)
 	}
@@ -98,7 +98,7 @@ func TestStrongswanIntegration(t *testing.T) {
 	etcBefore := statEtc(t)
 	// Validate's checker stages the files (incl. the PSKs) under TMPDIR: keep them on the
 	// slot's tmpfs, never on disk (review L4).
-	tmp := filepath.Join("/run/vrx-test", prefix, "tmp")
+	tmp := filepath.Join("/run/ngfw-test", prefix, "tmp")
 	if err := os.MkdirAll(tmp, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -173,13 +173,13 @@ func TestStrongswanIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filesV, err := rv.Render(ctx, &vrxv1.DesiredState{})
+	filesV, err := rv.Render(ctx, &ngfwv1.DesiredState{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Assert the rendered endpoints are rig addresses before anything binds.
 	for name, files := range map[string]renderers.Files{"a": filesA, "b": filesB} {
-		tree, err := strongswan.ParseSettings("vrx.conf", files[h.Paths(name).ConnsFile()].Content)
+		tree, err := strongswan.ParseSettings("ngfw.conf", files[h.Paths(name).ConnsFile()].Content)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -330,7 +330,7 @@ func TestStrongswanIntegration(t *testing.T) {
 	if err != nil || !bytes.Equal(before, after) || len(st.Conns) != 1 || len(st.SAs) != 1 || st.SAs[0].UniqueID != sa.UniqueID {
 		t.Fatalf("rollback incomplete: files equal %v, state %+v, %v", bytes.Equal(before, after), st, err)
 	}
-	t.Logf("failed Apply rolled back: error %q; vrx.conf restored byte-for-byte; charon still has only %s with IKE_SA #%s", applyErr, conn, sa.UniqueID)
+	t.Logf("failed Apply rolled back: error %q; ngfw.conf restored byte-for-byte; charon still has only %s with IKE_SA #%s", applyErr, conn, sa.UniqueID)
 
 	// ---- review M1: a soft edit (DPD 30→20) plus start_action none→start keeps the IKE_SA and
 	// does not add a second CHILD_SA.
@@ -352,7 +352,7 @@ func TestStrongswanIntegration(t *testing.T) {
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	render := func(r *strongswan.Renderer, ds *vrxv1.DesiredState) renderers.Files {
+	render := func(r *strongswan.Renderer, ds *ngfwv1.DesiredState) renderers.Files {
 		t.Helper()
 		f, err := r.Render(ctx, ds)
 		if err != nil {
@@ -513,7 +513,7 @@ func TestStrongswanIntegration(t *testing.T) {
 	}
 	// Unload (apply the empty document) → Retrieve empty, xfrm empty.
 	for x, r := range map[string]*strongswan.Renderer{"a": ra, "b": rb} {
-		empty, err := r.Render(ctx, &vrxv1.DesiredState{})
+		empty, err := r.Render(ctx, &ngfwv1.DesiredState{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -551,7 +551,7 @@ func TestStrongswanIntegration(t *testing.T) {
 	<-collectDone
 
 	// Planted secret: the PSK (and its base64/hex forms) appears nowhere except the 0600
-	// secrets file — not in vrx.conf, strongswan.conf, charon's logs, the renderer log,
+	// secrets file — not in ngfw.conf, strongswan.conf, charon's logs, the renderer log,
 	// Retrieve, events or errors.
 	rotated := integrationPSK + "_rotated"
 	forms := []string{integrationPSK, base64.StdEncoding.EncodeToString([]byte(integrationPSK)), fmt.Sprintf("%x", integrationPSK),
@@ -578,7 +578,7 @@ func TestStrongswanIntegration(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("planted secret: not found in %d sources (vrx.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, %d events, errors)", len(sources), len(got))
+	t.Logf("planted secret: not found in %d sources (ngfw.conf, strongswan.conf, charon logs a/b, renderer log, Retrieve, %d events, errors)", len(sources), len(got))
 	if testing.Verbose() {
 		fmt.Printf("RF2_EVIDENCE_LOGS=%s\n", h.Base)
 	}

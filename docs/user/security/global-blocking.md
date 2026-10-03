@@ -27,7 +27,7 @@ The box normalises every entry, removes duplicates, and folds prefixes covered b
 | All interfaces / Interfaces | Where the list is enforced. *All interfaces* also covers interfaces added later. Naming an interface that does not exist is refused at commit. |
 | Direction | `inbound` drops packets **arriving from** a listed address; `outbound` drops packets **leaving to** one; `both` (default) does both. |
 | Protect the box | Also drops traffic from listed addresses **to the appliance itself** (SSH, web UI, API, routing sessions…), on every host interface. |
-| Log | Drops to the box are logged (`vrx:gb:<list>` in the kernel log); data-plane drops are counted, not logged. |
+| Log | Drops to the box are logged (`ngfw:gb:<list>` in the kernel log); data-plane drops are counted, not logged. |
 
 ### Server URL
 - `https` verifies the server certificate. For a private CA, store its certificate as `cert/<name>` in

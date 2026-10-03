@@ -11,7 +11,7 @@ import { startHarness, type Harness } from '../support/harness.js';
  * token endpoint that checks the client secret, the code and the PKCE verifier). The callback sets the refresh
  * cookie; the state is single use; the client secret never shows in GET config or the audit log.
  */
-const CSECRET = 'VRX_TEST_PSK_FAAA_OIDC';
+const CSECRET = 'NGFW_TEST_PSK_FAAA_OIDC';
 const MP = { 'content-type': 'application/merge-patch+json' };
 
 describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
@@ -47,7 +47,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
         req.on('data', (c: Buffer) => (body += c.toString()));
         req.on('end', () => {
           const f = new URLSearchParams(body);
-          const basic = Buffer.from(`vrx:${CSECRET}`).toString('base64');
+          const basic = Buffer.from(`ngfw:${CSECRET}`).toString('base64');
           if (req.headers.authorization !== `Basic ${basic}`)
             return json({ error: 'invalid_client' }, 401);
           const c = codes.get(f.get('code') ?? '');
@@ -59,7 +59,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
           void new SignJWT({ nonce: c.nonce, preferred_username: c.user, groups: c.groups })
             .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
             .setIssuer(issuer)
-            .setAudience('vrx')
+            .setAudience('ngfw')
             .setSubject(c.sub)
             .setIssuedAt()
             .setExpirationTime('5m')
@@ -73,7 +73,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
     await new Promise<void>((r) => idp.listen(0, '127.0.0.1', r));
     issuer = `http://127.0.0.1:${(idp.address() as AddressInfo).port}`;
 
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '200' });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: '200' });
     admin = await h.login('admin', h.adminPassword);
     const s = await h.call(admin, 'POST', '/api/v1/secrets', {
       kind: 'token',
@@ -90,7 +90,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
           order: ['local', 'oidc'],
           oidc: {
             issuer,
-            clientId: 'vrx',
+            clientId: 'ngfw',
             clientSecretRef: 'token/oidc',
             redirectUri: 'https://fw.example.net/api/v1/auth/oidc/callback',
           },
@@ -126,7 +126,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
     const bind = [start.headers['set-cookie']]
       .flat()
       .map(String)
-      .find((c) => c.startsWith('vrx_oidc='));
+      .find((c) => c.startsWith('ngfw_oidc='));
     expect(bind).toMatch(/HttpOnly/i);
     expect(bind).toMatch(/SameSite=Lax/i);
     return { code, state: loc.searchParams.get('state')!, cookie: bind!.split(';')[0]! };
@@ -158,7 +158,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
     const cookie = [cb.headers['set-cookie']]
       .flat()
       .map(String)
-      .find((c) => c.startsWith('vrx_refresh='));
+      .find((c) => c.startsWith('ngfw_refresh='));
     expect(cookie).toBeDefined();
     const rf = await h.call(undefined, 'POST', '/api/v1/auth/refresh', undefined, {
       cookie: cookie!.split(';')[0]!,
@@ -182,7 +182,7 @@ describe('F-aaa-login OIDC e2e (PostgreSQL + fake IdP)', () => {
     const a = await authorize('w1dave', ['ops']);
     const other = await callback(a, { browser: 'other' });
     expect(other.headers['location']).toBe('/login#error=oidc-failed');
-    expect([other.headers['set-cookie']].flat().map(String).join()).not.toMatch(/vrx_refresh=[^;]/);
+    expect([other.headers['set-cookie']].flat().map(String).join()).not.toMatch(/ngfw_refresh=[^;]/);
     // a foreign browser's own cookie does not fit either
     const b = await authorize('w1dave', ['ops']);
     const mixed = await callback({ ...b, cookie: a.cookie });

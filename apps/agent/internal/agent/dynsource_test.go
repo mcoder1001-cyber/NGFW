@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/scheduler"
@@ -22,9 +22,9 @@ import (
 )
 
 // skippedKey returns the SKIPPED result of key k in resp, nil when there is none.
-func skippedKey(resp *vrxv1.ApplyResponse, k string) *vrxv1.ObjectResult {
+func skippedKey(resp *ngfwv1.ApplyResponse, k string) *ngfwv1.ObjectResult {
 	for _, r := range resp.GetResults() {
-		if r.GetKey() == k && r.GetCode() == vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED {
+		if r.GetKey() == k && r.GetCode() == ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED {
 			return r
 		}
 	}
@@ -45,8 +45,8 @@ func TestDynamicSourceOneRejectedObjectDoesNotHoldBackItsSource(t *testing.T) {
 	md.failOn("loop702", errors.New(errLabelInUse)) // ... and VPP now rejects one dynamic object
 
 	resp := s.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{})
 	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
 		t.Fatalf("the configuration was not rebuilt: %v", err)
 	}
@@ -75,11 +75,11 @@ func TestDynamicSourceRejectedObjectDoesNotBlockAConfigDelete(t *testing.T) {
 	next := withLoop703(t)
 	delete(next.Interfaces, "loop702")
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: next})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: next})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	deleted := map[string]bool{}
 	for _, r := range resp.GetResults() {
-		if r.GetOp() == vrxv1.ApplyOperation_APPLY_OPERATION_DELETE && r.GetCode() == vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
+		if r.GetOp() == ngfwv1.ApplyOperation_APPLY_OPERATION_DELETE && r.GetCode() == ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_OK {
 			deleted[r.GetKey()] = true
 		}
 	}
@@ -108,7 +108,7 @@ func TestDynamicSourceMissingDependencyQuarantinesTheKey(t *testing.T) {
 	src.extra = []scheduler.KV{{Key: orphan, Value: wrapperspb.String("loop709")}}
 	src.mu.Unlock()
 
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
 	}
@@ -119,8 +119,8 @@ func TestDynamicSourceMissingDependencyQuarantinesTheKey(t *testing.T) {
 	if !strings.Contains(strings.Join(rules, " "), "agent.dynamic-object-quarantined") || strings.Contains(strings.Join(rules, " "), "agent.dynamic-source-skipped") {
 		t.Errorf("dry run issues %v (want the key quarantined, the source not skipped)", rules)
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if skippedKey(resp, string(orphan)) == nil || !s.source("test-sync").inSync.Load() || md.list() != "loop701" {
 		t.Fatalf("apply: orphan %v, in sync %v, dynamic %q", skippedKey(resp, string(orphan)), s.source("test-sync").inSync.Load(), md.list())
 	}
@@ -139,8 +139,8 @@ func TestDynamicSourceRefusedDeleteKeepsTheObject(t *testing.T) {
 		t.Fatalf("sync with a refused delete: %v, dynamic %q, in sync %v", err, md.list(), s.source("test-sync").inSync.Load())
 	}
 	// A config commit keeps the held object as it is: no operation on it at all.
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for _, r := range resp.GetResults() {
 		if strings.HasPrefix(r.GetKey(), dynDesc+"/") {
 			t.Fatalf("the commit touched a dynamic object: %v", r)
@@ -149,8 +149,8 @@ func TestDynamicSourceRefusedDeleteKeepsTheObject(t *testing.T) {
 	// The exception: deleting loop702 while VPP refuses to delete its dynamic object fails.
 	next := withLoop703(t)
 	delete(next.Interfaces, "loop702")
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: next})
-	if _, ok := v.InterfaceByName("loop702"); resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || !ok || md.list() != "loop701,loop702" {
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: next})
+	if _, ok := v.InterfaceByName("loop702"); resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || !ok || md.list() != "loop701,loop702" {
 		t.Fatalf("deleting loop702 under a live dynamic object: %s, loop702 %v, dynamic %q", resp.GetStatus(), ok, md.list())
 	}
 	if err := sync(context.Background()); !isQuarantinedErr(err) { // rejoins (the failed commit left the source out)
@@ -161,7 +161,7 @@ func TestDynamicSourceRefusedDeleteKeepsTheObject(t *testing.T) {
 	if md.list() != "loop701" || len(quarantinedKeys(s, "test-sync")) != 0 {
 		t.Fatalf("key retry once VPP lets go: dynamic %q, quarantined %v", md.list(), quarantinedKeys(s, "test-sync"))
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t4", DesiredState: next}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t4", DesiredState: next}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 }
 
 // V1: each quarantined key backs off on its own (retryMin doubling to retryMax), and a sync retries it
@@ -172,7 +172,7 @@ func TestDynamicSourceQuarantineBackoffAndRelease(t *testing.T) {
 	s.retryMin, s.retryMax = time.Hour, 4*time.Hour // no timer fires during the test
 	md.failOn("loop703", errors.New(errLabelInUse))
 	src.set("loop701", "loop703")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	k := dynDesc + "/loop703"
 	for i, want := range []time.Duration{time.Hour, 2 * time.Hour, 4 * time.Hour, 4 * time.Hour} {
 		if i > 0 {
@@ -196,7 +196,7 @@ func TestDynamicSourceKeyRetryWhileDisconnected(t *testing.T) {
 	s.retryMin, s.retryMax = time.Hour, 4*time.Hour
 	md.failOn("loop703", errors.New(errLabelInUse))
 	src.set("loop701", "loop703")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.SetConnected(false)
 	retryQuarantinedNow(t, s, "test-sync")
 	if got := quarantineDelay(s, "test-sync", dynDesc+"/loop703"); got != 2*time.Hour || !keyRetryArmed(s, "test-sync") {
@@ -218,13 +218,13 @@ func TestDynamicSourceQuarantineIsBounded(t *testing.T) {
 	next := doc(t, sampleDoc)
 	names := []string{"loop701"}
 	for _, n := range []string{"loop703", "loop704", "loop705", "loop706"} {
-		next.Interfaces[n] = &vrxv1.Interface{}
+		next.Interfaces[n] = &ngfwv1.Interface{}
 		md.failOn(n, errors.New(errLabelInUse))
 		names = append(names, n)
 	}
 	src.set(names...)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: next})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: next})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop706"); !ok || s.source("test-sync").inSync.Load() || len(quarantinedKeys(s, "test-sync")) != maxKeyReruns {
 		t.Fatalf("commit: loop706 %v, in sync %v, quarantined %v (want the config applied, the source left out, %d keys quarantined)", ok, s.source("test-sync").inSync.Load(), quarantinedKeys(s, "test-sync"), maxKeyReruns)
 	}
@@ -248,7 +248,7 @@ func TestDynamicSourceVerifyFailureBlamesTheSourceOnlyForItsOwnKeys(t *testing.T
 		res    *scheduler.TxnResult
 		blamed bool
 	}{
-		{"a config key and a dynamic key differ", verify(string(cfg)+" differs: vrx.v1.Interface fields [enabled] (values redacted)", string(dyn)+" missing"), false},
+		{"a config key and a dynamic key differ", verify(string(cfg)+" differs: ngfw.v1.Interface fields [enabled] (values redacted)", string(dyn)+" missing"), false},
 		{"only a config key differs", verify(string(cfg) + " missing"), false},
 		{"only the source's key differs", verify(string(dyn) + " missing"), true},
 		{"the source's descriptor cannot be retrieved", &scheduler.TxnResult{Outcome: scheduler.OutcomeRolledBack, Err: errors.New("verify: retrieve " + dynDesc + ": boom")}, true},
@@ -300,11 +300,11 @@ func TestResyncRejectedDynamicObjectsDoNotChurnTheConfiguration(t *testing.T) {
 	next := doc(t, sampleDoc)
 	names := []string{"loop701", "loop702"}
 	for _, n := range []string{"loop703", "loop704", "loop705", "loop706"} {
-		next.Interfaces[n] = &vrxv1.Interface{}
+		next.Interfaces[n] = &ngfwv1.Interface{}
 		names = append(names, n)
 	}
 	src.set(names...)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: next}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: next}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != strings.Join(names, ",") {
 		t.Fatalf("dynamic objects before the restart: %q", md.list())
 	}
@@ -322,7 +322,7 @@ func TestResyncRejectedDynamicObjectsDoNotChurnTheConfiguration(t *testing.T) {
 	v.Reset()
 
 	resp := s.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := len(v.CallsNamed("create_loopback_instance")); n != len(names) {
 		t.Fatalf("resync created %d loopbacks, want %d (one configuration pass; the reruns touch dynamic objects only)", n, len(names))
 	}
@@ -355,7 +355,7 @@ func TestResyncTwoPhaseQuarantinesInPhaseTwo(t *testing.T) {
 	v.Reset()
 
 	resp := s.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := len(v.CallsNamed("create_loopback_instance")); n != 2 {
 		t.Fatalf("resync created %d loopbacks, want 2", n)
 	}

@@ -1,7 +1,7 @@
 // Desired-state model of the l3xc descriptor (task DF-1). Agent-internal, see interface/model.proto.
 syntax = "proto3";
 
-package vrx.agent.l3xc;
+package ngfw.agent.l3xc;
 
 option go_package = "ngfw/agent/internal/descriptors/l3xc;l3xc";
 

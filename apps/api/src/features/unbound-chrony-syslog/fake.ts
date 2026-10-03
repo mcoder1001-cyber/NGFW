@@ -38,7 +38,7 @@ export interface FakeHost {
 export const FAKE_JOURNAL: SyslogEntry[] = [
   ['2026-09-25T03:00:05Z', 'info', 'daemon', 'unbound', 'info: service stopped (unbound 1.24.2).'],
   ['2026-09-25T03:00:04Z', 'warning', 'daemon', 'chronyd', 'System clock wrong by 1.2 seconds'],
-  ['2026-09-25T03:00:03Z', 'error', 'local7', 'vrx-test', 'forwarded test line'],
+  ['2026-09-25T03:00:03Z', 'error', 'local7', 'ngfw-test', 'forwarded test line'],
   ['2026-09-25T03:00:02Z', 'notice', 'auth', 'sshd', 'Accepted publickey for root'],
   ['2026-09-25T03:00:01Z', 'debug', 'kern', 'kernel', 'eth0: link up'],
 ].map(([time, severity, facility, identifier, message], i) => ({
@@ -47,7 +47,7 @@ export const FAKE_JOURNAL: SyslogEntry[] = [
   facility: facility!,
   identifier: identifier!,
   pid: 100 + i,
-  hostname: 'vrx-fake',
+  hostname: 'ngfw-fake',
   unit: '',
   message: message!,
 }));
@@ -185,7 +185,7 @@ export function unboundChronySyslogFake(
         appliedByThisAgent: false,
         upstreams: ((vc?.['upstreams'] ?? []) as string[]).slice().sort(),
       },
-      configPath: '/run/vrx-test/fake/unbound/unbound.conf',
+      configPath: '/run/ngfw-test/fake/unbound/unbound.conf',
       error: '',
     });
   };
@@ -234,7 +234,7 @@ export function unboundChronySyslogFake(
       sourceStats: [],
       serverStats: {},
       pendingActions: [],
-      configPath: '/run/vrx-test/fake/chrony/agent/chrony.conf',
+      configPath: '/run/ngfw-test/fake/chrony/agent/chrony.conf',
       error: '',
     });
   };
@@ -247,7 +247,7 @@ export function unboundChronySyslogFake(
       retrievedAt: new Date(),
       targets: targets.map((t, i) => ({
         index: i,
-        action: `vrx_export_${i}_00000000`,
+        action: `ngfw_export_${i}_00000000`,
         target: `${String(t['address'])}:${Number(t['port'] ?? 514)}`,
         protocol: t['protocol'] === 'udp' || t['protocol'] === undefined ? 'udp' : 'tcp',
         reported: true,
@@ -265,7 +265,7 @@ export function unboundChronySyslogFake(
       })),
       inputs: { imuxsock: '9' },
       pendingActions: [],
-      configPath: '/run/vrx-test/fake/rsyslog/rsyslog.conf',
+      configPath: '/run/ngfw-test/fake/rsyslog/rsyslog.conf',
       error: '',
     });
   };

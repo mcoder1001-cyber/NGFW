@@ -3,7 +3,7 @@
 // objects and back. proto.Equal on these messages is the scheduler's diff.
 syntax = "proto3";
 
-package vrx.agent.svs;
+package ngfw.agent.svs;
 
 option go_package = "ngfw/agent/internal/descriptors/svs;svs";
 

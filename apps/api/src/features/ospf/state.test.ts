@@ -29,11 +29,11 @@ describe('bounded public OSPF observations', () => {
             },
           },
         },
-        default: { neighbors: { '1.1.1.1': [{ ...neighbor, password: 'VRX_TEST_PSK_READER' }] } },
+        default: { neighbors: { '1.1.1.1': [{ ...neighbor, password: 'NGFW_TEST_PSK_READER' }] } },
       }),
     );
-    response.error = 'VRX_TEST_PSK_PROVIDER';
-    response.readers['other'] = 'VRX_TEST_PSK_UNREQUESTED';
+    response.error = 'NGFW_TEST_PSK_PROVIDER';
+    response.readers['other'] = 'NGFW_TEST_PSK_UNREQUESTED';
     const output = OspfStateOut.parse(ospfStateOut(response));
     expect(output.neighbors).toEqual([
       {
@@ -59,7 +59,7 @@ describe('bounded public OSPF observations', () => {
       warning: 'routing-observation-partial',
       truncated: false,
     });
-    expect(JSON.stringify(output)).not.toContain('VRX_TEST_PSK');
+    expect(JSON.stringify(output)).not.toContain('NGFW_TEST_PSK');
   });
   it('preserves FRR point-to-point Full/- adjacency state', () => {
     const output = ospfStateOut(
@@ -127,7 +127,7 @@ describe('bounded public OSPF observations', () => {
           neighbors: {
             '1.1.1.1': [
               {
-                state: 'VRX_TEST_PSK_STATE',
+                state: 'NGFW_TEST_PSK_STATE',
                 ifaceName: '\u001bunsafe',
                 priority: 999,
                 address: 'invalid',
@@ -145,7 +145,7 @@ describe('bounded public OSPF observations', () => {
       priority: null,
       address: null,
     });
-    expect(JSON.stringify(state)).not.toContain('VRX_TEST_PSK');
+    expect(JSON.stringify(state)).not.toContain('NGFW_TEST_PSK');
   });
   it('distinguishes observed empty inventory from missing readers or stopped FRR', () => {
     expect(ospfStateOut(observed())).toMatchObject({ unavailable: null, neighbors: [] });

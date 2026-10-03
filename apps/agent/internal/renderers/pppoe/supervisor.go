@@ -17,7 +17,7 @@ import (
 // mirroring the negotiated address into VPP need /dev/ppp and VPP; this drives systemctl and is unit-tested
 // with a recording runner. The live dial is proven on the lab host (F-pppoe-client-host).
 //
-// It never enables/disables units (shared-host rules §3) and only touches units it owns (`vrx-pppoe-*`).
+// It never enables/disables units (shared-host rules §3) and only touches units it owns (`ngfw-pppoe-*`).
 func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions []Session) error {
 	files, err := r.Render(sessions)
 	if err != nil {
@@ -31,8 +31,8 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	// unchanged peer/unit content per session before writing (to decide restarts)
 	changed := map[string]bool{}
 	for hostIf := range want {
-		peer := r.paths.PeersDir + "/vrx-" + hostIf
-		unit := r.paths.UnitDir + "/vrx-pppoe-" + hostIf + ".service"
+		peer := r.paths.PeersDir + "/ngfw-" + hostIf
+		unit := r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service"
 		changed[hostIf] = !sameOnDisk(peer, files[peer]) || !sameOnDisk(unit, files[unit])
 	}
 
@@ -93,7 +93,7 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	return nil
 }
 
-func unitName(hostIf string) string { return "vrx-pppoe-" + hostIf + ".service" }
+func unitName(hostIf string) string { return "ngfw-pppoe-" + hostIf + ".service" }
 
 func (r *Renderer) systemctl(ctx context.Context, runner renderers.Runner, args ...string) error {
 	_, err := runner.Run(ctx, renderers.Command{Path: SystemctlBin, Args: args})
@@ -106,10 +106,10 @@ func (r *Renderer) systemctl(ctx context.Context, runner renderers.Runner, args 
 // sessionFiles are every file that belongs to one session's host interface.
 func (r *Renderer) sessionFiles(hostIf string) []string {
 	return []string{
-		r.paths.PeersDir + "/vrx-" + hostIf,
-		r.paths.IPUpDir + "/vrx-" + hostIf,
-		r.paths.IPDownDir + "/vrx-" + hostIf,
-		r.paths.UnitDir + "/vrx-pppoe-" + hostIf + ".service",
+		r.paths.PeersDir + "/ngfw-" + hostIf,
+		r.paths.IPUpDir + "/ngfw-" + hostIf,
+		r.paths.IPDownDir + "/ngfw-" + hostIf,
+		r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service",
 		r.paths.StateDir + "/" + hostIf + ".state",
 	}
 }
@@ -123,7 +123,7 @@ func (r *Renderer) installedHostIfs() map[string]bool {
 	}
 	for _, e := range entries {
 		n := e.Name()
-		if h, ok := strings.CutPrefix(n, "vrx-pppoe-"); ok {
+		if h, ok := strings.CutPrefix(n, "ngfw-pppoe-"); ok {
 			if h, ok := strings.CutSuffix(h, ".service"); ok {
 				out[h] = true
 			}
@@ -145,4 +145,3 @@ func sortedKeys(m map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
-

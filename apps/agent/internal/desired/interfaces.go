@@ -1,5 +1,5 @@
 // Package desired is the desired-state builder of the `interfaces` domain (P08): it turns
-// `interfaces.<name>` of the configuration document (vrx.v1.Interface) into the scheduler objects of
+// `interfaces.<name>` of the configuration document (ngfw.v1.Interface) into the scheduler objects of
 // the core, DF-1, af_packet and DHCP descriptors, and assembles retrieved objects back into the same
 // messages for Retrieve (canonical form, docs/contracts/proto.md §5).
 //
@@ -31,7 +31,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	afpacket "ngfw/agent/internal/descriptors/af_packet"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/dfkit"
@@ -118,7 +118,7 @@ type NetdevKind func(name string) (kind string, exists bool, err error)
 // validation error at /interfaces/<name> — the management NIC can never be taken by configuration.
 // A netdev that does not exist (yet) is not an error here: a vanished rig veth must not block
 // unrelated commits; the af_packet Create checks again (subsystems' veth guard).
-func Interfaces(s Sink, ifs map[string]*vrxv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind) {
+func Interfaces(s Sink, ifs map[string]*ngfwv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind) {
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
 		pt := Ptr("interfaces", name)
@@ -209,7 +209,7 @@ type commonFields struct {
 	vrf        *string
 	ipv4, ipv6 []string
 	unnumbered bool
-	dhcp       *vrxv1.DhcpClient
+	dhcp       *ngfwv1.DhcpClient
 }
 
 // common emits what interfaces and sub-interfaces share. pt is the pointer of the (sub-)interface.
@@ -256,14 +256,14 @@ func common(s Sink, name, ref, pt string, f commonFields, vrfID func(string) (ui
 // Live is the live view the assembler needs for interfaces the agent does not manage attributes of.
 type Live interface {
 	// State returns the live state of the interface with this logical name.
-	State(name string) (*vrxv1.InterfaceState, bool)
+	State(name string) (*ngfwv1.InterfaceState, bool)
 }
 
 // Assemble builds `interfaces` from retrieved objects. stored is the agent's stored desired state
 // of the domain (descriptions, which physical interfaces the document names, which scalars it sets);
 // tableName names a FIB table. An interface appears when the agent created it, holds an object on
 // it, or the stored document names it and it exists.
-func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live, tableName func(uint32) string) map[string]*vrxv1.Interface {
+func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live, tableName func(uint32) string) map[string]*ngfwv1.Interface {
 	nodes := map[string]*node{}
 	subParent := map[string]string{} // sub name → parent name
 	subID := map[string]string{}
@@ -284,9 +284,9 @@ func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live,
 		}
 		n := &node{}
 		if _, ok := subParent[name]; ok {
-			n.sub = &vrxv1.Subinterface{}
+			n.sub = &ngfwv1.Subinterface{}
 		} else {
-			n.itf = &vrxv1.Interface{}
+			n.itf = &ngfwv1.Interface{}
 		}
 		nodes[name] = n
 		return n
@@ -332,7 +332,7 @@ func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live,
 		if kv.Key.Descriptor() == dhcp.NameClient {
 			var c dhcp.Client
 			if err := dfkit.Decode(kv.Value, &c); err == nil {
-				dc := &vrxv1.DhcpClient{SetBroadcastFlag: proto.Bool(c.SetBroadcastFlag)}
+				dc := &ngfwv1.DhcpClient{SetBroadcastFlag: proto.Bool(c.SetBroadcastFlag)}
 				if c.Hostname != "" {
 					dc.Hostname = proto.String(c.Hostname)
 				}
@@ -357,8 +357,8 @@ func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live,
 		}
 	}
 
-	out := map[string]*vrxv1.Interface{}
-	storedOf := func(name string) (*vrxv1.Interface, *vrxv1.Subinterface) {
+	out := map[string]*ngfwv1.Interface{}
+	storedOf := func(name string) (*ngfwv1.Interface, *ngfwv1.Subinterface) {
 		if p, ok := subParent[name]; ok {
 			return nil, stored[p].GetSubinterfaces()[subID[name]]
 		}
@@ -396,14 +396,14 @@ func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live,
 			p := subParent[name]
 			parent := out[p]
 			if parent == nil {
-				parent = &vrxv1.Interface{}
+				parent = &ngfwv1.Interface{}
 				if pn, ok := nodes[p]; ok && pn.itf != nil {
 					parent = pn.itf
 				}
 				out[p] = parent
 			}
 			if parent.Subinterfaces == nil {
-				parent.Subinterfaces = map[string]*vrxv1.Subinterface{}
+				parent.Subinterfaces = map[string]*ngfwv1.Subinterface{}
 			}
 			parent.Subinterfaces[subID[name]] = n.sub
 			continue
@@ -445,8 +445,8 @@ func Assemble(kvs []scheduler.KV, stored map[string]*vrxv1.Interface, live Live,
 
 // node is one interface or sub-interface under assembly.
 type node struct {
-	itf *vrxv1.Interface
-	sub *vrxv1.Subinterface
+	itf *ngfwv1.Interface
+	sub *ngfwv1.Subinterface
 }
 
 func (n *node) setMac(mac string) {
@@ -477,7 +477,7 @@ func (n *node) addAddr(p string) {
 	}
 }
 
-func (n *node) setDHCP(d *vrxv1.DhcpClient) {
+func (n *node) setDHCP(d *ngfwv1.DhcpClient) {
 	if n.itf != nil {
 		n.itf.DhcpClient = d
 	} else {

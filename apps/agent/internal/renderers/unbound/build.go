@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -158,7 +158,7 @@ func u16(path, s string) (string, error) {
 // ----- the template model ---------------------------------------------------------------
 
 type confData struct {
-	// Input is the base64 render input embedded as `# vrx-input:` ("" = none: idle).
+	// Input is the base64 render input embedded as `# ngfw-input:` ("" = none: idle).
 	Input        string
 	Paths        Paths
 	Resolvers    []resolverNote // comment lines: the resolvers merged into this instance
@@ -207,18 +207,18 @@ type forward struct {
 }
 
 type input struct {
-	dns *vrxv1.DnsService
+	dns *ngfwv1.DnsService
 }
 
 func extract(desired proto.Message) (input, error) {
 	switch d := desired.(type) {
 	case nil:
 		return input{}, nil
-	case *vrxv1.DesiredState:
+	case *ngfwv1.DesiredState:
 		return input{dns: d.GetServices().GetDns()}, nil
-	case *vrxv1.ServicesConfig:
+	case *ngfwv1.ServicesConfig:
 		return input{dns: d.GetDns()}, nil
-	case *vrxv1.DnsService:
+	case *ngfwv1.DnsService:
 		return input{dns: d}, nil
 	default:
 		return input{}, fmt.Errorf("%w: unsupported desired type %T", ErrInvalid, desired)
@@ -232,7 +232,7 @@ type settings struct {
 	dnssec, auto, qmin, hideID, hideVer, logQs bool
 }
 
-func resolverSettings(r *vrxv1.DnsResolver) settings {
+func resolverSettings(r *ngfwv1.DnsResolver) settings {
 	c, ds := r.GetCache(), r.GetDnssec()
 	s := settings{
 		threads: 1,
@@ -365,7 +365,7 @@ func (r *Renderer) build(in input) (*confData, error) {
 		// forwarders: the resolver's default forwarders are the "." forward zone
 		zones := res.GetForwardZones()
 		if len(res.GetForwarders()) > 0 {
-			zones = append([]*vrxv1.DnsForwardZone{{Zone: proto.String("."), Forwarders: res.GetForwarders()}}, zones...)
+			zones = append([]*ngfwv1.DnsForwardZone{{Zone: proto.String("."), Forwarders: res.GetForwarders()}}, zones...)
 		}
 		ownZones := map[string]bool{}
 		for j, fz := range zones {
@@ -432,7 +432,7 @@ func (r *Renderer) build(in input) (*confData, error) {
 	return d, nil
 }
 
-func buildForward(path string, fz *vrxv1.DnsForwardZone) (forward, error) {
+func buildForward(path string, fz *ngfwv1.DnsForwardZone) (forward, error) {
 	zone, err := fqdn(path+"/zone", fz.GetZone())
 	if err != nil {
 		return forward{}, err
@@ -476,7 +476,7 @@ func buildForward(path string, fz *vrxv1.DnsForwardZone) (forward, error) {
 	return f, nil
 }
 
-func buildLocalZone(path string, lz *vrxv1.DnsLocalZone) (localZone, error) {
+func buildLocalZone(path string, lz *ngfwv1.DnsLocalZone) (localZone, error) {
 	zone, err := fqdn(path+"/zone", lz.GetZone())
 	if err != nil {
 		return localZone{}, err

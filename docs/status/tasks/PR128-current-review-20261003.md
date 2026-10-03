@@ -6,7 +6,7 @@ Current base `360018d3b`; exact reviewed PR head
 Verdict: APPROVE WITH LIMITS for the two documentation files.
 
 The latest head preserves current-main product content; delta is exactly
-docs/decisions/PENDING-vpp-host-hardening.md and docs/lab/host-vrx-a.md. It marks
+docs/decisions/PENDING-vpp-host-hardening.md and docs/lab/host-ngfw-a.md. It marks
 September memory/netlink/stall readings historical and consistently records the
 October guest snapshot: 4096 two-MiB pages (~8 GiB), free4045, 256MiB socket limits,
 32vCPU/62.7GiB/oneNUMA and point-in-time service health. Both documents retain
@@ -26,7 +26,7 @@ not independent verification of current machine measurements.
 | ID | Factual current source and remaining scope | Recommendation |
 | --- | --- | --- |
 | P10 | Packaging/firstboot/systemd/signed repository source and bounded fixtures exist; original VPP producer/affinity/source verification exists. CAP_CHOWN/daemon ownership decision remains explicitly pending; release licensing metadata unresolved; actual install/remove/upgrade/reboot/daemon permissions NOT RUN. | Keep RUNNING for unresolved security/release source decisions; record completed reviewed subsets separately, do not mark whole DONE. |
-| P11 | Existing strongSwan renderer/VICI/IPsec descriptor source exists; current tree has no deploy/strongswan producer, deploy/debian/vrx-strongswan package or internal/charon lifecycle directory, and VPN IPsec UI is absent. PKI materializer/secret transport remains unwired. | Keep RUNNING; these are source gaps, not merely lab acceptance. External worker output is not merged-source completion. |
+| P11 | Existing strongSwan renderer/VICI/IPsec descriptor source exists; current tree has no deploy/strongswan producer, deploy/debian/ngfw-strongswan package or internal/charon lifecycle directory, and VPN IPsec UI is absent. PKI materializer/secret transport remains unwired. | Keep RUNNING; these are source gaps, not merely lab acceptance. External worker output is not merged-source completion. |
 | P14 | Main now has builder, strict label/size/manifest/count guards, offline aggregate/workflow and canonical guide. Source subset is implemented; signed production closure/schema/build/reproducibility and disposable BIOS/UEFI VM acceptance remain NOT RUN, dependent on external signed pool. | Replace stale TODO with source-complete/acceptance-deferred tracking according to board convention; do not claim complete appliance acceptance. |
 | TD-19 | Pinned Go/module/installer/provisioning/FRR-selection source and strict fixture gates exist; scripts require independently authorized FRR/NodeSource fingerprints. Status records unresolved production fourth FRR signer authorization/Node authority, distinct from live artifact transfer/install/version/boot NOT RUN. | Replace stale TODO with RUNNING/partial source status; preserve source-authority gaps and lab campaign, no blanket DONE. |
 

@@ -4,15 +4,15 @@
 routes (`/api/v1/config/services` → `dns`, `ntp`; `/api/v1/config/management` → `syslog`), live state
 `GET /api/v1/state/dns`, `/state/ntp`, `/state/syslog`, the log explorer `GET /api/v1/state/logs`, and
 `POST /api/v1/actions/dns-lookup`. **CLI:** `merge` / `set` / `show configuration` on the same paths (below); the CLI
-has no `show dns|ntp|logs` command yet — `vrx --json` users call the state routes through the API.
+has no `show dns|ntp|logs` command yet — `ngfw --json` users call the state routes through the API.
 
-VRX runs three host daemons as separate processes, configured from the one configuration document:
+NGFW runs three host daemons as separate processes, configured from the one configuration document:
 
-| section | daemon | what VRX renders | how a change is applied |
+| section | daemon | what NGFW renders | how a change is applied |
 |---|---|---|---|
 | `services.dns.resolvers` | Unbound 1.24 | one `unbound.conf` for every resolver | `unbound-control reload_keep_cache` + a convergence check; a change of listen address/port/views needs a **restart** |
 | `services.dns.vppCache` | VPP's `dns` plugin | name servers + the enable switch (a VPP-global) | binary API, by the globals owner only |
-| `services.ntp` | chrony 4.8 | `chrony.conf`, `sources.d/vrx.sources`, `chrony.keys` | `chronyc reload sources` / `rekey`; any other change needs a **restart** |
+| `services.ntp` | chrony 4.8 | `chrony.conf`, `sources.d/ngfw.sources`, `chrony.keys` | `chronyc reload sources` / `rekey`; any other change needs a **restart** |
 | `management.syslog` | rsyslog 8 | one export file (`omfwd` per target) | a restart of rsyslog (it cannot reload), skipped when nothing changed |
 
 A change the daemon applies only when it starts is shown as a **Daemon action pending** banner (e.g. "unbound needs a
@@ -32,7 +32,7 @@ the top.
 Example — a LAN resolver with DNSSEC validation (the default), a local zone and a forward zone:
 
 ```sh
-vrx configure
+ngfw configure
 merge services '{"dns":{"resolvers":{"lan":{"listen":[{"address":"192.168.10.1"}],
   "accessControl":[{"prefix":"192.168.10.0/24","action":"allow"}],
   "forwarders":[{"address":"9.9.9.9","port":853,"tls":true,"tlsServerName":"dns.quad9.net"}],

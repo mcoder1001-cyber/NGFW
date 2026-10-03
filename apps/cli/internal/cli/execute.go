@@ -13,7 +13,7 @@ import (
 	"ngfw/cli/internal/safe"
 )
 
-// execute runs one command line. oneShot: `vrx <command>` from the shell (configuration verbs are allowed without
+// execute runs one command line. oneShot: `ngfw <command>` from the shell (configuration verbs are allowed without
 // entering configuration mode, and `configure <command>` runs one configuration-mode command).
 func (a *App) execute(ctx context.Context, toks []cpath.Token, oneShot bool) error {
 	if len(toks) == 0 {

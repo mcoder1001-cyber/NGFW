@@ -20,7 +20,7 @@ contract before F-mpls-ldp or F-igmp-mfib code against it, and before Q5 goes in
 ## Verification
 
 ```
-$ cd apps/agent && env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
+$ cd apps/agent && env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/subsystems/...
 ok  	ngfw/agent/internal/agent	11.714s
 ok  	ngfw/agent/internal/subsystems	1.292s
 $ go vet ./internal/agent/ ./internal/subsystems/        → clean
@@ -83,7 +83,7 @@ F2) 1 collector ignoring ctx (sleeps 700ms, deadline 100ms): scrape took 710ms
 ### R3 MEDIUM: a panic in `Desired` (or `Run`/`Collect`) is not contained
 `service.go:644`, `agent.go:316`, `metrics.go:117`
 - `grpc.NewServer()` (`agent.go:185`) has no recovery interceptor. A `Desired` panic inside Apply therefore kills
-  vrx-agent (probe C: only the test's `recover` caught it).
+  ngfw-agent (probe C: only the test's `recover` caught it).
 - On restart, the first resync calls `Desired` again, so the agent crash-loops and the configuration is never applied.
 - A panic in `Run` (in its goroutine) also kills the process.
 
@@ -206,9 +206,9 @@ split.
     cannot wedge the connection manager.
 - **Collectors outside locks, bounded time:** outside locks, yes. The time bound is only cooperative and it adds up (R5).
 - **Id range, product vs lab:**
-  - Lab slots (1–12, `VRX_VPP_TABLE_BASE=N000`) and CI slot 12 are unchanged.
+  - Lab slots (1–12, `NGFW_VPP_TABLE_BASE=N000`) and CI slot 12 are unchanged.
   - `tools/app` gets 13000, which is free: slots are 1–12 (`shared-host-rules.md` §1).
-  - The product box needs `VRX_VPP_ID_RANGE=all`. `both set`, a malformed base and a bad `VRX_VPP_ID_RANGE` all refuse
+  - The product box needs `NGFW_VPP_ID_RANGE=all`. `both set`, a malformed base and a bad `NGFW_VPP_ID_RANGE` all refuse
     start-up (`Config.Validate`). That is right.
   - The weak point is R4.
 - **Out-of-list edits:** all justified.
@@ -228,9 +228,9 @@ split.
   - Copy §11 into `docs/lab/shared-host-rules.md` now.
   - Put the flip on the board as one gated change that must merge before the first id-allocating family
     (e.g. F-acl, P11 SPD/SA ids, F-rpf-adl-pbr ABF policy ids, F-qos-flat egress-map ids). The change:
-    - `tools/app` gets `VRX_VPP_TABLE_BASE=13000`;
-    - the `test/topology/interfaces` harness passes `VRX_VPP_TABLE_BASE` through;
-    - P10's unit ships `VRX_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test;
+    - `tools/app` gets `NGFW_VPP_TABLE_BASE=13000`;
+    - the `test/topology/interfaces` harness passes `NGFW_VPP_TABLE_BASE` through;
+    - P10's unit ships `NGFW_VPP_ID_RANGE=all` in its EnvironmentFile, with a packaging test;
     - then drop the exception at `agent.go:80`.
 - **Q4 (`SlotIDRange` meaning):** accept. It has no callers.
   - Mark it `// Deprecated: families read Wiring.IDRange (Env), never the environment.` so that staticcheck SA1019 flags

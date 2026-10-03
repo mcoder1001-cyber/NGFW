@@ -11,7 +11,7 @@
     },
     "hostname": {
       "title": "نام میزبان",
-      "help": "نام میزبان مطابق RFC 1123، مثلاً vrx-a یا vrx-a.lab.example"
+      "help": "نام میزبان مطابق RFC 1123، مثلاً ngfw-a یا ngfw-a.lab.example"
     },
     "timezone": {
       "title": "منطقهٔ زمانی",

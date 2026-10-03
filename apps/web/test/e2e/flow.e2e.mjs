@@ -6,24 +6,24 @@
  *   --revert additionally commits with a 1-minute window and does NOT confirm: the device must revert and the UI must say so.
  *
  * Not part of `pnpm test` (unit-only, 00-CONTEXT): Playwright is not a workspace dependency and packages may not be
- * installed on the shared host, so the script loads `playwright-core` from VRX_PLAYWRIGHT_CORE and drives the
- * Chrome binary in VRX_CHROME (via `lib/browser.mjs`, WEB-3 — the same small library `shots.mjs` and every feature's
+ * installed on the shared host, so the script loads `playwright-core` from NGFW_PLAYWRIGHT_CORE and drives the
+ * Chrome binary in NGFW_CHROME (via `lib/browser.mjs`, WEB-3 — the same small library `shots.mjs` and every feature's
  * `screens/<slug>.mjs` use for login/nav/screenshots). Environment:
- *   VRX_E2E_BASE                  web origin (vite dev/preview on the slot port, proxying /api to the slot API)
- *   VRX_E2E_ADMIN_USER            default "admin"
- *   VRX_E2E_ADMIN_PASSWORD_FILE   file holding the bootstrap admin password (never pass it on the command line)
- *   VRX_E2E_ARGON2_FROM           package dir that has @node-rs/argon2 (default apps/api) — hashes the readonly user's
+ *   NGFW_E2E_BASE                  web origin (vite dev/preview on the slot port, proxying /api to the slot API)
+ *   NGFW_E2E_ADMIN_USER            default "admin"
+ *   NGFW_E2E_ADMIN_PASSWORD_FILE   file holding the bootstrap admin password (never pass it on the command line)
+ *   NGFW_E2E_ARGON2_FROM           package dir that has @node-rs/argon2 (default apps/api) — hashes the readonly user's
  *                                 random per-run password the same way the API does (argon2id PHC)
- *   VRX_PLAYWRIGHT_CORE, VRX_CHROME
+ *   NGFW_PLAYWRIGHT_CORE, NGFW_CHROME
  *   --keyboard runs login → commit (with auto-revert) → confirm using the keyboard only (Tab / Enter / typing).
  *   --secret   changes ONLY the readonly user's password hash (write-only, redacted in every diff) → the bar must still
  *              appear with "password changed", the commit must go through and the new password must work (review H1).
- *   --blackhole silent-drop test (review M3/M2/M1). Needs VRX_E2E_PROXY_PORT (the port vite proxies /api to, e.g. the
- *              slot port 3100) and VRX_E2E_UPSTREAM (host:port of the API, e.g. 127.0.0.1:3101): this script runs a TCP
+ *   --blackhole silent-drop test (review M3/M2/M1). Needs NGFW_E2E_PROXY_PORT (the port vite proxies /api to, e.g. the
+ *              slot port 3100) and NGFW_E2E_UPSTREAM (host:port of the API, e.g. 127.0.0.1:3101): this script runs a TCP
  *              proxy in-process between them and, mid-countdown, swallows all traffic without closing a socket (what a
  *              commit that cuts the operator's own route looks like). No iptables, no system change.
  * Options: --langs en,fa  --shots <dir>  --revert  --keyboard  --secret  --blackhole
- * Test users carry the slot prefix (VRX_TEST_PREFIX, default w1): `<prefix>ro`.
+ * Test users carry the slot prefix (NGFW_TEST_PREFIX, default w1): `<prefix>ro`.
  */
 import { randomBytes } from 'node:crypto';
 import net from 'node:net';
@@ -52,13 +52,13 @@ const REVERT = args.includes('--revert');
 const KEYBOARD = args.includes('--keyboard');
 const SECRET = args.includes('--secret');
 const BLACKHOLE = args.includes('--blackhole');
-const BASE = process.env.VRX_E2E_BASE ?? 'http://127.0.0.1:5100';
-const ADMIN = process.env.VRX_E2E_ADMIN_USER ?? 'admin';
-const ADMIN_PW = readFileSync(process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/vrx-test/w1/admin.pw', 'utf8').trim();
-const PREFIX = process.env.VRX_TEST_PREFIX ?? 'w1';
+const BASE = process.env.NGFW_E2E_BASE ?? 'http://127.0.0.1:5100';
+const ADMIN = process.env.NGFW_E2E_ADMIN_USER ?? 'admin';
+const ADMIN_PW = readFileSync(process.env.NGFW_E2E_ADMIN_PASSWORD_FILE ?? '/run/ngfw-test/w1/admin.pw', 'utf8').trim();
+const PREFIX = process.env.NGFW_TEST_PREFIX ?? 'w1';
 const RO_USER = `${PREFIX}ro`;
 let RO_PW = randomBytes(18).toString('base64url'); // per run, memory only
-const argon2 = createRequire(join(resolve(repo, process.env.VRX_E2E_ARGON2_FROM ?? 'apps/api'), 'package.json'))('@node-rs/argon2');
+const argon2 = createRequire(join(resolve(repo, process.env.NGFW_E2E_ARGON2_FROM ?? 'apps/api'), 'package.json'))('@node-rs/argon2');
 const hashOf = (pw) => argon2.hash(pw, { memoryCost: 19456, timeCost: 2, parallelism: 1 });
 let RO_HASH = await hashOf(RO_PW);
 
@@ -459,8 +459,8 @@ async function apiRevisions(page) {
   });
 }
 
-const proxy = process.env.VRX_E2E_PROXY_PORT ? await silentProxy(process.env.VRX_E2E_PROXY_PORT, process.env.VRX_E2E_UPSTREAM ?? '127.0.0.1:3101') : null;
-if (BLACKHOLE && !proxy) throw new Error('--blackhole needs VRX_E2E_PROXY_PORT and VRX_E2E_UPSTREAM');
+const proxy = process.env.NGFW_E2E_PROXY_PORT ? await silentProxy(process.env.NGFW_E2E_PROXY_PORT, process.env.NGFW_E2E_UPSTREAM ?? '127.0.0.1:3101') : null;
+if (BLACKHOLE && !proxy) throw new Error('--blackhole needs NGFW_E2E_PROXY_PORT and NGFW_E2E_UPSTREAM');
 const browser = await launchBrowser();
 try {
   for (const [i, lang] of LANGS.entries()) await adminPass(browser, lang, i);

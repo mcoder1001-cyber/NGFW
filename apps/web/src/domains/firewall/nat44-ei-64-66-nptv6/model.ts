@@ -54,12 +54,12 @@ export function localizeDeep(schema: JsonSchema, t: Translate, scope?: string): 
       const props: Record<string, JsonSchema> = {};
       for (const [name, raw] of Object.entries(s.properties as Record<string, JsonSchema>)) {
         const prop = walk(raw);
-        const hints = (prop['x-vrx-ui'] ?? {}) as Record<string, unknown>;
+        const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
         const help = text(name, 'help', '');
         props[name] = {
           ...prop,
           title: text(name, 'title', prop.title ?? name),
-          'x-vrx-ui': { ...hints, ...(help ? { help } : {}) },
+          'x-ngfw-ui': { ...hints, ...(help ? { help } : {}) },
         } as JsonSchema;
       }
       out['properties'] = props;

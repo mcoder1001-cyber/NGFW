@@ -1,5 +1,5 @@
 {
-  "system": { "hostname": "vrx-a" },
+  "system": { "hostname": "ngfw-a" },
   "vrfs": {
     "default": { "id": 0, "description": "global routing table" },
     "customer-a": { "id": 10, "description": "customer A" }
@@ -71,8 +71,8 @@
           "ikeVersion": 2,
           "localAddr": "198.51.100.2",
           "remoteAddr": "203.0.113.10",
-          "localId": "vrx-a.lab.example",
-          "remoteId": "vrx-b.lab.example",
+          "localId": "ngfw-a.lab.example",
+          "remoteId": "ngfw-b.lab.example",
           "auth": { "method": "psk", "secretRef": "psk/site-b" },
           "proposal": "ike2-aes256gcm",
           "dpd": { "enabled": true, "delaySec": 30, "action": "restart" },
@@ -85,7 +85,7 @@
           "description": "responder-only, route-based, many spokes",
           "localAddr": "198.51.100.2",
           "remoteAddr": "%any",
-          "localId": "vrx-a.lab.example",
+          "localId": "ngfw-a.lab.example",
           "auth": { "method": "psk", "secretRef": "psk/spokes" },
           "proposal": "ike2-aes256gcm",
           "startAction": "trap",

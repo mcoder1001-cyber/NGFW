@@ -37,7 +37,7 @@ func ProductPaths() Paths {
 		Issue:             "/etc/issue",
 		IssueNet:          "/etc/issue.net",
 		Motd:              "/etc/motd",
-		ResolvedDropIn:    "/etc/systemd/resolved.conf.d/vrx.conf",
+		ResolvedDropIn:    "/etc/systemd/resolved.conf.d/ngfw.conf",
 		SetKernelHostname: true,
 		FileMode:          0o644,
 	}

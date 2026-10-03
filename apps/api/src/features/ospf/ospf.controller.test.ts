@@ -41,7 +41,7 @@ describe('OSPF read-only controller contract', () => {
     expect(observed).toBeInstanceOf(ProblemError);
     expect((observed as ProblemError).getStatus()).toBe(503);
     expect((observed as ProblemError).body()).toEqual({
-      type: 'https://vrx.dev/problems/unavailable',
+      type: 'https://ngfw.dev/problems/unavailable',
       title: 'Service unavailable',
       status: 503,
       detail: 'agent unreachable',
@@ -121,7 +121,7 @@ describe('OSPF GET registration and existing global authentication guard', () =>
     expect(result.statusCode).toBe(503);
     expect(result.headers['content-type']).toContain('application/problem+json');
     expect(result.json()).toEqual({
-      type: 'https://vrx.dev/problems/unavailable',
+      type: 'https://ngfw.dev/problems/unavailable',
       title: 'Service unavailable',
       status: 503,
       detail: 'agent unreachable',

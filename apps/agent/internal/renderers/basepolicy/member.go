@@ -17,7 +17,7 @@ func elementTransaction(host string, add bool) []byte {
 		operation = "add"
 	}
 	quoted, _ := json.Marshal(host)
-	return []byte(operation + " element inet vrx_base dynamic_punt_interfaces { " + string(quoted) + " }\n")
+	return []byte(operation + " element inet ngfw_base dynamic_punt_interfaces { " + string(quoted) + " }\n")
 }
 func (r *Renderer) mutate(ctx context.Context, input []byte) error {
 	out, err := r.runner.Run(ctx, renderers.Command{Path: NftBin, Args: []string{"-f", "-"}, Stdin: input, Timeout: 10 * time.Second})

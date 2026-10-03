@@ -1,15 +1,15 @@
-//go:build vrxtestsecrets
+//go:build ngfwtestsecrets
 
 package subsystems
 
-// Test builds only (go build -tags vrxtestsecrets): the slot-local WireGuard secret fixture of the
+// Test builds only (go build -tags ngfwtestsecrets): the slot-local WireGuard secret fixture of the
 // F-wireguard host checks. The product agent has no way to receive secret material yet
 // (PENDING-secret-channel); this file is the envelope's "slot-local fixture resolver", never part of a
 // product build.
 //
-// VRX_TEST_WG_SECRETS names a JSON file {"key/<name>": "<wg genkey text>", "psk/<name>": "…"}: a
+// NGFW_TEST_WG_SECRETS names a JSON file {"key/<name>": "<wg genkey text>", "psk/<name>": "…"}: a
 // regular file, mode 0600 or stricter, owned by the agent's user. Its values are test vectors derived
-// from VRX_TEST_PSK_F-wireguard_* labels; nothing here logs them.
+// from NGFW_TEST_PSK_F-wireguard_* labels; nothing here logs them.
 
 import (
 	"encoding/json"
@@ -21,7 +21,7 @@ import (
 )
 
 // EnvWireguardTestSecrets names the fixture file.
-const EnvWireguardTestSecrets = "VRX_TEST_WG_SECRETS"
+const EnvWireguardTestSecrets = "NGFW_TEST_WG_SECRETS"
 
 func init() { wireguardFixture = loadWireguardFixture }
 

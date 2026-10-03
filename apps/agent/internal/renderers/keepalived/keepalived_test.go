@@ -17,7 +17,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/rfkit"
 )
@@ -39,7 +39,7 @@ func doc(t testing.TB, m map[string]any) *structpb.Struct {
 	return s
 }
 
-func testPaths() Paths { return TestPaths("w0", "/opt/vrx-test/bin", "ns-w0-a") }
+func testPaths() Paths { return TestPaths("w0", "/opt/ngfw-test/bin", "ns-w0-a") }
 
 func resolver(extra map[string]string) rfkit.SecretResolver {
 	vals := map[string]string{"psk/vrrp-a": pskA, "psk/vrrp-b": pskB}
@@ -56,7 +56,7 @@ func resolver(extra map[string]string) rfkit.SecretResolver {
 }
 
 func newRenderer(opts ...Option) *Renderer {
-	base := []Option{WithPaths(testPaths()), WithInterfaceMapper(PrefixMapper("w0-")), WithChecks("vrx-check-ok", "vrx-check-ping"), WithSecretResolver(resolver(nil))}
+	base := []Option{WithPaths(testPaths()), WithInterfaceMapper(PrefixMapper("w0-")), WithChecks("ngfw-check-ok", "ngfw-check-ping"), WithSecretResolver(resolver(nil))}
 	return New(renderers.NewRecordingRunner(), append(base, opts...)...)
 }
 
@@ -93,8 +93,8 @@ var goldenCases = map[string]map[string]any{
 	}, map[string]any{
 		"routerId": "w0-ka", "garpMasterRefresh": 60,
 		"scripts": map[string]any{
-			"up": map[string]any{"check": "vrx-check-ok"},
-			"gw": map[string]any{"check": "vrx-check-ping", "interval": 2, "weight": -20, "fall": 3, "rise": 2},
+			"up": map[string]any{"check": "ngfw-check-ok"},
+			"gw": map[string]any{"check": "ngfw-check-ping", "interval": 2, "weight": -20, "fall": 3, "rise": 2},
 		},
 		"syncGroups": map[string]any{"g1": []any{"vi1", "vi2"}},
 	}),
@@ -172,7 +172,7 @@ func golden(t *testing.T, name string, got []byte) {
 
 func TestTypedInput(t *testing.T) {
 	eng, ifn, vr, a := "keepalived", "w0-a", uint32(81), "10.0.240.1"
-	ds := &vrxv1.DesiredState{Ha: &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"vi1": {Engine: &eng, Interface: &ifn, VrId: &vr, Addresses: []string{a}}}}}
+	ds := &ngfwv1.DesiredState{Ha: &ngfwv1.HaConfig{Vrrp: map[string]*ngfwv1.VrrpInstance{"vi1": {Engine: &eng, Interface: &ifn, VrId: &vr, Addresses: []string{a}}}}}
 	files, err := newRenderer().Render(context.Background(), ds)
 	if err != nil {
 		t.Fatal(err)
@@ -207,7 +207,7 @@ func TestHostileStrings(t *testing.T) {
 		},
 		"router id": func(v string) map[string]any { return ha(map[string]any{}, map[string]any{"routerId": v}) },
 		"script name": func(v string) map[string]any {
-			return ha(map[string]any{}, map[string]any{"scripts": map[string]any{v: map[string]any{"check": "vrx-check-ok"}}})
+			return ha(map[string]any{}, map[string]any{"scripts": map[string]any{v: map[string]any{"check": "ngfw-check-ok"}}})
 		},
 		"script check": func(v string) map[string]any {
 			return ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": v}}})
@@ -252,7 +252,7 @@ func TestHostileStrings(t *testing.T) {
 func TestInvalidUTF8Typed(t *testing.T) {
 	eng, vr := "keepalived", uint32(8)
 	for _, ifn := range []string{"w0-\xff", "\xfe"} {
-		ds := &vrxv1.DesiredState{Ha: &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"vi": {Engine: &eng, Interface: &ifn, VrId: &vr, Addresses: []string{"10.0.0.1"}}}}}
+		ds := &ngfwv1.DesiredState{Ha: &ngfwv1.HaConfig{Vrrp: map[string]*ngfwv1.VrrpInstance{"vi": {Engine: &eng, Interface: &ifn, VrId: &vr, Addresses: []string{"10.0.0.1"}}}}}
 		if _, err := newRenderer().Render(context.Background(), ds); !errors.Is(err, ErrInput) {
 			t.Fatalf("invalid UTF-8 accepted: %v", err)
 		}
@@ -290,9 +290,9 @@ func TestSemanticRules(t *testing.T) {
 	}{
 		"no linux side (product default)": {ha(map[string]any{"vi": inst()}, nil), []Option{WithInterfaceMapper(NoMapper)}, ErrInput},
 		"foreign interface":               {ha(map[string]any{"vi": inst("interface", "ens192")}, nil), nil, ErrInput},
-		"check not shipped":               {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "vrx-check-evil"}}}), nil, ErrInput},
+		"check not shipped":               {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "ngfw-check-evil"}}}), nil, ErrInput},
 		"script path as check":            {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "/bin/sh"}}}), nil, ErrInput},
-		"script text key":                 {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "vrx-check-ok", "script": shellCmd}}}), nil, ErrInput},
+		"script text key":                 {ha(map[string]any{}, map[string]any{"scripts": map[string]any{"s": map[string]any{"check": "ngfw-check-ok", "script": shellCmd}}}), nil, ErrInput},
 		"unknown instance stand-in":       {ha(map[string]any{"vi": inst("keepalived", map[string]any{"notify": "/bin/sh"})}, nil), nil, ErrInput},
 		"auth on ipv6":                    {ha(map[string]any{"vi": inst("addressFamily", "ipv6", "addresses", []any{"2001:db8::1"}, "keepalived", map[string]any{"authRef": "psk/vrrp-a"})}, nil), nil, ErrInput},
 		"auth with sub-second advert":     {ha(map[string]any{"vi": inst("advertisementIntervalMs", 500, "keepalived", map[string]any{"authRef": "psk/vrrp-a"})}, nil), nil, ErrInput},

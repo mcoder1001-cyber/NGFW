@@ -1,4 +1,4 @@
-# NGFW (codename VRX)
+# NGFW (codename NGFW)
 
 TNSR-class secure router on FD.io VPP 26.06 — Go dataplane agent, NestJS API, React/MUI UI.
 Design docs: `docs/`. Agent prompts: `prompts/`. Master prompt: `docs/00-MASTER-PROMPT.md`.
@@ -20,7 +20,7 @@ The API development command compiles with TypeScript before starting Node's
 watch mode, then recompiles source changes. This preserves the decorator
 metadata required for Nest dependency injection; run it through `pnpm` rather
 than running `src/main.ts` directly with `tsx`.
-Dev host: `root@172.30.126.195:/root/ngfw` (also router vrx-a). VPP is built from `/root/vpp`;
+Dev host: `root@172.30.126.195:/root/ngfw` (also router ngfw-a). VPP is built from `/root/vpp`;
 VPP bring-up is owned by a separate agent — do not modify `/root/vpp`, `/etc/vpp` or the vpp service.
 
 ## Documentation and plan (start here)
@@ -33,7 +33,7 @@ VPP bring-up is owned by a separate agent — do not modify `/root/vpp`, `/etc/v
 | [docs/12-execution-stages.md](docs/12-execution-stages.md) | Stage DAG, gates, parallelism rules |
 | [docs/11-compressed-plan-fa.md](docs/11-compressed-plan-fa.md) | Plan of record: 21 days, status of all 102 WBS items, VPP-code track |
 | [docs/decisions/](docs/decisions/) | Decision policy (2x rule), LOG, PENDING files, OS and VDOM decisions |
-| [docs/lab/host-vrx-a.md](docs/lab/host-vrx-a.md) | Verified facts about VPP 26.06 on this host + handover flag |
+| [docs/lab/host-ngfw-a.md](docs/lab/host-ngfw-a.md) | Verified facts about VPP 26.06 on this host + handover flag |
 | [docs/00-MASTER-PROMPT.md](docs/00-MASTER-PROMPT.md) … [docs/09-os-packages.md](docs/09-os-packages.md) | Design package: architecture, OSS stack, roadmap, API/data model, UI spec, repo skeleton, risks, full schedule (fa/en), OS packages |
-| [wbs/VRX-WBS.xlsx](wbs/VRX-WBS.xlsx) | Editable WBS workbook (+ Jira / MS Project CSV) |
+| [wbs/NGFW-WBS.xlsx](wbs/NGFW-WBS.xlsx) | Editable WBS workbook (+ Jira / MS Project CSV) |
 | [scripts/](scripts/) | Installers: repos, runtime, build toolchain, strongSwan-VPP build, dataplane tuning, lab, dev-server prep |

@@ -32,12 +32,12 @@ const FULL = JSON.parse(
  * behaviour, features/lisp/fake.ts). Persistence is the in-memory repo; the PostgreSQL path is test/e2e/lisp.e2e.test.ts.
  */
 describe('F-lisp (fake agent over gRPC)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-lisp-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-lisp-'));
   const socket = join(dir, 'agent.sock');
   const env = testEnv({
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: 'w11',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: 'w11',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;

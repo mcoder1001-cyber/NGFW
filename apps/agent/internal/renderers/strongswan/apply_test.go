@@ -138,7 +138,7 @@ func TestApplyFailureRollsBack(t *testing.T) {
 	}
 	after, _ := os.ReadFile(p.ConnsFile())
 	if !bytes.Equal(before, after) {
-		t.Error("vrx.conf not restored after the failed Apply")
+		t.Error("ngfw.conf not restored after the failed Apply")
 	}
 	delete(f.failOn, "load-conn")
 	// The rollback re-applied the previous files (load-conn failed for every conn during the
@@ -173,7 +173,7 @@ func TestApplyNotConvergedRollsBack(t *testing.T) {
 	}
 	data, _ := os.ReadFile(p.ConnsFile())
 	if strings.Contains(string(data), "w3+site-b") {
-		t.Error("vrx.conf not restored")
+		t.Error("ngfw.conf not restored")
 	}
 }
 
@@ -219,10 +219,10 @@ func TestApplyRejectsForeignFiles(t *testing.T) {
 }
 
 // TestPlantedSecretNeverLeaks: a planted PSK must appear only in the 0600 secrets file (as
-// base64) and in the load-shared request — never in vrx.conf/strongswan.conf, Files.Redacted,
+// base64) and in the load-shared request — never in ngfw.conf/strongswan.conf, Files.Redacted,
 // DryRun-like outputs, Retrieve, events, errors (even when charon echoes it) or log lines.
 func TestPlantedSecretNeverLeaks(t *testing.T) {
-	const planted = "VRX_TEST_PSK_RF2_planted_c0ffee"
+	const planted = "NGFW_TEST_PSK_RF2_planted_c0ffee"
 	forms := []string{planted, base64.StdEncoding.EncodeToString([]byte(planted)), hex.EncodeToString([]byte(planted))}
 	var logs bytes.Buffer
 	f := newFakeCharon()
@@ -372,7 +372,7 @@ func TestRedactionIsFieldBased(t *testing.T) {
 	if strings.Contains(string(js), Redacted) || !strings.Contains(string(js), `"state":"ESTABLISHED"`) {
 		t.Errorf("state rewritten by the redactor: %s", js)
 	}
-	if got := (secretSet{}).redactErr(errors.New("line: secret = VRX_TEST_PSK_RF2_masked failed")).Error(); strings.Contains(got, "VRX_TEST_PSK_RF2_masked") {
+	if got := (secretSet{}).redactErr(errors.New("line: secret = NGFW_TEST_PSK_RF2_masked failed")).Error(); strings.Contains(got, "NGFW_TEST_PSK_RF2_masked") {
 		t.Errorf("secret assignment not masked: %s", got)
 	}
 }

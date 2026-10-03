@@ -7,9 +7,9 @@ import rtlPlugin from 'stylis-plugin-rtl';
  * Emotion cache per direction. The RTL cache runs `stylis-plugin-rtl`, which mirrors physical CSS
  * inside MUI's own styles; our code uses logical properties and is not affected.
  */
-export function createVrxEmotionCache(direction: Direction): EmotionCache {
+export function createNgfwEmotionCache(direction: Direction): EmotionCache {
   return createCache({
-    key: direction === 'rtl' ? 'vrx-rtl' : 'vrx',
+    key: direction === 'rtl' ? 'ngfw-rtl' : 'ngfw',
     stylisPlugins: direction === 'rtl' ? [prefixer, rtlPlugin] : [prefixer],
   });
 }

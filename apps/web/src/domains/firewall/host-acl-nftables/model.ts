@@ -115,14 +115,14 @@ type Translate = (key: string, opts?: Record<string, unknown>) => string;
  * Titles and help in the UI language, the schema's English text as fallback, recursively through nested objects, unions
  * and array items: `host-acl-nftables:field.<parent>.<prop>.title|help` (e.g. `field.antiLockout.enabled`) before the
  * shared `field.<prop>.title|help`. An empty translated help removes the schema's (English) help. `object-picker` fields
- * keep the kinds their original help names as `x-vrx-ui.objectKinds` (the translated help may not name them).
+ * keep the kinds their original help names as `x-ngfw-ui.objectKinds` (the translated help may not name them).
  */
 export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): JsonSchema {
   const out: JsonSchema = { ...schema };
   if (schema.properties) {
     const props: Record<string, JsonSchema> = {};
     for (const [name, p] of Object.entries(schema.properties)) {
-      const hints = { ...((p['x-vrx-ui'] ?? {}) as Record<string, unknown>) };
+      const hints = { ...((p['x-ngfw-ui'] ?? {}) as Record<string, unknown>) };
       const text = (what: 'title' | 'help', fallback: string): string =>
         t(`field.${scope}${name}.${what}`, {
           defaultValue: t(`field.${name}.${what}`, { defaultValue: fallback }),
@@ -140,7 +140,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate, scope = ''): Js
         {
           ...p,
           ...(p.const === undefined ? { title: text('title', p.title ?? name) } : {}),
-          'x-vrx-ui': hints,
+          'x-ngfw-ui': hints,
         } as JsonSchema,
         t,
         p.type === 'object' ? `${scope}${name}.` : scope,

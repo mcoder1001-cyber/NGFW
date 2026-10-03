@@ -9,7 +9,7 @@ were taken from an existing message and there is no schema change. `docs/contrac
 ## What was built
 | layer | what |
 |---|---|
-| agent | `internal/agent/rpc_dataplane_startup.go`: State reads the installed `/etc/vpp/startup.conf` (cpu workers / corelist-workers / main-core, plugin switches via `vppstartup.Parse`/`PluginSwitches`), `/sys/.../cpu/online`, and hugepages total/free from `/proc/meminfo`. Preview runs `vppstartup.ReadHost` + `Generate` on the given `DataplaneConfig` and `UnifiedDiff` against the installed file. Document error → INVALID_ARGUMENT, host → FAILED_PRECONDITION. Env overrides `VRX_VPP_STARTUP_CONF`, `VRX_VPP_PLUGIN_DIR`, `VRX_SYS_ROOT`. Writes nothing, restarts nothing |
+| agent | `internal/agent/rpc_dataplane_startup.go`: State reads the installed `/etc/vpp/startup.conf` (cpu workers / corelist-workers / main-core, plugin switches via `vppstartup.Parse`/`PluginSwitches`), `/sys/.../cpu/online`, and hugepages total/free from `/proc/meminfo`. Preview runs `vppstartup.ReadHost` + `Generate` on the given `DataplaneConfig` and `UnifiedDiff` against the installed file. Document error → INVALID_ARGUMENT, host → FAILED_PRECONDITION. Env overrides `NGFW_VPP_STARTUP_CONF`, `NGFW_VPP_PLUGIN_DIR`, `NGFW_SYS_ROOT`. Writes nothing, restarts nothing |
 | API | `features/dataplane`: `GET /api/v1/state/dataplane` and `POST /api/v1/actions/dataplane/preview` (renders the **candidate** `dataplane`; the response carries `restartRequired: true`, `applyAvailable: false`; agent INVALID_ARGUMENT → 400 problem, pointer `/dataplane`). The fake-agent handlers (`fake.ts`) are wired in `testing/fake-agent.ts`. `AgentClient` methods and the `app.module.ts` line are marked `// F-dataplane-ui (unanchored)`. OpenAPI, api-client and CLI opgen are regenerated |
 | web | `domains/system/dataplane/DataplanePage.tsx`: restart warning banner, SchemaForm of `domainSchemas.dataplane` (groups CPU / DPDK and NICs / Memory / Plugins, i18n `dataplane:field`), a candidate-vs-running table with an uncommitted chip, an installed-file + host-facts panel, a preview dialog (diff, rendered file, sha256, warnings) and a **disabled** "Apply and restart VPP" button with the TD-17 reason next to it. Server pointers `/dataplane/...` are mapped onto the fields. Route `/system/dataplane`, `'dataplane'` in `BUILT_DOMAINS` (nav no longer "soon"), en + fa `dataplane.json` |
 | docs | `docs/user/system/dataplane.md` (each setting, why a restart is needed, rollback) |
@@ -40,5 +40,5 @@ show at the field.
   (`show threads`). They are the same unless someone edited the file without restarting VPP. A live read-back would
   need a VPP API dump. Follow-up if wanted.
 - Preview on a host without a detectable management NIC or with no hugepages fails with 409 (FAILED_PRECONDITION),
-  as vrx-startupgen does. No override for the management NIC is exposed.
+  as ngfw-startupgen does. No override for the management NIC is exposed.
 - Open question (for TD-17): who may press "apply" once it is enabled (admin only? a confirmed-commit style dead-man?).

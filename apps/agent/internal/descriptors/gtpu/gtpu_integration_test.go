@@ -13,7 +13,7 @@ import (
 // EnvGTPUHost opts in to the gtpu host test. VPP 26.06 segfaults on any failed
 // gtpu_add_del_tunnel_v2 (V8, DF-6-questions.md Q1); the descriptor guards against it, but on
 // the shared host this test only runs deliberately (manager rule after the 2026-09-24 crashes).
-const EnvGTPUHost = "VRX_DF6_GTPU_HOST"
+const EnvGTPUHost = "NGFW_DF6_GTPU_HOST"
 
 func TestTunnelOnHost(t *testing.T) {
 	if os.Getenv(EnvGTPUHost) != "1" {

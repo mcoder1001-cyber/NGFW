@@ -7,8 +7,8 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck source=SCRIPTDIR/../lib.sh
 source "$HERE/lib.sh"
-export VRX_VPP_IN_TESTS=1
-T=$(mktemp -d "${TMPDIR:-/tmp}/vrx-vpp-tests.XXXXXX")
+export NGFW_VPP_IN_TESTS=1
+T=$(mktemp -d "${TMPDIR:-/tmp}/ngfw-vpp-tests.XXXXXX")
 trap 'rm -rf -- "$T"' EXIT
 N=0; PASS=0; FAILN=0
 check() {  # check "<name>" <command...>: passes when the command succeeds
@@ -38,7 +38,7 @@ else:
     mask = set(original)
 os.sched_setaffinity(0, mask)
 cpulist = subprocess.check_output(
-    ["bash", "-c", 'source "$1"; vrx_build_cpus "$2"', "test", lib, str(jobs)],
+    ["bash", "-c", 'source "$1"; ngfw_build_cpus "$2"', "test", lib, str(jobs)],
     text=True).strip()
 assert re.fullmatch(r"[0-9]+(,[0-9]+)*", cpulist), cpulist
 selected = [int(cpu) for cpu in cpulist.split(",")]
@@ -54,58 +54,58 @@ check "CPU selection: one job is inside actual allowed affinity" python3 "$T/aff
 check "CPU selection: eight jobs respect actual allowed affinity" python3 "$T/affinity.py" "$HERE/lib.sh" live 8
 check "CPU selection: sparse inherited mask works with taskset" python3 "$T/affinity.py" "$HERE/lib.sh" sparse 2
 check "CPU selection: jobs exceeding allowed count retain valid affinity" python3 "$T/affinity.py" "$HERE/lib.sh" single 8
-check "CPU selection: zero jobs rejected" refuses vrx_build_cpus 0
-check "CPU selection: jobs above shared-host cap rejected" refuses vrx_build_cpus 9
+check "CPU selection: zero jobs rejected" refuses ngfw_build_cpus 0
+check "CPU selection: jobs above shared-host cap rejected" refuses ngfw_build_cpus 9
 
 # ---------------------------------------------------------------- VERSION parsed as data (L2)
-check "real VERSION parses" vrx_parse_version "$HERE/VERSION"
+check "real VERSION parses" ngfw_parse_version "$HERE/VERSION"
 mkv() { grep -v "^$1=" "$HERE/VERSION" >"$T/V"; printf '%s\n' "$2" >>"$T/V"; }
 mkv VPP_TAG "VPP_TAG=\$(touch $T/pwned)"
-check "VERSION with \$(cmd) is rejected" refuses vrx_parse_version "$T/V"
+check "VERSION with \$(cmd) is rejected" refuses ngfw_parse_version "$T/V"
 check "... and the command never ran" test ! -e "$T/pwned"
 # shellcheck disable=SC2016  # literal backticks on purpose
 mkv VPP_TAG 'VPP_TAG=`id`'
-check "VERSION with backticks is rejected" refuses vrx_parse_version "$T/V"
+check "VERSION with backticks is rejected" refuses ngfw_parse_version "$T/V"
 mkv VPP_EVIL 'VPP_EVIL=1'
-check "unknown key is rejected" refuses vrx_parse_version "$T/V"
+check "unknown key is rejected" refuses ngfw_parse_version "$T/V"
 cp "$HERE/VERSION" "$T/V"; echo 'VPP_LOCAL_REV=2' >>"$T/V"
-check "duplicate key is rejected" refuses vrx_parse_version "$T/V"
+check "duplicate key is rejected" refuses ngfw_parse_version "$T/V"
 mkv VPP_DEB_VERSION 'VPP_DEB_VERSION=26.10-release'
-check "tag/version mismatch is rejected" refuses vrx_parse_version "$T/V"
+check "tag/version mismatch is rejected" refuses ngfw_parse_version "$T/V"
 mkv VPP_COMMIT 'VPP_COMMIT=c3200b88d'
-check "short commit hash is rejected" refuses vrx_parse_version "$T/V"
+check "short commit hash is rejected" refuses ngfw_parse_version "$T/V"
 mkv VPP_PACKAGES_SHIP 'VPP_PACKAGES_SHIP="vpp not-built-pkg"'
-check "ship list outside VPP_PACKAGES is rejected" refuses vrx_parse_version "$T/V"
+check "ship list outside VPP_PACKAGES is rejected" refuses ngfw_parse_version "$T/V"
 
 # ---------------------------------------------------------------- D-089 local version (H2)
-check "no patches → upstream version" test "$(vrx_local_version 26.06-release 1 0)" = 26.06-release
-check "patches → +vrx<N>" test "$(vrx_local_version 26.06-release 3 2)" = 26.06-release+vrx3
-check "+vrx sorts above the unpatched version (dpkg)" dpkg --compare-versions 26.06-release+vrx1 gt 26.06-release
+check "no patches → upstream version" test "$(ngfw_local_version 26.06-release 1 0)" = 26.06-release
+check "patches → +ngfw<N>" test "$(ngfw_local_version 26.06-release 3 2)" = 26.06-release+ngfw3
+check "+ngfw sorts above the unpatched version (dpkg)" dpkg --compare-versions 26.06-release+ngfw1 gt 26.06-release
 mkdir -p "$T/vs/src/scripts"
-vrx_write_version_script "$T/vs" 26.06-release+vrx1
-check "generated src/scripts/version prints the local version" test "$("$T/vs/src/scripts/version")" = 26.06-release+vrx1
+ngfw_write_version_script "$T/vs" 26.06-release+ngfw1
+check "generated src/scripts/version prints the local version" test "$("$T/vs/src/scripts/version")" = 26.06-release+ngfw1
 check "... and the upstream lib version prefix is unchanged" test "$("$T/vs/src/scripts/version" | cut -d- -f1)" = 26.06
 
 # ---------------------------------------------------------------- path guards (M2)
-R="$T/root/.build"; mkdir -p "$R/sub/x" "$T/outside"; echo m >"$R/$VRX_OWNED_MARKER"
-check "guard: path inside root accepted" vrx_guard_dir "$R/sub" "$R" t
-check "guard: root itself accepted as build dir" vrx_guard_dir "$R" "$R" t
-check "guard: ../ escape refused" refuses vrx_guard_dir "$R/../../outside" "$R" t
-check "guard: /root/vpp refused" refuses vrx_guard_dir /root/vpp "$R" t
-check "guard: / refused" refuses vrx_guard_dir / / t
-check "guard: \$HOME refused" refuses vrx_guard_dir "$HOME" / t
-check "guard: /root (ancestor of /root/vpp) refused" refuses vrx_guard_dir /root / t
-check "rm_rf: strictly below marked root works" vrx_rm_rf "$R/sub/x" "$R"
+R="$T/root/.build"; mkdir -p "$R/sub/x" "$T/outside"; echo m >"$R/$NGFW_OWNED_MARKER"
+check "guard: path inside root accepted" ngfw_guard_dir "$R/sub" "$R" t
+check "guard: root itself accepted as build dir" ngfw_guard_dir "$R" "$R" t
+check "guard: ../ escape refused" refuses ngfw_guard_dir "$R/../../outside" "$R" t
+check "guard: /root/vpp refused" refuses ngfw_guard_dir /root/vpp "$R" t
+check "guard: / refused" refuses ngfw_guard_dir / / t
+check "guard: \$HOME refused" refuses ngfw_guard_dir "$HOME" / t
+check "guard: /root (ancestor of /root/vpp) refused" refuses ngfw_guard_dir /root / t
+check "rm_rf: strictly below marked root works" ngfw_rm_rf "$R/sub/x" "$R"
 check "... and removed it" test ! -e "$R/sub/x"
-check "rm_rf: the root itself refused" refuses vrx_rm_rf "$R" "$R"
-check "rm_rf: outside refused" refuses vrx_rm_rf "$T/outside" "$R"
+check "rm_rf: the root itself refused" refuses ngfw_rm_rf "$R" "$R"
+check "rm_rf: outside refused" refuses ngfw_rm_rf "$T/outside" "$R"
 check "... outside still exists" test -d "$T/outside"
 mkdir -p "$T/nomark/y"
-check "rm_rf: root without ownership marker refused" refuses vrx_rm_rf "$T/nomark/y" "$T/nomark"
+check "rm_rf: root without ownership marker refused" refuses ngfw_rm_rf "$T/nomark/y" "$T/nomark"
 mkdir -p "$R/o1" && touch "$R/o1/vpp_1_amd64.deb" "$R/o1/SHA256SUMS"
-check "out dir with only artefacts is ours" vrx_out_dir_is_ours "$R/o1"
+check "out dir with only artefacts is ours" ngfw_out_dir_is_ours "$R/o1"
 touch "$R/o1/notes.txt"
-check "out dir with a foreign file is refused" refuses vrx_out_dir_is_ours "$R/o1"
+check "out dir with a foreign file is refused" refuses ngfw_out_dir_is_ours "$R/o1"
 for bad in "--build-dir /root/vpp" "--build-dir /root/vpp/build-root" "--build-dir /tmp" "--build-dir $HERE/.build/../.." \
            "--out /" "--out $HOME" "--out /root/vpp/build-root" "--out $HERE" "--out $HERE/.build/../x"; do
   # shellcheck disable=SC2086  # the option pairs are split on purpose
@@ -131,35 +131,35 @@ Subject: [PATCH] test
 EOF
 sed 's/^ two$/ TWO-CHANGED-CONTEXT/' "$T/good.patch" >"$T/fuzzed.patch"
 check "fuzzed patch: GNU patch would accept it (the old behaviour)" patch -d "$G" -p1 --forward --batch --dry-run --quiet -i "$T/fuzzed.patch"
-check "fuzzed patch: vrx_apply_patch refuses it" refuses vrx_apply_patch "$G" "$T/fuzzed.patch"
+check "fuzzed patch: ngfw_apply_patch refuses it" refuses ngfw_apply_patch "$G" "$T/fuzzed.patch"
 check "... and the tree is unchanged" test -z "$(git -C "$G" status --porcelain)"
-check "exact patch applies" vrx_apply_patch "$G" "$T/good.patch"
+check "exact patch applies" ngfw_apply_patch "$G" "$T/good.patch"
 check "... with the expected result" grep -qx FOUR "$G/f.txt"
-check "already-applied patch is refused" refuses vrx_apply_patch "$G" "$T/good.patch"
+check "already-applied patch is refused" refuses ngfw_apply_patch "$G" "$T/good.patch"
 
 # ---------------------------------------------------------------- dependency check propagates apt failure (M3)
-check "apt-get -s failure → rc 2" bash -c "source '$HERE/lib.sh'; vrx_apt_missing vrx-nonexistent-pkg-xyz; test \$? -eq 2"
-check "installed package → nothing missing" test -z "$(vrx_apt_missing bash coreutils | tr -d ' ')"
+check "apt-get -s failure → rc 2" bash -c "source '$HERE/lib.sh'; ngfw_apt_missing ngfw-nonexistent-pkg-xyz; test \$? -eq 2"
+check "installed package → nothing missing" test -z "$(ngfw_apt_missing bash coreutils | tr -d ' ')"
 
 # ---------------------------------------------------------------- Python deps lock (H1)
-check "pydeps.lock parses (5 entries)" test "$(vrx_pydeps_parse "$HERE/pydeps.lock" | wc -l)" -eq 5
+check "pydeps.lock parses (5 entries)" test "$(ngfw_pydeps_parse "$HERE/pydeps.lock" | wc -l)" -eq 5
 printf 'meson==0.57.2\n' >"$T/bad.lock"
-check "unhashed lock entry is rejected" refuses vrx_pydeps_parse "$T/bad.lock"
-W="$T/pyroot"; mkdir -p "$W/wh"; echo m >"$W/$VRX_OWNED_MARKER"
+check "unhashed lock entry is rejected" refuses ngfw_pydeps_parse "$T/bad.lock"
+W="$T/pyroot"; mkdir -p "$W/wh"; echo m >"$W/$NGFW_OWNED_MARKER"
 printf 'fake wheel\n' >"$W/wh/demo_pkg-1.0-py3-none-any.whl"
-h=$(vrx_sha256 "$W/wh/demo_pkg-1.0-py3-none-any.whl")
+h=$(ngfw_sha256 "$W/wh/demo_pkg-1.0-py3-none-any.whl")
 printf 'demo-pkg==1.0 --hash=sha256:%s  # demo_pkg-1.0-py3-none-any.whl https://files.pythonhosted.org/packages/xx/demo_pkg-1.0-py3-none-any.whl\n' "$h" >"$T/t.lock"
 echo stale >"$W/wh/stale-9.9-py3-none-any.whl"
-check "prepare (offline): cached verified file kept" vrx_pydeps_prepare "$T/t.lock" "$W/wh" "$W" 1
+check "prepare (offline): cached verified file kept" ngfw_pydeps_prepare "$T/t.lock" "$W/wh" "$W" 1
 check "... foreign/stale file removed" test ! -e "$W/wh/stale-9.9-py3-none-any.whl"
-check "verify: wheelhouse matches lock" vrx_pydeps_verify "$T/t.lock" "$W/wh"
+check "verify: wheelhouse matches lock" ngfw_pydeps_verify "$T/t.lock" "$W/wh"
 echo tampered >>"$W/wh/demo_pkg-1.0-py3-none-any.whl"
-check "verify: tampered file detected" refuses vrx_pydeps_verify "$T/t.lock" "$W/wh"
-check "prepare (offline): tampered file removed and not replaced → fails" refuses vrx_pydeps_prepare "$T/t.lock" "$W/wh" "$W" 1
+check "verify: tampered file detected" refuses ngfw_pydeps_verify "$T/t.lock" "$W/wh"
+check "prepare (offline): tampered file removed and not replaced → fails" refuses ngfw_pydeps_prepare "$T/t.lock" "$W/wh" "$W" 1
 check "... tampered file is gone" test ! -e "$W/wh/demo_pkg-1.0-py3-none-any.whl"
 
 # ---------------------------------------------------------------- verify.sh --require-files (L1, H2)
-vrx_parse_version "$HERE/VERSION"
+ngfw_parse_version "$HERE/VERSION"
 O="$T/out"; mkdir -p "$O"
 mkdeb() {  # mkdeb <package> <version> <file>
   local d="$T/pkg/$1"; mkdir -p "$d/DEBIAN"
@@ -170,37 +170,37 @@ mkout() {  # mkout <version> <patches-json> <variant> <demo:true|false>
   rm -rf "$O" "$T/pkg"; mkdir -p "$O"
   for p in $VPP_PACKAGES; do mkdeb "$p" "$1" "${p}_${1}_amd64.deb"; done
   (cd "$O" && sha256sum -- *.deb | sort -k2 >SHA256SUMS)
-  local bp; bp=$(while read -r n _; do printf '{"name":"build-patches/%s","sha256":"%s","kind":"build"},' "$n" "$(vrx_sha256 "$HERE/build-patches/$n")"; done < <(vrx_series "$HERE/build-patches/series"))
-  VRX_O="$O" VRX_V="$1" VRX_P="$2" VRX_VAR="$3" VRX_DEMO="$4" VRX_BP="[${bp%,}]" VRX_PY="$(vrx_pydeps_parse "$HERE/pydeps.lock")" \
+  local bp; bp=$(while read -r n _; do printf '{"name":"build-patches/%s","sha256":"%s","kind":"build"},' "$n" "$(ngfw_sha256 "$HERE/build-patches/$n")"; done < <(ngfw_series "$HERE/build-patches/series"))
+  NGFW_O="$O" NGFW_V="$1" NGFW_P="$2" NGFW_VAR="$3" NGFW_DEMO="$4" NGFW_BP="[${bp%,}]" NGFW_PY="$(ngfw_pydeps_parse "$HERE/pydeps.lock")" \
   VPP_UPSTREAM_URL="$VPP_UPSTREAM_URL" VPP_TAG="$VPP_TAG" VPP_TAG_OBJECT="$VPP_TAG_OBJECT" VPP_COMMIT="$VPP_COMMIT" \
   VPP_DEB_VERSION="$VPP_DEB_VERSION" VPP_PACKAGES_SHIP="$VPP_PACKAGES_SHIP" python3 - <<'PY'
 import glob, hashlib, json, os, subprocess
 e = os.environ
 ship = set(e["VPP_PACKAGES_SHIP"].split())
-py = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["VRX_PY"].splitlines() if l.strip()]
+py = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["NGFW_PY"].splitlines() if l.strip()]
 pk = []
-for f in sorted(glob.glob(os.path.join(e["VRX_O"], "*.deb"))):
+for f in sorted(glob.glob(os.path.join(e["NGFW_O"], "*.deb"))):
     name = subprocess.run(["dpkg-deb", "-f", f, "Package"], capture_output=True, text=True).stdout.strip()
-    pk.append({"package": name, "version": e["VRX_V"], "architecture": "amd64", "file": os.path.basename(f),
+    pk.append({"package": name, "version": e["NGFW_V"], "architecture": "amd64", "file": os.path.basename(f),
                "size": os.path.getsize(f), "sha256": hashlib.sha256(open(f, "rb").read()).hexdigest(),
-               "ship": name in ship, "installed_on_vrx_a": False})
-m = {"schema": "vrx.vpp-debs.manifest/v2",
+               "ship": name in ship, "installed_on_ngfw_a": False})
+m = {"schema": "ngfw.vpp-debs.manifest/v2",
      "upstream": {"url": e["VPP_UPSTREAM_URL"], "branch": "x", "tag": e["VPP_TAG"], "tag_object": e["VPP_TAG_OBJECT"],
                   "commit": e["VPP_COMMIT"], "describe": "x"},
-     "version": e["VRX_V"], "upstream_version": e["VPP_DEB_VERSION"], "variant": e["VRX_VAR"],
-     "patches": json.loads(e["VRX_P"]), "options": {"trace_plugins": "devtools", "demo": e["VRX_DEMO"] == "true"},
-     "build": {"builder_dirty": False, "build_patches": json.loads(e["VRX_BP"]),
+     "version": e["NGFW_V"], "upstream_version": e["VPP_DEB_VERSION"], "variant": e["NGFW_VAR"],
+     "patches": json.loads(e["NGFW_P"]), "options": {"trace_plugins": "devtools", "demo": e["NGFW_DEMO"] == "true"},
+     "build": {"builder_dirty": False, "build_patches": json.loads(e["NGFW_BP"]),
                "inputs": {"python": py, "dpdk_meson_venv": [f"{x['name']}=={x['version']}" for x in py]}},
      "packages": pk}
-json.dump(m, open(os.path.join(e["VRX_O"], "manifest.json"), "w"), indent=2)
+json.dump(m, open(os.path.join(e["NGFW_O"], "manifest.json"), "w"), indent=2)
 PY
 }
 V="$HERE/verify.sh"
-DEMO_NAME=$(vrx_series "$HERE/patches/series" | awk 'NR==1{print $1}')
-DEMO_JSON="[{\"name\":\"patches/$DEMO_NAME\",\"sha256\":\"$(vrx_sha256 "$HERE/patches/$DEMO_NAME")\",\"kind\":\"demo\"}]"
-BV="$VPP_DEB_VERSION+vrx$VPP_LOCAL_REV"
+DEMO_NAME=$(ngfw_series "$HERE/patches/series" | awk 'NR==1{print $1}')
+DEMO_JSON="[{\"name\":\"patches/$DEMO_NAME\",\"sha256\":\"$(ngfw_sha256 "$HERE/patches/$DEMO_NAME")\",\"kind\":\"demo\"}]"
+BV="$VPP_DEB_VERSION+ngfw$VPP_LOCAL_REV"
 mkout "$BV" '[]' default false
-check "default build (build-patches only) as +vrx passes --require-files (D-092)" "$V" --no-tests --require-files "$O"
+check "default build (build-patches only) as +ngfw passes --require-files (D-092)" "$V" --no-tests --require-files "$O"
 check "... and passes the install gate" "$V" --no-tests --require-files "$O" --install-gate
 mkout "$VPP_DEB_VERSION" '[]' default false
 check "build-patches applied but unsuffixed version rejected (D-092)" refuses "$V" --no-tests --require-files "$O"
@@ -220,10 +220,10 @@ PY
 check "manifest package name not matching the .deb control field detected" refuses "$V" --no-tests --require-files "$O"
 mkout "$VPP_DEB_VERSION" "$DEMO_JSON" demo true
 check "demo-patched build with the unsuffixed version rejected (D-089)" refuses "$V" --no-tests --require-files "$O"
-mkout "$VPP_DEB_VERSION+vrx$VPP_LOCAL_REV" "$DEMO_JSON" demo true
-check "demo-patched build with +vrx passes --require-files" "$V" --no-tests --require-files "$O"
+mkout "$VPP_DEB_VERSION+ngfw$VPP_LOCAL_REV" "$DEMO_JSON" demo true
+check "demo-patched build with +ngfw passes --require-files" "$V" --no-tests --require-files "$O"
 check "... but never passes the install gate" refuses "$V" --no-tests --require-files "$O" --install-gate
-mkout "$VPP_DEB_VERSION+vrx$VPP_LOCAL_REV" "$DEMO_JSON" default true
+mkout "$VPP_DEB_VERSION+ngfw$VPP_LOCAL_REV" "$DEMO_JSON" default true
 check "demo patch without demo variant rejected" refuses "$V" --no-tests --require-files "$O"
 mkout "$BV" '[]' default false; echo "0000  vpp_x.deb" >>"$O/SHA256SUMS"
 check "SHA256SUMS with an extra entry rejected" refuses "$V" --no-tests --require-files "$O"

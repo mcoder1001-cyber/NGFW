@@ -22,7 +22,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// APISocket is the host VPP binary API socket (docs/lab/host-vrx-a.md).
+// APISocket is the host VPP binary API socket (docs/lab/host-ngfw-a.md).
 const APISocket = "/run/vpp/api.sock"
 
 // Client adapts govpp's *core.Connection to vpp.Client for tests.
@@ -33,7 +33,7 @@ func (Client) Connected() bool { return true }
 
 var _ vpp.Client = Client{}
 
-// Connect skips t unless VRX_INTEGRATION=1, takes the shared lab lock and connects to the host
+// Connect skips t unless NGFW_INTEGRATION=1, takes the shared lab lock and connects to the host
 // VPP; the connection is closed in Cleanup.
 func Connect(t testing.TB) vpp.Client {
 	t.Helper()

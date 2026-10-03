@@ -1,7 +1,7 @@
 # DF-2 — WIP log
 
 - 2026-09-24 (continue after stall, salvage 800b936): tree builds, `go test ./internal/descriptors/...` unit green.
-  Integration (`VRX_INTEGRATION=1`, w3) green per package; flaky when packages run concurrently:
+  Integration (`NGFW_INTEGRATION=1`, w3) green per package; flaky when packages run concurrently:
   classify Retrieve failed with INVALID_SW_IF_INDEX when another package's cleanup deleted its w3 loopback
   between sw_interface_dump and classify_table_by_interface → fixed (`df2.InterfaceVanished`, skip).
 - ACL key aligned with DF-4 `docs/agent/descriptors/acl.md`: `acl.acl/<name>` (was `acl/<name>`).

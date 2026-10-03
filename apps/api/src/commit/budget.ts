@@ -7,7 +7,7 @@ import type { Env } from '../config.js';
  * an error for a commit that went through.
  *
  * - lock: a section that is busy is not queued — after `lockWaitMs` the answer is 409 `commit-busy`.
- * - health: 5 s (AgentClient default), DryRun ≤ 30 s, Apply ≤ 60 s — both capped even if VRX_AGENT_TIMEOUT_MS is
+ * - health: 5 s (AgentClient default), DryRun ≤ 30 s, Apply ≤ 60 s — both capped even if NGFW_AGENT_TIMEOUT_MS is
  *   larger (the gRPC deadline the agent sees).
  * - db: margin for the PostgreSQL work of a commit (candidate, validation reads, the promote transaction). An
  *   ASSUMPTION, not enforced (review L2): there is no statement_timeout for the API role and no pool
@@ -35,9 +35,9 @@ export interface CommitBudget {
   totalMs: number;
 }
 
-export function commitBudget(env: Pick<Env, 'VRX_AGENT_TIMEOUT_MS'>): CommitBudget {
-  const dryRunMs = Math.min(env.VRX_AGENT_TIMEOUT_MS, DRY_RUN_MAX_MS);
-  const applyMs = Math.min(env.VRX_AGENT_TIMEOUT_MS, APPLY_MAX_MS);
+export function commitBudget(env: Pick<Env, 'NGFW_AGENT_TIMEOUT_MS'>): CommitBudget {
+  const dryRunMs = Math.min(env.NGFW_AGENT_TIMEOUT_MS, DRY_RUN_MAX_MS);
+  const applyMs = Math.min(env.NGFW_AGENT_TIMEOUT_MS, APPLY_MAX_MS);
   return {
     lockWaitMs: LOCK_WAIT_MS,
     healthMs: HEALTH_MS,

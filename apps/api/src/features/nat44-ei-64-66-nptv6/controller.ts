@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { z } from 'zod';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import { MAX_PAGE_SIZE, SessionsOut, SessionsQuery } from '../nat44-ed-sessions/dto.js';
@@ -57,7 +57,7 @@ export class Nat44Ei6466Nptv6Controller {
   @ApiOkResponse({ schema: openapi(EiKillOut, 'output') })
   async eiKill(
     @Body(new ZodPipe(EiKillBody)) body: z.output<typeof EiKillBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const vrf = body.vrf ?? 'default';
     req.audit = {

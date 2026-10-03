@@ -1,0 +1,14 @@
+[Unit]
+Description=NGFW early static management firewall preparation
+DefaultDependencies=no
+After=local-fs.target
+Before=nftables.service
+RequiresMountsFor=/etc/ngfw /etc/nftables.d /usr/lib/ngfw
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/ngfw/base-policy.env
+EnvironmentFile=-/etc/ngfw/bootstrap.env
+ExecStart=/usr/lib/ngfw/firewall-bootstrap.sh
+RemainAfterExit=yes
+UMask=0077

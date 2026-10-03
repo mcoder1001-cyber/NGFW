@@ -18,7 +18,7 @@ spec.loader.exec_module(verifier)
 
 class ManifestTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='vrx-vpp-manifest-')
+        self.temp = tempfile.TemporaryDirectory(prefix='ngfw-vpp-manifest-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.pool = self.root / 'pool'
@@ -29,21 +29,21 @@ class ManifestTests(unittest.TestCase):
         ship = shlex.split(values['VPP_PACKAGES_SHIP'])[0].split()
         entries = []
         for name in names:
-            filename = name + '_26.06-release+vrx1_amd64.deb'
+            filename = name + '_26.06-release+ngfw1_amd64.deb'
             digest = '0' * 64
             if name in ship:
                 build = self.root / ('build-' + name)
                 (build / 'DEBIAN').mkdir(parents=True)
                 (build / 'DEBIAN/control').write_text(
-                    f'Package: {name}\nVersion: 26.06-release+vrx1\nArchitecture: amd64\n'
+                    f'Package: {name}\nVersion: 26.06-release+ngfw1\nArchitecture: amd64\n'
                     'Maintainer: Test <test@example.invalid>\nDescription: verifier fixture\n')
                 artifact = self.pool / filename
                 subprocess.run(['dpkg-deb', '--build', str(build), str(artifact)],
                                check=True, capture_output=True)
                 digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
-            entries.append(dict(package=name, version='26.06-release+vrx1', architecture='amd64',
+            entries.append(dict(package=name, version='26.06-release+ngfw1', architecture='amd64',
                                 file=filename, sha256=digest, ship=name in ship))
-        self.manifest = dict(schema='vrx.vpp-debs.manifest/v2', version='26.06-release+vrx1',
+        self.manifest = dict(schema='ngfw.vpp-debs.manifest/v2', version='26.06-release+ngfw1',
                              upstream=dict(commit='fixture'), packages=entries)
 
     def verify(self, manifest=None):

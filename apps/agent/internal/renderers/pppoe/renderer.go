@@ -47,7 +47,7 @@ type Session struct {
 
 // Remotename is the pppd `remotename` / secrets server field / ip-param: stable per session, ties a
 // secrets line to this peer and lets the shared hook tell our sessions apart.
-func (s Session) Remotename() string { return "vrx-" + s.HostIf }
+func (s Session) Remotename() string { return "ngfw-" + s.HostIf }
 
 // IPv6Enabled reports whether pppd should negotiate IPv6CP.
 func (s Session) IPv6Enabled() bool { return s.IPv6 == "slaac" || s.IPv6 == "dhcpv6" }
@@ -106,8 +106,8 @@ func (r *Renderer) Render(sessions []Session) (renderers.Files, error) {
 	seen := map[string]bool{}
 	files := renderers.Files{}
 	var chap, pap strings.Builder
-	chap.WriteString("# vrx-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.\n")
-	pap.WriteString("# vrx-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.\n")
+	chap.WriteString("# ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.\n")
+	pap.WriteString("# ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.\n")
 	for _, s := range ss {
 		if err := s.validate(); err != nil {
 			return nil, err
@@ -121,13 +121,13 @@ func (r *Renderer) Render(sessions []Session) (renderers.Files, error) {
 		if err != nil {
 			return nil, err
 		}
-		files[r.paths.PeersDir+"/vrx-"+s.HostIf] = renderers.File{Mode: 0o644, Content: peer}
+		files[r.paths.PeersDir+"/ngfw-"+s.HostIf] = renderers.File{Mode: 0o644, Content: peer}
 
 		unit, err := renderers.ExecuteTemplate(r.tmpl, "unit.tmpl", unitData{Session: s, PppdBin: PppdBin})
 		if err != nil {
 			return nil, err
 		}
-		files[r.paths.UnitDir+"/vrx-pppoe-"+s.HostIf+".service"] = renderers.File{Mode: 0o644, Content: unit}
+		files[r.paths.UnitDir+"/ngfw-pppoe-"+s.HostIf+".service"] = renderers.File{Mode: 0o644, Content: unit}
 
 		for _, h := range []struct {
 			dir, kind, phase string
@@ -136,7 +136,7 @@ func (r *Renderer) Render(sessions []Session) (renderers.Files, error) {
 			if err != nil {
 				return nil, err
 			}
-			files[h.dir+"/vrx-"+s.HostIf] = renderers.File{Mode: 0o755, Content: body}
+			files[h.dir+"/ngfw-"+s.HostIf] = renderers.File{Mode: 0o755, Content: body}
 		}
 
 		line := secretLine(s.Username, s.Remotename(), s.Password)

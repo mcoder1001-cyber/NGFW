@@ -34,7 +34,7 @@ export interface WebSocketLike {
 /** `protocols` is the subprotocol list offered in the handshake (browsers cannot set headers on a WebSocket). */
 export type WebSocketFactory = (url: string, protocols?: string[]) => WebSocketLike;
 
-export interface VrxWsClientOptions {
+export interface NgfwWsClientOptions {
   url: string;
   /** Injected for tests / Node; defaults to `globalThis.WebSocket`. */
   factory?: WebSocketFactory;
@@ -55,7 +55,7 @@ export interface VrxWsClientOptions {
   maxBufferPerTopic?: number;
   /**
    * Subprotocols offered on every (re)connect, read at connect time so a refreshed credential is used after a
-   * reconnect (P06 D-P06-9: `['vrx.v1', 'bearer.<access-token>']`, never a token in the URL). Returning
+   * reconnect (P06 D-P06-9: `['ngfw.v1', 'bearer.<access-token>']`, never a token in the URL). Returning
    * `undefined` postpones the connection: the client stays `idle` until `connect()`/`subscribe()` is called again.
    */
   protocols?: () => string[] | undefined;
@@ -72,7 +72,7 @@ const OPEN = 1;
  * first subscriber, exponential backoff with jitter, automatic re-subscribe after reconnect, and
  * per-topic buffering flushed at 1 Hz so bursty counters do not re-render the UI on every sample.
  */
-export class VrxWsClient {
+export class NgfwWsClient {
   readonly url: string;
   private readonly factory: WebSocketFactory;
   private readonly flushIntervalMs: number;
@@ -96,7 +96,7 @@ export class VrxWsClient {
   private readonly buffer = new Map<string, TopicMessage[]>();
   private readonly statusListeners = new Set<(s: WsStatus) => void>();
 
-  constructor(opts: VrxWsClientOptions) {
+  constructor(opts: NgfwWsClientOptions) {
     this.url = opts.url;
     this.factory =
       opts.factory ??

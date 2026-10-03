@@ -69,7 +69,7 @@ function buildRequest(
   const attrs: Buffer[] = [
     attr(ATTR_USER_NAME, Buffer.from(username, 'utf8')),
     attr(ATTR_USER_PASSWORD, hidePassword(password, server.secret, authenticator)),
-    attr(ATTR_NAS_IDENTIFIER, Buffer.from(server.nasId ?? 'vrx', 'utf8')),
+    attr(ATTR_NAS_IDENTIFIER, Buffer.from(server.nasId ?? 'ngfw', 'utf8')),
     // Message-Authenticator: 16 zero bytes as a placeholder, filled in below (RFC 3579 §3.2)
     attr(ATTR_MESSAGE_AUTHENTICATOR, Buffer.alloc(16)),
   ];

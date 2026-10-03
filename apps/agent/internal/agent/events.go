@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // eventBufferSize bounds each subscriber's queue; on overflow the oldest events are dropped and
@@ -24,20 +24,20 @@ type bus struct {
 func newBus() *bus { return &bus{subs: map[*subscriber]struct{}{}} }
 
 type subscriber struct {
-	kinds      map[vrxv1.EventKind]bool
+	kinds      map[ngfwv1.EventKind]bool
 	interfaces map[string]bool
 	size       int
 
 	mu      sync.Mutex
-	queue   []*vrxv1.Event
+	queue   []*ngfwv1.Event
 	dropped int
 	notify  chan struct{}
 	seq     uint64
 }
 
 // subscribe registers a subscriber with the request's filters (applied before buffering).
-func (b *bus) subscribe(req *vrxv1.StreamEventsRequest) *subscriber {
-	s := &subscriber{kinds: map[vrxv1.EventKind]bool{}, interfaces: map[string]bool{}, size: eventBufferSize, notify: make(chan struct{}, 1)}
+func (b *bus) subscribe(req *ngfwv1.StreamEventsRequest) *subscriber {
+	s := &subscriber{kinds: map[ngfwv1.EventKind]bool{}, interfaces: map[string]bool{}, size: eventBufferSize, notify: make(chan struct{}, 1)}
 	for _, k := range req.GetKinds() {
 		s.kinds[k] = true
 	}
@@ -57,7 +57,7 @@ func (b *bus) unsubscribe(s *subscriber) {
 }
 
 // publish delivers ev (seq is assigned per stream on delivery).
-func (b *bus) publish(ev *vrxv1.Event) {
+func (b *bus) publish(ev *ngfwv1.Event) {
 	if ev.Ts == nil {
 		ev.Ts = timestamppb.Now()
 	}
@@ -76,16 +76,16 @@ func (b *bus) publish(ev *vrxv1.Event) {
 // P11, P12, F-wireguard, F-acl, …) reaches every StreamEvents subscriber like the agent's own. The bus
 // publishes a copy (the publisher may reuse or change ev afterwards) with seq cleared (each stream
 // numbers its events) and ts set when unset; an UNSPECIFIED kind is dropped.
-func (b *bus) publishFeature(ev *vrxv1.Event) {
-	if ev == nil || ev.GetKind() == vrxv1.EventKind_EVENT_KIND_UNSPECIFIED {
+func (b *bus) publishFeature(ev *ngfwv1.Event) {
+	if ev == nil || ev.GetKind() == ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED {
 		return
 	}
-	c := proto.Clone(ev).(*vrxv1.Event)
+	c := proto.Clone(ev).(*ngfwv1.Event)
 	c.Seq = 0
 	b.publish(c)
 }
 
-func (s *subscriber) wants(ev *vrxv1.Event) bool {
+func (s *subscriber) wants(ev *ngfwv1.Event) bool {
 	if len(s.kinds) > 0 && !s.kinds[ev.GetKind()] {
 		return false
 	}
@@ -95,7 +95,7 @@ func (s *subscriber) wants(ev *vrxv1.Event) bool {
 	return true
 }
 
-func (s *subscriber) offer(ev *vrxv1.Event) {
+func (s *subscriber) offer(ev *ngfwv1.Event) {
 	if !s.wants(ev) {
 		return
 	}
@@ -114,17 +114,17 @@ func (s *subscriber) offer(ev *vrxv1.Event) {
 
 // next blocks until events are available (or ctx is done) and returns them with seq assigned,
 // preceded by an ERROR "dropped N events" when the buffer overflowed.
-func (s *subscriber) next(ctx context.Context) ([]*vrxv1.Event, error) {
+func (s *subscriber) next(ctx context.Context) ([]*ngfwv1.Event, error) {
 	for {
 		s.mu.Lock()
 		if len(s.queue) > 0 || s.dropped > 0 {
-			var out []*vrxv1.Event
+			var out []*ngfwv1.Event
 			if s.dropped > 0 {
-				out = append(out, &vrxv1.Event{Ts: timestamppb.Now(), Kind: vrxv1.EventKind_EVENT_KIND_ERROR, Message: fmt.Sprintf("dropped %d events", s.dropped)})
+				out = append(out, &ngfwv1.Event{Ts: timestamppb.Now(), Kind: ngfwv1.EventKind_EVENT_KIND_ERROR, Message: fmt.Sprintf("dropped %d events", s.dropped)})
 				s.dropped = 0
 			}
 			for _, ev := range s.queue {
-				out = append(out, proto.Clone(ev).(*vrxv1.Event))
+				out = append(out, proto.Clone(ev).(*ngfwv1.Event))
 			}
 			s.queue = nil
 			for _, ev := range out {
@@ -143,8 +143,8 @@ func (s *subscriber) next(ctx context.Context) ([]*vrxv1.Event, error) {
 	}
 }
 
-func summaryPB(s summaryCounts) *vrxv1.ApplySummary {
-	return &vrxv1.ApplySummary{
+func summaryPB(s summaryCounts) *ngfwv1.ApplySummary {
+	return &ngfwv1.ApplySummary{
 		Created: uint32(s.Created), Updated: uint32(s.Updated), Deleted: uint32(s.Deleted), //nolint:gosec // small counts
 		Unchanged: uint32(s.Unchanged), Failed: uint32(s.Failed), Reverted: uint32(s.Reverted), //nolint:gosec // small counts
 	}

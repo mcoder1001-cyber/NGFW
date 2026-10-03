@@ -40,10 +40,10 @@ class ExportTests(unittest.TestCase):
         entries = []
         for name, shipping in (('vpp', True), ('vpp-dbg', False)):
             artifact = self.delivery / 'vpp' / (name + '.deb')
-            self.archive(name, artifact, '26.06-release+vrx1')
+            self.archive(name, artifact, '26.06-release+ngfw1')
             metadata = VERIFY.metadata(artifact)
             entries.append({'package': name, 'file': artifact.name, 'ship': shipping,
-                'version': '26.06-release+vrx1', 'architecture': 'amd64',
+                'version': '26.06-release+ngfw1', 'architecture': 'amd64',
                 'sha256': metadata['sha256'], 'size': metadata['size']})
         (self.delivery / 'vpp/manifest.json').write_text(json.dumps({'packages': entries}))
         (self.delivery / 'vpp/SHA256SUMS').write_text('synthetic full VPP fixture\n')
@@ -62,7 +62,7 @@ class ExportTests(unittest.TestCase):
                        check=True, capture_output=True)
 
     def assert_no_partials(self):
-        self.assertEqual(list(self.root.glob('.vrx-export-*')), [])
+        self.assertEqual(list(self.root.glob('.ngfw-export-*')), [])
 
     def test_deterministic_regular_members_and_verifier_roundtrip(self):
         report = EXPORT.export(self.delivery, self.manifest, self.output)
@@ -148,7 +148,7 @@ class ExportTests(unittest.TestCase):
     def test_snapshot_archive_mutation_rejected_during_stream(self):
         original = EXPORT.write_tar
         def mutate(stream, snapshot, files):
-            path = snapshot / 'vrx-agent.deb'
+            path = snapshot / 'ngfw-agent.deb'
             data = path.read_bytes()
             path.write_bytes(data[:-1] + bytes([data[-1] ^ 1]))
             original(stream, snapshot, files)

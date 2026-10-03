@@ -8,12 +8,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // The render input of one family (F-kea-dhcp-relay). The agent drives each Kea daemon through one singleton
 // scheduler descriptor (descriptor.go) whose Value is exactly this input; the renderer embeds the input in the
-// rendered configuration (top-level user-context.vrx.input), so Retrieve can read it back from the daemon
+// rendered configuration (top-level user-context.ngfw.input), so Retrieve can read it back from the daemon
 // (config-get) or from the file the daemon loads at start, re-render it and prove with ConfigDrift that the daemon
 // runs exactly that — the Value is derived from the daemon's state, never echoed from memory (D-063).
 
@@ -26,7 +26,7 @@ func FamilyName(family int) string {
 }
 
 // FamilyOf returns 4 or 6 for a server ("" = ipv4) and false for an unknown family.
-func FamilyOf(s *vrxv1.DhcpServer) (int, bool) {
+func FamilyOf(s *ngfwv1.DhcpServer) (int, bool) {
 	switch s.GetFamily() {
 	case "", "ipv4":
 		return 4, true
@@ -39,17 +39,17 @@ func FamilyOf(s *vrxv1.DhcpServer) (int, bool) {
 // Input returns the render input of one family: every DHCP server of that family (enabled or not, exactly as the
 // document has it) and, for DHCPv4, the IPv4 addresses of the interfaces those servers name (the "<if>/<addr>"
 // bindings). nil when the document has no server of the family.
-func Input(ds *vrxv1.DesiredState, family int) *vrxv1.DesiredState {
-	servers := map[string]*vrxv1.DhcpServer{}
+func Input(ds *ngfwv1.DesiredState, family int) *ngfwv1.DesiredState {
+	servers := map[string]*ngfwv1.DhcpServer{}
 	for name, s := range ds.GetServices().GetDhcp().GetServers() {
 		if f, ok := FamilyOf(s); ok && f == family {
-			servers[name] = proto.Clone(s).(*vrxv1.DhcpServer)
+			servers[name] = proto.Clone(s).(*ngfwv1.DhcpServer)
 		}
 	}
 	if len(servers) == 0 {
 		return nil
 	}
-	in := &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{Servers: servers}}}
+	in := &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{Servers: servers}}}
 	if family != 4 {
 		return in
 	}
@@ -60,32 +60,32 @@ func Input(ds *vrxv1.DesiredState, family int) *vrxv1.DesiredState {
 				continue
 			}
 			if in.Interfaces == nil {
-				in.Interfaces = map[string]*vrxv1.Interface{}
+				in.Interfaces = map[string]*ngfwv1.Interface{}
 			}
-			in.Interfaces[ifn] = &vrxv1.Interface{Ipv4: append([]string(nil), itf.GetIpv4()...)}
+			in.Interfaces[ifn] = &ngfwv1.Interface{Ipv4: append([]string(nil), itf.GetIpv4()...)}
 		}
 	}
 	return in
 }
 
 // inputOf is Input for what extract returned (the renderer also accepts a ServicesConfig or DhcpService).
-func inputOf(in input, family int) *vrxv1.DesiredState {
-	return Input(&vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Dhcp: in.dhcp}, Interfaces: in.interfaces}, family)
+func inputOf(in input, family int) *ngfwv1.DesiredState {
+	return Input(&ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Dhcp: in.dhcp}, Interfaces: in.interfaces}, family)
 }
 
 // topContext is the top-level user-context of a rendered Dhcp4/Dhcp6 configuration with servers.
 type topContext struct {
-	VRX topVRX `json:"vrx"`
+	NGFW topNGFW `json:"ngfw"`
 }
 
-type topVRX struct {
+type topNGFW struct {
 	// Input is the base64 of the deterministic protobuf encoding of Input(document, family).
 	Input string `json:"input"`
 	// Servers names the servers of the input (readability of config-get; not read back).
 	Servers []string `json:"servers,omitempty"`
 }
 
-func encodeInput(in *vrxv1.DesiredState) (*topContext, error) {
+func encodeInput(in *ngfwv1.DesiredState) (*topContext, error) {
 	if in == nil {
 		return nil, nil
 	}
@@ -94,14 +94,14 @@ func encodeInput(in *vrxv1.DesiredState) (*topContext, error) {
 		return nil, fmt.Errorf("kea: encode input: %w", err)
 	}
 	names := sortedKeys(in.GetServices().GetDhcp().GetServers())
-	return &topContext{VRX: topVRX{Input: base64.StdEncoding.EncodeToString(b), Servers: names}}, nil
+	return &topContext{NGFW: topNGFW{Input: base64.StdEncoding.EncodeToString(b), Servers: names}}, nil
 }
 
 // EmbeddedInput reads the render input back from a Dhcp4/Dhcp6 configuration (config-get arguments or a rendered
 // file). ok is false for a configuration without one: an idle configuration, or one this renderer did not write —
 // including a file that is not plain JSON (Kea accepts comments; the packaged /etc/kea files have them, rendered
 // files never do). An error means a configuration that carries a render input which cannot be decoded.
-func EmbeddedInput(config []byte) (*vrxv1.DesiredState, bool, error) {
+func EmbeddedInput(config []byte) (*ngfwv1.DesiredState, bool, error) {
 	var root map[string]struct {
 		UserContext *topContext `json:"user-context"`
 	}
@@ -115,16 +115,16 @@ func EmbeddedInput(config []byte) (*vrxv1.DesiredState, bool, error) {
 	sort.Strings(keys)
 	for _, k := range keys {
 		uc := root[k].UserContext
-		if (k != "Dhcp4" && k != "Dhcp6") || uc == nil || uc.VRX.Input == "" {
+		if (k != "Dhcp4" && k != "Dhcp6") || uc == nil || uc.NGFW.Input == "" {
 			continue
 		}
-		raw, err := base64.StdEncoding.DecodeString(uc.VRX.Input)
+		raw, err := base64.StdEncoding.DecodeString(uc.NGFW.Input)
 		if err != nil {
-			return nil, false, fmt.Errorf("kea: %s user-context.vrx.input: %w", k, err)
+			return nil, false, fmt.Errorf("kea: %s user-context.ngfw.input: %w", k, err)
 		}
-		in := &vrxv1.DesiredState{}
+		in := &ngfwv1.DesiredState{}
 		if err := proto.Unmarshal(raw, in); err != nil {
-			return nil, false, fmt.Errorf("kea: %s user-context.vrx.input: %w", k, err)
+			return nil, false, fmt.Errorf("kea: %s user-context.ngfw.input: %w", k, err)
 		}
 		return in, true, nil
 	}

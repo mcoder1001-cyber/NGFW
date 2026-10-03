@@ -107,11 +107,11 @@ describe('SMTP authentication configuration', () => {
     relay.email!.passwordRef = 'password/relay';
     mocks.lookup.mockResolvedValue([{ address: '10.1.2.3', family: 4 }]);
     mocks.createTransport.mockReturnValue({ sendMail: mocks.sendMail, close: mocks.close });
-    const readSecret = vi.fn(async () => 'VRX_TEST_PSK_SMTP');
+    const readSecret = vi.fn(async () => 'NGFW_TEST_PSK_SMTP');
     await sendNotification(relay, '{}', readSecret, new AbortController().signal);
     expect(readSecret).toHaveBeenCalledWith('password/relay');
     expect(mocks.createTransport).toHaveBeenCalledWith(expect.objectContaining({
-      auth: { user: 'relay-user', pass: 'VRX_TEST_PSK_SMTP' },
+      auth: { user: 'relay-user', pass: 'NGFW_TEST_PSK_SMTP' },
     }));
   });
   it('omits auth for an explicitly unauthenticated relay', async () => {

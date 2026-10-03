@@ -155,7 +155,7 @@ const RULE: JsonSchema = {
   type: 'object',
   properties: {
     sequence: { type: 'integer', title: 'Sequence' },
-    description: { type: 'string', title: 'Description', 'x-vrx-ui': { widget: 'textarea' } },
+    description: { type: 'string', title: 'Description', 'x-ngfw-ui': { widget: 'textarea' } },
     action: { type: 'string', enum: ['permit', 'deny'], title: 'Action' },
     source: {
       title: 'Source',
@@ -183,7 +183,7 @@ const plainText: SummaryText = {
 
 describe('summaries and rule-editor columns', () => {
   it('only identifier columns/keys are shown LTR; words follow the page (review M2)', () => {
-    expect(isIdentifierSchema({ type: 'string', 'x-vrx-ui': { widget: 'cidr' } }, RULE)).toBe(true);
+    expect(isIdentifierSchema({ type: 'string', 'x-ngfw-ui': { widget: 'cidr' } }, RULE)).toBe(true);
     expect(isIdentifierSchema({ type: 'string', pattern: '^[a-z_][a-z0-9_-]{0,31}$' }, RULE)).toBe(true); // user name
     expect(isIdentifierSchema({ anyOf: [{ type: 'string', format: 'ipv4' }, { type: 'string', format: 'ipv6' }] }, RULE)).toBe(true);
     expect(isIdentifierSchema({ type: 'array', items: { type: 'string', format: 'cidrv6' } }, RULE)).toBe(true);
@@ -203,7 +203,7 @@ describe('summaries and rule-editor columns', () => {
     expect(s('ports', [22, 80, 443, 8080, 8443])).toBe('22, 80, 443 +2');
     expect(s('log', true)).toBe('Yes');
     expect(s('log', false)).toBe('No');
-    expect(s('psk', 'VRX_TEST_PSK_web1')).toBe('');
+    expect(s('psk', 'NGFW_TEST_PSK_web1')).toBe('');
     expect(s('opts', { a: 'x', b: 'y' })).toBe('a, b');
     expect(s('name', undefined)).toBe('');
     // inside an object, a true boolean shows its title, a false one nothing

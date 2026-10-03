@@ -16,8 +16,8 @@ const vrs = (...items: Record<string, unknown>[]) =>
   Object.fromEntries(items.map((v, i) => [`vr${i}`, v]));
 const withHa = (ha: Record<string, unknown>) => ({ ...BASE, ha });
 const cluster = (extra: Record<string, unknown> = {}) => ({
-  nodeName: 'vrx-a',
-  peers: [{ name: 'vrx-b', address: '192.168.10.3' }],
+  nodeName: 'ngfw-a',
+  peers: [{ name: 'ngfw-b', address: '192.168.10.3' }],
   secretRef: 'key/cluster',
   ...extra,
 });

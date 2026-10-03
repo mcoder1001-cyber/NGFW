@@ -19,7 +19,7 @@ Every new key is optional without a default, so documents written before the cha
 (unit test `absent keys parse to exactly the pre-D-086 value`). No log-explorer retention leaf: the explorer reads
 journald through bounded queries (retention is journald's own, P10), so the UI needs no document leaf.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`)
 
 | change | number | source |
 |---|---|---|

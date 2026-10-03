@@ -15,7 +15,7 @@ Two commits on `task/F-pki`, numbers from `docs/status/wave-BC-numbers.md` § F-
 Serial numbers and fingerprints are colon-separated hex (`4A:1F:…`) so the `vpn.no-inline-secret-material` guard (which
 flags plain hex blobs of 16+ bytes) does not mistake a serial for key material.
 
-## contract(proto): pki leaves + PkiFileState — `packages/proto/vrx/v1/dataplane.proto`
+## contract(proto): pki leaves + PkiFileState — `packages/proto/ngfw/v1/dataplane.proto`
 
 - `PkiCa`: **5 `key_spec`** (`PkiKeySpec`), **6 `issued`** (`PkiIssued`); `PkiCertificate`: **7 `csr`** (`PkiCsr`),
   **8 `issued`** (`PkiIssued`).
@@ -28,16 +28,16 @@ flags plain hex blobs of 16+ bytes) does not mistake a serial for key material.
 ### PkiFileState semantics (for docs/contracts/proto.md "F-pki: PkiFileState" — a file outside my envelope)
 
 Read-only, never mutates, owner-checked like every feature RPC. Reports the agent's manifest of PKI files under the
-swanctl directory of its charon (product `/etc/swanctl`, slot test `/run/vrx-test/w<N>/swan/a/swanctl`): `x509/<name>.pem`
+swanctl directory of its charon (product `/etc/swanctl`, slot test `/run/ngfw-test/w<N>/swan/a/swanctl`): `x509/<name>.pem`
 (kind `cert`), `x509ca/<name>.pem` (`ca`), `private/<name>.pem` (`key`, mode 0600), `x509crl/<name>.pem` (`crl`). The
 fingerprint is `sha256:<hex>` of the file content for public files and `hmac:<hex>` (HMAC-SHA256 under the agent-local
 D-096 key file `vpn-<owner>.key`) for private keys: no key material and no plain hash of it ever crosses the socket.
 `present = false` marks a manifest file that is missing on disk (the next reconcile writes it again). `unavailable` names
 why there is nothing to report (no charon for this agent, or the materialiser is not wired into this build).
-`PkiFileStateSet` is also the value of the singleton scheduler object `pki.files/vrx` (desired vs Retrieve compare kind,
+`PkiFileStateSet` is also the value of the singleton scheduler object `pki.files/ngfw` (desired vs Retrieve compare kind,
 name, ref, fingerprint and mode; size and present stay zero there).
 
-Generated and committed: `apps/agent/gen/vrx/v1/*`, `packages/proto/gen/ts/vrx/v1/dataplane.ts`. Fixture
+Generated and committed: `apps/agent/gen/ngfw/v1/*`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts`. Fixture
 `packages/proto/test/fixtures/pki-full.json` exercises every new leaf (both contract guards pass on it; the one red case
 in `packages/proto/test`, `examples/tunnels-gre-vxlan-ipip.json` l2tpv3 cookies `1 ≠ "1"`, fails on main too and is not
 F-pki's).

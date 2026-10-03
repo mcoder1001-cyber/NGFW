@@ -5,7 +5,7 @@ existing field renamed, renumbered or reshaped; no new RPC, no `ActionRequest` m
 
 ## `contract(proto): nat session variants`
 
-`packages/proto/vrx/v1/dataplane.proto`:
+`packages/proto/ngfw/v1/dataplane.proto`:
 
 | where | what | number |
 |---|---|---|
@@ -20,6 +20,6 @@ code and fake build unchanged, and UNSPECIFIED / unset means NAT44-ED exactly as
 Semantics: `docs/contracts/proto.md` §11 "F-nat44-ei-64-66-nptv6: NAT session variants" (EI paging and kill by the
 inside endpoint; NAT64 read-only paging with the NatSession field mapping and `protocol`-only filter).
 
-Regenerated (never hand-edited): `apps/agent/gen/vrx/v1/*`, `packages/proto/gen/ts/vrx/v1/dataplane.ts`
+Regenerated (never hand-edited): `apps/agent/gen/ngfw/v1/*`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts`
 (`packages/proto/gen.sh`). Config contract: none (every `nat.nat64` / `nat.nat66` / `nat.nptv6` leaf and every NAT44
 leaf used by `mode: "ei"` is already mirrored in `NatConfig`).

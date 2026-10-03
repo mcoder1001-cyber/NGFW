@@ -7,7 +7,7 @@ import { closeSync, constants, fstatSync, openSync, readFileSync, type Stats } f
  * problem — never the content.
  * Review L7: the file is opened ONCE (O_NOFOLLOW) and checked and read through that descriptor (fstat), so a path swap
  * between the check and the read cannot slip another file in.
- * Used for the JWT key ring (VRX_JWT_KEY_FILE) and the secret store's master key (VRX_SECRET_KEY_FILE,
+ * Used for the JWT key ring (NGFW_JWT_KEY_FILE) and the secret store's master key (NGFW_SECRET_KEY_FILE,
  * secrets.service.ts, readKeyFileBytes — SEC-auth L1).
  */
 export class KeyFileError extends Error {

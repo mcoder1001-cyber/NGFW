@@ -43,7 +43,7 @@ The agent must never call `af_packet_delete` while the host netdev is up. `af_pa
 7. **ifsanitize placeholder cap (D-105, TD-3 re-review M1 option b):** replace the fixed `ifsanitize.MaxPlaceholders = 16` with
    `holes + 2 × FreshRun`, capped at 64, where `holes` is the number of freed classify-table indices the run has already seen. Keep the behaviour
    fail-closed at the cap (`ErrCapped` wraps `ErrNoCleanIndex`, quarantine only when a binding is proven unclearable). Unit tests: a free list of
-   12 out-of-order indices now succeeds; a list that needs more than 64 still fails closed and bumps `vrx_agent_iface_sanitize_capped_total`.
+   12 out-of-order indices now succeeds; a list that needs more than 64 still fails closed and bumps `ngfw_agent_iface_sanitize_capped_total`.
    Update the cap paragraph in `docs/agent/descriptors/interface.md`. This is the only ifsanitize change you make.
 
 ## Acceptance (paste the evidence into docs/status/tasks/TD-5.md)
@@ -66,7 +66,7 @@ The agent must never call `af_packet_delete` while the host netdev is up. `af_pa
   eval "$(tools/lab env <slot>)"
   systemctl show vpp -p NRestarts
   cd apps/agent
-  VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+  NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
   systemctl show vpp -p NRestarts
   ```
   If NRestarts rises: stop all host runs and write it down.
@@ -80,7 +80,7 @@ The agent must never call `af_packet_delete` while the host netdev is up. `af_pa
 - `ifsanitize` beyond the cap in scope item 7, `descriptors/interface`, `iface.AcquireAndTag` internals, M3 binding readback, and `Release` wiring (TD-3 / tech-debt / P08).
 - `tools/lab` (manager-owned) and `test/topology/**` (P08 / features). Read them, do not edit them.
 - Bringing the netdev back up after a delete, or on Create (VPP does it at create). The netns-side peers of the rig.
-- A deny-list that keeps the management NIC out of af_packet (DF-1 review L3 → schema / F-*), the vrx-agent systemd unit and capabilities (P10), and any
+- A deny-list that keeps the management NIC out of af_packet (DF-1 review L3 → schema / F-*), the ngfw-agent systemd unit and capabilities (P10), and any
   new Go dependency (vishvananda/netlink and similar).
 - Packet-level tests. A test must never demonstrate the crash: it proves the order and the down state, nothing more.
 

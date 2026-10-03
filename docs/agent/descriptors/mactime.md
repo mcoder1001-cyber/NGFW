@@ -14,5 +14,5 @@ per listed day: `day*86400 + HH:MM`), `interfaces.<if>.l2.macFilter: true` → `
 per-day ranges back by time window (days in `mon … sun` order, groups by first day, then start, end).
 
 Unit tests (`mactime_test.go`, fake VPP modelling the appending add, the stacking enable and the out-of-range readback):
-`TestDevice`, `TestEnableAppliedOnce`. Host evidence: `TestMactimeOnHost` (`VRX_INTEGRATION=1`) and the topology test
+`TestDevice`, `TestEnableAppliedOnce`. Host evidence: `TestMactimeOnHost` (`NGFW_INTEGRATION=1`) and the topology test
 `test/topology/bridge-l2` — `docs/status/tasks/F-bridge-l2.md`.

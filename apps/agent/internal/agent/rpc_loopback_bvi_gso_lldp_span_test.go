@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/cnat"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/gso"
@@ -42,7 +42,7 @@ func withoutWriteOnly(kvs []scheduler.KV) []scheduler.KV {
 // with a cross-connect of loop7103/loop7104 and the output feature on loop7102, and a non-empty SNMP
 // member no feature implements.
 const lbgsDoc = `{
-  "system": {"hostname": "vrx-w7"},
+  "system": {"hostname": "ngfw-w7"},
   "vrfs": {"default": {"id": 0}},
   "interfaces": {
     "loop7101": {"enabled": true, "vrf": "default", "ipv4": ["10.7.101.1/24"], "gso": true,
@@ -55,7 +55,7 @@ const lbgsDoc = `{
   },
   "routing": {"l2": {"bridgeDomains": {"lan": {"id": 7101, "flood": true, "uuFlood": true, "forward": true, "learn": true, "arpTerm": false, "macAgeMin": 0}}}},
   "services": {
-    "lldp": {"enabled": true, "systemName": "vrx-w7", "txHold": 4, "txIntervalSec": 30, "interfaces": [{"interface": "loop7101", "portDescription": "w7 bvi", "mgmtIpv4": "10.7.101.1"}]},
+    "lldp": {"enabled": true, "systemName": "ngfw-w7", "txHold": 4, "txIntervalSec": 30, "interfaces": [{"interface": "loop7101", "portDescription": "w7 bvi", "mgmtIpv4": "10.7.101.1"}]},
     "nsim": {"delayMs": 20, "bandwidthMbps": 100, "packetSize": 1500, "dropFraction": 0.01,
       "crossConnect": {"a": "loop7103", "b": "loop7104"}, "outputInterfaces": ["loop7102"]}
   }
@@ -63,7 +63,7 @@ const lbgsDoc = `{
 
 // lbgsBase is lbgsDoc after the rollback: the interfaces and the bridge domain stay, every feature leaf goes.
 const lbgsBase = `{
-  "system": {"hostname": "vrx-w7"},
+  "system": {"hostname": "ngfw-w7"},
   "vrfs": {"default": {"id": 0}},
   "interfaces": {
     "loop7101": {"enabled": true, "vrf": "default", "ipv4": ["10.7.101.1/24"],
@@ -102,9 +102,9 @@ func newSvcOwner(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) *
 	return svc
 }
 
-func lbgsRetrieve(t *testing.T, s *Service) *vrxv1.DesiredState {
+func lbgsRetrieve(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: lbgsDomains})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: lbgsDomains})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func checkLbgsApplied(t *testing.T, v *coretest.VPP, s *Service, owner bool) {
 		if n.CrossCount != 1 || len(n.Output) != 1 {
 			t.Fatalf("nsim cross-connect / output %+v", n)
 		}
-		if g := v.LldpGlobal(); g == nil || g.SystemName != "vrx-w7" || g.TxHold != 4 || g.TxInterval != 30 {
+		if g := v.LldpGlobal(); g == nil || g.SystemName != "ngfw-w7" || g.TxHold != 4 || g.TxInterval != 30 {
 			t.Fatalf("lldp global %+v", g)
 		}
 	} else if n.Configured || v.LldpGlobal() != nil {
@@ -152,7 +152,7 @@ func checkLbgsApplied(t *testing.T, v *coretest.VPP, s *Service, owner bool) {
 	}
 	// F-qos-flat / F-kea-dhcp-relay: the services Retrieve always carries the (here empty) qos and dhcp families;
 	// nothing else (lldp is write-only)
-	if !proto.Equal(got.GetServices(), &vrxv1.ServicesConfig{Qos: &vrxv1.QosService{}, Dhcp: &vrxv1.DhcpService{}}) {
+	if !proto.Equal(got.GetServices(), &ngfwv1.ServicesConfig{Qos: &ngfwv1.QosService{}, Dhcp: &ngfwv1.DhcpService{}}) {
 		t.Fatalf("services must be present and empty (write-only): %v", got.GetServices())
 	}
 	// Retrieve reproduces every retrievable object of the document
@@ -161,7 +161,7 @@ func checkLbgsApplied(t *testing.T, v *coretest.VPP, s *Service, owner bool) {
 	}
 }
 
-func issueRules(r *vrxv1.ValidationReport) map[string]string {
+func issueRules(r *ngfwv1.ValidationReport) map[string]string {
 	out := map[string]string{}
 	for _, i := range r.GetErrors() { // every finding, ERROR first
 		out[i.GetPointer()] = i.GetRule()
@@ -169,9 +169,9 @@ func issueRules(r *vrxv1.ValidationReport) map[string]string {
 	return out
 }
 
-func hasErrors(r *vrxv1.ValidationReport) bool {
+func hasErrors(r *ngfwv1.ValidationReport) bool {
 	for _, i := range r.GetErrors() {
-		if i.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if i.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			return true
 		}
 	}
@@ -186,7 +186,7 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 	ds := doc(t, lbgsDoc)
 
 	// DryRun notes: write-only LLDP, VPP-global LLDP fields and nsim unsupported on a slot agent (every other services member has a builder since F-unbound-chrony-syslog)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: ds, Subsystems: lbgsDomains})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: ds, Subsystems: lbgsDomains})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,13 +206,13 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 		t.Fatalf("errors %v", rep.GetErrors())
 	}
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: ds, Subsystems: lbgsDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: ds, Subsystems: lbgsDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	checkLbgsApplied(t, v, s, false)
 
 	// idempotent: the same document again sends nothing that changes VPP
 	v.Reset()
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a2", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for _, c := range v.Calls() {
 		if n := c.GetMessageName(); !strings.HasSuffix(n, "_dump") && n != "policer_dump_v2" && n != "control_ping" && n != "sw_interface_get_table" && !strings.HasSuffix(n, "_get") && n != "feature_is_enabled" {
 			t.Fatalf("idempotent apply sent %s", n)
@@ -220,7 +220,7 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 	}
 
 	// resync without loss: write-only lldp.interface is re-applied (adopted: already enabled), GSO is not stacked twice
-	mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	checkLbgsApplied(t, v, s, false)
 
 	// restart simulation (D-095c): the agent stops, the dependents and then the interfaces are deleted behind its
@@ -232,14 +232,14 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 	}
 	s2 := newSvcOwner(t, v, dir, false)
 	r := s2.Resync(context.Background())
-	mustStatus(t, r, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, r, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync created nothing: %v", r)
 	}
 	checkLbgsApplied(t, v, s2, false)
 
 	// rollback: the dependents go before the loopbacks' leaves; nothing of the feature remains
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "rb", DesiredState: doc(t, lbgsBase), Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "rb", DesiredState: doc(t, lbgsBase), Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if g, sp, l := v.GsoCount(), v.Spans(), v.Lldp(); len(g)+len(sp)+len(l) != 0 {
 		t.Fatalf("after rollback gso %v span %v lldp %v", g, sp, l)
 	}
@@ -250,7 +250,7 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 		}
 	}
 	// and the loopbacks themselves (P08's creator) on the full rollback
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "rb2", DesiredState: doc(t, `{"vrfs": {"default": {"id": 0}}}`), Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "rb2", DesiredState: doc(t, `{"vrfs": {"default": {"id": 0}}}`), Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for _, i := range v.Ifaces {
 		if strings.HasPrefix(i.Name, "loop71") {
 			t.Fatalf("loopback %s left after the rollback", i.Name)
@@ -260,14 +260,14 @@ func TestLoopbackBviGsoLldpSpanSlotAgent(t *testing.T) {
 
 func TestLoopbackBviGsoLldpSpanGlobalsOwner(t *testing.T) {
 	fakeBootIdentity(t)
-	t.Setenv("VRX_NSIM", "lab") // review M2: nsim needs the lab gate on top of the globals owner
+	t.Setenv("NGFW_NSIM", "lab") // review M2: nsim needs the lab gate on top of the globals owner
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvcOwner(t, v, dir, true)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	checkLbgsApplied(t, v, s, true)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, lbgsDoc), Subsystems: lbgsDomains})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,20 +277,20 @@ func TestLoopbackBviGsoLldpSpanGlobalsOwner(t *testing.T) {
 
 	// resyncs (write-only objects re-applied) never reconfigure the model or stack the features
 	for i := 0; i < 2; i++ {
-		mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	}
 	checkLbgsApplied(t, v, s, true)
 
 	// a changed model is applied once more (VPP reallocates); an unchanged one never
 	changed := doc(t, lbgsDoc)
 	changed.Services.Nsim.DelayMs = proto.Float64(30)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", DesiredState: changed, Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a2", DesiredState: changed, Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := v.Nsim(); n.Configures != 2 || n.Config.DelayInUsec != 30000 {
 		t.Fatalf("nsim after change %+v", n)
 	}
 
 	// rollback: cross-connect and output feature removed; VPP cannot unconfigure the model (it stays, inert)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "rb", DesiredState: doc(t, lbgsBase), Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "rb", DesiredState: doc(t, lbgsBase), Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := v.Nsim(); n.CrossCount != 0 || len(n.Output) != 0 {
 		t.Fatalf("nsim after rollback %+v", n)
 	}
@@ -304,8 +304,8 @@ func TestLoopbackBviGsoLldpSpanValidation(t *testing.T) {
 	s := newSvcOwner(t, v, t.TempDir(), false)
 	bad := doc(t, `{"interfaces": {"loop7101": {"mirror": [{"destination": "loop7101"}, {"destination": "loop7102", "direction": "sideways"}]}, "loop7102": {}},
 	  "services": {"lldp": {"enabled": true, "interfaces": [{"interface": "loop7102", "mgmtIpv6": "10.0.0.1"}]}}}`)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "bad", DesiredState: bad, Subsystems: lbgsDomains})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "bad", DesiredState: bad, Subsystems: lbgsDomains})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	got := map[string]bool{}
 	for _, i := range resp.GetValidation().GetErrors() {
 		got[i.GetPointer()] = true
@@ -329,12 +329,12 @@ func TestLldpNeighbors(t *testing.T) {
 	t.Cleanup(func() { vppClock = prev })
 	ds := doc(t, `{"interfaces": {"loop7101": {}, "loop7102": {}, "loop7103": {}},
 	  "services": {"lldp": {"enabled": true, "interfaces": [{"interface": "loop7103"}, {"interface": "loop7101"}, {"interface": "loop7102"}]}}}`)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a", DesiredState: ds, Subsystems: lbgsDomains}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a", DesiredState: ds, Subsystems: lbgsDomains}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	// another owner's interface with LLDP (made behind the agent's back) is never reported
 	foreign := v.AddInterface("loop9999", "Loopback", "w9:loop9999")
 	v.EnableLldp(foreign)
 
-	r, err := s.LldpNeighbors(context.Background(), &vrxv1.LldpNeighborsRequest{Limit: 2})
+	r, err := s.LldpNeighbors(context.Background(), &ngfwv1.LldpNeighborsRequest{Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -344,18 +344,18 @@ func TestLldpNeighbors(t *testing.T) {
 	if n := r.GetNeighbors()[0]; n.GetHeard() || n.GetChassisId() != "" || n.GetLastSentSecAgo() != 90 || n.GetLastHeardSecAgo() != 0 {
 		t.Fatalf("neighbour fields %v", n)
 	}
-	r, err = s.LldpNeighbors(context.Background(), &vrxv1.LldpNeighborsRequest{Offset: 2, Limit: 2})
+	r, err = s.LldpNeighbors(context.Background(), &ngfwv1.LldpNeighborsRequest{Offset: 2, Limit: 2})
 	if err != nil || len(r.GetNeighbors()) != 1 || r.GetNeighbors()[0].GetInterface() != "loop7103" {
 		t.Fatalf("page 2 %v %v", r, err)
 	}
-	if _, err := s.LldpNeighbors(context.Background(), &vrxv1.LldpNeighborsRequest{Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.LldpNeighbors(context.Background(), &ngfwv1.LldpNeighborsRequest{Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("limit 1001: %v", err)
 	}
-	if _, err := s.LldpNeighbors(context.Background(), &vrxv1.LldpNeighborsRequest{Owner: "w9"}); grpcCode(err) == codes.OK {
+	if _, err := s.LldpNeighbors(context.Background(), &ngfwv1.LldpNeighborsRequest{Owner: "w9"}); grpcCode(err) == codes.OK {
 		t.Fatal("foreign owner accepted")
 	}
 	v.SetConnected(false)
-	if _, err := s.LldpNeighbors(context.Background(), &vrxv1.LldpNeighborsRequest{}); grpcCode(err) != codes.Unavailable {
+	if _, err := s.LldpNeighbors(context.Background(), &ngfwv1.LldpNeighborsRequest{}); grpcCode(err) != codes.Unavailable {
 		t.Fatalf("disconnected: %v", err)
 	}
 }

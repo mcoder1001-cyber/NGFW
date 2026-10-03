@@ -18,7 +18,7 @@ export function useLicenseState() {
 export type LicenseState = NonNullable<ReturnType<typeof useLicenseState>['data']>;
 type LicenseFile = paths['/api/v1/system/license']['put']['requestBody']['content']['application/json'];
 
-/** PUT /api/v1/system/license with the `.vrxlic` file content (admin). */
+/** PUT /api/v1/system/license with the `.ngfwlic` file content (admin). */
 export function useUploadLicense() {
   const qc = useQueryClient();
   return useMutation({

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -41,7 +41,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	d := NewDescriptor(New(rr, WithPaths(p)), nil)
 	prepared := 0
 	d.WithPrepare(func() error { prepared++; return nil })
-	if d.Name() != Name || Key != "unbound.config/vrx" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
+	if d.Name() != Name || Key != "unbound.config/ngfw" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
 		t.Fatal("identity")
 	}
 	if v := retrieveOne(t, d); v != nil {
@@ -55,7 +55,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 		t.Fatalf("foreign file reported as %v", v)
 	}
 
-	in := Input(dns(map[string]*vrxv1.DnsResolver{"lan": fullResolver(), "off": {Enabled: proto.Bool(false), Listen: []*vrxv1.SocketAddress{listen("127.0.0.1", 3654)}}}))
+	in := Input(dns(map[string]*ngfwv1.DnsResolver{"lan": fullResolver(), "off": {Enabled: proto.Bool(false), Listen: []*ngfwv1.SocketAddress{listen("127.0.0.1", 3654)}}}))
 	// not running: the file is written, the start request is not a failure
 	if _, err := d.Create(ctx, in); err != nil {
 		t.Fatalf("create: %v", err)
@@ -85,7 +85,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 		t.Fatalf("retrieve after update: %v", got)
 	}
 	// wrong value type
-	if _, err := d.Create(ctx, &vrxv1.NtpService{}); err == nil {
+	if _, err := d.Create(ctx, &ngfwv1.NtpService{}); err == nil {
 		t.Fatal("wrong value type accepted")
 	}
 	// delete: back to the idle rendering, which carries no input
@@ -139,16 +139,16 @@ func TestDescriptorRestartPendingUntilActedOn(t *testing.T) {
 }
 
 func TestEmbeddedInput(t *testing.T) {
-	if _, ok, err := EmbeddedInput([]byte("# vrx-input: !!\n")); ok || err != nil {
+	if _, ok, err := EmbeddedInput([]byte("# ngfw-input: !!\n")); ok || err != nil {
 		t.Fatalf("non-base64 line is not an input: %v %v", ok, err)
 	}
-	if _, _, err := EmbeddedInput([]byte("# vrx-input: AAAA\n# vrx-input: AAAA\n")); err == nil {
+	if _, _, err := EmbeddedInput([]byte("# ngfw-input: AAAA\n# ngfw-input: AAAA\n")); err == nil {
 		t.Fatal("two input lines accepted")
 	}
-	if _, _, err := EmbeddedInput([]byte("# vrx-input: /////w==\n")); err == nil {
+	if _, _, err := EmbeddedInput([]byte("# ngfw-input: /////w==\n")); err == nil {
 		t.Fatal("garbage protobuf accepted")
 	}
-	if Input(nil) != nil || Input(&vrxv1.DnsService{}) != nil {
+	if Input(nil) != nil || Input(&ngfwv1.DnsService{}) != nil {
 		t.Fatal("no resolver → no input")
 	}
 	if _, err := b64("a\nb"); err == nil {

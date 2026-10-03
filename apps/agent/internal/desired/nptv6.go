@@ -16,13 +16,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/descriptors/npt66"
 	"ngfw/agent/internal/scheduler"
 )
 
-func nptv6Build(s Sink, n *vrxv1.Nptv6Config) {
+func nptv6Build(s Sink, n *ngfwv1.Nptv6Config) {
 	seen := map[string]int{}
 	for i, b := range n.GetBindings() {
 		pt := Ptr("nat", "nptv6", "bindings", strconv.Itoa(i))
@@ -63,7 +63,7 @@ func nptv6Prefix(s Sink, text, pointer string) (netip.Prefix, bool) {
 }
 
 // assembleNptv6 maps npt66.binding objects to `nat.nptv6.bindings` (sorted by interface).
-func assembleNptv6(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assembleNptv6(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var bs []npt66.BindingSpec
 	for _, kv := range kvs {
 		if kv.Key.Descriptor() != npt66.NameBinding {
@@ -77,9 +77,9 @@ func assembleNptv6(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		return
 	}
 	sort.Slice(bs, func(a, b int) bool { return bs[a].Interface < bs[b].Interface })
-	n := &vrxv1.Nptv6Config{}
+	n := &ngfwv1.Nptv6Config{}
 	for _, b := range bs {
-		n.Bindings = append(n.Bindings, &vrxv1.Nptv6Config_Binding{Interface: proto.String(b.Interface), Internal: proto.String(b.Internal), External: proto.String(b.External)})
+		n.Bindings = append(n.Bindings, &ngfwv1.Nptv6Config_Binding{Interface: proto.String(b.Interface), Internal: proto.String(b.Internal), External: proto.String(b.External)})
 	}
 	out.Nptv6 = n
 }

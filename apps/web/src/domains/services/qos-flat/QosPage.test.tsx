@@ -254,7 +254,7 @@ describe('qos screen', () => {
       return {
         status: 400,
         body: {
-          type: 'https://vrx.dev/problems/validation',
+          type: 'https://ngfw.dev/problems/validation',
           title: 'Invalid configuration',
           status: 400,
           errors: [

@@ -1,6 +1,6 @@
 import type { paths } from '@ngfw/api-client';
 import type { LbConfig, LbVipConfig } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
 
@@ -46,7 +46,7 @@ export function settingsFormSchema(): JsonSchema {
 }
 
 /** The status column: active = up, no server in use = degraded, missing in VPP = down, not applied = adminDown. */
-export function statusOf(s: LbVipStatus): VrxStatus {
+export function statusOf(s: LbVipStatus): NgfwStatus {
   switch (s) {
     case 'active':
       return 'up';
@@ -60,7 +60,7 @@ export function statusOf(s: LbVipStatus): VrxStatus {
 }
 
 /** A server of lb_as_dump: in use = up, removed (waiting for the garbage collection) = adminDown. */
-export function serverStatus(inUse: boolean): VrxStatus {
+export function serverStatus(inUse: boolean): NgfwStatus {
   return inUse ? 'up' : 'adminDown';
 }
 

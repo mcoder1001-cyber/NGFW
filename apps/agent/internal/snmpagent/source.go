@@ -21,7 +21,7 @@ type IfStatus struct {
 	AdminUp, OperUp bool
 }
 
-// ProductSource reads VRX-MIB from the VPP stats segment (its own govpp stats connection, read-only),
+// ProductSource reads NGFW-MIB from the VPP stats segment (its own govpp stats connection, read-only),
 // the interface dump (admin/oper state) and the agent's persisted state file (running revision).
 type ProductSource struct {
 	// StatsSocket is the stats segment (DefaultStatsSocket).
@@ -47,7 +47,7 @@ type agentState struct {
 }
 
 // Snapshot implements Source. A missing stats segment is not an error: the table is empty and
-// vrxVppConnected says why.
+// ngfwVppConnected says why.
 func (p *ProductSource) Snapshot(ctx context.Context) (Snapshot, error) {
 	s := Snapshot{Agent: AgentInfo{Version: p.Version}}
 	if p.Connected != nil {

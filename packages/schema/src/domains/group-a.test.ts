@@ -44,7 +44,7 @@ const failPath = (schema: z.ZodType, value: unknown): unknown[] | undefined =>
 describe('system', () => {
   it('fills defaults for the empty section', () => {
     expect(SystemSchema.parse({})).toEqual({
-      hostname: 'vrx',
+      hostname: 'ngfw',
       timezone: 'UTC',
       banner: {},
       dns: { servers: [], searchDomains: [], vrf: 'default' },
@@ -155,7 +155,7 @@ describe('interfaces', () => {
     expect(
       SubinterfaceSchema.safeParse({
         vlanId: 1,
-        dhcpClient: { hostname: 'vrx-a', clientId: 'vrx-a-wan', setBroadcastFlag: true },
+        dhcpClient: { hostname: 'ngfw-a', clientId: 'ngfw-a-wan', setBroadcastFlag: true },
       }).success,
     ).toBe(true);
     expect(failPath(InterfaceSchema, { dhcpClient: { clientId: 'has space' } })).toEqual([
@@ -536,7 +536,7 @@ describe('management', () => {
       // F-aaa: external backends added to the AAA envelope
       ldap: { servers: [] },
       roleMap: [],
-      mfa: { required: 'none', issuer: 'vrx' },
+      mfa: { required: 'none', issuer: 'ngfw' },
       fallbackLocal: true,
     });
     expect(failPath(AaaSchema, { order: ['local', 'local'] })).toEqual(['order']);

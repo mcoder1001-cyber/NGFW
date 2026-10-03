@@ -25,7 +25,7 @@ describe('Session (P06 auth: access token in memory, rotating refresh cookie)', 
     expect(await s.login('admin', 'pw')).toBeNull();
     expect(s.state).toMatchObject({ status: 'authenticated', user: { username: 'admin', role: 'admin' } });
     expect(s.accessToken).toBe('x.y.z');
-    expect(streamProtocols(s)).toEqual(['vrx.v1', 'bearer.x.y.z']);
+    expect(streamProtocols(s)).toEqual(['ngfw.v1', 'bearer.x.y.z']);
     expect(localStorage.length).toBe(0); // never persisted
     s.dispose();
   });

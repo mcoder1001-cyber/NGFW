@@ -17,13 +17,13 @@ Capture packets on a VPP interface and download a `.pcap` file you can open in W
 Only one capture runs per VPP. A second start answers **409 `capture-busy`**.
 
 ## Files
-VPP writes the file under `/tmp`, readable by everyone. The agent moves it to `/var/lib/vrx/captures/` with mode 0600
+VPP writes the file under `/tmp`, readable by everyone. The agent moves it to `/var/lib/ngfw/captures/` with mode 0600
 and records its size, packet count and sha256. It keeps the 10 newest files and at most 500 MB
-(`VRX_CAPTURE_MAX_FILES`, `VRX_CAPTURE_MAX_BYTES`). Older files are deleted first.
+(`NGFW_CAPTURE_MAX_FILES`, `NGFW_CAPTURE_MAX_BYTES`). Older files are deleted first.
 **Download** and **Delete** are for administrators only. Every download is written to the audit log.
 
 ```
-tcpdump -nr vrx-20260927T100000-1.pcap
+tcpdump -nr ngfw-20260927T100000-1.pcap
 ```
 
 If the agent restarts during a capture, the capture is stopped the next time the capture list is read. It is then

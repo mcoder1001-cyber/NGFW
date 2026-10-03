@@ -90,12 +90,12 @@ func TestSystemRunnerStdinEnvExitAndTimeout(t *testing.T) {
 		t.Fatalf("stdin: %q, %v", out.Stdout, err)
 	}
 
-	t.Setenv("VRX_LEAK_CHECK", "must-not-leak")
+	t.Setenv("NGFW_LEAK_CHECK", "must-not-leak")
 	out, err = r.Run(ctx, Command{Path: env})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(out.Stdout), "VRX_LEAK_CHECK") || !strings.Contains(string(out.Stdout), "LC_ALL=C") {
+	if strings.Contains(string(out.Stdout), "NGFW_LEAK_CHECK") || !strings.Contains(string(out.Stdout), "LC_ALL=C") {
 		t.Fatalf("child environment must be the fixed default, got %q", out.Stdout)
 	}
 

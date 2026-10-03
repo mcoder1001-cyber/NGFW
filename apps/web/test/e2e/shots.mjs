@@ -10,7 +10,7 @@
 //
 // tools/app is NOT this harness's target — only a worker's own slot stack (docs/lab/shared-host-rules.md): point
 // --base at your slot's vite dev/preview port, never 3000/5173. Nothing here is a workspace dependency (Playwright
-// loads from VRX_PLAYWRIGHT_CORE, Chrome from VRX_CHROME) — see README.md.
+// loads from NGFW_PLAYWRIGHT_CORE, Chrome from NGFW_CHROME) — see README.md.
 //
 // Exit code is non-zero on any failed check OR any browser `pageerror` — a run that took screenshots while the page
 // silently threw is not evidence of anything working.
@@ -37,8 +37,8 @@ const SCREENS = opt('screens', '').split(',').filter(Boolean);
 const OUT = opt('out', '');
 const LANGS = opt('langs', 'en,fa').split(',');
 const THEMES = opt('themes', 'light').split(',');
-const ADMIN_USER = opt('admin-user', process.env.VRX_E2E_ADMIN_USER ?? 'admin');
-const ADMIN_PW_FILE = opt('admin-password-file', process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/vrx-test/w1/admin.pw');
+const ADMIN_USER = opt('admin-user', process.env.NGFW_E2E_ADMIN_USER ?? 'admin');
+const ADMIN_PW_FILE = opt('admin-password-file', process.env.NGFW_E2E_ADMIN_PASSWORD_FILE ?? '/run/ngfw-test/w1/admin.pw');
 
 if (SCREENS.length === 0 || !OUT) {
   console.error('usage: shots.mjs --base <url> --screens <slug>[,<slug>...] --out <dir> [--langs en,fa] [--themes light,dark]');

@@ -31,10 +31,10 @@ func (r *Renderer) parseFiles(files renderers.Files) (*trees, error) {
 	if t.conf, err = RoundTrip("strongswan.conf", files[r.paths.StrongswanConf].Content); err != nil {
 		return nil, err
 	}
-	if t.conns, err = RoundTrip("vrx.conf", files[r.paths.ConnsFile()].Content); err != nil {
+	if t.conns, err = RoundTrip("ngfw.conf", files[r.paths.ConnsFile()].Content); err != nil {
 		return nil, err
 	}
-	if t.secrets, err = RoundTrip("vrx-secrets.conf", files[r.paths.SecretsFile()].Content); err != nil {
+	if t.secrets, err = RoundTrip("ngfw-secrets.conf", files[r.paths.SecretsFile()].Content); err != nil {
 		return nil, err
 	}
 	if err := r.checkConf(t.conf); err != nil {
@@ -184,12 +184,12 @@ func checkKeys(where string, sec *Section, allowed map[string]keyCheck, subs ...
 }
 
 func checkConns(root *Section) error {
-	if err := checkKeys("vrx.conf", root, nil, "connections", "pools", "authorities"); err != nil {
+	if err := checkKeys("ngfw.conf", root, nil, "connections", "pools", "authorities"); err != nil {
 		return err
 	}
 	conns := root.Sub("connections")
 	if conns == nil {
-		return fmt.Errorf("%w: vrx.conf: no connections section", ErrInput)
+		return fmt.Errorf("%w: ngfw.conf: no connections section", ErrInput)
 	}
 	if err := checkKeys("connections", conns, nil, "*"); err != nil {
 		return err
@@ -277,12 +277,12 @@ func checkConns(root *Section) error {
 // checkSecrets validates the secrets file and that every PSK connection has its secret with
 // the connection's identities as owners (and no secret is orphaned).
 func checkSecrets(root, conns *Section) error {
-	if err := checkKeys("vrx-secrets.conf", root, nil, "secrets"); err != nil {
+	if err := checkKeys("ngfw-secrets.conf", root, nil, "secrets"); err != nil {
 		return err
 	}
 	secs := root.Sub("secrets")
 	if secs == nil {
-		return fmt.Errorf("%w: vrx-secrets.conf: no secrets section", ErrInput)
+		return fmt.Errorf("%w: ngfw-secrets.conf: no secrets section", ErrInput)
 	}
 	if err := checkKeys("secrets", secs, nil, "*"); err != nil {
 		return err
@@ -330,7 +330,7 @@ func checkSecrets(root, conns *Section) error {
 		}
 		s := secs.Sub("ike-" + it.Name)
 		if s == nil {
-			return fmt.Errorf("%w: %s uses psk but vrx-secrets.conf has no ike-%s", ErrInput, where, it.Name)
+			return fmt.Errorf("%w: %s uses psk but ngfw-secrets.conf has no ike-%s", ErrInput, where, it.Name)
 		}
 		lid, rid := expectedIDs(it.Section)
 		if v, _ := s.Get("id-local"); v != lid {
@@ -410,11 +410,11 @@ func (r *Renderer) checkConf(root *Section) error {
 		return err
 	}
 	if fl := ch.Sub("filelog"); fl != nil {
-		if err := checkKeys("charon.filelog", fl, nil, "vrx"); err != nil {
+		if err := checkKeys("charon.filelog", fl, nil, "ngfw"); err != nil {
 			return err
 		}
-		if v := fl.Sub("vrx"); v != nil {
-			if err := checkKeys("charon.filelog.vrx", v, map[string]keyCheck{
+		if v := fl.Sub("ngfw"); v != nil {
+			if err := checkKeys("charon.filelog.ngfw", v, map[string]keyCheck{
 				"path": matches(pathRe), "default": level, "append": enum("yes"), "flush_line": enum("yes"),
 			}); err != nil {
 				return err

@@ -10,14 +10,14 @@ import (
 )
 
 func TestConfigFromEnvDefaults(t *testing.T) {
-	for _, k := range []string{"VRX_AGENT_SOCKET", "VRX_OWNER", "VRX_METRICS_ADDR", "VRX_METRICS_PORT", "VRX_AGENT_STATE_DIR"} {
+	for _, k := range []string{"NGFW_AGENT_SOCKET", "NGFW_OWNER", "NGFW_METRICS_ADDR", "NGFW_METRICS_PORT", "NGFW_AGENT_STATE_DIR"} {
 		t.Setenv(k, "")
 	}
 	cfg := ConfigFromEnv()
-	if cfg.Socket != "/run/vrx/agent.sock" || cfg.Owner != "vrx" || cfg.MetricsAddr != "127.0.0.1:9101" || cfg.StateDir != "/var/lib/vrx/agent" {
+	if cfg.Socket != "/run/ngfw/agent.sock" || cfg.Owner != "ngfw" || cfg.MetricsAddr != "127.0.0.1:9101" || cfg.StateDir != "/var/lib/ngfw/agent" {
 		t.Fatalf("unexpected defaults %+v", cfg)
 	}
-	t.Setenv("VRX_METRICS_PORT", "9171")
+	t.Setenv("NGFW_METRICS_PORT", "9171")
 	if cfg := ConfigFromEnv(); cfg.MetricsAddr != "127.0.0.1:9171" {
 		t.Fatalf("slot metrics port %q", cfg.MetricsAddr)
 	}
@@ -35,7 +35,7 @@ func testConfig(t *testing.T) Config {
 	t.Helper()
 	dir := t.TempDir()
 	return Config{
-		Socket: filepath.Join(dir, "agent.sock"), SocketGroup: "vrx-group-that-does-not-exist",
+		Socket: filepath.Join(dir, "agent.sock"), SocketGroup: "ngfw-group-that-does-not-exist",
 		VPPAPISocket: filepath.Join(dir, "no-vpp.sock"), VPPStatsSocket: filepath.Join(dir, "no-stats.sock"),
 		StateDir: filepath.Join(dir, "state"), Owner: "w0", MetricsAddr: "127.0.0.1:0",
 	}

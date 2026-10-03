@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -26,9 +26,9 @@ func (s *wgSink) Warnf(pointer, rule, _ string, _ ...any) {
 	s.issues = append(s.issues, "W "+rule+" "+pointer)
 }
 
-func wgState(t *testing.T, js string) *vrxv1.DesiredState {
+func wgState(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestWireguardRouteLoopRefused(t *testing.T) {
 	const pub = "HIgo9xNzJMWLKASShiTqIybxZ0U3wGLiUeJ1PKf8ykw="
 	refs := WireguardEnv{SecretRef: func(r string) (string, error) { return "x25519:" + r, nil }}
 	all := map[string]bool{"vpn": true, "interfaces": true, "routing": true}
-	doc := func(vrf string) *vrxv1.DesiredState {
+	doc := func(vrf string) *ngfwv1.DesiredState {
 		return wgState(t, `{"vpn": {"wireguard": {"interfaces": {"a": {"instance": 7001, "listenAddress": "10.7.8.1",
 		  "privateKeyRef": "key/a", "routeAllowedIps": true, "vrf": "`+vrf+`",
 		  "peers": {"hq": {"publicKey": "`+pub+`", "endpoint": {"address": "203.0.113.9", "port": 51820}, "allowedIps": ["0.0.0.0/0"]}}}}}}}`)

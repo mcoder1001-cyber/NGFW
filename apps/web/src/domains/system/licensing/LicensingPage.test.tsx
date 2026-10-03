@@ -46,23 +46,23 @@ describe('System → Licence', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Licence' })).toBeInTheDocument();
     expect(await screen.findByText('Community (no licence)')).toBeInTheDocument();
     expect(screen.getByText('WireGuard interfaces (maximum)')).toBeInTheDocument();
-    const file = new File([JSON.stringify({ format: 'vrxlic/1', license: { a: 1 }, signature: 'AA==' })], 'x.vrxlic');
+    const file = new File([JSON.stringify({ format: 'ngfwlic/1', license: { a: 1 }, signature: 'AA==' })], 'x.ngfwlic');
     fireEvent.change(screen.getByLabelText('Upload licence file'), { target: { files: [file] } });
     expect(await screen.findByText('Licence installed.')).toBeInTheDocument();
     expect(screen.getByTestId('license-status')).toHaveTextContent('Valid');
     expect(screen.getByText('ACME')).toBeInTheDocument();
     const put = api.calls.find((c) => c.method === 'PUT');
-    expect(put?.body).toEqual({ format: 'vrxlic/1', license: { a: 1 }, signature: 'AA==' });
+    expect(put?.body).toEqual({ format: 'ngfwlic/1', license: { a: 1 }, signature: 'AA==' });
   });
 
   it('shows the server problem for a tampered file; readonly users see no upload', async () => {
     const api = installFakeApi('admin');
     await signIn();
     api.on('GET /api/v1/state/license', { body: VALID });
-    api.on('PUT /api/v1/system/license', { status: 400, body: { type: 'https://vrx.dev/problems/bad-request', title: 'Bad request', status: 400, detail: 'licence signature is invalid' } });
+    api.on('PUT /api/v1/system/license', { status: 400, body: { type: 'https://ngfw.dev/problems/bad-request', title: 'Bad request', status: 400, detail: 'licence signature is invalid' } });
     render(app('/system/licensing'));
     await screen.findByText('ACME');
-    fireEvent.change(screen.getByLabelText('Upload licence file'), { target: { files: [new File(['{"format":"vrxlic/1"}'], 'x.vrxlic')] } });
+    fireEvent.change(screen.getByLabelText('Upload licence file'), { target: { files: [new File(['{"format":"ngfwlic/1"}'], 'x.ngfwlic')] } });
     expect(await screen.findByText(/licence signature is invalid/)).toBeInTheDocument();
     cleanup();
     await resetSession();
@@ -100,7 +100,7 @@ describe('System → Licence', () => {
   it('shows the problem when the licence state cannot be loaded', async () => {
     const api = installFakeApi('admin');
     await signIn();
-    api.on('GET /api/v1/state/license', { status: 503, body: { type: 'https://vrx.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'licence store unreachable' } });
+    api.on('GET /api/v1/state/license', { status: 503, body: { type: 'https://ngfw.dev/problems/agent-unavailable', title: 'Agent unavailable', status: 503, detail: 'licence store unreachable' } });
     render(app('/system/licensing'));
     expect(await screen.findByText(/licence store unreachable/)).toBeInTheDocument();
   });

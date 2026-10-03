@@ -39,7 +39,7 @@ globals owner's desired values (not constant: user values in a CLI line, and "ke
 (0.0.0.0/8 refused as a VIP by schema + projection; a success reply is reported loudly); (c) leave removed VIPs until
 a VPP restart. I took (b) (ALLOWLIST row active). Timing: VPP frees a removed AS only 10 s after removal and visits a
 VIP at most every 60 s, so the GC runs once, 65 s after the last lb delete (debounced timer), not right after the
-transaction. **Not yet verified on the host** (host runs closed): the manager-window run `VRX_LB_GLOBALS=1` proves it.
+transaction. **Not yet verified on the host** (host runs closed): the manager-window run `NGFW_LB_GLOBALS=1` proves it.
 
 ## Q6 — NAT VIP SNAT-key crash hazard (V20 follow-up, source reading only) — decision taken
 VPP keys the SNAT mapping of NAT port VIPs by (AS address, target port) only. A changed NAT VIP (delete + add) and its
@@ -51,11 +51,11 @@ VIPs, (c) doc only. Not reproduced on purpose (D-064: no crash tests on the shar
 
 ## Q7 — FlushVIP defect in DF-7's helper (fixed under the gap rule)
 `vl_api_lb_flush_vip_t_handler` memcpy's `un.ip6` regardless of the family and ignores the lookup result; DF-7's IPv4
-encoding never matched, so every DF-7 host test flush (`VRX_DF7_LB=1`) flushed an uninitialised VIP index — possibly
+encoding never matched, so every DF-7 host test flush (`NGFW_DF7_LB=1`) flushed an uninitialised VIP index — possibly
 other slots' flows. Fixed (ip46 layout + in-use guard); worth a note to whoever ran DF-7's lb host test.
 
 ## Q8 — globals owner on slots: `settings` → agent.unsupported-field
-Slot agents (VRX_GLOBALS_OWNER=0) never send `lb_conf` and report `services.lb.settings` as `agent.unsupported-field`
+Slot agents (NGFW_GLOBALS_OWNER=0) never send `lb_conf` and report `services.lb.settings` as `agent.unsupported-field`
 (so the drift view skips it). VIPs still work there with whatever the globals owner set (GRE source defaults to
 255.255.255.255 — traffic evidence needs the globals owner's `ip4Source`). "Slots require it" could not be enforced:
 lb_conf has no getter.
@@ -64,6 +64,6 @@ lb_conf has no getter.
 Default taken: ship behind the T3 label with the visible write-only/GC notice (UI + user docs). Product-owner call.
 
 ## Q10 — host steps pending TD-25 (host runs closed at spawn)
-Not run: `TestLbOnHost` (`VRX_INTEGRATION=1 VRX_LB_HOST=1`, slot 2: `show lb vips verbose`, restart simulation, loss,
-removal), `TestLbGarbageCollectOnHost` (`+ VRX_LB_GLOBALS=1`, exclusive globals lock, manager window), the optional GRE
+Not run: `TestLbOnHost` (`NGFW_INTEGRATION=1 NGFW_LB_HOST=1`, slot 2: `show lb vips verbose`, restart simulation, loss,
+removal), `TestLbGarbageCollectOnHost` (`+ NGFW_LB_GLOBALS=1`, exclusive globals lock, manager window), the optional GRE
 tcpdump evidence, and the UI screenshot against the real endpoint. Commands are in F-lb.md "Pending host steps".

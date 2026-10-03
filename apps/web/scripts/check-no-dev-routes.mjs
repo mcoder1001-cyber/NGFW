@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // Review P07a M1: a production build must contain neither the /dev/* demo routes, the "Developer" navigation entries,
-// nor the demo page chunks. Run after `vite build` (production mode). A build made with VITE_VRX_DEV_ROUTES=1 is exempt.
+// nor the demo page chunks. Run after `vite build` (production mode). A build made with VITE_NGFW_DEV_ROUTES=1 is exempt.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-if (process.env.VITE_VRX_DEV_ROUTES === '1') {
-  console.log('check-no-dev-routes: skipped (VITE_VRX_DEV_ROUTES=1 build)');
+if (process.env.VITE_NGFW_DEV_ROUTES === '1') {
+  console.log('check-no-dev-routes: skipped (VITE_NGFW_DEV_ROUTES=1 build)');
   process.exit(0);
 }
 // Optional argument: the dist directory to check (default apps/web/dist).

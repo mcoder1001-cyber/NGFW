@@ -1,10 +1,10 @@
-# vrx-agent PPPoE client (F-pppoe-client) — session {{ident .HostIf}}. Rendered; hand edits are overwritten.
+# ngfw-agent PPPoE client (F-pppoe-client) — session {{ident .HostIf}}. Rendered; hand edits are overwritten.
 [Unit]
-Description=vrx PPPoE client on {{ident .HostIf}}
+Description=ngfw PPPoE client on {{ident .HostIf}}
 After=network.target vpp.service
 [Service]
 Type=simple
-ExecStart={{.PppdBin}} call vrx-{{ident .HostIf}} nodetach ipparam {{ident .Remotename}}
+ExecStart={{.PppdBin}} call ngfw-{{ident .HostIf}} nodetach ipparam {{ident .Remotename}}
 Restart=on-failure
 RestartSec={{.HoldoffSec}}
 [Install]

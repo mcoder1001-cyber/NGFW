@@ -56,7 +56,7 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
     natvpp_test.go:350: fixture: nat66 enabled for this test
 === RUN   TestNatEI6466Nptv6/config
     nat_test.go:235: commit interfaces + VRF w4-n64 (4064) → applied revision 1
-    nat_test.go:247: commit {"inside":["host-w4l0"],"mode":"ei","pools":[{"name":"tn","range":"10.4.2.120","twiceNat":true}]} → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",…,"errors":[{"pointer":"/nat/pools/0/twiceNat","message":"twice-NAT requires mode 'ed' (nat44-ed)"}]}
+    nat_test.go:247: commit {"inside":["host-w4l0"],"mode":"ei","pools":[{"name":"tn","range":"10.4.2.120","twiceNat":true}]} → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",…,"errors":[{"pointer":"/nat/pools/0/twiceNat","message":"twice-NAT requires mode 'ed' (nat44-ed)"}]}
     nat_test.go:247: commit {"nptv6":{"bindings":[{"external":"fd00:4:20::/56","interface":"host-w4w0","internal":"fd00:4:10::/48"}]}} → 400 {…,"errors":[{"pointer":"/nat/nptv6/bindings/0/external","message":"internal and external prefixes must have the same length (RFC 6296)"}]}
     nat_test.go:268: commit EI + NAT66 + NPTv6 → applied revision 2 results [{"code":"ok","key":"nat44-ei.enable/global",…},{"code":"ok","key":"nat44-ei.interface-feature/host-w4l0/inside",…},{"code":"ok","key":"nat44-ei.interface-feature/host-w4w0/outside",…},{"code":"ok","key":"nat44-ei.address-pool/10.4.2.100-10.4.2.103/0",…},{"code":"ok","key":"nat44-ei.static-mapping/web",…},{"code":"ok","key":"nat66.enable/global",…},{"code":"ok","key":"nat66.interface/loop461",…},{"code":"ok","key":"nat66.interface/loop462",…},{"code":"ok","key":"nat66.static-mapping/fd00:4:66:1::66/0",…},{"code":"ok","key":"npt66.binding/host-w4w0/fd00:4:10::/48",…,"pointer":"/nat/nptv6/bindings/0"}]
     nat_test.go:280: Retrieve(nat) = {"mode":"ei","inside":["host-w4l0"],"outside":["host-w4w0"],"pools":[{"range":"10.4.2.100-10.4.2.103","twiceNat":false}],
@@ -82,14 +82,14 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
     nat_test.go:287: vppctl show npt66 bindings (ours):
         [0] internal: fd00:4:10::/48 external: fd00:4:20::/48
     nat_test.go:294: V19 guard: classify_table_by_interface host-w4l0 sw_if_index=9 l2=~0 ip4=~0 ip6=~0   (… ACL, SPD, write-only resets)
-    nat_test.go:298: vrx-vpp-preflight: <nil>
+    nat_test.go:298: ngfw-vpp-preflight: <nil>
 === RUN   TestNatEI6466Nptv6/ei-packets
     nat_test.go:392: tcpdump -i w4w1 (netns ns-w4-wan) tcp port 8000:
         04:02:19.632853 IP 10.4.2.102.58301 > 10.4.2.2.8000: Flags [S], seq 2338314536, win 64240, …, length 0
         04:02:19.632944 IP 10.4.2.2.8000 > 10.4.2.102.58301: Flags [S.], seq 3168604115, ack 2338314537, …, length 0
         04:02:19.634043 IP 10.4.2.102.58301 > 10.4.2.2.8000: Flags [.], ack 1, …, length 0
         04:02:19.640223 IP 10.4.2.2.8000 > 10.4.2.102.58301: Flags [P.], seq 1:12, ack 1, …, length 11
-    nat_test.go:408: NAT44-EI outbound PAT: 10.4.1.2:40001 → seen on the wan side as 10.4.2.102:58301 (pool 10.4.2.100-10.4.2.103); the client read "vrx-nat-ok"
+    nat_test.go:408: NAT44-EI outbound PAT: 10.4.1.2:40001 → seen on the wan side as 10.4.2.102:58301 (pool 10.4.2.100-10.4.2.103); the client read "ngfw-nat-ok"
     nat_test.go:413: vppctl show nat44 ei sessions detail filter saddr 10.4.1.2:
         -------- thread 0 vpp_main: 2 sessions --------
           10.4.1.2: 2 dynamic translations, 0 static translations
@@ -105,11 +105,11 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
         -------- thread 0 vpp_main: 1 sessions --------
           10.4.1.2: 1 dynamic translations, 0 static translations
             i2o 10.4.1.2 proto icmp port 31098 fib 0          (the TCP session is gone)
-    nat_test.go:433: second kill → 404 {"type":"https://vrx.dev/problems/not-found","title":"Not found","status":404,"detail":"agent: no such NAT44-EI session: tcp 10.4.1.2:40001 (table 0)",…}
+    nat_test.go:433: second kill → 404 {"type":"https://ngfw.dev/problems/not-found","title":"Not found","status":404,"detail":"agent: no such NAT44-EI session: tcp 10.4.1.2:40001 (table 0)",…}
     nat_test.go:442: audit entry: action=POST /api/v1/actions/nat/ei/sessions/kill resource=nat/ei/sessions/tcp/10.4.1.2:40001/default result=failure status=404 user=admin
     nat_test.go:442: audit entry: action=POST /api/v1/actions/nat/ei/sessions/kill resource=nat/ei/sessions/tcp/10.4.1.2:40001/default result=success status=200 user=admin
 === RUN   TestNatEI6466Nptv6/nptv6-packets
-    nat_test.go:462: lan [fd00:4:10::2]:45001 → wan [fd00:4:2::2]:8006: <nil> vrx-nat-ok
+    nat_test.go:462: lan [fd00:4:10::2]:45001 → wan [fd00:4:2::2]:8006: <nil> ngfw-nat-ok
     nat_test.go:463: tcpdump -i w4w1 (netns ns-w4-wan) ip6 and tcp port 8006:
         04:02:24.961108 IP6 fd00:4:20:ffef::2.45001 > fd00:4:2::2.8006: Flags [S], seq 1913545451, …, length 0
         04:02:24.961195 IP6 fd00:4:2::2.8006 > fd00:4:20:ffef::2.45001: Flags [S.], seq 3199540446, ack 1913545452, …, length 0
@@ -129,7 +129,7 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
     nat_test.go:604: simulated loss: nat66_add_del_interface is_add=0 loop461 → ok
     nat_test.go:604: simulated loss: nat66_add_del_interface is_add=0 loop462 → ok
     nat_test.go:609: NAT dumps after the loss: no object of the slot; show npt66 bindings: none of the slot
-    nat_test.go:622: agent log: {"time":"2026-09-25T04:02:27.444955067+03:30","level":"INFO","msg":"vrx-agent starting",…,"owner":"w4",…}
+    nat_test.go:622: agent log: {"time":"2026-09-25T04:02:27.444955067+03:30","level":"INFO","msg":"ngfw-agent starting",…,"owner":"w4",…}
     nat_test.go:622: agent log: {"time":"2026-09-25T04:02:27.487795992+03:30","level":"INFO","msg":"reconcile start","owner":"w4","txn_id":"","mode":"resync","domains":["interfaces","vrfs","routing","nat"]}
     nat_test.go:622: agent log: {…"msg":"created",…,"key":"nat44-ei.enable/global"}   (… interface-feature ×2, address-pool, static-mapping, nat66.enable, nat66.interface ×2, nat66.static-mapping)
     nat_test.go:622: agent log: {"time":"2026-09-25T04:02:27.563326549+03:30","level":"INFO","msg":"created","owner":"w4","component":"scheduler","key":"npt66.binding/host-w4w0/fd00:4:10::/48"}
@@ -158,11 +158,11 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
         04:02:32.063163 IP 10.4.2.2.8000 > 10.4.64.1.22324: Flags [S.], seq 4035045570, ack 1343484485, …, length 0
         04:02:32.064005 IP 10.4.64.1.22324 > 10.4.2.2.8000: Flags [.], ack 1, …, length 0
         04:02:32.064731 IP 10.4.2.2.8000 > 10.4.64.1.22324: Flags [P.], seq 1:12, ack 1, …, length 11
-    nat_test.go:560: NAT64: [fd00:4:1::2]:46001 → [fd00:4:64::a04:202]:8000 (slot /96 fd00:4:64::/96) → seen on the IPv4 wan side from 10.4.64.1; the client read "vrx-nat-ok"
+    nat_test.go:560: NAT64: [fd00:4:1::2]:46001 → [fd00:4:64::a04:202]:8000 (slot /96 fd00:4:64::/96) → seen on the IPv4 wan side from 10.4.64.1; the client read "ngfw-nat-ok"
     nat_test.go:568: vppctl show nat64 session table all (ours):
          fd00:4:1::2 46001 fd00:4:64::a04:202 8000 10.4.64.1 22324 10.4.2.2 8000 protcol tcp vrf 4064
     nat_test.go:573: GET /state/nat/nat64/sessions?protocol=tcp → {"page":1,"pageSize":100,"total":1,"totalClients":1,"truncated":false,…,"items":[{"client":"fd00:4:1::2","clientPort":46001,"poolAddress":"10.4.64.1","poolPort":22324,"remote":"10.4.2.2","remotePort":8000,"remoteIpv6":"fd00:4:64::a04:202","protocol":"tcp","vrf":"w4-n64","tableId":4064}]}
-    nat_test.go:590: static BIB: wan 10.4.2.2:41064 → 10.4.64.2:8080 (→ [fd00:4:1::2]:80): <nil> vrx-nat-ok
+    nat_test.go:590: static BIB: wan 10.4.2.2:41064 → 10.4.64.2:8080 (→ [fd00:4:1::2]:80): <nil> ngfw-nat-ok
     nat_test.go:594: vppctl show nat64 session table all (ours, after the BIB connection):
          fd00:4:1::2 46001 fd00:4:64::a04:202 8000 10.4.64.1 22324 10.4.2.2 8000 protcol tcp vrf 4064
          fd00:4:1::2 80 fd00:4:64::a04:202 41064 10.4.64.2 8080 10.4.2.2 41064 protcol tcp vrf 4064
@@ -210,7 +210,7 @@ slot VRF that VPP cannot delete after NAT64 (nat64 lock leak). NRestarts 1 → 1
     --- PASS: TestNatEI6466Nptv6/cleanup-through-api (0.78s)
 ```
 
-### npt66 first use on this VPP: `VRX_INTEGRATION=1 go test -run TestNpt66OnHost ./internal/descriptors/npt66/` (23:29, log `…-npt66-host.log`)
+### npt66 first use on this VPP: `NGFW_INTEGRATION=1 go test -run TestNpt66OnHost ./internal/descriptors/npt66/` (23:29, log `…-npt66-host.log`)
 ```
     npt66_integration_test.go:53: systemctl show vpp -p NRestarts (before) = NRestarts=1
     npt66_integration_test.go:66: binding npt66.binding/loop466/fd00:4:10::/48 on loop466 (sw_if_index 2): fd00:4:10::/48 → fd00:4:20::/48
@@ -272,7 +272,7 @@ $ npx vitest run src/features                                                   
 $ npx vitest run -c vitest.e2e.config.ts test/e2e/nat44-ei-64-66-nptv6.e2e.test.ts test/e2e/nat44-ed-sessions.e2e.test.ts   (slot 4 database + fake agent)
  ✓ test/e2e/nat44-ei-64-66-nptv6.e2e.test.ts (6 tests)
  ✓ test/e2e/nat44-ed-sessions.e2e.test.ts (5 tests)
- Test Files  2 passed (2) · Tests  11 passed (11) · drop database vrx_w4 · ok nothing named vrx_w4 remains
+ Test Files  2 passed (2) · Tests  11 passed (11) · drop database ngfw_w4 · ok nothing named ngfw_w4 remains
 $ npx vitest run src/domains/firewall                                          (apps/web)
  ✓ src/domains/firewall/nat44-ei-64-66-nptv6/NatV6Tabs.test.tsx (6 tests)
  ✓ src/domains/firewall/nat44-ed-sessions/NatPage.test.tsx (9 tests)
@@ -288,7 +288,7 @@ gate on **P08's old `test/topology/interfaces/interfaces_test.go`** (`vppctl tra
 a file this branch inherits from its pre-P08-merge base; main's copy has no trace (0 hits), the D-112 rebase onto main
 replaces it. None of this task's files uses a trace:
 ```
-== VRX CI gate: quick ==                          (/tmp/g-w4/ci.sh = main's, --base main; log …/ci/F-nat44-ei-64-66-nptv6-ci-2.log)
+== NGFW CI gate: quick ==                          (/tmp/g-w4/ci.sh = main's, --base main; log …/ci/F-nat44-ei-64-66-nptv6-ci-2.log)
 == contract guard: HEAD vs main ==
 ok — contract commit(s) on the branch:
   (… c8828ae contract(proto): nat session variants — NatSessionsResponse.variant unset on NAT44-ED pages
@@ -327,7 +327,7 @@ The commits after that run touch only `docs/status/tasks/F-nat44-ei-64-66-nptv6*
 | A4 | `apps/agent/internal/agent/server.go` | 4 lines in the `nat_session_kill` case: the variant dispatch |
 | A7 | `docs/vpp-code-track.md` | `### V-new (F-nat44-ei-64-66-nptv6)` (a)–(d) appended |
 | C4 | `packages/schema/examples/nat-ei-nat64-nat66-nptv6.json` | new file (named `nat-…` so the group-(b) suite owns it; `nat44-ei-*` would fail examples.test's sibling rule) |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | `variant` fields appended to `NatSessionsRequest` (5), `NatSessionsResponse` (8), `NatSessionKillAction` (7); the enum in my section |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | `variant` fields appended to `NatSessionsRequest` (5), `NatSessionsResponse` (8), `NatSessionKillAction` (7); the enum in my section |
 | C6 | `docs/contracts/proto.md` | `### F-nat44-ei-64-66-nptv6: NAT session variants` under my anchor |
 | C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/**`, `apps/cli/internal/api/operations_gen.go` (regenerated, never hand-edited) |
 | P1 | `apps/api/src/app.module.ts` | import + controllers spread + providers spread under my anchors |
@@ -358,7 +358,7 @@ The commits after that run touch only `docs/status/tasks/F-nat44-ei-64-66-nptv6*
    package mutex of my own); grids and drift poll ≥ 30 s + Refresh.
 9. **Test side**: the NAT64 phase moves only the lan interface into the slot VRF (+ a route to the wan subnet) because
    VPP's NAT64 is multi-tenant on the inside only (Q6); the slot VRF stays configured at the end (nat64 FIB lock leak,
-   V-new c). Since fix round 1 (R2) the tenant-VRF NAT64 phases are opt-in (`VRX_NAT64_TENANT_VRF_HOST=1`).
+   V-new c). Since fix round 1 (R2) the tenant-VRF NAT64 phases are opt-in (`NGFW_NAT64_TENANT_VRF_HOST=1`).
 
 ## Out of scope / not done
 
@@ -382,7 +382,7 @@ After the last run (04:36):
 == rig
 rig: down
 (no ns-w4-*)
-== database vrx_w4
+== database ngfw_w4
 0
 == NAT of w4
 (no 10.4.x nat44-ei address)
@@ -408,7 +408,7 @@ the old code (checked by running it against the old code where noted).
 | item | fix | test (fails on the old code) |
 |---|---|---|
 | R1 (H1) | `desired/nat64.go`: DryRun warning `nat.nat64-tenant-vrf` at `/nat/nat64/prefixes/<i>/vrf` and `/nat/nat64/staticBibs/<i>/vrf` for a non-default VRF — "…this VRF cannot be deleted until VPP restarts (V-new c)…" (pools lock/unlock correctly: no warning). User page: its own paragraph (commit rolled back as a whole, rollback affected, confirmed-commit revert cannot complete → DEGRADED + retries). V-new (c) corrected likewise. Core VRF descriptor untouched (the manager's core row). | `desired/nat64_test.go` `TestNat64TenantVRFWarningAndOnePrefixPerVRF` (old code: no warning); the two v6Doc tests now expect exactly that warning |
-| R2 (H2) | topology `nat64` / `restart-nat64` and the NAT64 screenshot behind `VRX_NAT64_TENANT_VRF_HOST=1` (off by default; without it rev 1 has no slot VRF either and the phases `t.Skip` with the reason); `run.sh` header; questions Q10 (any opt-in run quarantines slot 4's table 4064 until a VPP restart) | `go vet` + `go test` of the package (skips without VRX_INTEGRATION); no host run allowed |
+| R2 (H2) | topology `nat64` / `restart-nat64` and the NAT64 screenshot behind `NGFW_NAT64_TENANT_VRF_HOST=1` (off by default; without it rev 1 has no slot VRF either and the phases `t.Skip` with the reason); `run.sh` header; questions Q10 (any opt-in run quarantines slot 4's table 4064 until a VPP restart) | `go vet` + `go test` of the package (skips without NGFW_INTEGRATION); no host run allowed |
 | R3 (M1) | ED's `nat44_ei_show_running_config` stub + `nat44_ei` import deleted from `coretest/nat44ed.go`; `coretest/nat44ei.go` header fixed; Q2 items 5–6 | `coretest/nat44ei_test.go` `TestExtensionsModelDisjointMessages` — each extension on a bare model, every registered binapi message claimed by at most one; with the old `nat44ed.go`: `"nat44_ei_show_running_config" is modelled by extensions #0 and #1` (run) |
 | R4 (M2) | `natSessionsVariant` takes `release, err := s.natWalk(ctx)` after `natReady`; `natVariantWalk` mutex and the `sync` import removed | `agent/rpc_nat44_ei_test.go` `TestNatVariantWalksShareTheEDWalkSlot`: while an ED walk holds the slot, EI and NAT64 calls with a 30-ms deadline → DeadlineExceeded, a blocked EI call runs after release (old code: separate lock → no DeadlineExceeded) |
 | M3 | cost documented at `ListNat64` and `natSessionsVariant`; follow-up in Q10 (tech-debt row is the manager's) | — |

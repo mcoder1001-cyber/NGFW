@@ -6,13 +6,13 @@ import sys
 import tempfile
 import unittest
 
-HELPER = Path(__file__).resolve().parents[1] / 'installer/vrx-size-guard.py'
+HELPER = Path(__file__).resolve().parents[1] / 'installer/ngfw-size-guard.py'
 MIN = 96 * 1024 ** 3
 
 
 class SizeGuardTests(unittest.TestCase):
     def probe(self, output, status=0):
-        with tempfile.TemporaryDirectory(prefix='vrx-size-guard-') as directory:
+        with tempfile.TemporaryDirectory(prefix='ngfw-size-guard-') as directory:
             root = Path(directory)
             (root / 'response').write_text(output)
             stub = root / 'lsblk'

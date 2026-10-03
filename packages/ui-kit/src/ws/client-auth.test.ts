@@ -4,13 +4,13 @@ import { once } from 'node:events';
 import type { IncomingMessage } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebSocketServer, type WebSocket as ServerSocket } from 'ws';
-import { VrxWsClient, type WebSocketLike } from './client.js';
+import { NgfwWsClient, type WebSocketLike } from './client.js';
 
 /**
- * P07b: the browser authenticates the stream with subprotocols (`vrx.v1`, `bearer.<jwt>`, P06 D-P06-9). The
+ * P07b: the browser authenticates the stream with subprotocols (`ngfw.v1`, `bearer.<jwt>`, P06 D-P06-9). The
  * credential is read on every (re)connect, and without one the client stays idle instead of retrying 401s.
  */
-describe('VrxWsClient credentials (subprotocols)', () => {
+describe('NgfwWsClient credentials (subprotocols)', () => {
   let wss: WebSocketServer;
   let url: string;
   const offered: string[][] = [];
@@ -20,7 +20,7 @@ describe('VrxWsClient credentials (subprotocols)', () => {
     wss = new WebSocketServer({
       host: '127.0.0.1',
       port: 0,
-      handleProtocols: (protocols) => (protocols.has('vrx.v1') ? 'vrx.v1' : false),
+      handleProtocols: (protocols) => (protocols.has('ngfw.v1') ? 'ngfw.v1' : false),
     });
     await once(wss, 'listening');
     url = `ws://127.0.0.1:${(wss.address() as AddressInfo).port}/api/v1/stream`;
@@ -41,48 +41,48 @@ describe('VrxWsClient credentials (subprotocols)', () => {
 
   it('offers the current credential on each connect and re-reads it after a reconnect', async () => {
     let token = 'aaa.bbb.ccc';
-    const client = new VrxWsClient({
+    const client = new NgfwWsClient({
       url,
       factory,
-      protocols: () => ['vrx.v1', `bearer.${token}`],
+      protocols: () => ['ngfw.v1', `bearer.${token}`],
       backoff: { baseMs: 10, maxMs: 20 },
       idleCloseDelayMs: 0,
     });
     const off = client.subscribe('commit.events', () => {});
     await vi.waitFor(() => expect(client.status).toBe('open'));
-    expect(offered[0]).toEqual(['vrx.v1', 'bearer.aaa.bbb.ccc']);
+    expect(offered[0]).toEqual(['ngfw.v1', 'bearer.aaa.bbb.ccc']);
 
     token = 'ddd.eee.fff'; // refreshed access token
     sockets[0]!.close(4401, 'credential expired'); // what the relay does at token expiry
     await vi.waitFor(() => expect(offered).toHaveLength(2));
     await vi.waitFor(() => expect(client.status).toBe('open'));
-    expect(offered[1]).toEqual(['vrx.v1', 'bearer.ddd.eee.fff']);
+    expect(offered[1]).toEqual(['ngfw.v1', 'bearer.ddd.eee.fff']);
     off();
     client.close();
   });
 
   it('stays idle while there is no credential and connects once there is one', async () => {
     const credential: { protocols?: string[] } = {};
-    const client = new VrxWsClient({ url, factory, protocols: () => credential.protocols, idleCloseDelayMs: 0 });
+    const client = new NgfwWsClient({ url, factory, protocols: () => credential.protocols, idleCloseDelayMs: 0 });
     const off = client.subscribe('commit.events', () => {});
     expect(client.status).toBe('idle');
     await new Promise((r) => setTimeout(r, 50));
     expect(offered).toHaveLength(0);
 
-    credential.protocols = ['vrx.v1', 'bearer.aaa.bbb.ccc'];
+    credential.protocols = ['ngfw.v1', 'bearer.aaa.bbb.ccc'];
     client.connect();
     await vi.waitFor(() => expect(client.status).toBe('open'));
-    expect(offered).toEqual([['vrx.v1', 'bearer.aaa.bbb.ccc']]);
+    expect(offered).toEqual([['ngfw.v1', 'bearer.aaa.bbb.ccc']]);
     off();
     client.close();
   });
 
   it('surfaces P06 relay error frames through onError and ignores control frames', async () => {
     const errors: unknown[] = [];
-    const client = new VrxWsClient({
+    const client = new NgfwWsClient({
       url,
       factory,
-      protocols: () => ['vrx.v1', 'bearer.aaa.bbb.ccc'],
+      protocols: () => ['ngfw.v1', 'bearer.aaa.bbb.ccc'],
       onError: (e) => errors.push(e),
       flushIntervalMs: 10,
       idleCloseDelayMs: 0,

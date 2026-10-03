@@ -16,8 +16,8 @@ import (
 const DadName = "ip6-nd.dad"
 
 // DadPlugin names the plugin the task prompt associated with DAD. On VPP 26.06 the ip6_dad
-// API (ip6_dad_enable_disable / ip6_dad_dump) is served by vnet itself and works on vrx-a
-// although ip6_dad_autoremove is not loaded (docs/lab/host-vrx-a.md); should a build lack
+// API (ip6_dad_enable_disable / ip6_dad_dump) is served by vnet itself and works on ngfw-a
+// although ip6_dad_autoremove is not loaded (docs/lab/host-ngfw-a.md); should a build lack
 // the messages, every method returns df2.ErrPluginNotLoaded and the integration test skips
 // (skip-unless-plugin-loaded).
 const DadPlugin = "ip6_dad_autoremove"

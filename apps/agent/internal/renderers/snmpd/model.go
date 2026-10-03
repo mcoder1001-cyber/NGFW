@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rfkit"
 )
 
@@ -19,7 +19,7 @@ import (
 var ErrInput = errors.New("snmpd: invalid desired state")
 
 // DefaultView is the view every community and user gets unless it names one.
-const DefaultView = "vrx_all"
+const DefaultView = "ngfw_all"
 
 // Model is the validated, fully resolved view of services.snmp: exactly what the template
 // renders. Secret values are resolved (never logged: the renderer's Redactor knows them).
@@ -185,7 +185,7 @@ var (
 // BuildModel validates services.snmp and resolves its secrets. The former D-055 stand-ins (views,
 // per-credential view, sysServices, monitors) are typed contract fields since F-snmp (D-086); ext is
 // kept for the signature and no longer read.
-func BuildModel(ds *vrxv1.DesiredState, _ *rfkit.Ext, sec *rfkit.Secrets, agentx string) (*Model, error) {
+func BuildModel(ds *ngfwv1.DesiredState, _ *rfkit.Ext, sec *rfkit.Secrets, agentx string) (*Model, error) {
 	snmp := ds.GetServices().GetSnmp()
 	m := &Model{Enabled: snmp.GetEnabled(), AgentX: agentx}
 	if !m.Enabled {
@@ -291,7 +291,7 @@ func access(a, path string) (bool, error) {
 	return false, fmt.Errorf("%w: %s.access %q must be ro or rw", ErrInput, path, a)
 }
 
-func buildSystem(m *Model, snmp *vrxv1.SnmpService) error {
+func buildSystem(m *Model, snmp *ngfwv1.SnmpService) error {
 	if n := snmp.GetSysName(); n != "" {
 		if len(n) > 253 || !hostnameRe.MatchString(n) {
 			return fmt.Errorf("%w: services.snmp.sysName %q is not a hostname", ErrInput, n)
@@ -325,7 +325,7 @@ func buildSystem(m *Model, snmp *vrxv1.SnmpService) error {
 	return nil
 }
 
-func buildListen(m *Model, snmp *vrxv1.SnmpService) error {
+func buildListen(m *Model, snmp *ngfwv1.SnmpService) error {
 	if len(snmp.GetListen()) == 0 {
 		// Never all addresses by default (review M1): without an explicit listen address the
 		// agent answers on loopback only.
@@ -362,7 +362,7 @@ func buildListen(m *Model, snmp *vrxv1.SnmpService) error {
 	return nil
 }
 
-func buildViews(in map[string]*vrxv1.SnmpView) ([]View, error) {
+func buildViews(in map[string]*ngfwv1.SnmpView) ([]View, error) {
 	views := []View{{Name: DefaultView, Include: []string{".1"}}}
 	for _, name := range slices.Sorted(maps.Keys(in)) {
 		path := "services.snmp.views." + name
@@ -395,7 +395,7 @@ func buildViews(in map[string]*vrxv1.SnmpView) ([]View, error) {
 	return views, nil
 }
 
-func buildUser(name string, u *vrxv1.SnmpService_V3User, sec *rfkit.Secrets, path string) (*User, error) {
+func buildUser(name string, u *ngfwv1.SnmpService_V3User, sec *rfkit.Secrets, path string) (*User, error) {
 	levelName := u.GetSecurityLevel()
 	if levelName == "" {
 		levelName = "authPriv"
@@ -438,7 +438,7 @@ func buildUser(name string, u *vrxv1.SnmpService_V3User, sec *rfkit.Secrets, pat
 	return user, nil
 }
 
-func buildTrap(i int, t *vrxv1.SnmpService_TrapReceiver, secretOf map[string]string, users map[string]User) (*Trap, error) {
+func buildTrap(i int, t *ngfwv1.SnmpService_TrapReceiver, secretOf map[string]string, users map[string]User) (*Trap, error) {
 	path := fmt.Sprintf("services.snmp.trapReceivers[%d]", i)
 	tr := &Trap{Version: cmp.Or(t.GetVersion(), "v2c"), Inform: t.GetInform(), Port: 162}
 	if t.Port != nil {
@@ -477,7 +477,7 @@ func buildTrap(i int, t *vrxv1.SnmpService_TrapReceiver, secretOf map[string]str
 	return tr, nil
 }
 
-func buildMonitors(m *Model, mon *vrxv1.SnmpMonitors) error {
+func buildMonitors(m *Model, mon *ngfwv1.SnmpMonitors) error {
 	if mon == nil {
 		return nil
 	}

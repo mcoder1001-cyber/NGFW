@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createVrxTheme } from './index.js';
+import { createNgfwTheme } from './index.js';
 
-describe('createVrxTheme', () => {
+describe('createNgfwTheme', () => {
   it('builds light and dark themes with status tokens and direction', () => {
-    expect(createVrxTheme('light').vrx.status.up).toMatch(/^#/);
-    expect(createVrxTheme('dark', 'rtl').direction).toBe('rtl');
+    expect(createNgfwTheme('light').ngfw.status.up).toMatch(/^#/);
+    expect(createNgfwTheme('dark', 'rtl').direction).toBe('rtl');
   });
 });

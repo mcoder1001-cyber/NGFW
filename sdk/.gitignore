@@ -10,4 +10,4 @@ openapi.json
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
-terraform/terraform-provider-vrx
+terraform/terraform-provider-ngfw

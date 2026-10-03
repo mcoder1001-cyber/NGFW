@@ -1,6 +1,6 @@
 # P06 WIP — API core
 
-Worker slot 1 (w1, port 3100, DB vrx_w1, Valkey db 1 prefix vrx:w1:). Started 2026-09-24.
+Worker slot 1 (w1, port 3100, DB ngfw_w1, Valkey db 1 prefix ngfw:w1:). Started 2026-09-24.
 
 ## Order / status
 - [x] persistence (Drizzle + pg) + migrations + seed

@@ -26,10 +26,10 @@ local user on the box — then an adversarial re-read of each finding against th
 
 ### L1 — the secret-store master key file skips the key-file checks (`secrets/secrets.service.ts` masterKey)
 - The JWT key ring is read through `readKeyFile` (O_NOFOLLOW, regular file, owner = API user or root, mode 0600;
-  TD-10b). The master key (`VRX_SECRET_KEY_FILE`, AES-256-GCM for every stored secret) uses `existsSync` +
+  TD-10b). The master key (`NGFW_SECRET_KEY_FILE`, AES-256-GCM for every stored secret) uses `existsSync` +
   `chmodSync` + `readFileSync`: it follows a symlink, checks no owner, and `chmodSync` also follows a symlink (it would
   chmod the link's target). key-file.ts itself says the master key "should call it too" (left to TD-10a).
-- Needs write access to `/var/lib/vrx` (root/vrx) to exploit — hence LOW; it is the more valuable key of the two.
+- Needs write access to `/var/lib/ngfw` (root/ngfw) to exploit — hence LOW; it is the more valuable key of the two.
 - Fix: read it with `readKeyFile` (create with `openSync(…, 'wx', 0o600)` when missing, as break-glass does), drop the
   `chmodSync`; a bad owner/mode/symlink is a 503 with the key-file message, never the content.
 
@@ -59,7 +59,7 @@ local user on the box — then an adversarial re-read of each finding against th
   the `bearer.<jwt>` subprotocol, never the URL; closed at credential expiry and on session end; no cookie →
   no cross-site WebSocket hijacking.
 - **Break-glass:** root-only CLI; key ring written 0600 via `wx` + fsync + rename, owner kept; audited.
-- **Dev switch:** `VRX_DEV_WEAK_PASSWORDS` refused with `NODE_ENV=production`.
+- **Dev switch:** `NGFW_DEV_WEAK_PASSWORDS` refused with `NODE_ENV=production`.
 
 ## Not covered
 API e2e and a live attack run (needs PostgreSQL/Valkey); `apps/api/src/features/**` routes beyond their guard roles.

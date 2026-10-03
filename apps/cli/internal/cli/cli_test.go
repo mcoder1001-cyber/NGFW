@@ -18,7 +18,7 @@ import (
 	"ngfw/cli/internal/api"
 )
 
-// fakeAPI is a scripted vrx-api: it serves the testdata OpenAPI document at /api/docs-json, a candidate document,
+// fakeAPI is a scripted ngfw-api: it serves the testdata OpenAPI document at /api/docs-json, a candidate document,
 // and records every request.
 type fakeAPI struct {
 	t         *testing.T
@@ -37,7 +37,7 @@ func newFake(t *testing.T) *fakeAPI {
 		t.Fatal(err)
 	}
 	f := &fakeAPI{t: t, override: map[string]func(http.ResponseWriter, *http.Request){}}
-	f.candidate = map[string]any{"interfaces": map[string]any{"eth0": map[string]any{"enabled": true, "ipv4": []any{"10.0.0.1/24"}}}, "system": map[string]any{"hostname": "vrx"}}
+	f.candidate = map[string]any{"interfaces": map[string]any{"eth0": map[string]any{"enabled": true, "ipv4": []any{"10.0.0.1/24"}}}, "system": map[string]any{"hostname": "ngfw"}}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		key := r.Method + " " + r.URL.EscapedPath()
@@ -81,7 +81,7 @@ func newFake(t *testing.T) *fakeAPI {
 		case key == "GET /api/v1/state/system":
 			_, _ = w.Write([]byte(`{"api":{"version":"1","startedAt":"s","wsClients":0},"agent":{"reachable":false,"error":"down"},"runningRevision":3,"pendingCommit":null,"sync":{"state":"unknown","reason":"apply answer lost","txnId":"t9","since":"s"}}`))
 		case key == "POST /api/v1/auth/login":
-			http.SetCookie(w, &http.Cookie{Name: "vrx_refresh", Value: "r1", Path: "/api/v1/auth"})
+			http.SetCookie(w, &http.Cookie{Name: "ngfw_refresh", Value: "r1", Path: "/api/v1/auth"})
 			_, _ = w.Write([]byte(`{"accessToken":"tok-123","tokenType":"Bearer","expiresIn":900,"user":{"id":1,"username":"admin","role":"admin"}}`))
 		default:
 			problem(w, 404, "no fake for "+key)
@@ -118,7 +118,7 @@ type run struct {
 	stdout, stderr string
 }
 
-func (f *fakeAPI) vrx(t *testing.T, env map[string]string, stdin string, args ...string) run {
+func (f *fakeAPI) ngfw(t *testing.T, env map[string]string, stdin string, args ...string) run {
 	t.Helper()
 	in, err := os.CreateTemp(t.TempDir(), "stdin")
 	if err != nil {
@@ -128,7 +128,7 @@ func (f *fakeAPI) vrx(t *testing.T, env map[string]string, stdin string, args ..
 	_, _ = in.Seek(0, 0)
 	defer func() { _ = in.Close() }()
 	var so, se bytes.Buffer
-	e := map[string]string{"VRX_API_URL": f.srv.URL, "VRX_API_KEY": "vrxk_test", "VRX_SESSION_FILE": filepath.Join(t.TempDir(), "s.json")}
+	e := map[string]string{"NGFW_API_URL": f.srv.URL, "NGFW_API_KEY": "ngfwk_test", "NGFW_SESSION_FILE": filepath.Join(t.TempDir(), "s.json")}
 	for k, v := range env {
 		e[k] = v
 	}
@@ -139,7 +139,7 @@ func (f *fakeAPI) vrx(t *testing.T, env map[string]string, stdin string, args ..
 
 func TestSetSendsPUTAtTheEscapedPointer(t *testing.T) {
 	f := newFake(t)
-	r := f.vrx(t, nil, "", "set", "interfaces", "TenGigabitEthernet0/0/0", "mtu", "9000")
+	r := f.ngfw(t, nil, "", "set", "interfaces", "TenGigabitEthernet0/0/0", "mtu", "9000")
 	if r.code != 0 {
 		t.Fatalf("exit %d: %s", r.code, r.stderr)
 	}
@@ -148,13 +148,13 @@ func TestSetSendsPUTAtTheEscapedPointer(t *testing.T) {
 		t.Errorf("requests %q, want %q", got, want)
 	}
 	for _, a := range f.auth {
-		if a != "ApiKey vrxk_test" {
+		if a != "ApiKey ngfwk_test" {
 			t.Errorf("Authorization %q", a)
 		}
 	}
 	// the pointer form is equivalent, strings stay strings, booleans are typed
-	f.vrx(t, nil, "", "set", "/interfaces/eth0/description", "1500")
-	f.vrx(t, nil, "", "set", "interfaces", "eth0", "enabled", "false")
+	f.ngfw(t, nil, "", "set", "/interfaces/eth0/description", "1500")
+	f.ngfw(t, nil, "", "set", "interfaces", "eth0", "enabled", "false")
 	got := f.mutations()
 	if got[1] != `PUT /api/v1/config/interfaces/eth0/description "1500"` || got[2] != "PUT /api/v1/config/interfaces/eth0/enabled false" {
 		t.Errorf("typed values: %q", got)
@@ -173,7 +173,7 @@ func TestClientSideValidationSendsNothing(t *testing.T) {
 		{"commit", "confirm", "0"},
 		{"rollback", "abc"},
 	} {
-		r := f.vrx(t, nil, "", args...)
+		r := f.ngfw(t, nil, "", args...)
 		if r.code != ExitUsage {
 			t.Errorf("%q: exit %d, want %d (%s)", args, r.code, ExitUsage, r.stderr)
 		}
@@ -185,16 +185,16 @@ func TestClientSideValidationSendsNothing(t *testing.T) {
 
 func TestLeafListAppendAndDeleteItem(t *testing.T) {
 	f := newFake(t)
-	if r := f.vrx(t, nil, "", "set", "interfaces", "eth0", "ipv4", "10.0.0.2/24"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "set", "interfaces", "eth0", "ipv4", "10.0.0.2/24"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "set", "interfaces", "eth0", "ipv4", "10.0.0.1/24"); r.code != 0 || !strings.Contains(r.stdout, "already contains") {
+	if r := f.ngfw(t, nil, "", "set", "interfaces", "eth0", "ipv4", "10.0.0.1/24"); r.code != 0 || !strings.Contains(r.stdout, "already contains") {
 		t.Fatalf("duplicate append: %d %s %s", r.code, r.stdout, r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "delete", "interfaces", "eth0", "ipv4", "10.0.0.1/24"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "delete", "interfaces", "eth0", "ipv4", "10.0.0.1/24"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "delete", "interfaces", "eth0", "ipv4", "10.9.9.9/24"); r.code != ExitNotFound {
+	if r := f.ngfw(t, nil, "", "delete", "interfaces", "eth0", "ipv4", "10.9.9.9/24"); r.code != ExitNotFound {
 		t.Fatalf("absent item: exit %d", r.code)
 	}
 	want := []string{`PUT /api/v1/config/interfaces/eth0/ipv4 ["10.0.0.1/24","10.0.0.2/24"]`, "DELETE /api/v1/config/interfaces/eth0/ipv4/0"}
@@ -205,10 +205,10 @@ func TestLeafListAppendAndDeleteItem(t *testing.T) {
 
 func TestMergeAndDelete(t *testing.T) {
 	f := newFake(t)
-	if r := f.vrx(t, nil, "", "merge", "interfaces", "eth0", `{"description":"uplink","ipv4":null}`); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "merge", "interfaces", "eth0", `{"description":"uplink","ipv4":null}`); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "delete", "interfaces", "eth0"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "delete", "interfaces", "eth0"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
 	want := []string{`PATCH /api/v1/config/interfaces/eth0 {"description":"uplink","ipv4":null}`, "DELETE /api/v1/config/interfaces/eth0"}
@@ -219,14 +219,14 @@ func TestMergeAndDelete(t *testing.T) {
 
 func TestCommitConfirmCommentAndOutput(t *testing.T) {
 	f := newFake(t)
-	r := f.vrx(t, nil, "", "commit", "confirm", "5", "comment", "mtu 9000")
+	r := f.ngfw(t, nil, "", "commit", "confirm", "5", "comment", "mtu 9000")
 	if r.code != 0 || !strings.Contains(r.stdout, "NOT confirmed") {
 		t.Fatalf("exit %d: %s %s", r.code, r.stdout, r.stderr)
 	}
 	if got := f.mutations(); len(got) != 1 || got[0] != "POST /api/v1/config/commit?comment=mtu+9000&confirm=5" {
 		t.Errorf("requests %q", got)
 	}
-	r = f.vrx(t, nil, "", "commit")
+	r = f.ngfw(t, nil, "", "commit")
 	for _, want := range []string{"applied — revision 7", "create interface.loopback/eth0: ok", "stored but not enforced by this agent build (1): /interfaces/eth0/mtu", "sync: in-sync"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("commit output lacks %q:\n%s", want, r.stdout)
@@ -239,33 +239,33 @@ func TestExitCodesFollowHTTPStatus(t *testing.T) {
 	for status, code := range map[int]int{400: ExitInvalid, 401: ExitAuth, 403: ExitForbidden, 404: ExitNotFound, 409: ExitConflict, 422: ExitCommitFailed, 429: ExitRateLimited, 501: ExitNotImplemented, 502: ExitUnavailable, 503: ExitUnavailable, 504: ExitUnavailable} {
 		st := status
 		f.override["POST /api/v1/config/commit/confirm"] = func(w http.ResponseWriter, _ *http.Request) { problem(w, st, "x") }
-		if r := f.vrx(t, nil, "", "confirm"); r.code != code {
+		if r := f.ngfw(t, nil, "", "confirm"); r.code != code {
 			t.Errorf("HTTP %d: exit %d, want %d", status, r.code, code)
 		}
 	}
-	if r := f.vrx(t, map[string]string{"VRX_API_URL": "http://127.0.0.1:1"}, "", "show", "system"); r.code != ExitUnavailable {
+	if r := f.ngfw(t, map[string]string{"NGFW_API_URL": "http://127.0.0.1:1"}, "", "show", "system"); r.code != ExitUnavailable {
 		t.Errorf("unreachable API: exit %d", r.code)
 	}
-	if r := f.vrx(t, map[string]string{"VRX_API_KEY": ""}, "", "show", "system"); r.code != ExitAuth || !strings.Contains(r.stderr, "not logged in") {
+	if r := f.ngfw(t, map[string]string{"NGFW_API_KEY": ""}, "", "show", "system"); r.code != ExitAuth || !strings.Contains(r.stderr, "not logged in") {
 		t.Errorf("no credentials: exit %d %s", r.code, r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "show", "bgp", "summary"); r.code != ExitNotImplemented {
+	if r := f.ngfw(t, nil, "", "show", "bgp", "summary"); r.code != ExitNotImplemented {
 		t.Errorf("show bgp summary: exit %d", r.code)
 	}
-	if r := f.vrx(t, nil, "", "shwo", "system"); r.code != ExitUsage || !strings.Contains(r.stderr, "unknown command") {
+	if r := f.ngfw(t, nil, "", "shwo", "system"); r.code != ExitUsage || !strings.Contains(r.stderr, "unknown command") {
 		t.Errorf("typo: exit %d %s", r.code, r.stderr)
 	}
 }
 
 func TestJSONMode(t *testing.T) {
 	f := newFake(t)
-	r := f.vrx(t, nil, "", "--json", "show", "system")
+	r := f.ngfw(t, nil, "", "--json", "show", "system")
 	var doc map[string]any
 	if r.code != 0 || json.Unmarshal([]byte(r.stdout), &doc) != nil || doc["sync"].(map[string]any)["state"] != "unknown" {
 		t.Fatalf("--json show system: %d %q", r.code, r.stdout)
 	}
 	f.override["POST /api/v1/config/commit"] = func(w http.ResponseWriter, _ *http.Request) { problem(w, 403, "role 'readonly' may not do this") }
-	r = f.vrx(t, nil, "", "--json", "commit")
+	r = f.ngfw(t, nil, "", "--json", "commit")
 	var e struct {
 		Error struct {
 			ExitCode int            `json:"exitCode"`
@@ -277,7 +277,7 @@ func TestJSONMode(t *testing.T) {
 		t.Fatalf("--json error: %d stdout=%q stderr=%q", r.code, r.stdout, r.stderr)
 	}
 	// human output of an unknown sync state is explicit, never "unchanged"
-	r = f.vrx(t, nil, "", "show", "system")
+	r = f.ngfw(t, nil, "", "show", "system")
 	if !strings.Contains(r.stdout, "sync       unknown — apply answer lost") || !strings.Contains(r.stdout, "agent      UNREACHABLE") {
 		t.Errorf("show system:\n%s", r.stdout)
 	}
@@ -292,8 +292,8 @@ func TestLoginWithPasswordFileNeverPrintsSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	sess := filepath.Join(dir, "sess", "session.json")
-	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": sess}
-	r := f.vrx(t, env, "", "--password-file", pw, "login", "admin")
+	env := map[string]string{"NGFW_API_KEY": "", "NGFW_SESSION_FILE": sess}
+	r := f.ngfw(t, env, "", "--password-file", pw, "login", "admin")
 	if r.code != 0 {
 		t.Fatalf("login: %d %s", r.code, r.stderr)
 	}
@@ -309,7 +309,7 @@ func TestLoginWithPasswordFileNeverPrintsSecrets(t *testing.T) {
 		t.Fatalf("session file: %v %v", st, err)
 	}
 	// the session is used by the next invocation
-	f.vrx(t, env, "", "show", "system")
+	f.ngfw(t, env, "", "show", "system")
 	if f.auth[len(f.auth)-1] != "Bearer tok-123" {
 		t.Errorf("session not used: %q", f.auth)
 	}
@@ -317,7 +317,7 @@ func TestLoginWithPasswordFileNeverPrintsSecrets(t *testing.T) {
 	loose := filepath.Join(dir, "loose")
 	_ = os.WriteFile(loose, []byte(secret), 0o600)
 	_ = os.Chmod(loose, 0o644)
-	if r := f.vrx(t, env, "", "--password-file", loose, "login", "admin"); r.code != ExitUsage || !strings.Contains(r.stderr, "chmod 600") {
+	if r := f.ngfw(t, env, "", "--password-file", loose, "login", "admin"); r.code != ExitUsage || !strings.Contains(r.stderr, "chmod 600") {
 		t.Errorf("loose password file: %d %s", r.code, r.stderr)
 	}
 	if strings.Contains(r.stderr, secret) {
@@ -331,7 +331,7 @@ func TestAPIKeyCreateStepUp(t *testing.T) {
 	f := newFake(t)
 	f.override["POST /api/v1/auth/api-keys"] = func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("content-type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"k1","name":"ci","role":"operator","expiresAt":null,"key":"vrxk_` + strings.Repeat("A", 43) + `"}`))
+		_, _ = w.Write([]byte(`{"id":"k1","name":"ci","role":"operator","expiresAt":null,"key":"ngfwk_` + strings.Repeat("A", 43) + `"}`))
 	}
 	// the bodies of the key requests, as the fake recorded them (it has read the request body before the override)
 	sent := func() []map[string]any {
@@ -354,18 +354,18 @@ func TestAPIKeyCreateStepUp(t *testing.T) {
 		t.Fatal(err)
 	}
 	// an API key: no password, no prompt
-	if r := f.vrx(t, nil, "", "api-key", "create", "ci"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "api-key", "create", "ci"); r.code != 0 {
 		t.Fatalf("with an API key: %d %s", r.code, r.stderr)
 	}
 	if bodies := sent(); len(bodies) != 1 || bodies[0]["current"] != nil {
 		t.Fatalf("API-key caller sent %v", bodies)
 	}
 	// a login session with --password-file: the current password goes in the body, never on the terminal
-	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": filepath.Join(dir, "sess", "session.json")}
-	if r := f.vrx(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
+	env := map[string]string{"NGFW_API_KEY": "", "NGFW_SESSION_FILE": filepath.Join(dir, "sess", "session.json")}
+	if r := f.ngfw(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
 		t.Fatalf("login: %d %s", r.code, r.stderr)
 	}
-	r := f.vrx(t, env, "", "--password-file", pw, "api-key", "create", "ci", "role", "operator")
+	r := f.ngfw(t, env, "", "--password-file", pw, "api-key", "create", "ci", "role", "operator")
 	if r.code != 0 {
 		t.Fatalf("with a session and --password-file: %d %s", r.code, r.stderr)
 	}
@@ -380,7 +380,7 @@ func TestAPIKeyCreateStepUp(t *testing.T) {
 	}
 	// a login session, no terminal, no --password-file: a usage error naming the ways out, nothing sent, no key file
 	keyFile := filepath.Join(dir, "k")
-	r = f.vrx(t, env, "", "api-key", "create", "ci", "file", keyFile)
+	r = f.ngfw(t, env, "", "api-key", "create", "ci", "file", keyFile)
 	if r.code != ExitUsage {
 		t.Fatalf("no terminal: exit %d (%s)", r.code, r.stderr)
 	}
@@ -399,7 +399,7 @@ func TestAPIKeyCreateStepUp(t *testing.T) {
 
 func TestScriptOnStdinStopsAtFirstError(t *testing.T) {
 	f := newFake(t)
-	r := f.vrx(t, nil, "set interfaces eth0 mtu 9000\n# a comment\nset interfaces eth0 mtu 1\ncommit\n")
+	r := f.ngfw(t, nil, "set interfaces eth0 mtu 9000\n# a comment\nset interfaces eth0 mtu 1\ncommit\n")
 	if r.code != ExitUsage {
 		t.Fatalf("script: exit %d (%s)", r.code, r.stderr)
 	}
@@ -437,7 +437,7 @@ func TestCompletionFromTheLiveSchema(t *testing.T) {
 	f := newFake(t)
 	a := &App{Stdin: os.Stdin, Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }}
 	c, _ := api.New(f.srv.URL)
-	c.Cred = api.Key("vrxk_test")
+	c.Cred = api.Key("ngfwk_test")
 	a.client = c
 	texts := func(line string) []string {
 		cs, _ := a.candidates(context.Background(), line)
@@ -495,7 +495,7 @@ func TestInteractiveRefreshOn401(t *testing.T) {
 	me := 0
 	f.override["POST /api/v1/auth/refresh"] = func(w http.ResponseWriter, r *http.Request) {
 		cookies = append(cookies, r.Header.Get("Cookie"))
-		http.SetCookie(w, &http.Cookie{Name: "vrx_refresh", Value: "r2", Path: "/api/v1/auth"})
+		http.SetCookie(w, &http.Cookie{Name: "ngfw_refresh", Value: "r2", Path: "/api/v1/auth"})
 		_, _ = w.Write([]byte(`{"accessToken":"tok-456","tokenType":"Bearer","expiresIn":900,"user":{"id":1,"username":"admin","role":"admin"}}`))
 	}
 	f.override["GET /api/v1/auth/me"] = func(w http.ResponseWriter, r *http.Request) {
@@ -514,7 +514,7 @@ func TestInteractiveRefreshOn401(t *testing.T) {
 	if _, err := a.call(context.Background(), api.Call{Op: "Auth_me"}, nil); err != nil {
 		t.Fatalf("after refresh: %v", err)
 	}
-	if me != 2 || len(cookies) != 1 || cookies[0] != "vrx_refresh=r1" || a.refreshCookie != "vrx_refresh=r2" {
+	if me != 2 || len(cookies) != 1 || cookies[0] != "ngfw_refresh=r1" || a.refreshCookie != "ngfw_refresh=r2" {
 		t.Errorf("me calls %d, refresh cookies %q, kept %q", me, cookies, a.refreshCookie)
 	}
 }
@@ -540,12 +540,12 @@ func TestServerStringsCannotDriveTheTerminal(t *testing.T) {
 			t.Errorf("%s: the sequence is not shown visibly: %q", name, out)
 		}
 	}
-	check("show revisions", f.vrx(t, nil, "", "show", "revisions"))
-	check("show configuration candidate", f.vrx(t, nil, "", "show", "configuration", "candidate"))
-	check("show configuration candidate set", f.vrx(t, nil, "", "show", "configuration", "candidate", "set"))
-	check("problem detail", f.vrx(t, nil, "", "validate"))
+	check("show revisions", f.ngfw(t, nil, "", "show", "revisions"))
+	check("show configuration candidate", f.ngfw(t, nil, "", "show", "configuration", "candidate"))
+	check("show configuration candidate set", f.ngfw(t, nil, "", "show", "configuration", "candidate", "set"))
+	check("problem detail", f.ngfw(t, nil, "", "validate"))
 	// --json passes the API document through (JSON escapes controls itself)
-	if r := f.vrx(t, nil, "", "--json", "show", "revisions"); strings.Contains(r.stdout, "\x1b") {
+	if r := f.ngfw(t, nil, "", "--json", "show", "revisions"); strings.Contains(r.stdout, "\x1b") {
 		t.Errorf("--json: raw ESC %q", r.stdout)
 	}
 }
@@ -554,20 +554,20 @@ func TestServerStringsCannotDriveTheTerminal(t *testing.T) {
 func TestDeleteIntegerListByValue(t *testing.T) {
 	f := newFake(t)
 	f.candidate["dataplane"] = map[string]any{"corelist": []any{5.0, 7.0, 1.0}}
-	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "1"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "delete", "dataplane", "corelist", "1"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "index", "0"); r.code != 0 {
+	if r := f.ngfw(t, nil, "", "delete", "dataplane", "corelist", "index", "0"); r.code != 0 {
 		t.Fatal(r.stderr)
 	}
-	if r := f.vrx(t, nil, "", "delete", "dataplane", "corelist", "9"); r.code != ExitNotFound {
+	if r := f.ngfw(t, nil, "", "delete", "dataplane", "corelist", "9"); r.code != ExitNotFound {
 		t.Errorf("absent value: exit %d", r.code)
 	}
 	want := []string{"DELETE /api/v1/config/dataplane/corelist/2", "DELETE /api/v1/config/dataplane/corelist/0"}
 	if got := f.mutations(); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("requests %q, want %q (value 1 is at index 2)", got, want)
 	}
-	if r := f.vrx(t, nil, "", "delete"); r.code != ExitUsage {
+	if r := f.ngfw(t, nil, "", "delete"); r.code != ExitUsage {
 		t.Errorf("bare delete: exit %d", r.code)
 	}
 }
@@ -584,8 +584,8 @@ func TestSessionFileIsPrivate(t *testing.T) {
 	victim := filepath.Join(dir, "victim")
 	_ = os.WriteFile(victim, []byte("keep"), 0o644)
 	_ = os.Symlink(victim, sess) // planted symlink at the final name
-	env := map[string]string{"VRX_API_KEY": "", "VRX_SESSION_FILE": sess}
-	if r := f.vrx(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
+	env := map[string]string{"NGFW_API_KEY": "", "NGFW_SESSION_FILE": sess}
+	if r := f.ngfw(t, env, "", "--password-file", pw, "login", "admin"); r.code != 0 {
 		t.Fatalf("login: %s", r.stderr)
 	}
 	if b, _ := os.ReadFile(victim); string(b) != "keep" {
@@ -597,15 +597,15 @@ func TestSessionFileIsPrivate(t *testing.T) {
 	}
 	// a session file with a loose mode, or a symlink, is not used
 	_ = os.Chmod(sess, 0o644)
-	if r := f.vrx(t, env, "", "show", "system"); r.code != ExitAuth {
+	if r := f.ngfw(t, env, "", "show", "system"); r.code != ExitAuth {
 		t.Errorf("0644 session used: exit %d", r.code)
 	}
 	// a shared (group/other-writable) directory is refused
 	shared := filepath.Join(dir, "shared")
 	_ = os.Mkdir(shared, 0o777)
 	_ = os.Chmod(shared, 0o777)
-	env["VRX_SESSION_FILE"] = filepath.Join(shared, "session.json")
-	r := f.vrx(t, env, "", "--password-file", pw, "login", "admin")
+	env["NGFW_SESSION_FILE"] = filepath.Join(shared, "session.json")
+	r := f.ngfw(t, env, "", "--password-file", pw, "login", "admin")
 	if !strings.Contains(r.stderr, "must be 0700") {
 		t.Errorf("shared dir: %q", r.stderr)
 	}
@@ -619,13 +619,13 @@ func TestSessionFileIsPrivate(t *testing.T) {
 // review M4: no cleartext credentials to a remote host.
 func TestPlainHTTPOnlyToLoopback(t *testing.T) {
 	f := newFake(t)
-	if r := f.vrx(t, map[string]string{"VRX_API_URL": "http://10.0.0.1:3000"}, "", "show", "system"); r.code != ExitUsage || !strings.Contains(r.stderr, "cleartext") {
+	if r := f.ngfw(t, map[string]string{"NGFW_API_URL": "http://10.0.0.1:3000"}, "", "show", "system"); r.code != ExitUsage || !strings.Contains(r.stderr, "cleartext") {
 		t.Errorf("remote http: %d %s", r.code, r.stderr)
 	}
-	if r := f.vrx(t, map[string]string{"VRX_API_URL": "http://127.0.0.1:1"}, "", "--insecure-http", "show", "system"); r.code != ExitUnavailable {
+	if r := f.ngfw(t, map[string]string{"NGFW_API_URL": "http://127.0.0.1:1"}, "", "--insecure-http", "show", "system"); r.code != ExitUnavailable {
 		t.Errorf("loopback: %d", r.code)
 	}
-	for h, want := range map[string]bool{"localhost": true, "127.0.0.9": true, "::1": true, "10.0.0.1": false, "vrx.example": false} {
+	for h, want := range map[string]bool{"localhost": true, "127.0.0.9": true, "::1": true, "10.0.0.1": false, "ngfw.example": false} {
 		if isLoopback(h) != want {
 			t.Errorf("isLoopback(%s) != %v", h, want)
 		}
@@ -638,7 +638,7 @@ func TestPendingCommitIsTracked(t *testing.T) {
 	var so bytes.Buffer
 	a := &App{Stdin: os.Stdin, Stdout: &so, Stderr: io.Discard, Getenv: func(string) string { return "" }, username: "adm"}
 	a.client, _ = api.New(f.srv.URL)
-	a.client.Cred = api.Key("vrxk_test")
+	a.client.Cred = api.Key("ngfwk_test")
 	deadline := time.Now().Add(42 * time.Second).UTC().Format(time.RFC3339Nano)
 	a.setPending("pending", "d97486aa-1", deadline, "")
 	if p := a.prompt(); !strings.Contains(p, "[!4") || !strings.HasSuffix(p, "> ") {
@@ -690,7 +690,7 @@ func TestShowInterfacesListsOnlyRetrievedRows(t *testing.T) {
 	}
 	notRetrieved := []string{"host-w1w0", "host-w1w9", "host-w3l0"}
 
-	r := f.vrx(t, nil, "", "show", "interfaces")
+	r := f.ngfw(t, nil, "", "show", "interfaces")
 	if r.code != 0 || !strings.Contains(r.stdout, "host-w1l0 ") || !strings.Contains(r.stdout, "host-w1l0.100") || !strings.Contains(r.stdout, "1400") {
 		t.Fatalf("table: %d %q %q", r.code, r.stdout, r.stderr)
 	}
@@ -700,25 +700,25 @@ func TestShowInterfacesListsOnlyRetrievedRows(t *testing.T) {
 		}
 	}
 
-	r = f.vrx(t, nil, "", "show", "interfaces", "host-w1l0")
+	r = f.ngfw(t, nil, "", "show", "interfaces", "host-w1l0")
 	if r.code != 0 || !strings.Contains(r.stdout, "Interface host-w1l0 (retrieved") || !strings.Contains(r.stdout, "mtu 1400") {
 		t.Errorf("show interfaces host-w1l0: %d %q %q", r.code, r.stdout, r.stderr)
 	}
 	for _, n := range notRetrieved {
-		r = f.vrx(t, nil, "", "show", "interfaces", n)
+		r = f.ngfw(t, nil, "", "show", "interfaces", n)
 		if r.code != ExitNotFound || !strings.Contains(r.stderr, "not in the data plane") {
 			t.Errorf("show interfaces %s: exit %d %q %q, want %d not in the data plane", n, r.code, r.stdout, r.stderr, ExitNotFound)
 		}
 	}
 
-	r = f.vrx(t, nil, "", "--json", "show", "interfaces")
+	r = f.ngfw(t, nil, "", "--json", "show", "interfaces")
 	if r.code != 0 || !strings.Contains(r.stdout, `"host-w1w9"`) {
 		t.Errorf("--json is the API's answer unchanged: %d %q", r.code, r.stdout)
 	}
 
 	a := &App{Stdin: os.Stdin, Stdout: io.Discard, Stderr: io.Discard, Getenv: func(string) string { return "" }}
 	c, _ := api.New(f.srv.URL)
-	c.Cred = api.Key("vrxk_test")
+	c.Cred = api.Key("ngfwk_test")
 	a.client = c
 	cs, _ := a.candidates(context.Background(), "show interfaces ")
 	var got []string

@@ -3,8 +3,8 @@
 **Screen:** *Routing → BGP* (`/routing/bgp`, tabs *BGP*, *Prefix lists*, *Route maps*, *Linux pairs*). **REST:** the
 generic configuration routes under `/api/v1/config/routing` (`bgp`, `policy`) and `/api/v1/config/interfaces`
 (`<name>.lcp`), the live state `GET /api/v1/state/bgp`, the FIB browser `GET /api/v1/state/routes?proto=bgp`, the
-WebSocket topic `routing.events`. **CLI:** `vrx set routing bgp …`, `vrx set routing policy …`,
-`vrx set interfaces <name> lcp …` (the generic configuration commands, `docs/user/cli/reference.md`); `vrx show bgp
+WebSocket topic `routing.events`. **CLI:** `ngfw set routing bgp …`, `ngfw set routing policy …`,
+`ngfw set interfaces <name> lcp …` (the generic configuration commands, `docs/user/cli/reference.md`); `ngfw show bgp
 summary` will read `GET /api/v1/state/bgp` once the CLI maps it (P12-questions Q14).
 
 ## How it works

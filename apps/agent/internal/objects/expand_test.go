@@ -10,13 +10,13 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // objectsDoc parses an `objects` document (protobuf JSON = the API's JSON).
-func objectsDoc(t *testing.T, js string) *vrxv1.ObjectsConfig {
+func objectsDoc(t *testing.T, js string) *ngfwv1.ObjectsConfig {
 	t.Helper()
-	d := &vrxv1.ObjectsConfig{}
+	d := &ngfwv1.ObjectsConfig{}
 	if err := protojson.Unmarshal([]byte(js), d); err != nil {
 		t.Fatalf("doc: %v", err)
 	}
@@ -119,16 +119,16 @@ func TestExpandErrors(t *testing.T) {
 
 // The cap: a group of 10 001 distinct, non-adjacent hosts is refused; 10 000 are fine.
 func TestExpandCapExceeded(t *testing.T) {
-	doc := &vrxv1.ObjectsConfig{Addresses: map[string]*vrxv1.AddressObject{}, AddressGroups: map[string]*vrxv1.AddressGroup{}}
+	doc := &ngfwv1.ObjectsConfig{Addresses: map[string]*ngfwv1.AddressObject{}, AddressGroups: map[string]*ngfwv1.AddressGroup{}}
 	var members []string
 	for i := 0; i <= MaxEntries; i++ { // 10 001 hosts 10.<i/128>.<…>.<2(i%128)>: every other address, never siblings
 		name := fmt.Sprintf("h%05d", i)
 		a := netip.AddrFrom4([4]byte{10, byte(i / 32768), byte(i / 128 % 256), byte(i % 128 * 2)})
-		doc.Addresses[name] = &vrxv1.AddressObject{Type: ptr("host"), Address: ptr(a.String())}
+		doc.Addresses[name] = &ngfwv1.AddressObject{Type: ptr("host"), Address: ptr(a.String())}
 		members = append(members, name)
 	}
-	doc.AddressGroups["big"] = &vrxv1.AddressGroup{Members: members}
-	doc.AddressGroups["fits"] = &vrxv1.AddressGroup{Members: members[:MaxEntries]}
+	doc.AddressGroups["big"] = &ngfwv1.AddressGroup{Members: members}
+	doc.AddressGroups["fits"] = &ngfwv1.AddressGroup{Members: members[:MaxEntries]}
 	_, err := Expand(doc, "big")
 	var le *LimitError
 	if !errors.As(err, &le) || le.Count != MaxEntries+1 || le.Limit != MaxEntries || le.Ref != "big" {

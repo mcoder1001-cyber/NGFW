@@ -20,7 +20,7 @@ Verifier agent, 2026-09-24. Branch `task/F-vlan-qinq`@d95f148, read-only checks 
    first reading was wrong"). Matches review 674b03e H1.
 
 3. **M2 evidence:** the packet-free host run is pasted in `F-vlan-qinq.md` "Fix round 1" at HEAD abe6d50, slot 12,
-   `VRX_QINQ_PACKETS` unset (packets phase SKIP), `NRestarts before: 1` / `NRestarts after: 1`, PASS on
+   `NGFW_QINQ_PACKETS` unset (packets phase SKIP), `NRestarts before: 1` / `NRestarts after: 1`, PASS on
    commit/restart-safety/rollback/cleanup-through-api. `git log --stat abe6d50..HEAD` shows only docs-only commits
    (fd604b2, d4801d8, d95f148 — all touch only `F-vlan-qinq*.md` status files) plus 5cd5010 touching
    `apps/web/src/domains/interfaces/subinterfaces/tagStack.ts` (the L2 refactor, not test code). No test file changed

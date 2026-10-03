@@ -12,7 +12,7 @@ import {
 import type { FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { problems } from '../../common/problem.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../../common/zod.js';
 import { GlobalBlockingService } from './global-blocking.service.js';
@@ -129,7 +129,7 @@ export class GlobalBlockingController {
     @Param('name', new SafeParamPipe('name')) name: string,
     @Query(new ZodPipe(DryRunQuery)) q: z.output<typeof DryRunQuery>,
     @Body() body: unknown,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     if (typeof body !== 'string')
       throw problems.badRequest('send the file as the request body with content-type text/plain');
@@ -154,7 +154,7 @@ export class GlobalBlockingController {
   async fetch(
     @Param('name', new SafeParamPipe('name')) name: string,
     @Query(new ZodPipe(DryRunQuery)) q: z.output<typeof DryRunQuery>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const p = await this.gb.fetchNow(req.principal!, name, q.dryRun);
     if (p.staged)

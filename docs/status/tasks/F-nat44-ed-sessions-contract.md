@@ -5,7 +5,7 @@ existing field renamed, renumbered or reshaped. Numbers from `docs/status/wave-A
 
 ## `contract(proto): nat sessions`
 
-`packages/proto/vrx/v1/dataplane.proto`:
+`packages/proto/ngfw/v1/dataplane.proto`:
 
 | where | what | number |
 |---|---|---|
@@ -18,7 +18,7 @@ Not used: `NatConfig` 25–26 (no config gap: `NatConfig` already mirrors every 
 Semantics: `docs/contracts/proto.md` §11 "F-nat44-ed-sessions: NatSessions". Bounded messages: `limit` ≤ 1000
 (`INVALID_ARGUMENT` above), so no response carries the whole table.
 
-Regenerated (never hand-edited): `apps/agent/gen/vrx/v1/*`, `packages/proto/gen/ts/vrx/v1/dataplane.ts` (`packages/proto/gen.sh`).
+Regenerated (never hand-edited): `apps/agent/gen/ngfw/v1/*`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts` (`packages/proto/gen.sh`).
 Shared hunks: `apps/api/src/testing/fake-agent.ts` (P5: the two `UNIMPLEMENTED` stubs under the anchor, replaced by the
 feature's `fake.ts` wiring in the feature commit), `docs/contracts/proto.md` (C6 section).
 

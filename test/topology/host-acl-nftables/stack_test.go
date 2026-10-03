@@ -1,8 +1,8 @@
 package hostacl
 
-// The stack under test (copied from test/topology/object-model, F-host-acl-nftables): the real vrx-agent binary (built
-// from this tree, owner = VRX_TEST_PREFIX, the slot's socket and state dir, VRX_HOST_ACL_NETNS = the slot's "host"
-// namespace, so the agent loads table inet vrx_<prefix> there and never in the root netns) and the real vrx-api
+// The stack under test (copied from test/topology/object-model, F-host-acl-nftables): the real ngfw-agent binary (built
+// from this tree, owner = NGFW_TEST_PREFIX, the slot's socket and state dir, NGFW_HOST_ACL_NETNS = the slot's "host"
+// namespace, so the agent loads table inet ngfw_<prefix> there and never in the root netns) and the real ngfw-api
 // (apps/api/dist, slot port) on a throwaway slot database. Every process is started by this test and stopped by PID. No
 // VPP object is created.
 
@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-const labLock = "/run/lock/vrx-lab.lock"
+const labLock = "/run/lock/ngfw-lab.lock"
 
 type slot struct {
 	prefix, httpPort, metricsPort, valkeyDB, webPort string
@@ -36,10 +36,10 @@ type slot struct {
 
 func slotFromEnv(t *testing.T) slot {
 	t.Helper()
-	p := os.Getenv("VRX_TEST_PREFIX")
+	p := os.Getenv("NGFW_TEST_PREFIX")
 	m := regexp.MustCompile(`^w([0-9]{1,2})$`).FindStringSubmatch(p)
 	if m == nil {
-		t.Fatalf("VRX_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
+		t.Fatalf("NGFW_TEST_PREFIX=%q: this test needs a slot prefix w<N> (eval \"$(tools/lab env <N>)\")", p)
 	}
 	n, _ := strconv.Atoi(m[1])
 	env := func(k, def string) string {
@@ -50,14 +50,14 @@ func slotFromEnv(t *testing.T) slot {
 	}
 	s := slot{
 		prefix:      p,
-		httpPort:    env("VRX_HTTP_PORT", strconv.Itoa(3000+100*n)),
-		webPort:     env("VRX_WEB_PORT", strconv.Itoa(5000+100*n)),
-		metricsPort: env("VRX_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
-		valkeyDB:    env("VRX_VALKEY_DB", strconv.Itoa(n)),
-		runDir:      "/run/vrx-test/" + p,
+		httpPort:    env("NGFW_HTTP_PORT", strconv.Itoa(3000+100*n)),
+		webPort:     env("NGFW_WEB_PORT", strconv.Itoa(5000+100*n)),
+		metricsPort: env("NGFW_METRICS_PORT", strconv.Itoa(9100+10*n+1)),
+		valkeyDB:    env("NGFW_VALKEY_DB", strconv.Itoa(n)),
+		runDir:      "/run/ngfw-test/" + p,
 		repo:        repoRoot(t),
 	}
-	s.socket = env("VRX_AGENT_SOCKET", s.runDir+"/agent.sock")
+	s.socket = env("NGFW_AGENT_SOCKET", s.runDir+"/agent.sock")
 	return s
 }
 
@@ -242,8 +242,8 @@ func newStack(t *testing.T, s slot, hostNS string) *stack {
 	t.Cleanup(func() { _ = os.RemoveAll(work) }) // the slot's agent state dir goes with it (envelope cleanup)
 	st := &stack{
 		s: s, work: work, stateDir: filepath.Join(work, "agent-state"), agentLog: filepath.Join(work, "agent.log"),
-		agentBin: buildBin(t, "VRX_HA_AGENT_BIN", s.repo, "./cmd/vrx-agent"),
-		ctlBin:   buildBin(t, "VRX_HA_AGENTCTL_BIN", s.repo, "./cmd/vrx-agentctl"),
+		agentBin: buildBin(t, "NGFW_HA_AGENT_BIN", s.repo, "./cmd/ngfw-agent"),
+		ctlBin:   buildBin(t, "NGFW_HA_AGENTCTL_BIN", s.repo, "./cmd/ngfw-agentctl"),
 	}
 	t.Log(mustRun(t, filepath.Join(s.repo, "deploy", "dev", "pg-test.sh"), "create", s.prefix))
 	t.Cleanup(func() {
@@ -254,28 +254,28 @@ func newStack(t *testing.T, s slot, hostNS string) *stack {
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
-		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info",
-		"VRX_OBJECTS_DNS_SERVERS=127.0.0.1:9", // no FQDN object here; never the host's resolver
-		"VRX_HOST_ACL_NETNS="+hostNS)
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: test slots never own globals
+		"NGFW_AGENT_STATE_DIR="+st.stateDir, "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info",
+		"NGFW_OBJECTS_DNS_SERVERS=127.0.0.1:9", // no FQDN object here; never the host's resolver
+		"NGFW_HOST_ACL_NETNS="+hostNS)
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 
 	st.adminPW = secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":hacl:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":hacl:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+st.adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(90*time.Second, func() bool {
 		return st.apiProc.exited() || st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", st.adminPW)
 	return st
@@ -283,22 +283,22 @@ func newStack(t *testing.T, s slot, hostNS string) *stack {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
 		_, err := os.Stat(st.s.socket)
 		return err == nil || st.agent.exited()
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
 	}
 }
 
-// retrieveACL asks the agent itself (vrx-agentctl retrieve, the gRPC Retrieve RPC) for the acl domain (protobuf JSON).
+// retrieveACL asks the agent itself (ngfw-agentctl retrieve, the gRPC Retrieve RPC) for the acl domain (protobuf JSON).
 func (st *stack) retrieveACL(t *testing.T) map[string]any {
 	t.Helper()
 	out, err := run(st.ctlBin, "-s", st.s.socket, "retrieve", "-subsystems", "acl")
 	if err != nil {
-		t.Fatalf("vrx-agentctl retrieve: %v\n%s", err, out)
+		t.Fatalf("ngfw-agentctl retrieve: %v\n%s", err, out)
 	}
 	var r struct {
 		DesiredState struct {

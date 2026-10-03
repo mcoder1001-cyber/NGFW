@@ -49,8 +49,8 @@ describe('P08 interfaces ≡ kit', () => {
     for (const [name, prop] of Object.entries(old.properties ?? {})) {
       const k = kit.properties?.[name];
       expect(k?.title, name).toBe(prop.title);
-      const { enumLabels, ...hints } = (k?.['x-vrx-ui'] ?? {}) as Record<string, unknown>;
-      expect(hints, name).toEqual(prop['x-vrx-ui']);
+      const { enumLabels, ...hints } = (k?.['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
+      expect(hints, name).toEqual(prop['x-ngfw-ui']);
       if (enumLabels) for (const [v, l] of Object.entries(enumLabels as Record<string, string>)) expect(l).toBe(v);
     }
   });

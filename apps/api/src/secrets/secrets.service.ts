@@ -30,7 +30,7 @@ export interface SecretMeta {
 
 /**
  * Secret store (00-CONTEXT rule 10, D-051): PSKs, keys, passphrases encrypted at rest with AES-256-GCM under a master
- * key file (VRX_SECRET_KEY_FILE, 0600, created on first use). The config document only holds `<kind>/<name>`
+ * key file (NGFW_SECRET_KEY_FILE, 0600, created on first use). The config document only holds `<kind>/<name>`
  * references; values are write-only through the API and never logged. The agent resolves references through its own
  * channel (out of P06 scope).
  */
@@ -47,7 +47,7 @@ export class SecretsService {
 
   private masterKey(): Buffer {
     if (this.key) return this.key;
-    const file = this.env.VRX_SECRET_KEY_FILE;
+    const file = this.env.NGFW_SECRET_KEY_FILE;
     if (!existsSync(file)) {
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
       // 'wx' = O_CREAT|O_EXCL: never follows or overwrites an existing path (a symlink planted meanwhile fails it)

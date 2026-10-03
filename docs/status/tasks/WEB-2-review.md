@@ -188,7 +188,7 @@ on an item deleted elsewhere, with a "deleted elsewhere" message.
     echo the value.
   - The 401-retry `request.clone()` is transient.
   - The input is emptied on success and unmounted on close.
-- **Rule 5.** Schemas come from `schema/registry` (`domainSchemas`), keys from `propertyNames` / `x-vrx-ui.itemKey`,
+- **Rule 5.** Schemas come from `schema/registry` (`domainSchemas`), keys from `propertyNames` / `x-ngfw-ui.itemKey`,
   refs from `secretRef` / `SECRET_KINDS`, and API types from the generated `paths`. No hand-duplicated domain type
   (L6 aside).
 - **No routed stub.** `SecretsPage` and `DEV_PREVIEWS` are imported nowhere, and `DEV_PREVIEWS` is `[]` in production.

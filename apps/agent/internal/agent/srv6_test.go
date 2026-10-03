@@ -16,7 +16,7 @@ import (
 
 	"ngfw/agent/binapi/ip"
 	srapi "ngfw/agent/binapi/sr"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -73,16 +73,16 @@ const srv6Doc = `{
   }}
 }`
 
-func retrieveSrv6(t *testing.T, s *Service) *vrxv1.Srv6Config {
+func retrieveSrv6(t *testing.T, s *Service) *ngfwv1.Srv6Config {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got.GetDesiredState().GetRouting().GetSrv6()
 }
 
-func mustEqualSrv6(t *testing.T, got, want *vrxv1.Srv6Config) {
+func mustEqualSrv6(t *testing.T, got, want *ngfwv1.Srv6Config) {
 	t.Helper()
 	if !proto.Equal(got, want) {
 		t.Fatalf("routing.srv6:\n got %s\nwant %s", protojson.Format(got), protojson.Format(want))
@@ -126,8 +126,8 @@ func TestSrv6ApplyRetrieveRollback(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
 	want := doc(t, srv6Doc)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: want})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: want})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	for _, r := range resp.GetResults() {
 		if strings.HasPrefix(r.GetKey(), "sr.") && (r.GetSubsystem() != "routing" || !strings.HasPrefix(r.GetPointer(), "/routing/srv6/")) {
 			t.Fatalf("result %v", r)
@@ -141,8 +141,8 @@ func TestSrv6ApplyRetrieveRollback(t *testing.T) {
 	noSRDamage(t, v)
 
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, srv6Doc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, srv6Doc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("idempotent apply changed %v", resp.GetResults())
 	}
@@ -154,8 +154,8 @@ func TestSrv6ApplyRetrieveRollback(t *testing.T) {
 
 	// Rollback to a document without SRv6 and without the VRF (routing and vrfs authoritative, empty).
 	v.Reset()
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7::1/64"]}, "loop702": {}}}`), Subsystems: []string{"interfaces", "vrfs", "routing"}})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7::1/64"]}, "loop702": {}}}`), Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	calls := strings.Join(srCalls(v), " ")
 	t.Logf("rollback VPP calls: %s", calls)
 	lastSteer, firstPolicy := strings.LastIndex(calls, "steer-del"), strings.Index(calls, "policy-del")
@@ -182,13 +182,13 @@ func TestSrv6RestartSimulation(t *testing.T) {
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	want := doc(t, srv6Doc)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: want}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: want}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close()
 
 	v.Reset()
 	s2 := newSvc(t, v, dir)
 	resp := s2.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if c := srCalls(v); len(c) != 0 {
 		t.Fatalf("restart re-added claimed objects: %v", c)
 	}
@@ -200,10 +200,10 @@ func TestSrv6RestartSimulation(t *testing.T) {
 	v.Reset()
 	s3 := newSvc(t, v, dir)
 	resp = s3.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var created int
 	for _, r := range resp.GetResults() {
-		if strings.HasPrefix(r.GetKey(), "sr.") && r.GetOp() == vrxv1.ApplyOperation_APPLY_OPERATION_CREATE {
+		if strings.HasPrefix(r.GetKey(), "sr.") && r.GetOp() == ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE {
 			created++
 		}
 	}
@@ -220,11 +220,11 @@ func TestSrv6NeverTakesOverForeignSid(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
 	v.SR().AddForeignLocalSid("fd00:7:ff::c")
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, srv6Doc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, srv6Doc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
 	var failed bool
 	for _, r := range resp.GetResults() {
-		if r.GetKey() == "sr.localsid/fd00:7:ff::c" && r.GetCode() == vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_FAILED {
+		if r.GetKey() == "sr.localsid/fd00:7:ff::c" && r.GetCode() == ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_FAILED {
 			failed = r.GetPointer() == "/routing/srv6/localSids/fd00:7:ff::c" && strings.Contains(r.GetMessage(), "not ours")
 		}
 	}
@@ -263,8 +263,8 @@ func TestSrv6Validation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			v := coretest.New()
 			s := newSvc(t, v, t.TempDir())
-			resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, c.doc)})
-			mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+			resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, c.doc)})
+			mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 			var hit bool
 			for _, e := range resp.GetValidation().GetErrors() {
 				hit = hit || (e.GetPointer() == c.pointer && e.GetRule() == c.rule)
@@ -284,8 +284,8 @@ func TestSrv6Validation(t *testing.T) {
 func TestSrv6GlobalsNonOwner(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"routing": {"srv6": {"encapSource": "fd00:7::1", "encapHopLimit": 32}}}`)})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || !strings.Contains(protojson.Format(resp), "globals owner") {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"routing": {"srv6": {"encapSource": "fd00:7::1", "encapHopLimit": 32}}}`)})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || !strings.Contains(protojson.Format(resp), "globals owner") {
 		t.Fatalf("non-owner applied a global: %s", protojson.Format(resp))
 	}
 	if src, hl := v.SR().Globals(); src != "::" || hl != 64 {
@@ -303,21 +303,21 @@ func TestSrv6GlobalsOwner(t *testing.T) {
 	  "policies": {
 	    "fd00:7:bb::1": {"type": "default", "encap": true, "vrf": "default", "sidLists": [{"sids": ["fd00:7:ee::1"], "weight": 1}]},
 	    "fd00:7:bb::2": {"type": "default", "encap": true, "vrf": "default", "encapSource": "fd00:7::2", "sidLists": [{"sids": ["fd00:7:ee::2"], "weight": 1}]}}}}}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, d)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, d)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if src, hl := v.SR().Globals(); src != "fd00:7::1" || hl != 32 {
 		t.Fatalf("globals %s %d", src, hl)
 	}
-	want := proto.Clone(doc(t, d).GetRouting().GetSrv6()).(*vrxv1.Srv6Config)
+	want := proto.Clone(doc(t, d).GetRouting().GetSrv6()).(*ngfwv1.Srv6Config)
 	want.EncapSource, want.EncapHopLimit = nil, nil // write-only: never retrieved
 	mustEqualSrv6(t, retrieveSrv6(t, s), want)
 
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, d)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, d)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	notes := map[string]bool{}
 	for _, e := range rep.GetErrors() {
-		if e.GetRule() == "agent.unsupported-field" && e.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
+		if e.GetRule() == "agent.unsupported-field" && e.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING {
 			notes[e.GetPointer()] = true
 		}
 	}
@@ -325,7 +325,7 @@ func TestSrv6GlobalsOwner(t *testing.T) {
 		t.Fatalf("dry run %v", rep.GetErrors())
 	}
 
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{}`), Subsystems: []string{"routing"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, `{}`), Subsystems: []string{"routing"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if src, hl := v.SR().Globals(); src != "::" || hl != 64 {
 		t.Fatalf("globals not reset: %s %d", src, hl)
 	}
@@ -337,11 +337,11 @@ func TestSrv6GlobalsOwner(t *testing.T) {
 func TestSrv6State(t *testing.T) {
 	v := coretest.New()
 	s := newSvc(t, v, t.TempDir())
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, srv6Doc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, srv6Doc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.SR().AddForeignLocalSid("fd00:3:ff::1")
 	v.SR().SetCounters("fd00:7:ff::a", coretest.SRCounters{GoodPackets: 10, GoodBytes: 1000, BadPackets: 1, BadBytes: 64})
 	ctx := context.Background()
-	st, err := s.Srv6State(ctx, &vrxv1.Srv6StateRequest{})
+	st, err := s.Srv6State(ctx, &ngfwv1.Srv6StateRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +372,7 @@ func TestSrv6State(t *testing.T) {
 	if st.GetOwner() != testOwner || st.GetRetrievedAt() == nil {
 		t.Fatalf("meta %v", st)
 	}
-	if _, err := s.Srv6State(ctx, &vrxv1.Srv6StateRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.Srv6State(ctx, &ngfwv1.Srv6StateRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("owner mismatch: %v", err)
 	}
 	// D-132: a second walk while one is in flight gets UNAVAILABLE after the bounded wait.
@@ -380,13 +380,13 @@ func TestSrv6State(t *testing.T) {
 	srv6WalkWait = 20 * time.Millisecond
 	t.Cleanup(func() { srv6WalkWait = prev })
 	srv6Walk <- struct{}{}
-	_, err = s.Srv6State(ctx, &vrxv1.Srv6StateRequest{})
+	_, err = s.Srv6State(ctx, &ngfwv1.Srv6StateRequest{})
 	<-srv6Walk
 	if grpcCode(err) != codes.Unavailable {
 		t.Fatalf("busy walk: %v", err)
 	}
 	v.SetConnected(false)
-	if _, err := s.Srv6State(ctx, &vrxv1.Srv6StateRequest{}); grpcCode(err) != codes.Unavailable {
+	if _, err := s.Srv6State(ctx, &ngfwv1.Srv6StateRequest{}); grpcCode(err) != codes.Unavailable {
 		t.Fatalf("disconnected: %v", err)
 	}
 }

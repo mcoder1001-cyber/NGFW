@@ -103,9 +103,9 @@ func ProductPaths() Paths {
 }
 
 // TestPaths are the test-scoped paths for slot prefix ("w6"): everything
-// under /run/vrx-test/<prefix>/kea, interfaces "<prefix>-*", servers in ns-<prefix>-a.
+// under /run/ngfw-test/<prefix>/kea, interfaces "<prefix>-*", servers in ns-<prefix>-a.
 func TestPaths(prefix string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "kea")
+	base := filepath.Join("/run/ngfw-test", prefix, "kea")
 	return Paths{
 		ConfDir:         filepath.Join(base, "etc"),
 		RunDir:          filepath.Join(base, "run"),

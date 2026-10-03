@@ -15,7 +15,7 @@ import (
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_neighbor"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/df2"
 )
@@ -309,7 +309,7 @@ func TestCoalescer(t *testing.T) {
 	if len(evs) != 2 || c.Pending() {
 		t.Fatalf("%d events", len(evs))
 	}
-	if evs[0].GetInterface() != "host-w9l0" || evs[0].GetAttributes()["updated"] != "1" || evs[0].GetKind() != vrxv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED {
+	if evs[0].GetInterface() != "host-w9l0" || evs[0].GetAttributes()["updated"] != "1" || evs[0].GetKind() != ngfwv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED {
 		t.Fatalf("%v", evs[0])
 	}
 	if evs[1].GetInterface() != "loop901" || evs[1].GetAttributes()["added"] != "50" || evs[1].GetAttributes()["removed"] != "1" ||

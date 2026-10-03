@@ -4,7 +4,7 @@ package nftables
 //
 //	chain in__gb { type filter hook input priority -300; policy accept;
 //	    [anti-lockout accept rules, only when acl.hostSettings.antiLockout names its sources]
-//	    ip saddr @b4_<list> counter [log prefix "vrx:gb:<list> "] drop    comment "vrx:@global-blocking/<n>:…"
+//	    ip saddr @b4_<list> counter [log prefix "ngfw:gb:<list> "] drop    comment "ngfw:@global-blocking/<n>:…"
 //	    ip6 saddr @b6_<list> counter … drop }
 //
 // The chain runs before connection tracking, so a blocked source never creates a ct entry, and it drops
@@ -16,7 +16,7 @@ import (
 	"net/netip"
 	"sort"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // hostBlock is one block list that protects the box.
@@ -28,7 +28,7 @@ type hostBlock struct {
 }
 
 // hostBlockLists returns the enabled block lists with protectHost and entries, by name.
-func hostBlockLists(acl *vrxv1.AclConfig) []*hostBlock {
+func hostBlockLists(acl *ngfwv1.AclConfig) []*hostBlock {
 	lists := acl.GetGlobalBlocking().GetLists()
 	names := make([]string, 0, len(lists))
 	for n := range lists {

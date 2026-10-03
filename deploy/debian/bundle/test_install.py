@@ -181,7 +181,8 @@ class InstallTests(unittest.TestCase):
             with INSTALL.prepared(self.delivery, self.manifest) as (private, _, _):
                 self.assertEqual(private.parent, Path('/var/tmp'))
                 self.assertEqual(dict(os.environ), {
-                    'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
+                    'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C',
+                    'HOME': '/nonexistent'})
             self.assertEqual(os.environ['PATH'], str(malicious))
         self.assertFalse(marker.exists())
 

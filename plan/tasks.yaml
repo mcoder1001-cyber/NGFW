@@ -1438,12 +1438,12 @@ tasks:
     owner: ''
     started: ''
     finished: ''
-    notes:
-      'prompts-s4: suggested deps +P11 (ipsec itf/tunnel-protect + SA state); soft +F-pki (cert auth) — docs/status/tasks/prompts-s4.md
+    notes: |-
+      prompts-s4: suggested deps +P11 (ipsec itf/tunnel-protect + SA state); soft +F-pki (cert auth) — docs/status/tasks/prompts-s4.md
+      2026-10-03: native route-based PSK milestone wired and verified with production API/agent secrets, packets, counters, actions and active-SA agent restart; default 30-second/three-retry DPD hard crash and automatic peer recovery passed in 108.93 seconds. Evidence docs/status/tasks/F-ikev2-native.md and native-ipsec-2026-10-03-evidence/result.json. Overall remains running: certificate/PKI acceptance open; required VPP patch tested only in disposable instances, not deployed.
 
-      2026-10-03: native route-based PSK milestone wired and verified with production API/agent secrets, packets, counters, actions and active-SA agent restart; default 30-second/three-retry
-      DPD hard crash and automatic peer recovery passed in 108.93 seconds. Evidence docs/status/tasks/F-ikev2-native.md and native-ipsec-2026-10-03-evidence/result.json. Overall remains
-      running: certificate/PKI acceptance open; required VPP patch tested only in disposable instances, not deployed.'
+      2026-10-03: native route based PSK source milestone merged by PR135 (a0922c7e9ca25c50dd9e7b18aab62e8385697443); full hosted quick run 37139608578 passed. Overall state remains running: native certificate provisioning and native SA event publishing are real source work; VPP patch installation and new appliance acceptance remain unperformed.
+
   - id: F-wireguard
     title: 'Wave B (day 10-12): WireGuard peers/keys'
     prompt: prompts/features/F-wireguard.md
@@ -4712,7 +4712,7 @@ tasks:
       - F-isis-rip
     priority: 3
     est_hours: 4
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope:
@@ -4724,10 +4724,11 @@ tasks:
     owner: codex-restart-socket
     started: '2026-10-01'
     finished: '2026-10-03'
-    notes:
-      'D-173; RV-A | Prior slot-7 worktree inspected read-only and relevant harness imported into shared checkout. 2026-10-03 slot-6 isolated acceptance complete: live RIP/ISIS, real
-      API circuit400, minimal FRR fixes, strict RIP FIB/restart/reannouncement/rollback PASS154.20s with reviewed private Linux-NL patch0003/V27. Shared VPP PID1014/NRestarts0 and system
-      FRR unchanged. docs/status/tasks/F-isis-rip-host-2026-10-03.md; review pending, no merge claimed; OSI punt remains gated.'
+    notes: |-
+      D-173; RV-A | Prior slot-7 worktree inspected read-only and relevant harness imported into shared checkout. 2026-10-03 slot-6 isolated acceptance complete: live RIP/ISIS, real API circuit400, minimal FRR fixes, strict RIP FIB/restart/reannouncement/rollback PASS154.20s with reviewed private Linux-NL patch0003/V27. Shared VPP PID1014/NRestarts0 and system FRR unchanged. docs/status/tasks/F-isis-rip-host-2026-10-03.md; review pending, no merge claimed; OSI punt remains gated.
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: F-vrrp-config-sync-host
     title:
       'F-vrrp-config-sync host runs: show vrrp vr / rollback / restart / duplicate-VRID 400; V22b failover window and keepalived stage in the slot netns — VPP-engine steps only after
@@ -5010,7 +5011,7 @@ tasks:
       - S-sysident-issue-escape
     priority: 3
     est_hours: 3
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: owed checklist for F-system-identity in docs/status/tasks/RV-B-review-R7.md; run after its S-row fixes merge where they change the behaviour under test
@@ -5020,10 +5021,11 @@ tasks:
     owner: codex-restart-socket
     started: '2026-10-01'
     finished: '2026-10-03'
-    notes:
-      'D-184 | Prior slot-8 worktree inspected read-only; extra real API control-character and restart/mtime assertions imported. 2026-10-03 slot-6 isolated production API/agent acceptance
-      PASS14.47s: goldens, timezone/banner400 pointers, unchanged restart, host identity unchanged, P10 resolved package requirement confirmed. docs/status/tasks/F-system-identity-host-2026-10-03.md;
-      review pending, no merge claimed; integrated T4 screenshots remain owed.'
+    notes: |-
+      D-184 | Prior slot-8 worktree inspected read-only; extra real API control-character and restart/mtime assertions imported. 2026-10-03 slot-6 isolated production API/agent acceptance PASS14.47s: goldens, timezone/banner400 pointers, unchanged restart, host identity unchanged, P10 resolved package requirement confirmed. docs/status/tasks/F-system-identity-host-2026-10-03.md; review pending, no merge claimed; integrated T4 screenshots remain owed.
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: F-dataplane-ui-host
     title: 'F-dataplane-ui host runs: the "Owed on the host" checklist of RV-B-review-R7.md'
     prompt: prompts/features/F-dataplane-ui-host.md
@@ -5308,7 +5310,7 @@ tasks:
       - P11
     priority: 5
     est_hours: 2
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: 'P11 Q7: apps/cli cmd_op.go show ipsec → GET /api/v1/state/ipsec/{tunnels,sas} with paging; tests'
@@ -5318,9 +5320,11 @@ tasks:
     owner: codex-native-ipsec
     started: '2026-10-03'
     finished: '2026-10-03'
-    notes:
-      P11 Q7 | 2026-10-03 implementation complete; REST tunnel/SA state, bounded paging, precise SPI actions and failure semantics verified; full CLI race suite/build PASS; docs/status/tasks/S-cli-ipsec-2026-10-03.md;
-      review pending, no merge claimed
+    notes: |-
+      P11 Q7 | 2026-10-03 implementation complete; REST tunnel/SA state, bounded paging, precise SPI actions and failure semantics verified; full CLI race suite/build PASS; docs/status/tasks/S-cli-ipsec-2026-10-03.md; review pending, no merge claimed
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: S-config-path-encoding
     title: 'Web config paths: SNMP and global-blocking screens send multi-segment paths with an encoded "/" (%2F) → 404; use configUrl segment building everywhere + a lint/test guard'
     prompt: ''
@@ -5497,7 +5501,7 @@ tasks:
       - S-tunnels-contract
     priority: 3
     est_hours: 4
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: RV-C F-tunnels MAJOR 1 + 3 (RV-C-review-F-tunnels.md); HOST-FOLLOWUP-TEMPLATE; prefixed instances in the slot range
@@ -5507,9 +5511,11 @@ tasks:
     owner: ''
     started: '2026-10-03'
     finished: '2026-10-03'
-    notes:
-      '2026-10-03 real API and direct-agent GRE/IPIP/VXLAN acceptance PASS: exact Retrieve, duplicate400, no-op, owned binary-API loss/restart<30s, historical rollback and empty metadata;
-      independent driver P2 findings closed. Report docs/status/tasks/F-tunnels-host-2026-10-03.md. T4 screenshots after merge remain policy-deferred; no merge/install claim.'
+    notes: |-
+      2026-10-03 real API and direct-agent GRE/IPIP/VXLAN acceptance PASS: exact Retrieve, duplicate400, no-op, owned binary-API loss/restart<30s, historical rollback and empty metadata; independent driver P2 findings closed. Report docs/status/tasks/F-tunnels-host-2026-10-03.md. T4 screenshots after merge remain policy-deferred; no merge/install claim.
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: S-capture-retention-stop
     title:
       'Capture: never evict the newest capture (retention bytes cap), reject oversize plans, stop route/UI + end at packet limit, Recover at agent start and in Delete/Read, moveFile
@@ -5522,7 +5528,7 @@ tasks:
       - S-capture-file-safety
     priority: 2
     est_hours: 5
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope:
@@ -5537,9 +5543,11 @@ tasks:
     owner: ''
     started: '2026-10-03'
     finished: '2026-10-03'
-    notes:
-      2026-10-03 implementation and focused race/API/web/build checks passed; stop/recovery ownership failure regressions included. Review evidence docs/status/tasks/S-capture-retention-stop-2026-10-03.md;
-      no merge or deployment claimed.
+    notes: |-
+      2026-10-03 implementation and focused race/API/web/build checks passed; stop/recovery ownership failure regressions included. Review evidence docs/status/tasks/S-capture-retention-stop-2026-10-03.md; no merge or deployment claimed.
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: F-capture-trace-host
     title:
       'F-capture-trace host runs: real capture on a slot rig + tcpdump -r, 0600 listing, /tmp clean, 409 capture-busy + 400 /bpf, agent-restart excerpt (D-076), DELETE before/after,
@@ -5602,7 +5610,7 @@ tasks:
       - F-vrrp-config-sync-host
     priority: 3
     est_hours: 4
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope:
@@ -5613,10 +5621,12 @@ tasks:
     worktree: ''
     owner: Codex drift agent (isolated verification)
     started: '2026-10-03'
-    finished: ''
-    notes:
-      2026-10-03 F1/F2/F3 non-privileged finding/F4 implemented in shared bbd9; core/vrrp/desired/subsystems/keepalived race suites PASS; disposable VPP F1/F2/F4 and enabled:false
-      APPLIED PASS (0.77s); docs/status/tasks/S-vrrp-product-fixes.md; HTTP drift/CI/review pending; F3 daemon-start privileges remain owner decision; no review/merge claimed
+    finished: '2026-10-03'
+    notes: |-
+      2026-10-03 F1/F2/F3 non-privileged finding/F4 implemented in shared bbd9; core/vrrp/desired/subsystems/keepalived race suites PASS; disposable VPP F1/F2/F4 and enabled:false APPLIED PASS (0.77s); docs/status/tasks/S-vrrp-product-fixes.md; HTTP drift/CI/review pending; F3 daemon-start privileges remain owner decision; no review/merge claimed
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: S-banner-login-web
     title: Show system.banner.login on the web login page (pre-auth GET of the banner text; en/fa; D-155)
     prompt: ''
@@ -5778,7 +5788,7 @@ tasks:
       - S-lcp-netns-224-accept
     priority: 3
     est_hours: 1
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: S-lcp-netns-224-accept re-review MINOR 2 + arbiter ruling; also add a desired-package test that Drift stays refused
@@ -5787,13 +5797,12 @@ tasks:
     worktree: /root/ngfw-wt/TD-lcp-leftover-local-path
     owner: developer slot 11
     started: '2026-10-01'
-    finished: ''
-    notes:
-      D-217 | 2026-10-01 spawned (Agent tool, developer) slot 11, envelope /root/ngfw-wt/TD-lcp-leftover-local-path.envelope.md (D-219 resume) | 2026-10-01 dev done f6a875d0, gate
-      PASSED 14m01s (compile-only); host check slot 11 table 11224 entry_gone=true; review R4+R1 (one reviewer, D-216 precedent); Q4 permission refused rm -rf /tmp/g-w11 + dist/bin cleanup
-      → owner action | 2026-10-01 review R4+R1 BLOCK (1 MAJOR false refusal on a reused sw_if_index with a stale linux-cp Accept, 2 MINOR, 2 NIT); fix round 1 spawned (respawn 1, fake-only,
-      option (a)) | 2026-10-03 current bbd9 integration reused reviewed 3d4099d2 LCP fixes + desired Drift rejection; LCP/desired race PASS; disposable VPP slot 5 table 5224 leftover cleanup
-      PASS; docs/status/tasks/TD-lcp-leftover-local-path.md; current review/CI/merge pending, no merge claimed
+    finished: '2026-10-03'
+    notes: |-
+      D-217 | 2026-10-01 spawned (Agent tool, developer) slot 11, envelope /root/ngfw-wt/TD-lcp-leftover-local-path.envelope.md (D-219 resume) | 2026-10-01 dev done f6a875d0, gate PASSED 14m01s (compile-only); host check slot 11 table 11224 entry_gone=true; review R4+R1 (one reviewer, D-216 precedent); Q4 permission refused rm -rf /tmp/g-w11 + dist/bin cleanup → owner action | 2026-10-01 review R4+R1 BLOCK (1 MAJOR false refusal on a reused sw_if_index with a stale linux-cp Accept, 2 MINOR, 2 NIT); fix round 1 spawned (respawn 1, fake-only, option (a)) | 2026-10-03 current bbd9 integration reused reviewed 3d4099d2 LCP fixes + desired Drift rejection; LCP/desired race PASS; disposable VPP slot 5 table 5224 leftover cleanup PASS; docs/status/tasks/TD-lcp-leftover-local-path.md; current review/CI/merge pending, no merge claimed
+
+      2026-10-03: scoped source integrated by PR135, merge a0922c7e9ca25c50dd9e7b18aab62e8385697443; unchanged mandatory hosted quick run 37139608578 passed and three independent source reviews approved. Original hardware evidence remains pre-brand evidence; no new installed appliance acceptance is claimed. Identity/tunnel T4 screenshots remain deferred. VRRP F3 daemon-spawn permission remains outside this scoped fix and requires its separate ownership decision.
+
   - id: M-origin-sync
     title: Integrate origin/main (7 commits by a colleague, 2026-09-30, 16 conflicting files) into main with a real merge commit
     prompt: prompts/ops/M-origin-sync.md

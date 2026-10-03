@@ -1,7 +1,7 @@
 {
   "nav": "Multi-WAN",
   "title": "WAN groups",
-  "intro": "Multi-WAN failover and load balancing. Each group's members are monitored by health probes; in failover the lowest-priority healthy member carries the default route, in balance mode traffic is spread over healthy members by weight. Groups are configured under Config → Routing → WAN groups.",
+  "intro": "WAN member health monitoring only. Configured failover and balance modes do not yet install routes, switch traffic, clean up NAT sessions or apply ABF policy. No active forwarding member is reported. Configure monitoring under Config → Routing → WAN groups.",
   "refresh": "Refresh",
   "loading": "Loading",
   "empty": "No WAN groups configured.",

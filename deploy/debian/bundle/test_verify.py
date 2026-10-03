@@ -21,7 +21,7 @@ class BundleTests(unittest.TestCase):
 
     def archive(self, name, version='1.0', extra='', architecture='amd64', lower_required=False, mixed_required=False):
         source = self.root / (name + '-source')
-        (source / 'DEBIAN').mkdir(parents=True)
+        (source / 'DEBIAN').mkdir(parents=True, exist_ok=True)
         required = (f'package: {name}\nversion: {version}\narchitecture: {architecture}\n'
                     if lower_required else
                     f'Package: {name}\nVersion: {version}\nArchitecture: {architecture}\n')
@@ -110,7 +110,9 @@ class BundleTests(unittest.TestCase):
              'version': '26.06-release+vrx1', 'architecture': 'amd64',
              'sha256': vpp_metadata['sha256'], 'size': vpp_metadata['size']}]}))
         for name in VERIFY.runtime_roots():
-            self.archive(name)
+            self.archive(name, extra='Depends: fixture-interpreter:any (>= 2)\n'
+                         if name == 'vrx-agent' else '')
+        self.archive('fixture-interpreter', version='2', extra='Multi-Arch: allowed\n')
         original_run = VERIFY.run
         gate_calls = []
         def fake_gate(argv, limit=1024 * 1024, pass_fds=()):
@@ -124,10 +126,14 @@ class BundleTests(unittest.TestCase):
             plan = VERIFY.verify(self.root)
             self.assertEqual(plan['product_version'], '1.0')
             self.assertTrue(all(not Path(path).is_absolute() for path in plan['install_files']))
+            self.archive('fixture-interpreter', version='2', extra='Multi-Arch: foreign\n')
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.verify(self.root)
+            self.archive('fixture-interpreter', version='2', extra='Multi-Arch: allowed\n')
             (self.root / 'frr.deb').unlink()
             with self.assertRaises(VERIFY.InvalidBundle):
                 VERIFY.verify(self.root)
-        self.assertEqual(len(gate_calls), 2)
+        self.assertEqual(len(gate_calls), 3)
 
     def test_real_vpp_gate_rejects_missing_build(self):
         (self.root / 'vpp').mkdir()
@@ -211,6 +217,72 @@ class BundleTests(unittest.TestCase):
                 VERIFY.parse_control(first + ': one\n' + second + ': two\n')
         parsed = VERIFY.parse_control('dEpEnDs: base\n | alternative\nX-Custom: value\n')
         self.assertEqual(parsed, {'Depends': 'base | alternative', 'X-Custom': 'value'})
+
+    def test_direct_any_allowed_real_archives_and_version_alternatives(self):
+        for architecture in ('amd64', 'all'):
+            name = 'interpreter-' + architecture
+            provider = VERIFY.metadata(self.archive(name, version='2', architecture=architecture,
+                extra='mUlTi-ArCh: allowed\n'))
+            for kind in ('depends', 'pRe-DePeNdS'):
+                consumer_name = 'consumer-' + architecture + '-' + kind.lower()
+                consumer = VERIFY.metadata(self.archive(consumer_name, extra=
+                    kind + ': missing | ' + name + ':any (>= 2)\n'))
+                VERIFY.validate_set({consumer_name: consumer, name: provider}, set())
+                with self.assertRaises(VERIFY.InvalidBundle):
+                    VERIFY.validate_set({consumer_name: consumer}, set())
+            self.archive(name, version='1', architecture=architecture, extra='Multi-Arch: allowed\n')
+            old = VERIFY.metadata(self.root / (name + '.deb'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({consumer_name: consumer, name: old}, set())
+
+    def test_direct_any_rejects_ineligible_multi_arch_real_archives(self):
+        for index, mode in enumerate(('foreign', 'no', 'same', None)):
+            name = 'ineligible-' + str(index)
+            provider = VERIFY.metadata(self.archive(name, extra=
+                'Multi-Arch: ' + mode + '\n' if mode else ''))
+            consumer = VERIFY.metadata(self.archive('consumer-' + str(index), extra=
+                'Depends: ' + name + ':any\n'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({name: provider, 'consumer': consumer}, set())
+        # Unknown field values cannot authorize :any even for parser-originated
+        # metadata; malformed Multi-Arch values need not be accepted by dpkg-deb.
+        invalid = {'fields': VERIFY.parse_control(
+            'Package: invalid\nVersion: 1\nArchitecture: amd64\nMulti-Arch: mystery\n')}
+        consumer = VERIFY.metadata(self.archive('unknown-consumer', extra='Depends: invalid:any\n'))
+        with self.assertRaises(VERIFY.InvalidBundle):
+            VERIFY.validate_set({'invalid': invalid, 'consumer': consumer}, set())
+
+    def test_any_dependency_alternative_can_use_unqualified_provider(self):
+        consumer = VERIFY.metadata(self.archive('consumer', extra='Depends: missing:any | fallback\n'))
+        fallback = VERIFY.metadata(self.archive('fallback', extra='Multi-Arch: no\n'))
+        VERIFY.validate_set({'consumer': consumer, 'fallback': fallback}, set())
+
+    def test_qualified_virtual_dependency_rejected_before_alternatives(self):
+        provider = VERIFY.metadata(self.archive('provider', extra=
+            'Multi-Arch: allowed\nProvides: virtual (= 2)\n'))
+        for index, relationship in enumerate(('virtual:any (>= 2)', 'provider | virtual:any')):
+            consumer = VERIFY.metadata(self.archive('consumer-' + str(index), extra=
+                'Depends: ' + relationship + '\n'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({'provider': provider, 'consumer': consumer}, set())
+        unqualified = VERIFY.metadata(self.archive('unqualified', extra='Depends: virtual (= 2)\n'))
+        VERIFY.validate_set({'provider': provider, 'unqualified': unqualified}, set())
+
+    def test_any_context_and_other_qualifiers_remain_unsupported(self):
+        for relation in ('provider:native', 'provider:arm64', 'provider:amd64',
+                         'provider:any [amd64]', 'provider:any <!profile>'):
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.relations(relation, allow_any=True)
+        for index, field in enumerate(('Provides', 'Conflicts', 'Breaks')):
+            # All are actual archives, not parser-only relationship assertions.
+            package = VERIFY.metadata(self.archive('unsupported-' + str(index), extra=
+                field + ': provider:any\n'))
+            with self.assertRaises(VERIFY.InvalidBundle):
+                VERIFY.validate_set({'package': package}, set())
+        with self.assertRaises(VERIFY.InvalidBundle):
+            VERIFY.relations('provider:any')
+        self.assertEqual(VERIFY.relations('provider:any (>= 2)', allow_any=True),
+                         [[('provider:any', '>=', '2')]])
 
 
 if __name__ == '__main__':

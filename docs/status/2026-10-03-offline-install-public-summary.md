@@ -1,7 +1,9 @@
-# Offline installer increment — 2026-10-03
+# Offline packaging progress — 2026-10-03
 
-PR #91 adds trusted-manifest preflight and explicitly requested offline local-package installation. Default mode only prints a verified plan. The mutating mode requires root on Ubuntu 26.04 amd64 and simulates isolated APT before installation from private verified snapshots.
+PR91 merged at 809625c859b0bdcaca6bb1560f5036e9dc7e8036 after all five applicable independent reviews and unchanged hosted gates. Post-main quick37090442585 and provisioning37090442607 both SUCCESS. The merged Git tree equals the reviewed tree.
 
-Eleven installer fixtures and thirteen existing verifier fixtures pass with zero skips. Applicable independent reviews approve the bounded product scope. Provisioning fixture CI 37088393019 succeeds; unchanged complete CI 37088392772 is still running at this checkpoint. Merge requires that gate to succeed and the current main integration tree to remain verified.
+Next sequential increment is PR92: bounded direct runtime :any dependencies for native amd64/all packages declaring Multi-Arch: allowed. Public head0feb1ad1, tree7480ec00; three product files, single commit. All five independent reviews approve; 22 checker and 11 installer regression tests pass with zero skips. Hosted provisioning37091001230 SUCCESS; unchanged complete quick37091001247 pending. It must pass before merge, followed by fresh live-main and expected-head checks.
 
-This increment does not establish a complete real delivery set, signed release publication, Ubuntu 26.04 installation lifecycle, firstboot or hardware acceptance. P10 remains incomplete. Package maintainer scripts remain privileged, can use the network, and installation is not transactional.
+The whole P10 task remains incomplete. Real complete signed artifacts, clean Ubuntu26 lifecycle/firstboot and hardware acceptance remain unverified; synthetic VPP boundaries are not artifact provenance. No host installation was performed.
+
+Board reconciliation checkpoint is 114/156 merged; historical dashboard and identity merges corrected stale rows. Board running counts are not live-agent counts. Product development proceeds one increment at a time, with independent reviews parallel.

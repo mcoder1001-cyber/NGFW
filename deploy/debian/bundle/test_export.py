@@ -1,4 +1,5 @@
 """Synthetic real Debian archives; stubbed VPP boundary, no installation."""
+import hashlib
 import importlib.util
 import json
 import os
@@ -90,6 +91,9 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(VERIFY.verify(restored), self.plan)
         self.assertNotIn('vpp/vpp-dbg.deb', self.plan['install_files'])
         self.assertEqual(report['members'], len(expected))
+        self.assertEqual(report['archive_bytes'], self.output.stat().st_size)
+        self.assertEqual(report['sha256'], hashlib.sha256(self.output.read_bytes()).hexdigest())
+        self.assertGreater(report['archive_bytes'], report['bytes'])
         self.assert_no_partials()
 
     def test_trusted_manifest_mismatch_and_missing_runtime_rejected(self):

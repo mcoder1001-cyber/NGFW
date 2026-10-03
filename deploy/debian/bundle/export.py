@@ -164,13 +164,18 @@ def export(source, manifest, output):
             raise InvalidBundle('output already exists; refusing overwrite')
         with INSTALL.prepared(source, manifest) as (_, snapshot, plan):
             files = inventory(snapshot, plan)
-            descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            descriptor = os.open(temporary, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
                                  0o600, dir_fd=parent_fd)
             created = True
-            with os.fdopen(descriptor, 'wb') as stream:
+            with os.fdopen(descriptor, 'w+b') as stream:
                 write_tar(stream, snapshot, files)
                 stream.flush()
                 os.fsync(stream.fileno())
+                archive_bytes = stream.tell()
+                stream.seek(0)
+                archive_sha256 = hashlib.file_digest(stream, 'sha256').hexdigest()
+                if os.fstat(stream.fileno()).st_size != archive_bytes:
+                    raise InvalidBundle('export archive size changed during hashing')
             if inventory(snapshot, plan) != files:
                 raise InvalidBundle('snapshot inventory changed before publication')
             # Recheck the destination path resolves to our pinned parent.
@@ -192,7 +197,8 @@ def export(source, manifest, output):
             finally:
                 os.close(current)
             os.fsync(parent_fd)
-        return {'file': str(output), 'members': len(files), 'bytes': sum(size for size, _ in files.values())}
+        return {'file': str(output), 'members': len(files), 'bytes': sum(size for size, _ in files.values()),
+                'archive_bytes': archive_bytes, 'sha256': archive_sha256}
     except BaseException:
         if published:
             os.unlink(output.name, dir_fd=parent_fd)

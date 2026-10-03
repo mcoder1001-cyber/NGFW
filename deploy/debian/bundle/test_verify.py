@@ -41,10 +41,20 @@ class BundleTests(unittest.TestCase):
         package = VERIFY.metadata(path)
         self.assertEqual(package['fields']['Package'], 'vrx-agent')
         self.assertEqual(len(package['sha256']), 64)
-        path.write_bytes(path.read_bytes() + b'changed')
-        self.assertNotEqual(VERIFY.metadata(path)['sha256'], package['sha256'])
+        # Rebuild a valid archive with the same control metadata and new payload.
+        # Appending an odd-length trailer is malformed ar on newer dpkg-deb.
+        (self.root / 'vrx-agent-source' / 'payload').write_bytes(b'changed')
+        rebuilt = VERIFY.metadata(self.archive('vrx-agent'))
+        self.assertEqual(rebuilt['fields'], package['fields'])
+        self.assertNotEqual(rebuilt['sha256'], package['sha256'])
         with self.assertRaises(VERIFY.InvalidBundle):
             VERIFY.metadata(self.archive('foreign', architecture='arm64'))
+
+    def test_malformed_archive_rejected(self):
+        path = self.archive('broken')
+        path.write_bytes(path.read_bytes()[:16])
+        with self.assertRaises(VERIFY.InvalidBundle):
+            VERIFY.metadata(path)
 
     def test_symlink_rejected(self):
         original = self.archive('vrx-api')

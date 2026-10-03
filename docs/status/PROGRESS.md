@@ -26,19 +26,19 @@ Updated 2026-10-03 from plan/tasks.yaml (estimated hours are the plan's, not act
 
 ## Running / review
 
-- F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, unassigned)
-- F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, unassigned)
-- F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (running, cloud session modest-keller)
-- F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (running, cloud session modest-keller)
-- P11 — Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards (running, Codex manager delegated worker)
-- F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (running, cloud session modest-keller)
-- F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (running, cloud session modest-keller)
-- F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (running, cloud session modest-keller)
-- F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (running, cloud session modest-keller)
-- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, unassigned)
-- F-notifications — Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state (running, notifications_build)
-- F-setup-wizard — First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit (running, setup_build)
-- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, dashboard_finish)
+- F-det44-map-dslite-cnat — Wave B (day 10-12): DET44 CGNAT, MAP-E/T, DS-Lite, LW4o6, 464XLAT, CNAT policies (running, awaiting resume)
+- F-nat46 — Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46) (running, awaiting resume)
+- F-dataplane-ui — Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply (running, awaiting resume)
+- F-management-ui — Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls (running, /root/ngfw_manager/management_developer)
+- P11 — Wave B (day 10-12): strongSwan+VPP build (staging sysroot) + IPsec S2S + tunnel dashboards (running, awaiting resume)
+- F-tunnels — Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE (running, awaiting resume)
+- F-ospf — Wave B (day 10-12): OSPFv2/v3 via FRR (running, awaiting resume)
+- F-isis-rip — Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR (running, awaiting resume)
+- F-vrrp-config-sync — Wave C (day 13-15): VRRPv3 (VPP plugin + keepalived path), config sync, cluster UI (running, awaiting resume)
+- P10 — Debian packaging + systemd + install (26.04, our VPP debs) (running, /root/ngfw_manager/p10_developer)
+- F-notifications — Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state (running, awaiting resume)
+- F-setup-wizard — First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit (running, awaiting resume)
+- F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (running, awaiting resume)
 
 ## Parked
 

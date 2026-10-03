@@ -71,3 +71,5 @@ jobs:
         run: python3 deploy/debian/bundle/test_verify.py
       - name: Validate trusted offline installer fixtures
         run: python3 deploy/debian/bundle/test_install.py
+      - name: Validate portable Debian export fixtures
+        run: python3 deploy/debian/bundle/test_export.py

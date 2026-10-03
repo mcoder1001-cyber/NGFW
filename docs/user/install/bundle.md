@@ -123,3 +123,52 @@ A genuine complete bundle, signed-release trust, actual clean Ubuntu
 installation/remove/reinstall, firstboot and hardware validation remain required.
 The bounded verifier's unsupported relationship/Multi-Arch syntax limitations
 above still apply and can reject real distribution package sets.
+
+
+## Export an already verified set for transport
+
+From a source checkout with Python 3, Bash and Debian package tools, export a
+complete directory using the separately obtained trusted runtime manifest:
+
+```sh
+python3 deploy/debian/bundle/export.py /path/to/delivery --manifest /trusted/bundle-manifest.json --output /owned/output/vrx-delivery.tar
+```
+
+This does not build or fetch missing packages. The existing full bundle and VPP
+verification must pass before an archive is produced. It reuses the installer's
+private bounded snapshot and clean helper environment. The output directory
+must already exist, be owned by the caller, and have no group/other write
+permission. Every destination parent component must be a real directory, not a
+symlink. Output inside the source tree, a path overlapping the trusted manifest,
+unsafe member names, and any existing output file or symlink are rejected.
+
+Export writes a mode-0600 temporary sibling, checks hashes of the bytes actually
+streamed, rechecks the whole snapshot and pinned destination directory, and
+publishes a new file atomically without replacing an existing name. A concurrent
+creator of that output name wins; its file is preserved. Temporary output is
+removed on failure. Keep the caller-owned output directory and its ancestry
+stable during export; the implementation checks directory identity before and
+after publication. Filesystems must support hard links and directory fsync.
+
+The uncompressed tar uses deterministic sorted relative paths and regular file
+members. It includes the runtime archives plus the complete verified VPP archive
+set, `vpp/manifest.json` and `vpp/SHA256SUMS` needed to rerun the existing VPP
+verifier. Nonshipping VPP development/debug archives are retained for that
+verification and **never** enter `install_files`. The external expected runtime
+manifest is not placed in the tar; retain it separately through the trusted
+channel. That expected manifest covers runtime artifacts, not the retained
+nonshipping VPP payloads. Export does not add publisher authentication or prove
+that those excluded payloads form an authenticated release.
+
+Transport the tar and keep the trusted expected manifest separately. Restore
+only an export you trust into a new empty directory with a standard tar tool,
+then rerun `verify.py --manifest` or the default `install.py` preflight against
+that directory. The exporter supplies no extraction helper or automatic
+installation. Allow disk space for the private snapshot plus the uncompressed
+archive. The source checkout and its helper dependencies remain required on the
+recipient; this archive does not embed an installer or create a bootable image.
+
+Export fixtures build real small Debian archives, exercise deterministic member
+content/roundtrip and failure paths, and stub the VPP provenance boundary. They
+are not a real complete artifact delivery, signed release, clean-machine install
+or hardware acceptance result. Those P10 release gates remain required.

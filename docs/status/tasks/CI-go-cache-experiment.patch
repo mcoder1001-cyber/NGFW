@@ -1,0 +1,12 @@
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -39,7 +39,8 @@
+         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+         with:
+           go-version: '1.26.0'
+-          cache: false
++          cache: true
++          cache-dependency-path: '**/go.sum'
+       - name: Install pinned package manager and CI tools
+         shell: bash
+         run: |

@@ -1,0 +1,18 @@
+# VRX appliance disk layout (docs/09-os-packages.md §7). Labels as allocated in docs/status/wave-BC-numbers.md "P14":
+# the ISO installer (P14), the disk images (F-images) and the A/B upgrade (F-ab-upgrade) all find partitions by them.
+# Change it only through P14. Columns are whitespace separated:
+#   label   GPT partition name AND filesystem label (FAT labels: upper case, at most 11 characters)
+#   size    <n>G = n GiB (curtin units are binary); "rest" = the remainder of the disk (last row only)
+#   fstype  curtin fstype (fat32 | ext4)
+#   mount   mount point, "-" = never mounted and not in fstab
+#   role    esp | root-active | root-reserved | log | pg | data
+#   luks    "luks" = on dm-crypt when the image is built with --luks, "-" = never encrypted
+# A 1 MiB BIOS boot partition (GPT type bios_grub, no label, no filesystem) precedes these rows so that legacy BIOS can
+# boot the GPT disk; it is partition 1 and the rows below are partitions 2..7 in this order.
+# Fixed part: 1 MiB + 81 GiB; the installer refuses disks smaller than 96 GiB (vrx-data gets at least ~15 GiB).
+VRX-EFI    1G    fat32  /boot/efi            esp            -
+vrx-rootA  20G   ext4   /                    root-active    -
+vrx-rootB  20G   ext4   -                    root-reserved  -
+vrx-log    20G   ext4   /var/log             log            luks
+vrx-pg     20G   ext4   /var/lib/postgresql  pg             luks
+vrx-data   rest  ext4   /data                data           luks

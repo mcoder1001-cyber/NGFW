@@ -1,0 +1,8 @@
+# Packages purged after vrx-meta is installed (docs/09-os-packages.md §3). The "all" set is exactly the one
+# scripts/10-install-runtime.sh purges, so the ISO and the package path produce the same box (D-202 (1)).
+# Columns: package  profiles (comma separated: all | iso | vm | cloud)  reason
+network-manager       all  fights the interfaces the appliance manages itself
+unattended-upgrades   all  upgrades go through the A/B mechanism only (F-ab-upgrade)
+snapd                 all  size and attack surface for nothing the appliance uses
+ufw                   all  the host firewall is nftables, driven directly (inet vrx_base, inet vrx)
+cloud-init            iso  bare metal has no cloud datasource; VM/cloud images keep it (F-images decides its profiles)

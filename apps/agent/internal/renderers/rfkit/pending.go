@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -54,11 +55,34 @@ func uptimeTicks() (uint64, error) {
 	if len(f) == 0 {
 		return 0, errors.New("empty /proc/uptime")
 	}
-	sec, err := strconv.ParseFloat(f[0], 64)
+	return parseUptimeTicks(f[0])
+}
+
+// Parse decimal centiseconds exactly: floating point can turn 10.03 * 100
+// into 1002.999..., making the current process appear newer than its request.
+func parseUptimeTicks(value string) (uint64, error) {
+	whole, fraction, hasFraction := strings.Cut(value, ".")
+	seconds, err := strconv.ParseUint(whole, 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("invalid uptime: %w", err)
 	}
-	return uint64(sec * clockTicks), nil
+	var ticks uint64
+	if hasFraction {
+		if len(fraction) < 1 || len(fraction) > 2 {
+			return 0, errors.New("uptime must use centisecond precision")
+		}
+		if len(fraction) == 1 {
+			fraction += "0"
+		}
+		ticks, err = strconv.ParseUint(fraction, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid uptime fraction: %w", err)
+		}
+	}
+	if seconds > (math.MaxUint64-ticks)/clockTicks {
+		return 0, errors.New("uptime ticks overflow")
+	}
+	return seconds*clockTicks + ticks, nil
 }
 
 func procRoot() string {

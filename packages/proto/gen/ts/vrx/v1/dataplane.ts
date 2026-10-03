@@ -3815,7 +3815,54 @@ export interface ManagementConfig {
     | ManagementPrometheus
     | undefined;
   /** Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard). */
-  alarms: ManagementAlarms | undefined;
+  alarms:
+    | ManagementAlarms
+    | undefined;
+  /** API-owned email/webhook configuration, mirrored for schema drift validation. */
+  notifications: ManagementNotifications | undefined;
+}
+
+/** ManagementNotifications mirrors management.notifications; the API dispatches deliveries. */
+export interface ManagementNotifications {
+  channels: NotificationChannel[];
+  rules: NotificationRule[];
+}
+
+/** NotificationChannel mirrors a named email or webhook channel; secret values are never carried. */
+export interface NotificationChannel {
+  name?: string | undefined;
+  enabled?: boolean | undefined;
+  vrf?: string | undefined;
+  type?: string | undefined;
+  email: NotificationEmail | undefined;
+  webhook: NotificationWebhook | undefined;
+}
+
+/** NotificationEmail mirrors SMTP settings and encrypted secret references. */
+export interface NotificationEmail {
+  smtpHost?: string | undefined;
+  port?: number | undefined;
+  tls?: string | undefined;
+  username?: string | undefined;
+  passwordRef?: string | undefined;
+  from?: string | undefined;
+  to: string[];
+}
+
+/** NotificationWebhook mirrors signed HTTPS webhook settings. */
+export interface NotificationWebhook {
+  url?: string | undefined;
+  secretRef?: string | undefined;
+}
+
+/** NotificationRule mirrors routing, minimum severity and per-rule throttle. */
+export interface NotificationRule {
+  name?: string | undefined;
+  enabled?: boolean | undefined;
+  events: string[];
+  minSeverity?: string | undefined;
+  channels: string[];
+  throttleSec?: number | undefined;
 }
 
 /** SecurityConfig mirrors `security`. */
@@ -34601,7 +34648,15 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
 };
 
 function createBaseManagementConfig(): ManagementConfig {
-  return { users: [], aaa: undefined, tls: undefined, syslog: [], prometheus: undefined, alarms: undefined };
+  return {
+    users: [],
+    aaa: undefined,
+    tls: undefined,
+    syslog: [],
+    prometheus: undefined,
+    alarms: undefined,
+    notifications: undefined,
+  };
 }
 
 export const ManagementConfig: MessageFns<ManagementConfig> = {
@@ -34623,6 +34678,9 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     }
     if (message.alarms !== undefined) {
       ManagementAlarms.encode(message.alarms, writer.uint32(50).fork()).join();
+    }
+    if (message.notifications !== undefined) {
+      ManagementNotifications.encode(message.notifications, writer.uint32(58).fork()).join();
     }
     return writer;
   },
@@ -34688,6 +34746,14 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
             message.alarms = ManagementAlarms.decode(reader, reader.uint32());
             continue;
           }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.notifications = ManagementNotifications.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -34708,6 +34774,7 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
       syslog: globalThis.Array.isArray(object?.syslog) ? object.syslog.map((e: any) => SyslogTarget.fromJSON(e)) : [],
       prometheus: isSet(object.prometheus) ? ManagementPrometheus.fromJSON(object.prometheus) : undefined,
       alarms: isSet(object.alarms) ? ManagementAlarms.fromJSON(object.alarms) : undefined,
+      notifications: isSet(object.notifications) ? ManagementNotifications.fromJSON(object.notifications) : undefined,
     };
   },
 
@@ -34731,6 +34798,9 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     if (message.alarms !== undefined) {
       obj.alarms = ManagementAlarms.toJSON(message.alarms);
     }
+    if (message.notifications !== undefined) {
+      obj.notifications = ManagementNotifications.toJSON(message.notifications);
+    }
     return obj;
   },
 
@@ -34749,6 +34819,683 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     message.alarms = (object.alarms !== undefined && object.alarms !== null)
       ? ManagementAlarms.fromPartial(object.alarms)
       : undefined;
+    message.notifications = (object.notifications !== undefined && object.notifications !== null)
+      ? ManagementNotifications.fromPartial(object.notifications)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseManagementNotifications(): ManagementNotifications {
+  return { channels: [], rules: [] };
+}
+
+export const ManagementNotifications: MessageFns<ManagementNotifications> = {
+  encode(message: ManagementNotifications, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.channels) {
+      NotificationChannel.encode(v!, writer.uint32(10).fork()).join();
+    }
+    for (const v of message.rules) {
+      NotificationRule.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementNotifications {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementNotifications();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.channels.push(NotificationChannel.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.rules.push(NotificationRule.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementNotifications {
+    return {
+      channels: globalThis.Array.isArray(object?.channels)
+        ? object.channels.map((e: any) => NotificationChannel.fromJSON(e))
+        : [],
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => NotificationRule.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: ManagementNotifications): unknown {
+    const obj: any = {};
+    if (message.channels?.length) {
+      obj.channels = message.channels.map((e) => NotificationChannel.toJSON(e));
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => NotificationRule.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementNotifications>): ManagementNotifications {
+    return ManagementNotifications.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementNotifications>): ManagementNotifications {
+    const message = createBaseManagementNotifications();
+    message.channels = object.channels?.map((e) => NotificationChannel.fromPartial(e)) || [];
+    message.rules = object.rules?.map((e) => NotificationRule.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseNotificationChannel(): NotificationChannel {
+  return { name: undefined, enabled: undefined, vrf: undefined, type: undefined, email: undefined, webhook: undefined };
+}
+
+export const NotificationChannel: MessageFns<NotificationChannel> = {
+  encode(message: NotificationChannel, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(26).string(message.vrf);
+    }
+    if (message.type !== undefined) {
+      writer.uint32(34).string(message.type);
+    }
+    if (message.email !== undefined) {
+      NotificationEmail.encode(message.email, writer.uint32(42).fork()).join();
+    }
+    if (message.webhook !== undefined) {
+      NotificationWebhook.encode(message.webhook, writer.uint32(50).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NotificationChannel {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNotificationChannel();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.email = NotificationEmail.decode(reader, reader.uint32());
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.webhook = NotificationWebhook.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NotificationChannel {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      email: isSet(object.email) ? NotificationEmail.fromJSON(object.email) : undefined,
+      webhook: isSet(object.webhook) ? NotificationWebhook.fromJSON(object.webhook) : undefined,
+    };
+  },
+
+  toJSON(message: NotificationChannel): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.email !== undefined) {
+      obj.email = NotificationEmail.toJSON(message.email);
+    }
+    if (message.webhook !== undefined) {
+      obj.webhook = NotificationWebhook.toJSON(message.webhook);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NotificationChannel>): NotificationChannel {
+    return NotificationChannel.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NotificationChannel>): NotificationChannel {
+    const message = createBaseNotificationChannel();
+    message.name = object.name ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.type = object.type ?? undefined;
+    message.email = (object.email !== undefined && object.email !== null)
+      ? NotificationEmail.fromPartial(object.email)
+      : undefined;
+    message.webhook = (object.webhook !== undefined && object.webhook !== null)
+      ? NotificationWebhook.fromPartial(object.webhook)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseNotificationEmail(): NotificationEmail {
+  return {
+    smtpHost: undefined,
+    port: undefined,
+    tls: undefined,
+    username: undefined,
+    passwordRef: undefined,
+    from: undefined,
+    to: [],
+  };
+}
+
+export const NotificationEmail: MessageFns<NotificationEmail> = {
+  encode(message: NotificationEmail, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.smtpHost !== undefined) {
+      writer.uint32(10).string(message.smtpHost);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(16).uint32(message.port);
+    }
+    if (message.tls !== undefined) {
+      writer.uint32(26).string(message.tls);
+    }
+    if (message.username !== undefined) {
+      writer.uint32(34).string(message.username);
+    }
+    if (message.passwordRef !== undefined) {
+      writer.uint32(42).string(message.passwordRef);
+    }
+    if (message.from !== undefined) {
+      writer.uint32(50).string(message.from);
+    }
+    for (const v of message.to) {
+      writer.uint32(58).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NotificationEmail {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNotificationEmail();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.smtpHost = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.tls = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.username = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.passwordRef = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.from = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.to.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NotificationEmail {
+    return {
+      smtpHost: isSet(object.smtpHost)
+        ? globalThis.String(object.smtpHost)
+        : isSet(object.smtp_host)
+        ? globalThis.String(object.smtp_host)
+        : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      tls: isSet(object.tls) ? globalThis.String(object.tls) : undefined,
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
+      passwordRef: isSet(object.passwordRef)
+        ? globalThis.String(object.passwordRef)
+        : isSet(object.password_ref)
+        ? globalThis.String(object.password_ref)
+        : undefined,
+      from: isSet(object.from) ? globalThis.String(object.from) : undefined,
+      to: globalThis.Array.isArray(object?.to) ? object.to.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: NotificationEmail): unknown {
+    const obj: any = {};
+    if (message.smtpHost !== undefined) {
+      obj.smtpHost = message.smtpHost;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.tls !== undefined) {
+      obj.tls = message.tls;
+    }
+    if (message.username !== undefined) {
+      obj.username = message.username;
+    }
+    if (message.passwordRef !== undefined) {
+      obj.passwordRef = message.passwordRef;
+    }
+    if (message.from !== undefined) {
+      obj.from = message.from;
+    }
+    if (message.to?.length) {
+      obj.to = message.to;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NotificationEmail>): NotificationEmail {
+    return NotificationEmail.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NotificationEmail>): NotificationEmail {
+    const message = createBaseNotificationEmail();
+    message.smtpHost = object.smtpHost ?? undefined;
+    message.port = object.port ?? undefined;
+    message.tls = object.tls ?? undefined;
+    message.username = object.username ?? undefined;
+    message.passwordRef = object.passwordRef ?? undefined;
+    message.from = object.from ?? undefined;
+    message.to = object.to?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseNotificationWebhook(): NotificationWebhook {
+  return { url: undefined, secretRef: undefined };
+}
+
+export const NotificationWebhook: MessageFns<NotificationWebhook> = {
+  encode(message: NotificationWebhook, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.url !== undefined) {
+      writer.uint32(10).string(message.url);
+    }
+    if (message.secretRef !== undefined) {
+      writer.uint32(18).string(message.secretRef);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NotificationWebhook {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNotificationWebhook();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.url = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.secretRef = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NotificationWebhook {
+    return {
+      url: isSet(object.url) ? globalThis.String(object.url) : undefined,
+      secretRef: isSet(object.secretRef)
+        ? globalThis.String(object.secretRef)
+        : isSet(object.secret_ref)
+        ? globalThis.String(object.secret_ref)
+        : undefined,
+    };
+  },
+
+  toJSON(message: NotificationWebhook): unknown {
+    const obj: any = {};
+    if (message.url !== undefined) {
+      obj.url = message.url;
+    }
+    if (message.secretRef !== undefined) {
+      obj.secretRef = message.secretRef;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NotificationWebhook>): NotificationWebhook {
+    return NotificationWebhook.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NotificationWebhook>): NotificationWebhook {
+    const message = createBaseNotificationWebhook();
+    message.url = object.url ?? undefined;
+    message.secretRef = object.secretRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNotificationRule(): NotificationRule {
+  return {
+    name: undefined,
+    enabled: undefined,
+    events: [],
+    minSeverity: undefined,
+    channels: [],
+    throttleSec: undefined,
+  };
+}
+
+export const NotificationRule: MessageFns<NotificationRule> = {
+  encode(message: NotificationRule, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== undefined) {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.enabled !== undefined) {
+      writer.uint32(16).bool(message.enabled);
+    }
+    for (const v of message.events) {
+      writer.uint32(26).string(v!);
+    }
+    if (message.minSeverity !== undefined) {
+      writer.uint32(34).string(message.minSeverity);
+    }
+    for (const v of message.channels) {
+      writer.uint32(42).string(v!);
+    }
+    if (message.throttleSec !== undefined) {
+      writer.uint32(48).uint32(message.throttleSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): NotificationRule {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseNotificationRule();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.events.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.minSeverity = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.channels.push(reader.string());
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.throttleSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): NotificationRule {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : undefined,
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      events: globalThis.Array.isArray(object?.events) ? object.events.map((e: any) => globalThis.String(e)) : [],
+      minSeverity: isSet(object.minSeverity)
+        ? globalThis.String(object.minSeverity)
+        : isSet(object.min_severity)
+        ? globalThis.String(object.min_severity)
+        : undefined,
+      channels: globalThis.Array.isArray(object?.channels) ? object.channels.map((e: any) => globalThis.String(e)) : [],
+      throttleSec: isSet(object.throttleSec)
+        ? globalThis.Number(object.throttleSec)
+        : isSet(object.throttle_sec)
+        ? globalThis.Number(object.throttle_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: NotificationRule): unknown {
+    const obj: any = {};
+    if (message.name !== undefined) {
+      obj.name = message.name;
+    }
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.events?.length) {
+      obj.events = message.events;
+    }
+    if (message.minSeverity !== undefined) {
+      obj.minSeverity = message.minSeverity;
+    }
+    if (message.channels?.length) {
+      obj.channels = message.channels;
+    }
+    if (message.throttleSec !== undefined) {
+      obj.throttleSec = Math.round(message.throttleSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<NotificationRule>): NotificationRule {
+    return NotificationRule.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<NotificationRule>): NotificationRule {
+    const message = createBaseNotificationRule();
+    message.name = object.name ?? undefined;
+    message.enabled = object.enabled ?? undefined;
+    message.events = object.events?.map((e) => e) || [];
+    message.minSeverity = object.minSeverity ?? undefined;
+    message.channels = object.channels?.map((e) => e) || [];
+    message.throttleSec = object.throttleSec ?? undefined;
     return message;
   },
 };

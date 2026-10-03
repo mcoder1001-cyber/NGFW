@@ -19,6 +19,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
@@ -56,6 +57,9 @@ type ItfPair struct {
 	HostIfName string `json:"host_if_name"`
 	HostIfType string `json:"host_if_type"`
 	Netns      string `json:"netns"`
+	// Drift is set by Retrieve only (never desired): "api-accept-missing" when a pair outside the
+	// lcp default namespace lacks the agent's (*,224.0.0.0/24) Accept, so the pair is recreated.
+	Drift string `json:"drift,omitempty"`
 }
 
 // Proto returns the canonical structpb document.
@@ -91,6 +95,9 @@ func (s DefaultNetns) Validate() error { return validName("netns", s.Netns, 31, 
 
 // Validate checks the names (Linux IFNAMSIZ 15, netns 31) and the host type.
 func (s ItfPair) Validate() error {
+	if s.Drift != "" {
+		return dfkit.Specf("lcp pair: drift is reported by Retrieve, not configurable")
+	}
 	if s.Interface == "" {
 		return dfkit.Specf("lcp pair: interface is empty")
 	}
@@ -114,10 +121,12 @@ type Option func(*options)
 type options struct {
 	ifaceKey dfkit.KeyFunc
 	globals  dfkit.Globals
+	flusher  HostAddrFlusher
+	mfibWait time.Duration
 }
 
 func buildOptions(opts []Option) options {
-	o := options{ifaceKey: dfkit.DefaultInterfaceKey}
+	o := options{ifaceKey: dfkit.DefaultInterfaceKey, flusher: netlinkFlusher{}, mfibWait: 2 * time.Second}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -261,6 +270,9 @@ type PairMeta struct {
 	PhySwIfIndex  uint32
 	HostSwIfIndex uint32
 	VifIndex      uint32
+	// APIAccept: the agent installed its API-sourced (*,224.0.0.0/24) Accept for this pair
+	// (S-lcp-netns-224-accept); Delete removes it by this flag, not by today's default netns.
+	APIAccept bool
 }
 
 // ItfPairDescriptor manages lcp.itf-pair objects (lcp_itf_pair_add_del_v3 / lcp_itf_pair_get):
@@ -315,11 +327,16 @@ func (d *ItfPairDescriptor) Dependencies(obj proto.Message) []scheduler.Dependen
 	return []scheduler.Dependency{{Key: d.o.ifaceKey(s.Interface)}, {Key: KeyDefaultNetns, Optional: true}}
 }
 
+// spec decodes and validates a pair for a descriptor operation. Drift is cleared first: it is a
+// Retrieve-only report, and the scheduler hands the retrieved (drifted) value back to Delete on
+// ErrRecreate, which must succeed so the pair can be recreated (S-lcp-netns-224-accept ruling).
+// Desired config carrying Drift is still refused by ItfPair.Validate on the desired path.
 func (d *ItfPairDescriptor) spec(obj proto.Message) (ItfPair, error) {
 	var s ItfPair
 	if err := dfkit.Decode(obj, &s); err != nil {
 		return s, err
 	}
+	s.Drift = ""
 	return s, s.Validate()
 }
 
@@ -332,6 +349,17 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	}
 	tg, err := dfkit.ResolveTarget(ctx, d.client, s.Interface, d.owner, NameItfPair)
 	if err != nil {
+		return nil, err
+	}
+	def, err := NewDefaultNetns(d.client).Current(ctx)
+	if err != nil {
+		return nil, err
+	}
+	needAccept := s.Netns != "" && s.Netns != def
+	// D-217 (option b): a table never mixes default-namespace and other-namespace pairs; a new
+	// default-namespace pair first clears a leftover API (*,224.0.0.0/24) local path there
+	// (TD-lcp-leftover-local-path)
+	if err := d.refuseMixedTable(ctx, tg.Index, s, def, needAccept); err != nil {
 		return nil, err
 	}
 	// D-095 / TD-3 review M5: the pair's VPP-side host tap is a new sw_if_index — cleaned of
@@ -357,11 +385,18 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 		if aerr := tg.Adopt(); aerr != nil {
 			return nil, aerr
 		}
-		kvs, rerr := d.Retrieve(ctx)
+		kvs, rerr := d.retrieve(ctx, false)
 		if rerr == nil {
 			for _, kv := range kvs {
 				if kv.Key == d.KeyOf(obj) && proto.Equal(kv.Value, s.Proto()) {
-					return kv.Meta, nil
+					meta, _ := kv.Meta.(PairMeta)
+					if needAccept { // idempotent re-add: restores a lost path (restart safety)
+						if err := d.setAPIAccept(ctx, tg.Index, true); err != nil {
+							return nil, err
+						}
+						meta.APIAccept = true
+					}
+					return meta, nil
 				}
 			}
 		}
@@ -369,12 +404,22 @@ func (d *ItfPairDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if err != nil {
 		return nil, fmt.Errorf("lcp_itf_pair_add_del_v3(add %s ↔ %s): %w", s.Interface, s.HostIfName, dfkit.PluginError(Plugin, err))
 	}
+	// S-lcp-netns-224-accept: a pair outside the lcp default namespace gets the Accept from us.
+	// A failure here rolls the pair back: it is not claimed yet and would leak (review M2).
+	if needAccept {
+		if err := d.setAPIAccept(ctx, tg.Index, true); err != nil {
+			return nil, errors.Join(err, d.rollback(ctx, tg.Index, s))
+		}
+	}
 	// L3 (open, P12): the VPP-side host tap stays untagged. Tagging it "<owner>:…" would make DF-1's
 	// tapv2 descriptor see an owned, undesired tap and delete it; P12 decides the tap's ownership.
 	if err := tg.Claim(); err != nil { // only after VPP accepted the add
-		return nil, err
+		if needAccept {
+			err = errors.Join(err, d.setAPIAccept(ctx, tg.Index, false))
+		}
+		return nil, errors.Join(err, d.rollback(ctx, tg.Index, s))
 	}
-	return PairMeta{PhySwIfIndex: tg.Index, HostSwIfIndex: uint32(rep.HostSwIfIndex), VifIndex: rep.VifIndex}, nil
+	return PairMeta{PhySwIfIndex: tg.Index, HostSwIfIndex: uint32(rep.HostSwIfIndex), VifIndex: rep.VifIndex, APIAccept: needAccept}, nil
 }
 
 // Update implements scheduler.Descriptor: recreate.
@@ -389,7 +434,8 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 	if err != nil {
 		return err
 	}
-	_ = meta // re-resolve right before acting by index (reused after a VPP restart, D-071)
+	// the sw_if_index is re-resolved right before acting (reused after a VPP restart, D-071);
+	// meta only carries whether we installed the API Accept
 	tg, ok, err := dfkit.ResolveForDelete(ctx, d.client, s.Interface, d.owner, NameItfPair)
 	if err != nil || !ok {
 		return err // gone, or a foreign pair on an unclaimed untagged interface: never touched
@@ -400,16 +446,28 @@ func (d *ItfPairDescriptor) Delete(ctx context.Context, obj proto.Message, meta 
 	if err != nil {
 		return err
 	}
-	exists, host := false, uint32(0)
+	exists, host, ns, hostIf, vif := false, uint32(0), "", s.HostIfName, 0
 	for _, p := range pairs {
 		if uint32(p.PhySwIfIndex) == idx {
-			exists, host = true, uint32(p.HostSwIfIndex)
+			exists, host, ns, hostIf, vif = true, uint32(p.HostSwIfIndex), strings.TrimRight(p.Netns, "\x00"), strings.TrimRight(p.HostIfName, "\x00"), int(p.VifIndex)
 		}
 	}
 	if exists {
 		// D-095 / review H3: the host tap's bindings go while their tables still exist
 		if err := ifsanitize.BeforeDelete(ctx, d.client, host, s.HostIfName); err != nil {
 			return err
+		}
+		// S-lcp-netns-224-accept: our API-sourced Accept goes with the pair — by what we
+		// installed (meta), else by what VPP shows on idx, never by today's default netns
+		if need, err := d.installedAPIAccept(ctx, meta, idx, ns); err != nil {
+			return err
+		} else if need {
+			if err := d.setAPIAccept(ctx, idx, false); err != nil {
+				return err
+			}
+		}
+		if ns == "" { // S-ospf-mfib-stale: linux-cp's IPv4 (*,224.0.0.0/24) Accept goes only while the pair exists
+			d.dropAccept(ctx, idx, vif, hostIf)
 		}
 		_, err = lcp.NewServiceClient(d.client).LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{
 			IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx),
@@ -458,7 +516,13 @@ func Pairs(ctx context.Context, c vpp.Client) ([]*lcp.LcpItfPairDetails, error) 
 
 // Retrieve implements scheduler.Descriptor: lcp_itf_pair_get, pairs whose VPP-side interface is
 // owned.
+// A pair outside the lcp default namespace whose phy has no (*,224.0.0.0/24) Accept is reported
+// with Drift set, so the scheduler recreates it (review M4).
 func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	return d.retrieve(ctx, true)
+}
+
+func (d *ItfPairDescriptor) retrieve(ctx context.Context, drift bool) ([]scheduler.KV, error) {
 	pairs, err := Pairs(ctx, d.client)
 	if err != nil {
 		return nil, err
@@ -470,6 +534,7 @@ func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 	if err != nil {
 		return nil, err
 	}
+	def, gotDef := "", false
 	var out []scheduler.KV
 	for _, p := range pairs {
 		name, ok := ifaces.Reportable(uint32(p.PhySwIfIndex), NameItfPair)
@@ -480,10 +545,27 @@ func (d *ItfPairDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 			Interface: name, HostIfName: strings.TrimRight(p.HostIfName, "\x00"),
 			HostIfType: hostTypeFromAPI[p.HostIfType], Netns: strings.TrimRight(p.Netns, "\x00"),
 		}
-		out = append(out, scheduler.KV{
-			Key: scheduler.Join(NameItfPair, name), Value: s.Proto(),
-			Meta: PairMeta{PhySwIfIndex: uint32(p.PhySwIfIndex), HostSwIfIndex: uint32(p.HostSwIfIndex), VifIndex: p.VifIndex},
-		})
+		meta := PairMeta{PhySwIfIndex: uint32(p.PhySwIfIndex), HostSwIfIndex: uint32(p.HostSwIfIndex), VifIndex: p.VifIndex}
+		if s.Netns != "" {
+			if !gotDef {
+				if def, err = NewDefaultNetns(d.client).Current(ctx); err != nil {
+					return nil, err
+				}
+				gotDef = true
+			}
+			// Rebuild deletion metadata independently of today's default namespace.
+			// An API Accept can predate a default change to this pair's namespace;
+			// Retrieve must retain it just as the metadata returned by Create did.
+			has, err := d.phyAccept(ctx, meta.PhySwIfIndex)
+			if err != nil {
+				return nil, err
+			}
+			meta.APIAccept = has
+			if s.Netns != def && !has && drift {
+				s.Drift = DriftAPIAcceptMissing
+			}
+		}
+		out = append(out, scheduler.KV{Key: scheduler.Join(NameItfPair, name), Value: s.Proto(), Meta: meta})
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Key < out[j].Key })
 	return dfkit.Dedupe(out), nil

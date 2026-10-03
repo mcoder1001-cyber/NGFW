@@ -119,6 +119,8 @@ import { keaDhcpRelayFeature } from './features/kea-dhcp-relay/index.js';
 // wave-A: F-unbound-chrony-syslog
 import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/index.js';
 
+import { notificationsFeature } from './features/notifications/index.js';
+
 const DB_HANDLE = Symbol('VRX_DB_HANDLE');
 
 /** Closes the pool and the Valkey client when the application shuts down. */
@@ -145,6 +147,7 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
+        ...notificationsFeature.controllers,
         HealthController,
         AuthController,
         ConfigController,
@@ -250,6 +253,7 @@ export class AppModule {
         { provide: DB, useFactory: (h: DbHandle) => h.db, inject: [DB_HANDLE] },
         { provide: VALKEY, useFactory: () => createValkey(env) },
         { provide: CONFIG_REPO, useClass: PgConfigRepo },
+        ...notificationsFeature.providers,
         Resources,
         Bus,
         AgentClient,

@@ -366,26 +366,26 @@ var File_nftables_model_proto protoreflect.FileDescriptor
 
 const file_nftables_model_proto_rawDesc = "" +
 	"\n" +
-	"\x14nftables_model.proto\x12\x12ngfw.agent.nftables\x1a\x16ngfw/v1/dataplane.proto\"\xc7\x02\n" +
-	"\tHostTable\x12)\n" +
-	"\x06config\x18\x01 \x01(\v2\x11.ngfw.v1.AclConfigR\x06config\x12+\n" +
-	"\x04sets\x18\x02 \x03(\v2\x17.ngfw.agent.nftables.SetR\x04sets\x121\n" +
-	"\x06chains\x18\x03 \x03(\v2\x19.ngfw.agent.nftables.ChainR\x06chains\x12\x18\n" +
-	"\adormant\x18\x04 \x01(\bR\adormant\x12T\n" +
-	"\rkernel_hashes\x18\x05 \x03(\v2/.ngfw.agent.nftables.HostTable.KernelHashesEntryR\fkernelHashes\x1a?\n" +
+	"\x14nftables_model.proto\x12\x13ngfw.agent.nftables\x1a\x17ngfw/v1/dataplane.proto\"\xcb\x02\n" +
+	"\tHostTable\x12*\n" +
+	"\x06config\x18\x01 \x01(\v2\x12.ngfw.v1.AclConfigR\x06config\x12,\n" +
+	"\x04sets\x18\x02 \x03(\v2\x18.ngfw.agent.nftables.SetR\x04sets\x122\n" +
+	"\x06chains\x18\x03 \x03(\v2\x1a.ngfw.agent.nftables.ChainR\x06chains\x12\x18\n" +
+	"\adormant\x18\x04 \x01(\bR\adormant\x12U\n" +
+	"\rkernel_hashes\x18\x05 \x03(\v20.ngfw.agent.nftables.HostTable.KernelHashesEntryR\fkernelHashes\x1a?\n" +
 	"\x11KernelHashesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"I\n" +
 	"\x03Set\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
-	"\belements\x18\x03 \x03(\tR\belements\"\x93\x01\n" +
+	"\belements\x18\x03 \x03(\tR\belements\"\x94\x01\n" +
 	"\x05Chain\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04hook\x18\x02 \x01(\tR\x04hook\x12\x1a\n" +
 	"\bpriority\x18\x03 \x01(\x05R\bpriority\x12\x16\n" +
-	"\x06policy\x18\x04 \x01(\tR\x06policy\x12.\n" +
-	"\x05rules\x18\x05 \x03(\v2\x18.ngfw.agent.nftables.RuleR\x05rules\"\xac\x01\n" +
+	"\x06policy\x18\x04 \x01(\tR\x06policy\x12/\n" +
+	"\x05rules\x18\x05 \x03(\v2\x19.ngfw.agent.nftables.RuleR\x05rules\"\xac\x01\n" +
 	"\x04Rule\x12\x18\n" +
 	"\acomment\x18\x01 \x01(\tR\acomment\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x12\x12\n" +

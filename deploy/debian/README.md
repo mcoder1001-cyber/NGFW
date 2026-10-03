@@ -17,12 +17,12 @@ resolute install/remove/reinstall testing. No live acceptance has run.
 New source builds produce `ngfw-agent`, `ngfw-api`, `ngfw-web` and `ngfw-meta`
 packages, use `ngfw-*.service` units, `NGFW_*` environment variables and
 `/etc/ngfw`, `/var/lib/ngfw` and `/run/ngfw` paths. They are a new naming
-boundary; existing VRX packages, units, environment files and persisted data
+boundary; existing pre-rename packages, units, environment files and persisted data
 are not migrated or removed automatically by this change. Operators must plan
 and validate any migration separately before installing on an existing device.
 The source rename performs no host installation or service action.
 
 Patched VPP source builds now carry the `+ngfw` local revision suffix. Upstream
 version/tag/commit and locked dependency input hashes remain pinned. Existing
-`+vrx` binaries and their manifests keep their original identity and provenance;
+pre-rename binaries and their manifests keep their original identity and provenance;
 new NGFW releases require a fresh build and newly generated manifests.

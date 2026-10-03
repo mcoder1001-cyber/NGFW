@@ -35,7 +35,7 @@ class GenError(Exception):
 def clean(text: object, limit: int = 110) -> str:
     """An OpenAPI string made safe for a `#` comment: printable, one line, no backslashes, bounded."""
     out = "".join(ch if ch.isprintable() and ch not in "\\\u2028\u2029" else " " for ch in str(text))
-    return out[:limit]
+    return out[:limit].rstrip()
 
 
 def ident(name: str, what: str) -> str:

@@ -88,3 +88,17 @@ Read root AGENTS, context/contributing/decision policy, P10 prompt/envelope,
 PENDING ownership report, unit-agent independent review and resume R8 report.
 Only source inspection and docs whitespace checks executed. No root/syscall mutation,
 unit execution, heavy Go, target test or new product PASS is claimed.
+
+## Historical evidence comparison
+
+No prior reviewed report inspected here says the default same-group socket chown
+requires CAP_CHOWN. P10-unit-agent-review.md:20 explicitly attributes the missing
+capability to renderer temporary files/fixed daemon owners; P10-unit-packaging-review.md:28
+and P10-packaging-resume-review-R8.md:14 preserve that same daemon boundary.
+P10-code-report.md:47 records Unix socket listen EPERM AND foreign-owner chown EINVAL
+as local validation-environment failures, not an executed installed-unit socket
+CAP_CHOWN diagnosis. P10-packaging-finish-wip.md:81 similarly records temporary
+fake-agent socket listen failures. Those historical failures remain valid observations;
+relabeling them as default packaged socket ownership failure would contradict their
+limited execution scope. This report corrects that potential inference without rewriting
+history or claiming an actual default appliance PASS.
